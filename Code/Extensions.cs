@@ -1,0 +1,75 @@
+﻿using Silk.NET.Maths;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Mana
+{
+    public static class Extensions
+    {
+        public static string ToHex(this byte[] bytes, bool upperCase)
+        {
+            StringBuilder result = new StringBuilder(bytes.Length * 2);
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                result.Append(bytes[i].ToString(upperCase ? "X2" : "x2"));
+            }
+            return result.ToString();
+        }
+
+        public static float Clamp(this float value, float min, float max)
+        {
+            return MathF.Min(MathF.Max(value, min), max);
+        }
+
+        public static float ToRadians(this float value)
+        {
+            return Scalar.DegreesToRadians<float>(value);
+        }
+
+        public static float ToDegrees(this float value)
+        {
+            return Scalar.RadiansToDegrees<float>(value);
+        }
+        
+        public static Vector3 ToEulerDegrees(this Vector3 vector)
+        {
+            return vector * (MathF.PI / 180.0f);
+        }
+
+        public static Vector3 ToEuler(this Quaternion r)
+        {
+            float yaw = MathF.Atan2(2.0f * (r.Y * r.W + r.X * r.Z), 1.0f - 2.0f * (r.X * r.X + r.Y * r.Y));
+            float pitch = MathF.Asin(2.0f * (r.X * r.W - r.Y * r.Z));
+            float roll = MathF.Atan2(2.0f * (r.X * r.Y + r.Z * r.W), 1.0f - 2.0f * (r.X * r.X + r.Z * r.Z));
+            return new Vector3(yaw, pitch, roll);
+        }
+
+        public static Quaternion ToQuaternionFromEuler(this Vector3 eulerAngles)
+        {
+            return Quaternion.CreateFromYawPitchRoll(eulerAngles.X, eulerAngles.Y, eulerAngles.Z);
+        }
+
+        public static Vector3 Transform(this Vector3 value, Matrix4x4 transform)
+        {
+            return Vector3.Transform(value, transform);
+        }
+
+        public static Vector3 TransformNormal(this Vector3 value, Matrix4x4 transform)
+        {
+            return Vector3.TransformNormal(value, transform);
+        }
+
+        public static string ToPrettyMatrixString(this Matrix4x4 matrix)
+        {
+            return 
+$@"{matrix.M11.ToString("0.0")}, {matrix.M12.ToString("0.0")}, {matrix.M13.ToString("0.0")}, {matrix.M14.ToString("0.0")},
+{matrix.M21.ToString("0.0")}, {matrix.M22.ToString("0.0")}, {matrix.M23.ToString("0.0")}, {matrix.M24.ToString("0.0")},
+{matrix.M31.ToString("0.0")}, {matrix.M32.ToString("0.0")}, {matrix.M33.ToString("0.0")}, {matrix.M34.ToString("0.0")},
+{matrix.M41.ToString("0.0")}, {matrix.M42.ToString("0.0")}, {matrix.M43.ToString("0.0")}, {matrix.M44.ToString("0.0")}";
+        }
+    }
+}
