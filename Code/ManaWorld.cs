@@ -108,6 +108,11 @@ namespace Mana
 
         public void Update()
         {
+            if (Scenes.Count == 0)
+            {
+                Scenes.Add(new ManaScene(this));
+            }
+
             CameraNode.UpdateTransform();
 
             ViewMatrix = MainCamera._ViewMatrix;

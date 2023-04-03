@@ -215,10 +215,10 @@ namespace Mana
         {
             var transform = Owner.WorldTransform;
 
-            Game.Instance._World.AddCube(Vector3.Zero, Colors.Aqua, 0.002f);
-            Game.Instance._World.AddCube(Vector3.UnitX * 0.004f, Colors.Red, 0.002f);
-            Game.Instance._World.AddCube(Vector3.UnitY * 0.004f, Colors.Green, 0.002f);
-            Game.Instance._World.AddCube(Vector3.UnitZ * 0.004f, Colors.Blue, 0.002f);
+            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, 0.25f);
+            Game.Instance._World.AddCube(Vector3.UnitX * 0.3f, Colors.Red, 0.25f);
+            Game.Instance._World.AddCube(Vector3.UnitY * 0.3f, Colors.Green, 0.25f);
+            Game.Instance._World.AddCube(Vector3.UnitZ * 0.3f, Colors.Blue, 0.25f);
 
 
             Game.Instance._World.AddCube(transform.Translation, Colors.Red, 0.002f);

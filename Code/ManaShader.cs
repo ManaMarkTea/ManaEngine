@@ -175,7 +175,7 @@ namespace Mana
 
                 if (uniform.name == "spheres[0].position")
                 {
-                    gl.Uniform3(uniform.location, new Vector3(1,0,0));
+                    gl.Uniform3(uniform.location, new Vector3(0.3f,0,0));
                 }
                 if (uniform.name == "spheres[0].material.color")
                 {
@@ -183,13 +183,13 @@ namespace Mana
                 }
                 if (uniform.name == "spheres[0].radius")
                 {
-                    gl.Uniform1(uniform.location, 0.25f);
+                    gl.Uniform1(uniform.location, 0.12f);
                 }
 
 
                 if (uniform.name == "spheres[1].position")
                 {
-                    gl.Uniform3(uniform.location, new Vector3(0, 1, 0));
+                    gl.Uniform3(uniform.location, new Vector3(0, 0.3f, 0));
                 }
                 if (uniform.name == "spheres[1].material.color")
                 {
@@ -197,12 +197,12 @@ namespace Mana
                 }
                 if (uniform.name == "spheres[1].radius")
                 {
-                    gl.Uniform1(uniform.location, 0.25f);
+                    gl.Uniform1(uniform.location, 0.12f);
                 }
 
                 if (uniform.name == "spheres[2].position")
                 {
-                    gl.Uniform3(uniform.location, new Vector3(0, 0, 1));
+                    gl.Uniform3(uniform.location, new Vector3(0, 0, 0.3f));
                 }
                 if (uniform.name == "spheres[2].material.color")
                 {
@@ -210,13 +210,13 @@ namespace Mana
                 }
                 if (uniform.name == "spheres[2].radius")
                 {
-                    gl.Uniform1(uniform.location, 0.25f);
+                    gl.Uniform1(uniform.location, 0.12f);
                 }
 
 
                 if (uniform.name == "spheres[3].position")
                 {
-                    gl.Uniform3(uniform.location, new Vector3(0.5f, 1, 1));
+                    gl.Uniform3(uniform.location, new Vector3(0, 0, 0));
                 }
                 if (uniform.name == "spheres[3].material.color")
                 {
@@ -232,7 +232,7 @@ namespace Mana
                 }
                 if (uniform.name == "spheres[3].radius")
                 {
-                    gl.Uniform1(uniform.location, 0.55f);
+                    gl.Uniform1(uniform.location, 0.12f);
                 }
 
                 if (uniform.name == "spheres[4].position")

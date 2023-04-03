@@ -83,7 +83,7 @@ namespace Mana
             gl.ClearColor(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
 
             _World = new ManaWorld();
-            _World.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
+            //_World.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
             _World.Update();
 
         }
