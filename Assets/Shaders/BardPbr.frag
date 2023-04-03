@@ -34,7 +34,9 @@ void main()
     float specular = pow(max(dot(H, V), 0.0), 64.0);
 
     // Calculate the final color
-    outPixelColor = vec4(albedo * diffuse + specular * metallic, 1.0);
+    vec3 tintedAlbedo = (vec4(albedo,1) * outColor).xyz;
+
+    outPixelColor = vec4(tintedAlbedo * diffuse + specular * metallic, 1.0);
         
     //outPixelColor = vec4(N,1);
 }

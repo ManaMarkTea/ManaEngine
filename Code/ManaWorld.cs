@@ -1,4 +1,7 @@
-﻿using Silk.NET.Assimp;
+﻿using ImGuiNET;
+using Mana.Code;
+using Silk.NET.Assimp;
+using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -11,6 +14,8 @@ namespace Mana
 {
     public class ManaWorld
     {
+        public bool UseRayTracing = true;
+
         public List<ManaMesh> Meshes { get; set; }
 
         public List<ManaMaterial> Materials { get; set; }
@@ -45,6 +50,7 @@ namespace Mana
             RenderTarget.AddRgbaBuffer("Colors");
             RenderTarget.AddDepthBuffer("Depth");
             RenderTarget.Build();
+            RenderTarget.UnBind();
 
             Game.Instance._Window.Resize += _Window_Resize;
         }
@@ -54,10 +60,10 @@ namespace Mana
             RenderTarget.Resize(obj.X, obj.Y);
         }
 
-        public void AddCube(Vector3 position, float size)
+        public void AddCube(Vector3 position, Vector4 color, float size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, size)));
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));
             Scenes[0].Children.Add(extraCube);
         }
 
@@ -104,7 +110,7 @@ namespace Mana
         {
             CameraNode.UpdateTransform();
 
-            ViewMatrix = MainCamera._WorldMatrix;
+            ViewMatrix = MainCamera._ViewMatrix;
 
             //Matrix4x4 projMatrix = Matrix4x4.CreateOrthographic(-800, 800 * aspect, -1000, 1000);
             //Matrix4x4 projMatrix = Matrix4x4.CreateOrthographic(-0.5f, -0.5f * aspect, -1000, 1000);
@@ -122,7 +128,7 @@ namespace Mana
 
         public void Draw()
         {
-            RenderTarget.Bind();
+            if (UseRayTracing) { RenderTarget.Bind(); }
 
             var gl = Game.Instance.gl;
             gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
@@ -133,9 +139,22 @@ namespace Mana
                 scene.Draw();
             }
 
-            RenderTarget.UnBind();
 
-            RenderTarget.DrawFullScreenQuad();
+            if (UseRayTracing)
+            {
+                RenderTarget.UnBind();
+
+                RenderTarget.DrawFullScreenQuad();
+            }
+
+            ImGui.Begin("Camera");
+
+            ImGui.Checkbox("RayTrace", ref this.UseRayTracing);
+
+
+            ImGui.End();
+
+
 
         }
 

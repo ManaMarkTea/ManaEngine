@@ -165,7 +165,7 @@ namespace Mana
 
                 if (uniform.name == "numSpheres")
                 {
-                    gl.Uniform1(uniform.location, 5);
+                    gl.Uniform1(uniform.location, 6);
                 }
 
                 if (uniform.name == "FrameNumber")
@@ -175,7 +175,7 @@ namespace Mana
 
                 if (uniform.name == "spheres[0].position")
                 {
-                    gl.Uniform3(uniform.location, new Vector3(0,0,1));
+                    gl.Uniform3(uniform.location, new Vector3(1,0,0));
                 }
                 if (uniform.name == "spheres[0].material.color")
                 {
@@ -189,7 +189,7 @@ namespace Mana
 
                 if (uniform.name == "spheres[1].position")
                 {
-                    gl.Uniform3(uniform.location, new Vector3(1, 0, 1));
+                    gl.Uniform3(uniform.location, new Vector3(0, 1, 0));
                 }
                 if (uniform.name == "spheres[1].material.color")
                 {
@@ -198,6 +198,41 @@ namespace Mana
                 if (uniform.name == "spheres[1].radius")
                 {
                     gl.Uniform1(uniform.location, 0.25f);
+                }
+
+                if (uniform.name == "spheres[2].position")
+                {
+                    gl.Uniform3(uniform.location, new Vector3(0, 0, 1));
+                }
+                if (uniform.name == "spheres[2].material.color")
+                {
+                    gl.Uniform4(uniform.location, new Vector4(0, 0, 1, 1));
+                }
+                if (uniform.name == "spheres[2].radius")
+                {
+                    gl.Uniform1(uniform.location, 0.25f);
+                }
+
+
+                if (uniform.name == "spheres[3].position")
+                {
+                    gl.Uniform3(uniform.location, new Vector3(0.5f, 1, 1));
+                }
+                if (uniform.name == "spheres[3].material.color")
+                {
+                    gl.Uniform4(uniform.location, new Vector4(0.5f, 0.5f, 0.5f, 1));
+                }
+                if (uniform.name == "spheres[3].material.emission")
+                {
+                    gl.Uniform4(uniform.location, new Vector4(0.5f, 0.5f, 0.5f, 1));
+                }
+                if (uniform.name == "spheres[3].material.emissionStrength")
+                {
+                    gl.Uniform1(uniform.location, 7.0f);
+                }
+                if (uniform.name == "spheres[3].radius")
+                {
+                    gl.Uniform1(uniform.location, 0.55f);
                 }
 
                 if (uniform.name == "spheres[4].position")
@@ -214,26 +249,6 @@ namespace Mana
                 }
 
 
-                if (uniform.name == "spheres[2].position")
-                {
-                    gl.Uniform3(uniform.location, new Vector3(0.5f, 1, 1));
-                }
-                if (uniform.name == "spheres[2].material.color")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0.5f, 0.5f, 0.5f, 1));
-                }
-                if (uniform.name == "spheres[2].material.emission")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0.5f, 0.5f, 0.5f, 1));
-                }
-                if (uniform.name == "spheres[2].material.emissionStrength")
-                {
-                    gl.Uniform1(uniform.location, 10.0f);
-                }
-                if (uniform.name == "spheres[2].radius")
-                {
-                    gl.Uniform1(uniform.location, 0.55f);
-                }
 
 
                 if (uniform.name == "ViewParams")
@@ -255,7 +270,26 @@ namespace Mana
                 }
                 else if (uniform.name == "gEyeWorldPos")
                 {
-                    gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
+                    //gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
+                    gl.Uniform3(uniform.location, camera.Owner.Position);
+                }
+                else if (uniform.name == "gCameraWorldMatrix")
+                {
+                    //gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
+                    var mat = camera.Owner.WorldTransform;
+                    gl.UniformMatrix4(uniform.location, 1, true, (float*)&mat);
+                }
+                else if (uniform.name == "gProjectionMatrix")
+                {
+                    //gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
+                    var mat = camera._ProjectionMatrix;
+                    gl.UniformMatrix4(uniform.location, 1, true, (float*)&mat);
+                }
+                else if (uniform.name == "gCameraWorldMatrixProjection")
+                {
+                    //gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
+                    var mat = camera.Owner.WorldTransform * camera._ProjectionMatrix;
+                    gl.UniformMatrix4(uniform.location, 1, true, (float*)&mat);
                 }
                 else if (uniform.name == "gPointLight.Base.DiffuseIntensity")
                 {
@@ -267,7 +301,7 @@ namespace Mana
                 {
                     if (uniform.name.Equals(modelViewProjectUniform, StringComparison.OrdinalIgnoreCase))
                     {
-                        Matrix4x4 mvpm = objectMatrix * camera._WorldMatrix * camera._ProjectionMatrix;
+                        Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;
                         gl.UniformMatrix4(uniform.location, 1, false, (float*)&mvpm);
                     }
                 }
@@ -285,7 +319,7 @@ namespace Mana
                 {
                     if (uniform.name.Equals(modelViewMatrixUniform, StringComparison.OrdinalIgnoreCase))
                     {
-                        Matrix4x4 mvm = objectMatrix * camera._WorldMatrix;
+                        Matrix4x4 mvm = objectMatrix * camera._ViewMatrix;
                         gl.UniformMatrix4(uniform.location, 1, false, (float*)&mvm);
                     }
                 }

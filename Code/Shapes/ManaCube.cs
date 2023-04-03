@@ -9,9 +9,12 @@ using System.Threading.Tasks;
 namespace Mana
 {
     public class ManaCube : ManaMesh
-    {        
-        public ManaCube(ManaWorld world, float size = 1.0f) : base(world)
+    {
+        public Vector4 Color { get; set; }
+
+        public ManaCube(ManaWorld world, Vector4 color, float size = 1.0f) : base(world)
         {
+            Color = color;
             GenerateData(size);            
         }
 
@@ -65,7 +68,7 @@ namespace Mana
                     {
                         Position = va,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = new Vector4(1,1,1,1),
+                        Color = this.Color,
                         TexCoord0 = new Vector2(0,0)
                     },
 
@@ -73,7 +76,7 @@ namespace Mana
                     {
                         Position = vb,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = new Vector4(1,1,1,1),
+                        Color = this.Color,
                         TexCoord0 = new Vector2(1,0)
                     },
 
@@ -81,7 +84,7 @@ namespace Mana
                     {
                         Position = vc,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = new Vector4(1,1,1,1),
+                        Color = this.Color,
                         TexCoord0 = new Vector2(1,1)
                     },
 
@@ -89,7 +92,7 @@ namespace Mana
                     {
                         Position = vd,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = new Vector4(1,1,1,1),
+                        Color = this.Color,
                         TexCoord0 = new Vector2(0,1)
                     },
                 });

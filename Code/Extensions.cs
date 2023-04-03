@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,6 +11,33 @@ namespace Mana
 {
     public static class Extensions
     {
+        public static Matrix4x4 LookAt(Vector3 position, Vector3 target, Vector3 up)
+        {
+            Vector3 zaxis = Vector3.Normalize(target - position);
+            Vector3 xaxis = Vector3.Normalize(Vector3.Cross(up, zaxis));
+            Vector3 yaxis = Vector3.Cross(zaxis, xaxis);
+
+            Matrix4x4 result = Matrix4x4.Identity;
+
+            result.M11 = xaxis.X;
+            result.M12 = yaxis.X;
+            result.M13 = zaxis.X;
+
+            result.M21 = xaxis.Y;
+            result.M22 = yaxis.Y;
+            result.M23 = zaxis.Y;
+
+            result.M31 = xaxis.Z;
+            result.M32 = yaxis.Z;
+            result.M33 = zaxis.Z;
+
+            result.M41 = -Vector3.Dot(xaxis, position);
+            result.M42 = -Vector3.Dot(yaxis, position);
+            result.M43 = -Vector3.Dot(zaxis, position);
+
+            return result;
+        }
+
         public static string ToHex(this byte[] bytes, bool upperCase)
         {
             StringBuilder result = new StringBuilder(bytes.Length * 2);

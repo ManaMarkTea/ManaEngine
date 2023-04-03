@@ -24,6 +24,9 @@ uniform mat4 gWVP;
 uniform mat4 gWorld;
 uniform mat4 modelViewMatrix;
 uniform vec3 gEyeWorldPos;
+uniform mat4 gCameraWorldMatrix;
+uniform mat4 gCameraWorldMatrixProjection;
+uniform mat4 gProjectionMatrix;
 
 struct Ray 
 {
@@ -158,6 +161,7 @@ HitInfo CalculateRayCollision(Ray ray)
     for (int i = 0; i < numSpheres; i++)
     {
         Sphere sphere = spheres[i];
+
         HitInfo hitInfo = RaySphere(ray, sphere.position, sphere.radius);
 
         if (hitInfo.didHit && hitInfo.dist < closest.dist)
@@ -201,6 +205,46 @@ vec4 Trace(Ray ray, inout uint rngState)
     return incomingLight;
 }
 
+
+mat3 getRotation()
+{
+  // Extract the 3x3 rotation matrix from the 4x4 view matrix
+  return mat3(
+    modelViewMatrix[0].xyz,
+    modelViewMatrix[1].xyz,
+    modelViewMatrix[2].xyz
+  );
+}
+
+vec2 getImagePlane()
+{
+  // http://www.terathon.com/gdc07_lengyel.pdf
+  // Extracting aspect and focal from projection matrix:
+  // e = focal, h = height, w = width, P = projection matrix
+  // P = | e   0       0   0 |
+  //     | 0   e/(h/w) 0   0 |
+  //     | 0   0       .   . |
+  //     | 0   0       -1  0 |
+  float focal = gProjectionMatrix[0].x;
+  float focalY = gProjectionMatrix[1].y;
+
+  // Fix coordinate aspect and scale
+  return vec2( ( coords.x - 0.5 ) * focalY, ( coords.y - 0.5 ) * focal );
+}
+
+vec3 getCameraPos( in mat3 rotation )
+{
+  // Xc = R * Xw + t
+  // c = - R.t() * t <=> c = - t.t() * R
+  return modelViewMatrix[3].xyz * rotation;
+}
+
+vec3 getCamRay( in mat3 rotation, in vec2 screenUV )
+{
+  // Compute camera ray then rotate it in order to get it in world coordinate
+  return vec3( screenUV.x, screenUV.y, gProjectionMatrix[0].x ) * rotation;
+}
+
 void main()
 {
     //vec4 color = texture2D(mainTexture, coords.st);
@@ -211,12 +255,18 @@ void main()
     uint rngState = uint(pixelIndex) + uint(FrameNumber*FrameNumber*FrameNumber*pixelIndex);
 
 
-    vec3 viewPointLocal = vec3(coords - 0.5, 1) * ViewParams;
-    vec3 viewPoint = (modelViewMatrix * vec4(viewPointLocal, 1)).xyz;
+    mat3 cameraRotation = getRotation();
+    vec2 screenUV = getImagePlane();
+    vec3 eyePos = getCameraPos(cameraRotation);
+    vec3 rayDir = getCamRay(cameraRotation, screenUV);    
+
+    vec3 viewPointLocal = vec3(coords - 0.5, 1) * ViewParams;    
+    vec3 viewPoint = ( modelViewMatrix * vec4(viewPointLocal, 1)).xyz;
+    //vec3 viewPoint = ( gCameraWorldMatrixProjection * vec4(viewPointLocal, 1)).xyz;
 
     Ray ray;
-    ray.origin = gEyeWorldPos;
-    ray.direction = normalize(viewPoint - ray.origin);
+    ray.origin = eyePos;
+    ray.direction = rayDir;
         
     vec4 incomingLight = vec4(0,0,0,1);
     for (int i = 0; i < 55; i++)
@@ -231,5 +281,6 @@ void main()
     //FragColor = RandomColor(coords);
     //FragColor = vec4(ray.Direction,0);
     //FragColor = vec4(coords.yyy,1);
+    //FragColor = vec4(screenUV.xy, 0, 1);
     
 }
