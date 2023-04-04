@@ -91,6 +91,12 @@ namespace Mana
             return Vector3.TransformNormal(value, transform);
         }
 
+        public static Vector3 Normalized(this Vector3 value)
+        {
+            return Vector3.Normalize(value);
+        }
+
+
         public static string ToPrettyMatrixString(this Matrix4x4 matrix)
         {
             return 

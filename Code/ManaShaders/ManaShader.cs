@@ -1,4 +1,5 @@
-﻿using Silk.NET.Maths;
+﻿using Mana.Code.ManaShaders;
+using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -11,18 +12,6 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public struct Uniform
-    {
-        public int location;
-        public UniformType type;
-        public string name;
-
-        public override string ToString()
-        {
-            return $"{location}:{type} {name}";
-        }
-    }
-
     public class ManaShader
     {
         private GL gl = Game.Instance.gl;
@@ -32,15 +21,22 @@ namespace Mana
         private uint fragmentShaderObject = 0;
         private uint geomShaderObject = 0;
 
+        public ManaWorld World { get; private set; }
+
         public string VertexShaderCompilerLog { get; set; } = "";
         public string FragmentShaderCompilerLog { get; set; } = "";
         public string GeometryShaderCompilerLog { get; set; } = "";
 
         public string LinkCompilerLog { get; set; } = "";
 
-        public List<Uniform> UniformNames { get; set; } = new List<Uniform>();                
-        public Dictionary<string, Uniform> UniformMap { get; set; } = new Dictionary<string, Uniform>();
+        public List<ManaShaderUniform> UniformNames { get; set; } = new List<ManaShaderUniform>();                
+        public Dictionary<string, ManaShaderUniform> UniformMap { get; set; } = new Dictionary<string, ManaShaderUniform>();
 
+        public ManaShader(ManaWorld world)
+        {
+            this.World = world;            
+        }
+        
         public void LoadShader(string vertPath, string fragPath, string geomShader = "")
         {
             gl = Game.Instance.gl;
@@ -115,7 +111,8 @@ namespace Mana
             {
                 gl.GetActiveUniform(shaderProgram, i, (uint)64, out uint uniformLength, out int uniformSize, out UniformType type, out string uniformName);
 
-                Uniform uniform;
+                ManaShaderUniform uniform = new ManaShaderUniform();
+                uniform.gl = gl;
                 uniform.name = uniformName;
                 uniform.location = (int)i;
                 uniform.type = type;
@@ -139,7 +136,7 @@ namespace Mana
             gl.UseProgram(shaderProgram);
         }
 
-        public unsafe void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
+        public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
         {
             gl.UseProgram(shaderProgram);
 
@@ -171,85 +168,7 @@ namespace Mana
                 if (uniform.name == "FrameNumber")
                 {
                     gl.Uniform1(uniform.location, Game.Instance.Frame);
-                }
-
-                if (uniform.name == "spheres[0].position")
-                {
-                    gl.Uniform3(uniform.location, new Vector3(0.3f,0,0));
-                }
-                if (uniform.name == "spheres[0].material.color")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(1,0,0,1));
-                }
-                if (uniform.name == "spheres[0].radius")
-                {
-                    gl.Uniform1(uniform.location, 0.12f);
-                }
-
-
-                if (uniform.name == "spheres[1].position")
-                {
-                    gl.Uniform3(uniform.location, new Vector3(0, 0.3f, 0));
-                }
-                if (uniform.name == "spheres[1].material.color")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0, 1, 0, 1));
-                }
-                if (uniform.name == "spheres[1].radius")
-                {
-                    gl.Uniform1(uniform.location, 0.12f);
-                }
-
-                if (uniform.name == "spheres[2].position")
-                {
-                    gl.Uniform3(uniform.location, new Vector3(0, 0, 0.3f));
-                }
-                if (uniform.name == "spheres[2].material.color")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0, 0, 1, 1));
-                }
-                if (uniform.name == "spheres[2].radius")
-                {
-                    gl.Uniform1(uniform.location, 0.12f);
-                }
-
-
-                if (uniform.name == "spheres[3].position")
-                {
-                    gl.Uniform3(uniform.location, new Vector3(0, 0, 0));
-                }
-                if (uniform.name == "spheres[3].material.color")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0.5f, 0.5f, 0.5f, 1));
-                }
-                if (uniform.name == "spheres[3].material.emission")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0.5f, 0.5f, 0.5f, 1));
-                }
-                if (uniform.name == "spheres[3].material.emissionStrength")
-                {
-                    gl.Uniform1(uniform.location, 7.0f);
-                }
-                if (uniform.name == "spheres[3].radius")
-                {
-                    gl.Uniform1(uniform.location, 0.12f);
-                }
-
-                if (uniform.name == "spheres[4].position")
-                {
-                    gl.Uniform3(uniform.location, new Vector3(1, -11, 1));
-                }
-                if (uniform.name == "spheres[4].material.color")
-                {
-                    gl.Uniform4(uniform.location, new Vector4(0.1f, 0.75f, 0.57f, 1));
-                }
-                if (uniform.name == "spheres[4].radius")
-                {
-                    gl.Uniform1(uniform.location, 10.25f);
-                }
-
-
-
+                }                
 
                 if (uniform.name == "ViewParams")
                 {                    

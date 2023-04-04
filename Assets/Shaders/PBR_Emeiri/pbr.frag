@@ -15,7 +15,7 @@ struct BaseLight
 {
     vec3 Color;
     float AmbientIntensity;
-    float DiffuseIntensity;
+    float DiffuseIntensity;    
 };
 
 struct Attenuation
@@ -62,6 +62,8 @@ float CalcShadowFactor(vec3 LightDirection)
 
 vec4 CalcLightInternal(BaseLight Light, vec3 LightDirection, VSOutput In, float ShadowFactor)
 {
+    Light.AmbientIntensity = 0.25f;
+
     vec4 AmbientColor = vec4(Light.Color * Light.AmbientIntensity, 1.0);
     float DiffuseFactor = dot(In.Normal, -LightDirection);
 

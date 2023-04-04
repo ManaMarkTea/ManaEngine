@@ -17,12 +17,15 @@ namespace Mana
         public float FarClipPlane = 1000.0f;
         public float AspectRatio = 1.0f;
         public float FieldOfViewDegrees = 55.0f;
-        public Vector2D<int> DebugPointCount = new Vector2D<int>(10, 10);
+        public Vector2D<int> DebugPointCount = new Vector2D<int>(5, 3);
 
 
         public Matrix4x4 _ProjectionMatrix;
         public Matrix4x4 _ViewMatrix;
         public Matrix4x4 _WorldInverseMatrix;
+        public Vector3 ViewParams { get; internal set; }
+        public Vector3[] ViewAxes { get; internal set; } = new Vector3[3];
+
 
         float _MovementSpeed = 1;
         int _MouseAverageSize = 4;
@@ -37,9 +40,7 @@ namespace Mana
         Queue<float> _deltaAvgHistoryX = new Queue<float>();
         Queue<float> _deltaAvgHistoryY = new Queue<float>();
 
-        bool first = true;
-
-        public Vector3 ViewParams { get; internal set; }
+        bool first = true;        
 
         public CameraComponent(ManaSceneNode owner) : base(owner)
         {
@@ -215,19 +216,27 @@ namespace Mana
         {
             var transform = Owner.WorldTransform;
 
-            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, 0.25f);
-            Game.Instance._World.AddCube(Vector3.UnitX * 0.3f, Colors.Red, 0.25f);
-            Game.Instance._World.AddCube(Vector3.UnitY * 0.3f, Colors.Green, 0.25f);
-            Game.Instance._World.AddCube(Vector3.UnitZ * 0.3f, Colors.Blue, 0.25f);
+            float pegSize = 0.025f;
+
+            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, new Vector3(0.25f, pegSize, pegSize)).Position += Vector3.UnitX * 0.25f * 0.5f;
+            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, new Vector3(pegSize, 0.25f, pegSize)).Position += Vector3.UnitY * 0.25f * 0.5f;
+            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, new Vector3(pegSize, pegSize, 0.25f)).Position += Vector3.UnitZ * 0.25f * 0.5f;
+
+            Game.Instance._World.AddSphere(Vector3.UnitX * 0.3f, Colors.Red, 0.25f);
+            Game.Instance._World.AddSphere(Vector3.UnitY * 0.3f, Colors.Green, 0.25f);
+            Game.Instance._World.AddSphere(Vector3.UnitZ * 0.3f, Colors.Blue, 0.25f);
 
 
-            Game.Instance._World.AddCube(transform.Translation, Colors.Red, 0.002f);
+            Game.Instance._World.AddSphere(transform.Translation, Colors.Red, 0.004f);
 
             {
                 float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
                 float planeWidth = planeHeight * AspectRatio;
 
                 ViewParams = new Vector3(planeWidth, planeHeight, NearClipPlane);
+                ViewAxes[0] = Owner.Right;
+                ViewAxes[1] = Owner.Up;
+                ViewAxes[2] = Owner.Forward;
 
                 Vector3 bottomLeftLocal = new Vector3(-planeWidth / 2, -planeHeight / 2, NearClipPlane);
 
@@ -242,7 +251,7 @@ namespace Mana
                         //Vector3 point = Owner.Position + pointLocal.TransformNormal(Owner.WorldTransform);
                         Vector3 point = Owner.Position + Owner.Right * pointLocal.X + Owner.Up * pointLocal.Y + Owner.Forward * pointLocal.Z;
 
-                        Game.Instance._World.AddCube(point, Colors.White, 0.002f);
+                        Game.Instance._World.AddSphere(point, new Vector4(tx, ty, 1.0f, 1.0f), 0.002f);
                     }
                 }
             }

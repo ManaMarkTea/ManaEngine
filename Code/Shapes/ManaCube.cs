@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using Mana.Code.Shapes;
+using Silk.NET.Assimp;
 using Silk.NET.Core.Native;
 using System;
 using System.Collections.Generic;
@@ -8,25 +9,20 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class ManaCube : ManaMesh
+    public class ManaCube : ManaProceduralMesh
     {
-        public Vector4 Color { get; set; }
+        public Vector3 CubeSize { get; set; }
 
-        public ManaCube(ManaWorld world, Vector4 color, float size = 1.0f) : base(world)
+        public ManaCube(ManaWorld world, Vector4 color, Vector3 size) : base(world)
         {
-            Color = color;
-            GenerateData(size);            
+            CubeSize = size;
+            DefaultVertexColor = color;
+            GenerateData();            
         }
 
-        private void GenerateData(float size)
+        protected override void GenerateData()
         {
-            uint[] indexes = new uint[0];
-            Vector3[] positions = new Vector3[0];
-            Vector3[] normals = new Vector3[0];
-            Vector4[] colors = new Vector4[0];
-            Vector2[] textureCoordinates0 = new Vector2[0];
-            Vector2[] textureCoordinates1 = new Vector2[0];
-
+            Vector3 c = CubeSize * 0.5f;
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
@@ -37,9 +33,9 @@ namespace Mana
                 newMaterials.Add(foundMaterial);
             }
 
-            float c = size * 0.5f;
-            MinSize = new Vector3(-c, -c, -c);
-            MaxSize = new Vector3(c, c, c);
+            
+            MinSize = -c;
+            MaxSize = c;
 
             ManaVertexBuilder vertexBuilder = new ManaVertexBuilder();
 
@@ -54,13 +50,29 @@ namespace Mana
                  Matrix4x4.CreateRotationX(-1 * 90.0f.ToRadians(), Vector3.Zero),
             };
 
+            var scaleRotations = new Matrix4x4[]
+            {
+                 Matrix4x4.CreateRotationY(0 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationY(1 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationY(0 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationY(1 * 90.0f.ToRadians(), Vector3.Zero),
+
+                 Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
+            };
+
+
             for ( int i = 0; i < 6; i++)
             {
                 var rotation = rotations[i];
-                var va = Vector3.Transform(new Vector3(-c, -c, -c), rotation);
-                var vb = Vector3.Transform(new Vector3(c, -c, -c), rotation);
-                var vc = Vector3.Transform(new Vector3(c, c, -c), rotation);
-                var vd = Vector3.Transform(new Vector3(-c, c, -c), rotation);
+                var scaleRotation = scaleRotations[i];
+
+                var cR = Vector3.Transform(c, scaleRotation);
+                
+                var va = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), rotation);
+                var vb = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), rotation);
+                var vc = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), rotation);
+                var vd = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), rotation);
 
                 vertexBuilder.Verts.AddRange(new List<ManaVertex>
                 {
@@ -68,7 +80,7 @@ namespace Mana
                     {
                         Position = va,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.Color,
+                        Color = this.DefaultVertexColor,
                         TexCoord0 = new Vector2(0,0)
                     },
 
@@ -76,7 +88,7 @@ namespace Mana
                     {
                         Position = vb,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.Color,
+                        Color = this.DefaultVertexColor,
                         TexCoord0 = new Vector2(1,0)
                     },
 
@@ -84,7 +96,7 @@ namespace Mana
                     {
                         Position = vc,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.Color,
+                        Color = this.DefaultVertexColor,
                         TexCoord0 = new Vector2(1,1)
                     },
 
@@ -92,7 +104,7 @@ namespace Mana
                     {
                         Position = vd,
                         Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.Color,
+                        Color = this.DefaultVertexColor,
                         TexCoord0 = new Vector2(0,1)
                     },
                 });
@@ -100,12 +112,12 @@ namespace Mana
             }
            
             
-            positions = vertexBuilder.Positions.ToArray();
-            normals = vertexBuilder.Normals.ToArray();
-            colors = vertexBuilder.Colors.ToArray();
-            textureCoordinates0 = vertexBuilder.TexCoords0.ToArray();
-            indexes = vertexBuilder.GenerateIndexForQuads().ToArray();
-
+            var positions = vertexBuilder.Positions.ToArray();
+            var normals = vertexBuilder.Normals.ToArray();
+            var colors = vertexBuilder.Colors.ToArray();
+            var textureCoordinates0 = vertexBuilder.TexCoords0.ToArray();
+            var textureCoordinates1 = vertexBuilder.TexCoords0.ToArray();
+            var indexes = vertexBuilder.GenerateIndexForQuads().ToArray();
 
             Materials = newMaterials.ToArray();
 

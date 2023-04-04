@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using Mana.Code.ManaShaders;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -135,9 +136,8 @@ namespace Mana
         public unsafe void Build()
         {
             var gl = Game.Instance.gl;
-
             
-            DebugQuadShader = new ManaShader();
+            DebugQuadShader = new ManaShaderRayTrace(World);
             //DebugQuadShader.LoadShader("Assets/Shaders/FullScreenQuad/empty.vert", "Assets/Shaders/FullScreenQuad/Edge.frag", "Assets/Shaders/FullScreenQuad/full_screen_quad.geom");
             DebugQuadShader.LoadShader("Assets/Shaders/FullScreenQuad/empty.vert", "Assets/Shaders/FullScreenQuad/RayTracing_001.frag", "Assets/Shaders/FullScreenQuad/full_screen_quad.geom");
 

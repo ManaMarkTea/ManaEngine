@@ -63,7 +63,7 @@ namespace Mana
         {
             World = world;
             Channels = new Dictionary<string, MetaMaterialChannel>();
-            Shader = new ManaShader();
+            Shader = new ManaShader(world);
             Shader.LoadShader("Assets/Shaders/BardPbr.vert", "Assets/Shaders/BardPbr.frag");
         }
 
@@ -72,7 +72,7 @@ namespace Mana
 
         public unsafe void LoadFromGltf(Material* material)
         {
-            Shader = new ManaShader();
+            Shader = new ManaShader(World);
             //Shader.LoadShader("Assets/Shaders/basic_pos_uv.vert", "Assets/Shaders/PixelShader.frag");
             Shader.LoadShader("Assets/Shaders/PBR_Emeiri/pbr.vert", "Assets/Shaders/PBR_Emeiri/pbr.frag");
 

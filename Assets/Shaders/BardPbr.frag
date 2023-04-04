@@ -28,7 +28,7 @@ void main()
     vec3 H = normalize(V + lightPosition);
 
     // Calculate the diffuse component
-    float diffuse = max(dot(N, H), 0.0);
+    float diffuse = max(dot(N, H), 0.0) + 0.25f;
 
     // Calculate the specular component
     float specular = pow(max(dot(H, V), 0.0), 64.0);

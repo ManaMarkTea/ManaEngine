@@ -11,6 +11,11 @@ uniform sampler2D mainTexture;
 
 
 uniform vec3 ViewParams = vec3(1,1,1);
+uniform vec3 ViewPosition;
+uniform vec3 ViewRight;
+uniform vec3 ViewUp;
+uniform vec3 ViewForward;
+
 uniform ivec2 ScreenParams = ivec2(1920,1080);
 uniform vec4 GroundColor = vec4(0.25, 0.25,0.25, 1.0);
 uniform vec4 SkyColorHorizon = vec4(0.84f, 0.55f, 0.14f, 1.0);
@@ -57,7 +62,7 @@ struct Sphere
     RayTracingMaterial material;
 };
 
-uniform Sphere spheres[32];
+uniform Sphere spheres[100];
 uniform int numSpheres;
 
 
@@ -264,9 +269,20 @@ void main()
     vec3 viewPoint = ( modelViewMatrix * vec4(viewPointLocal, 1)).xyz;
     //vec3 viewPoint = ( gCameraWorldMatrixProjection * vec4(viewPointLocal, 1)).xyz;
 
+
+    float planeWidth = ViewParams[0];
+    float planeHeight = ViewParams[1];
+    float nearClipPlane = ViewParams[2];
+    float tx = coords.x;
+    float ty = coords.y;
+
+    vec3 bottomLeftLocal = vec3(-planeWidth / 2, -planeHeight / 2, nearClipPlane);
+    vec3 pointLocal = bottomLeftLocal + vec3(planeWidth * tx, planeHeight * ty, 0);
+    vec3 point = ViewPosition + ViewRight * pointLocal.x + ViewUp * pointLocal.y + ViewForward * pointLocal.z;
+
     Ray ray;
-    ray.origin = eyePos;
-    ray.direction = rayDir;
+    ray.origin = ViewPosition;
+    ray.direction = normalize(point - ray.origin);
         
     vec4 incomingLight = vec4(0,0,0,1);
     for (int i = 0; i < 55; i++)

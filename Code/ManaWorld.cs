@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using Mana.Code;
+using Mana.Code.Shapes;
 using Silk.NET.Assimp;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -62,9 +63,28 @@ namespace Mana
 
         public void AddCube(Vector3 position, Vector4 color, float size)
         {
+            AddCube(position, color, new Vector3(size, size, size));
+        }
+        public void AddSphere(Vector3 position, Vector4 color, float size)
+        {
+            AddSphere(position, color, new Vector3(size, size, size));
+        }
+
+        public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
+        {
             ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));            
             Scenes[0].Children.Add(extraCube);
+            return extraCube;
+        }
+
+        public ManaSceneNode AddSphere(Vector3 position, Vector4 color, Vector3 size)
+        {
+            ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));            
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(this, color, 0.5f)));
+            extraCube.Scale = size;
+            Scenes[0].Children.Add(extraCube);
+            return extraCube;
         }
 
         public unsafe void LoadFromGltf(string sceneFile)

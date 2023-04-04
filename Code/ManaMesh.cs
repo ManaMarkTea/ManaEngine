@@ -25,8 +25,7 @@ namespace Mana
         public string Name { get; set; }
 
         public ManaWorld World { get; set; }        
-        public ManaMaterial[] Materials;
-
+        public ManaMaterial[] Materials;        
         protected Vector3 MinSize;
         protected Vector3 MaxSize;
 
