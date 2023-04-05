@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Collections;
 
 using System.IO;
+using Mana.Code;
 
 namespace Mana
 {
@@ -56,6 +57,8 @@ namespace Mana
 
     public class ManaMaterial
     {
+        public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance._World);       
+        
         public ManaShader Shader { get; set; }
         public ManaWorld World { get; set; }
 
@@ -64,11 +67,19 @@ namespace Mana
             World = world;
             Channels = new Dictionary<string, MetaMaterialChannel>();
             Shader = new ManaShader(world);
-            Shader.LoadShader("Assets/Shaders/BardPbr.vert", "Assets/Shaders/BardPbr.frag");
+            Shader.LoadShader("Assets/Shaders/BardPbr.vert", "Assets/Shaders/BardPbr.frag");            
         }
+
+        public Vector4 EmissiveColor = Vector4.Zero;
+        public float EmissiveStrength = 0.4f;
+
+        public Vector4 SpecularColor = Colors.White;
+        public float Smoothness = 0.7f;
+        public float SpecularColorScatterChance = 0.1f;
 
         public Dictionary<string, MetaMaterialChannel> Channels { get; set; }
         public string Name { get; set; }
+        
 
         public unsafe void LoadFromGltf(Material* material)
         {

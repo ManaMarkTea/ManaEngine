@@ -17,6 +17,18 @@ namespace Mana
     {
         public bool UseRayTracing = true;
 
+        public List<Action> PostDrawFutures { get; set; }
+        public List<Action> PreDrawFutures { get; set; }
+        public List<Action> PreUpdateFutures { get; set; }
+        public List<Action> PostUpdateFutures { get; set; }
+
+
+        private List<Action> activePostDrawFutures { get; set; }
+        private List<Action> activePreDrawFutures { get; set; }
+        private List<Action> activePreUpdateFutures { get; set; }
+        private List<Action> activePostUpdateFutures { get; set; }
+
+
         public List<ManaMesh> Meshes { get; set; }
 
         public List<ManaMaterial> Materials { get; set; }
@@ -27,7 +39,7 @@ namespace Mana
 
         public Matrix4x4 ViewMatrix { get; set; } = Matrix4x4.Identity;
 
-
+        public ManaScene DefaultScene { get; set; }
         public ManaSceneNode CameraNode;
         public CameraComponent MainCamera;
 
@@ -37,15 +49,26 @@ namespace Mana
         public string ActivePath { get; set; }
         public ManaWorld() 
         {
+            Meshes = new List<ManaMesh>();
+            Scenes = new List<ManaScene>();
+            Materials = new List<ManaMaterial>();
+
+            activePostDrawFutures = new List<Action>();
+            activePreDrawFutures = new List<Action>();
+            activePreUpdateFutures = new List<Action>();
+            activePostUpdateFutures = new List<Action>();
+
+            PostDrawFutures = new List<Action>();
+            PreDrawFutures = new List<Action>();
+            PreUpdateFutures = new List<Action>();
+            PostUpdateFutures = new List<Action>();
+
+
             CameraNode = new ManaSceneNode(this, Matrix4x4.Identity);
             CameraNode.Position = new Vector3(0, 0, 1);
             CameraNode.Name = "MainCamera";            
             MainCamera = new CameraComponent(CameraNode);
             CameraNode.Components.Add(MainCamera);
-
-            Meshes = new List<ManaMesh>();
-            Scenes = new List<ManaScene>();
-            Materials = new List<ManaMaterial>();
 
             RenderTarget = new ManaRenderTarget(this, Game.Instance._Window.Size.X, Game.Instance._Window.Size.Y);
             RenderTarget.AddRgbaBuffer("Colors");
@@ -53,6 +76,9 @@ namespace Mana
             RenderTarget.Build();
             RenderTarget.UnBind();
 
+            DefaultScene = new ManaScene(this);
+            Scenes.Add(DefaultScene);
+            
             Game.Instance._Window.Resize += _Window_Resize;
         }
 
@@ -61,20 +87,20 @@ namespace Mana
             RenderTarget.Resize(obj.X, obj.Y);
         }
 
-        public void AddCube(Vector3 position, Vector4 color, float size)
+        public ManaSceneNode AddCube(Vector3 position, Vector4 color, float size)
         {
-            AddCube(position, color, new Vector3(size, size, size));
+            return AddCube(position, color, new Vector3(size, size, size));
         }
-        public void AddSphere(Vector3 position, Vector4 color, float size)
+        public ManaSceneNode AddSphere(Vector3 position, Vector4 color, float size)
         {
-            AddSphere(position, color, new Vector3(size, size, size));
+            return AddSphere(position, color, new Vector3(size, size, size));
         }
 
         public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));            
-            Scenes[0].Children.Add(extraCube);
+            DefaultScene.Children.Add(extraCube);
             return extraCube;
         }
 
@@ -83,7 +109,7 @@ namespace Mana
             ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));            
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(this, color, 0.5f)));
             extraCube.Scale = size;
-            Scenes[0].Children.Add(extraCube);
+            DefaultScene.Children.Add(extraCube);
             return extraCube;
         }
 
@@ -124,15 +150,19 @@ namespace Mana
             Scenes.Add(manaScene);
         }
 
-
+        private void RunFutures(List<Action> futures, List<Action> activeFutures)
+        {
+            activeFutures.AddRange(futures);
+            futures.Clear();
+            foreach (var activeFuture in activeFutures)
+            {
+                activeFuture();
+            }
+            activeFutures.Clear();
+        }
 
         public void Update()
         {
-            if (Scenes.Count == 0)
-            {
-                Scenes.Add(new ManaScene(this));
-            }
-
             CameraNode.UpdateTransform();
 
             ViewMatrix = MainCamera._ViewMatrix;
@@ -144,11 +174,15 @@ namespace Mana
             float aspect = (float)Game.Instance._Window.Size.X / Game.Instance._Window.Size.Y;
 
             ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(55.0f.ToRadians(), aspect, 0.001f, 1000.0f);
-            
+
+            RunFutures(PreUpdateFutures, activePreUpdateFutures);
+
             foreach (var scene in Scenes)
             {
                 scene.Update();
             }
+
+            RunFutures(PostUpdateFutures, activePostUpdateFutures);
         }
 
         public void Draw()
@@ -159,10 +193,14 @@ namespace Mana
             gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
 
+            RunFutures(PreDrawFutures, activePreDrawFutures);
+
             foreach (var scene in Scenes)
             {
                 scene.Draw();
             }
+
+            RunFutures(PostDrawFutures, activePostDrawFutures);
 
 
             if (UseRayTracing)

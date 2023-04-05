@@ -251,7 +251,7 @@ namespace Mana
                         //Vector3 point = Owner.Position + pointLocal.TransformNormal(Owner.WorldTransform);
                         Vector3 point = Owner.Position + Owner.Right * pointLocal.X + Owner.Up * pointLocal.Y + Owner.Forward * pointLocal.Z;
 
-                        Game.Instance._World.AddSphere(point, new Vector4(tx, ty, 1.0f, 1.0f), 0.002f);
+                        Game.Instance._World.AddSphere(point, new Vector4(tx, ty, 1.0f, 1.0f), 0.09f);
                     }
                 }
             }

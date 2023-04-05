@@ -12,6 +12,8 @@ using System.Numerics;
 using Silk.NET.Maths;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using Mana.Code;
+using Mana.Code.Shapes;
 
 namespace Mana
 {
@@ -83,6 +85,13 @@ namespace Mana
             gl.ClearColor(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
 
             _World = new ManaWorld();
+            var sun = _World.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
+
+            var sunMaterial = (sun.Components[0] as MeshRendererComponent).DynamicMaterial;
+            sunMaterial.EmissiveColor = Colors.Gold;
+            sunMaterial.EmissiveStrength = 10.0f;
+
+
             //_World.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
             _World.Update();
 

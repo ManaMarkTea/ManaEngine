@@ -9,6 +9,8 @@ uniform float time = 0.2f;
 
 uniform sampler2D mainTexture;
 
+uniform int RayCasts = 1;
+uniform int MaxBounces = 5;
 
 uniform vec3 ViewParams = vec3(1,1,1);
 uniform vec3 ViewPosition;
@@ -44,6 +46,9 @@ struct RayTracingMaterial
     vec4 color;
     vec4 emission;
     float emissionStrength;
+    float smoothness;
+    vec4 specularColor;
+    float specularColorScatterChance;
 };
 
 struct HitInfo
@@ -185,20 +190,25 @@ vec4 Trace(Ray ray, inout uint rngState)
     vec4 incomingLight = vec4(0,0,0,1);
     vec4 rayColor = vec4(1);
 
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < MaxBounces; i++)
     {
         HitInfo hitInfo = CalculateRayCollision(ray);
+        RayTracingMaterial material = hitInfo.material;
+
         if (hitInfo.didHit)
         {
             ray.origin = hitInfo.hitPoint;
-           // ray.direction = RandomHemisphereDirection(hitInfo.normal, rngState);
-            ray.direction = normalize(hitInfo.normal + RandomDirection(rngState));
 
-            RayTracingMaterial material = hitInfo.material;
+            vec3 diffuseDirection = normalize(hitInfo.normal + RandomDirection(rngState));
+            vec3 specularDirection = reflect(ray.direction, hitInfo.normal);
+            ray.direction = mix(diffuseDirection, specularDirection, material.smoothness);
+            //ray.direction = RandomHemisphereDirection(hitInfo.normal, rngState);            
+            
+            bool isSpecularBounce = material.specularColorScatterChance >= RandomValue(rngState);
 
-            vec4 emittedLight = material.emission * material.emissionStrength;
+            vec4 emittedLight = vec4(material.emission.xyz * material.emissionStrength, 1.0f);            
             incomingLight += emittedLight * rayColor;
-            rayColor *= material.color;
+            rayColor *= mix(material.color, material.specularColor, float(isSpecularBounce));
         }
         else 
         {
@@ -285,13 +295,13 @@ void main()
     ray.direction = normalize(point - ray.origin);
         
     vec4 incomingLight = vec4(0,0,0,1);
-    for (int i = 0; i < 55; i++)
+    for (int i = 0; i < RayCasts; i++)
     {    
         vec4 color = Trace(ray, rngState);
         incomingLight += color;
     }
 
-    incomingLight = incomingLight / 50;
+    incomingLight = incomingLight / RayCasts;
     
     FragColor = incomingLight;
     //FragColor = RandomColor(coords);
