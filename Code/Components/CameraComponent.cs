@@ -216,19 +216,19 @@ namespace Mana
         {
             var transform = Owner.WorldTransform;
 
-            float pegSize = 0.025f;
+            float pegSize = 0.25f * 0.5f;
 
-            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, new Vector3(0.25f, pegSize, pegSize)).Position += Vector3.UnitX * 0.25f * 0.5f;
-            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, new Vector3(pegSize, 0.25f, pegSize)).Position += Vector3.UnitY * 0.25f * 0.5f;
-            Game.Instance._World.AddCube(Vector3.Zero, Colors.White, new Vector3(pegSize, pegSize, 0.25f)).Position += Vector3.UnitZ * 0.25f * 0.5f;
+            Game.Instance._World.AddCube(Vector3.UnitX * 0.5f, Colors.Red, new Vector3(1, pegSize, pegSize));
+            Game.Instance._World.AddCube(Vector3.UnitY * 0.5f, Colors.Green, new Vector3(pegSize, 1, pegSize));
+            Game.Instance._World.AddCube(Vector3.UnitZ * 0.5f, Colors.Blue, new Vector3(pegSize, pegSize, 1));
 
-            Game.Instance._World.AddSphere(Vector3.UnitX * 0.3f, Colors.Red, 0.25f);
-            Game.Instance._World.AddSphere(Vector3.UnitY * 0.3f, Colors.Green, 0.25f);
-            Game.Instance._World.AddSphere(Vector3.UnitZ * 0.3f, Colors.Blue, 0.25f);
+            Game.Instance._World.AddPyramid(Vector3.UnitX * 1f, Colors.Red, 0.25f).Rotation = new Vector3(0, 0, -90.0f.ToRadians());
+            Game.Instance._World.AddPyramid(Vector3.UnitY * 1f, Colors.Green, 0.25f).Rotation = new Vector3(0,0,0);
+            Game.Instance._World.AddPyramid(Vector3.UnitY * 0.75f, Colors.Green, 0.25f).Rotation = new Vector3(0, 0, 0);
+            Game.Instance._World.AddPyramid(Vector3.UnitZ * 1f, Colors.Blue, 0.25f).Rotation = new Vector3(90.0f.ToRadians(), 0, 0);
 
 
             Game.Instance._World.AddSphere(transform.Translation, Colors.Red, 0.004f);
-
             {
                 float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
                 float planeWidth = planeHeight * AspectRatio;

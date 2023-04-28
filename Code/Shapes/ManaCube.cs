@@ -22,7 +22,7 @@ namespace Mana
 
         protected override void GenerateData()
         {
-            Vector3 c = CubeSize * 0.5f;
+            Vector3 c = CubeSize;
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
@@ -66,49 +66,7 @@ namespace Mana
             {
                 var rotation = rotations[i];
                 var scaleRotation = scaleRotations[i];
-
-                var cR = Vector3.Transform(c, scaleRotation);
-                
-                var va = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), rotation);
-                var vb = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), rotation);
-                var vc = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), rotation);
-                var vd = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), rotation);
-
-                vertexBuilder.Verts.AddRange(new List<ManaVertex>
-                {
-                    new ManaVertex()
-                    {
-                        Position = va,
-                        Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.DefaultVertexColor,
-                        TexCoord0 = new Vector2(0,0)
-                    },
-
-                    new ManaVertex()
-                    {
-                        Position = vb,
-                        Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.DefaultVertexColor,
-                        TexCoord0 = new Vector2(1,0)
-                    },
-
-                    new ManaVertex()
-                    {
-                        Position = vc,
-                        Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.DefaultVertexColor,
-                        TexCoord0 = new Vector2(1,1)
-                    },
-
-                    new ManaVertex()
-                    {
-                        Position = vd,
-                        Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
-                        Color = this.DefaultVertexColor,
-                        TexCoord0 = new Vector2(0,1)
-                    },
-                });
-
+                vertexBuilder.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor);
             }
            
             
@@ -117,7 +75,7 @@ namespace Mana
             var colors = vertexBuilder.Colors.ToArray();
             var textureCoordinates0 = vertexBuilder.TexCoords0.ToArray();
             var textureCoordinates1 = vertexBuilder.TexCoords0.ToArray();
-            var indexes = vertexBuilder.GenerateIndexForQuads().ToArray();
+            var indexes = vertexBuilder.Indexes.ToArray();
 
             Materials = newMaterials.ToArray();
 

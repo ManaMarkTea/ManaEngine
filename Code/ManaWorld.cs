@@ -15,7 +15,7 @@ namespace Mana
 {
     public class ManaWorld
     {
-        public bool UseRayTracing = true;
+        public bool UseRayTracing = false;
 
         public List<Action> PostDrawFutures { get; set; }
         public List<Action> PreDrawFutures { get; set; }
@@ -65,7 +65,7 @@ namespace Mana
 
 
             CameraNode = new ManaSceneNode(this, Matrix4x4.Identity);
-            CameraNode.Position = new Vector3(0, 0, 1);
+            CameraNode.Position = new Vector3(0, 0, 5);
             CameraNode.Name = "MainCamera";            
             MainCamera = new CameraComponent(CameraNode);
             CameraNode.Components.Add(MainCamera);
@@ -96,6 +96,11 @@ namespace Mana
             return AddSphere(position, color, new Vector3(size, size, size));
         }
 
+        public ManaSceneNode AddPyramid(Vector3 position, Vector4 color, float size)
+        {
+            return AddPyramid(position, color, new Vector3(size, size, size));
+        }
+
         public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));
@@ -108,6 +113,15 @@ namespace Mana
         {
             ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));            
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(this, color, 0.5f)));
+            extraCube.Scale = size;
+            DefaultScene.Children.Add(extraCube);
+            return extraCube;
+        }
+        public ManaSceneNode AddPyramid(Vector3 position, Vector4 color, Vector3 size)
+        {
+            ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaPyramid(this, color, Vector3.One)));
+            //extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));
             extraCube.Scale = size;
             DefaultScene.Children.Add(extraCube);
             return extraCube;

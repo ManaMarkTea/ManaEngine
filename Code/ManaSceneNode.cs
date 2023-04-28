@@ -89,8 +89,8 @@ namespace Mana
         public void UpdateTransform()
         {
             LocalTransform = Matrix4x4.CreateScale(Scale);
-            LocalTransform *= Matrix4x4.CreateTranslation(Position);            
-            LocalTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());            
+            LocalTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
+            LocalTransform *= Matrix4x4.CreateTranslation(Position);
 
             if (Parent != null)
             {
