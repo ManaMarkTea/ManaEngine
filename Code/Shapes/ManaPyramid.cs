@@ -113,6 +113,7 @@ namespace Mana
             
             vertexBuilder.AddQuad(CubeSize, rotations[5], scaleRotations[5], this.DefaultVertexColor);
 
+
             var positions = vertexBuilder.Positions.ToArray();
             var normals = vertexBuilder.Normals.ToArray();
             var colors = vertexBuilder.Colors.ToArray();

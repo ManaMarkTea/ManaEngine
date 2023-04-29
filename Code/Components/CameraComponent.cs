@@ -227,6 +227,7 @@ namespace Mana
             Game.Instance._World.AddPyramid(Vector3.UnitY * 0.75f, Colors.Green, 0.25f).Rotation = new Vector3(0, 0, 0);
             Game.Instance._World.AddPyramid(Vector3.UnitZ * 1f, Colors.Blue, 0.25f).Rotation = new Vector3(90.0f.ToRadians(), 0, 0);
 
+            Game.Instance._World.AddQuad(Vector3.Zero, Colors.Silver, Vector3.One);
 
             Game.Instance._World.AddSphere(transform.Translation, Colors.Red, 0.004f);
             {
@@ -251,7 +252,7 @@ namespace Mana
                         //Vector3 point = Owner.Position + pointLocal.TransformNormal(Owner.WorldTransform);
                         Vector3 point = Owner.Position + Owner.Right * pointLocal.X + Owner.Up * pointLocal.Y + Owner.Forward * pointLocal.Z;
 
-                        Game.Instance._World.AddSphere(point, new Vector4(tx, ty, 1.0f, 1.0f), 0.09f);
+                        //Game.Instance._World.AddSphere(point, new Vector4(tx, ty, 1.0f, 1.0f), 0.09f);
                     }
                 }
             }

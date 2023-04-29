@@ -127,6 +127,15 @@ namespace Mana
             return extraCube;
         }
 
+        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)
+        {
+            ManaSceneNode extraCube = new ManaSceneNode(this, Matrix4x4.CreateTranslation(position));
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(this, color, Vector3.One)));            
+            extraCube.Scale = size;
+            DefaultScene.Children.Add(extraCube);
+            return extraCube;
+        }
+
         public unsafe void LoadFromGltf(string sceneFile)
         {
             _AssetImporter = Silk.NET.Assimp.Assimp.GetApi();
