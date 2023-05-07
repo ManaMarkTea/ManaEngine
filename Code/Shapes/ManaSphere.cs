@@ -13,7 +13,7 @@ namespace Mana.Code.Shapes
     {
         public float Radius { get; set; }        
 
-        public ManaSphere(ManaWorld world, Vector4 color, float radius) : base(world)
+        public ManaSphere(ManaContext context, Vector4 color, float radius) : base(context)
         {
             Radius = radius;
             DefaultVertexColor = color;
@@ -127,14 +127,14 @@ namespace Mana.Code.Shapes
             }
 
             List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = new ManaMaterial(World);
+            var foundMaterial = new ManaMaterial(Context);
             if (foundMaterial != null)
             {
                 newMaterials.Add(foundMaterial);
             }
 
             Materials = newMaterials.ToArray();
-            MeshBufferObject = new MetaVertexBufferObject(triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
+            MeshBufferObject = new MetaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
             MeshBufferObject.ConstructVBO();
 
         }

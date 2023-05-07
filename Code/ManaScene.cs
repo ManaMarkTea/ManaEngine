@@ -4,20 +4,20 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mana.Code;
 using Silk.NET.Assimp;
 
 namespace Mana
 {
-    public class ManaScene
+    public class ManaScene : ManaObject
     {
         public List<ManaSceneNode> Children { get; set; }
 
-        public ManaWorld World { get; set; }
+        public ManaContext Context { get; set; }
 
 
-        public ManaScene(ManaWorld world) 
-        {
-            World = world;
+        public ManaScene(ManaContext context) : base(context)
+        {            
             Children = new List<ManaSceneNode>();
         }
 
@@ -36,7 +36,7 @@ namespace Mana
         {
             var local = node->MTransformation;
             local = Matrix4x4.Transpose(local);
-            var metaSceneNode = new ManaSceneNode(World, local);
+            var metaSceneNode = new ManaSceneNode(Context, local);
             metaSceneNode.Name = node->MName;
             
             if (node->MNumMeshes != 0)
@@ -44,7 +44,7 @@ namespace Mana
                 for (int i = 0; i < node->MNumMeshes; i++)
                 {
                     int meshIndex = (int)node->MMeshes[i];
-                    ManaMesh foundMesh = World.Meshes[meshIndex];
+                    ManaMesh foundMesh = Context.World.Meshes[meshIndex];
                     if (foundMesh != null)
                     {
                         metaSceneNode.Components.Add(new MeshRendererComponent(metaSceneNode, foundMesh) { });

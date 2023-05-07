@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mana.Code;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class TextureManager
+    public class TextureManager : ManaObject
     {
         private static TextureManager _Instance;        
         public static TextureManager Instance
@@ -15,7 +16,7 @@ namespace Mana
             {
                 if (_Instance == null)
                 {
-                    _Instance = new TextureManager();
+                    _Instance = new TextureManager(Game.Instance.Context);
                 }
 
                 return _Instance;
@@ -24,9 +25,9 @@ namespace Mana
 
         private ManaTexture _DefaultTexture;
 
-        private TextureManager()
+        private TextureManager(ManaContext context) : base(context)
         {
-            _DefaultTexture = new ManaTexture();
+            _DefaultTexture = new ManaTexture(Context);
 
             /*
             // Load the image.
@@ -49,7 +50,7 @@ namespace Mana
                 return LoadedTextures[key];
             }
 
-            return new ManaTexture();
+            return new ManaTexture(Context);
         }
 
         public ManaTexture FindTexture(string key)

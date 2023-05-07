@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mana.Code;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class ManaComponent
+    public class ManaComponent : ManaObject
     {
         public ManaSceneNode Owner { get; set; }
-        public ManaComponent(ManaSceneNode owner) 
+        public ManaComponent(ManaSceneNode owner) : base(owner.Context)
         {
             Owner = owner;
         }

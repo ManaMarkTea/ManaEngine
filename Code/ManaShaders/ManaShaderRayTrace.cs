@@ -13,10 +13,10 @@ using System.Threading.Tasks;
 namespace Mana.Code.ManaShaders
 {
     public class ManaShaderRayTrace : ManaShader
-    {
-        public ManaShaderRayTrace(ManaWorld world) : base(world)
+    {        
+        public ManaShaderRayTrace(ManaContext context) : base(context)
         {
-            world.PostDrawFutures.Add(() => OnGui());
+            context.World.PostDrawFutures.Add(() => OnGui());
         }
 
         void OnGui()
@@ -28,7 +28,7 @@ namespace Mana.Code.ManaShaders
       
             ImGui.End();
 
-            World.PostDrawFutures.Add(() => OnGui());
+            Context.World.PostDrawFutures.Add(() => OnGui());
         }
 
         public int RayCasts = 1;
@@ -81,7 +81,7 @@ namespace Mana.Code.ManaShaders
             this.UniformMap[$@"ViewForward"].SetValue(camera.Owner.Forward);
 
             int index = 0;
-            foreach (var scene in World.Scenes)
+            foreach (var scene in Context.World.Scenes)
             {
                 Stack<ManaSceneNode> stack = new Stack<ManaSceneNode>();
 

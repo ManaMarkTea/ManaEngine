@@ -26,7 +26,7 @@ namespace Mana.Code.Shapes
 
         public Vector4 DefaultVertexColor { get; set; }
 
-        public ManaProceduralMesh(ManaWorld world) : base(world)
+        public ManaProceduralMesh(ManaContext context) : base(context)
         {
 
         }

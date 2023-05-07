@@ -16,24 +16,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Mana.Code;
 
 namespace Mana
 {
 
-    public class ManaMesh : IDisposable
+    public class ManaMesh : ManaObject, IDisposable
     {
         public string Name { get; set; }
-
-        public ManaWorld World { get; set; }        
+        
         public ManaMaterial[] Materials;        
         protected Vector3 MinSize;
         protected Vector3 MaxSize;
 
         protected MetaVertexBufferObject MeshBufferObject;
-
-        public ManaMesh(ManaWorld world)
+        
+        public ManaMesh(ManaContext context) : base(context)
         {
-            World = world;
+            this.Context = context;
         }
 
         private static string[] Attributes =
@@ -58,7 +58,7 @@ namespace Mana
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
             List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = World.Materials[(int)mesh->MMaterialIndex];
+            var foundMaterial = Context.World.Materials[(int)mesh->MMaterialIndex];
             if (foundMaterial != null)
             {
                 newMaterials.Add(foundMaterial);
@@ -147,7 +147,7 @@ namespace Mana
 
             Materials = newMaterials.ToArray();
 
-            MeshBufferObject = new MetaVertexBufferObject(indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
+            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
             MeshBufferObject.ConstructVBO();
         }        
 

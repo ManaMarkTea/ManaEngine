@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using Mana.Code;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 namespace Mana
 {
 
-    public class MetaVertexBufferObject
+    public class MetaVertexBufferObject : ManaObject
     {
         public static uint Vector2_SizeInBytes() { return sizeof(float) * 2; }
         public static uint Vector3_SizeInBytes() { return sizeof(float) * 3;}
@@ -57,15 +58,16 @@ namespace Mana
         nint offsetUv1 = 4;
 
         public MetaVertexBufferObject(
+            ManaContext context,
             uint[] indexes,
             Vector3[] positions,
             Vector3[] normals,
             Vector4[] colors,
             Vector2[] textureCoordinates0,
             Vector2[] textureCoordinates1
-        )
+        ) : base(context)
         {
-            gl = Game.Instance.gl;
+            gl = Context.gl;
             this.indexes = indexes;
             this.positions = positions;
             this.normals = normals;

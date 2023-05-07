@@ -1,4 +1,5 @@
-﻿using Silk.NET.Maths;
+﻿using Mana.Code;
+using Silk.NET.Maths;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,10 +8,9 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class ManaSceneNode
+    public class ManaSceneNode : ManaObject
     {
-        public string Name { get; set; }
-        public ManaWorld World { get; set; }
+        public string Name { get; set; }        
         public ManaSceneNode Parent { get; set; }
         public List<ManaSceneNode> Children { get; set; }
 
@@ -56,9 +56,8 @@ namespace Mana
         public Matrix4x4 WorldTransform { get; set; }
 
         
-        public ManaSceneNode(ManaWorld world, Matrix4x4 localTransform)
-        {
-            World = world;
+        public ManaSceneNode(ManaContext context, Matrix4x4 localTransform) : base(context)
+        {            
             this.Parent = null;
             this.LocalTransform = localTransform;
             this.WorldTransform = localTransform;

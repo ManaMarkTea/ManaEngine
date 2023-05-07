@@ -1,4 +1,5 @@
-﻿using Mana.Code.ManaShaders;
+﻿using Mana.Code;
+using Mana.Code.ManaShaders;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -14,12 +15,16 @@ namespace Mana
     {
         public bool RedFloatBuffer;
         public bool FloatBuffer;
+        public bool HasAlpha;
+        public bool HasCube;
         public bool RgbBuffer;
         public bool RgbaBuffer;
 
         public bool Depth24;
         public bool Depth16;
         public bool Stencil8;
+
+        public uint Samples;
 
         public string BufferName;
         public ManaTexture? Texture;
@@ -28,19 +33,21 @@ namespace Mana
         {
             RedFloatBuffer = false;
             FloatBuffer = false;
+            HasAlpha = false;
+            HasCube = false;
             RgbBuffer = false;
             RgbaBuffer = false;
             Depth24 = false;
             Depth16 = false;
             Stencil8 = false;
             Texture = null;
+            Samples = 0;
             BufferName = "";
         }
     };
 
-    public class ManaRenderTarget
-    {
-        public ManaWorld World { get; set; }
+    public class ManaRenderTarget : ManaObject
+    {        
 
         public uint Width { get; set; }
         public uint Height { get; set; }
@@ -56,14 +63,13 @@ namespace Mana
 
         private uint VertexArrayObject;
 
-        Dictionary<string, RenderBufferInfo> bufferMap;
-        List<RenderBufferInfo> bufferInfos;        
+        public Dictionary<string, RenderBufferInfo> bufferMap;
+        public List<RenderBufferInfo> bufferInfos;        
         
         private GLEnum[] attachments = new GLEnum[32];
 
-        public ManaRenderTarget(ManaWorld world, int width, int height, bool depth = true)
-        {
-            this.World = world;
+        public ManaRenderTarget(ManaContext context, int width, int height, bool depth = true) : base(context)
+        {            
             this.Width = (uint)width;
             this.Height = (uint)height;
 
@@ -112,6 +118,24 @@ namespace Mana
         {
             var info = new RenderBufferInfo();
             info.FloatBuffer = true;
+            info.HasAlpha = true;
+            AddBuffer(name, info);
+        }
+
+        public void AddFloatRgbCubeBuffer(string name)
+        {
+            var info = new RenderBufferInfo();
+            info.FloatBuffer = true;
+            info.HasAlpha = false;
+            info.HasCube = true;
+            AddBuffer(name, info);
+        }
+
+        public void AddFloatRgbBuffer(string name)
+        {
+            var info = new RenderBufferInfo();
+            info.FloatBuffer = true;
+            info.HasAlpha = false;
             AddBuffer(name, info);
         }
         public void AddRedFloatBuffer(string name)
@@ -135,13 +159,13 @@ namespace Mana
 
         public unsafe void Build()
         {
-            var gl = Game.Instance.gl;
+            var gl = Game.Instance.Context.gl;
             
-            DebugQuadShader = new ManaShaderRayTrace(World);
+            DebugQuadShader = new ManaShaderRayTrace(Context);
             //DebugQuadShader.LoadShader("Assets/Shaders/FullScreenQuad/empty.vert", "Assets/Shaders/FullScreenQuad/Edge.frag", "Assets/Shaders/FullScreenQuad/full_screen_quad.geom");
             DebugQuadShader.LoadShader("Assets/Shaders/FullScreenQuad/empty.vert", "Assets/Shaders/FullScreenQuad/RayTracing_001.frag", "Assets/Shaders/FullScreenQuad/full_screen_quad.geom");
 
-            QuadMaterial = new ManaMaterial(World);
+            QuadMaterial = new ManaMaterial(Context);
             QuadMaterial.Shader = DebugQuadShader;
 
             VertexArrayObject = gl.GenVertexArray();
@@ -161,7 +185,7 @@ namespace Mana
                 TextureMagFilter filterTypeMag = TextureMagFilter.Linear;
 
                 InternalFormat internalFormat = bufferInfo.FloatBuffer ? InternalFormat.Rgb16f : bufferInfo.RgbBuffer ? InternalFormat.Rgb : InternalFormat.Rgba;
-                PixelFormat internalFormat2 = bufferInfo.FloatBuffer ? PixelFormat.Rgba : PixelFormat.Rgb;
+                PixelFormat internalFormat2 = bufferInfo.HasAlpha ? PixelFormat.Rgba : PixelFormat.Rgb;
 
                 GLEnum internalDataType = bufferInfo.FloatBuffer ? GLEnum.Float: GLEnum.UnsignedByte;
 
@@ -174,11 +198,12 @@ namespace Mana
                     filterTypeMag = TextureMagFilter.Nearest;
                 }
 
-                ManaTexture texture = new ManaTexture();
+                ManaTexture texture = new ManaTexture(Context);
                 texture.Width = Width;
+                texture.IsCube = bufferInfo.HasCube;
                 texture.Height = Height;
                 texture.IsWrapU = false;
-                texture.Handle = colorBuffers[i];                
+                texture.Handle = colorBuffers[i];
                 bufferInfo.Texture = texture;
 
                 if (bufferInfo.Depth16 || bufferInfo.Depth24)
@@ -197,7 +222,7 @@ namespace Mana
                 else
                 {
                     texture.FboAttachmentType = attachments[colorIndex++];
-                   
+
                     texture.IsWrapU = false;
                     texture.IsWrapV = false;
                     texture.MinFilter = filterTypeMin;
@@ -209,8 +234,20 @@ namespace Mana
                     texture.Load();
                 }
 
-                // attach texture to framebuffer
-                gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, colorBuffers[i], 0);
+
+                if (!bufferInfo.HasCube)
+                {                    
+                    // attach texture to framebuffer
+                    gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, colorBuffers[i], 0);
+                    gl.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, bufferInfo.Samples, InternalFormat.Rgba8, Width, Height);
+                }
+                else
+                {                    
+                    for (int cubeFace = 0; cubeFace < 6; ++cubeFace)
+                    {                        
+                        gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + cubeFace, colorBuffers[i], 0);
+                    }
+                }
 
                 i++;
             }
@@ -225,7 +262,10 @@ namespace Mana
 
         public void Clear()
         {
-            var gl = Game.Instance.gl;
+            var gl = Game.Instance.Context.gl;
+
+            Bind();
+
             gl.ClearColor(ClearColor.X, ClearColor.Y, ClearColor.Z, ClearColor.W);
 
             if (HasDepth)
@@ -237,19 +277,20 @@ namespace Mana
                 gl.Clear((uint)(ClearBufferMask.ColorBufferBit));                
             }
 
+            UnBind();
             //gl.Color4f(1, 1, 1, 1);
         }
 
         public void Bind()
         {
-            var gl = Game.Instance.gl;
+            var gl = Game.Instance.Context.gl;
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);            
             gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 
         public void UnBind()
         {
-            var gl = Game.Instance.gl;
+            var gl = Game.Instance.Context.gl;
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
 
@@ -261,7 +302,7 @@ namespace Mana
 
         public void DrawFullScreenQuad()
         {
-            var gl = Game.Instance.gl;
+            var gl = Game.Instance.Context.gl;
 
             UnBind();
             Clear();

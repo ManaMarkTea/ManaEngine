@@ -15,7 +15,7 @@ namespace Mana
             {
                 if (Material == ManaMaterial.DefaultMaterial)
                 {
-                    Material = new ManaMaterial(Owner.World);
+                    Material = new ManaMaterial(Owner.Context);
                 }
 
                 return Material;

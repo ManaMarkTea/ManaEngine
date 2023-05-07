@@ -97,6 +97,30 @@ namespace Mana
             return Vector3.Normalize(value);
         }
 
+        public static ReadOnlySpan<float> ToSpan(this Matrix4x4 matrix)
+        {
+            float[] floats = new float[]
+            {
+                matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+                matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+                matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+                matrix.M41, matrix.M42, matrix.M43, matrix.M44
+            };
+            ReadOnlySpan<float> output = new ReadOnlySpan<float>(floats);
+            return output;
+        }
+
+        public static ReadOnlySpan<float> ToSpan(this Matrix3X3<float> matrix)
+        {
+            float[] floats = new float[]
+            {
+                matrix.M11, matrix.M12, matrix.M13,
+                matrix.M21, matrix.M22, matrix.M23,
+                matrix.M31, matrix.M32, matrix.M33               
+            };
+            ReadOnlySpan<float> output = new ReadOnlySpan<float>(floats);
+            return output;
+        }
 
         public static string ToPrettyMatrixString(this Matrix4x4 matrix)
         {

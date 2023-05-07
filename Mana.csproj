@@ -9,13 +9,151 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Assimp" Version="2.16.0" />
-    <PackageReference Include="Silk.NET.Core" Version="2.16.0" />
-    <PackageReference Include="Silk.NET.Input" Version="2.16.0" />
-    <PackageReference Include="Silk.NET.Maths" Version="2.16.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.16.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.0.0" />
+    <None Remove="Assets\Shaders\Khronos\animation.glsl" />
+    <None Remove="Assets\Shaders\Khronos\brdf.glsl" />
+    <None Remove="Assets\Shaders\Khronos\cubemap.frag" />
+    <None Remove="Assets\Shaders\Khronos\cubemap.vert" />
+    <None Remove="Assets\Shaders\Khronos\functions.glsl" />
+    <None Remove="Assets\Shaders\Khronos\ibl.glsl" />
+    <None Remove="Assets\Shaders\Khronos\iridescence.glsl" />
+    <None Remove="Assets\Shaders\Khronos\material_info.glsl" />
+    <None Remove="Assets\Shaders\Khronos\pbr.frag" />
+    <None Remove="Assets\Shaders\Khronos\primitive.vert" />
+    <None Remove="Assets\Shaders\Khronos\punctual.glsl" />
+    <None Remove="Assets\Shaders\Khronos\textures.glsl" />
+    <None Remove="Assets\Shaders\Khronos\tonemapping.glsl" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\background.frag" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\background.vert" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\brdf.frag" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\brdf.vert" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\cubemap.vert" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\equirectangular_to_cubemap.frag" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\irradiance_convolution.frag" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\pbr.frag" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\pbr.vert" />
+    <None Remove="Assets\Shaders\LearnSpecularTextured\prefilter.frag" />
+    <None Remove="Assets\Shaders\LearnSpecular\background.frag" />
+    <None Remove="Assets\Shaders\LearnSpecular\background.vert" />
+    <None Remove="Assets\Shaders\LearnSpecular\brdf.frag" />
+    <None Remove="Assets\Shaders\LearnSpecular\brdf.vert" />
+    <None Remove="Assets\Shaders\LearnSpecular\cubemap.vert" />
+    <None Remove="Assets\Shaders\LearnSpecular\equirectangular_to_cubemap.frag" />
+    <None Remove="Assets\Shaders\LearnSpecular\irradiance_convolution.frag" />
+    <None Remove="Assets\Shaders\LearnSpecular\pbr.frag" />
+    <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
+    <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\Shaders\Khronos\animation.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\brdf.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\cubemap.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\cubemap.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\functions.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\ibl.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\iridescence.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\material_info.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\pbr.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\primitive.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\punctual.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\textures.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Khronos\tonemapping.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\background.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\background.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\brdf.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\brdf.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\cubemap.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\equirectangular_to_cubemap.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\irradiance_convolution.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\pbr.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\pbr.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecularTextured\prefilter.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\background.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\background.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\brdf.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\brdf.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\cubemap.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\equirectangular_to_cubemap.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\irradiance_convolution.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\pbr.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\pbr.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\LearnSpecular\prefilter.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Assimp" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Core" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Input" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Maths" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
   </ItemGroup>
 
   <ItemGroup>

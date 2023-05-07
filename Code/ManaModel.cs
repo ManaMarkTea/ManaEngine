@@ -1,4 +1,5 @@
-﻿using MetaRenderer.Code;
+﻿using Mana.Code;
+using MetaRenderer.Code;
 using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using static System.Formats.Asn1.AsnWriter;
@@ -7,16 +8,13 @@ using AssimpTexture = Silk.NET.Assimp.Texture;
 
 namespace Mana
 {
-    public class ManaModel : IDisposable
+    public class ManaModel : ManaObject, IDisposable
     {
-        public ManaWorld World;
+        public ManaContext Context;
 
-        public GL gl;
-
-        public ManaModel(ManaWorld world)
+        public ManaModel(ManaContext context) : base (context)
         {
-            World = world;
-            gl = Game.Instance.gl;
+            this.Context = context;
         }
 
         private List<ManaTexture> _texturesLoaded = new List<ManaTexture>();
@@ -41,7 +39,7 @@ namespace Mana
 
             }
 
-            return new ManaMesh(World);
+            return new ManaMesh(Context);
         }
                 
         private unsafe ManaMesh ProcessMesh(AssimpMesh* mesh)

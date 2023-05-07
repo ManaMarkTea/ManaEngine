@@ -55,19 +55,26 @@ namespace Mana
         }
     }
 
-    public class ManaMaterial
+    public class ManaMaterial : ManaObject
     {
-        public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance._World);       
+        public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance.Context);       
         
-        public ManaShader Shader { get; set; }
-        public ManaWorld World { get; set; }
+        public ManaShader Shader { get; set; }        
 
-        public ManaMaterial(ManaWorld world)
-        {
-            World = world;
+        public ManaMaterial(ManaContext context) : base(context)
+        {            
             Channels = new Dictionary<string, MetaMaterialChannel>();
-            Shader = new ManaShader(world);
-            Shader.LoadShader("Assets/Shaders/BardPbr.vert", "Assets/Shaders/BardPbr.frag");            
+            //Shader = new ManaShader(context);
+            //Shader.LoadShader("Assets/Shaders/BardPbr.vert", "Assets/Shaders/BardPbr.frag");            
+
+            //Shader = new ManaKhronosShader(context);
+            //Shader.LoadShader("Assets/Shaders/Khronos/primitive.vert", "Assets/Shaders/Khronos/pbr.frag");
+
+            var shader = new ManaLearnShader(context);
+            Shader = shader;
+            shader.LoadPBR();
+            
+
         }
 
         public Vector4 EmissiveColor = Vector4.Zero;
@@ -83,7 +90,7 @@ namespace Mana
 
         public unsafe void LoadFromGltf(Material* material)
         {
-            Shader = new ManaShader(World);
+            Shader = new ManaShader(Context);
             //Shader.LoadShader("Assets/Shaders/basic_pos_uv.vert", "Assets/Shaders/PixelShader.frag");
             Shader.LoadShader("Assets/Shaders/PBR_Emeiri/pbr.vert", "Assets/Shaders/PBR_Emeiri/pbr.frag");
 
@@ -183,7 +190,7 @@ namespace Mana
                     string filePath = metaChannel.Value;
                     if (filePath != null)
                     {
-                        string fullPath = System.IO.Path.Combine(World.ActivePath, filePath);
+                        string fullPath = System.IO.Path.Combine(Context.World.ActivePath, filePath);
                         var channelTexture = TextureManager.Instance.CreateTexture(filePath);
                         if (!channelTexture.IsLoaded)
                         {
@@ -207,13 +214,13 @@ namespace Mana
 
         private unsafe List<ManaTexture> LoadMaterialTextures(Material* mat, TextureType type, string typeName)
         {
-            var textureCount = World._AssetImporter.GetMaterialTextureCount(mat, type);
+            var textureCount = Context.World._AssetImporter.GetMaterialTextureCount(mat, type);
 
             List<ManaTexture> textures = new List<ManaTexture>();
             for (uint i = 0; i < textureCount; i++)
             {
                 AssimpString path;
-                World._AssetImporter.GetMaterialTexture(mat, type, i, &path, null, null, null, null, null, null);
+                Context.World._AssetImporter.GetMaterialTexture(mat, type, i, &path, null, null, null, null, null, null);
                 
                 ManaTexture manaTexture = TextureManager.Instance.CreateTexture(path);
                 manaTexture.OriginalFilename = path;
@@ -233,7 +240,7 @@ namespace Mana
                 }
             }
 
-            Shader.BindShader(this, objectMatrix, World.MainCamera);
+            Shader.BindShader(this, objectMatrix, Context.World.MainCamera);
         }
 
         public void UnBind()

@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using Mana.Code;
+using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -8,18 +9,17 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class ManaVertexArrayObject<TVertexType, TIndexType> : IDisposable
+    public class ManaVertexArrayObject<TVertexType, TIndexType> : ManaObject, IDisposable
         where TVertexType : unmanaged
         where TIndexType : unmanaged
     {
-        private uint _handle;
-        private GL _gl;
+        private uint _handle;        
 
-        public ManaVertexArrayObject(GL gl, ManaBufferObject<TVertexType> vbo, ManaBufferObject<TIndexType> ebo)
+        public ManaVertexArrayObject(ManaContext context, ManaBufferObject<TVertexType> vbo, ManaBufferObject<TIndexType> ebo) : base(context)
         {
-            _gl = gl;
+            var gl = Context.gl;
 
-            _handle = _gl.GenVertexArray();
+            _handle = gl.GenVertexArray();
             Bind();
             vbo.Bind();
             ebo.Bind();
@@ -27,13 +27,15 @@ namespace Mana
 
         public unsafe void VertexAttributePointer(uint index, int count, VertexAttribPointerType type, uint vertexSize, int offSet)
         {
-            _gl.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexType), (void*)(offSet * sizeof(TVertexType)));
-            _gl.EnableVertexAttribArray(index);
+            var gl = Context.gl;
+
+            gl.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexType), (void*)(offSet * sizeof(TVertexType)));
+            gl.EnableVertexAttribArray(index);
         }
 
         public void Bind()
-        {
-            _gl.BindVertexArray(_handle);
+        {            
+            Context.gl.BindVertexArray(_handle);
         }
 
         public void Draw()
@@ -44,7 +46,7 @@ namespace Mana
 
         public void Dispose()
         {
-            _gl.DeleteVertexArray(_handle);
+            Context.gl.DeleteVertexArray(_handle);
         }
     }
 }

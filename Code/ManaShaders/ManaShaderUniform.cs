@@ -10,17 +10,24 @@ namespace Mana.Code.ManaShaders
     public class ManaShaderUniform       
     {
         public GL gl;
+        public uint shaderLocation;
         public int location;
         public UniformType type;
         public string name;
 
         public void SetValue(int value)
         {
+            var index = gl.GetUniformLocation(shaderLocation, name);
             gl.Uniform1(location, value);
         }
         public void SetValue(float value)
         {
             gl.Uniform1(location, value);
+        }
+
+        public void SetValue(float valueX, float valueY, float valueZ)
+        {
+            gl.Uniform3(location, new ReadOnlySpan<float>(new float[]{ valueX, valueY, valueZ }));
         }
 
         public void SetValue(Vector2 value)

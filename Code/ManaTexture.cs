@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using Mana.Code;
+using Silk.NET.OpenGL;
 using SixLabors.ImageSharp.Formats;
 using System;
 using System.Collections.Generic;
@@ -8,9 +9,8 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class ManaTexture
+    public class ManaTexture : ManaObject
     {
-        public GL gl;
         public string Name { get; set; }
         public string OriginalFilename { get; set; }
         public uint Width { get; set; }
@@ -25,6 +25,7 @@ namespace Mana
         public bool IsWrapU { get; set; }
         public bool IsWrapV { get; set; }
 
+        public bool IsCube { get; set; }
         public TextureMinFilter MinFilter { get; set; }
         public TextureMagFilter MagFilter { get; set; }
 
@@ -37,9 +38,21 @@ namespace Mana
         public PixelFormat InternalPixelFormat { get; set; }
         public GLEnum InternalPixelType { get; set; }
 
-        public ManaTexture()
+        public TextureTarget TextureTargetType
         {
-            gl = Game.Instance.gl;
+            get
+            {
+                TextureTarget targetType = TextureTarget.Texture2D;
+                if (IsCube)
+                {
+                    targetType = TextureTarget.TextureCubeMap;
+                }
+                return targetType;
+            }
+        }
+
+        public ManaTexture(ManaContext context) : base(context)
+        {            
             PixelData = new byte[0];
             Width = 0; Height = 0;
             ElementCount = 4;
@@ -60,24 +73,43 @@ namespace Mana
 
         public void UpdateParameters()
         {
-            // Load texture
-            gl.BindTexture(TextureTarget.Texture2D, Handle);
-            gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, IsWrapU ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, IsWrapV ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+            var gl = Context.gl;
 
-            gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (uint)MinFilter);
-            gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (uint)MagFilter);
+            var targetType = TextureTargetType;
+
+            // Load texture
+            gl.BindTexture(targetType, Handle);
+            gl.TexParameter(targetType, TextureParameterName.TextureWrapS, IsWrapU ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+            gl.TexParameter(targetType, TextureParameterName.TextureWrapT, IsWrapV ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+
+            gl.TexParameter(targetType, TextureParameterName.TextureMagFilter, (uint)MinFilter);
+            gl.TexParameter(targetType, TextureParameterName.TextureMinFilter, (uint)MagFilter);
         }
 
         public unsafe void UpdateTextureSize()
         {
-            SizeInBytes = (int)Width * (int)Height * 4;
-            gl.BindTexture(TextureTarget.Texture2D, Handle);
-            gl.TexImage2D(TextureTarget.Texture2D, 0, InternalDataFormat, (uint)Width, (uint)Height, 0, InternalPixelFormat, InternalPixelType, null);
-        }
+            var gl = Context.gl;
 
+            SizeInBytes = (int)Width * (int)Height * 4;
+            gl.BindTexture(TextureTargetType, Handle);
+
+            if (!IsCube)
+            {
+                gl.TexImage2D(TextureTargetType, 0, InternalDataFormat, (uint)Width, (uint)Height, 0, InternalPixelFormat, InternalPixelType, null);
+            }
+            else
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalDataFormat, (uint)Width, (uint)Height, 0, InternalPixelFormat, InternalPixelType, null);
+                }
+            }
+        }
+         
         public unsafe void Load()
-        { 
+        {
+            var gl = Context.gl;
+
             if (IsLoaded == false)
             {
                 if (Handle == 0)
@@ -85,7 +117,7 @@ namespace Mana
                     Handle = gl.GenTexture();
                 }
 
-                gl.BindTexture(TextureTarget.Texture2D, Handle);
+                gl.BindTexture(TextureTargetType, Handle);
 
                 UpdateParameters();
                 
@@ -126,6 +158,8 @@ namespace Mana
 
         public void Bind(int channel)
         {
+            var gl = Context.gl;
+
             switch (channel)
             {
                 case 0: gl.ActiveTexture(TextureUnit.Texture0); break;
@@ -143,12 +177,14 @@ namespace Mana
             
             if (Handle > 0)
             {                                
-                gl.BindTexture(TextureTarget.Texture2D, Handle);
+                gl.BindTexture(TextureTargetType, Handle);
             }
         }
 
         public void UnBind(int channel)
         {
+            var gl = Context.gl;
+
             switch (channel)
             {
                 case 0: gl.ActiveTexture(TextureUnit.Texture0); break;
@@ -164,7 +200,7 @@ namespace Mana
                 case 9: gl.ActiveTexture(TextureUnit.Texture9); break;
             }
 
-            gl.BindTexture(TextureTarget.Texture2D, 0);
+            gl.BindTexture(TextureTargetType, 0);
             gl.ActiveTexture(TextureUnit.Texture0);
         }
     }

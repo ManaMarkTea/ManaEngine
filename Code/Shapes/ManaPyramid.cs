@@ -14,7 +14,7 @@ namespace Mana
     {
         public Vector3 CubeSize { get; set; }
 
-        public ManaPyramid(ManaWorld world, Vector4 color, Vector3 size) : base(world)
+        public ManaPyramid(ManaContext context, Vector4 color, Vector3 size) : base(context)
         {
             CubeSize = size;
             DefaultVertexColor = color;
@@ -27,7 +27,7 @@ namespace Mana
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
             List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = new ManaMaterial(World);
+            var foundMaterial = new ManaMaterial(Context);
             if (foundMaterial != null)
             {
                 newMaterials.Add(foundMaterial);
@@ -123,7 +123,7 @@ namespace Mana
 
             Materials = newMaterials.ToArray();
 
-            MeshBufferObject = new MetaVertexBufferObject(indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
+            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
             MeshBufferObject.ConstructVBO();
         }
 

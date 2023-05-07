@@ -1,4 +1,5 @@
-﻿using Mana.Code.ManaShaders;
+﻿using Mana.Code;
+using Mana.Code.ManaShaders;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using System;
@@ -12,17 +13,14 @@ using System.Threading.Tasks;
 
 namespace Mana
 {
-    public class ManaShader
+    public class ManaShader : ManaObject
     {
-        private GL gl = Game.Instance.gl;
 
         private uint shaderProgram = 0;
         private uint vertexShaderObject = 0;
         private uint fragmentShaderObject = 0;
         private uint geomShaderObject = 0;
-
-        public ManaWorld World { get; private set; }
-
+        
         public string VertexShaderCompilerLog { get; set; } = "";
         public string FragmentShaderCompilerLog { get; set; } = "";
         public string GeometryShaderCompilerLog { get; set; } = "";
@@ -32,20 +30,27 @@ namespace Mana
         public List<ManaShaderUniform> UniformNames { get; set; } = new List<ManaShaderUniform>();                
         public Dictionary<string, ManaShaderUniform> UniformMap { get; set; } = new Dictionary<string, ManaShaderUniform>();
 
-        public ManaShader(ManaWorld world)
+        public List<string> Defines { get; set; }
+
+        public ManaShader(ManaContext context) : base(context)
         {
-            this.World = world;            
+            this.Defines = new List<string>();
         }
-        
-        public void LoadShader(string vertPath, string fragPath, string geomShader = "")
+
+        protected virtual string CleanSource(string source) { return source; }
+
+        public unsafe void LoadShader(string vertPath, string fragPath, string geomShader = "")
         {
-            gl = Game.Instance.gl;
+            var gl = Context.gl;
 
             vertexShaderObject = gl.CreateShader(ShaderType.VertexShader);
             fragmentShaderObject = gl.CreateShader(ShaderType.FragmentShader);
         
             var vertexSource = File.ReadAllText(vertPath, Encoding.UTF8);
             var fragSource = File.ReadAllText(fragPath, Encoding.UTF8);
+
+            //gl.ShaderSource(vertexShaderObject, (uint)vertexSources.Count, vertexSources.ToArray(), null);
+            //gl.ShaderSource(fragmentShaderObject, (uint)fragmentSources.Count, fragmentSources.ToArray(), null);
 
             gl.ShaderSource(vertexShaderObject, vertexSource);
             gl.ShaderSource(fragmentShaderObject, fragSource);
@@ -105,39 +110,52 @@ namespace Mana
 
         public void LoadUniforms()
         {
+            var gl = Context.gl;
 
             gl.GetProgram(shaderProgram, ProgramPropertyARB.ActiveUniforms, out int uniformCount);
             for (uint i = 0; i < uniformCount; i++)
             {
                 gl.GetActiveUniform(shaderProgram, i, (uint)64, out uint uniformLength, out int uniformSize, out UniformType type, out string uniformName);
+                int uniformLocation = gl.GetUniformLocation(shaderProgram, uniformName);
 
                 ManaShaderUniform uniform = new ManaShaderUniform();
+                uniform.shaderLocation = shaderProgram;
                 uniform.gl = gl;
                 uniform.name = uniformName;
-                uniform.location = (int)i;
+                uniform.location = (int)uniformLocation;
                 uniform.type = type;
 
                 UniformNames.Add(uniform);
                 UniformMap[uniformName] = uniform;
 
-                Console.WriteLine($"Uniform #{i} Type: {type} Name: {uniformName}\n");
+                Trace.WriteLine($"Uniform #{i} Type: {type} Name: {uniformName}");
             }
         }
 
+        /*
+         * uniform mat4 projection;
+uniform mat4 view;
+uniform mat4 model;
+uniform mat3 normalMatrix;*/
+        
         private static string[] ModelViewProjectMatrixUniforms = { "gWVP" };
-        private static string[] ObjMatrixUniforms = { "gWorld" };        
+        private static string[] ObjMatrixUniforms = { "gWorld", "model" };
         private static string[] ModelViewMatrixUniforms = { "modelViewMatrix" };
-        private static string[] ProjectionMatrixUniforms = { "projectionMatrix" };
+        private static string[] ProjectionMatrixUniforms = { "projectionMatrix", "projection" };
+        private static string[] ViewMatrixUniforms = { "view", "viewMatrix" };
+        private static string[] NormalMatrixUniforms = { "normalMatrix" };
 
         private static string[] BaseColorUniforms = { "baseColor", "gColorMap" };
 
         public void BindShader()
         {
-            gl.UseProgram(shaderProgram);
+            Context.gl.UseProgram(shaderProgram);
         }
 
         public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
         {
+            var gl = Context.gl;
+
             gl.UseProgram(shaderProgram);
 
             foreach (var uniform in UniformNames)
@@ -220,8 +238,9 @@ namespace Mana
                 {
                     if (uniform.name.Equals(modelViewProjectUniform, StringComparison.OrdinalIgnoreCase))
                     {
-                        Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, (float*)&mvpm);
+                        Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;                        
+                        gl.UniformMatrix4(uniform.location, 1, false, mvpm.ToSpan());
+                        //gl.ProgramUniformMatrix4(shaderProgram, uniform.location, false, (double*)mvpm);
                     }
                 }
             
@@ -230,7 +249,7 @@ namespace Mana
                 {
                     if (uniform.name.Equals(objUniform, StringComparison.OrdinalIgnoreCase))
                     {
-                        gl.UniformMatrix4(uniform.location, 1, false, (float*)&objectMatrix);
+                        gl.UniformMatrix4(uniform.location, 1, false, objectMatrix.ToSpan());
                     }
                 }
 
@@ -239,7 +258,7 @@ namespace Mana
                     if (uniform.name.Equals(modelViewMatrixUniform, StringComparison.OrdinalIgnoreCase))
                     {
                         Matrix4x4 mvm = objectMatrix * camera._ViewMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, (float*)&mvm);
+                        gl.UniformMatrix4(uniform.location, 1, false, mvm.ToSpan());
                     }
                 }
 
@@ -248,7 +267,25 @@ namespace Mana
                     if (uniform.name.Equals(projectMatrixUniform, StringComparison.OrdinalIgnoreCase))
                     {
                         Matrix4x4 proj = camera._ProjectionMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, (float*)&proj);
+                        gl.UniformMatrix4(uniform.location, 1, false, proj.ToSpan());
+                    }
+                }
+
+                foreach (var viewMatrixUniform in ViewMatrixUniforms)
+                {
+                    if (uniform.name.Equals(viewMatrixUniform, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Matrix4x4 view = camera._ViewMatrix;
+                        gl.UniformMatrix4(uniform.location, 1, false, view.ToSpan());
+                    }   
+                }
+
+                foreach (var normalMatrixUniform in NormalMatrixUniforms)
+                {
+                    if (uniform.name.Equals(normalMatrixUniform, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var normalMatrix = Matrix3X3<float>.Identity;
+                        gl.UniformMatrix3(uniform.location, 1, false, normalMatrix.ToSpan());
                     }
                 }
             }
@@ -256,7 +293,25 @@ namespace Mana
 
         public void UnbindShader()
         {
-            gl.UseProgram(0);
+            Context.gl.UseProgram(0);
         }
+
+
+
+
+
+        public static Dictionary<string, string> shaderSources = new Dictionary<string, string>();
+        public static Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
+        protected static void CacheShader(string shaderFile)
+        {
+            Encoding encoding = Encoding.UTF8;
+
+            string source = File.ReadAllText(shaderFile, encoding);
+            string key = System.IO.Path.GetFileName(shaderFile);
+            shaderSources[key] = source;
+            shaderFiles[key] = shaderFile;
+        }
+
+
     }
 }

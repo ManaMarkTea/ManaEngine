@@ -32,10 +32,9 @@ namespace Mana
         public static Game Instance;
         public ImGuiController _ImGui;
         public IWindow _Window;
-        public IInputContext _Input;
-        public GL gl;
+        
 
-        public ManaWorld _World;
+        public ManaContext Context;
 
         public Game()
         {
@@ -45,7 +44,7 @@ namespace Mana
             _Window.FramebufferResize += Resize;
             _Window.Update += Update;
             _Window.Render += Render;
-                        
+
         }
 
         public void Run()
@@ -62,14 +61,23 @@ namespace Mana
 
             if (type == GLEnum.DebugTypeError)
             {
+                if (messageString.Contains("UniformMatrix*"))
+                {
+                    return;
+                }
+
                 throw new Exception(messageString);
             }
         }
 
         public void Load()
-        {
-            gl = _Window.CreateOpenGL();
-            _Input = _Window.CreateInput();
+        {           
+            var gl = _Window.CreateOpenGL();
+            var input = _Window.CreateInput();
+            var world = new ManaWorld();
+            
+            Context = new ManaContext(gl, input, world);
+            world.Initialize(Context);
 
             gl.Enable(EnableCap.DepthTest);
             gl.Enable(EnableCap.DebugOutput);
@@ -80,27 +88,24 @@ namespace Mana
             gl.DebugMessageCallback(DebugCallback, IntPtr.Zero);
 
 
-            _ImGui = new ImGuiController(gl, _Window, _Input);
+            _ImGui = new ImGuiController(gl, _Window, input);
 
             gl.ClearColor(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
-
-            _World = new ManaWorld();
-            var sun = _World.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
+                        
+            var sun = world.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
 
             var sunMaterial = (sun.Components[0] as MeshRendererComponent).DynamicMaterial;
             sunMaterial.EmissiveColor = Colors.Gold;
             sunMaterial.EmissiveStrength = 10.0f;
 
-
             //_World.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
-            _World.Update();
-
+            world.Update();
         }
 
         public void Resize(Vector2D<int> size)
         {
             // Adjust the viewport to the new window size
-            gl.Viewport(size);
+            Context.gl.Viewport(size);
         }
 
         public void Update(double delta)
@@ -108,13 +113,13 @@ namespace Mana
             // Make sure ImGui is up-to-date
             _ImGui.Update((float)delta);
 
-            _World.Update();
+            Context.World.Update();
         }
 
         public void Render(double delta)
         {
             Frame++;
-            _World.Draw();
+            Context.World.Draw();
 
 
             // This is where you'll do all of your ImGUi rendering
@@ -128,8 +133,8 @@ namespace Mana
         public void Closing()
         {
             _ImGui?.Dispose();
-            _Input?.Dispose();
-            gl?.Dispose();
+            Context.Input?.Dispose();
+            Context.gl?.Dispose();
         }
 
     }
