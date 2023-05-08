@@ -61,7 +61,7 @@ namespace Mana.Code.ManaShaders
             }            
 
             this.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissiveStrength);
-            this.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Smoothness);
+            this.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness);
             this.UniformMap[$@"spheres[{index}].material.specularColor"].SetValue(renderer.Material.SpecularColor);
             this.UniformMap[$@"spheres[{index}].material.specularColorScatterChance"].SetValue(renderer.Material.SpecularColorScatterChance);
             this.UniformMap[$@"spheres[{index}].radius"].SetValue(sphereNode.Scale.X * 0.25f);

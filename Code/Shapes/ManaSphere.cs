@@ -126,12 +126,10 @@ namespace Mana.Code.Shapes
             {
             }
 
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = new ManaMaterial(Context);
-            if (foundMaterial != null)
+            List<ManaMaterial> newMaterials = new List<ManaMaterial>
             {
-                newMaterials.Add(foundMaterial);
-            }
+                GenerateMaterial()
+            };
 
             Materials = newMaterials.ToArray();
             MeshBufferObject = new MetaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);

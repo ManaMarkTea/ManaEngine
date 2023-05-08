@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Silk.NET.OpenGL;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,6 +47,8 @@ namespace Mana.Code.Renderers
         public Matrix4x4 viewMatrix;
         public Matrix4x4 projMatrix;
         public Matrix4x4 viewProjectionMatrix;
+
+        public Vector4 DefaultClearColor = new Vector4(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
 
         public static Dictionary<string, string> shaderSources = new Dictionary<string,string>();
 

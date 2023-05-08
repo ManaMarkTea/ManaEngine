@@ -72,16 +72,16 @@ namespace Mana
 
             var shader = new ManaLearnShader(context);
             Shader = shader;
-            shader.LoadPBR();
-            
-
         }
+
+        public Vector4 DiffuseColor = Vector4.One;
+        public float Roughness = 0.7f;
+        public float Metallic = 0.5f;
 
         public Vector4 EmissiveColor = Vector4.Zero;
         public float EmissiveStrength = 0.4f;
 
         public Vector4 SpecularColor = Colors.White;
-        public float Smoothness = 0.7f;
         public float SpecularColorScatterChance = 0.1f;
 
         public Dictionary<string, MetaMaterialChannel> Channels { get; set; }

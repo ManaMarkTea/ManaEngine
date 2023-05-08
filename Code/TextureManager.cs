@@ -28,6 +28,8 @@ namespace Mana
         private TextureManager(ManaContext context) : base(context)
         {
             _DefaultTexture = new ManaTexture(Context);
+            _DefaultTexture.OriginalFilename = "Assets/Textures/DebugTexture_Grid.png";
+            _DefaultTexture.Load();
 
             /*
             // Load the image.
@@ -41,7 +43,7 @@ namespace Mana
             _DefaultTexture.IsWrapV = true;
             _DefaultTexture.Load();
             */
-            
+
         }
         public ManaTexture CreateTexture(string key)
         {

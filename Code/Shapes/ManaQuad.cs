@@ -27,14 +27,11 @@ namespace Mana
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = new ManaMaterial(Context);
-            if (foundMaterial != null)
+            List<ManaMaterial> newMaterials = new List<ManaMaterial>
             {
-                newMaterials.Add(foundMaterial);
-            }
+                GenerateMaterial()
+            };
 
-            
             MinSize = -cR;
             MaxSize = cR;
 
@@ -51,6 +48,11 @@ namespace Mana
             verts[2] = container.AddPoint(vc);
             verts[3] = container.AddPoint(vd);
 
+            verts[0].TexCoord0 = new Vector2(0.0f, 0.0f);
+            verts[1].TexCoord0 = new Vector2(1.0f, 0.0f);
+            verts[2].TexCoord0 = new Vector2(0.0f, 1.0f);
+            verts[3].TexCoord0 = new Vector2(1.0f, 1.0f);
+
             foreach (var vert in verts)
             {
                 vert.Color = this.DefaultVertexColor;
@@ -62,7 +64,7 @@ namespace Mana
             var normals = container.Normals.ToArray();
             var colors = container.Colors.ToArray();
             var textureCoordinates0 = container.TexCoords0.ToArray();
-            var textureCoordinates1 = container.TexCoords0.ToArray();
+            var textureCoordinates1 = container.TexCoords1.ToArray();
             var indexes = container.Indexes.ToArray();
 
             Materials = newMaterials.ToArray();

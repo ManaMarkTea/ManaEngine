@@ -172,11 +172,7 @@ namespace Mana
 
             FrameBufferID = gl.GenFramebuffer();
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);            
-            
-            int bufferCount = bufferInfos.Count;
-            uint[] colorBuffers = new uint[bufferCount];
-            gl.GenTextures((uint)bufferCount, colorBuffers);
-
+           
             int i = 0;
             int colorIndex = 0;
             foreach (var bufferInfo in bufferInfos)
@@ -202,8 +198,7 @@ namespace Mana
                 texture.Width = Width;
                 texture.IsCube = bufferInfo.HasCube;
                 texture.Height = Height;
-                texture.IsWrapU = false;
-                texture.Handle = colorBuffers[i];
+                texture.IsWrapU = false;                
                 bufferInfo.Texture = texture;
 
                 if (bufferInfo.Depth16 || bufferInfo.Depth24)
@@ -238,14 +233,14 @@ namespace Mana
                 if (!bufferInfo.HasCube)
                 {                    
                     // attach texture to framebuffer
-                    gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, colorBuffers[i], 0);
+                    gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, texture.Handle, 0);
                     gl.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, bufferInfo.Samples, InternalFormat.Rgba8, Width, Height);
                 }
                 else
                 {                    
                     for (int cubeFace = 0; cubeFace < 6; ++cubeFace)
                     {                        
-                        gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + cubeFace, colorBuffers[i], 0);
+                        gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + cubeFace, texture.Handle, 0);
                     }
                 }
 
@@ -281,10 +276,20 @@ namespace Mana
             //gl.Color4f(1, 1, 1, 1);
         }
 
-        public void Bind()
+        public void Bind(int index = 0)
         {
             var gl = Game.Instance.Context.gl;
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);            
+            gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
+
+            foreach (var buffer in bufferInfos)
+            {
+                if (buffer.HasCube)
+                {
+                    // Bind the face of the cube we're drawing to
+                    gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, buffer.Texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + index, buffer.Texture.Handle, 0);
+                }
+            }
+
             gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 

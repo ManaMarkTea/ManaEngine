@@ -42,6 +42,39 @@
     <None Remove="Assets\Shaders\LearnSpecular\pbr.frag" />
     <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
     <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
+    <None Remove="Assets\Textures\DebugTexture_Grid.png" />
+    <None Remove="Assets\Textures\Environments\newport_loft.hdr" />
+    <None Remove="Assets\Textures\Environments\newport_loft.png" />
+    <None Remove="Assets\Textures\Icons\paddle.png" />
+    <None Remove="Assets\Textures\Icons\particle.png" />
+    <None Remove="Assets\Textures\Icons\powerup_chaos.png" />
+    <None Remove="Assets\Textures\Icons\powerup_confuse.png" />
+    <None Remove="Assets\Textures\Icons\powerup_increase.png" />
+    <None Remove="Assets\Textures\Icons\powerup_passthrough.png" />
+    <None Remove="Assets\Textures\Icons\powerup_speed.png" />
+    <None Remove="Assets\Textures\Icons\powerup_sticky.png" />
+    <None Remove="Assets\Textures\MaterialTextures\background.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\block.png" />
+    <None Remove="Assets\Textures\MaterialTextures\block_solid.png" />
+    <None Remove="Assets\Textures\MaterialTextures\bricks2.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\bricks2_disp.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\bricks2_normal.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\brickwall.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\brickwall_normal.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\concreteTexture.png" />
+    <None Remove="Assets\Textures\MaterialTextures\container.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\container2.png" />
+    <None Remove="Assets\Textures\MaterialTextures\container2_specular.png" />
+    <None Remove="Assets\Textures\MaterialTextures\container2_specular_colored.png" />
+    <None Remove="Assets\Textures\MaterialTextures\grass.png" />
+    <None Remove="Assets\Textures\MaterialTextures\marble.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\matrix.jpg" />
+    <None Remove="Assets\Textures\MaterialTextures\metal.png" />
+    <None Remove="Assets\Textures\MaterialTextures\toy_box_diffuse.png" />
+    <None Remove="Assets\Textures\MaterialTextures\toy_box_disp.png" />
+    <None Remove="Assets\Textures\MaterialTextures\toy_box_normal.png" />
+    <None Remove="Assets\Textures\MaterialTextures\window.png" />
+    <None Remove="Assets\Textures\MaterialTextures\wood.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -142,6 +175,105 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Shaders\LearnSpecular\prefilter.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\DebugTexture_Grid.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Environments\newport_loft.hdr">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Environments\newport_loft.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\paddle.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\particle.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\powerup_chaos.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\powerup_confuse.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\powerup_increase.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\powerup_passthrough.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\powerup_speed.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Icons\powerup_sticky.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\background.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\block.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\block_solid.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\bricks2.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\bricks2_disp.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\bricks2_normal.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\brickwall.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\brickwall_normal.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\concreteTexture.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\container.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\container2.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\container2_specular.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\container2_specular_colored.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\grass.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\marble.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\matrix.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\metal.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\toy_box_diffuse.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\toy_box_disp.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\toy_box_normal.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\window.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\MaterialTextures\wood.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

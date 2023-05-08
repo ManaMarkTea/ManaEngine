@@ -45,6 +45,15 @@ namespace Mana.Code.ManaShaders
             gl.Uniform4(location, value);
         }
 
+        public void SetValue(Matrix4x4 value)
+        {
+            gl.UniformMatrix4(location, 1, false, value.ToSpan());
+        }
+
+        public void SetValue(Silk.NET.Maths.Matrix3X3<float> value)
+        {
+            gl.UniformMatrix3(location, 1, false, value.ToSpan());
+        }
 
         public override string ToString()
         {

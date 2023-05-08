@@ -13,15 +13,11 @@ using System.Threading.Tasks;
 namespace Mana.Code
 {
     public class ManaLearnShader : ManaShader
-    {
-        
-
+    {        
         static ManaLearnShader()
         {            
             CacheShader("Assets/Shaders/LearnSpecular/background.frag");
             CacheShader("Assets/Shaders/LearnSpecular/background.vert");
-            CacheShader("Assets/Shaders/LearnSpecular/brdf.frag");
-            CacheShader("Assets/Shaders/LearnSpecular/brdf.vert");
             CacheShader("Assets/Shaders/LearnSpecular/cubemap.vert");
             CacheShader("Assets/Shaders/LearnSpecular/equirectangular_to_cubemap.frag");
             CacheShader("Assets/Shaders/LearnSpecular/irradiance_convolution.frag");
@@ -32,7 +28,7 @@ namespace Mana.Code
 
         public ManaLearnShader(ManaContext context) : base(context)
         {
-
+            LoadPBR();
         }
 
         public void LoadPBR()
@@ -40,15 +36,17 @@ namespace Mana.Code
             LoadShader(shaderFiles["pbr.vert"], shaderFiles["pbr.frag"]);
             BindShader();
 
-            this.UniformMap["irradianceMap"].SetValue(0);
-            this.UniformMap["prefilterMap"].SetValue(1);
-            this.UniformMap["brdfLUT"].SetValue(2);
-
-            this.UniformMap["albedo"].SetValue(0.5f, 0.0f, 0.0f);
-            this.UniformMap["ao"].SetValue(1.0f);
+            FindUniform("irradianceMap")?.SetValue(0);
+            FindUniform("prefilterMap")?.SetValue(1);
+            FindUniform("brdfLUT")?.SetValue(2);
+            FindUniform("albedo")?.SetValue(0.5f, 0.0f, 0.0f);
+            FindUniform("ao")?.SetValue(1.0f);
 
             UnbindShader();
         }
+
+        float a = 0, b = 0, c = 0;
+        int time = 0;
 
         public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
         {
@@ -65,7 +63,11 @@ namespace Mana.Code
                 Prefilter?.Texture?.Bind(1);
                 Brdf?.Texture?.Bind(2);
             }
-
+            
+            FindUniform("albedo")?.SetValue(material.DiffuseColor.ToVector3());
+            FindUniform("metallic")?.SetValue(material.Metallic);
+            FindUniform("roughness")?.SetValue(material.Roughness);
+            FindUniform("ao")?.SetValue(material.SpecularColorScatterChance);
         }
 
         protected override string CleanSource(string source)

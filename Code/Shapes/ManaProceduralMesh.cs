@@ -31,6 +31,16 @@ namespace Mana.Code.Shapes
 
         }
 
+        public virtual ManaMaterial GenerateMaterial()
+        {
+            var foundMaterial = new ManaMaterial(Context);
+            if (foundMaterial != null)
+            {
+                foundMaterial.DiffuseColor = DefaultVertexColor;
+            }
+            return foundMaterial;
+        }
+
         protected virtual void GenerateData() { }
 
 

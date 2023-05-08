@@ -165,6 +165,16 @@ namespace Mana
             }
         }
 
+        public void RenderDirectly()
+        {
+            if (MeshBufferObject != null)
+            {
+                MeshBufferObject.Bind();
+                MeshBufferObject.DrawElements();
+                MeshBufferObject.UnBind();
+            }
+        }
+
         float GetUnitScale()
         {
             Vector3 diff = MaxSize - MinSize;

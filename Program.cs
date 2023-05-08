@@ -57,6 +57,12 @@ namespace Mana
         private static void DebugCallback(GLEnum source, GLEnum type, int id, GLEnum severity, int length, IntPtr message, IntPtr userParam)
         {
             string messageString = Marshal.PtrToStringAnsi(message, length);
+
+            if (type == GLEnum.DebugTypeOther)
+            {
+                return;
+            }
+
             Trace.WriteLine($"{severity} {type} | {messageString}");
 
             if (type == GLEnum.DebugTypeError)
@@ -90,7 +96,6 @@ namespace Mana
 
             _ImGui = new ImGuiController(gl, _Window, input);
 
-            gl.ClearColor(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
                         
             var sun = world.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
 

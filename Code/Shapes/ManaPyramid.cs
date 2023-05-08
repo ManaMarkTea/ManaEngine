@@ -26,14 +26,12 @@ namespace Mana
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = new ManaMaterial(Context);
-            if (foundMaterial != null)
+            List<ManaMaterial> newMaterials = new List<ManaMaterial>
             {
-                newMaterials.Add(foundMaterial);
-            }
+                GenerateMaterial()
+            };
 
-            
+
             MinSize = -CubeSize;
             MaxSize = CubeSize;
 

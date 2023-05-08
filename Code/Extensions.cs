@@ -97,6 +97,28 @@ namespace Mana
             return Vector3.Normalize(value);
         }
 
+        public static Vector3 ToVector3(this Vector4 value)
+        {
+            return new Vector3(value.X, value.Y, value.Z);
+        }
+
+        public static Vector4D<float> ToVector4D(this Vector4 value)
+        {
+            return new Vector4D<float>(value.X, value.Y, value.Z, value.W);
+        }
+
+        public static Matrix3X3<float> ToMatrix3(this Matrix4x4 matrix)
+        {
+            Matrix3X3<float> output = new Matrix3X3<float>
+            (            
+                matrix.M11, matrix.M12, matrix.M13,
+                matrix.M21, matrix.M22, matrix.M23,
+                matrix.M31, matrix.M32, matrix.M33
+            );
+            
+            return output;
+        }
+
         public static ReadOnlySpan<float> ToSpan(this Matrix4x4 matrix)
         {
             float[] floats = new float[]

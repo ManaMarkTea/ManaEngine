@@ -2,14 +2,8 @@
 using Mana.Code.ManaShaders;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Reflection.Metadata;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana
 {
@@ -20,17 +14,25 @@ namespace Mana
         private uint vertexShaderObject = 0;
         private uint fragmentShaderObject = 0;
         private uint geomShaderObject = 0;
-        
+
         public string VertexShaderCompilerLog { get; set; } = "";
         public string FragmentShaderCompilerLog { get; set; } = "";
         public string GeometryShaderCompilerLog { get; set; } = "";
 
         public string LinkCompilerLog { get; set; } = "";
 
-        public List<ManaShaderUniform> UniformNames { get; set; } = new List<ManaShaderUniform>();                
+        public List<ManaShaderUniform> UniformNames { get; set; } = new List<ManaShaderUniform>();
         public Dictionary<string, ManaShaderUniform> UniformMap { get; set; } = new Dictionary<string, ManaShaderUniform>();
 
         public List<string> Defines { get; set; }
+        
+        private static string[] ModelViewProjectMatrixUniforms = { "gWVP" };
+        private static string[] ObjMatrixUniforms = { "gWorld", "model" };
+        private static string[] ModelViewMatrixUniforms = { "modelViewMatrix" };
+        private static string[] ProjectionMatrixUniforms = { "projectionMatrix", "projection" };
+        private static string[] ViewMatrixUniforms = { "view", "viewMatrix" };
+        private static string[] NormalMatrixUniforms = { "normalMatrix" };
+        private static string[] BaseColorUniforms = { "baseColor", "gColorMap" };
 
         public ManaShader(ManaContext context) : base(context)
         {
@@ -39,20 +41,26 @@ namespace Mana
 
         protected virtual string CleanSource(string source) { return source; }
 
-        public unsafe void LoadShader(string vertPath, string fragPath, string geomShader = "")
+        public virtual void LoadShader(string vertPath, string fragPath, string geomShader = "")
+        {
+            var vertexSource = File.ReadAllText(vertPath, Encoding.UTF8);
+            var fragSource = File.ReadAllText(fragPath, Encoding.UTF8);
+            var geomSource = "";
+            if (geomShader.Length != 0)
+            {
+                geomSource = File.ReadAllText(geomShader, Encoding.UTF8);
+            }
+            LoadShaderSource(vertexSource, fragSource, geomSource);
+        }
+
+        public virtual void LoadShaderSource(string vertSource, string fragSource, string geomSource = "")
         {
             var gl = Context.gl;
 
             vertexShaderObject = gl.CreateShader(ShaderType.VertexShader);
             fragmentShaderObject = gl.CreateShader(ShaderType.FragmentShader);
-        
-            var vertexSource = File.ReadAllText(vertPath, Encoding.UTF8);
-            var fragSource = File.ReadAllText(fragPath, Encoding.UTF8);
 
-            //gl.ShaderSource(vertexShaderObject, (uint)vertexSources.Count, vertexSources.ToArray(), null);
-            //gl.ShaderSource(fragmentShaderObject, (uint)fragmentSources.Count, fragmentSources.ToArray(), null);
-
-            gl.ShaderSource(vertexShaderObject, vertexSource);
+            gl.ShaderSource(vertexShaderObject, vertSource);
             gl.ShaderSource(fragmentShaderObject, fragSource);
 
             gl.CompileShader(vertexShaderObject);
@@ -79,9 +87,8 @@ namespace Mana
             gl.AttachShader(shaderProgram, fragmentShaderObject);
 
 
-            if (geomShader.Length != 0)
-            {                                
-                var geomSource = File.ReadAllText(geomShader, Encoding.UTF8);
+            if (geomSource.Length != 0)
+            {
                 geomShaderObject = gl.CreateShader(ShaderType.GeometryShader);
                 gl.ShaderSource(geomShaderObject, geomSource);
                 gl.CompileShader(geomShaderObject);
@@ -104,7 +111,7 @@ namespace Mana
                 LinkCompilerLog = gl.GetProgramInfoLog(shaderProgram);
                 Debug.WriteLine(LinkCompilerLog);
             }
-           
+
             LoadUniforms();
         }
 
@@ -132,20 +139,16 @@ namespace Mana
             }
         }
 
-        /*
-         * uniform mat4 projection;
-uniform mat4 view;
-uniform mat4 model;
-uniform mat3 normalMatrix;*/
-        
-        private static string[] ModelViewProjectMatrixUniforms = { "gWVP" };
-        private static string[] ObjMatrixUniforms = { "gWorld", "model" };
-        private static string[] ModelViewMatrixUniforms = { "modelViewMatrix" };
-        private static string[] ProjectionMatrixUniforms = { "projectionMatrix", "projection" };
-        private static string[] ViewMatrixUniforms = { "view", "viewMatrix" };
-        private static string[] NormalMatrixUniforms = { "normalMatrix" };
+        public ManaShaderUniform FindUniform(string name)
+        {
+            if (UniformMap.ContainsKey(name))
+            {
+                return UniformMap[name];
+            }
 
-        private static string[] BaseColorUniforms = { "baseColor", "gColorMap" };
+            Trace.TraceWarning($"Uniform not found {name}");
+            return null;
+        }
 
         public void BindShader()
         {
@@ -186,10 +189,10 @@ uniform mat3 normalMatrix;*/
                 if (uniform.name == "FrameNumber")
                 {
                     gl.Uniform1(uniform.location, Game.Instance.Frame);
-                }                
+                }
 
                 if (uniform.name == "ViewParams")
-                {                    
+                {
                     gl.Uniform3(uniform.location, camera.ViewParams);
                 }
 
@@ -238,12 +241,12 @@ uniform mat3 normalMatrix;*/
                 {
                     if (uniform.name.Equals(modelViewProjectUniform, StringComparison.OrdinalIgnoreCase))
                     {
-                        Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;                        
+                        Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;
                         gl.UniformMatrix4(uniform.location, 1, false, mvpm.ToSpan());
                         //gl.ProgramUniformMatrix4(shaderProgram, uniform.location, false, (double*)mvpm);
                     }
                 }
-            
+
 
                 foreach (var objUniform in ObjMatrixUniforms)
                 {
@@ -277,7 +280,7 @@ uniform mat3 normalMatrix;*/
                     {
                         Matrix4x4 view = camera._ViewMatrix;
                         gl.UniformMatrix4(uniform.location, 1, false, view.ToSpan());
-                    }   
+                    }
                 }
 
                 foreach (var normalMatrixUniform in NormalMatrixUniforms)
@@ -295,8 +298,6 @@ uniform mat3 normalMatrix;*/
         {
             Context.gl.UseProgram(0);
         }
-
-
 
 
 
