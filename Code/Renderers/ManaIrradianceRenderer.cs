@@ -39,8 +39,6 @@ namespace Mana.Code.Renderers
         float debugLightIntensity = 10.0f;
         Vector4 debugLightColor = Colors.White;
 
-
-
         public override void Initialize() 
         {
             var gl = Context.gl;
