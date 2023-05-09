@@ -12,10 +12,10 @@ using System.Threading.Tasks;
 
 namespace Mana.Code
 {
-    public class ManaLearnShader : ManaShader
-    {        
-        static ManaLearnShader()
-        {            
+    public class ManaPbrShader : ManaShader
+    {
+        static ManaPbrShader()
+        {
             CacheShader("Assets/Shaders/LearnSpecular/background.frag");
             CacheShader("Assets/Shaders/LearnSpecular/background.vert");
             CacheShader("Assets/Shaders/LearnSpecular/cubemap.vert");
@@ -26,7 +26,7 @@ namespace Mana.Code
             CacheShader("Assets/Shaders/LearnSpecular/prefilter.frag");
         }
 
-        public ManaLearnShader(ManaContext context) : base(context)
+        public ManaPbrShader(ManaContext context) : base(context)
         {
             LoadPBR();
         }
@@ -44,9 +44,6 @@ namespace Mana.Code
 
             UnbindShader();
         }
-
-        float a = 0, b = 0, c = 0;
-        int time = 0;
 
         public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
         {

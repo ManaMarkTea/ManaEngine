@@ -13,9 +13,6 @@ namespace Mana
     {
         public List<ManaSceneNode> Children { get; set; }
 
-        public ManaContext Context { get; set; }
-
-
         public ManaScene(ManaContext context) : base(context)
         {            
             Children = new List<ManaSceneNode>();

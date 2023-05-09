@@ -103,7 +103,7 @@ namespace Mana
             sunMaterial.EmissiveColor = Colors.Gold;
             sunMaterial.EmissiveStrength = 10.0f;
 
-            //_World.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
+            world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
             world.Update();
         }
 
@@ -126,10 +126,9 @@ namespace Mana
             Frame++;
             Context.World.Draw();
 
-
             // This is where you'll do all of your ImGUi rendering
             // Here, we're just showing the ImGui built-in demo window.
-            ImGuiNET.ImGui.ShowDemoWindow();
+            //ImGuiNET.ImGui.ShowDemoWindow();
 
             // Make sure ImGui renders too!
             _ImGui.Render();

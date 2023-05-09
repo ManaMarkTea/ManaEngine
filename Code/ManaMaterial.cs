@@ -70,7 +70,7 @@ namespace Mana
             //Shader = new ManaKhronosShader(context);
             //Shader.LoadShader("Assets/Shaders/Khronos/primitive.vert", "Assets/Shaders/Khronos/pbr.frag");
 
-            var shader = new ManaLearnShader(context);
+            var shader = new ManaPbrShader(context);
             Shader = shader;
         }
 
@@ -90,9 +90,9 @@ namespace Mana
 
         public unsafe void LoadFromGltf(Material* material)
         {
-            Shader = new ManaShader(Context);
+            //Shader = new ManaShader(Context);
             //Shader.LoadShader("Assets/Shaders/basic_pos_uv.vert", "Assets/Shaders/PixelShader.frag");
-            Shader.LoadShader("Assets/Shaders/PBR_Emeiri/pbr.vert", "Assets/Shaders/PBR_Emeiri/pbr.frag");
+            //Shader.LoadShader("Assets/Shaders/PBR_Emeiri/pbr.vert", "Assets/Shaders/PBR_Emeiri/pbr.frag");
 
 
             for (int i = 0; i < material->MNumProperties; i++)

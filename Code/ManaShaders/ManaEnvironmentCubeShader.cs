@@ -20,6 +20,8 @@ namespace Mana.Code.ManaShaders
         public ManaEnvironmentCubeShader(ManaContext context) : base(context)
         {
             var environmentPath = "Assets/Textures/Environments/newport_loft.png";
+            //var environmentPath = "Assets/Textures/Environments/chromatic.jpg";
+            //var environmentPath = "Assets/Textures/Environments/field.jpg";
             EnvironmentTexture = TextureManager.Instance.CreateTexture(environmentPath);
             EnvironmentTexture.OriginalFilename = environmentPath;
             EnvironmentTexture.Load();
@@ -29,6 +31,11 @@ namespace Mana.Code.ManaShaders
 
            
             UnbindShader();
+        }
+
+        public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
+        {
+            base.BindShader(material, objectMatrix, camera);
         }
 
         public void BindEnvironmentTexture()

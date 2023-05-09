@@ -137,7 +137,7 @@ namespace Mana
                         Height = (uint)img.Height;
 
                         SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
-                        gl.TexImage2D(TextureTarget.Texture2D, 0, InternalDataFormat, (uint)img.Width, (uint)img.Height, 0, InternalPixelFormat, InternalPixelType, null);
+                        gl.TexImage2D(TextureTargetType, 0, InternalDataFormat, (uint)img.Width, (uint)img.Height, 0, InternalPixelFormat, InternalPixelType, null);
 
                         img.ProcessPixelRows(accessor =>
                         {
@@ -145,11 +145,16 @@ namespace Mana
                             {
                                 fixed (void* data = accessor.GetRowSpan(y))
                                 {
-                                    gl.TexSubImage2D(TextureTarget.Texture2D, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
+                                    gl.TexSubImage2D(TextureTargetType, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
                                 }
                             }
                         });
                     }
+                }
+
+                if (HasMipMaps)
+                {
+                    gl.GenerateMipmap(GLEnum.Texture);
                 }
 
                 IsLoaded = true;

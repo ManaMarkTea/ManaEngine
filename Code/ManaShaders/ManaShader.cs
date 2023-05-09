@@ -7,8 +7,31 @@ using System.Text;
 
 namespace Mana
 {
+    public class ManaSemantic
+    {
+        public string[] Names = { };
+
+        public ManaSemantic(string[] names) 
+        {
+            Names = names;
+        }
+
+        public void Apply(ManaShaderUniform uniform, Action action)
+        {
+            foreach (var modelViewProjectUniform in Names)
+            {
+                if (uniform.name.Equals(modelViewProjectUniform, StringComparison.OrdinalIgnoreCase))
+                {
+                    action();
+                    break;
+                }
+            }
+        }
+    }
+
     public class ManaShader : ManaObject
     {
+
 
         private uint shaderProgram = 0;
         private uint vertexShaderObject = 0;
@@ -25,14 +48,16 @@ namespace Mana
         public Dictionary<string, ManaShaderUniform> UniformMap { get; set; } = new Dictionary<string, ManaShaderUniform>();
 
         public List<string> Defines { get; set; }
-        
-        private static string[] ModelViewProjectMatrixUniforms = { "gWVP" };
-        private static string[] ObjMatrixUniforms = { "gWorld", "model" };
-        private static string[] ModelViewMatrixUniforms = { "modelViewMatrix" };
-        private static string[] ProjectionMatrixUniforms = { "projectionMatrix", "projection" };
-        private static string[] ViewMatrixUniforms = { "view", "viewMatrix" };
-        private static string[] NormalMatrixUniforms = { "normalMatrix" };
-        private static string[] BaseColorUniforms = { "baseColor", "gColorMap" };
+
+        private static ManaSemantic ModelViewProjectionSemantics = new ManaSemantic(new string[] { "gWVP" });
+        private static ManaSemantic ModelViewProjectionMatrixSemantics = new ManaSemantic( new string[] { "gWVP" });
+        private static ManaSemantic ObjectMatrixSemantics = new ManaSemantic( new string[] { "gWorld", "model" });
+        private static ManaSemantic ModelViewMatrixSemantics = new ManaSemantic( new string[] { "modelViewMatrix" });
+        private static ManaSemantic ProjectionMatrixSemantics = new ManaSemantic( new string[] { "projectionMatrix", "projection" });
+        private static ManaSemantic ViewMatrixSemantics = new ManaSemantic( new string[] { "view", "viewMatrix" });
+        private static ManaSemantic NormalMatrixSemantics = new ManaSemantic( new string[] { "normalMatrix" });
+        private static ManaSemantic BaseColorSemantics = new ManaSemantic( new string[] { "baseColor", "gColorMap" });
+        private static ManaSemantic CameraPositionSemantics = new ManaSemantic( new string[] { "camPos", "gEyeWorldPos" });
 
         public ManaShader(ManaContext context) : base(context)
         {
@@ -139,6 +164,8 @@ namespace Mana
             }
         }
 
+        static HashSet<string> WarnedNames = new HashSet<string>();
+
         public ManaShaderUniform FindUniform(string name)
         {
             if (UniformMap.ContainsKey(name))
@@ -146,8 +173,12 @@ namespace Mana
                 return UniformMap[name];
             }
 
-            Trace.TraceWarning($"Uniform not found {name}");
-            return null;
+            if (!WarnedNames.Contains(name))
+            {
+                Trace.TraceWarning($"Uniform not found {name}");
+                WarnedNames.Add(name);
+            }
+                return null;
         }
 
         public void BindShader()
@@ -165,13 +196,7 @@ namespace Mana
             {
                 if (uniform.type == UniformType.Sampler2D)
                 {
-                    foreach (var baseColorUniform in BaseColorUniforms)
-                    {
-                        if (uniform.name.Equals(baseColorUniform, StringComparison.OrdinalIgnoreCase))
-                        {
-                            gl.Uniform1(uniform.location, 0);
-                        }
-                    }
+                    BaseColorSemantics.Apply(uniform, () => gl.Uniform1(uniform.location, 0));
                 }
 
                 if (uniform.name == "gMatSpecularIntensity")
@@ -208,11 +233,6 @@ namespace Mana
                 {
                     gl.Uniform1(uniform.location, 1.0f);
                 }
-                else if (uniform.name == "gEyeWorldPos")
-                {
-                    //gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
-                    gl.Uniform3(uniform.location, camera.Owner.Position);
-                }
                 else if (uniform.name == "gCameraWorldMatrix")
                 {
                     //gl.Uniform3(uniform.location, camera._WorldMatrix.Translation);
@@ -236,61 +256,39 @@ namespace Mana
                     gl.Uniform1(uniform.location, 2.75f);
                 }
 
-
-                foreach (var modelViewProjectUniform in ModelViewProjectMatrixUniforms)
+                CameraPositionSemantics.Apply(uniform, () => gl.Uniform3(uniform.location, camera.Owner.Position));
+                ModelViewProjectionMatrixSemantics.Apply(uniform, () =>
                 {
-                    if (uniform.name.Equals(modelViewProjectUniform, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, mvpm.ToSpan());
-                        //gl.ProgramUniformMatrix4(shaderProgram, uniform.location, false, (double*)mvpm);
-                    }
-                }
+                    Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;
+                    gl.UniformMatrix4(uniform.location, 1, false, mvpm.ToSpan());
+                });
 
+                ObjectMatrixSemantics.Apply(uniform, () => { gl.UniformMatrix4(uniform.location, 1, false, objectMatrix.ToSpan()); });
 
-                foreach (var objUniform in ObjMatrixUniforms)
+                ModelViewMatrixSemantics.Apply(uniform, () =>
                 {
-                    if (uniform.name.Equals(objUniform, StringComparison.OrdinalIgnoreCase))
-                    {
-                        gl.UniformMatrix4(uniform.location, 1, false, objectMatrix.ToSpan());
-                    }
-                }
+                    Matrix4x4 mvm = objectMatrix * camera._ViewMatrix;
+                    gl.UniformMatrix4(uniform.location, 1, false, mvm.ToSpan());
+                });
 
-                foreach (var modelViewMatrixUniform in ModelViewMatrixUniforms)
+                ProjectionMatrixSemantics.Apply(uniform, () =>
                 {
-                    if (uniform.name.Equals(modelViewMatrixUniform, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Matrix4x4 mvm = objectMatrix * camera._ViewMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, mvm.ToSpan());
-                    }
-                }
+                    Matrix4x4 proj = camera._ProjectionMatrix;
+                    gl.UniformMatrix4(uniform.location, 1, false, proj.ToSpan());
+                });
 
-                foreach (var projectMatrixUniform in ProjectionMatrixUniforms)
+                ViewMatrixSemantics.Apply(uniform, () =>
                 {
-                    if (uniform.name.Equals(projectMatrixUniform, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Matrix4x4 proj = camera._ProjectionMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, proj.ToSpan());
-                    }
-                }
+                    Matrix4x4 view = camera._ViewMatrix;
+                    gl.UniformMatrix4(uniform.location, 1, false, view.ToSpan());
+                });
 
-                foreach (var viewMatrixUniform in ViewMatrixUniforms)
+                NormalMatrixSemantics.Apply(uniform, () =>
                 {
-                    if (uniform.name.Equals(viewMatrixUniform, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Matrix4x4 view = camera._ViewMatrix;
-                        gl.UniformMatrix4(uniform.location, 1, false, view.ToSpan());
-                    }
-                }
-
-                foreach (var normalMatrixUniform in NormalMatrixUniforms)
-                {
-                    if (uniform.name.Equals(normalMatrixUniform, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var normalMatrix = Matrix3X3<float>.Identity;
-                        gl.UniformMatrix3(uniform.location, 1, false, normalMatrix.ToSpan());
-                    }
-                }
+                    Matrix4x4.Invert(objectMatrix, out Matrix4x4 modelInv);
+                    var debugModelInverse = Matrix4x4.Transpose(modelInv);
+                    gl.UniformMatrix3(uniform.location, 1, false, debugModelInverse.ToSpan());
+                });
             }
         }
 

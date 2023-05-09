@@ -11,7 +11,9 @@ namespace Mana
         public ManaMesh Mesh { get; set; }
 
         public ManaMaterial Material { get; set; }
-        public ManaMaterial DynamicMaterial { get
+        public ManaMaterial DynamicMaterial
+        {
+            get
             {
                 if (Material == ManaMaterial.DefaultMaterial)
                 {
