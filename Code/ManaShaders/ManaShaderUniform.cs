@@ -20,6 +20,12 @@ namespace Mana.Code.ManaShaders
             var index = gl.GetUniformLocation(shaderLocation, name);
             gl.Uniform1(location, value);
         }
+
+        public void SetValue(uint value)
+        {
+            var index = gl.GetUniformLocation(shaderLocation, name);
+            gl.Uniform1(location, value);
+        }
         public void SetValue(float value)
         {
             gl.Uniform1(location, value);

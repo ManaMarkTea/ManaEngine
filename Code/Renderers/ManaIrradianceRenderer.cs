@@ -28,6 +28,7 @@ namespace Mana.Code.Renderers
         public ManaPbrShader PbrShader;
         public ManaEnvironmentCubeShader EnvironmentShader;
         public ManaEnvironmentBrdfShader EnvironmentBrdfShader;
+        public ManaEnvironmentPrefilterShader EnvironmentPrefilterShader;
         public ManaCube SimpleCube;
         public ManaQuad SimpleQuad;
         public ManaSphere SimpleSphere;
@@ -55,7 +56,7 @@ namespace Mana.Code.Renderers
             IrradianceFramebuffer.UnBind();
 
 
-            PrefilterFramebuffer = new ManaRenderTarget(Context, 512, 512);
+            PrefilterFramebuffer = new ManaRenderTarget(Context, 512,512);
             {
                 RenderBufferInfo info = new RenderBufferInfo();
                 info.FloatBuffer = true;
@@ -77,6 +78,7 @@ namespace Mana.Code.Renderers
             PbrShader = new ManaPbrShader(Context);
             EnvironmentShader = new ManaEnvironmentCubeShader(Context);
             EnvironmentBrdfShader = new ManaEnvironmentBrdfShader(Context);
+            EnvironmentPrefilterShader = new ManaEnvironmentPrefilterShader(Context);
 
             SimpleCube = new ManaCube(Context, Colors.White, Vector3.One);
             SimpleQuad = new ManaQuad(Context, Colors.White, Vector3.One * 2.0f);
@@ -145,7 +147,7 @@ namespace Mana.Code.Renderers
             Vector4D<float> irradanceTestColor = Colors.Black.ToVector4D();
             Vector4D<float> prefilterTestColor = Colors.White.ToVector4D();
 
-            Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.ToRadians(), 1.0f, 0.1f, 100.0f);            
+            Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.ToRadians(), 1.0f, 0.1f, 100.0f);
             Matrix4x4[] captureViews = new Matrix4x4[]
             {
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
@@ -172,30 +174,53 @@ namespace Mana.Code.Renderers
                 SimpleCube.RenderDirectly();
 
             }
-             
+
             IrradianceFramebuffer.UnBind();
+
+
+            int m = preFilterSlice;
+
+            preFilterSlice = preFilterSlice >= PrefilterFramebuffer.MaxMips - 1 ? 0 : preFilterSlice + 1;
+
+            uint[] samplesByMip = new uint[] { 32u, 64u, 128u, 512u, 1024u };
 
             for (int i = 0; i < 6; i++)
             {
-                PrefilterFramebuffer.Bind(i);
+                PrefilterFramebuffer.Bind(i, m);
                 Context.gl.ClearColor<float>(prefilterTestColor);
                 Clear();
+
+                float roughness = (float)m / (float)(PrefilterFramebuffer.MaxMips - 1);
+
+                if (roughness < 0.1f)
+                {
+                    // Makes a very pretty reflection
+                    EnvironmentShader.BindShader();
+                    EnvironmentShader.BindEnvironmentTexture();
+                    EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
+                    EnvironmentShader.FindUniform("projection").SetValue(captureProjection);
+                    EnvironmentShader.FindUniform("view").SetValue(captureViews[i]);
+                }
+                else
+                {
+                    // Makes a very blurry reflection
+                    EnvironmentPrefilterShader.BindShader();
+                    EnvironmentPrefilterShader.BindEnvironmentTexture();
+                    EnvironmentPrefilterShader.FindUniform("environmentMap").SetValue(0);
+                    EnvironmentPrefilterShader.FindUniform("SAMPLE_COUNT").SetValue(samplesByMip[Math.Clamp(preFilterSlice, 0, samplesByMip.Length-1)]);
+                    EnvironmentPrefilterShader.FindUniform("projection").SetValue(captureProjection);
+                    EnvironmentPrefilterShader.FindUniform("view").SetValue(captureViews[i]);
+                    EnvironmentPrefilterShader.FindUniform("roughness").SetValue(roughness);
+                }
                 
-                EnvironmentShader.BindShader();
-                EnvironmentShader.BindEnvironmentTexture();
-                EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
-                EnvironmentShader.FindUniform("projection").SetValue(captureProjection);
-                EnvironmentShader.FindUniform("view").SetValue(captureViews[i]);
-
                 SimpleCube.RenderDirectly();
-
-                PrefilterFramebuffer.UnBind();
-                Context.gl.GenerateMipmap(TextureTarget.TextureCubeMap);
             }
 
-            Context.gl.GenerateMipmap(TextureTarget.TextureCubeMap);
 
+            PrefilterFramebuffer.UnBind();
         }
+
+        private int preFilterSlice = 0;
 
         void RenderTestScene()
         {

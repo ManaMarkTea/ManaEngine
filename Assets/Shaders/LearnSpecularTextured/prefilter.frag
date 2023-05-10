@@ -4,8 +4,10 @@ in vec3 WorldPos;
 
 uniform samplerCube environmentMap;
 uniform float roughness;
+uniform uint SAMPLE_COUNT = 1024u;
 
 const float PI = 3.14159265359;
+
 // ----------------------------------------------------------------------------
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
@@ -69,7 +71,7 @@ void main()
     vec3 R = N;
     vec3 V = R;
 
-    const uint SAMPLE_COUNT = 1024u;
+
     vec3 prefilteredColor = vec3(0.0);
     float totalWeight = 0.0;
     
