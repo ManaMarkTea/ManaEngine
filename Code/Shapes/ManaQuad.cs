@@ -50,8 +50,8 @@ namespace Mana
 
             verts[0].TexCoord0 = new Vector2(0.0f, 0.0f);
             verts[1].TexCoord0 = new Vector2(1.0f, 0.0f);
-            verts[2].TexCoord0 = new Vector2(0.0f, 1.0f);
-            verts[3].TexCoord0 = new Vector2(1.0f, 1.0f);
+            verts[2].TexCoord0 = new Vector2(1.0f, 1.0f);
+            verts[3].TexCoord0 = new Vector2(0.0f, 1.0f);
 
             foreach (var vert in verts)
             {

@@ -5,6 +5,7 @@ using Silk.NET.Assimp;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using Silk.NET.SDL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -96,8 +97,8 @@ namespace Mana.Code.Renderers
 
             ImGui.Begin("Irradiance");
             ImGui.SliderFloat("Metallic", ref debugMetallic, 0.0f, 1.0f);
-            ImGui.SliderFloat("Roughness", ref debugAmbient, 0.0f, 1.0f);
-            ImGui.SliderFloat("Ambience", ref debugRoughness, 0.0f, 1.0f);
+            ImGui.SliderFloat("Roughness", ref debugRoughness, 0.0f, 1.0f);
+            ImGui.SliderFloat("Ambience", ref debugAmbient, 0.0f, 1.0f);
             ImGui.ColorPicker4("Albedo", ref debugAlbedo);
 
             ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 100.0f);
@@ -115,6 +116,8 @@ namespace Mana.Code.Renderers
             EnvironmentBrdfShader.BindShader();
             SimpleQuad.RenderDirectly();
             BrdfFramebuffer.UnBind();
+
+
 
             Context.gl.Viewport(Game.Instance._Window.Size);
             Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D() * 255.0f);
@@ -247,6 +250,17 @@ namespace Mana.Code.Renderers
 
                 Matrix4x4.Invert(model, out Matrix4x4 modelInv);
                 var debugModelInverse = Matrix4x4.Transpose(modelInv);
+
+                var Irradiance = IrradianceFramebuffer.bufferMap["Irradiance"];
+                var Prefilter = PrefilterFramebuffer.bufferMap["PreFilter"];
+                var Brdf = BrdfFramebuffer.bufferMap["BRDF"];
+                Irradiance?.Texture?.Bind(0);
+                Prefilter?.Texture?.Bind(1);
+                Brdf?.Texture?.Bind(2);
+
+                PbrShader.FindUniform("irradianceMap")?.SetValue(0);
+                PbrShader.FindUniform("prefilterMap")?.SetValue(1);
+                PbrShader.FindUniform("brdfLUT")?.SetValue(2);
 
                 PbrShader.FindUniform("albedo")?.SetValue(debugAlbedo.ToVector3());
                 PbrShader.FindUniform("metallic")?.SetValue(debugMetallic);
