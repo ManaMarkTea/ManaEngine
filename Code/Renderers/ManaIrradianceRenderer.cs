@@ -21,14 +21,22 @@ namespace Mana.Code.Renderers
 
         }
 
+        public ManaRenderTarget EnvironmentCubeTarget;
         public ManaRenderTarget IrradianceFramebuffer;
         public ManaRenderTarget PrefilterFramebuffer;
         public ManaRenderTarget BrdfFramebuffer;
 
         public ManaPbrShader PbrShader;
+        public ManaEnvironmentIrradianceShader EnvironmentIrradianceShader;
         public ManaEnvironmentCubeShader EnvironmentShader;
         public ManaEnvironmentBrdfShader EnvironmentBrdfShader;
         public ManaEnvironmentPrefilterShader EnvironmentPrefilterShader;
+
+        public ManaBasicTextureShader BasicShader;
+        public ManaBasicTextureShader BasicCubeShader;
+
+        public ManaTexture EnvironmentMap;
+
         public ManaCube SimpleCube;
         public ManaQuad SimpleQuad;
         public ManaSphere SimpleSphere;
@@ -49,6 +57,39 @@ namespace Mana.Code.Renderers
             gl.DepthFunc(DepthFunction.Lequal);
             gl.ColorMask(true, true, true, true);
             gl.ClearDepth(1.0);
+
+            // Shaders
+            BasicShader = new ManaBasicTextureShader(Context, false);
+            BasicCubeShader = new ManaBasicTextureShader(Context, true);
+            PbrShader = new ManaPbrShader(Context);
+            EnvironmentIrradianceShader = new ManaEnvironmentIrradianceShader(Context);
+            EnvironmentShader = new ManaEnvironmentCubeShader(Context);
+            EnvironmentBrdfShader = new ManaEnvironmentBrdfShader(Context);
+            EnvironmentPrefilterShader = new ManaEnvironmentPrefilterShader(Context);
+
+            // Basic Shapes
+            SimpleCube = new ManaCube(Context, Colors.White, Vector3.One);
+            SimpleQuad = new ManaQuad(Context, Colors.White, Vector3.One * 2.0f);
+            SimpleSphere = new ManaSphere(Context, Colors.White, 0.5f);
+
+            // Targets
+            EnvironmentCubeTarget = new ManaRenderTarget(Context, 512, 512);
+            {
+                RenderBufferInfo info = new RenderBufferInfo();
+                info.FloatBuffer = true;
+                info.HasAlpha = false;
+                info.HasCube = true;
+                info.HasMip = true;
+                info.MinLinearMip = true;
+
+                EnvironmentCubeTarget.AddBuffer("EnvironmentCube", info);
+                EnvironmentCubeTarget.Build();
+                EnvironmentCubeTarget.UnBind();
+            }
+            // Load the environment into a texture;
+            RenderEnvironmentMapTarget();
+            EnvironmentMap = EnvironmentCubeTarget.bufferMap["EnvironmentCube"].Texture;
+
 
             IrradianceFramebuffer = new ManaRenderTarget(Context, 32, 32);
             IrradianceFramebuffer.AddFloatRgbCubeBuffer("Irradiance");
@@ -74,15 +115,8 @@ namespace Mana.Code.Renderers
             BrdfFramebuffer.AddFloatBuffer("BRDF");
             BrdfFramebuffer.Build();
             BrdfFramebuffer.UnBind();
+            RenderBrdfTarget();
 
-            PbrShader = new ManaPbrShader(Context);
-            EnvironmentShader = new ManaEnvironmentCubeShader(Context);
-            EnvironmentBrdfShader = new ManaEnvironmentBrdfShader(Context);
-            EnvironmentPrefilterShader = new ManaEnvironmentPrefilterShader(Context);
-
-            SimpleCube = new ManaCube(Context, Colors.White, Vector3.One);
-            SimpleQuad = new ManaQuad(Context, Colors.White, Vector3.One * 2.0f);
-            SimpleSphere = new ManaSphere(Context, Colors.White, 0.5f);
         }
 
         public override void Resize(int width, int height) { }
@@ -91,12 +125,15 @@ namespace Mana.Code.Renderers
         {            
             Context.gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
-        
+
+        public void ClearDepth()
+        {
+            Context.gl.Clear((uint)(ClearBufferMask.DepthBufferBit));
+        }
+
 
         public override void Render(Action drawScenes) 
         {
-            Vector4D<float> brdfTestColor = Colors.White.ToVector4D() * 255.0f;
-
             ImGui.Begin("Irradiance");
             ImGui.SliderFloat("Metallic", ref debugMetallic, 0.0f, 1.0f);
             ImGui.SliderFloat("Roughness", ref debugRoughness, 0.0f, 1.0f);
@@ -108,33 +145,14 @@ namespace Mana.Code.Renderers
 
             ImGui.End();
 
-
-
             RenderIrradiance();
-
-            BrdfFramebuffer.Bind();
-            Context.gl.ClearColor<float>(brdfTestColor);
-            Clear();
-            EnvironmentBrdfShader.BindShader();
-            SimpleQuad.RenderDirectly();
-            BrdfFramebuffer.UnBind();
-
-
+            RenderPrefilteredReflectionMap();                      
 
             Context.gl.Viewport(Game.Instance._Window.Size);
             Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D() * 255.0f);
             Clear();
-            
-            EnvironmentShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.CreateScale(100), Context.World.MainCamera);
-            EnvironmentShader.BindEnvironmentTexture();
-            EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
 
-            var directionOnly = Context.World.MainCamera._ViewMatrix;
-            directionOnly.Translation = new Vector3(0, 0, 0);
-            EnvironmentShader.FindUniform("view").SetValue(directionOnly);
-
-            Context.gl.Disable(EnableCap.DepthTest);
-            SimpleCube.RenderDirectly();
+            RenderEnvironmentBackground();            
 
             Context.gl.Enable(EnableCap.DepthTest);
             drawScenes();
@@ -142,59 +160,121 @@ namespace Mana.Code.Renderers
             RenderTestScene();
         }
 
-        public void RenderIrradiance()
+        private static Vector3[] lightPositions =
         {
-            Vector4D<float> irradanceTestColor = Colors.Black.ToVector4D();
-            Vector4D<float> prefilterTestColor = Colors.White.ToVector4D();
+            new Vector3(-10.0f,  10.0f, 10.0f),
+            new Vector3( 10.0f,  10.0f, 10.0f),
+            new Vector3(-10.0f, -10.0f, 10.0f),
+            new Vector3( 10.0f, -10.0f, 10.0f),
+        };
 
-            Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.ToRadians(), 1.0f, 0.1f, 100.0f);
-            Matrix4x4[] captureViews = new Matrix4x4[]
-            {
+        private static Vector3[] lightColors = 
+        {
+            new Vector3(300.0f, 300.0f, 300.0f),
+            new Vector3(300.0f, 300.0f, 300.0f),
+            new Vector3(300.0f, 300.0f, 300.0f),
+            new Vector3(300.0f, 300.0f, 300.0f)
+        };
+
+        private static Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.ToRadians(), 1.0f, 0.1f, 100.0f);
+        private static Matrix4x4[] captureViews = new Matrix4x4[]
+        {
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(-1.0f, 0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  1.0f,  0.0f), new Vector3(0.0f,  0.0f,  1.0f)),
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, -1.0f,  0.0f), new Vector3(0.0f,  0.0f, -1.0f)),
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f,  1.0f), new Vector3(0.0f, -1.0f,  0.0f)),
                 Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
-            };
+        };
 
+        public void RenderEnvironmentMapTarget()
+        {
+            for (int m = 0; m < EnvironmentCubeTarget.MaxMips; m++)
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    EnvironmentCubeTarget.Bind(i, m);
+                    Clear();
 
+                    EnvironmentShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.CreateScale(100), Context.World.MainCamera);
+                    EnvironmentShader.BindEnvironmentTexture();
+                    EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
+                    EnvironmentShader.FindUniform("projection").SetValue(captureProjection);
+                    EnvironmentShader.FindUniform("view").SetValue(captureViews[i]);
+
+                    SimpleCube.RenderDirectly();
+                }
+            }
+
+            EnvironmentCubeTarget.UnBind();        
+        }
+
+        public void RenderBrdfTarget()
+        {            
+            BrdfFramebuffer.Bind();
+            Context.gl.ClearColor<float>(Colors.Black.ToVector4D());
+            Clear();
+            EnvironmentBrdfShader.BindShader();
+            SimpleQuad.RenderDirectly();
+            BrdfFramebuffer.UnBind();
+        }
+
+        public void RenderEnvironmentBackground()
+        {
+            var directionOnly = Context.World.MainCamera._ViewMatrix;
+            directionOnly.Translation = new Vector3(0, 0, 0);
+
+            EnvironmentShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.CreateScale(100), Context.World.MainCamera);
+            EnvironmentShader.BindEnvironmentTexture();
+            EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);            
+            EnvironmentShader.FindUniform("view").SetValue(directionOnly);
+            
+            Context.gl.Disable(EnableCap.DepthTest);
+            SimpleCube.RenderDirectly();
+        }
+
+        public void RenderIrradiance()
+        {
+            Vector4D<float> irradanceTestColor = Colors.Black.ToVector4D();
             for (int i = 0; i < 6; i++)
             {
                 IrradianceFramebuffer.Bind(i);
                 Context.gl.ClearColor<float>(irradanceTestColor);
                 Clear();
 
-                EnvironmentShader.BindShader();
-                EnvironmentShader.BindEnvironmentTexture();
-                EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
-                EnvironmentShader.FindUniform("projection").SetValue(captureProjection);
-                EnvironmentShader.FindUniform("view").SetValue(captureViews[i]);
+                EnvironmentIrradianceShader.BindShader();
+                EnvironmentMap.Bind(0);
+                EnvironmentIrradianceShader.FindUniform("environmentMap").SetValue(0);
+                EnvironmentIrradianceShader.FindUniform("projection").SetValue(captureProjection);
+                EnvironmentIrradianceShader.FindUniform("view").SetValue(captureViews[i]);
 
                 SimpleCube.RenderDirectly();
 
             }
 
             IrradianceFramebuffer.UnBind();
+        }
 
+        public void RenderPrefilteredReflectionMap()
+        {
+            Vector4D<float> prefilterTestColor = Colors.White.ToVector4D();
 
             int m = preFilterSlice;
-
             preFilterSlice = preFilterSlice >= PrefilterFramebuffer.MaxMips - 1 ? 0 : preFilterSlice + 1;
 
             uint[] samplesByMip = new uint[] { 32u, 64u, 128u, 512u, 1024u };
-
+            
             for (int i = 0; i < 6; i++)
             {
                 PrefilterFramebuffer.Bind(i, m);
                 Context.gl.ClearColor<float>(prefilterTestColor);
-                Clear();
+                ClearDepth();
 
                 float roughness = (float)m / (float)(PrefilterFramebuffer.MaxMips - 1);
 
                 if (roughness < 0.1f)
                 {
-                    // Makes a very pretty reflection
+                    // Makes a very pretty reflection, and fast
                     EnvironmentShader.BindShader();
                     EnvironmentShader.BindEnvironmentTexture();
                     EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
@@ -203,9 +283,9 @@ namespace Mana.Code.Renderers
                 }
                 else
                 {
-                    // Makes a very blurry reflection
+                    // Makes a very blurry reflection, but slower
                     EnvironmentPrefilterShader.BindShader();
-                    EnvironmentPrefilterShader.BindEnvironmentTexture();
+                    EnvironmentMap.Bind(0);
                     EnvironmentPrefilterShader.FindUniform("environmentMap").SetValue(0);
                     EnvironmentPrefilterShader.FindUniform("SAMPLE_COUNT").SetValue(samplesByMip[Math.Clamp(preFilterSlice, 0, samplesByMip.Length-1)]);
                     EnvironmentPrefilterShader.FindUniform("projection").SetValue(captureProjection);
@@ -234,18 +314,20 @@ namespace Mana.Code.Renderers
             {
                 PbrShader.FindUniform("metallic")?.SetValue(row / rows);
 
-                for (int i = 0; i < 1; ++i)
+                for (int i = 0; i < lightPositions.Length; ++i)
                 {
-                    PbrShader.FindUniform($"lightPositions[{i}]")?.SetValue(new Vector3(1, 1, 1));
-                    PbrShader.FindUniform($"lightColors[{i}]")?.SetValue(debugLightColor.ToVector3() * debugLightIntensity);
+                    PbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPositions[i], i);
+                    PbrShader.FindUniform($"lightColors[0]")?.SetValue(lightColors[i], i);
                 }
 
                 for (int col = 0; col < cols; ++col)
                 {
                     // we clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off
                     // on direct lighting.
-                    PbrShader.FindUniform("albedo")?.SetValue(Colors.White.ToVector3());
+                    //PbrShader.FindUniform("albedo")?.SetValue(Colors.White.ToVector3());
+                    PbrShader.FindUniform("albedo")?.SetValue(new Vector3(0.5f, 0.0f, 0.0f));
                     PbrShader.FindUniform("roughness")?.SetValue(Math.Clamp((float)col / (float)cols, 0.05f, 1.0f));
+                    PbrShader.FindUniform("ao")?.SetValue(1.0f);
 
                     model = Matrix4x4.CreateTranslation((float)(col - (cols / 2)) * spacing, (float)(row - (rows / 2)) * spacing, -2.0f);
 
@@ -296,6 +378,60 @@ namespace Mana.Code.Renderers
 
                 SimpleSphere.RenderDirectly();
             }
+
+
+            {
+                model = Matrix4x4.CreateTranslation(8, 0, 1);
+
+                Matrix4x4.Invert(model, out Matrix4x4 modelInv);
+                var debugModelInverse = Matrix4x4.Transpose(modelInv);
+
+                var Irradiance = IrradianceFramebuffer.bufferMap["Irradiance"];
+                var Prefilter = PrefilterFramebuffer.bufferMap["PreFilter"];
+                var Brdf = BrdfFramebuffer.bufferMap["BRDF"];
+                Irradiance?.Texture?.Bind(0);
+                Prefilter?.Texture?.Bind(1);
+                Brdf?.Texture?.Bind(2);
+
+                PbrShader.FindUniform("irradianceMap")?.SetValue(0);
+                PbrShader.FindUniform("prefilterMap")?.SetValue(1);
+                PbrShader.FindUniform("brdfLUT")?.SetValue(2);
+
+                PbrShader.FindUniform("albedo")?.SetValue(debugAlbedo.ToVector3());
+                PbrShader.FindUniform("metallic")?.SetValue(debugMetallic);
+                PbrShader.FindUniform("ao")?.SetValue(debugAmbient);
+                PbrShader.FindUniform("roughness")?.SetValue(debugRoughness);
+                PbrShader.FindUniform("model").SetValue(model);
+                PbrShader.FindUniform("normalMatrix").SetValue(debugModelInverse.ToMatrix3());
+
+                SimpleSphere.RenderDirectly();
+            }
+
+
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, -1);
+            BasicCubeShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            EnvironmentMap.Bind(0);
+            BasicCubeShader.FindUniform("model").SetValue(model);
+            SimpleCube.RenderDirectly();
+
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 1);
+            BasicCubeShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            IrradianceFramebuffer.bufferMap["Irradiance"]?.Texture?.Bind(0);
+            BasicCubeShader.FindUniform("model").SetValue(model);
+            SimpleCube.RenderDirectly();
+
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 3);
+            BasicCubeShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            PrefilterFramebuffer.bufferMap["PreFilter"]?.Texture?.Bind(0);
+            BasicCubeShader.FindUniform("model").SetValue(model);
+            SimpleCube.RenderDirectly();
+
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 5);
+            BasicShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            BrdfFramebuffer.bufferMap["BRDF"]?.Texture?.Bind(0);
+            BasicShader.FindUniform("model").SetValue(model);
+            SimpleQuad.RenderDirectly();
+
         }
     }
 }

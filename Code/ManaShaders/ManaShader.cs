@@ -148,12 +148,14 @@ namespace Mana
             for (uint i = 0; i < uniformCount; i++)
             {
                 gl.GetActiveUniform(shaderProgram, i, (uint)64, out uint uniformLength, out int uniformSize, out UniformType type, out string uniformName);
+                
                 int uniformLocation = gl.GetUniformLocation(shaderProgram, uniformName);
 
                 ManaShaderUniform uniform = new ManaShaderUniform();
                 uniform.shaderLocation = shaderProgram;
                 uniform.gl = gl;
                 uniform.name = uniformName;
+                uniform.size = uniformSize;
                 uniform.location = (int)uniformLocation;
                 uniform.type = type;
 

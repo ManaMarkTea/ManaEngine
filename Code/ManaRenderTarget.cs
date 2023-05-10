@@ -1,6 +1,7 @@
 ﻿using Mana.Code;
 using Mana.Code.ManaShaders;
 using Silk.NET.OpenGL;
+using SixLabors.ImageSharp.Memory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -179,15 +180,6 @@ namespace Mana
         {
             var gl = Game.Instance.Context.gl;
             
-            DebugQuadShader = new ManaShaderRayTrace(Context);
-            //DebugQuadShader.LoadShader("Assets/Shaders/FullScreenQuad/empty.vert", "Assets/Shaders/FullScreenQuad/Edge.frag", "Assets/Shaders/FullScreenQuad/full_screen_quad.geom");
-            DebugQuadShader.LoadShader("Assets/Shaders/FullScreenQuad/empty.vert", "Assets/Shaders/FullScreenQuad/RayTracing_001.frag", "Assets/Shaders/FullScreenQuad/full_screen_quad.geom");
-
-            QuadMaterial = new ManaMaterial(Context);
-            QuadMaterial.Shader = DebugQuadShader;
-
-            VertexArrayObject = gl.GenVertexArray();
-
             FrameBufferID = gl.GenFramebuffer();
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);            
            
@@ -254,7 +246,7 @@ namespace Mana
                 {                    
                     // attach texture to framebuffer
                     gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, texture.Handle, 0);
-                    gl.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, bufferInfo.Samples, InternalFormat.Rgba8, Width, Height);
+                    //gl.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, bufferInfo.Samples, InternalFormat.Rgba8, Width, Height);
                 }
                 else
                 {
@@ -297,7 +289,6 @@ namespace Mana
             }
 
             UnBind();
-            //gl.Color4f(1, 1, 1, 1);
         }
 
         public void Bind(int index = 0, int mipIndex = 0)
@@ -308,9 +299,17 @@ namespace Mana
             uint mipWidth = (uint)(Width * MathF.Pow(0.5f, mipIndex));
             uint mipHeight = (uint)(Height * MathF.Pow(0.5f, mipIndex));
             gl.Viewport(0, 0, mipWidth, mipHeight);
-
+            
             foreach (var buffer in bufferInfos)
             {
+                if (buffer.Texture != null)
+                {
+                    buffer.Texture.UnBind(0);
+                    buffer.Texture.UnBind(1);
+                    buffer.Texture.UnBind(2);
+                    buffer.Texture.UnBind(3);
+                }                
+
                 if (buffer.HasCube)
                 {
                     // Bind the face of the cube we're drawing to

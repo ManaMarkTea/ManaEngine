@@ -81,6 +81,7 @@ namespace Mana
             gl.BindTexture(targetType, Handle);
             gl.TexParameter(targetType, TextureParameterName.TextureWrapS, IsWrapU ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
             gl.TexParameter(targetType, TextureParameterName.TextureWrapT, IsWrapV ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
+            gl.TexParameter(targetType, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
 
             gl.TexParameter(targetType, TextureParameterName.TextureMinFilter, (uint)MinFilter);
             gl.TexParameter(targetType, TextureParameterName.TextureMagFilter, (uint)MagFilter);

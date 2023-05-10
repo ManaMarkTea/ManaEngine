@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\Shaders\basic_texture.frag" />
+    <None Remove="Assets\Shaders\basic_texture_cube.frag" />
     <None Remove="Assets\Shaders\Khronos\animation.glsl" />
     <None Remove="Assets\Shaders\Khronos\brdf.glsl" />
     <None Remove="Assets\Shaders\Khronos\cubemap.frag" />
@@ -80,6 +82,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\Shaders\basic_texture.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\basic_texture_cube.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Shaders\Khronos\animation.glsl">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -414,9 +422,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Shaders\PBR_Emeiri\shadow.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\PixelShader.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Shaders\ratio.frag">
