@@ -144,7 +144,7 @@ namespace Mana
 
         public unsafe void LoadFromGltf(string sceneFile)
         {
-            _AssetImporter = Silk.NET.Assimp.Assimp.GetApi();
+            _AssetImporter = Assimp.GetApi();
 
             var scene = _AssetImporter.ImportFile(sceneFile, (uint)PostProcessSteps.Triangulate);
             ActivePath = System.IO.Path.GetDirectoryName(sceneFile);

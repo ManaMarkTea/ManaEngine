@@ -38,7 +38,7 @@ namespace Mana
                 return;
             }
 
-            Mesh.Draw(Owner);
+            Mesh.Draw(Owner, this);
         }
     }
 }

@@ -55,21 +55,50 @@ namespace Mana
         }
     }
 
+    public class ManaMaterialPbr : ManaObject
+    {
+        public ManaTexture AlbedoMap { get { return albedoMap != null ? albedoMap : albedoColorMap; } }
+        public ManaTexture NormalMap { get { return normalMap != null ? normalMap : normalColorMap; } }
+        public ManaTexture MetallicMap { get { return metallicMap != null ? metallicMap : metallicColorMap; } }
+        public ManaTexture RoughnessMap { get { return roughnessMap != null ? roughnessMap : roughnessColorMap; } }
+        public ManaTexture AoMap { get { return aoMap != null ? aoMap : aoColorMap; } }
+
+
+        public ManaTexture? albedoMap;
+        public ManaTexture? normalMap;
+        public ManaTexture? metallicMap;
+        public ManaTexture? roughnessMap;
+        public ManaTexture? aoMap;
+
+        public ManaTextureColor albedoColorMap;
+        public ManaTextureColor normalColorMap;
+        public ManaTextureSingleValue metallicColorMap;
+        public ManaTextureSingleValue roughnessColorMap;
+        public ManaTextureSingleValue aoColorMap;
+
+        public ManaMaterialPbr(ManaContext context) : base(context)
+        {
+            albedoColorMap = new ManaTextureColor(Context, Colors.Orange);
+            normalColorMap = new ManaTextureColor(Context, Vector4.UnitX);
+            metallicColorMap = new ManaTextureSingleValue(Context, 0.5);
+            roughnessColorMap = new ManaTextureSingleValue(Context, 0.5);
+            aoColorMap = new ManaTextureSingleValue(Context, 0.25);
+        }
+    }
+
     public class ManaMaterial : ManaObject
     {
         public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance.Context);       
         
-        public ManaShader Shader { get; set; }        
+        public ManaShader Shader { get; set; }
+        public ManaMaterialPbr Pbr { get; set; }
 
         public ManaMaterial(ManaContext context) : base(context)
-        {            
+        {
+            Name = "Material";
             Channels = new Dictionary<string, MetaMaterialChannel>();
-            //Shader = new ManaShader(context);
-            //Shader.LoadShader("Assets/Shaders/BardPbr.vert", "Assets/Shaders/BardPbr.frag");            
 
-            //Shader = new ManaKhronosShader(context);
-            //Shader.LoadShader("Assets/Shaders/Khronos/primitive.vert", "Assets/Shaders/Khronos/pbr.frag");
-
+            Pbr = new ManaMaterialPbr(context);
             var shader = new ManaPbrShader(context);
             Shader = shader;
         }
@@ -90,11 +119,6 @@ namespace Mana
 
         public unsafe void LoadFromGltf(Material* material)
         {
-            //Shader = new ManaShader(Context);
-            //Shader.LoadShader("Assets/Shaders/basic_pos_uv.vert", "Assets/Shaders/PixelShader.frag");
-            //Shader.LoadShader("Assets/Shaders/PBR_Emeiri/pbr.vert", "Assets/Shaders/PBR_Emeiri/pbr.frag");
-
-
             for (int i = 0; i < material->MNumProperties; i++)
             {
                 MaterialProperty* channel = material->MProperties[i];
@@ -118,7 +142,7 @@ namespace Mana
                 }
 
                 metaChannel.Name = key;
-
+                
                 if (channel->MType == PropertyTypeInfo.String)
                 {                    
                     string propertyValue = UTF32Encoding.ASCII.GetString(byteArray, 4, byteArray.Length - 4).Trim('\0');
@@ -199,6 +223,17 @@ namespace Mana
                             channelTexture.Load();
                         }
                         metaChannel.Texture = channelTexture;
+                        
+                        switch (type)
+                        {
+                            case TextureType.Diffuse: { Pbr.albedoMap = channelTexture; } break;
+                            case TextureType.BaseColor: { Pbr.albedoMap = channelTexture; } break;
+                            case TextureType.Metalness: { Pbr.metallicMap = channelTexture; } break;
+                            case TextureType.DiffuseRoughness: { Pbr.roughnessMap = channelTexture; } break;
+                            case TextureType.Ambient: { Pbr.aoMap = channelTexture; } break;
+                            case TextureType.AmbientOcclusion: { Pbr.aoMap = channelTexture; } break;
+                        }
+
                     }
                 }
 

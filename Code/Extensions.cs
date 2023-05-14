@@ -119,6 +119,8 @@ namespace Mana
             return output;
         }
 
+        public static TimeSpan Average(this IEnumerable<TimeSpan> spans) => TimeSpan.FromSeconds(spans.Select(s => s.TotalSeconds).Average());
+
         public static ReadOnlySpan<float> ToSpan(this Matrix4x4 matrix)
         {
             float[] floats = new float[]

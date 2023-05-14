@@ -259,6 +259,7 @@ namespace Mana
                 }
 
                 CameraPositionSemantics.Apply(uniform, () => gl.Uniform3(uniform.location, camera.Owner.Position));
+
                 ModelViewProjectionMatrixSemantics.Apply(uniform, () =>
                 {
                     Matrix4x4 mvpm = objectMatrix * camera._ViewMatrix * camera._ProjectionMatrix;
@@ -288,7 +289,7 @@ namespace Mana
                 NormalMatrixSemantics.Apply(uniform, () =>
                 {
                     Matrix4x4.Invert(objectMatrix, out Matrix4x4 modelInv);
-                    var debugModelInverse = Matrix4x4.Transpose(modelInv);
+                    var debugModelInverse = Matrix4x4.Transpose(modelInv).ToMatrix3();
                     gl.UniformMatrix3(uniform.location, 1, false, debugModelInverse.ToSpan());
                 });
             }

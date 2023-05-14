@@ -21,11 +21,15 @@ namespace Mana
         public unsafe void LoadFromGltf(Scene* scene)
         {            
             var root = scene->MRootNode;
+            ManaSceneNode rootSceneNode = new ManaSceneNode(Context, Matrix4x4.Identity);
+            rootSceneNode.Name = root->MName;
+            Children.Add(rootSceneNode);
+
             for (int i = 0; i < root->MNumChildren; i++)
             {
                 var child = root->MChildren[i];
                 var childSceneNode = LoadSceneNode(child);
-                Children.Add(childSceneNode);
+                rootSceneNode.AddChild(childSceneNode);
             }            
         }
 

@@ -20,6 +20,11 @@ namespace Mana
         public Vector3 Rotation { get; set; }
         public Vector3 Scale { get; set; }
 
+        public override string ToString()
+        {
+            return $"{Name}";
+        }
+
         public Vector3 Right
         {
             get
@@ -135,4 +140,17 @@ namespace Mana
         }
     }
 
+
+    public class ManaMeshSceneNode : ManaSceneNode
+    {
+        public MeshRendererComponent MeshRenderer;
+        public ManaMesh Mesh;
+
+        public ManaMeshSceneNode(ManaContext context, ManaMesh mesh) : base (context, Matrix4x4.Identity)
+        {            
+            Mesh = mesh;
+            MeshRenderer = new MeshRendererComponent(this, mesh);
+            Components.Add(MeshRenderer);
+        }
+    }
 }

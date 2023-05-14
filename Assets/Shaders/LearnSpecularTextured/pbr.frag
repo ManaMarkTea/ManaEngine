@@ -10,6 +10,7 @@ uniform sampler2D normalMap;
 uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
+uniform float normalMapSelection = 0.0;
 
 // IBL
 uniform samplerCube irradianceMap;
@@ -99,7 +100,8 @@ void main()
     float ao = texture(aoMap, TexCoords).r;
        
     // input lighting data
-    vec3 N = getNormalFromMap();
+    //vec3 N = mix(getNormalFromMap(), Normal, normalMapSelection);
+    vec3 N = normalize(Normal);
     vec3 V = normalize(camPos - WorldPos);
     vec3 R = reflect(-V, N); 
 
@@ -172,4 +174,13 @@ void main()
     color = pow(color, vec3(1.0/2.2)); 
 
     FragColor = vec4(color , 1.0);
+
+    //FragColor = vec4(metallic, 0.0, 0.0 , 1.0);
+    //FragColor = vec4(roughness, 0.0, 0.0 , 1.0);
+    //FragColor = vec4(N, 1.0);
+    //FragColor = vec4(TexCoords, 0.0, 1.0);
+    //FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+    //FragColor = vec4(metallic, roughness, 0.0 , 1.0);
+    //FragColor = vec4(prefilteredColor , 1.0);
+    //FragColor = vec4(irradiance , 1.0);
 }

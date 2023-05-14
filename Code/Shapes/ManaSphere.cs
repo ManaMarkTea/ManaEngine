@@ -122,8 +122,10 @@ namespace Mana.Code.Shapes
                 colors[i] = DefaultVertexColor;
             });
 
-                for (int i = 0; i < normales.Length; i++)
+              
+            for (int i = 0; i < normales.Length; i++)
             {
+
             }
 
             List<ManaMaterial> newMaterials = new List<ManaMaterial>

@@ -151,17 +151,23 @@ namespace Mana
             MeshBufferObject.ConstructVBO();
         }        
 
-        public void Draw(ManaSceneNode owner)
+        public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
         {
             if (MeshBufferObject != null)
             {
-                Materials[0].Bind(owner.WorldTransform);
+                ManaMaterial material = Materials[0];
+                if (meshRenderer!= null && meshRenderer.Material != ManaMaterial.DefaultMaterial)
+                {
+                    material = meshRenderer.Material;
+                }
+
+                material.Bind(owner.WorldTransform);
 
                 MeshBufferObject.Bind();
                 MeshBufferObject.DrawElements();
                 MeshBufferObject.UnBind();
 
-                Materials[0].UnBind();
+                material.UnBind();
             }
         }
 

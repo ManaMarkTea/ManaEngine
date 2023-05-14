@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using Mana.Code;
 using Mana.Code.Shapes;
+using ImGuiNET;
 
 namespace Mana
 {
@@ -104,6 +105,8 @@ namespace Mana
             sunMaterial.EmissiveStrength = 10.0f;
 
             world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
+            var helmetNode = world.Scenes[1].Children[0];
+            helmetNode.Position = new Vector3(2, 0, 2);
             world.Update();
         }
 
@@ -117,6 +120,17 @@ namespace Mana
         {
             // Make sure ImGui is up-to-date
             _ImGui.Update((float)delta);
+            ManaTime.GlobalTime.UpdateTime(delta);
+
+
+
+            ImGui.SetNextWindowPos( new Vector2(this._Window.Size.X - 200, 15));
+            ImGui.Begin("Mana");
+            ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
+            ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
+            ImGui.End();
+
+            
 
             Context.World.Update();
         }

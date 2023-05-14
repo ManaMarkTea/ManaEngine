@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Mana
 {
@@ -87,7 +88,7 @@ namespace Mana
             gl.TexParameter(targetType, TextureParameterName.TextureMagFilter, (uint)MagFilter);
         }
 
-        public unsafe void UpdateTextureSize()
+        public void UpdateTextureSize()
         {
             var gl = Context.gl;
 
@@ -96,18 +97,19 @@ namespace Mana
 
             if (!IsCube)
             {
-                gl.TexImage2D(TextureTargetType, 0, InternalDataFormat, (uint)Width, (uint)Height, 0, InternalPixelFormat, InternalPixelType, null);
+                AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
             }
             else
             {
                 for (int i = 0; i < 6; i++)
                 {
-                    gl.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, InternalDataFormat, (uint)Width, (uint)Height, 0, InternalPixelFormat, InternalPixelType, null);
+                    AllocateEmptyTextImage2D(gl, TextureTarget.TextureCubeMapPositiveX + i, Width, Height);
                 }
             }
         }
-         
-        public unsafe void Load()
+
+
+        public virtual void Load()
         {
             var gl = Context.gl;
 
@@ -121,37 +123,8 @@ namespace Mana
                 gl.BindTexture(TextureTargetType, Handle);
 
                 UpdateParameters();
-                
-                if (string.IsNullOrEmpty(OriginalFilename))
-                {
-                    // Create an empty texture with allocated space (Common for Render Targets)
-                    UpdateTextureSize();
-                }
-                else
-                {
-                    DecoderOptions options = new DecoderOptions();
-                    using (var img = Image.Load<Rgba32>(options, OriginalFilename))
-                    {
-                        img.Mutate(x => x.Flip(FlipMode.Vertical));
 
-                        Width = (uint)img.Width;
-                        Height = (uint)img.Height;
-
-                        SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
-                        gl.TexImage2D(TextureTargetType, 0, InternalDataFormat, (uint)img.Width, (uint)img.Height, 0, InternalPixelFormat, InternalPixelType, null);
-
-                        img.ProcessPixelRows(accessor =>
-                        {
-                            for (int y = 0; y < accessor.Height; y++)
-                            {
-                                fixed (void* data = accessor.GetRowSpan(y))
-                                {
-                                    gl.TexSubImage2D(TextureTargetType, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
-                                }
-                            }
-                        });
-                    }
-                }
+                LoadTextureData();
 
                 if (HasMipMaps)
                 {
@@ -162,7 +135,57 @@ namespace Mana
             }
         }
 
-        public void Bind(int channel)
+        protected virtual void LoadTextureData()
+        {
+            var gl = Context.gl;
+
+            if (string.IsNullOrEmpty(OriginalFilename))
+            {
+                // Create an empty texture with allocated space (Common for Render Targets)
+                UpdateTextureSize();
+            }
+            else
+            {
+                DecoderOptions options = new DecoderOptions();
+                using (var img = Image.Load<Rgba32>(options, OriginalFilename))
+                {
+                    img.Mutate(x => x.Flip(FlipMode.Vertical));
+                    Width = (uint)img.Width;
+                    Height = (uint)img.Height;
+                    SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
+                    AllocateEmptyTextImage2D(gl, TextureTargetType, (uint)img.Width, (uint)img.Height);
+                    img.ProcessPixelRows(accessor => ProcessPixelRows(accessor, gl));
+                }
+            }
+        }
+
+        protected unsafe void AllocateEmptyTextImage2D(GL gl, TextureTarget textureType, uint width, uint height)
+        {
+            gl.TexImage2D(textureType, 0, InternalDataFormat, width, height, 0, InternalPixelFormat, InternalPixelType, null);
+        }
+
+        protected unsafe void SubTextImage2D(GL gl, TextureTarget textureType, int x, int y, uint width, uint height, ReadOnlySpan<byte> data)
+        {
+            gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
+        }
+
+        protected unsafe void SubTextImage2D(GL gl, TextureTarget textureType, int x, int y, uint width, uint height, ReadOnlySpan<float> data)
+        {
+              gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
+        }
+         
+        private unsafe void ProcessPixelRows(PixelAccessor<Rgba32> accessor, GL gl)
+        {
+            for (int y = 0; y < accessor.Height; y++)
+            {
+                fixed (void* data = accessor.GetRowSpan(y))
+                {
+                    gl.TexSubImage2D(TextureTargetType, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
+                }
+            }
+        }
+
+        public virtual void Bind(int channel)
         {
             var gl = Context.gl;
 

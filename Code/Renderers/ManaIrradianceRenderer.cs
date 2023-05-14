@@ -25,8 +25,7 @@ namespace Mana.Code.Renderers
         public ManaRenderTarget IrradianceFramebuffer;
         public ManaRenderTarget PrefilterFramebuffer;
         public ManaRenderTarget BrdfFramebuffer;
-
-        public ManaPbrShader PbrShader;
+        
         public ManaEnvironmentIrradianceShader EnvironmentIrradianceShader;
         public ManaEnvironmentCubeShader EnvironmentShader;
         public ManaEnvironmentBrdfShader EnvironmentBrdfShader;
@@ -61,7 +60,6 @@ namespace Mana.Code.Renderers
             // Shaders
             BasicShader = new ManaBasicTextureShader(Context, false);
             BasicCubeShader = new ManaBasicTextureShader(Context, true);
-            PbrShader = new ManaPbrShader(Context);
             EnvironmentIrradianceShader = new ManaEnvironmentIrradianceShader(Context);
             EnvironmentShader = new ManaEnvironmentCubeShader(Context);
             EnvironmentBrdfShader = new ManaEnvironmentBrdfShader(Context);
@@ -302,6 +300,10 @@ namespace Mana.Code.Renderers
 
         private int preFilterSlice = 0;
 
+        private List<ManaMeshSceneNode> TestModels = new List<ManaMeshSceneNode>();
+
+        private ManaMeshSceneNode? DebugModel = null;
+
         void RenderTestScene()
         {
             Matrix4x4 model = Matrix4x4.Identity;
@@ -309,102 +311,53 @@ namespace Mana.Code.Renderers
             float cols = 8;
             float spacing = 1.5f;
 
-            PbrShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
-            for (int row = 0; row < rows; ++row)
+            if (TestModels.Count == 0)
             {
-                PbrShader.FindUniform("metallic")?.SetValue(row / rows);
-
-                for (int i = 0; i < lightPositions.Length; ++i)
+                Func<Vector3, float, float, ManaMeshSceneNode> createSphereModelAtPoint = (pos, metallic, roughness) =>
                 {
-                    PbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPositions[i], i);
-                    PbrShader.FindUniform($"lightColors[0]")?.SetValue(lightColors[i], i);
-                }
+                    ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleSphere);
+                    newNode.MeshRenderer.DynamicMaterial.Pbr.metallicColorMap.Value = metallic;
+                    newNode.MeshRenderer.DynamicMaterial.Pbr.roughnessColorMap.Value = roughness;
+                    newNode.Position = pos;
+                    return newNode;
+                };
 
-                for (int col = 0; col < cols; ++col)
+                Func<Vector3, float, float, ManaMeshSceneNode> createCubeModelAtPoint = (pos, metallic, roughness) =>
                 {
-                    // we clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off
-                    // on direct lighting.
-                    //PbrShader.FindUniform("albedo")?.SetValue(Colors.White.ToVector3());
-                    PbrShader.FindUniform("albedo")?.SetValue(new Vector3(0.5f, 0.0f, 0.0f));
-                    PbrShader.FindUniform("roughness")?.SetValue(Math.Clamp((float)col / (float)cols, 0.05f, 1.0f));
-                    PbrShader.FindUniform("ao")?.SetValue(1.0f);
+                    ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleCube);
+                    newNode.MeshRenderer.DynamicMaterial.Pbr.metallicColorMap.Value = metallic;
+                    newNode.MeshRenderer.DynamicMaterial.Pbr.roughnessColorMap.Value = roughness;
+                    newNode.Position = pos;
+                    return newNode;
+                };
+                
+                for (int row = 0; row < rows; ++row)
+                {
+                    float metallic = row / rows;                                        
+                    for (int col = 0; col < cols; ++col)
+                    {
+                        float roughness = Math.Clamp(col / (float)cols, 0.05f, 1.0f);
 
-                    model = Matrix4x4.CreateTranslation((float)(col - (cols / 2)) * spacing, (float)(row - (rows / 2)) * spacing, -2.0f);
+                        Vector3 gridPosition = new Vector3((float)(col - (cols / 2)) * spacing, (float)(row - (rows / 2)) * spacing, -2.0f);
+                        var sphereModel = createSphereModelAtPoint(gridPosition, metallic, roughness);
+                        gridPosition.Z = -8.0f;
+                        var cubeModel = createCubeModelAtPoint(gridPosition, metallic, roughness);
 
-                    Matrix4x4.Invert(model, out Matrix4x4 modelInv);
-                    modelInv = Matrix4x4.Transpose(modelInv);
+                        TestModels.Add(cubeModel);
+                        TestModels.Add(sphereModel);
 
-                    PbrShader.FindUniform("model").SetValue(model);
-                    PbrShader.FindUniform("normalMatrix").SetValue(modelInv.ToMatrix3());
-
-                    SimpleSphere.RenderDirectly();
-
-                    model = Matrix4x4.CreateTranslation((float)(col - (cols / 2)) * spacing, (float)(row - (rows / 2)) * spacing, -8.0f);
-
-                    Matrix4x4.Invert(model, out modelInv);
-                    modelInv = Matrix4x4.Transpose(modelInv);
-
-                    PbrShader.FindUniform("model").SetValue(model);
-                    PbrShader.FindUniform("normalMatrix").SetValue(modelInv.ToMatrix3());
-
-                    SimpleCube.RenderDirectly();
-
+                    }
                 }
             }
 
+            DebugModel = new ManaMeshSceneNode(Context, SimpleCube);
+            DebugModel.LocalTransform = Matrix4x4.CreateTranslation(8, 0, 1);
+
+
+            foreach (var testModel in TestModels)
             {
-                model = Matrix4x4.CreateTranslation(8, 0, 1);
-
-                Matrix4x4.Invert(model, out Matrix4x4 modelInv);
-                var debugModelInverse = Matrix4x4.Transpose(modelInv);
-
-                var Irradiance = IrradianceFramebuffer.bufferMap["Irradiance"];
-                var Prefilter = PrefilterFramebuffer.bufferMap["PreFilter"];
-                var Brdf = BrdfFramebuffer.bufferMap["BRDF"];
-                Irradiance?.Texture?.Bind(0);
-                Prefilter?.Texture?.Bind(1);
-                Brdf?.Texture?.Bind(2);
-
-                PbrShader.FindUniform("irradianceMap")?.SetValue(0);
-                PbrShader.FindUniform("prefilterMap")?.SetValue(1);
-                PbrShader.FindUniform("brdfLUT")?.SetValue(2);
-
-                PbrShader.FindUniform("albedo")?.SetValue(debugAlbedo.ToVector3());
-                PbrShader.FindUniform("metallic")?.SetValue(debugMetallic);
-                PbrShader.FindUniform("ao")?.SetValue(debugAmbient);
-                PbrShader.FindUniform("roughness")?.SetValue(debugRoughness);
-                PbrShader.FindUniform("model").SetValue(model);
-                PbrShader.FindUniform("normalMatrix").SetValue(debugModelInverse.ToMatrix3());
-
-                SimpleSphere.RenderDirectly();
-            }
-
-
-            {
-                model = Matrix4x4.CreateTranslation(8, 0, 1);
-
-                Matrix4x4.Invert(model, out Matrix4x4 modelInv);
-                var debugModelInverse = Matrix4x4.Transpose(modelInv);
-
-                var Irradiance = IrradianceFramebuffer.bufferMap["Irradiance"];
-                var Prefilter = PrefilterFramebuffer.bufferMap["PreFilter"];
-                var Brdf = BrdfFramebuffer.bufferMap["BRDF"];
-                Irradiance?.Texture?.Bind(0);
-                Prefilter?.Texture?.Bind(1);
-                Brdf?.Texture?.Bind(2);
-
-                PbrShader.FindUniform("irradianceMap")?.SetValue(0);
-                PbrShader.FindUniform("prefilterMap")?.SetValue(1);
-                PbrShader.FindUniform("brdfLUT")?.SetValue(2);
-
-                PbrShader.FindUniform("albedo")?.SetValue(debugAlbedo.ToVector3());
-                PbrShader.FindUniform("metallic")?.SetValue(debugMetallic);
-                PbrShader.FindUniform("ao")?.SetValue(debugAmbient);
-                PbrShader.FindUniform("roughness")?.SetValue(debugRoughness);
-                PbrShader.FindUniform("model").SetValue(model);
-                PbrShader.FindUniform("normalMatrix").SetValue(debugModelInverse.ToMatrix3());
-
-                SimpleSphere.RenderDirectly();
+                testModel.UpdateTransform();
+                testModel.Draw();
             }
 
 
@@ -432,6 +385,15 @@ namespace Mana.Code.Renderers
             BasicShader.FindUniform("model").SetValue(model);
             SimpleQuad.RenderDirectly();
 
+        }
+
+        public void ApplyLights(ManaPbrShader manaPbrShader)
+        {
+            for (int i = 0; i < lightPositions.Length; ++i)
+            {
+                manaPbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPositions[i], i);
+                manaPbrShader.FindUniform($"lightColors[0]")?.SetValue(lightColors[i], i);
+            }
         }
     }
 }
