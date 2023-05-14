@@ -238,7 +238,7 @@ namespace Mana
             if (copy != null)
             {
                 copy.Handle = 0;
-                copy.IsLoaded = IsLoaded;
+                copy.IsLoaded = false;
             }
             return copy;
         }
