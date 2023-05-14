@@ -10,9 +10,8 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Mana
 {
-    public class ManaTexture : ManaObject
+    public class ManaTexture : ManaObject, ICloneable
     {
-        public string Name { get; set; }
         public string OriginalFilename { get; set; }
         public uint Width { get; set; }
         public uint Height { get; set; }
@@ -171,7 +170,7 @@ namespace Mana
 
         protected unsafe void SubTextImage2D(GL gl, TextureTarget textureType, int x, int y, uint width, uint height, ReadOnlySpan<float> data)
         {
-              gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
+            gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
         }
          
         private unsafe void ProcessPixelRows(PixelAccessor<Rgba32> accessor, GL gl)
@@ -231,6 +230,17 @@ namespace Mana
 
             gl.BindTexture(TextureTargetType, 0);
             gl.ActiveTexture(TextureUnit.Texture0);
+        }
+
+        public object Clone()
+        {
+            var copy = MemberwiseClone() as ManaTexture;
+            if (copy != null)
+            {
+                copy.Handle = 0;
+                copy.IsLoaded = IsLoaded;
+            }
+            return copy;
         }
     }
 }

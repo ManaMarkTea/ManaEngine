@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using Mana.Code.Materials;
+using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -34,15 +35,11 @@ namespace Mana.Code.Shapes
         public virtual ManaMaterial GenerateMaterial()
         {
             var foundMaterial = new ManaMaterial(Context);
-            if (foundMaterial != null)
-            {
-                foundMaterial.DiffuseColor = DefaultVertexColor;
-            }
+            foundMaterial.Albedo.Value = DefaultVertexColor;
             return foundMaterial;
         }
 
         protected virtual void GenerateData() { }
-
 
 
         void ExtrudeQuad(float height)

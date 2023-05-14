@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using Mana.Code.ManaShaders;
+using Mana.Code.Materials;
 using Mana.Code.Shapes;
 using Silk.NET.Assimp;
 using Silk.NET.Input;
@@ -316,8 +317,9 @@ namespace Mana.Code.Renderers
                 Func<Vector3, float, float, ManaMeshSceneNode> createSphereModelAtPoint = (pos, metallic, roughness) =>
                 {
                     ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleSphere);
-                    newNode.MeshRenderer.DynamicMaterial.Pbr.metallicColorMap.Value = metallic;
-                    newNode.MeshRenderer.DynamicMaterial.Pbr.roughnessColorMap.Value = roughness;
+                    newNode.Name = $"TestSphere_{pos}_{metallic}x{roughness}";
+                    newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
+                    newNode.MeshRenderer.DynamicMaterial.Roughness.Value = roughness;
                     newNode.Position = pos;
                     return newNode;
                 };
@@ -325,8 +327,9 @@ namespace Mana.Code.Renderers
                 Func<Vector3, float, float, ManaMeshSceneNode> createCubeModelAtPoint = (pos, metallic, roughness) =>
                 {
                     ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleCube);
-                    newNode.MeshRenderer.DynamicMaterial.Pbr.metallicColorMap.Value = metallic;
-                    newNode.MeshRenderer.DynamicMaterial.Pbr.roughnessColorMap.Value = roughness;
+                    newNode.Name = $"TestCube_{pos}_{metallic}x{roughness}";
+                    newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
+                    newNode.MeshRenderer.DynamicMaterial.Roughness.Value = roughness;
                     newNode.Position = pos;
                     return newNode;
                 };

@@ -30,6 +30,11 @@ namespace Mana.Code.ManaShaders
             gl.Uniform1(location + arrayIndex, value);
         }
 
+        public void SetValue(double value, int arrayIndex = 0)
+        {
+            gl.Uniform1(location + arrayIndex, value);
+        }
+
         public void SetValue(float valueX, float valueY, float valueZ, int arrayIndex = 0)
         {
             gl.Uniform3(location + arrayIndex, new ReadOnlySpan<float>(new float[]{ valueX, valueY, valueZ }));

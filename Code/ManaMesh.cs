@@ -17,14 +17,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Mana.Code;
+using Mana.Code.Materials;
 
 namespace Mana
 {
 
     public class ManaMesh : ManaObject, IDisposable
-    {
-        public string Name { get; set; }
-        
+    {        
         public ManaMaterial[] Materials;        
         protected Vector3 MinSize;
         protected Vector3 MaxSize;
@@ -156,7 +155,7 @@ namespace Mana
             if (MeshBufferObject != null)
             {
                 ManaMaterial material = Materials[0];
-                if (meshRenderer!= null && meshRenderer.Material != ManaMaterial.DefaultMaterial)
+                if (meshRenderer!= null)
                 {
                     material = meshRenderer.Material;
                 }

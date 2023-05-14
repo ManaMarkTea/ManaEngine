@@ -1,4 +1,5 @@
-﻿using Mana.Code.Renderers;
+﻿using Mana.Code.Materials;
+using Mana.Code.Renderers;
 using Silk.NET.OpenGL;
 using Silk.NET.SDL;
 using System;
@@ -72,25 +73,22 @@ namespace Mana.Code
                 Brdf?.Texture?.Bind(2);
                 FindUniform("albedoMap")?.SetValue(3);
                 FindUniform("normalMap")?.SetValue(4);
-                FindUniform("metallicMap")?.SetValue(5);
-                FindUniform("roughnessMap")?.SetValue(6);
-                FindUniform("aoMap")?.SetValue(7);
+                FindUniform("emissionMap")?.SetValue(5);
+                FindUniform("metallicMap")?.SetValue(6);
+                FindUniform("roughnessMap")?.SetValue(7);
+                FindUniform("aoMap")?.SetValue(8);
 
                 renderer.ApplyLights(this);
             }
 
-            material.Pbr.AlbedoMap.Bind(3);
-            material.Pbr.NormalMap.Bind(4);
-            material.Pbr.MetallicMap.Bind(5);
-            material.Pbr.RoughnessMap.Bind(6);
-            material.Pbr.AoMap.Bind(7);
+            material.Albedo.Bind(3);
+            material.Normal.Bind(4);
+            material.Emission.Bind(5);
+            material.Metallic.Bind(6);
+            material.Roughness.Bind(7);
+            material.Ambient.Bind(8);
 
             FindUniform("normalMapSelection")?.SetValue(1.0f);
-
-            FindUniform("albedo")?.SetValue(material.DiffuseColor.ToVector3());
-            FindUniform("metallic")?.SetValue(material.Metallic);
-            FindUniform("roughness")?.SetValue(material.Roughness);
-            FindUniform("ao")?.SetValue(material.SpecularColorScatterChance);
         }
 
         protected override string CleanSource(string source)

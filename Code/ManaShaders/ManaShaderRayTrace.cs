@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using Mana.Code.Materials;
 using Mana.Code.Shapes;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -51,19 +52,19 @@ namespace Mana.Code.ManaShaders
             this.UniformMap[$@"spheres[{index}].position"].SetValue(sphereNode.Position);
             this.UniformMap[$@"spheres[{index}].material.color"].SetValue(sphere.DefaultVertexColor);
 
-            if (renderer.Material.EmissiveStrength != 0 && renderer.Material.EmissiveColor.LengthSquared() == 0)
+            if (renderer.Material.EmissionStrength == 0)
             {
                 this.UniformMap[$@"spheres[{index}].material.emission"].SetValue(sphere.DefaultVertexColor);
             }
             else
             {
-                this.UniformMap[$@"spheres[{index}].material.emission"].SetValue(renderer.Material.EmissiveColor);
+                this.UniformMap[$@"spheres[{index}].material.emission"].SetValue(renderer.Material.Emission.Value);
             }            
 
-            this.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissiveStrength);
-            this.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness);
-            this.UniformMap[$@"spheres[{index}].material.specularColor"].SetValue(renderer.Material.SpecularColor);
-            this.UniformMap[$@"spheres[{index}].material.specularColorScatterChance"].SetValue(renderer.Material.SpecularColorScatterChance);
+            this.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissionStrength);
+            this.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness.Value);
+            this.UniformMap[$@"spheres[{index}].material.specularColor"].SetValue(Colors.White);
+            this.UniformMap[$@"spheres[{index}].material.specularColorScatterChance"].SetValue(renderer.Material.Ambient.Value);
             this.UniformMap[$@"spheres[{index}].radius"].SetValue(sphereNode.Scale.X * 0.25f);
             return true;
         }

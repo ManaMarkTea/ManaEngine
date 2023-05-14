@@ -101,8 +101,8 @@ namespace Mana
             var sun = world.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
 
             var sunMaterial = (sun.Components[0] as MeshRendererComponent).DynamicMaterial;
-            sunMaterial.EmissiveColor = Colors.Gold;
-            sunMaterial.EmissiveStrength = 10.0f;
+            sunMaterial.Emission.Value = Colors.Gold;
+            sunMaterial.EmissionStrength = 10.0f;
 
             world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
             var helmetNode = world.Scenes[1].Children[0];

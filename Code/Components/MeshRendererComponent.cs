@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mana.Code.Materials;
 
 namespace Mana
 {
@@ -10,24 +11,58 @@ namespace Mana
     {
         public ManaMesh Mesh { get; set; }
 
-        public ManaMaterial Material { get; set; }
+        private ManaMaterial? material;
+        public ManaMaterial Material
+        {
+            get
+            {
+                if (dynamicMaterial != null)
+                {
+                    return dynamicMaterial;
+                }
+
+                return material;
+            }
+            set
+            {
+                material = value;
+            }
+        }
+
+
+        private ManaMaterial? dynamicMaterial = null;
         public ManaMaterial DynamicMaterial
         {
             get
             {
-                if (Material == ManaMaterial.DefaultMaterial)
+                if (dynamicMaterial == null)
                 {
-                    Material = new ManaMaterial(Owner.Context);
+                    dynamicMaterial = Material.Clone() as ManaMaterial;
+                    if (dynamicMaterial == null)
+                    {
+                        dynamicMaterial = new ManaMaterial(Context);                        
+                    }
+
+                    dynamicMaterial.Name = Material.Name + "_Clone";
                 }
 
-                return Material;
+                return dynamicMaterial;
             }
         }
 
         public MeshRendererComponent(ManaSceneNode owner, ManaMesh mesh) : base(owner)
         {            
             Mesh = mesh;
-            Material = ManaMaterial.DefaultMaterial;
+
+            if (mesh.Materials.Length == 0 || mesh.Materials[0] == null)
+            {
+                Material = ManaMaterial.DefaultMaterial;
+            }
+            else
+            {
+                Material = mesh.Materials[0];
+            }
+            
         }
 
         public override void DrawComponent()

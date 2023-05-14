@@ -1,4 +1,5 @@
 ﻿using Mana.Code;
+using Mana.Code.Materials;
 using Mana.Code.Shapes;
 using Silk.NET.Assimp;
 using Silk.NET.Core.Native;

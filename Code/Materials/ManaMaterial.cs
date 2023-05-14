@@ -12,110 +12,41 @@ using System.Collections;
 using System.IO;
 using Mana.Code;
 
-namespace Mana
+namespace Mana.Code.Materials
 {
-    public enum ManaMaterialChannelTypes
+    public class ManaMaterial : ManaObject, ICloneable
     {
-        None = 0,
-        IntValue,
-        BooleanValue,
-        ScalarValue,
-        VectorValue,
-        TextureValue,
-        StringValue
-    }
-
-    public class MetaMaterialChannel
-    {
-        public string Name { get; set; }
-
-        public ManaMaterialChannelTypes ChannelType = ManaMaterialChannelTypes.None;
-        public int IntValue { get; set; }
-        public bool BooleanValue { get; set; }
-        public float ScalarValue { get; set; }
-        public Vector4 VectorValue { get; set; }
-        public ManaTexture Texture { get; set; }
-        public string Value { get; set; }
-
-        public override string ToString()
-        {
-            string output = Name + " = ";
-            switch (ChannelType)
-            {
-                case ManaMaterialChannelTypes.None:break;
-                case ManaMaterialChannelTypes.IntValue: output += IntValue; break;
-                case ManaMaterialChannelTypes.BooleanValue: output += BooleanValue; break;
-                case ManaMaterialChannelTypes.ScalarValue: output += ScalarValue; break;
-                case ManaMaterialChannelTypes.VectorValue: output += VectorValue; break;
-                case ManaMaterialChannelTypes.TextureValue: output += Texture?.ToString(); break;
-                case ManaMaterialChannelTypes.StringValue: output += Value; break;
-            }
-
-            return output;
-        }
-    }
-
-    public class ManaMaterialPbr : ManaObject
-    {
-        public ManaTexture AlbedoMap { get { return albedoMap != null ? albedoMap : albedoColorMap; } }
-        public ManaTexture NormalMap { get { return normalMap != null ? normalMap : normalColorMap; } }
-        public ManaTexture MetallicMap { get { return metallicMap != null ? metallicMap : metallicColorMap; } }
-        public ManaTexture RoughnessMap { get { return roughnessMap != null ? roughnessMap : roughnessColorMap; } }
-        public ManaTexture AoMap { get { return aoMap != null ? aoMap : aoColorMap; } }
+        public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance.Context);
 
 
-        public ManaTexture? albedoMap;
-        public ManaTexture? normalMap;
-        public ManaTexture? metallicMap;
-        public ManaTexture? roughnessMap;
-        public ManaTexture? aoMap;
-
-        public ManaTextureColor albedoColorMap;
-        public ManaTextureColor normalColorMap;
-        public ManaTextureSingleValue metallicColorMap;
-        public ManaTextureSingleValue roughnessColorMap;
-        public ManaTextureSingleValue aoColorMap;
-
-        public ManaMaterialPbr(ManaContext context) : base(context)
-        {
-            albedoColorMap = new ManaTextureColor(Context, Colors.Orange);
-            normalColorMap = new ManaTextureColor(Context, Vector4.UnitX);
-            metallicColorMap = new ManaTextureSingleValue(Context, 0.5);
-            roughnessColorMap = new ManaTextureSingleValue(Context, 0.5);
-            aoColorMap = new ManaTextureSingleValue(Context, 0.25);
-        }
-    }
-
-    public class ManaMaterial : ManaObject
-    {
-        public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance.Context);       
-        
         public ManaShader Shader { get; set; }
-        public ManaMaterialPbr Pbr { get; set; }
+ 
+        public ManaTextureVector4 Albedo;
+        public ManaTextureVector4 Normal;
+        public ManaTextureVector4 Emission;
+        public ManaTextureSingle Metallic;
+        public ManaTextureSingle Roughness;
+        public ManaTextureSingle Ambient;
+
+        public double EmissionStrength = 0.0;
 
         public ManaMaterial(ManaContext context) : base(context)
         {
             Name = "Material";
-            Channels = new Dictionary<string, MetaMaterialChannel>();
-
-            Pbr = new ManaMaterialPbr(context);
+            Channels = new Dictionary<string, ManaMaterialChannel>();            
             var shader = new ManaPbrShader(context);
             Shader = shader;
+
+            Albedo = new ManaTextureVector4(Context, Colors.Orange);
+            Normal = new ManaTextureVector4(Context, Vector4.UnitX);
+            Emission = new ManaTextureVector4(Context, Colors.Black);
+            Metallic = new ManaTextureSingle(Context, 0.5);
+            Roughness = new ManaTextureSingle(Context, 0.5);
+            Ambient = new ManaTextureSingle(Context, 0.25);
         }
 
-        public Vector4 DiffuseColor = Vector4.One;
-        public float Roughness = 0.7f;
-        public float Metallic = 0.5f;
+        public Dictionary<string, ManaMaterialChannel> Channels { get; set; }        
 
-        public Vector4 EmissiveColor = Vector4.Zero;
-        public float EmissiveStrength = 0.4f;
-
-        public Vector4 SpecularColor = Colors.White;
-        public float SpecularColorScatterChance = 0.1f;
-
-        public Dictionary<string, MetaMaterialChannel> Channels { get; set; }
-        public string Name { get; set; }
-        
 
         public unsafe void LoadFromGltf(Material* material)
         {
@@ -123,9 +54,9 @@ namespace Mana
             {
                 MaterialProperty* channel = material->MProperties[i];
                 byte[] byteArray = new byte[channel->MDataLength];
-                Marshal.Copy((IntPtr)channel->MData, byteArray, 0, (int)channel->MDataLength);      
+                Marshal.Copy((IntPtr)channel->MData, byteArray, 0, (int)channel->MDataLength);
 
-                MetaMaterialChannel metaChannel = new MetaMaterialChannel();
+                ManaMaterialChannel metaChannel = new ManaMaterialChannel();
 
                 var key = channel->MKey.ToString();
                 if (channel->MSemantic != 0)
@@ -142,19 +73,19 @@ namespace Mana
                 }
 
                 metaChannel.Name = key;
-                
+
                 if (channel->MType == PropertyTypeInfo.String)
-                {                    
-                    string propertyValue = UTF32Encoding.ASCII.GetString(byteArray, 4, byteArray.Length - 4).Trim('\0');
+                {
+                    string propertyValue = Encoding.ASCII.GetString(byteArray, 4, byteArray.Length - 4).Trim('\0');
                     metaChannel.Value = propertyValue;
                     metaChannel.ChannelType = ManaMaterialChannelTypes.StringValue;
-                }                
-                else if ( channel->MType == PropertyTypeInfo.Float)
+                }
+                else if (channel->MType == PropertyTypeInfo.Float)
                 {
                     var floatArray = new float[byteArray.Length / 4];
                     Buffer.BlockCopy(byteArray, 0, floatArray, 0, byteArray.Length);
 
-                    if (floatArray.Length == 4) 
+                    if (floatArray.Length == 4)
                     {
                         metaChannel.VectorValue = new Vector4(floatArray[0], floatArray[1], floatArray[2], floatArray[3]);
                         metaChannel.ChannelType = ManaMaterialChannelTypes.VectorValue;
@@ -168,7 +99,7 @@ namespace Mana
                     {
                         int x = 4;
                     }
-                    
+
                 }
                 else if (channel->MType == PropertyTypeInfo.Integer)
                 {
@@ -198,7 +129,7 @@ namespace Mana
                     Buffer.BlockCopy(byteArray, 0, singleByte, 0, byteArray.Length);
 
                     if (singleByte.Length == 1)
-                    {                        
+                    {
                         metaChannel.IntValue = singleByte[0];
                         metaChannel.ChannelType |= ManaMaterialChannelTypes.IntValue;
                     }
@@ -207,14 +138,14 @@ namespace Mana
                 {
                     int x = 3;
                 }
-                
+
                 TextureType type = (TextureType)channel->MSemantic;
                 if (type != TextureType.None)
                 {
                     string filePath = metaChannel.Value;
                     if (filePath != null)
                     {
-                        string fullPath = System.IO.Path.Combine(Context.World.ActivePath, filePath);
+                        string fullPath = Path.Combine(Context.World.ActivePath, filePath);
                         var channelTexture = TextureManager.Instance.CreateTexture(filePath);
                         if (!channelTexture.IsLoaded)
                         {
@@ -223,15 +154,18 @@ namespace Mana
                             channelTexture.Load();
                         }
                         metaChannel.Texture = channelTexture;
-                        
+
                         switch (type)
                         {
-                            case TextureType.Diffuse: { Pbr.albedoMap = channelTexture; } break;
-                            case TextureType.BaseColor: { Pbr.albedoMap = channelTexture; } break;
-                            case TextureType.Metalness: { Pbr.metallicMap = channelTexture; } break;
-                            case TextureType.DiffuseRoughness: { Pbr.roughnessMap = channelTexture; } break;
-                            case TextureType.Ambient: { Pbr.aoMap = channelTexture; } break;
-                            case TextureType.AmbientOcclusion: { Pbr.aoMap = channelTexture; } break;
+                            case TextureType.Diffuse: { Albedo.TextureValue = channelTexture; } break;
+                            case TextureType.BaseColor: { Albedo.TextureValue = channelTexture; } break;
+                            case TextureType.Metalness: { Metallic.TextureValue = channelTexture; } break;
+                            case TextureType.DiffuseRoughness: { Roughness.TextureValue = channelTexture; } break;
+                            case TextureType.Ambient: { Ambient.TextureValue = channelTexture; } break;
+                            case TextureType.AmbientOcclusion: { Ambient.TextureValue = channelTexture; } break;
+                            case TextureType.Emissive: { Emission.TextureValue = channelTexture; } break;
+                            case TextureType.EmissionColor: { Emission.TextureValue = channelTexture; } break;
+                            
                         }
 
                     }
@@ -256,7 +190,7 @@ namespace Mana
             {
                 AssimpString path;
                 Context.World._AssetImporter.GetMaterialTexture(mat, type, i, &path, null, null, null, null, null, null);
-                
+
                 ManaTexture manaTexture = TextureManager.Instance.CreateTexture(path);
                 manaTexture.OriginalFilename = path;
                 textures.Add(manaTexture);
@@ -288,10 +222,30 @@ namespace Mana
                     texture.Value.Texture.UnBind(i++);
                 }
             }
-            
+
             Shader.UnbindShader();
         }
 
+        public object Clone()
+        {
+            var copy = MemberwiseClone() as ManaMaterial;
+
+            copy.Albedo = (ManaTextureVector4)copy.Albedo.Clone();
+            copy.Normal = (ManaTextureVector4)copy.Normal.Clone();
+            copy.Emission = (ManaTextureVector4)copy.Emission.Clone();
+            copy.Metallic = (ManaTextureSingle)copy.Metallic.Clone();
+            copy.Roughness = (ManaTextureSingle)copy.Roughness.Clone();
+            copy.Ambient = (ManaTextureSingle)copy.Ambient.Clone();
+
+            copy.Albedo.Load();
+            copy.Normal.Load();
+            copy.Emission.Load();
+            copy.Metallic.Load();
+            copy.Roughness.Load();
+            copy.Ambient.Load();
+
+            return copy;
+        }
     }
 
 

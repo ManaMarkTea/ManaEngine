@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using Mana.Code.Materials;
+using Silk.NET.Assimp;
 using System;
 using System.Collections.Generic;
 using System.Linq;

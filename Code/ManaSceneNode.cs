@@ -10,7 +10,6 @@ namespace Mana
 {
     public class ManaSceneNode : ManaObject
     {
-        public string Name { get; set; }        
         public ManaSceneNode Parent { get; set; }
         public List<ManaSceneNode> Children { get; set; }
 

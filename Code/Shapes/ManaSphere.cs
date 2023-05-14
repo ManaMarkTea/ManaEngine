@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using Mana.Code.Materials;
+using Silk.NET.Assimp;
 using Silk.NET.Input;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using System;

@@ -1,5 +1,6 @@
 ﻿using Mana.Code;
 using Mana.Code.ManaShaders;
+using Mana.Code.Materials;
 using Silk.NET.OpenGL;
 using SixLabors.ImageSharp.Memory;
 using System;
