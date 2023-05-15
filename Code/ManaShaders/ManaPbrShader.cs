@@ -57,7 +57,7 @@ namespace Mana.Code
             UnbindShader();
         }
 
-        public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
+        public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             base.BindShader(material, objectMatrix, camera);
 
@@ -88,7 +88,7 @@ namespace Mana.Code
             material.Roughness.Bind(7);
             material.Ambient.Bind(8);
 
-            FindUniform("normalMapSelection")?.SetValue(1.0f);
+            FindUniform("normalMapSelection")?.SetValue(material.NormalSelector);
         }
 
         protected override string CleanSource(string source)

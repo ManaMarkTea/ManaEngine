@@ -68,7 +68,7 @@ namespace Mana.Code.ManaShaders
             this.UniformMap[$@"spheres[{index}].radius"].SetValue(sphereNode.Scale.X * 0.25f);
             return true;
         }
-        public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
+        public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             base.BindShader(material, objectMatrix, camera);
 

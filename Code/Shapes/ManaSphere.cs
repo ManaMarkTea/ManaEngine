@@ -119,15 +119,16 @@ namespace Mana.Code.Shapes
 
             Parallel.For(0, normales.Length, (i) =>
             {
+                var vertCoord = vertList[i];
                 normales[i] = vertList[i].Normalized();
                 colors[i] = DefaultVertexColor;
+                
+                float u = (MathF.Atan2(vertCoord.Z, vertCoord.X) / (2f * MathF.PI));
+                float v = (MathF.Asin(vertCoord.Y) / MathF.PI) + 0.5f;
+
+                texCoords[i] = new Vector2(u, v);
             });
-
-              
-            for (int i = 0; i < normales.Length; i++)
-            {
-
-            }
+            
 
             List<ManaMaterial> newMaterials = new List<ManaMaterial>
             {
@@ -137,7 +138,6 @@ namespace Mana.Code.Shapes
             Materials = newMaterials.ToArray();
             MeshBufferObject = new MetaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
             MeshBufferObject.ConstructVBO();
-
         }
 
         // return index of point in the middle of p1 and p2

@@ -1,4 +1,5 @@
-﻿using Silk.NET.Maths;
+﻿using CSharpColorSpaceConverter;
+using Silk.NET.Maths;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,6 +37,19 @@ namespace Mana
             result.M43 = -Vector3.Dot(zaxis, position);
 
             return result;
+        }
+
+        public static bool Contains(this string text, IEnumerable<string> possibleTexts)
+        {
+            foreach (var possibleText in possibleTexts)
+            {
+                if (text.Contains(possibleText, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public static string ToHex(this byte[] bytes, bool upperCase)
@@ -105,6 +119,12 @@ namespace Mana
         public static Vector4D<float> ToVector4D(this Vector4 value)
         {
             return new Vector4D<float>(value.X, value.Y, value.Z, value.W);
+        }
+
+        public static Vector4 ToRgbFromHsl(this Vector4 hsv)
+        {
+            int[] rgb = ColorSpaceConverter.HSLToRGB(hsv.X / 360, hsv.Y, hsv.Z);
+            return new Vector4(rgb[0] / 255.0f, rgb[1] / 255.0f, rgb[2] / 255.0f, hsv.W);
         }
 
         public static Matrix3X3<float> ToMatrix3(this Matrix4x4 matrix)

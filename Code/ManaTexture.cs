@@ -13,6 +13,8 @@ namespace Mana
     public class ManaTexture : ManaObject, ICloneable
     {
         public string OriginalFilename { get; set; }
+
+        public Stream? PixelStream { get; set; }
         public uint Width { get; set; }
         public uint Height { get; set; }
         public int ElementCount { get; set; }
@@ -138,7 +140,20 @@ namespace Mana
         {
             var gl = Context.gl;
 
-            if (string.IsNullOrEmpty(OriginalFilename))
+            if (PixelStream != null)
+            {
+                DecoderOptions options = new DecoderOptions();
+                using (var img = Image.Load<Rgba32>(options, PixelStream))
+                {
+                    img.Mutate(x => x.Flip(FlipMode.Vertical));
+                    Width = (uint)img.Width;
+                    Height = (uint)img.Height;
+                    SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
+                    AllocateEmptyTextImage2D(gl, TextureTargetType, (uint)img.Width, (uint)img.Height);
+                    img.ProcessPixelRows(accessor => ProcessPixelRows(accessor, gl));
+                }
+            }
+            else if (string.IsNullOrEmpty(OriginalFilename))
             {
                 // Create an empty texture with allocated space (Common for Render Targets)
                 UpdateTextureSize();

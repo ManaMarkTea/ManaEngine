@@ -319,7 +319,9 @@ namespace Mana.Code.Renderers
                     ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleSphere);
                     newNode.Name = $"TestSphere_{pos}_{metallic}x{roughness}";
                     newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
+                    newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
                     newNode.MeshRenderer.DynamicMaterial.Roughness.Value = roughness;
+                    newNode.MeshRenderer.DynamicMaterial.Albedo.Value = new Vector4(roughness * 360, 0.5f, 0.5f, 1.0f).ToRgbFromHsl();
                     newNode.Position = pos;
                     return newNode;
                 };

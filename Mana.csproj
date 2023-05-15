@@ -9,6 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\Materials\beaten-down-brick-bl.zip" />
+    <None Remove="Assets\Materials\gold-scuffed-bl.zip" />
+    <None Remove="Assets\Materials\Iron-Scuffed_bl.zip" />
+    <None Remove="Assets\Materials\oxidized-copper-bl.zip" />
+    <None Remove="Assets\Materials\pirate-gold-bl.zip" />
+    <None Remove="Assets\Materials\used-stainless-steel2-bl.zip" />
+    <None Remove="Assets\Materials\whispy-grass-meadow-bl.zip" />
     <None Remove="Assets\Shaders\basic_texture.frag" />
     <None Remove="Assets\Shaders\basic_texture_cube.frag" />
     <None Remove="Assets\Shaders\Khronos\animation.glsl" />
@@ -82,6 +89,27 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\Materials\beaten-down-brick-bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Materials\gold-scuffed-bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Materials\Iron-Scuffed_bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Materials\oxidized-copper-bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Materials\pirate-gold-bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Materials\used-stainless-steel2-bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Materials\whispy-grass-meadow-bl.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Shaders\basic_texture.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

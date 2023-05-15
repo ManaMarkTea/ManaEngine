@@ -32,7 +32,7 @@ namespace Mana.Code.ManaShaders
 
         public void SetValue(double value, int arrayIndex = 0)
         {
-            gl.Uniform1(location + arrayIndex, value);
+            gl.Uniform1(location + arrayIndex, (float)value);
         }
 
         public void SetValue(float valueX, float valueY, float valueZ, int arrayIndex = 0)

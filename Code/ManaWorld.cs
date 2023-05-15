@@ -160,8 +160,7 @@ namespace Mana
             {
                 var material = scene->MMaterials[i];
 
-                ManaMaterial manaMaterial = new ManaMaterial(Context);
-                manaMaterial.LoadFromGltf(material);
+                ManaMaterial manaMaterial = ManaMaterialLoaderGltf.LoadFromGltf(Context, material);
                 Materials.Add(manaMaterial);
             }
 

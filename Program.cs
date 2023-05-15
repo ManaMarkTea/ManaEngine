@@ -15,6 +15,7 @@ using System.Diagnostics;
 using Mana.Code;
 using Mana.Code.Shapes;
 using ImGuiNET;
+using Mana.Code.Materials;
 
 namespace Mana
 {
@@ -104,9 +105,40 @@ namespace Mana
             sunMaterial.Emission.Value = Colors.Gold;
             sunMaterial.EmissionStrength = 10.0f;
 
+            ManaMaterial steelMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/used-stainless-steel2-bl.zip");
+            ManaMaterial pirateGoldMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/pirate-gold-bl.zip");
+            ManaMaterial brickMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/beaten-down-brick-bl.zip");
+            ManaMaterial grassMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/whispy-grass-meadow-bl.zip");
+           
             world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
             var helmetNode = world.Scenes[1].Children[0];
             helmetNode.Position = new Vector3(2, 0, 2);
+
+            ManaMeshSceneNode steelBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
+            steelBall.Name = "SteelBall";
+            steelBall.MeshRenderer.Material = steelMaterial;
+            steelBall.Position = new Vector3(2, 0, 3);
+            world.Scenes[1].Children[0].AddChild(steelBall);
+
+            ManaMeshSceneNode pirateGoldBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
+            pirateGoldBall.Name = "PirateGoldBall";
+            pirateGoldBall.MeshRenderer.Material = pirateGoldMaterial;
+            pirateGoldBall.Position = new Vector3(2, 0, 5);
+            world.Scenes[1].Children[0].AddChild(pirateGoldBall);
+
+            ManaMeshSceneNode brick = new ManaMeshSceneNode(Context, new ManaCube(Context, Colors.White, new Vector3(1.0f, 0.5f, 0.5f)));
+            brick.Name = "SteelBall";
+            brick.MeshRenderer.Material = brickMaterial;
+            brick.Position = new Vector3(2, 0, 7);
+            world.Scenes[1].Children[0].AddChild(brick);
+
+            ManaMeshSceneNode grassBlock = new ManaMeshSceneNode(Context, new ManaCube(Context, Colors.White, Vector3.One));
+            grassBlock.Name = "GrassBlock";
+            grassBlock.MeshRenderer.Material = grassMaterial;
+            grassBlock.Position = new Vector3(2, 0, 9);
+            world.Scenes[1].Children[0].AddChild(grassBlock);
+
+
             world.Update();
         }
 

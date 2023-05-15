@@ -160,7 +160,7 @@ namespace Mana
                     material = meshRenderer.Material;
                 }
 
-                material.Bind(owner.WorldTransform);
+                material.Bind(owner.WorldTransform, owner);
 
                 MeshBufferObject.Bind();
                 MeshBufferObject.DrawElements();

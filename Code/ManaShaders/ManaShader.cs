@@ -189,7 +189,7 @@ namespace Mana
             Context.gl.UseProgram(shaderProgram);
         }
 
-        public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera)
+        public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             var gl = Context.gl;
 

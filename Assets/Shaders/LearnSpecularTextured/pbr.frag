@@ -100,8 +100,8 @@ void main()
     float ao = texture(aoMap, TexCoords).r;
        
     // input lighting data
-    //vec3 N = mix(getNormalFromMap(), Normal, normalMapSelection);
-    vec3 N = normalize(Normal);
+    vec3 N = mix(getNormalFromMap(), Normal, normalMapSelection);
+    //vec3 N = normalize(Normal);
     vec3 V = normalize(camPos - WorldPos);
     vec3 R = reflect(-V, N); 
 
