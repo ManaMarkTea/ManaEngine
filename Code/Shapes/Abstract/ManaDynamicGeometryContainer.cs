@@ -51,6 +51,43 @@ namespace Mana.Code
             DisconnectedPoints = DisconnectedPoints.Skip(consumedPoints).ToList();
         }
 
+        public void CreateQuadFromDisconnectedPoints()
+        {
+            int consumedPoints = 0;
+            for (int i = 0; i < DisconnectedPoints.Count; i += 4)
+            {
+                int indexA = i + 0;
+                int indexB = i + 1;
+                int indexC = i + 2;
+                int indexD = i + 3;
+
+                if (indexD >= DisconnectedPoints.Count)
+                {
+                    break;
+                }
+
+                ManaGeometryFace face = new ManaGeometryFace();
+                face.Geom = this;
+                face.A = DisconnectedPoints[indexA];
+                face.B = DisconnectedPoints[indexB];
+                face.C = DisconnectedPoints[indexC];
+
+                Faces.Add(face);
+
+                ManaGeometryFace face2 = new ManaGeometryFace();
+                face2.Geom = this;
+                face2.A = DisconnectedPoints[indexA];
+                face2.B = DisconnectedPoints[indexC];
+                face2.C = DisconnectedPoints[indexD];
+
+                Faces.Add(face2);
+
+                consumedPoints += 4;
+            }
+
+            DisconnectedPoints = DisconnectedPoints.Skip(consumedPoints).ToList();
+        }
+
         public void CreateFacesFromQuad(ManaGeometryVertex[] verts)
         {
             CreateFacesFromQuad(verts[0], verts[1], verts[2], verts[3]);
@@ -73,6 +110,29 @@ namespace Mana.Code
             Faces.Add(face2);
 
             DisconnectedPoints.RemoveAll((item) => { return item == a || item == b || item == c || item == d; });
+        }
+
+        internal void AddFaces(List<uint> indexes)
+        {
+            for (int i = 0; i < indexes.Count; i += 3)
+            {
+                int indexA = (int)(indexes[i] + 0);
+                int indexB = (int)(indexes[i] + 1);
+                int indexC = (int)(indexes[i] + 2);
+
+                if (indexC >= Verts.Count)
+                {
+                    break;
+                }
+
+                ManaGeometryFace face = new ManaGeometryFace();
+                face.Geom = this;
+                face.A = Verts[indexA];
+                face.B = Verts[indexB];
+                face.C = Verts[indexC];
+
+                Faces.Add(face); 
+            }
         }
 
         public List<uint> Indexes 
