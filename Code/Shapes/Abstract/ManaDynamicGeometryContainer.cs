@@ -116,9 +116,9 @@ namespace Mana.Code
         {
             for (int i = 0; i < indexes.Count; i += 3)
             {
-                int indexA = (int)(indexes[i] + 0);
-                int indexB = (int)(indexes[i] + 1);
-                int indexC = (int)(indexes[i] + 2);
+                int indexA = (int)(indexes[i + 0]);
+                int indexB = (int)(indexes[i + 1]);
+                int indexC = (int)(indexes[i + 2]);
 
                 if (indexC >= Verts.Count)
                 {

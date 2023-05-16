@@ -16,8 +16,11 @@ namespace Mana.Code.Shapes
     public class ManaSphere : ManaProceduralMesh
     {
         public float Radius { get; set; }
-        public int LatitudeSegments = 64;
-        public int LongitudeSegments = 64;
+        public int LatitudeSegments = 60;
+        public int LongitudeSegments = 60;
+
+        public Vector2 TextureScale = new Vector2(4, 2);
+        public Vector2 TextureOffset = new Vector2(0.0f, -0.5f);
 
         public ManaSphere(ManaContext context, Vector4 color, float radius) : base(context)
         {
@@ -54,7 +57,7 @@ namespace Mana.Code.Shapes
 
                     var spherePoint = new Vector3(xPos, yPos, zPos) * Radius;
                     var newPoint = container.AddPoint(spherePoint);
-                    newPoint.TexCoord0 = new Vector2(xSegment, ySegment);
+                    newPoint.TexCoord0 = new Vector2(xSegment * TextureScale.X + TextureOffset.X, 1.0f - ySegment * TextureScale.Y + TextureOffset.Y);
                     newPoint.Normal = spherePoint.Normalized();
                 }
             }

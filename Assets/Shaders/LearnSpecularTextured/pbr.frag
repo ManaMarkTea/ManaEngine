@@ -180,6 +180,7 @@ void main()
     //FragColor = vec4(N, 1.0);
     //FragColor = vec4(F, 1.0);
     //FragColor = vec4(TexCoords, 0.0, 1.0);
+    //FragColor = vec4(TexCoords.y, 0.0, 0.0, 1.0);
     //FragColor = vec4(1.0, 1.0, 0.0, 1.0);
     //FragColor = vec4(metallic, roughness, 0.0 , 1.0);
     //FragColor = vec4(prefilteredColor , 1.0);
