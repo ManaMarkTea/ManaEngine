@@ -28,12 +28,6 @@ namespace Mana
             Vector3 cR = CubeSize;
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
-
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>
-            {
-                GenerateMaterial()
-            };
-
             MinSize = -cR;
             MaxSize = cR;
 
@@ -61,8 +55,6 @@ namespace Mana
             DynamicGeometryContainer.CreateFacesFromQuad(verts);
 
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
-            
-            Materials = newMaterials.ToArray();
         }
 
     }

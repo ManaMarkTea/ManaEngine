@@ -27,56 +27,8 @@ namespace Mana
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>
-            {
-                GenerateMaterial()
-            };
-
             MinSize = -CubeSize;
             MaxSize = CubeSize;
-
-            int rows = 3;
-
-            /*
-            // Triangle 1
-            0.0,1.0,0.0,
-            1.0,0.0,0.0,
-
-            -1.0,-1.0,1.0,
-            0.0,1.0,0.0,
-
-            1.0,-1.0,1.0,
-            0.0,0.0,1.0,
-
-            //Triangle 2
-            0.0,1.0,0.0,
-            1.0,0.0,0.0,
-
-            1.0,-1.0,1.0,
-            0.0,0.0,1.0,
-
-            1.0,-1.0,-1.0,
-            0.0,1.0,0.0,
-
-            //Triangle 3
-            0.0,1.0,0.0,
-            1.0,0.0,0.0,
-
-            1.0,-1.0,-1.0,
-            0.0,1.0,0.0,
-
-            -1.0,-1.0,-1.0,
-            0.0,0.0,1.0,
-
-            //Triangle 4
-            0.0,1.0,0.0,
-            1.0,0.0,0.0,
-
-            -1.0,-1.0,-1.0,
-            0.0,0.0,1.0,
-
-            -1.0,-1.0,1.0,
-            0.0,1.0,0.0*/
 
             var rotations = new Matrix4x4[]
             {
@@ -107,8 +59,6 @@ namespace Mana
 
             DynamicGeometryContainer.AddQuad(CubeSize, rotations[5], scaleRotations[5], this.DefaultVertexColor);
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
-
-            Materials = newMaterials.ToArray();            
         }
 
     }

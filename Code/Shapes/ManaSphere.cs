@@ -110,17 +110,7 @@ namespace Mana.Code.Shapes
 
             container.AddFaces(triList);
 
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>
-            {
-                GenerateMaterial()
-            };
-
-            var sinDeform = new ManaMeshModifierSin();
-            sinDeform.ApplyModifier(new ModifierInputs() { InputMesh = this });
-
-            VertexBufferObject = container.CreateVertexBufferObject(Context);        
-
-            Materials = newMaterials.ToArray();
+            VertexBufferObject = container.CreateVertexBufferObject(Context);
         }
 
     }

@@ -32,6 +32,15 @@ namespace Mana.Code
             var newEdge2 = new ManaGeometryEdge { A = B, B = C, Geom = Geom };
             var newEdge3 = new ManaGeometryEdge { A = C, B = A, Geom = Geom };
 
+            A.Edges.Add(newEdge1);
+            B.Edges.Add(newEdge1);
+
+            B.Edges.Add(newEdge2);
+            C.Edges.Add(newEdge2);
+
+            C.Edges.Add(newEdge3);
+            A.Edges.Add(newEdge3);
+
             newEdge1.Faces.Add(this);
             newEdge2.Faces.Add(this);
             newEdge3.Faces.Add(this);

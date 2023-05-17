@@ -129,13 +129,6 @@ namespace Mana.Code.Shapes
                 texCoords[i] = new Vector2(u, v) * 4.0f;
             });
             
-
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>
-            {
-                GenerateMaterial()
-            };
-
-            Materials = newMaterials.ToArray();
             VertexBufferObject = new ManaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
             VertexBufferObject.ConstructVBO();
         }

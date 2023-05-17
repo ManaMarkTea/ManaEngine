@@ -56,6 +56,8 @@ namespace Mana.Code
         public Vector2 TexCoord1;
 
         public ManaGeometryFace? Face = null;
+
+        public List<ManaGeometryEdge> Edges = new List<ManaGeometryEdge>();
         public List<ManaGeometryVertex> Neighbors = new List<ManaGeometryVertex>();
         public List<string> GroupMembership = new List<string>();
         public List<ManaVertexAttribute> ExtraAttributes = new List<ManaVertexAttribute>();        

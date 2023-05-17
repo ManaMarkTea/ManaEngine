@@ -10,13 +10,15 @@ namespace Mana.Code
     public class ManaGeometryEdge
     {
         public ManaDynamicGeometryContainer Geom;
+        public List<ManaGeometryFace> Faces = new List<ManaGeometryFace>();
 
         public ManaGeometryVertex A;
         public ManaGeometryVertex B;
 
-        public List<ManaGeometryFace> Faces = new List<ManaGeometryFace>();
-
-        public Vector3 Normal;
+        public override string ToString()
+        {
+            return $"{A.Index} -> {B.Index} [{A.Position} -> {B.Position}]";
+        }
 
     }
 }

@@ -23,12 +23,6 @@ namespace Mana.Code.Shapes
             Vector3 c = CubeSize;
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
-
-            List<ManaMaterial> newMaterials = new List<ManaMaterial>
-            {
-                GenerateMaterial()
-            };
-
             MinSize = -c;
             MaxSize = c;
 
@@ -64,15 +58,12 @@ namespace Mana.Code.Shapes
                 vertexBuilder.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor);
             }
 
-
             var positions = vertexBuilder.Positions.ToArray();
             var normals = vertexBuilder.Normals.ToArray();
             var colors = vertexBuilder.Colors.ToArray();
             var textureCoordinates0 = vertexBuilder.TexCoords0.ToArray();
             var textureCoordinates1 = vertexBuilder.TexCoords0.ToArray();
             var indexes = vertexBuilder.Indexes.ToArray();
-
-            Materials = newMaterials.ToArray();
 
             VertexBufferObject = new ManaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
             VertexBufferObject.ConstructVBO();
