@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mana.Code;
+using Mana.Code.Shapes;
 using Silk.NET.Assimp;
 
 namespace Mana

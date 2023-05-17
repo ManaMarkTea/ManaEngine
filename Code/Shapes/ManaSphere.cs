@@ -1,4 +1,5 @@
 ﻿using Mana.Code.Materials;
+using Mana.Code.Shapes.Modifiers;
 using Silk.NET.Assimp;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
@@ -37,9 +38,7 @@ namespace Mana.Code.Shapes
             int numLatitudeLines = LatitudeSegments;
             int numLongitudeLines = LongitudeSegments;
 
-            int numVertices = (numLatitudeLines * (numLongitudeLines + 1)) + 2;
-
-            ManaDynamicGeometryContainer container = new ManaDynamicGeometryContainer();
+            ManaDynamicGeometryContainer container = DynamicGeometryContainer;
 
             uint X_SEGMENTS = (uint)numLongitudeLines;
             uint Y_SEGMENTS = (uint)numLatitudeLines;
@@ -111,68 +110,15 @@ namespace Mana.Code.Shapes
 
             container.AddFaces(triList);
 
-            //// +1.0f because there's a gap between the poles and the first parallel.
-            //float latitudeSpacing = 1.0f / (numLatitudeLines);
-            //float longitudeSpacing = 1.0f / numLongitudeLines;
-
-            //for (int latitude = 0; latitude < numLatitudeLines; latitude++)
-            //{
-            //    int nextLat = latitude + 1;
-
-            //    for (int longitude = 0; longitude < numLongitudeLines; longitude++)
-            //    {
-            //        int nextLongitude = longitude + 1;
-
-            //        Vector2[] spherePoints = new Vector2[] 
-            //        {
-            //            new Vector2(longitude * longitudeSpacing, latitude * latitudeSpacing),
-            //            new Vector2(nextLongitude * longitudeSpacing, latitude * latitudeSpacing),
-            //            new Vector2(nextLongitude * longitudeSpacing, nextLat * latitudeSpacing),
-            //            new Vector2(longitude * longitudeSpacing, nextLat * latitudeSpacing),
-            //        };
-
-            //        for (int i = 0; i < 4; i++)
-            //        {
-            //            Vector2 spherePoint = spherePoints[i];
-
-            //            float theta = (float)(spherePoint.X * 2.0f * Math.PI);
-            //            float phi = (float)((spherePoint.Y - 0.5f) * Math.PI);
-            //            float c = (float)Math.Cos(phi);
-
-            //            var positionOnSphere = new Vector3(
-            //                (float)(c * Math.Cos(theta)),
-            //                (float)Math.Sin(phi),
-            //                (float)(c * Math.Sin(theta))) * Radius;
-
-            //            var point = container.AddPoint(positionOnSphere);
-            //            point.TexCoord0 = spherePoint*2;
-            //            point.Normal = positionOnSphere.Normalized();
-            //        }
-
-            //        container.CreateQuadFromDisconnectedPoints();
-            //    }
-            //}
-
-            //while (container.DisconnectedPoints.Count > 3)
-            //{
-            //    container.CreateFaceFromDisconnectedPoints();
-            //}
-
             List<ManaMaterial> newMaterials = new List<ManaMaterial>
             {
                 GenerateMaterial()
             };
-        
 
-            var positions = container.Positions.ToArray();
-            var normals = container.Normals.ToArray();
-            var colors = container.Colors.ToArray();
-            var textureCoordinates0 = container.TexCoords0.ToArray();
-            var textureCoordinates1 = container.TexCoords1.ToArray();
-            var indexes = container.Indexes.ToArray();
+            var sinDeform = new ManaMeshModifierSin();
+            sinDeform.ApplyModifier(new ModifierInputs() { InputMesh = this });
 
-            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            MeshBufferObject.ConstructVBO();
+            VertexBufferObject = container.CreateVertexBufferObject(Context);        
 
             Materials = newMaterials.ToArray();
         }

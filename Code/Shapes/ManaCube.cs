@@ -36,8 +36,6 @@ namespace Mana
             MinSize = -c;
             MaxSize = c;
 
-            ManaVertexBuilder vertexBuilder = new ManaVertexBuilder();
-
             var rotations = new Matrix4x4[]
             {
                  Matrix4x4.CreateRotationY(0 * 90.0f.ToRadians(), Vector3.Zero),
@@ -65,21 +63,11 @@ namespace Mana
             {
                 var rotation = rotations[i];
                 var scaleRotation = scaleRotations[i];
-                vertexBuilder.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor);
+                DynamicGeometryContainer.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor);
             }
-           
-            
-            var positions = vertexBuilder.Positions.ToArray();
-            var normals = vertexBuilder.Normals.ToArray();
-            var colors = vertexBuilder.Colors.ToArray();
-            var textureCoordinates0 = vertexBuilder.TexCoords0.ToArray();
-            var textureCoordinates1 = vertexBuilder.TexCoords0.ToArray();
-            var indexes = vertexBuilder.Indexes.ToArray();
 
+            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
             Materials = newMaterials.ToArray();
-
-            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            MeshBufferObject.ConstructVBO();
         }
 
     }

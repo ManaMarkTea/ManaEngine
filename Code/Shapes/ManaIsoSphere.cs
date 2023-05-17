@@ -136,8 +136,8 @@ namespace Mana.Code.Shapes
             };
 
             Materials = newMaterials.ToArray();
-            MeshBufferObject = new MetaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
-            MeshBufferObject.ConstructVBO();
+            VertexBufferObject = new ManaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
+            VertexBufferObject.ConstructVBO();
         }
 
         // return index of point in the middle of p1 and p2

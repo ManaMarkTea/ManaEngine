@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Mana
 {
 
-    public class MetaVertexBufferObject : ManaObject
+    public class ManaVertexBufferObject : ManaObject
     {
         public static uint Vector2_SizeInBytes() { return sizeof(float) * 2; }
         public static uint Vector3_SizeInBytes() { return sizeof(float) * 3;}
@@ -57,7 +57,7 @@ namespace Mana
         nint offsetUv0 = 3;
         nint offsetUv1 = 4;
 
-        public MetaVertexBufferObject(
+        public ManaVertexBufferObject(
             ManaContext context,
             uint[] indexes,
             Vector3[] positions,
@@ -190,10 +190,7 @@ namespace Mana
             {
                 gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, indexData);
                 gl.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, (nuint)(sizeof(uint) * indexes.Length), indexes, BufferUsageARB.StaticDraw);
-                //gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
             }
-            //gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
-
 
             this.validIndex = indexes.Length;
             return true;
@@ -239,7 +236,6 @@ namespace Mana
         {
             gl.DrawElements(PrimitiveType.Triangles, (uint)validIndex, DrawElementsType.UnsignedInt, null);
         }
-
 
         public void UnBind()
         {

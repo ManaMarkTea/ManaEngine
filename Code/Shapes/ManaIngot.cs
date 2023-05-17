@@ -74,8 +74,8 @@ namespace Mana.Code.Shapes
 
             Materials = newMaterials.ToArray();
 
-            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            MeshBufferObject.ConstructVBO();
+            VertexBufferObject = new ManaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
+            VertexBufferObject.ConstructVBO();
         }
 
     }

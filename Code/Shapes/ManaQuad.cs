@@ -1,6 +1,7 @@
 ﻿using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Shapes;
+using Mana.Code.Shapes.Modifiers;
 using Silk.NET.Assimp;
 using Silk.NET.Core.Native;
 using System;
@@ -36,18 +37,16 @@ namespace Mana
             MinSize = -cR;
             MaxSize = cR;
 
-            ManaDynamicGeometryContainer container = new ManaDynamicGeometryContainer();
-
             var va = new Vector3(-cR.X, -cR.Y, -cR.Z) * 0.5f;
             var vb = new Vector3(cR.X, -cR.Y, -cR.Z) * 0.5f;
             var vc = new Vector3(cR.X, cR.Y, -cR.Z) * 0.5f;
             var vd = new Vector3(-cR.X, cR.Y, -cR.Z) * 0.5f;
 
             ManaGeometryVertex[] verts = new ManaGeometryVertex[4];
-            verts[0] = container.AddPoint(va);
-            verts[1] = container.AddPoint(vb);
-            verts[2] = container.AddPoint(vc);
-            verts[3] = container.AddPoint(vd);
+            verts[0] = DynamicGeometryContainer.AddPoint(va);
+            verts[1] = DynamicGeometryContainer.AddPoint(vb);
+            verts[2] = DynamicGeometryContainer.AddPoint(vc);
+            verts[3] = DynamicGeometryContainer.AddPoint(vd);
 
             verts[0].TexCoord0 = new Vector2(0.0f, 0.0f);
             verts[1].TexCoord0 = new Vector2(1.0f, 0.0f);
@@ -59,19 +58,11 @@ namespace Mana
                 vert.Color = this.DefaultVertexColor;
             }
 
-            container.CreateFacesFromQuad(verts);
+            DynamicGeometryContainer.CreateFacesFromQuad(verts);
 
-            var positions = container.Positions.ToArray();
-            var normals = container.Normals.ToArray();
-            var colors = container.Colors.ToArray();
-            var textureCoordinates0 = container.TexCoords0.ToArray();
-            var textureCoordinates1 = container.TexCoords1.ToArray();
-            var indexes = container.Indexes.ToArray();
-
+            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            
             Materials = newMaterials.ToArray();
-
-            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            MeshBufferObject.ConstructVBO();
         }
 
     }

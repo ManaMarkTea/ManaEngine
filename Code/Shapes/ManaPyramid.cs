@@ -32,11 +32,8 @@ namespace Mana
                 GenerateMaterial()
             };
 
-
             MinSize = -CubeSize;
             MaxSize = CubeSize;
-
-            ManaVertexBuilder vertexBuilder = new ManaVertexBuilder();
 
             int rows = 3;
 
@@ -103,27 +100,15 @@ namespace Mana
                  Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
             };
 
+            DynamicGeometryContainer.AddTriangle(CubeSize.Y, CubeSize.X, rotations[0], scaleRotations[0], this.DefaultVertexColor);
+            DynamicGeometryContainer.AddTriangle(CubeSize.Y, CubeSize.X, rotations[1], scaleRotations[1], this.DefaultVertexColor);
+            DynamicGeometryContainer.AddTriangle(CubeSize.Y, CubeSize.X, rotations[2], scaleRotations[2], this.DefaultVertexColor);
+            DynamicGeometryContainer.AddTriangle(CubeSize.Y, CubeSize.X, rotations[3], scaleRotations[3], this.DefaultVertexColor);
 
+            DynamicGeometryContainer.AddQuad(CubeSize, rotations[5], scaleRotations[5], this.DefaultVertexColor);
+            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
 
-            vertexBuilder.AddTriangle(CubeSize.Y, CubeSize.X, rotations[0], scaleRotations[0], this.DefaultVertexColor);
-            vertexBuilder.AddTriangle(CubeSize.Y, CubeSize.X, rotations[1], scaleRotations[1], this.DefaultVertexColor);
-            vertexBuilder.AddTriangle(CubeSize.Y, CubeSize.X, rotations[2], scaleRotations[2], this.DefaultVertexColor);
-            vertexBuilder.AddTriangle(CubeSize.Y, CubeSize.X, rotations[3], scaleRotations[3], this.DefaultVertexColor);
-            
-            vertexBuilder.AddQuad(CubeSize, rotations[5], scaleRotations[5], this.DefaultVertexColor);
-
-
-            var positions = vertexBuilder.Positions.ToArray();
-            var normals = vertexBuilder.Normals.ToArray();
-            var colors = vertexBuilder.Colors.ToArray();
-            var textureCoordinates0 = vertexBuilder.TexCoords0.ToArray();
-            var textureCoordinates1 = vertexBuilder.TexCoords0.ToArray();
-            var indexes = vertexBuilder.Indexes.ToArray();
-
-            Materials = newMaterials.ToArray();
-
-            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            MeshBufferObject.ConstructVBO();
+            Materials = newMaterials.ToArray();            
         }
 
     }

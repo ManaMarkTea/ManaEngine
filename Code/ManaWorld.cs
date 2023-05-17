@@ -167,10 +167,7 @@ namespace Mana
             for (int i = 0; i < scene->MNumMeshes; i++)
             {
                 var mesh = scene->MMeshes[i];
-
-                ManaMesh model = new ManaMesh(Context);
-                model.LoadFromGltf(mesh);
-
+                ManaMesh model = ManaMeshLoaderGltf.LoadFromGltf(Context, mesh);
                 Meshes.Add(model);
             }
 

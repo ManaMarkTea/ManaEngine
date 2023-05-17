@@ -1,51 +1,20 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-
-using MetaRenderer.Code.ImageLoaders;
+﻿using Mana.Code.Materials;
 using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
+using Silk.NET.Core.Native;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using Mana.Code;
-using Mana.Code.Materials;
 
-namespace Mana
+namespace Mana.Code.Shapes
 {
-
-    public class ManaMesh : ManaObject, IDisposable
-    {        
-        public ManaMaterial[] Materials;        
-        protected Vector3 MinSize;
-        protected Vector3 MaxSize;
-
-        protected MetaVertexBufferObject MeshBufferObject;
-        
-        public ManaMesh(ManaContext context) : base(context)
+    public static class ManaMeshLoaderGltf
+    {
+        public unsafe static ManaMesh LoadFromGltf(ManaContext context, Mesh* mesh)
         {
-            this.Context = context;
-        }
+            ManaMesh output = new ManaMesh(context);
 
-        private static string[] Attributes =
-        {
-            "Position",
-            "Normal",
-            "Color",
-            "TEXCOORD_0",
-            "TEXCOORD_1"
-        };
-        
-        public unsafe void LoadFromGltf(Mesh* mesh)
-        {
             uint[] indexes = new uint[0];
             Vector3[] positions = new Vector3[0];
             Vector3[] normals = new Vector3[0];
@@ -53,11 +22,12 @@ namespace Mana
             Vector2[] textureCoordinates0 = new Vector2[0];
             Vector2[] textureCoordinates1 = new Vector2[0];
 
-            MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
-            MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
+            
+            Vector3 minSize = Vector3.One * float.MaxValue;
+            Vector3 maxSize = Vector3.One * float.MinValue;
 
             List<ManaMaterial> newMaterials = new List<ManaMaterial>();
-            var foundMaterial = Context.World.Materials[(int)mesh->MMaterialIndex];
+            var foundMaterial = context.World.Materials[(int)mesh->MMaterialIndex];
             if (foundMaterial != null)
             {
                 newMaterials.Add(foundMaterial);
@@ -73,7 +43,7 @@ namespace Mana
                     indices.Add(face.MIndices[j]);
                 }
             }
-                        
+
             indexes = indices.ToArray();
 
             positions = new Vector3[mesh->MNumVertices];
@@ -84,12 +54,12 @@ namespace Mana
             }
 
             if (mesh->MColors.Element0 != null)
-            {                
+            {
                 colors = new Vector4[mesh->MNumVertices];
             }
 
             if (mesh->MTextureCoords.Element0 != null)
-            {                
+            {
                 textureCoordinates0 = new Vector2[mesh->MNumVertices];
             }
 
@@ -97,7 +67,7 @@ namespace Mana
             {
                 textureCoordinates1 = new Vector2[mesh->MNumVertices];
             }
-            
+
             Dictionary<int, int> threadCounter = new Dictionary<int, int>();
 
             Parallel.For(0, mesh->MNumVertices, (i) =>
@@ -105,10 +75,10 @@ namespace Mana
                 Vector3 vector = new Vector3(mesh->MVertices[i].X, mesh->MVertices[i].Y, mesh->MVertices[i].Z);
                 positions[i] = vector;
 
-                lock (this)
+                lock (output)
                 {
-                    MinSize = Vector3.Min(MinSize, positions[i]);
-                    MaxSize = Vector3.Max(MaxSize, positions[i]);
+                    minSize = Vector3.Min(minSize, positions[i]);
+                    maxSize = Vector3.Max(maxSize, positions[i]);
 
                     if (!threadCounter.ContainsKey(Thread.CurrentThread.ManagedThreadId))
                     {
@@ -117,7 +87,7 @@ namespace Mana
 
                     threadCounter[Thread.CurrentThread.ManagedThreadId]++;
                 }
-                
+
                 if (mesh->MNormals != null)
                 {
                     Vector3 normal = new Vector3(mesh->MNormals[i].X, mesh->MNormals[i].Y, mesh->MNormals[i].Z);
@@ -142,53 +112,15 @@ namespace Mana
                     textureCoordinates1[i] = normal;
                 }
             });
+
+            output.SetSize(minSize, maxSize);
+                        
+            var meshBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
+            meshBufferObject.ConstructVBO();
             
-
-            Materials = newMaterials.ToArray();
-
-            MeshBufferObject = new MetaVertexBufferObject(Context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            MeshBufferObject.ConstructVBO();
-        }        
-
-        public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
-        {
-            if (MeshBufferObject != null)
-            {
-                ManaMaterial material = Materials[0];
-                if (meshRenderer!= null)
-                {
-                    material = meshRenderer.Material;
-                }
-
-                material.Bind(owner.WorldTransform, owner);
-
-                MeshBufferObject.Bind();
-                MeshBufferObject.DrawElements();
-                MeshBufferObject.UnBind();
-
-                material.UnBind();
-            }
-        }
-
-        public void RenderDirectly()
-        {
-            if (MeshBufferObject != null)
-            {
-                MeshBufferObject.Bind();
-                MeshBufferObject.DrawElements();
-                MeshBufferObject.UnBind();
-            }
-        }
-
-        float GetUnitScale()
-        {
-            Vector3 diff = MaxSize - MinSize;
-            return MathF.Max(diff.X, MathF.Max(diff.Y, diff.Z));
-        }
-
-        public void Dispose()
-        {
-            throw new NotImplementedException();
+            output.VertexBufferObject = meshBufferObject;
+            output.Materials = newMaterials.ToArray();
+            return output;
         }
     }
 }
