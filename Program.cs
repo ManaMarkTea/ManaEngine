@@ -114,6 +114,12 @@ namespace Mana
             var helmetNode = world.Scenes[1].Children[0];
             helmetNode.Position = new Vector3(2, 0, 2);
 
+            ManaMeshSceneNode goldIngot = new ManaMeshSceneNode(Context, new ManaIngot(Context, Colors.White, Vector3.One));
+            goldIngot.Name = "PirateGoldIngot";
+            goldIngot.MeshRenderer.Material = pirateGoldMaterial;
+            goldIngot.Position = new Vector3(2, 1.1f, 5);
+            world.Scenes[1].Children[0].AddChild(goldIngot);
+
             ManaMeshSceneNode steelBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
             steelBall.Name = "SteelBall";
             steelBall.MeshRenderer.Material = steelMaterial;

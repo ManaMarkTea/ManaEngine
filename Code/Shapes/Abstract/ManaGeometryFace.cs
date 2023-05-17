@@ -26,7 +26,7 @@ namespace Mana.Code
             C.Neighbors.Add(A);
             C.Neighbors.Add(B);
             A.Face = B.Face = C.Face = this;
-            Normal = A.Normal + B.Normal + C.Normal / 3.0f;
+            Normal = (A.Normal + B.Normal + C.Normal) / 3.0f;
 
             var newEdge1 = new ManaGeometryEdge { A = A, B = B, Geom = Geom };
             var newEdge2 = new ManaGeometryEdge { A = B, B = C, Geom = Geom };
@@ -48,6 +48,11 @@ namespace Mana.Code
             Geom.Edges.Add(newEdge1);
             Geom.Edges.Add(newEdge2);
             Geom.Edges.Add(newEdge3);
+        }
+
+        public override string ToString()
+        {
+            return $"{A.Index} + {B.Index} + {C.Index}";
         }
 
     }

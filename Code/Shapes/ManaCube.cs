@@ -60,7 +60,7 @@ namespace Mana
                 DynamicGeometryContainer.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor);
             }
 
-            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);            
+            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
         }
 
     }

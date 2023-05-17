@@ -14,6 +14,7 @@ namespace Mana.Code
         public List<ManaGeometryVertex> DisconnectedPoints = new List<ManaGeometryVertex>();
         public List<ManaGeometryVertex> Verts = new List<ManaGeometryVertex>();
         public List<ManaGeometryFace> Faces = new List<ManaGeometryFace>();
+        public List<ManaGeometryQuad> Quads = new List<ManaGeometryQuad>();
         public List<ManaGeometryEdge> Edges = new List<ManaGeometryEdge>();
 
         public ManaVertexBufferObject CreateVertexBufferObject(ManaContext context)
@@ -103,7 +104,7 @@ namespace Mana.Code
             CreateFacesFromPoints(verts.ToList());
         }
 
-        public void AddQuad(Vector3 quadSize, Matrix4x4 rotation, Matrix4x4 scale, Vector4 color)
+        public ManaGeometryQuad[] AddQuad(Vector3 quadSize, Matrix4x4 rotation, Matrix4x4 scale, Vector4 color)
         {
             var cR = Vector3.Transform(quadSize * 0.5f, scale);
 
@@ -147,7 +148,7 @@ namespace Mana.Code
                 }
             );
 
-            CreateQuadsFromPoints(verts.ToList());
+            return CreateQuadsFromPoints(verts.ToList());
         }
 
 
@@ -192,8 +193,10 @@ namespace Mana.Code
             CreateQuadsFromPoints(DisconnectedPoints);
         }
          
-        public void CreateQuadsFromPoints(List<ManaGeometryVertex> verts)
+        public ManaGeometryQuad[] CreateQuadsFromPoints(List<ManaGeometryVertex> verts)
         {
+            List<ManaGeometryQuad> outputQuads = new List<ManaGeometryQuad>();
+
             List<ManaGeometryVertex> consumedPoints = new List<ManaGeometryVertex>();
             for (int i = 0; i < verts.Count; i += 4)
             {
@@ -224,6 +227,19 @@ namespace Mana.Code
                 Faces.Add(face);
                 Faces.Add(face2);
 
+                ManaGeometryQuad quad = new ManaGeometryQuad()
+                {
+                    A = verts[indexA],
+                    B = verts[indexB],
+                    C = verts[indexC],
+                    D = verts[indexD],
+                    Face1 = face,
+                    Face2 = face2,
+                    Normal = (face.Normal + face2.Normal) * 0.5f
+                };
+
+                Quads.Add(quad);
+                outputQuads.Add(quad);
                 consumedPoints.Add(verts[indexA]);
                 consumedPoints.Add(verts[indexB]);
                 consumedPoints.Add(verts[indexC]);
@@ -232,6 +248,7 @@ namespace Mana.Code
 
             verts.RemoveRange(0, consumedPoints.Count);
             DisconnectedPoints.RemoveAll(consumedPoints.Contains);
+            return outputQuads.ToArray();
         }
 
         public void CreateFacesFromQuad(ManaGeometryVertex[] verts)
