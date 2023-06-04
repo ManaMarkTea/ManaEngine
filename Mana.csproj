@@ -51,6 +51,7 @@
     <None Remove="Assets\Shaders\LearnSpecular\pbr.frag" />
     <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
     <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
+    <None Remove="Assets\Shaders\WebGpu\shader.wgsl" />
     <None Remove="Assets\Textures\DebugTexture_Grid.png" />
     <None Remove="Assets\Textures\Environments\chromatic.jpg" />
     <None Remove="Assets\Textures\Environments\field.jpg" />
@@ -215,6 +216,9 @@
     <Content Include="Assets\Shaders\LearnSpecular\prefilter.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\Shaders\WebGpu\shader.wgsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Textures\DebugTexture_Grid.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -333,6 +337,7 @@
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.17.1" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
+    <PackageReference Include="WGPU.NET" Version="0.5.0" />
   </ItemGroup>
 
   <ItemGroup>

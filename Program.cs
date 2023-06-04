@@ -17,6 +17,7 @@ using Mana.Code.Shapes;
 using ImGuiNET;
 using Mana.Code.Materials;
 using Silk.NET.GLFW;
+using SixLabors.ImageSharp;
 
 namespace Mana
 {
@@ -25,34 +26,53 @@ namespace Mana
         static void Main(string[] args)
         {
             Game game = new Game();
-            game.Run();        
+            game.Run();
         }
     }
 
+    
     public class Game
     {
         public int Frame = 0;
         public static Game Instance;
         public ImGuiController _ImGui;
         public IWindow _Window;
-        
 
         public ManaContext Context;
 
-        public Game()
+        public Game(bool useWebGpu = false)
         {
             Instance = this;
-            _Window = Window.Create(WindowOptions.Default);
+            
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var glfw = GlfwProvider.GLFW.Value;
+                glfw.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
+                glfw.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
+            }
+
+            WindowOptions optionOpenGL = new WindowOptions(
+                isVisible: true, 
+                new Vector2D<int>(50, 50), 
+                new Vector2D<int>(1280, 720), 0.0, 0.0, 
+                GraphicsAPI.Default, "ManaGL", 
+                WindowState.Normal, 
+                WindowBorder.Resizable, 
+                isVSync: true, 
+                shouldSwapAutomatically: true,
+                new Silk.NET.Windowing.VideoMode(60));
+            
+            _Window = Window.Create(optionOpenGL);
             _Window.Load += Load;
             _Window.FramebufferResize += Resize;
             _Window.Update += Update;
             _Window.Render += Render;
-
+         
         }
 
         public void Run()
         {
-            _Window.Run();
+            _Window.Run();            
         }
 
         private static DebugProc _debugProcCallback = DebugCallback;
@@ -79,17 +99,15 @@ namespace Mana
             }
         }
 
+        GameWebGpu gameWebGpu;
+
         public void Load()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                var glfw = GlfwProvider.GLFW.Value;
-                glfw.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
-                glfw.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
-            }
-            
             var gl = _Window.CreateOpenGL();
             var input = _Window.CreateInput();
+
+            gameWebGpu = new GameWebGpu();
+            gameWebGpu.RunAsync();
 
             var majorVersion = gl.GetInteger(GLEnum.MajorVersion);
             var minorVersion = gl.GetInteger(GLEnum.MinorVersion);
