@@ -444,12 +444,6 @@ namespace Mana
 
             depthTexture = device.CreateTexture(in depthTextureDescriptor);
             depthTextureView = depthTexture.CreateTextureView();
-
-
-            
-
-            
-
         }
 
         public void RunAsync()
