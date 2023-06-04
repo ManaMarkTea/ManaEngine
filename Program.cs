@@ -16,6 +16,7 @@ using Mana.Code;
 using Mana.Code.Shapes;
 using ImGuiNET;
 using Mana.Code.Materials;
+using Silk.NET.GLFW;
 
 namespace Mana
 {
@@ -79,22 +80,38 @@ namespace Mana
         }
 
         public void Load()
-        {           
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var glfw = GlfwProvider.GLFW.Value;
+                glfw.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
+                glfw.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
+            }
+            
             var gl = _Window.CreateOpenGL();
             var input = _Window.CreateInput();
-            var world = new ManaWorld();
+
+            var majorVersion = gl.GetInteger(GLEnum.MajorVersion);
+            var minorVersion = gl.GetInteger(GLEnum.MinorVersion);
+            Console.WriteLine($"Mana: GL {majorVersion}.{minorVersion}");
             
+            var world = new ManaWorld();
             Context = new ManaContext(gl, input, world);
             world.Initialize(Context);
-
+            
             gl.Enable(EnableCap.DepthTest);
-            gl.Enable(EnableCap.DebugOutput);
-            gl.Enable(EnableCap.DebugOutputSynchronous);
-            gl.DebugMessageControl(DebugSource.DontCare, DebugType.DontCare, DebugSeverity.DontCare, 0, new uint[0], true);
 
-            _debugProcCallbackHandle = GCHandle.Alloc(_debugProcCallback);
-            gl.DebugMessageCallback(DebugCallback, IntPtr.Zero);
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                // Mac os only supports 4.1, debugging in in 4.3
+                gl.Enable(EnableCap.DebugOutput);
+                gl.Enable(EnableCap.DebugOutputSynchronous);
+                gl.DebugMessageControl(DebugSource.DontCare, DebugType.DontCare, DebugSeverity.DontCare, 0, new uint[0],
+                    true);
 
+                _debugProcCallbackHandle = GCHandle.Alloc(_debugProcCallback);
+                gl.DebugMessageCallback(DebugCallback, IntPtr.Zero);
+            }
 
             _ImGui = new ImGuiController(gl, _Window, input);
 

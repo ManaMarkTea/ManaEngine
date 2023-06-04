@@ -121,7 +121,7 @@ namespace Mana.Code.Renderers
         public override void Resize(int width, int height) { }
 
         public override void Clear() 
-        {            
+        {
             Context.gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 
@@ -154,6 +154,8 @@ namespace Mana.Code.Renderers
             RenderEnvironmentBackground();            
 
             Context.gl.Enable(EnableCap.DepthTest);
+            Context.gl.Viewport(Game.Instance._Window.Size);
+
             drawScenes();
 
             RenderTestScene();
@@ -389,7 +391,6 @@ namespace Mana.Code.Renderers
             BrdfFramebuffer.bufferMap["BRDF"]?.Texture?.Bind(0);
             BasicShader.FindUniform("model").SetValue(model);
             SimpleQuad.RenderDirectly();
-
         }
 
         public void ApplyLights(ManaPbrShader manaPbrShader)
