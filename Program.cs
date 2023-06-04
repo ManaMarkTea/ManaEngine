@@ -106,9 +106,6 @@ namespace Mana
             var gl = _Window.CreateOpenGL();
             var input = _Window.CreateInput();
 
-            gameWebGpu = new GameWebGpu();
-            gameWebGpu.RunAsync();
-
             var majorVersion = gl.GetInteger(GLEnum.MajorVersion);
             var minorVersion = gl.GetInteger(GLEnum.MinorVersion);
             Console.WriteLine($"Mana: GL {majorVersion}.{minorVersion}");
@@ -199,6 +196,11 @@ namespace Mana
 
             ImGui.SetNextWindowPos( new Vector2(this._Window.Size.X - 200, 15));
             ImGui.Begin("Mana");
+            if (ImGui.Button("WebGpu"))
+            {
+                gameWebGpu = new GameWebGpu();
+                gameWebGpu.RunAsync();
+            }
             ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
             ImGui.End();

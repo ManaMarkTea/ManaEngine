@@ -567,7 +567,6 @@ namespace Mana
             }
 
             glfw.DestroyWindow(window);
-            glfw.Terminate();
         }
 
         public unsafe  void Load()
