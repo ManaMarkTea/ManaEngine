@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,7 @@ namespace Mana.Code
     {
         public GL gl;
         public IInputContext Input { get; set; }
+        public IWindow Window { get; set; }
 
         public ManaWorld World { get; private set; }        
 
@@ -19,9 +21,10 @@ namespace Mana.Code
             //Empty Context
         }
 
-        public ManaContext(GL gl, IInputContext input, ManaWorld world)
+        public ManaContext(IWindow window, GL gl, IInputContext input, ManaWorld world)
         {
             this.gl = gl;
+            this.Window = window;
             this.Input = input;
             this.World = world;
         }

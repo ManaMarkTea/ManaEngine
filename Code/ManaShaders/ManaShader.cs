@@ -189,6 +189,8 @@ namespace Mana
             Context.gl.UseProgram(shaderProgram);
         }
 
+        static long frame = 0;
+
         public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             var gl = Context.gl;
@@ -216,7 +218,8 @@ namespace Mana
 
                 if (uniform.name == "FrameNumber")
                 {
-                    gl.Uniform1(uniform.location, Game.Instance.Frame);
+                    
+                    gl.Uniform1(uniform.location, frame++);
                 }
 
                 if (uniform.name == "ViewParams")

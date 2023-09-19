@@ -23,7 +23,7 @@ namespace Mana.Code.ManaShaders
             var environmentPath = "Assets/Textures/Environments/newport_loft.png";
             //var environmentPath = "Assets/Textures/Environments/chromatic.jpg";
             //var environmentPath = "Assets/Textures/Environments/field.jpg";
-            EnvironmentTexture = TextureManager.Instance.CreateTexture(environmentPath);
+            EnvironmentTexture = TextureManager.GetInstance(context).CreateTexture(environmentPath);
             EnvironmentTexture.OriginalFilename = environmentPath;
             EnvironmentTexture.Load();
 

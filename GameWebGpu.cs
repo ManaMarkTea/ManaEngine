@@ -1,22 +1,9 @@
-﻿using ImGuiNET;
-using Mana.Code;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-using Silk.NET.Assimp;
+﻿using Mana.Code;
 using Silk.NET.GLFW;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.SDL;
-using Silk.NET.Windowing;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 using WGPU.NET;
 
 namespace Mana
@@ -39,7 +26,6 @@ namespace Mana
     {
         public int Frame = 0;
         public ImGuiController _ImGui;
-        public IWindow _Window;
         
         public Glfw glfw;
         WindowHandle* window;

@@ -145,16 +145,17 @@ namespace Mana.Code.Renderers
             ImGui.End();
 
             RenderIrradiance();
-            RenderPrefilteredReflectionMap();                      
+            RenderPrefilteredReflectionMap();
 
-            Context.gl.Viewport(Game.Instance._Window.Size);
+            var window = Context.Window;
+            Context.gl.Viewport(window.Size);
             Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D() * 255.0f);
             Clear();
 
             RenderEnvironmentBackground();            
 
             Context.gl.Enable(EnableCap.DepthTest);
-            Context.gl.Viewport(Game.Instance._Window.Size);
+            Context.gl.Viewport(window.Size);
 
             drawScenes();
 
@@ -197,7 +198,7 @@ namespace Mana.Code.Renderers
                     EnvironmentCubeTarget.Bind(i, m);
                     Clear();
 
-                    EnvironmentShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.CreateScale(100), Context.World.MainCamera);
+                    EnvironmentShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.CreateScale(100), Context.World.MainCamera);
                     EnvironmentShader.BindEnvironmentTexture();
                     EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
                     EnvironmentShader.FindUniform("projection").SetValue(captureProjection);
@@ -225,7 +226,7 @@ namespace Mana.Code.Renderers
             var directionOnly = Context.World.MainCamera._ViewMatrix;
             directionOnly.Translation = new Vector3(0, 0, 0);
 
-            EnvironmentShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.CreateScale(100), Context.World.MainCamera);
+            EnvironmentShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.CreateScale(100), Context.World.MainCamera);
             EnvironmentShader.BindEnvironmentTexture();
             EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);            
             EnvironmentShader.FindUniform("view").SetValue(directionOnly);
@@ -369,25 +370,25 @@ namespace Mana.Code.Renderers
 
 
             model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, -1);
-            BasicCubeShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             EnvironmentMap.Bind(0);
             BasicCubeShader.FindUniform("model").SetValue(model);
             SimpleCube.RenderDirectly();
 
             model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 1);
-            BasicCubeShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             IrradianceFramebuffer.bufferMap["Irradiance"]?.Texture?.Bind(0);
             BasicCubeShader.FindUniform("model").SetValue(model);
             SimpleCube.RenderDirectly();
 
             model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 3);
-            BasicCubeShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             PrefilterFramebuffer.bufferMap["PreFilter"]?.Texture?.Bind(0);
             BasicCubeShader.FindUniform("model").SetValue(model);
             SimpleCube.RenderDirectly();
 
             model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 5);
-            BasicShader.BindShader(ManaMaterial.DefaultMaterial, Matrix4x4.Identity, Context.World.MainCamera);
+            BasicShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             BrdfFramebuffer.bufferMap["BRDF"]?.Texture?.Bind(0);
             BasicShader.FindUniform("model").SetValue(model);
             SimpleQuad.RenderDirectly();

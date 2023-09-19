@@ -11,15 +11,14 @@ namespace Mana
 {
     public class CameraComponent : ManaComponent
     {
-        //            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(55.0f.ToRadians(), aspect, 0.001f, 1000.0f);
-
+        public bool OrthoGraphic = false;
         public float NearClipPlane = 0.1f;
         public float FarClipPlane = 1000.0f;
         public float AspectRatio = 1.0f;
         public float FieldOfViewDegrees = 55.0f;
         public Vector2D<int> DebugPointCount = new Vector2D<int>(5, 3);
 
-
+        
         public Matrix4x4 _ProjectionMatrix;
         public Matrix4x4 _ViewMatrix;
         public Matrix4x4 _WorldInverseMatrix;
@@ -44,7 +43,7 @@ namespace Mana
 
         public CameraComponent(ManaSceneNode owner) : base(owner)
         {
-            Game.Instance._Window.Resize += _Window_Resize;
+            owner.Context.Window.Resize += _Window_Resize;
             UpdateProjection();
         }
 
@@ -55,9 +54,18 @@ namespace Mana
 
         public void UpdateProjection()
         {
-            AspectRatio = (float)Game.Instance._Window.Size.X / (float)Game.Instance._Window.Size.Y;
-            _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane);
+            var window = Context.Window;
 
+            AspectRatio = (float)window.Size.X / (float)window.Size.Y;
+            if (OrthoGraphic)
+            {
+                _ProjectionMatrix = Matrix4x4.CreateOrthographic(window.Size.X / 100, window.Size.Y / 100, NearClipPlane, FarClipPlane);
+            }
+            else
+            {
+                _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane);
+            }
+            
             float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
             float planeWidth = planeHeight * AspectRatio;
 
@@ -75,8 +83,8 @@ namespace Mana
             }
             
 
-            var MouseState = Game.Instance.Context.Input.Mice.First();
-            var KeyboardState = Game.Instance.Context.Input.Keyboards.First();
+            var MouseState = Context.Input.Mice.First();
+            var KeyboardState = Context.Input.Keyboards.First();
 
             var position = Owner.Position;
             var rotation = Owner.Rotation;
@@ -176,6 +184,17 @@ namespace Mana
             ImGui.SliderFloat("dy", ref dyAvg, -5.0f, 5.0f);
             ImGui.SliderFloat("CameraSpeed", ref _MovementSpeed, 0.25f, 100.0f);
 
+            if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
+            {
+                
+                UpdateProjection();
+            }
+
+            if (ImGui.Button("Ortho"))
+            {
+                OrthoGraphic = !OrthoGraphic;
+                UpdateProjection();
+            }
 
             ImGui.End();
 
@@ -185,8 +204,8 @@ namespace Mana
         void UpdateAverage(float deltaTime, ref float dxAvg, ref float dyAvg)
         {
 
-            var MouseState = Game.Instance.Context.Input.Mice.First();
-            var KeyboardState = Game.Instance.Context.Input.Keyboards.First();
+            var MouseState = Context.Input.Mice.First();
+            var KeyboardState = Context.Input.Keyboards.First();
 
             var mouseDelta = MouseState.Position - _LastMousePos;
             _LastMousePos = MouseState.Position;
@@ -218,7 +237,7 @@ namespace Mana
 
             float pegSize = 0.25f * 0.5f;
 
-            var world = Game.Instance.Context.World;
+            var world = Context.World;
 
             world.AddCube(Vector3.UnitX * 0.5f, Colors.Red, new Vector3(1, pegSize, pegSize));
             world.AddCube(Vector3.UnitY * 0.5f, Colors.Green, new Vector3(pegSize, 1, pegSize));

@@ -16,8 +16,17 @@ namespace Mana.Code.Materials
 {
     public class ManaMaterial : ManaObject, ICloneable
     {
-        public static ManaMaterial DefaultMaterial { get; internal set; } = new ManaMaterial(Game.Instance.Context);
+        private static Dictionary<ManaContext, ManaMaterial> DefaultMaterial = new Dictionary<ManaContext, ManaMaterial>();
 
+        public static ManaMaterial GetDefaultMaterial(ManaContext context)
+        {
+            if (!DefaultMaterial.ContainsKey(context))
+            {
+                DefaultMaterial.Add(context, new ManaMaterial(context));
+            }
+
+            return DefaultMaterial[context];
+        }
 
         public ManaShader Shader { get; set; }
  

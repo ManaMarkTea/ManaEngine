@@ -177,9 +177,9 @@ namespace Mana
             AddBuffer(name, info);
         }
 
-        public unsafe void Build()
+        public void Build()
         {
-            var gl = Game.Instance.Context.gl;
+            var gl = Context.gl;
             
             FrameBufferID = gl.GenFramebuffer();
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);            
@@ -274,7 +274,7 @@ namespace Mana
 
         public void Clear()
         {
-            var gl = Game.Instance.Context.gl;
+            var gl = Context.gl;
 
             Bind();
 
@@ -294,7 +294,7 @@ namespace Mana
 
         public void Bind(int index = 0, int mipIndex = 0)
         {
-            var gl = Game.Instance.Context.gl;
+            var gl = Context.gl;
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
 
             uint mipWidth = (uint)(Width * MathF.Pow(0.5f, mipIndex));
@@ -321,7 +321,7 @@ namespace Mana
 
         public void UnBind()
         {
-            var gl = Game.Instance.Context.gl;
+            var gl = Context.gl;
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
 
@@ -333,7 +333,7 @@ namespace Mana
 
         public void DrawFullScreenQuad()
         {
-            var gl = Game.Instance.Context.gl;
+            var gl = Context.gl;
 
             UnBind();
             Clear();

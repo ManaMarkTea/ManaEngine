@@ -9,17 +9,17 @@ namespace Mana
 {
     public class TextureManager : ManaObject
     {
-        private static TextureManager _Instance;        
-        public static TextureManager Instance
+        private static Dictionary<ManaContext, TextureManager> _Instances = new Dictionary<ManaContext, TextureManager>();
+        public static TextureManager GetInstance(ManaContext context)
         {
-            get
+            lock (_Instances)
             {
-                if (_Instance == null)
+                if (!_Instances.ContainsKey(context))
                 {
-                    _Instance = new TextureManager(Game.Instance.Context);
+                    _Instances.Add(context, new TextureManager(context));
                 }
 
-                return _Instance;
+                return _Instances[context];
             }
         }
 

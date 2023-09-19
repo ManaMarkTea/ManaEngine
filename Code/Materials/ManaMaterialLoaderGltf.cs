@@ -89,7 +89,7 @@ namespace Mana.Code.Materials
                     if (filePath != null)
                     {
                         string fullPath = Path.Combine(context.World.ActivePath, filePath);
-                        var channelTexture = TextureManager.Instance.CreateTexture(filePath);
+                        var channelTexture = TextureManager.GetInstance(context).CreateTexture(filePath);
                         if (!channelTexture.IsLoaded)
                         {
                             channelTexture.OriginalFilename = fullPath;
@@ -152,7 +152,7 @@ namespace Mana.Code.Materials
                 AssimpString path;
                 context.World._AssetImporter.GetMaterialTexture(mat, type, i, &path, null, null, null, null, null, null);
 
-                ManaTexture manaTexture = TextureManager.Instance.CreateTexture(path);
+                ManaTexture manaTexture = TextureManager.GetInstance(context).CreateTexture(path);
                 manaTexture.OriginalFilename = path;
                 textures.Add(manaTexture);
             }

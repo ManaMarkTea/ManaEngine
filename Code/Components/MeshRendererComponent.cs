@@ -57,7 +57,7 @@ namespace Mana
 
             if (mesh.Materials.Length == 0 || mesh.Materials[0] == null)
             {
-                Material = ManaMaterial.DefaultMaterial;
+                Material = ManaMaterial.GetDefaultMaterial(owner.Context);
             }
             else
             {

@@ -64,15 +64,14 @@ namespace Mana
             PostDrawFutures = new List<Action>();
             PreDrawFutures = new List<Action>();
             PreUpdateFutures = new List<Action>();
-            PostUpdateFutures = new List<Action>();
-            
-            Game.Instance._Window.Resize += _Window_Resize;
+            PostUpdateFutures = new List<Action>();                        
         }
 
         public void Initialize(ManaContext context)
         {
             Context = context;
-
+            
+            Context.Window.Resize += _Window_Resize;
             CameraNode = new ManaSceneNode(context, Matrix4x4.Identity);
             CameraNode.Position = new Vector3(0, 0, 5);
             CameraNode.Name = "MainCamera";
@@ -197,7 +196,9 @@ namespace Mana
             //Matrix4x4 projMatrix = Matrix4x4.CreateOrthographic(-0.5f, -0.5f * aspect, -1000, 1000);
             //Matrix4x4 projMatrix = Matrix4x4.CreateOrthographic(-50.5f, -50.5f * aspect, -1000, 1000);
 
-            float aspect = (float)Game.Instance._Window.Size.X / Game.Instance._Window.Size.Y;
+            var window = Context.Window;
+
+            float aspect = (float)window.Size.X / window.Size.Y;
 
             ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(55.0f.ToRadians(), aspect, 0.001f, 1000.0f);
 
