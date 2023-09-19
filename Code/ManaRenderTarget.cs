@@ -1,14 +1,4 @@
-﻿using Mana.Code;
-using Mana.Code.ManaShaders;
-using Mana.Code.Materials;
-using Silk.NET.OpenGL;
-using SixLabors.ImageSharp.Memory;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Silk.NET.OpenGL;
 
 namespace Mana
 {
@@ -19,7 +9,7 @@ namespace Mana
         public bool FloatBuffer;
         public bool HasAlpha;
         public bool HasCube;
-        
+
         public bool HasMip;
         public bool MinLinearMip;
         public bool MaxLinearMip;
@@ -58,7 +48,7 @@ namespace Mana
     };
 
     public class ManaRenderTarget : ManaObject
-    {        
+    {
 
         public uint Width { get; set; }
         public uint Height { get; set; }
@@ -75,12 +65,12 @@ namespace Mana
         private uint VertexArrayObject;
 
         public Dictionary<string, RenderBufferInfo> bufferMap;
-        public List<RenderBufferInfo> bufferInfos;        
-        
+        public List<RenderBufferInfo> bufferInfos;
+
         private GLEnum[] attachments = new GLEnum[32];
 
         public ManaRenderTarget(ManaContext context, int width, int height, bool depth = true) : base(context)
-        {            
+        {
             this.Width = (uint)width;
             this.Height = (uint)height;
 
@@ -98,7 +88,7 @@ namespace Mana
         {
             this.Width = (uint)width;
             this.Height = (uint)height;
-            
+
             foreach (var attachments in bufferInfos)
             {
                 if (attachments.Texture != null)
@@ -106,7 +96,7 @@ namespace Mana
                     attachments.Texture.Width = this.Width;
                     attachments.Texture.Height = this.Height;
                     attachments.Texture.UpdateTextureSize();
-                }                
+                }
             }
 
         }
@@ -180,10 +170,10 @@ namespace Mana
         public void Build()
         {
             var gl = Context.gl;
-            
+
             FrameBufferID = gl.GenFramebuffer();
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);            
-           
+            gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
+
             int i = 0;
             int colorIndex = 0;
             foreach (var bufferInfo in bufferInfos)
@@ -194,7 +184,7 @@ namespace Mana
                 InternalFormat internalFormat = bufferInfo.FloatBuffer ? InternalFormat.Rgb16f : bufferInfo.RgbBuffer ? InternalFormat.Rgb : InternalFormat.Rgba;
                 PixelFormat internalFormat2 = bufferInfo.HasAlpha ? PixelFormat.Rgba : PixelFormat.Rgb;
 
-                GLEnum internalDataType = bufferInfo.FloatBuffer ? GLEnum.Float: GLEnum.UnsignedByte;
+                GLEnum internalDataType = bufferInfo.FloatBuffer ? GLEnum.Float : GLEnum.UnsignedByte;
 
                 if (bufferInfo.RedFloatBuffer)
                 {
@@ -203,14 +193,14 @@ namespace Mana
                     internalDataType = GLEnum.Float;
                     filterTypeMin = TextureMinFilter.Nearest;
                     filterTypeMag = TextureMagFilter.Nearest;
-                }                
+                }
 
                 ManaTexture texture = new ManaTexture(Context);
                 texture.Width = Width;
                 texture.IsCube = bufferInfo.HasCube;
                 texture.HasMipMaps = bufferInfo.HasMip;
                 texture.Height = Height;
-                texture.IsWrapU = false;   
+                texture.IsWrapU = false;
                 texture.IsWrapV = false;
                 bufferInfo.Texture = texture;
 
@@ -244,7 +234,7 @@ namespace Mana
 
 
                 if (!bufferInfo.HasCube)
-                {                    
+                {
                     // attach texture to framebuffer
                     gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, texture.Handle, 0);
                     //gl.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, bufferInfo.Samples, InternalFormat.Rgba8, Width, Height);
@@ -253,7 +243,7 @@ namespace Mana
                 {
                     int mips = bufferInfo.HasMip ? MaxMips : 1;
                     for (int cubeFace = 0; cubeFace < 6; ++cubeFace)
-                    {                        
+                    {
                         for (int mipIndex = 0; mipIndex < mips; ++mipIndex)
                         {
                             gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + cubeFace, texture.Handle, mipIndex);
@@ -269,7 +259,7 @@ namespace Mana
             if (status != GLEnum.FramebufferComplete)
             {
                 throw new Exception("Bad Frame buffer");
-            }            
+            }
         }
 
         public void Clear()
@@ -281,12 +271,12 @@ namespace Mana
             gl.ClearColor(ClearColor.X, ClearColor.Y, ClearColor.Z, ClearColor.W);
 
             if (HasDepth)
-            {                
+            {
                 gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
             }
             else
             {
-                gl.Clear((uint)(ClearBufferMask.ColorBufferBit));                
+                gl.Clear((uint)(ClearBufferMask.ColorBufferBit));
             }
 
             UnBind();
@@ -300,7 +290,7 @@ namespace Mana
             uint mipWidth = (uint)(Width * MathF.Pow(0.5f, mipIndex));
             uint mipHeight = (uint)(Height * MathF.Pow(0.5f, mipIndex));
             gl.Viewport(0, 0, mipWidth, mipHeight);
-            
+
             foreach (var buffer in bufferInfos)
             {
                 if (buffer.Texture != null)
@@ -309,14 +299,14 @@ namespace Mana
                     buffer.Texture.UnBind(1);
                     buffer.Texture.UnBind(2);
                     buffer.Texture.UnBind(3);
-                }                
+                }
 
                 if (buffer.HasCube)
                 {
                     // Bind the face of the cube we're drawing to
                     gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, buffer.Texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + index, buffer.Texture.Handle, mipIndex);
                 }
-            }            
+            }
         }
 
         public void UnBind()
@@ -344,7 +334,7 @@ namespace Mana
 
             bufferInfos[0].Texture?.Bind(0);
             gl.BindVertexArray(VertexArrayObject);
-            gl.DrawArrays(PrimitiveType.Points, 0, 1);            
+            gl.DrawArrays(PrimitiveType.Points, 0, 1);
         }
     }
 }

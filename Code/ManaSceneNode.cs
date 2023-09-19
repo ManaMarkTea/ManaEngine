@@ -1,13 +1,4 @@
-﻿using Mana.Code;
-using Mana.Code.Shapes;
-using Silk.NET.Maths;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana
+﻿namespace Mana
 {
     public class ManaSceneNode : ManaObject
     {
@@ -30,7 +21,7 @@ namespace Mana
             get
             {
                 var rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(Rotation.Y, Rotation.X, Rotation.Z);
-                var right = Vector3.TransformNormal(Vector3.UnitX, rotationMatrix);                
+                var right = Vector3.TransformNormal(Vector3.UnitX, rotationMatrix);
                 return right;
             }
         }
@@ -60,16 +51,16 @@ namespace Mana
         public Matrix4x4 LocalTransform { get; set; }
         public Matrix4x4 WorldTransform { get; set; }
 
-        
+
         public ManaSceneNode(ManaContext context, Matrix4x4 localTransform) : base(context)
-        {            
+        {
             this.Parent = null;
             this.LocalTransform = localTransform;
             this.WorldTransform = localTransform;
             Children = new List<ManaSceneNode>();
             Components = new List<ManaComponent>();
 
-            Rotation = Quaternion.CreateFromRotationMatrix(localTransform).ToEuler();                       
+            Rotation = Quaternion.CreateFromRotationMatrix(localTransform).ToEuler();
             Position = localTransform.Translation;
             Scale = Vector3.One;
         }
@@ -117,7 +108,7 @@ namespace Mana
         }
 
         public void Draw()
-        {            
+        {
             foreach (ManaSceneNode child in Children)
             {
                 child.Draw();
@@ -146,8 +137,8 @@ namespace Mana
         public MeshRendererComponent MeshRenderer;
         public ManaMesh Mesh;
 
-        public ManaMeshSceneNode(ManaContext context, ManaMesh mesh) : base (context, Matrix4x4.Identity)
-        {            
+        public ManaMeshSceneNode(ManaContext context, ManaMesh mesh) : base(context, Matrix4x4.Identity)
+        {
             Mesh = mesh;
             MeshRenderer = new MeshRendererComponent(this, mesh);
             Components.Add(MeshRenderer);

@@ -1,9 +1,8 @@
-﻿using Mana.Code;
-using Silk.NET.OpenGL;
+﻿using Silk.NET.OpenGL;
 
 namespace Mana
 {
-    public class ManaTextureSingle: ManaTextureDynamic
+    public class ManaTextureSingle : ManaTextureDynamic
     {
         public float Value = 0;
         private float? LoadedValue = null;
@@ -11,7 +10,7 @@ namespace Mana
         public ManaTextureSingle(ManaContext context, double color) : this(context, (float)color)
         {
         }
-         
+
         public ManaTextureSingle(ManaContext context, float color) : base(context, 1)
         {
             Value = color;

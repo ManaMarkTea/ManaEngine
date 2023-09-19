@@ -1,11 +1,4 @@
-﻿using Mana.Code.Materials;
-using Silk.NET.Assimp;
-using Silk.NET.Core.Native;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Silk.NET.Assimp;
 
 namespace Mana.Code.Shapes
 {
@@ -22,7 +15,7 @@ namespace Mana.Code.Shapes
             Vector2[] textureCoordinates0 = new Vector2[0];
             Vector2[] textureCoordinates1 = new Vector2[0];
 
-            
+
             Vector3 minSize = Vector3.One * float.MaxValue;
             Vector3 maxSize = Vector3.One * float.MinValue;
 
@@ -114,10 +107,10 @@ namespace Mana.Code.Shapes
             });
 
             output.SetSize(minSize, maxSize);
-                        
+
             var meshBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
             meshBufferObject.ConstructVBO();
-            
+
             output.VertexBufferObject = meshBufferObject;
             output.Materials = newMaterials.ToArray();
             return output;

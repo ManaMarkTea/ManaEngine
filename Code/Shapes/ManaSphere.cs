@@ -1,18 +1,4 @@
-﻿using Mana.Code.Materials;
-using Mana.Code.Shapes.Modifiers;
-using Silk.NET.Assimp;
-using Silk.NET.Input;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.SDL;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code.Shapes
+﻿namespace Mana.Code.Shapes
 {
     public class ManaSphere : ManaProceduralMesh
     {
@@ -96,8 +82,8 @@ namespace Mana.Code.Shapes
                 if (oddRow)
                 {
                     triList.Add(triStrip[v]);
-                    triList.Add(triStrip[v+1]);
-                    triList.Add(triStrip[v+2]);
+                    triList.Add(triStrip[v + 1]);
+                    triList.Add(triStrip[v + 2]);
                 }
                 else
                 {

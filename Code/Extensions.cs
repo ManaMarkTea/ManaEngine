@@ -1,12 +1,6 @@
 ﻿using CSharpColorSpaceConverter;
 using Silk.NET.Maths;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Security.Principal;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana
 {
@@ -76,7 +70,7 @@ namespace Mana
         {
             return Scalar.RadiansToDegrees<float>(value);
         }
-        
+
         public static Vector3 ToEulerDegrees(this Vector3 vector)
         {
             return vector * (MathF.PI / 180.0f);
@@ -130,12 +124,12 @@ namespace Mana
         public static Matrix3X3<float> ToMatrix3(this Matrix4x4 matrix)
         {
             Matrix3X3<float> output = new Matrix3X3<float>
-            (            
+            (
                 matrix.M11, matrix.M12, matrix.M13,
                 matrix.M21, matrix.M22, matrix.M23,
                 matrix.M31, matrix.M32, matrix.M33
             );
-            
+
             return output;
         }
 
@@ -160,7 +154,7 @@ namespace Mana
             {
                 matrix.M11, matrix.M12, matrix.M13,
                 matrix.M21, matrix.M22, matrix.M23,
-                matrix.M31, matrix.M32, matrix.M33               
+                matrix.M31, matrix.M32, matrix.M33
             };
             ReadOnlySpan<float> output = new ReadOnlySpan<float>(floats);
             return output;
@@ -168,7 +162,7 @@ namespace Mana
 
         public static string ToPrettyMatrixString(this Matrix4x4 matrix)
         {
-            return 
+            return
 $@"{matrix.M11.ToString("0.0")}, {matrix.M12.ToString("0.0")}, {matrix.M13.ToString("0.0")}, {matrix.M14.ToString("0.0")},
 {matrix.M21.ToString("0.0")}, {matrix.M22.ToString("0.0")}, {matrix.M23.ToString("0.0")}, {matrix.M24.ToString("0.0")},
 {matrix.M31.ToString("0.0")}, {matrix.M32.ToString("0.0")}, {matrix.M33.ToString("0.0")}, {matrix.M34.ToString("0.0")},

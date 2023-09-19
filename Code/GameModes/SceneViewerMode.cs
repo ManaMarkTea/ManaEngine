@@ -1,29 +1,15 @@
 ﻿using ImGuiNET;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-using Silk.NET.GLFW;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana.Code
 {
     public class SceneViewerMode : BaseGameMode
     {
         public static SceneViewerMode Instance;
-                
+
 
         public SceneViewerMode()
         {
-            Instance = this;            
+            Instance = this;
         }
 
 

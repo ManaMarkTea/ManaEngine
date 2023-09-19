@@ -1,12 +1,4 @@
-﻿using Mana.Code.ManaShaders;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public class ManaLightSourceComponent
     {

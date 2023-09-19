@@ -1,5 +1,4 @@
-﻿using Mana.Code;
-using Silk.NET.GLFW;
+﻿using Silk.NET.GLFW;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using System.Diagnostics;
@@ -26,7 +25,7 @@ namespace Mana
     {
         public int Frame = 0;
         public ImGuiController _ImGui;
-        
+
         public Glfw glfw;
         WindowHandle* window;
         WGPU.NET.Surface surface;
@@ -36,7 +35,7 @@ namespace Mana
         Wgpu.SwapChainDescriptor swapChainDescriptor;
         Wgpu.TextureDescriptor depthTextureDescriptor;
         Device device;
-        
+
         WGPU.NET.Buffer uniformBuffer;
         WGPU.NET.Buffer vertexBuffer;
 
@@ -94,7 +93,7 @@ namespace Mana
 
             var instance = new Instance();
 
-            
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 var nativeWindow = new GlfwNativeWindow(glfw, window).Win32.Value;
@@ -156,7 +155,7 @@ namespace Mana
             };
 
             uniformBuffer = device.CreateBuffer("UniformBuffer", false, (ulong)sizeof(UniformBuffer), Wgpu.BufferUsage.Uniform | Wgpu.BufferUsage.CopyDst);
-        
+
             var image = SixLabors.ImageSharp.Image.Load<Rgba32>(Path.Combine("Assets", "Textures", "Icons", "powerup_speed.png"));
 
             var imageSize = new Wgpu.Extent3D
@@ -549,30 +548,30 @@ namespace Mana
             glfw.DestroyWindow(window);
         }
 
-        public unsafe  void Load()
+        public unsafe void Load()
         {
 
         }
 
         public void Resize(Vector2D<int> size)
         {
-            
+
         }
 
         public void Update(double delta)
         {
-            
+
         }
 
         public void Render(double delta)
         {
             Frame++;
-           
+
         }
 
         public void Closing()
         {
-           
+
         }
 
 

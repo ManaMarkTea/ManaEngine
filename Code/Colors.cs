@@ -1,11 +1,4 @@
-﻿using SixLabors.ImageSharp.ColorSpaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public static class Colors
     {
@@ -29,7 +22,7 @@ namespace Mana.Code
         public static readonly Vector4 Aqua = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);
         public static readonly Vector4 Fuchsia = new Vector4(1.0f, 0.5f, 1.0f, 1.0f);
         public static readonly Vector4 Olive = new Vector4(0.5f, 0.5f, 0.0f, 1.0f);
-        public static readonly Vector4 Navy = new Vector4(0.0f, 0.0f, 0.5f, 1.0f);        
+        public static readonly Vector4 Navy = new Vector4(0.0f, 0.0f, 0.5f, 1.0f);
         public static readonly Vector4 HotPink = new Vector4(1.0f, 0.75f, 0.5f, 1.0f);
         public static readonly Vector4 Salmon = new Vector4(0.98f, 0.50f, 0.45f, 1.0f);
         public static readonly Vector4 LightCoral = new Vector4(0.94f, 0.50f, 0.50f, 1.0f);

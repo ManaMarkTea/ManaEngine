@@ -1,7 +1,7 @@
 ﻿using Silk.NET.GLFW;
 using Silk.NET.Maths;
-using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.OpenGL;
+using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -12,7 +12,7 @@ namespace Mana.Code
     {
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
-        
+
         public ImGuiController _ImGui;
         public IWindow _Window;
         public GL GL;
@@ -20,7 +20,7 @@ namespace Mana.Code
         public ManaContext Context;
 
 
-        public BaseGameMode() 
+        public BaseGameMode()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -48,7 +48,7 @@ namespace Mana.Code
 
         }
 
-        public virtual void Load() 
+        public virtual void Load()
         {
             GL = _Window.CreateOpenGL();
             var input = _Window.CreateInput();

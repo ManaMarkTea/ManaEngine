@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Mana.Code.Materials;
-
-namespace Mana.Code.Shapes
+﻿namespace Mana.Code.Shapes
 {
     public class ManaIngot : ManaProceduralMesh
     {
@@ -34,7 +27,7 @@ namespace Mana.Code.Shapes
                  Matrix4x4.CreateRotationY(3 * 90.0f.ToRadians(), Vector3.Zero),
 
                  Matrix4x4.CreateRotationX(-1 * 90.0f.ToRadians(), Vector3.Zero),
-                 Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),                 
+                 Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
             };
 
             var scaleRotations = new Matrix4x4[]

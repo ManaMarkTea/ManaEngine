@@ -1,11 +1,4 @@
-﻿using Silk.NET.Assimp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public class ManaGeometryQuad
     {

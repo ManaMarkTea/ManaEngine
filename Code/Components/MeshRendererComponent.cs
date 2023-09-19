@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-
-namespace Mana
+﻿namespace Mana
 {
     public class MeshRendererComponent : ManaComponent
     {
@@ -41,7 +33,7 @@ namespace Mana
                     dynamicMaterial = Material.Clone() as ManaMaterial;
                     if (dynamicMaterial == null)
                     {
-                        dynamicMaterial = new ManaMaterial(Context);                        
+                        dynamicMaterial = new ManaMaterial(Context);
                     }
 
                     dynamicMaterial.Name = Material.Name + "_Clone";
@@ -52,7 +44,7 @@ namespace Mana
         }
 
         public MeshRendererComponent(ManaSceneNode owner, ManaMesh mesh) : base(owner)
-        {            
+        {
             Mesh = mesh;
 
             if (mesh.Materials.Length == 0 || mesh.Materials[0] == null)
@@ -63,7 +55,7 @@ namespace Mana
             {
                 Material = mesh.Materials[0];
             }
-            
+
         }
 
         public override void DrawComponent()

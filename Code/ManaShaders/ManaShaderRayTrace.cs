@@ -1,20 +1,9 @@
 ﻿using ImGuiNET;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-using Silk.NET.Input;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana.Code.ManaShaders
 {
     public class ManaShaderRayTrace : ManaShader
-    {        
+    {
         public ManaShaderRayTrace(ManaContext context) : base(context)
         {
             context.World.PostDrawFutures.Add(() => OnGui());
@@ -23,10 +12,10 @@ namespace Mana.Code.ManaShaders
         void OnGui()
         {
             ImGui.Begin("RayTracer");
-       
+
             ImGui.InputInt("Rays", ref RayCasts);
             ImGui.InputInt("Bounces", ref MaxBounces);
-      
+
             ImGui.End();
 
             Context.World.PostDrawFutures.Add(() => OnGui());
@@ -59,7 +48,7 @@ namespace Mana.Code.ManaShaders
             else
             {
                 this.UniformMap[$@"spheres[{index}].material.emission"].SetValue(renderer.Material.Emission.Value);
-            }            
+            }
 
             this.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissionStrength);
             this.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness.Value);
@@ -88,7 +77,7 @@ namespace Mana.Code.ManaShaders
 
                 foreach (var child in scene.Children)
                 {
-                    stack.Push(child);                    
+                    stack.Push(child);
                 }
 
                 while (stack.Count > 0)
@@ -104,7 +93,7 @@ namespace Mana.Code.ManaShaders
                     {
                         stack.Push(child);
                     }
-                }    
+                }
             }
 
             this.UniformMap[$@"numSpheres"].SetValue(index);

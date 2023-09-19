@@ -1,10 +1,6 @@
 ﻿using Silk.NET.Assimp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana.Code.Materials
 {
@@ -120,7 +116,7 @@ namespace Mana.Code.Materials
                 outputMaterial.Name = outputMaterial.Channels["?mat.name"].Value;
             }
 
-            return outputMaterial;            
+            return outputMaterial;
         }
 
         private static unsafe string ExtracKey(MaterialProperty* channel)

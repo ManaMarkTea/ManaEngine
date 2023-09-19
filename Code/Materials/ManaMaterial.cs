@@ -1,18 +1,4 @@
-﻿using MetaRenderer.Code.ImageLoaders;
-using MetaRenderer.Code;
-using Silk.NET.Assimp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-using System.Collections;
-
-using System.IO;
-using Mana.Code;
-
-namespace Mana.Code.Materials
+﻿namespace Mana.Code.Materials
 {
     public class ManaMaterial : ManaObject, ICloneable
     {
@@ -29,7 +15,7 @@ namespace Mana.Code.Materials
         }
 
         public ManaShader Shader { get; set; }
- 
+
         public ManaTextureVector4 Albedo;
         public ManaTextureVector4 Normal;
         public ManaTextureVector4 Emission;
@@ -43,7 +29,7 @@ namespace Mana.Code.Materials
         public ManaMaterial(ManaContext context) : base(context)
         {
             Name = "Material";
-            Channels = new Dictionary<string, ManaMaterialChannel>();            
+            Channels = new Dictionary<string, ManaMaterialChannel>();
             var shader = new ManaPbrShader(context);
             Shader = shader;
 
@@ -55,7 +41,7 @@ namespace Mana.Code.Materials
             Ambient = new ManaTextureSingle(Context, 0.25);
         }
 
-        public Dictionary<string, ManaMaterialChannel> Channels { get; set; }        
+        public Dictionary<string, ManaMaterialChannel> Channels { get; set; }
 
 
         public void Bind(Matrix4x4 objectMatrix, ManaSceneNode? owner = null)

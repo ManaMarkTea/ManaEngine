@@ -1,18 +1,8 @@
-﻿using Mana.Code.Materials;
-using Silk.NET.Assimp;
-using Silk.NET.Input;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code.Shapes
+﻿namespace Mana.Code.Shapes
 {
     public class ManaIsoSphere : ManaProceduralMesh
     {
-        public float Radius { get; set; }        
+        public float Radius { get; set; }
 
         public ManaIsoSphere(ManaContext context, Vector4 color, float radius) : base(context)
         {
@@ -112,7 +102,7 @@ namespace Mana.Code.Shapes
                 triList.Add((uint)faces[i].v2);
                 triList.Add((uint)faces[i].v3);
             }
-            
+
             Vector2[] texCoords = new Vector2[vertList.Count];
             Vector4[] colors = new Vector4[vertList.Count];
             Vector3[] normales = new Vector3[vertList.Count];
@@ -122,13 +112,13 @@ namespace Mana.Code.Shapes
                 var vertCoord = vertList[i];
                 normales[i] = vertList[i].Normalized();
                 colors[i] = DefaultVertexColor;
-                
+
                 float u = (MathF.Atan2(vertCoord.Z, vertCoord.X) / (2f * MathF.PI));
                 float v = (MathF.Asin(vertCoord.Y) / MathF.PI) - 0.4f;
 
                 texCoords[i] = new Vector2(u, v) * 4.0f;
             });
-            
+
             VertexBufferObject = new ManaVertexBufferObject(Context, triList.ToArray(), vertices, normales, colors, texCoords, texCoords);
             VertexBufferObject.ConstructVBO();
         }

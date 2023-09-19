@@ -1,10 +1,5 @@
 ﻿using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana.Code
 {
@@ -14,7 +9,7 @@ namespace Mana.Code
         public IInputContext Input { get; set; }
         public IWindow Window { get; set; }
 
-        public ManaWorld World { get; private set; }        
+        public ManaWorld World { get; private set; }
 
         public ManaContext()
         {

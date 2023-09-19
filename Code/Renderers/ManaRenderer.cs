@@ -1,12 +1,4 @@
-﻿using Silk.NET.OpenGL;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code.Renderers
+﻿namespace Mana.Code.Renderers
 {
     public class ManaRenderer : ManaObject
     {
@@ -50,11 +42,11 @@ namespace Mana.Code.Renderers
 
         public Vector4 DefaultClearColor = new Vector4(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
 
-        public static Dictionary<string, string> shaderSources = new Dictionary<string,string>();
+        public static Dictionary<string, string> shaderSources = new Dictionary<string, string>();
 
-        public ManaRenderer(ManaContext context) : base(context) 
+        public ManaRenderer(ManaContext context) : base(context)
         {
-        
+
         }
 
         public virtual void Initialize() { }

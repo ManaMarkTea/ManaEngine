@@ -1,11 +1,4 @@
-﻿using Mana.Code;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana
+﻿namespace Mana
 {
     public class ManaComponent : ManaObject
     {

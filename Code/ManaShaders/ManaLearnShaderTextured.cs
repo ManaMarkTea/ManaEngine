@@ -1,13 +1,4 @@
-﻿using Silk.NET.OpenGL;
-using Silk.NET.SDL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Text.Unicode;
-using System.Threading.Tasks;
+﻿using System.Text;
 
 namespace Mana.Code
 {
@@ -27,7 +18,7 @@ namespace Mana.Code
         }
 
         static ManaLearnShaderTextured()
-        {            
+        {
             CacheShader("Assets/Shaders/LearnSpecularTextured/background.frag");
             CacheShader("Assets/Shaders/LearnSpecularTextured/background.vert");
             CacheShader("Assets/Shaders/LearnSpecularTextured/brdf.frag");
@@ -61,7 +52,7 @@ namespace Mana.Code
         }
 
         protected override string CleanSource(string source)
-        {           
+        {
             return base.CleanSource(source);
         }
     }

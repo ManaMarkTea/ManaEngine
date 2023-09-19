@@ -1,17 +1,4 @@
-﻿using MetaRenderer.Code.ImageLoaders;
-using MetaRenderer.Code;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-using System.Collections;
-
-using System.IO;
-using Mana.Code;
-using Silk.NET.Assimp;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace Mana.Code.Materials
 {
@@ -40,7 +27,7 @@ namespace Mana.Code.Materials
         }
 
         private static List<string> albedoNames = new List<string> { "_albedo", "_basecolor", "_diffuse" };
-        private static List<string> ambientNames = new List<string> { "_ao", "_ambient"};
+        private static List<string> ambientNames = new List<string> { "_ao", "_ambient" };
         private static List<string> roughnessNames = new List<string> { "_roughness" };
         private static List<string> normalNames = new List<string> { "_normal" };
         private static List<string> emissionNames = new List<string> { "_emissive", "_emission" };

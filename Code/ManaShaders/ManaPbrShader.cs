@@ -1,17 +1,4 @@
-﻿using Mana.Code.Materials;
-using Mana.Code.Renderers;
-using Silk.NET.OpenGL;
-using Silk.NET.SDL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Text.Unicode;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public class ManaPbrShader : ManaShader
     {
@@ -42,7 +29,7 @@ namespace Mana.Code
             FindUniform("irradianceMap")?.SetValue(0);
             FindUniform("prefilterMap")?.SetValue(1);
             FindUniform("brdfLUT")?.SetValue(2);
-            
+
             // Textures
             FindUniform("albedoMap")?.SetValue(3);
             FindUniform("normalMap")?.SetValue(4);
@@ -52,7 +39,7 @@ namespace Mana.Code
 
             // Colors
             FindUniform("albedo")?.SetValue(0.5f, 0.0f, 0.0f);
-            FindUniform("ao")?.SetValue(1.0f);            
+            FindUniform("ao")?.SetValue(1.0f);
 
             UnbindShader();
         }
@@ -92,7 +79,7 @@ namespace Mana.Code
         }
 
         protected override string CleanSource(string source)
-        {           
+        {
             return base.CleanSource(source);
         }
     }

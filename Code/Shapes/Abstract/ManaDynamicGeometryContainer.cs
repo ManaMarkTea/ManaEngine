@@ -1,13 +1,4 @@
-﻿using Silk.NET.Assimp;
-using Silk.NET.Input;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public class ManaDynamicGeometryContainer
     {
@@ -25,7 +16,7 @@ namespace Mana.Code
             var textureCoordinates0 = TexCoords0.ToArray();
             var textureCoordinates1 = TexCoords1.ToArray();
             var indexes = Indexes.ToArray();
-            
+
             var vertexBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
             vertexBufferObject.ConstructVBO();
             return vertexBufferObject;
@@ -58,10 +49,10 @@ namespace Mana.Code
                 Verts.Add(vertex);
                 DisconnectedPoints.Add(vertex);
             }
-             
+
             return vertexes;
         }
-        
+
         public void AddTriangle(float height, float width, Matrix4x4 rotation, Matrix4x4 scale, Vector4 color)
         {
             float halfWidth = width * 0.5f;
@@ -120,7 +111,7 @@ namespace Mana.Code
                     Position = va,
                     Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
                     Color = color,
-                    TexCoord0 = new Vector2(0,0)
+                    TexCoord0 = new Vector2(0, 0)
                 },
 
                 new ManaGeometryVertex()
@@ -128,7 +119,7 @@ namespace Mana.Code
                     Position = vb,
                     Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
                     Color = color,
-                    TexCoord0 = new Vector2(1,0)
+                    TexCoord0 = new Vector2(1, 0)
                 },
 
                 new ManaGeometryVertex()
@@ -136,7 +127,7 @@ namespace Mana.Code
                     Position = vc,
                     Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
                     Color = color,
-                    TexCoord0 = new Vector2(1,1)
+                    TexCoord0 = new Vector2(1, 1)
                 },
 
                 new ManaGeometryVertex()
@@ -144,7 +135,7 @@ namespace Mana.Code
                     Position = vd,
                     Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
                     Color = color,
-                    TexCoord0 = new Vector2(0,1)
+                    TexCoord0 = new Vector2(0, 1)
                 }
             );
 
@@ -192,7 +183,7 @@ namespace Mana.Code
         {
             CreateQuadsFromPoints(DisconnectedPoints);
         }
-         
+
         public ManaGeometryQuad[] CreateQuadsFromPoints(List<ManaGeometryVertex> verts)
         {
             List<ManaGeometryQuad> outputQuads = new List<ManaGeometryQuad>();
@@ -215,7 +206,7 @@ namespace Mana.Code
                 face.A = verts[indexA];
                 face.B = verts[indexB];
                 face.C = verts[indexC];
-                face.AssociateNeighbors();                
+                face.AssociateNeighbors();
 
                 ManaGeometryFace face2 = new ManaGeometryFace();
                 face2.Geom = this;
@@ -255,13 +246,13 @@ namespace Mana.Code
         {
             CreateFacesFromQuad(verts[0], verts[1], verts[2], verts[3]);
         }
-         
+
         public void CreateFacesFromQuad(ManaGeometryVertex a, ManaGeometryVertex b, ManaGeometryVertex c, ManaGeometryVertex d)
         {
             ManaGeometryFace face1 = new ManaGeometryFace();
             face1.Geom = this;
-            face1.A = a; 
-            face1.B = b; 
+            face1.A = a;
+            face1.B = b;
             face1.C = c;
             face1.AssociateNeighbors();
             Faces.Add(face1);
@@ -297,14 +288,14 @@ namespace Mana.Code
                 face.C = Verts[indexC];
                 face.AssociateNeighbors();
 
-                Faces.Add(face); 
+                Faces.Add(face);
             }
         }
 
 
 
-        public List<uint> Indexes 
-        { 
+        public List<uint> Indexes
+        {
             get
             {
                 List<uint> output = new List<uint>();

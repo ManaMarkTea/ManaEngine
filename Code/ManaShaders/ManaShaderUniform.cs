@@ -1,13 +1,8 @@
 ﻿using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana.Code.ManaShaders
 {
-    public class ManaShaderUniform       
+    public class ManaShaderUniform
     {
         public GL gl;
         public uint shaderLocation;
@@ -37,7 +32,7 @@ namespace Mana.Code.ManaShaders
 
         public void SetValue(float valueX, float valueY, float valueZ, int arrayIndex = 0)
         {
-            gl.Uniform3(location + arrayIndex, new ReadOnlySpan<float>(new float[]{ valueX, valueY, valueZ }));
+            gl.Uniform3(location + arrayIndex, new ReadOnlySpan<float>(new float[] { valueX, valueY, valueZ }));
         }
 
         public void SetValue(Vector2 value, int arrayIndex = 0)

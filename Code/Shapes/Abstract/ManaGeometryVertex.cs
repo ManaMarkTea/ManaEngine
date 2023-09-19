@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public enum ManaVertexAttributeClass
     {
@@ -60,7 +54,7 @@ namespace Mana.Code
         public List<ManaGeometryEdge> Edges = new List<ManaGeometryEdge>();
         public List<ManaGeometryVertex> Neighbors = new List<ManaGeometryVertex>();
         public List<string> GroupMembership = new List<string>();
-        public List<ManaVertexAttribute> ExtraAttributes = new List<ManaVertexAttribute>();        
+        public List<ManaVertexAttribute> ExtraAttributes = new List<ManaVertexAttribute>();
 
         public override string ToString()
         {

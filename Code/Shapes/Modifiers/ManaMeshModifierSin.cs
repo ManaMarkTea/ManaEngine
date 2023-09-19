@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code.Shapes.Modifiers
+﻿namespace Mana.Code.Shapes.Modifiers
 {
     public class ManaMeshModifierSin : ManaMeshModifier
     {
@@ -19,13 +13,13 @@ namespace Mana.Code.Shapes.Modifiers
             }
 
             Parallel.For(0, container.Verts.Count, (i, loopState) =>
-            {                
+            {
                 var pos = container.Verts[i].Position;
                 var normal = container.Verts[i].Normal;
                 pos += normal * MathF.Sin((float)i) * 0.01f;
                 container.Verts[i].Position = pos;
             });
-            
+
             return output;
         }
     }

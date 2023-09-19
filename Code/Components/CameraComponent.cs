@@ -1,11 +1,5 @@
 ﻿using ImGuiNET;
-using Mana.Code;
 using Silk.NET.Maths;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana
 {
@@ -18,7 +12,7 @@ namespace Mana
         public float FieldOfViewDegrees = 55.0f;
         public Vector2D<int> DebugPointCount = new Vector2D<int>(5, 3);
 
-        
+
         public Matrix4x4 _ProjectionMatrix;
         public Matrix4x4 _ViewMatrix;
         public Matrix4x4 _WorldInverseMatrix;
@@ -39,7 +33,7 @@ namespace Mana
         Queue<float> _deltaAvgHistoryX = new Queue<float>();
         Queue<float> _deltaAvgHistoryY = new Queue<float>();
 
-        bool first = true;        
+        bool first = true;
 
         public CameraComponent(ManaSceneNode owner) : base(owner)
         {
@@ -65,7 +59,7 @@ namespace Mana
             {
                 _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane);
             }
-            
+
             float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
             float planeWidth = planeHeight * AspectRatio;
 
@@ -81,7 +75,7 @@ namespace Mana
                 CameraRayTest();
                 first = false;
             }
-            
+
 
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();
@@ -149,21 +143,21 @@ namespace Mana
             {
 
             }
-            
+
             if (MouseState.IsButtonPressed(MouseButton.Right) && MouseState.ScrollWheels[0].Y != 0)
             {
                 _MovementSpeed += MouseState.ScrollWheels[0].Y;
                 _MovementSpeed = _MovementSpeed.Clamp(1.0f, 1000.0f);
             }
-          
+
             ImGui.Begin("Camera");
 
             //ImGui.PlotLines("dx", ref dxHist, dxHist.Length, 0, "", -5.0f, 5.0f, new System.Numerics.Vector2(100, 100));
             //ImGui.PlotLines("dy", &dyHist.front(), dyHist.size(), 0, NULL, -5.0f, 5.0f, ImVec2(100, 100));
-          
+
             Owner.Position = position;
             Owner.Rotation = rotationEuler;
-                        
+
 
             _ViewMatrix = Matrix4x4.CreateLookAt(position, position + forward, new Vector3(0, 1, 0));
 
@@ -186,7 +180,7 @@ namespace Mana
 
             if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
             {
-                
+
                 UpdateProjection();
             }
 
@@ -228,7 +222,7 @@ namespace Mana
                 _deltaAvgHistoryX.Dequeue();
                 _deltaAvgHistoryY.Dequeue();
             }
-            
+
         }
 
         void CameraRayTest()
@@ -242,14 +236,14 @@ namespace Mana
             world.AddCube(Vector3.UnitX * 0.5f, Colors.Red, new Vector3(1, pegSize, pegSize));
             world.AddCube(Vector3.UnitY * 0.5f, Colors.Green, new Vector3(pegSize, 1, pegSize));
             world.AddCube(Vector3.UnitZ * 0.5f, Colors.Blue, new Vector3(pegSize, pegSize, 1));
-            
+
             world.AddPyramid(Vector3.UnitX * 1f, Colors.Red, 0.25f).Rotation = new Vector3(0, 0, -90.0f.ToRadians());
-            world.AddPyramid(Vector3.UnitY * 1f, Colors.Green, 0.25f).Rotation = new Vector3(0,0,0);
+            world.AddPyramid(Vector3.UnitY * 1f, Colors.Green, 0.25f).Rotation = new Vector3(0, 0, 0);
             world.AddPyramid(Vector3.UnitY * 0.75f, Colors.Green, 0.25f).Rotation = new Vector3(0, 0, 0);
             world.AddPyramid(Vector3.UnitZ * 1f, Colors.Blue, 0.25f).Rotation = new Vector3(90.0f.ToRadians(), 0, 0);
-            
+
             world.AddQuad(Vector3.Zero, Colors.Silver, Vector3.One);
-            
+
             world.AddSphere(transform.Translation, Colors.Red, 0.004f);
             {
                 float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
@@ -294,7 +288,7 @@ namespace Mana
 
                         Vector3 pointLocal = bottomLeftLocal + new Vector3(planeWidth * tx, planeHeight * ty, 0);
                         Vector3 point = Owner.Position + Owner.Right * pointLocal.X + Owner.Up * pointLocal.Y + Owner.Forward * pointLocal.Z;
-                        
+
                         world.AddCube(point, Colors.White, 2f);
                     }
                 }

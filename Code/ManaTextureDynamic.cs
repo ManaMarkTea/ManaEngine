@@ -1,14 +1,4 @@
-﻿using Mana.Code;
-using Silk.NET.OpenGL;
-using SixLabors.ImageSharp.Formats;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
-namespace Mana
+﻿namespace Mana
 {
     public class ManaTextureDynamic : ManaTexture
     {
@@ -29,9 +19,9 @@ namespace Mana
             PushToTexture();
         }
 
-        protected virtual void LoadBuffer() 
+        protected virtual void LoadBuffer()
         {
-        }        
+        }
 
         protected void PushToTexture()
         {

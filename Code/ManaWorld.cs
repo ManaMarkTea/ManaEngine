@@ -1,17 +1,4 @@
-﻿using ImGuiNET;
-using Mana.Code;
-using Mana.Code.Materials;
-using Mana.Code.Renderers;
-using Mana.Code.Shapes;
-using Silk.NET.Assimp;
-using Silk.NET.Input;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Silk.NET.Assimp;
 
 namespace Mana
 {
@@ -43,10 +30,10 @@ namespace Mana
         public Matrix4x4 ViewMatrix { get; set; } = Matrix4x4.Identity;
 
         public ManaScene DefaultScene { get; set; }
-        public ManaSceneNode CameraNode;        
+        public ManaSceneNode CameraNode;
         public CameraComponent MainCamera;
 
-        public ManaRenderer Renderer;        
+        public ManaRenderer Renderer;
 
         public Assimp _AssetImporter { get; set; }
         public string ActivePath { get; set; }
@@ -64,13 +51,13 @@ namespace Mana
             PostDrawFutures = new List<Action>();
             PreDrawFutures = new List<Action>();
             PreUpdateFutures = new List<Action>();
-            PostUpdateFutures = new List<Action>();                        
+            PostUpdateFutures = new List<Action>();
         }
 
         public void Initialize(ManaContext context)
         {
             Context = context;
-            
+
             Context.Window.Resize += _Window_Resize;
             CameraNode = new ManaSceneNode(context, Matrix4x4.Identity);
             CameraNode.Position = new Vector3(0, 0, 5);
@@ -82,7 +69,7 @@ namespace Mana
             //this.Renderer = new ManaDeferredRenderer(context);
             //this.Renderer = new ManaForwardRenderer(context);
             this.Renderer = new ManaIrradianceRenderer(context);
-            this.Renderer.Initialize();            
+            this.Renderer.Initialize();
 
             DefaultScene = new ManaScene(context);
             Scenes.Add(DefaultScene);
@@ -110,14 +97,14 @@ namespace Mana
         public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(Context, color, size)));            
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(Context, color, size)));
             DefaultScene.Children.Add(extraCube);
             return extraCube;
         }
 
         public ManaSceneNode AddSphere(Vector3 position, Vector4 color, Vector3 size)
         {
-            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));            
+            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(Context, color, 0.5f)));
             extraCube.Scale = size;
             DefaultScene.Children.Add(extraCube);
@@ -136,7 +123,7 @@ namespace Mana
         public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, Vector3.One)));            
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, Vector3.One)));
             extraCube.Scale = size;
             DefaultScene.Children.Add(extraCube);
             return extraCube;
@@ -170,7 +157,7 @@ namespace Mana
                 Meshes.Add(model);
             }
 
-            ManaScene manaScene = new ManaScene(Context);            
+            ManaScene manaScene = new ManaScene(Context);
             manaScene.LoadFromGltf(scene);
             Scenes.Add(manaScene);
         }

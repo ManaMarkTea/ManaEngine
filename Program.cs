@@ -1,23 +1,14 @@
-﻿using System.Drawing;
-using Silk.NET.Windowing;
-using Silk.NET.Input;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using System.Numerics;
-using Silk.NET.Maths;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
-using Mana.Code;
-using Mana.Code.Shapes;
-using ImGuiNET;
-using Mana.Code.Materials;
-using Silk.NET.GLFW;
-using SixLabors.ImageSharp;
+﻿// Mana Mark Tea - 2023
+global using Mana.Code;
+global using Mana.Code.ManaShaders;
+global using Mana.Code.Materials;
+global using Mana.Code.Renderers;
+global using Mana.Code.Shapes;
 
 namespace Mana
 {
     public class Program
-    {                           
+    {
         static void Main(string[] args)
         {
             SceneViewerMode game = new SceneViewerMode();

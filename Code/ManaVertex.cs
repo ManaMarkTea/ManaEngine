@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana
+﻿namespace Mana
 {
     public class ManaVertexBuilder
     {
@@ -22,8 +16,8 @@ namespace Mana
                 uint index = i * 4;
                 output.AddRange(new uint[] { index + 0, index + 1, index + 2 });
                 output.AddRange(new uint[] { index + 0, index + 2, index + 3 });
-            }    
-            
+            }
+
             return output;
         }
 
@@ -34,10 +28,10 @@ namespace Mana
             Vector3 a = new Vector3(-halfWidth, -height * 0.5f, halfWidth);
             Vector3 b = new Vector3(+halfWidth, -height * 0.5f, halfWidth);
             Vector3 c = new Vector3(0.0f, height * 0.5f, 0.0f);
-            
+
             var va = Vector3.Transform(a, rotation);
             var vb = Vector3.Transform(b, rotation);
-            var vc = Vector3.Transform(c, rotation);            
+            var vc = Vector3.Transform(c, rotation);
 
             Verts.AddRange(new List<ManaVertex>
             {
@@ -73,7 +67,7 @@ namespace Mana
         }
 
         public void AddQuad(Vector3 quadSize, Matrix4x4 rotation, Matrix4x4 scale, Vector4 color)
-        {            
+        {
             var cR = Vector3.Transform(quadSize * 0.5f, scale);
 
             var va = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), rotation);
@@ -125,7 +119,7 @@ namespace Mana
         {
             get
             {
-                return Verts.Select((item)=>item.Position).ToList();
+                return Verts.Select((item) => item.Position).ToList();
             }
         }
 
@@ -160,14 +154,14 @@ namespace Mana
                 return Verts.Select((item) => item.TexCoord1).ToList();
             }
         }
-        
+
     }
 
     public struct ManaVertex
-    {        
+    {
         public Vector3 Position;
         public Vector3 Normal;
-        public Vector4 Color;      
+        public Vector4 Color;
         public Vector2 TexCoord0;
         public Vector2 TexCoord1;
         public Vector3 Tangent;

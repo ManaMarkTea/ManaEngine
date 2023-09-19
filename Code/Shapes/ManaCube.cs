@@ -1,15 +1,4 @@
-﻿using Mana.Code;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-using Silk.NET.Assimp;
-using Silk.NET.Core.Native;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana
+﻿namespace Mana
 {
     public class ManaCube : ManaProceduralMesh
     {
@@ -53,7 +42,7 @@ namespace Mana
             };
 
 
-            for ( int i = 0; i < 6; i++)
+            for (int i = 0; i < 6; i++)
             {
                 var rotation = rotations[i];
                 var scaleRotation = scaleRotations[i];

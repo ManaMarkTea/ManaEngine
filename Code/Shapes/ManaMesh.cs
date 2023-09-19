@@ -2,22 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
-using MetaRenderer.Code.ImageLoaders;
-using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using Mana.Code;
-using Mana.Code.Materials;
 using Mana.Code.Shapes.Modifiers;
 
 namespace Mana.Code.Shapes
@@ -28,7 +12,7 @@ namespace Mana.Code.Shapes
         public ManaMaterial[] Materials;
         protected Vector3 MinSize;
         protected Vector3 MaxSize;
-        
+
         public ManaVertexBufferObject? VertexBufferObject { get; internal set; }
 
         public ManaDynamicGeometryContainer DynamicGeometryContainer { get; internal set; }
@@ -42,7 +26,7 @@ namespace Mana.Code.Shapes
             Materials = new ManaMaterial[0];
             DynamicGeometryContainer = new ManaDynamicGeometryContainer();
         }
-        
+
         public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
         {
             if (VertexBufferObject != null)

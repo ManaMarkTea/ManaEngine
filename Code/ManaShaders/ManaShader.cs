@@ -1,8 +1,4 @@
-﻿using Mana.Code;
-using Mana.Code.ManaShaders;
-using Mana.Code.Materials;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL;
+﻿using Silk.NET.OpenGL;
 using System.Diagnostics;
 using System.Text;
 
@@ -12,7 +8,7 @@ namespace Mana
     {
         public string[] Names = { };
 
-        public ManaSemantic(string[] names) 
+        public ManaSemantic(string[] names)
         {
             Names = names;
         }
@@ -51,14 +47,14 @@ namespace Mana
         public List<string> Defines { get; set; }
 
         private static ManaSemantic ModelViewProjectionSemantics = new ManaSemantic(new string[] { "gWVP" });
-        private static ManaSemantic ModelViewProjectionMatrixSemantics = new ManaSemantic( new string[] { "gWVP" });
-        private static ManaSemantic ObjectMatrixSemantics = new ManaSemantic( new string[] { "gWorld", "model" });
-        private static ManaSemantic ModelViewMatrixSemantics = new ManaSemantic( new string[] { "modelViewMatrix" });
-        private static ManaSemantic ProjectionMatrixSemantics = new ManaSemantic( new string[] { "projectionMatrix", "projection" });
-        private static ManaSemantic ViewMatrixSemantics = new ManaSemantic( new string[] { "view", "viewMatrix" });
-        private static ManaSemantic NormalMatrixSemantics = new ManaSemantic( new string[] { "normalMatrix" });
-        private static ManaSemantic BaseColorSemantics = new ManaSemantic( new string[] { "baseColor", "gColorMap" });
-        private static ManaSemantic CameraPositionSemantics = new ManaSemantic( new string[] { "camPos", "gEyeWorldPos" });
+        private static ManaSemantic ModelViewProjectionMatrixSemantics = new ManaSemantic(new string[] { "gWVP" });
+        private static ManaSemantic ObjectMatrixSemantics = new ManaSemantic(new string[] { "gWorld", "model" });
+        private static ManaSemantic ModelViewMatrixSemantics = new ManaSemantic(new string[] { "modelViewMatrix" });
+        private static ManaSemantic ProjectionMatrixSemantics = new ManaSemantic(new string[] { "projectionMatrix", "projection" });
+        private static ManaSemantic ViewMatrixSemantics = new ManaSemantic(new string[] { "view", "viewMatrix" });
+        private static ManaSemantic NormalMatrixSemantics = new ManaSemantic(new string[] { "normalMatrix" });
+        private static ManaSemantic BaseColorSemantics = new ManaSemantic(new string[] { "baseColor", "gColorMap" });
+        private static ManaSemantic CameraPositionSemantics = new ManaSemantic(new string[] { "camPos", "gEyeWorldPos" });
 
         public ManaShader(ManaContext context) : base(context)
         {
@@ -149,7 +145,7 @@ namespace Mana
             for (uint i = 0; i < uniformCount; i++)
             {
                 gl.GetActiveUniform(shaderProgram, i, (uint)64, out uint uniformLength, out int uniformSize, out UniformType type, out string uniformName);
-                
+
                 int uniformLocation = gl.GetUniformLocation(shaderProgram, uniformName);
 
                 ManaShaderUniform uniform = new ManaShaderUniform();
@@ -181,7 +177,7 @@ namespace Mana
                 Trace.TraceWarning($"Uniform not found {name}");
                 WarnedNames.Add(name);
             }
-                return null;
+            return null;
         }
 
         public void BindShader()
@@ -218,7 +214,7 @@ namespace Mana
 
                 if (uniform.name == "FrameNumber")
                 {
-                    
+
                     gl.Uniform1(uniform.location, frame++);
                 }
 

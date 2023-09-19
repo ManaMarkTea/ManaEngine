@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code
+﻿namespace Mana.Code
 {
     public class ManaTime
     {
@@ -20,7 +14,7 @@ namespace Mana.Code
         public double FramesPerSecond { get { return 1.0 / DeltaTime.TotalSeconds; } }
 
         public TimeSpan DeltaTimeAvg { get { return History.Average(); } }
-        public double FramesPerSecondAvg { get { return History.Average( x => 1.0 / (x.TotalSeconds != 0 ? x.TotalSeconds : 1.0)); } }
+        public double FramesPerSecondAvg { get { return History.Average(x => 1.0 / (x.TotalSeconds != 0 ? x.TotalSeconds : 1.0)); } }
 
         public DateTime LastUpdate = DateTime.Now;
 

@@ -1,15 +1,4 @@
-﻿using Mana.Code;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-using Silk.NET.Assimp;
-using Silk.NET.Core.Native;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana
+﻿namespace Mana
 {
     public class ManaPyramid : ManaProceduralMesh
     {
@@ -19,7 +8,7 @@ namespace Mana
         {
             CubeSize = size;
             DefaultVertexColor = color;
-            GenerateData();            
+            GenerateData();
         }
 
         protected override void GenerateData()

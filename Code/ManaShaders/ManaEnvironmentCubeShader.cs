@@ -1,12 +1,4 @@
-﻿using Mana.Code.Materials;
-using Silk.NET.Assimp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code.ManaShaders
+﻿namespace Mana.Code.ManaShaders
 {
     public class ManaEnvironmentCubeShader : ManaShader
     {
@@ -30,7 +22,7 @@ namespace Mana.Code.ManaShaders
             LoadShaderSource(shaderSources["cubemap.vert"], shaderSources["equirectangular_to_cubemap.frag"]);
             BindShader();
 
-           
+
             UnbindShader();
         }
 

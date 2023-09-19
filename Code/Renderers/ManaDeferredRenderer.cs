@@ -1,13 +1,4 @@
-﻿using Mana.Code.Shapes;
-using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
+﻿using Silk.NET.OpenGL;
 
 namespace Mana.Code.Renderers
 {
@@ -39,7 +30,7 @@ namespace Mana.Code.Renderers
         public ManaLightSourceComponent lightFill;
 
         public ManaDeferredRenderer(ManaContext context) : base(context)
-        {            
+        {
             this.currentWidth = 0;
             this.currentHeight = 0;
 
@@ -87,12 +78,12 @@ namespace Mana.Code.Renderers
         public override void Initialize()
         {
             var gl = this.webGl;
-            
+
             gl.GetInteger(GetPName.MaxIntegerSamples, out int maxSamples);
             int samples = InternalMSAA < maxSamples ? InternalMSAA : maxSamples;
 
             if (!this.initialized)
-            {                
+            {
                 gl.Enable(EnableCap.DepthTest);
                 gl.DepthFunc(DepthFunction.Lequal);
                 gl.ColorMask(true, true, true, true);
@@ -101,11 +92,11 @@ namespace Mana.Code.Renderers
                 OpaqueFrameBuffer = new ManaRenderTarget(Context, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, true);
                 OpaqueFrameBuffer.AddRgbaBuffer("Color");
                 OpaqueFrameBuffer.AddDepthBuffer("Depth");
-               
+
                 this.samples = samples;
 
                 OpaqueFrameBuffer.Build();
-             
+
                 this.initialized = true;
 
                 //this.environmentRenderer = new EnvironmentRenderer(this.webGl);
@@ -135,7 +126,7 @@ namespace Mana.Code.Renderers
         {
             base.Render(drawScenes);
 
-            
+
 
             drawScenes();
         }

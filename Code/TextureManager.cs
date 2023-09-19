@@ -1,11 +1,4 @@
-﻿using Mana.Code;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana
+﻿namespace Mana
 {
     public class TextureManager : ManaObject
     {
@@ -65,7 +58,7 @@ namespace Mana
             return _DefaultTexture;
         }
 
-        public Dictionary<string, ManaTexture> LoadedTextures = new ();
+        public Dictionary<string, ManaTexture> LoadedTextures = new();
 
     }
 }

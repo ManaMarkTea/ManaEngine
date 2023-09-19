@@ -1,24 +1,13 @@
 ﻿using ImGuiNET;
-using Mana.Code.ManaShaders;
-using Mana.Code.Materials;
-using Mana.Code.Shapes;
-using Silk.NET.Assimp;
-using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Silk.NET.SDL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Mana.Code.Renderers
 {
     public class ManaIrradianceRenderer : ManaRenderer
     {
-        public ManaIrradianceRenderer(ManaContext context) : base(context) 
-        { 
+        public ManaIrradianceRenderer(ManaContext context) : base(context)
+        {
 
         }
 
@@ -26,7 +15,7 @@ namespace Mana.Code.Renderers
         public ManaRenderTarget IrradianceFramebuffer;
         public ManaRenderTarget PrefilterFramebuffer;
         public ManaRenderTarget BrdfFramebuffer;
-        
+
         public ManaEnvironmentIrradianceShader EnvironmentIrradianceShader;
         public ManaEnvironmentCubeShader EnvironmentShader;
         public ManaEnvironmentBrdfShader EnvironmentBrdfShader;
@@ -49,7 +38,7 @@ namespace Mana.Code.Renderers
         float debugLightIntensity = 10.0f;
         Vector4 debugLightColor = Colors.White;
 
-        public override void Initialize() 
+        public override void Initialize()
         {
             var gl = Context.gl;
             gl.Enable(EnableCap.DepthTest);
@@ -96,7 +85,7 @@ namespace Mana.Code.Renderers
             IrradianceFramebuffer.UnBind();
 
 
-            PrefilterFramebuffer = new ManaRenderTarget(Context, 512,512);
+            PrefilterFramebuffer = new ManaRenderTarget(Context, 512, 512);
             {
                 RenderBufferInfo info = new RenderBufferInfo();
                 info.FloatBuffer = true;
@@ -106,7 +95,7 @@ namespace Mana.Code.Renderers
                 info.MinLinearMip = true;
                 PrefilterFramebuffer.AddBuffer("PreFilter", info);
             }
-            
+
             PrefilterFramebuffer.Build();
             PrefilterFramebuffer.UnBind();
 
@@ -120,7 +109,7 @@ namespace Mana.Code.Renderers
 
         public override void Resize(int width, int height) { }
 
-        public override void Clear() 
+        public override void Clear()
         {
             Context.gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
@@ -131,7 +120,7 @@ namespace Mana.Code.Renderers
         }
 
 
-        public override void Render(Action drawScenes) 
+        public override void Render(Action drawScenes)
         {
             ImGui.Begin("Irradiance");
             ImGui.SliderFloat("Metallic", ref debugMetallic, 0.0f, 1.0f);
@@ -152,7 +141,7 @@ namespace Mana.Code.Renderers
             Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D() * 255.0f);
             Clear();
 
-            RenderEnvironmentBackground();            
+            RenderEnvironmentBackground();
 
             Context.gl.Enable(EnableCap.DepthTest);
             Context.gl.Viewport(window.Size);
@@ -170,7 +159,7 @@ namespace Mana.Code.Renderers
             new Vector3( 10.0f, -10.0f, 10.0f),
         };
 
-        private static Vector3[] lightColors = 
+        private static Vector3[] lightColors =
         {
             new Vector3(300.0f, 300.0f, 300.0f),
             new Vector3(300.0f, 300.0f, 300.0f),
@@ -208,11 +197,11 @@ namespace Mana.Code.Renderers
                 }
             }
 
-            EnvironmentCubeTarget.UnBind();        
+            EnvironmentCubeTarget.UnBind();
         }
 
         public void RenderBrdfTarget()
-        {            
+        {
             BrdfFramebuffer.Bind();
             Context.gl.ClearColor<float>(Colors.Black.ToVector4D());
             Clear();
@@ -228,9 +217,9 @@ namespace Mana.Code.Renderers
 
             EnvironmentShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.CreateScale(100), Context.World.MainCamera);
             EnvironmentShader.BindEnvironmentTexture();
-            EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);            
+            EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
             EnvironmentShader.FindUniform("view").SetValue(directionOnly);
-            
+
             Context.gl.Disable(EnableCap.DepthTest);
             SimpleCube.RenderDirectly();
         }
@@ -265,7 +254,7 @@ namespace Mana.Code.Renderers
             preFilterSlice = preFilterSlice >= PrefilterFramebuffer.MaxMips - 1 ? 0 : preFilterSlice + 1;
 
             uint[] samplesByMip = new uint[] { 32u, 64u, 128u, 512u, 1024u };
-            
+
             for (int i = 0; i < 6; i++)
             {
                 PrefilterFramebuffer.Bind(i, m);
@@ -289,12 +278,12 @@ namespace Mana.Code.Renderers
                     EnvironmentPrefilterShader.BindShader();
                     EnvironmentMap.Bind(0);
                     EnvironmentPrefilterShader.FindUniform("environmentMap").SetValue(0);
-                    EnvironmentPrefilterShader.FindUniform("SAMPLE_COUNT").SetValue(samplesByMip[Math.Clamp(preFilterSlice, 0, samplesByMip.Length-1)]);
+                    EnvironmentPrefilterShader.FindUniform("SAMPLE_COUNT").SetValue(samplesByMip[Math.Clamp(preFilterSlice, 0, samplesByMip.Length - 1)]);
                     EnvironmentPrefilterShader.FindUniform("projection").SetValue(captureProjection);
                     EnvironmentPrefilterShader.FindUniform("view").SetValue(captureViews[i]);
                     EnvironmentPrefilterShader.FindUniform("roughness").SetValue(roughness);
                 }
-                
+
                 SimpleCube.RenderDirectly();
             }
 
@@ -338,10 +327,10 @@ namespace Mana.Code.Renderers
                     newNode.Position = pos;
                     return newNode;
                 };
-                
+
                 for (int row = 0; row < rows; ++row)
                 {
-                    float metallic = row / rows;                                        
+                    float metallic = row / rows;
                     for (int col = 0; col < cols; ++col)
                     {
                         float roughness = Math.Clamp(col / (float)cols, 0.05f, 1.0f);

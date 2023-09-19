@@ -1,13 +1,4 @@
-﻿using Mana.Code.Materials;
-using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mana.Code.Shapes
+﻿namespace Mana.Code.Shapes
 {
     public class ManaProceduralMesh : ManaMesh
     {
@@ -39,7 +30,7 @@ namespace Mana.Code.Shapes
             return foundMaterial;
         }
 
-        protected virtual void GenerateData() { }        
+        protected virtual void GenerateData() { }
 
     }
 }

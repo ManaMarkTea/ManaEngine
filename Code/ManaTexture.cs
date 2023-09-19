@@ -1,12 +1,5 @@
-﻿using Mana.Code;
-using Silk.NET.OpenGL;
+﻿using Silk.NET.OpenGL;
 using SixLabors.ImageSharp.Formats;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Mana
 {
@@ -54,7 +47,7 @@ namespace Mana
         }
 
         public ManaTexture(ManaContext context) : base(context)
-        {            
+        {
             PixelData = new byte[0];
             Width = 0; Height = 0;
             ElementCount = 4;
@@ -187,7 +180,7 @@ namespace Mana
         {
             gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
         }
-         
+
         private unsafe void ProcessPixelRows(PixelAccessor<Rgba32> accessor, GL gl)
         {
             for (int y = 0; y < accessor.Height; y++)
@@ -217,9 +210,9 @@ namespace Mana
                 case 8: gl.ActiveTexture(TextureUnit.Texture8); break;
                 case 9: gl.ActiveTexture(TextureUnit.Texture9); break;
             }
-            
+
             if (Handle > 0)
-            {                                
+            {
                 gl.BindTexture(TextureTargetType, Handle);
             }
         }
