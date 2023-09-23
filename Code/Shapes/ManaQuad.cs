@@ -24,11 +24,15 @@
             var vc = new Vector3(cR.X, cR.Y, -cR.Z) * 0.5f;
             var vd = new Vector3(-cR.X, cR.Y, -cR.Z) * 0.5f;
 
+            var vBa= vb - va;
+            var vCa = vc - va;
+            var vNormal = Vector3.Cross(vBa, vCa).Normalized();
+
             ManaGeometryVertex[] verts = new ManaGeometryVertex[4];
-            verts[0] = DynamicGeometryContainer.AddPoint(va);
-            verts[1] = DynamicGeometryContainer.AddPoint(vb);
-            verts[2] = DynamicGeometryContainer.AddPoint(vc);
-            verts[3] = DynamicGeometryContainer.AddPoint(vd);
+            verts[0] = DynamicGeometryContainer.AddPoint(va, vNormal);
+            verts[1] = DynamicGeometryContainer.AddPoint(vb, vNormal);
+            verts[2] = DynamicGeometryContainer.AddPoint(vc, vNormal);
+            verts[3] = DynamicGeometryContainer.AddPoint(vd, vNormal);
 
             verts[0].TexCoord0 = new Vector2(0.0f, 0.0f);
             verts[1].TexCoord0 = new Vector2(1.0f, 0.0f);

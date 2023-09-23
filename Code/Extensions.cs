@@ -73,7 +73,7 @@ namespace Mana
 
         public static Vector3 ToEulerDegrees(this Vector3 vector)
         {
-            return vector * (MathF.PI / 180.0f);
+            return new Vector3(vector.X.ToDegrees(), vector.Y.ToDegrees(), vector.Z.ToDegrees());
         }
 
         public static Vector3 ToEuler(this Quaternion r)

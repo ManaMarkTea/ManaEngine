@@ -1,12 +1,23 @@
-﻿using Silk.NET.Assimp;
+﻿using ImGuiNET;
+using Silk.NET.Assimp;
+using System.Diagnostics;
 
 namespace Mana
 {
+    public struct ManaPerformanceLog
+    {
+        public string Name { get; set; }
+        public TimeSpan Duration { get; set; }        
+    }
+
     public class ManaWorld : ManaObject
     {
         public bool UseRayTracing = false;
 
         public ManaContext Context;
+
+        private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
+
         public List<Action> PostDrawFutures { get; set; }
         public List<Action> PreDrawFutures { get; set; }
         public List<Action> PreUpdateFutures { get; set; }
@@ -83,6 +94,8 @@ namespace Mana
 
         public unsafe void LoadFromGltf(string sceneFile)
         {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
             _AssetImporter = Assimp.GetApi();
 
             var scene = _AssetImporter.ImportFile(sceneFile, (uint)PostProcessSteps.Triangulate);
@@ -112,6 +125,9 @@ namespace Mana
             ManaScene manaScene = new ManaScene(Context);
             manaScene.LoadFromGltf(scene);
             Scenes.Add(manaScene);
+
+            stopwatch.Stop();
+            manaPerformanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
         }
 
         private void RunFutures(List<Action> futures, List<Action> activeFutures)
@@ -169,6 +185,15 @@ namespace Mana
 
             Renderer.Render(drawScenes);
 
+
+            ImGui.Begin("World Perf");
+
+            foreach (var perf in manaPerformanceLogs)
+            {
+                ImGui.Text($"{ perf.Duration.Milliseconds}ms - {perf.Name}");
+            }
+
+            ImGui.End();
 
         }
 

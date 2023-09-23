@@ -9,6 +9,7 @@
 
         public Vector3 Position { get; set; }
         public Vector3 Rotation { get; set; }
+        public Vector3 RotationDegrees { get { return Rotation.ToEulerDegrees(); } }
         public Vector3 Scale { get; set; }
 
         public override string ToString()
@@ -118,6 +119,21 @@
             {
                 component.DrawComponent();
             }
+        }
+
+        public void RotateX(float degrees)
+        {
+            this.Rotation = new Vector3(Rotation.X + degrees.ToRadians(), Rotation.Y, Rotation.Z);
+        }
+
+        public void RotateY(float degrees)
+        {
+            this.Rotation = new Vector3(Rotation.X, Rotation.Y + degrees.ToRadians(), Rotation.Z);
+        }
+
+        public void RotateZ(float degrees)
+        {
+            this.Rotation = new Vector3(Rotation.X, Rotation.Y, Rotation.Z + degrees.ToRadians());
         }
 
         public void SetLocalTransform(Matrix4x4 localTransform)

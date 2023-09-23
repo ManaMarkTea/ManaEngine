@@ -69,16 +69,15 @@ namespace Mana.Code
             grassBlock.Position = new Vector3(2, 0, 9);
             world.Scenes[1].Children[0].AddChild(grassBlock);
 
-
+            
+            world.MainCamera.AddDebugCameraRayTest(shapes);
             world.Update();
         }
 
 
 
         public override void Update(double deltaTime)
-        {
-            base.Update(deltaTime);
-
+        {            
             ImGui.SetNextWindowPos(new Vector2(this._Window.Size.X - 200, 15));
             ImGui.Begin("Mana");
             if (ImGui.Button("WebGpu"))
@@ -90,8 +89,6 @@ namespace Mana.Code
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
             ImGui.End();
 
-
-            Context.World.Update();
         }
 
         public override void Render(double deltaTime)

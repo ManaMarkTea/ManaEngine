@@ -41,9 +41,8 @@
                     float zPos = MathF.Sin(xSegment * 2.0f * PI) * MathF.Sin(ySegment * PI);
 
                     var spherePoint = new Vector3(xPos, yPos, zPos) * Radius;
-                    var newPoint = container.AddPoint(spherePoint);
+                    var newPoint = container.AddPoint(spherePoint, spherePoint.Normalized());
                     newPoint.TexCoord0 = new Vector2(xSegment * TextureScale.X + TextureOffset.X, 1.0f - ySegment * TextureScale.Y + TextureOffset.Y);
-                    newPoint.Normal = spherePoint.Normalized();
                 }
             }
 

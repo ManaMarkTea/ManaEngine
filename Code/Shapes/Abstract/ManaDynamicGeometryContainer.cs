@@ -22,11 +22,11 @@
             return vertexBufferObject;
         }
 
-        public ManaGeometryVertex AddPoint(Vector3 point)
+        public ManaGeometryVertex AddPoint(Vector3 point, Vector3 normal)
         {
             ManaGeometryVertex v = new ManaGeometryVertex();
             v.Position = point;
-            v.Normal = point.Normalized();
+            v.Normal = normal;
             v.Color = new Vector4(1, 1, 1, 1);
             return AddVertex(v);
         }

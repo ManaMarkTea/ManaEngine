@@ -10,7 +10,7 @@ namespace Mana.Code.Renderers
         {
 
         }
-
+        
         public ManaRenderTarget EnvironmentCubeTarget;
         public ManaRenderTarget IrradianceFramebuffer;
         public ManaRenderTarget PrefilterFramebuffer;
@@ -30,6 +30,7 @@ namespace Mana.Code.Renderers
         public ManaQuad SimpleQuad;
         public ManaSphere SimpleSphere;
 
+        bool drawDebugWorld = false;
         float debugMetallic = 1.0f;
         float debugAmbient = 0.25f;
         float debugRoughness = 0.1f;
@@ -123,6 +124,9 @@ namespace Mana.Code.Renderers
         public override void Render(Action drawScenes)
         {
             ImGui.Begin("Irradiance");
+
+            ImGui.Checkbox("Debug World", ref drawDebugWorld);
+
             ImGui.SliderFloat("Metallic", ref debugMetallic, 0.0f, 1.0f);
             ImGui.SliderFloat("Roughness", ref debugRoughness, 0.0f, 1.0f);
             ImGui.SliderFloat("Ambience", ref debugAmbient, 0.0f, 1.0f);
@@ -148,7 +152,11 @@ namespace Mana.Code.Renderers
 
             drawScenes();
 
-            RenderTestScene();
+            if (drawDebugWorld) 
+            {
+                RenderTestScene();
+            }
+            
         }
 
         private static Vector3[] lightPositions =

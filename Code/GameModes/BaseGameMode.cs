@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 namespace Mana.Code
 {
-    public class BaseGameMode
+    public abstract class BaseGameMode
     {
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
@@ -43,7 +43,7 @@ namespace Mana.Code
             _Window = Window.Create(optionOpenGL);
             _Window.Load += Load;
             _Window.FramebufferResize += Resize;
-            _Window.Update += Update;
+            _Window.Update += update;
             _Window.Render += Render;
 
         }
@@ -79,7 +79,7 @@ namespace Mana.Code
             _Window.Run();
         }
 
-        public virtual void Update(double deltaTime)
+        public void update(double deltaTime)
         {
             UpdateFrame++;
 
@@ -87,7 +87,13 @@ namespace Mana.Code
             _ImGui.Update((float)deltaTime);
 
             ManaTime.GlobalTime.UpdateTime(deltaTime);
+
+            Update(deltaTime);
+
+            Context.World.Update();
         }
+
+        public abstract void Update(double deltaTime);
 
         public virtual void Render(double deltaTime)
         {

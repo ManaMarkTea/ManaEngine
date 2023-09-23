@@ -57,6 +57,7 @@
     <None Remove="Assets\Textures\Environments\field.jpg" />
     <None Remove="Assets\Textures\Environments\newport_loft.hdr" />
     <None Remove="Assets\Textures\Environments\newport_loft.png" />
+    <None Remove="Assets\Textures\Environments\wasteland_clouds_puresky_4k.png" />
     <None Remove="Assets\Textures\Icons\paddle.png" />
     <None Remove="Assets\Textures\Icons\particle.png" />
     <None Remove="Assets\Textures\Icons\powerup_chaos.png" />
@@ -232,6 +233,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Textures\Environments\newport_loft.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Textures\Environments\wasteland_clouds_puresky_4k.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Textures\Icons\paddle.png">
@@ -468,6 +472,12 @@
     </None>
     <None Update="Assets\Shaders\ratio.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\Textures\Environments\wasteland_clouds_puresky_4k.exr">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

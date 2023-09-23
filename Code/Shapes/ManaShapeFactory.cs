@@ -59,8 +59,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, Vector3.One)));
-            extraCube.Scale = size;
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, size)));
             Scene.Children.Add(extraCube);
             return extraCube;
         }

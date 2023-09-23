@@ -70,13 +70,6 @@ namespace Mana
         {
             base.UpdateComponent();
 
-            if (first)
-            {
-                CameraRayTest();
-                first = false;
-            }
-
-
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();
 
@@ -225,17 +218,12 @@ namespace Mana
 
         }
 
-        void CameraRayTest()
+        public void AddDebugCameraRayTest(ManaShapeFactory shapes)
         {
             var transform = Owner.WorldTransform;
 
             float pegSize = 0.25f * 0.5f;
-
-            var world = Context.World;
-
-            ManaShapeFactory shapes = new ManaShapeFactory(Context, world.DefaultScene);
-
-
+ 
             shapes.AddCube(Vector3.UnitX * 0.5f, Colors.Red, new Vector3(1, pegSize, pegSize));
             shapes.AddCube(Vector3.UnitY * 0.5f, Colors.Green, new Vector3(pegSize, 1, pegSize));
             shapes.AddCube(Vector3.UnitZ * 0.5f, Colors.Blue, new Vector3(pegSize, pegSize, 1));
