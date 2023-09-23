@@ -22,7 +22,9 @@ namespace Mana.Code
 
             var world = Context.World;
 
-            var sun = world.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
+            ManaShapeFactory shapes = new ManaShapeFactory(Context, world.DefaultScene);
+
+            var sun = shapes.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
 
             var sunMaterial = (sun.Components[0] as MeshRendererComponent).DynamicMaterial;
             sunMaterial.Emission.Value = Colors.Gold;

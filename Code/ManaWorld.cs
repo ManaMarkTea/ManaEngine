@@ -79,55 +79,7 @@ namespace Mana
         {
             Renderer.Resize(obj.X, obj.Y);
         }
-
-        public ManaSceneNode AddCube(Vector3 position, Vector4 color, float size)
-        {
-            return AddCube(position, color, new Vector3(size, size, size));
-        }
-        public ManaSceneNode AddSphere(Vector3 position, Vector4 color, float size)
-        {
-            return AddSphere(position, color, new Vector3(size, size, size));
-        }
-
-        public ManaSceneNode AddPyramid(Vector3 position, Vector4 color, float size)
-        {
-            return AddPyramid(position, color, new Vector3(size, size, size));
-        }
-
-        public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
-        {
-            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(Context, color, size)));
-            DefaultScene.Children.Add(extraCube);
-            return extraCube;
-        }
-
-        public ManaSceneNode AddSphere(Vector3 position, Vector4 color, Vector3 size)
-        {
-            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(Context, color, 0.5f)));
-            extraCube.Scale = size;
-            DefaultScene.Children.Add(extraCube);
-            return extraCube;
-        }
-        public ManaSceneNode AddPyramid(Vector3 position, Vector4 color, Vector3 size)
-        {
-            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaPyramid(Context, color, Vector3.One)));
-            //extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));
-            extraCube.Scale = size;
-            DefaultScene.Children.Add(extraCube);
-            return extraCube;
-        }
-
-        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)
-        {
-            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, Vector3.One)));
-            extraCube.Scale = size;
-            DefaultScene.Children.Add(extraCube);
-            return extraCube;
-        }
+       
 
         public unsafe void LoadFromGltf(string sceneFile)
         {
