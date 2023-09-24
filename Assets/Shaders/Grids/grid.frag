@@ -17,8 +17,11 @@ uniform float     iFrameRate;
 in vec2 TexCoords;
 layout(location = 0) out vec4 FragColor;
 
-float size = 128.0;
+float size = 64.0;
 float thickness = 2.0;
+
+vec4 fill = vec4(0x26 / 255.0, 0x26/255.0, 0x26/255.0, 1.0);
+vec4 stroke = vec4(0x3A / 255.0, 0x3A/255.0, 0x3D/255.0, 1.0);
 
 float gridColor( out vec4 fragColor, in vec2 fragCoord )
 {
@@ -42,7 +45,7 @@ void main( void )
     float result = gridColor( color, TexCoords );
 
     color = mix(vec4(0, float(0x72)/255.0, float(0x8F)/255.0, 0.0), vec4(1), result);
-    color = mix(vec4(0.25,0,0,0), vec4(1), result);
+    color = mix(fill, stroke, result);
         
         
     if (color.w < 0.5)

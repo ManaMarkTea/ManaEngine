@@ -6,6 +6,9 @@ Rendering
 * Vulkan
 * Metal Support
 
+# File Formats
+* https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox.txt
+
 ## Texture Sources
 * https://polyhaven.com/textures
 

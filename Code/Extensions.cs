@@ -33,6 +33,24 @@ namespace Mana
             return result;
         }
 
+        public static Vector4 ToColor4(this int value)
+        {
+            byte byte1 = (byte)((value >> 24) & 0xFF);
+            byte byte2 = (byte)((value >> 16) & 0xFF);
+            byte byte3 = (byte)((value >> 8) & 0xFF);
+            byte byte4 = (byte)(value & 0xFF);
+            return new Vector4(byte1 / 255.0f, byte2 / 255.0f, byte3 / 255.0f, byte4 / 255.0f);
+        }
+
+        public static Vector4 ToColor4(this uint value)
+        {
+            byte byte1 = (byte)((value >> 24) & 0xFF);
+            byte byte2 = (byte)((value >> 16) & 0xFF);
+            byte byte3 = (byte)((value >> 8) & 0xFF);
+            byte byte4 = (byte)(value & 0xFF);
+            return new Vector4(byte1 / 255.0f, byte2 / 255.0f, byte3 / 255.0f, byte4 / 255.0f);
+        }
+
         public static bool Contains(this string text, IEnumerable<string> possibleTexts)
         {
             foreach (var possibleText in possibleTexts)

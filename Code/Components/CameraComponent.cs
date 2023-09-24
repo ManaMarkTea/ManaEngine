@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 
 namespace Mana
@@ -20,7 +21,7 @@ namespace Mana
         public Vector3[] ViewAxes { get; internal set; } = new Vector3[3];
 
 
-        float _MovementSpeed = 20;
+        float _MovementSpeed = 2000;
         int _MouseAverageSize = 4;
         Vector2 _MouseSensitivity = new(8.0f, 8.0f);
         Vector2 _LastMousePos;
@@ -216,6 +217,32 @@ namespace Mana
                 _deltaAvgHistoryY.Dequeue();
             }
 
+        }
+
+        public Ray ProjectScreenToWorld(in Vector3 MousePositionStart,  in Vector3 MousePositionEnd)
+        {
+            Matrix4x4 inverseWorldMatrix;
+            Matrix4x4.Invert(_ProjectionMatrix * _ViewMatrix, out inverseWorldMatrix);
+
+            var windowSize = Context.Window.Size;
+
+            var start = new Vector3(MousePositionStart.X / windowSize.X, MousePositionStart.Y / windowSize.Y, MousePositionStart.Z);
+            var end = new Vector3(MousePositionEnd.X / windowSize.X, MousePositionEnd.Y / windowSize.Y, MousePositionEnd.Z);
+
+            Vector4 worldPositionStart = Vector4.Transform(start, inverseWorldMatrix);
+            Vector4 worldPositionEnd = Vector4.Transform(end, inverseWorldMatrix);
+
+            if (worldPositionStart.W != 0)
+            {
+                worldPositionStart /= worldPositionStart.W;
+            }
+
+            if (worldPositionEnd.W != 0)
+            {
+                worldPositionEnd /= worldPositionEnd.W;                
+            }
+
+            return new Ray(worldPositionStart.ToVector3(), (worldPositionEnd - worldPositionStart).ToVector3().Normalized());
         }
 
         public void AddDebugCameraRayTest(ManaShapeFactory shapes)

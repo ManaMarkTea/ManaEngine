@@ -159,7 +159,7 @@ namespace Mana
                 UniformNames.Add(uniform);
                 UniformMap[uniformName] = uniform;
 
-                Trace.WriteLine($"Uniform #{i} Type: {type} Name: {uniformName}");
+                //Trace.WriteLine($"Uniform #{i} Type: {type} Name: {uniformName}");
             }
         }
 

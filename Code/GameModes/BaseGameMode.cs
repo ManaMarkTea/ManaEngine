@@ -38,7 +38,7 @@ namespace Mana.Code
                 WindowBorder.Resizable,
                 isVSync: true,
                 shouldSwapAutomatically: true,
-                new Silk.NET.Windowing.VideoMode(85));
+                new Silk.NET.Windowing.VideoMode(64));
 
             _Window = Window.Create(optionOpenGL);
             _Window.Load += Load;
@@ -141,7 +141,7 @@ namespace Mana.Code
                 return;
             }
 
-            Trace.WriteLine($"{severity} {type} | {messageString}");
+            //Trace.WriteLine($"{severity} {type} | {messageString}");
 
             if (type == GLEnum.DebugTypeError)
             {
