@@ -13,6 +13,8 @@
 
         protected override void GenerateData()
         {
+            base.GenerateData();
+
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;
 

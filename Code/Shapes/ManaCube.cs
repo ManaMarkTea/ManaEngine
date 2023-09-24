@@ -13,6 +13,8 @@
 
         protected override void GenerateData()
         {
+            base.GenerateData();
+
             Vector3 c = CubeSize;
             MinSize.X = MinSize.Y = MinSize.Z = float.MaxValue;
             MaxSize.X = MaxSize.Y = MaxSize.Z = float.MinValue;

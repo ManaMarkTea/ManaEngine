@@ -64,5 +64,13 @@ namespace Mana.Code.Shapes
             return extraCube;
         }
 
+
+        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, ManaQuadPlanes plane, float axisStart, float axisEnd, float extrusionStart, float extrusionEnd)
+        {
+            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, plane, axisStart, axisEnd, extrusionStart, extrusionEnd)));
+            Scene.Children.Add(extraCube);
+            return extraCube;
+        }
     }
 }

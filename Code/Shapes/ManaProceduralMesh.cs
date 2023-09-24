@@ -19,8 +19,7 @@
         public Vector4 DefaultVertexColor { get; set; }
 
         public ManaProceduralMesh(ManaContext context) : base(context)
-        {
-            Materials = new ManaMaterial[] { GenerateMaterial() };
+        {            
         }
 
         public virtual ManaMaterial GenerateMaterial()
@@ -30,7 +29,10 @@
             return foundMaterial;
         }
 
-        protected virtual void GenerateData() { }
+        protected virtual void GenerateData() 
+        {
+            Materials = new ManaMaterial[] { GenerateMaterial() };
+        }
 
     }
 }
