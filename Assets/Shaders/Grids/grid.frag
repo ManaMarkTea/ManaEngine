@@ -1,4 +1,9 @@
-﻿uniform vec3      iResolution;
+﻿#version 330
+
+#extension GL_OES_standard_derivatives : enable
+
+
+uniform vec3      iResolution;
 uniform float     iTime;
 uniform float     iChannelTime[4];
 uniform vec4      iMouse;
@@ -10,44 +15,41 @@ uniform float     iTimeDelta;
 uniform float     iFrameRate;
 
 in vec2 TexCoords;
+layout(location = 0) out vec4 FragColor;
 
-float size = 6400.0;
-float divisions = 64.0;
+float size = 128.0;
 float thickness = 2.0;
 
 float gridColor( out vec4 fragColor, in vec2 fragCoord )
 {
-    float halfThick = thickness * 0.5;
+    vec2 coord = fragCoord * size;
 
-    vec2 uv = fragCoord / divisions;
-    
-    vec2 tiledUv = fract(uv*size);
-    
-    vec2 square = abs(tiledUv * thickness - halfThick);
-    
-    vec2 sharpSquare = step(0.9,square);
-        
-    float result = sharpSquare.x + sharpSquare.y;
+    // Compute anti-aliased world-space grid lines
+    //vec2 grid = abs(fract(coord - 0.5) - 0.5) / fwidth(coord*thickness);
+    vec2 grid = abs(fract(coord - 0.5) - 0.5) / fwidth(coord*thickness);
+    float line = min(grid.x, grid.y);
 
-    fragColor = vec4(1.0)*result;
-    return result;
+    // Just visualize the grid lines directly
+    float color = 1.0 - min(line, 1.0);
+    color = pow(color, 1.0 / 2.2);
+    return color;
 }
-
 
 void main( void )
 {
-    gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+    FragColor = vec4(0.0,0.0,0.0,1.0);
     vec4 color = vec4(1e20);
     float result = gridColor( color, TexCoords );
 
-    color = mix(vec4(0, float(0x72)/255.0, float(0x8F)/255.0, 1.0), vec4(1), result);
+    color = mix(vec4(0, float(0x72)/255.0, float(0x8F)/255.0, 0.0), vec4(1), result);
+    color = mix(vec4(0.25,0,0,0), vec4(1), result);
+        
+        
+    if (color.w < 0.5)
+    {
+        discard;
+    }
 
-    color.w = 1.0;
-    if(gl_FragColor.w<0.0) color=vec4(1.0,0.0,0.0,1.0);
-    if(gl_FragColor.x<0.0) color=vec4(1.0,0.0,0.0,1.0);
-    if(gl_FragColor.y<0.0) color=vec4(0.0,1.0,0.0,1.0);
-    if(gl_FragColor.z<0.0) color=vec4(0.0,0.0,1.0,1.0);
-    if(gl_FragColor.w<0.0) color=vec4(1.0,1.0,0.0,1.0);
-    gl_FragColor = vec4(color.xyz,1.0);
+    FragColor = vec4(color.xyz, 0.25);
 }
 

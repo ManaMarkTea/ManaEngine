@@ -208,7 +208,7 @@ namespace Mana
             _deltaAvgHistoryX.Enqueue(dx);
             _deltaAvgHistoryY.Enqueue(dy);
 
-            if (_deltaHistoryX.Count > 5)
+            if (_deltaHistoryX.Count > 1)
             {
                 _deltaHistoryX.Dequeue();
                 _deltaHistoryY.Dequeue();
