@@ -23,7 +23,7 @@
             GridStart = -size * 0.5f;
             GridEnd = size * 0.5f;
 
-            Plane = ManaQuadPlanes.XZ;
+            Plane = ManaQuadPlanes.YX;
             AxisStart = -size.X * 0.5f;
             AxisEnd = size.X * 0.5f;
             ExtrudeStart = -size.Y * 0.5f;

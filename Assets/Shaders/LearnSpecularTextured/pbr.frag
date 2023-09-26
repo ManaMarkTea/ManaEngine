@@ -19,7 +19,7 @@ uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
 
 // lights
-uniform vec4 lightPositions[4];
+uniform vec3 lightPositions[4];
 uniform vec3 lightColors[4];
 
 uniform vec3 camPos;
@@ -116,15 +116,17 @@ void main()
     vec3 Lo = vec3(0.0);
     for(int i = 0; i < 4; ++i) 
     {
+        vec3 lightPos = lightPositions[i].xyz;
+        vec3 lightColor = lightColors[i].xyz;
+
         
-
         // calculate per-light radiance
-        vec3 L = normalize(lightPositions[i].xyz - WorldPos);
+        vec3 L = normalize(lightPos - WorldPos);
         vec3 H = normalize(V + L);
-        float distance = length(lightPositions[i].xyz - WorldPos);
+        float distance = length(lightPos - WorldPos);
         float attenuation = 1.0 / (distance * distance);
-        vec3 radiance = lightColors[i].xyz * attenuation;
-
+        vec3 radiance = lightColor * attenuation;
+        
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);   
         float G   = GeometrySmith(N, V, L, roughness);    
@@ -149,6 +151,7 @@ void main()
         float NdotL = max(dot(N, L), 0.0);        
 
         // add to outgoing radiance Lo
+        //Lo += (kD * albedo / PI + specular) * radiance * NdotL * lightColor; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
         Lo += (kD * albedo / PI + specular) * radiance * NdotL; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
     }   
     
@@ -181,6 +184,8 @@ void main()
 
     //FragColor = vec4(metallic, 0.0, 0.0 , 1.0);
     //FragColor = vec4(roughness, 0.0, 0.0 , 1.0);
+    //FragColor = vec4(specular, 1.0);
+    //FragColor = vec4(brdf, 0.0, 1.0);
     //FragColor = vec4(N, 1.0);
     //FragColor = vec4(F, 1.0);
     //FragColor = vec4(TexCoords, 0.0, 1.0);

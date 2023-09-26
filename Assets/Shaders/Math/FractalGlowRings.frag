@@ -41,7 +41,7 @@ void mainImage(out vec4 fragColor, vec2 fragCoord)
 
         d = sin(d*8.0 + iTime) / 8.0;
         d = abs(d);
-        d = 0.02 / d;
+        d = 0.005 / d;
 
         finalColor += col * d;
 

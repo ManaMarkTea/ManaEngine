@@ -135,8 +135,7 @@ namespace Mana.Code.Renderers
             ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 100.0f);
             ImGui.ColorPicker4("Light Color", ref debugLightColor);
 
-            ImGui.End();
-
+            ImGui.End();            
             RenderIrradiance();
             RenderPrefilteredReflectionMap();
 
@@ -159,14 +158,23 @@ namespace Mana.Code.Renderers
             
         }
 
-        private static Vector4[] lightPositions =
+        //private static Vector4[] lightPositions =
+        //{
+        //    new Vector4(-10.0f,  10.0f, 10.0f, 1.0f),
+        //    new Vector4( 10.0f,  10.0f, 10.0f, 1.0f),
+        //    new Vector4(-10.0f, -10.0f, 10.0f, 1.0f),
+        //    new Vector4(64, 64, -64, 1.0f),
+        //};
+
+        private static Vector3[] lightPositions =
         {
-            new Vector4(-10.0f,  10.0f, 10.0f, 1.0f),
-            new Vector4( 10.0f,  10.0f, 10.0f, 1.0f),
-            new Vector4(-10.0f, -10.0f, 10.0f, 1.0f),
-            new Vector4( 1, 1, -1, 0.0f),
+            new Vector3(-10.0f,  10.0f, 10.0f),
+            new Vector3( 10.0f,  10.0f, 10.0f),
+            new Vector3(-10.0f, -10.0f, 10.0f),
+            new Vector3( 10.0f, -10.0f, 10.0f),
         };
 
+        
         private static Vector3[] lightColors =
         {
             new Vector3(300.0f, 300.0f, 300.0f),
@@ -174,6 +182,8 @@ namespace Mana.Code.Renderers
             new Vector3(300.0f, 300.0f, 300.0f),
             new Vector3(300.0f, 300.0f, 300.0f)
         };
+
+
 
         private static Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.ToRadians(), 1.0f, 0.1f, 100.0f);
         private static Matrix4x4[] captureViews = new Matrix4x4[]
@@ -210,8 +220,9 @@ namespace Mana.Code.Renderers
 
         public void RenderBrdfTarget()
         {
-            BrdfFramebuffer.Bind();
-            Context.gl.ClearColor<float>(Colors.Black.ToVector4D());
+            BrdfFramebuffer.Bind();           
+            var clearColor = Colors.Pink;
+            Context.gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
             Clear();
             EnvironmentBrdfShader.BindShader();
             SimpleQuad.RenderDirectly();

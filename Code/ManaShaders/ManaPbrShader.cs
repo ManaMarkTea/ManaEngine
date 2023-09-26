@@ -63,6 +63,11 @@
                 Irradiance?.Texture?.Bind(0);
                 Prefilter?.Texture?.Bind(1);
                 Brdf?.Texture?.Bind(2);
+
+                CompiledShader.FindUniform("irradianceMap")?.SetValue(0);
+                CompiledShader.FindUniform("prefilterMap")?.SetValue(1);
+                CompiledShader.FindUniform("brdfLUT")?.SetValue(2);
+
                 CompiledShader.FindUniform("albedoMap")?.SetValue(3);
                 CompiledShader.FindUniform("normalMap")?.SetValue(4);
                 CompiledShader.FindUniform("emissionMap")?.SetValue(5);

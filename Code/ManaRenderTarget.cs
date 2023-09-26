@@ -285,8 +285,7 @@ namespace Mana
         public void Bind(int index = 0, int mipIndex = 0)
         {
             var gl = Context.gl;
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
-
+  
             uint mipWidth = (uint)(Width * MathF.Pow(0.5f, mipIndex));
             uint mipHeight = (uint)(Height * MathF.Pow(0.5f, mipIndex));
             gl.Viewport(0, 0, mipWidth, mipHeight);
@@ -303,10 +302,14 @@ namespace Mana
 
                 if (buffer.HasCube)
                 {
+                    gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
+
                     // Bind the face of the cube we're drawing to
                     gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, buffer.Texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + index, buffer.Texture.Handle, mipIndex);
                 }
             }
+
+            gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
         }
 
         public void UnBind()
