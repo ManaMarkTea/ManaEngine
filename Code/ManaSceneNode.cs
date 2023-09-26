@@ -145,6 +145,29 @@
         {
             return LocalTransform;
         }
+
+        public List<T> FindShapes<T>()
+        {
+            List<T> output = new List<T>();
+
+            foreach (var component in Components)
+            {
+                if (component is MeshRendererComponent renderer)
+                {
+                    if (renderer.Mesh is T shape)
+                    {
+                        output.Add(shape);
+                    }
+                }
+            }
+
+            return output;
+        }
+
+        public List<T> GetComponents<T>()
+        {
+            return Components.OfType<T>().ToList();
+        }
     }
 
 

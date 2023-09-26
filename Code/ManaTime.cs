@@ -17,6 +17,14 @@
         public double FramesPerSecondAvg { get { return History.Average(x => 1.0 / (x.TotalSeconds != 0 ? x.TotalSeconds : 1.0)); } }
 
         public DateTime LastUpdate = DateTime.Now;
+        public Vector4 EncodedDateTime
+        {
+            get
+            {
+                var now = DateTime.Now;
+                return new Vector4(now.Year, now.Month - 1, now.Day - 1, now.Hour * 3600 + now.Minute * 60 + now.Second);
+            }
+        }
 
         public TimeSpan[] History = new TimeSpan[300];
         public int HistoryIndex = 0;

@@ -1,7 +1,29 @@
-﻿namespace Mana.Code
+﻿using Silk.NET.Assimp;
+
+namespace Mana.Code
 {
     public class ManaDynamicGeometryContainer
     {
+        internal readonly static Matrix4x4[] CubeFaceRotations = new Matrix4x4[]
+        {
+            Matrix4x4.CreateRotationY(0 * 90.0f.ToRadians(), Vector3.Zero),
+            Matrix4x4.CreateRotationY(1 * 90.0f.ToRadians(), Vector3.Zero),
+            Matrix4x4.CreateRotationY(2 * 90.0f.ToRadians(), Vector3.Zero),
+            Matrix4x4.CreateRotationY(3 * 90.0f.ToRadians(), Vector3.Zero),
+            Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
+            Matrix4x4.CreateRotationX(-1 * 90.0f.ToRadians(), Vector3.Zero),
+        };
+
+        internal readonly static Matrix4x4[] CubeFaceScales = new Matrix4x4[]
+        {
+                 Matrix4x4.CreateRotationY(0 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationY(1 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationY(0 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationY(1 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
+                 Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
+        };
+
         public List<ManaGeometryVertex> DisconnectedPoints = new List<ManaGeometryVertex>();
         public List<ManaGeometryVertex> Verts = new List<ManaGeometryVertex>();
         public List<ManaGeometryFace> Faces = new List<ManaGeometryFace>();
@@ -95,14 +117,15 @@
             CreateFacesFromPoints(verts.ToList());
         }
 
-        public ManaGeometryQuad[] AddQuad(Vector3 quadSize, Matrix4x4 rotation, Matrix4x4 scale, Vector4 color)
+        public ManaGeometryQuad[] AddQuad(Vector3 positionOffset, Vector3 quadSize, Matrix4x4 rotation, Matrix4x4 scale, Vector4 color)
         {
             var cR = Vector3.Transform(quadSize * 0.5f, scale);
-
-            var va = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), rotation);
-            var vb = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), rotation);
-            var vc = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), rotation);
-            var vd = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), rotation);
+            
+            var va = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), rotation) + positionOffset;
+            var vb = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), rotation) + positionOffset;
+            var vc = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), rotation) + positionOffset;
+            var vd = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), rotation) + positionOffset;
+            
 
             var verts = AddVertexRange
             (
@@ -140,6 +163,16 @@
             );
 
             return CreateQuadsFromPoints(verts.ToList());
+        }
+
+        public void AddCube(Vector3 position, Vector3 cubeSize, Vector4 color)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                var rotation = CubeFaceRotations[i];
+                var scaleRotation = CubeFaceScales[i];
+                AddQuad(position, cubeSize, rotation, scaleRotation, color);
+            }
         }
 
 
@@ -291,9 +324,7 @@
                 Faces.Add(face);
             }
         }
-
-
-
+        
         public List<uint> Indexes
         {
             get

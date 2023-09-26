@@ -1,5 +1,20 @@
-﻿#include "_Header.inl"
+﻿#version 330 core
 
+layout(location = 0) out vec4 FragColor;
+
+uniform vec3      iResolution;
+uniform float     iTime;
+uniform float     iChannelTime[4];
+uniform vec4      iMouse;
+uniform vec4      iDate;
+uniform float     iSampleRate;
+uniform vec3      iChannelResolution[4];
+uniform int       iFrame;
+uniform float     iTimeDelta;
+uniform float     iFrameRate;
+uniform sampler2D iChannel0;
+uniform sampler2D iChannel1;
+uniform sampler2D iChannel2;
 
 #define smoothing      0.006
 #define TWO_PI 6.28318530718
@@ -383,4 +398,21 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 }
 
 
-#include "_Footer.inl"
+
+in vec2 TexCoords;
+
+void main(void)
+{
+    FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 color = vec4(1e20);
+    mainImage(color, TexCoords);
+    color.w = 1.0;
+    if (FragColor.w < 0.0) color = vec4(1.0, 0.0, 0.0, 1.0);
+    if (FragColor.x < 0.0) color = vec4(1.0, 0.0, 0.0, 1.0);
+    if (FragColor.y < 0.0) color = vec4(0.0, 1.0, 0.0, 1.0);
+    if (FragColor.z < 0.0) color = vec4(0.0, 0.0, 1.0, 1.0);
+    if (FragColor.w < 0.0) color = vec4(1.0, 1.0, 0.0, 1.0);
+    FragColor = vec4(color.xyz, 1.0);
+}
+
+

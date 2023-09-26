@@ -10,10 +10,12 @@ namespace Mana.Code
         public IWindow Window { get; set; }
 
         public ManaWorld World { get; private set; }
+        
+        public BaseGameMode GameMode { get; set; }
 
-        public ManaContext()
+        public ManaContext(BaseGameMode gameMode)
         {
-            //Empty Context
+            GameMode = gameMode;
         }
 
         public ManaContext(IWindow window, GL gl, IInputContext input, ManaWorld world)

@@ -19,6 +19,7 @@ layout (location = 4) in vec2 aCoord2;
 out vec2 TexCoords;
 out vec3 WorldPos;
 out vec3 Normal;
+out vec4 Color;
 
 uniform mat4 projection;
 uniform mat4 view;
@@ -30,6 +31,7 @@ void main()
     TexCoords = aTexCoords;
     WorldPos = vec3(model * vec4(aPos, 1.0));
     Normal = normalMatrix * aNormal;   
+    Color = aColor;
 
     gl_Position =  projection * view * vec4(WorldPos, 1.0);
 }

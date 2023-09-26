@@ -61,7 +61,7 @@
         public override void DrawComponent()
         {
             base.DrawComponent();
-            if (Mesh == null)
+            if (Mesh == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
                 return;
             }

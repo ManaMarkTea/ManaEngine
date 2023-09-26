@@ -1,4 +1,8 @@
-﻿uniform vec3      iResolution;
+﻿#version 330 core
+
+layout(location = 0) out vec4 FragColor;
+
+uniform vec3      iResolution;
 uniform float     iTime;
 uniform float     iChannelTime[4];
 uniform vec4      iMouse;

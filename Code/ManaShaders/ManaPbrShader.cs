@@ -11,8 +11,13 @@
             CacheShader("Assets/Shaders/LearnSpecular/irradiance_convolution.frag");
             //CacheShader("Assets/Shaders/LearnSpecular/pbr.frag");
             CacheShader("Assets/Shaders/LearnSpecularTextured/pbr.frag");
-            CacheShader("Assets/Shaders/LearnSpecular/pbr.vert");
+            CacheShader("Assets/Shaders/LearnSpecularTextured/pbr.vert");
             CacheShader("Assets/Shaders/LearnSpecular/prefilter.frag");
+            
+            // For fun:
+            CacheShader("Assets/Shaders/Math/FractalGlowRings.frag");
+            CacheShader("Assets/ShaderToys/Sunflowers.frag");
+            
         }
 
         public ManaPbrShader(ManaContext context) : base(context)
@@ -26,20 +31,20 @@
             BindShader();
 
             // Environment
-            FindUniform("irradianceMap")?.SetValue(0);
-            FindUniform("prefilterMap")?.SetValue(1);
-            FindUniform("brdfLUT")?.SetValue(2);
+            CompiledShader.FindUniform("irradianceMap")?.SetValue(0);
+            CompiledShader.FindUniform("prefilterMap")?.SetValue(1);
+            CompiledShader.FindUniform("brdfLUT")?.SetValue(2);
 
             // Textures
-            FindUniform("albedoMap")?.SetValue(3);
-            FindUniform("normalMap")?.SetValue(4);
-            FindUniform("metallicMap")?.SetValue(5);
-            FindUniform("roughnessMap")?.SetValue(6);
-            FindUniform("aoMap")?.SetValue(7);
+            CompiledShader.FindUniform("albedoMap")?.SetValue(3);
+            CompiledShader.FindUniform("normalMap")?.SetValue(4);
+            CompiledShader.FindUniform("metallicMap")?.SetValue(5);
+            CompiledShader.FindUniform("roughnessMap")?.SetValue(6);
+            CompiledShader.FindUniform("aoMap")?.SetValue(7);
 
             // Colors
-            FindUniform("albedo")?.SetValue(0.5f, 0.0f, 0.0f);
-            FindUniform("ao")?.SetValue(1.0f);
+            CompiledShader.FindUniform("albedo")?.SetValue(0.5f, 0.0f, 0.0f);
+            CompiledShader.FindUniform("ao")?.SetValue(1.0f);
 
             UnbindShader();
         }
@@ -58,12 +63,12 @@
                 Irradiance?.Texture?.Bind(0);
                 Prefilter?.Texture?.Bind(1);
                 Brdf?.Texture?.Bind(2);
-                FindUniform("albedoMap")?.SetValue(3);
-                FindUniform("normalMap")?.SetValue(4);
-                FindUniform("emissionMap")?.SetValue(5);
-                FindUniform("metallicMap")?.SetValue(6);
-                FindUniform("roughnessMap")?.SetValue(7);
-                FindUniform("aoMap")?.SetValue(8);
+                CompiledShader.FindUniform("albedoMap")?.SetValue(3);
+                CompiledShader.FindUniform("normalMap")?.SetValue(4);
+                CompiledShader.FindUniform("emissionMap")?.SetValue(5);
+                CompiledShader.FindUniform("metallicMap")?.SetValue(6);
+                CompiledShader.FindUniform("roughnessMap")?.SetValue(7);
+                CompiledShader.FindUniform("aoMap")?.SetValue(8);
 
                 renderer.ApplyLights(this);
             }
@@ -75,7 +80,7 @@
             material.Roughness.Bind(7);
             material.Ambient.Bind(8);
 
-            FindUniform("normalMapSelection")?.SetValue(material.NormalSelector);
+            CompiledShader.FindUniform("normalMapSelection")?.SetValue(material.NormalSelector);
         }
 
         protected override string CleanSource(string source)

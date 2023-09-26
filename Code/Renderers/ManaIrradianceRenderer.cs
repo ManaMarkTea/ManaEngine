@@ -159,12 +159,12 @@ namespace Mana.Code.Renderers
             
         }
 
-        private static Vector3[] lightPositions =
+        private static Vector4[] lightPositions =
         {
-            new Vector3(-10.0f,  10.0f, 10.0f),
-            new Vector3( 10.0f,  10.0f, 10.0f),
-            new Vector3(-10.0f, -10.0f, 10.0f),
-            new Vector3( 10.0f, -10.0f, 10.0f),
+            new Vector4(-10.0f,  10.0f, 10.0f, 1.0f),
+            new Vector4( 10.0f,  10.0f, 10.0f, 1.0f),
+            new Vector4(-10.0f, -10.0f, 10.0f, 1.0f),
+            new Vector4( 1, 1, -1, 0.0f),
         };
 
         private static Vector3[] lightColors =

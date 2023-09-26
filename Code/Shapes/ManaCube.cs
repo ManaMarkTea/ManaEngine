@@ -48,7 +48,7 @@
             {
                 var rotation = rotations[i];
                 var scaleRotation = scaleRotations[i];
-                DynamicGeometryContainer.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor);
+                DynamicGeometryContainer.AddQuad(Vector3.Zero, c, rotation, scaleRotation, this.DefaultVertexColor);
             }
 
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);

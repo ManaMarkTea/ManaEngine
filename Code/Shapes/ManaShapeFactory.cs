@@ -72,5 +72,13 @@ namespace Mana.Code.Shapes
             Scene.Children.Add(extraCube);
             return extraCube;
         }
+
+        public ManaSceneNode AddVoxels(Vector3 position)
+        {
+            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaVoxelShape(Context)));
+            Scene.Children.Add(extraCube);
+            return extraCube;
+        }
     }
 }

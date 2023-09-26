@@ -51,6 +51,7 @@
     <None Remove="Assets\Shaders\LearnSpecular\pbr.frag" />
     <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
     <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
+    <None Remove="Assets\Shaders\Math\FractalGlowRings.frag" />
     <None Remove="Assets\Shaders\WebGpu\shader.wgsl" />
     <None Remove="Assets\Textures\DebugTexture_Grid.png" />
     <None Remove="Assets\Textures\Environments\chromatic.jpg" />
@@ -215,6 +216,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Shaders\LearnSpecular\prefilter.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Shaders\Math\FractalGlowRings.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Shaders\WebGpu\shader.wgsl">
@@ -477,6 +481,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Shaders\ratio.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\ShaderToys\Sunflowers.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">

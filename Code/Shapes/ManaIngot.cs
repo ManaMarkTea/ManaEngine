@@ -49,7 +49,7 @@
             {
                 var rotation = rotations[i];
                 var scaleRotation = scaleRotations[i];
-                builtQuad = DynamicGeometryContainer.AddQuad(c, rotation, scaleRotation, this.DefaultVertexColor)[0];
+                builtQuad = DynamicGeometryContainer.AddQuad(Vector3.Zero, c, rotation, scaleRotation, this.DefaultVertexColor)[0];
             }
 
             builtQuad.A.Position = builtQuad.A.Position - (builtQuad.A.Position - builtQuad.Center).Normalized() * 0.25f;

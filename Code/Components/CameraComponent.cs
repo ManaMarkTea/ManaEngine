@@ -21,7 +21,7 @@ namespace Mana
         public Vector3[] ViewAxes { get; internal set; } = new Vector3[3];
 
 
-        float _MovementSpeed = 2000;
+        float _MovementSpeed = 200;
         int _MouseAverageSize = 4;
         Vector2 _MouseSensitivity = new(8.0f, 8.0f);
         Vector2 _LastMousePos;

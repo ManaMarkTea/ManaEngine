@@ -48,7 +48,7 @@ namespace Mana
 
         public Assimp _AssetImporter { get; set; }
         public string ActivePath { get; set; }
-        public ManaWorld() : base(new ManaContext())
+        public ManaWorld() : base(null)
         {
             Meshes = new List<ManaMesh>();
             Scenes = new List<ManaScene>();
@@ -71,7 +71,7 @@ namespace Mana
 
             Context.Window.Resize += _Window_Resize;
             CameraNode = new ManaSceneNode(context, Matrix4x4.Identity);
-            CameraNode.Position = new Vector3(0, 0, 5);
+            CameraNode.Position = new Vector3(20, 32, 90);
             CameraNode.Name = "MainCamera";
             MainCamera = new CameraComponent(CameraNode);
             CameraNode.Components.Add(MainCamera);

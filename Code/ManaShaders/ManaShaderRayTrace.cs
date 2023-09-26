@@ -38,37 +38,37 @@ namespace Mana.Code.ManaShaders
                 return false;
             }
 
-            this.UniformMap[$@"spheres[{index}].position"].SetValue(sphereNode.Position);
-            this.UniformMap[$@"spheres[{index}].material.color"].SetValue(sphere.DefaultVertexColor);
+            CompiledShader.UniformMap[$@"spheres[{index}].position"].SetValue(sphereNode.Position);
+            CompiledShader.UniformMap[$@"spheres[{index}].material.color"].SetValue(sphere.DefaultVertexColor);
 
             if (renderer.Material.EmissionStrength == 0)
             {
-                this.UniformMap[$@"spheres[{index}].material.emission"].SetValue(sphere.DefaultVertexColor);
+                CompiledShader.UniformMap[$@"spheres[{index}].material.emission"].SetValue(sphere.DefaultVertexColor);
             }
             else
             {
-                this.UniformMap[$@"spheres[{index}].material.emission"].SetValue(renderer.Material.Emission.Value);
+                CompiledShader.UniformMap[$@"spheres[{index}].material.emission"].SetValue(renderer.Material.Emission.Value);
             }
 
-            this.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissionStrength);
-            this.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness.Value);
-            this.UniformMap[$@"spheres[{index}].material.specularColor"].SetValue(Colors.White);
-            this.UniformMap[$@"spheres[{index}].material.specularColorScatterChance"].SetValue(renderer.Material.Ambient.Value);
-            this.UniformMap[$@"spheres[{index}].radius"].SetValue(sphereNode.Scale.X * 0.25f);
+            CompiledShader.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissionStrength);
+            CompiledShader.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness.Value);
+            CompiledShader.UniformMap[$@"spheres[{index}].material.specularColor"].SetValue(Colors.White);
+            CompiledShader.UniformMap[$@"spheres[{index}].material.specularColorScatterChance"].SetValue(renderer.Material.Ambient.Value);
+            CompiledShader.UniformMap[$@"spheres[{index}].radius"].SetValue(sphereNode.Scale.X * 0.25f);
             return true;
         }
         public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             base.BindShader(material, objectMatrix, camera);
 
-            this.UniformMap[$@"RayCasts"].SetValue(RayCasts);
-            this.UniformMap[$@"MaxBounces"].SetValue(MaxBounces);
+            CompiledShader.UniformMap[$@"RayCasts"].SetValue(RayCasts);
+            CompiledShader.UniformMap[$@"MaxBounces"].SetValue(MaxBounces);
 
 
-            this.UniformMap[$@"ViewPosition"].SetValue(camera.Owner.Position);
-            this.UniformMap[$@"ViewRight"].SetValue(camera.Owner.Right);
-            this.UniformMap[$@"ViewUp"].SetValue(camera.Owner.Up);
-            this.UniformMap[$@"ViewForward"].SetValue(camera.Owner.Forward);
+            CompiledShader.UniformMap[$@"ViewPosition"].SetValue(camera.Owner.Position);
+            CompiledShader.UniformMap[$@"ViewRight"].SetValue(camera.Owner.Right);
+            CompiledShader.UniformMap[$@"ViewUp"].SetValue(camera.Owner.Up);
+            CompiledShader.UniformMap[$@"ViewForward"].SetValue(camera.Owner.Forward);
 
             int index = 0;
             foreach (var scene in Context.World.Scenes)
@@ -96,7 +96,7 @@ namespace Mana.Code.ManaShaders
                 }
             }
 
-            this.UniformMap[$@"numSpheres"].SetValue(index);
+            CompiledShader.UniformMap[$@"numSpheres"].SetValue(index);
 
         }
 

@@ -40,14 +40,14 @@ namespace Mana.Code
         {
             LoadShader(shaderFiles["pbr.vert"], shaderFiles["pbr.frag"]);
             BindShader();
-            this.UniformMap["irradianceMap"].SetValue(0);
-            this.UniformMap["prefilterMap"].SetValue(1);
-            this.UniformMap["brdfLUT"].SetValue(2);
-            this.UniformMap["albedoMap"].SetValue(3);
-            this.UniformMap["normalMap"].SetValue(4);
-            this.UniformMap["metallicMap"].SetValue(5);
-            this.UniformMap["roughnessMap"].SetValue(6);
-            this.UniformMap["aoMap"].SetValue(7);
+            CompiledShader.UniformMap["irradianceMap"].SetValue(0);
+            CompiledShader.UniformMap["prefilterMap"].SetValue(1);
+            CompiledShader.UniformMap["brdfLUT"].SetValue(2);
+            CompiledShader.UniformMap["albedoMap"].SetValue(3);
+            CompiledShader.UniformMap["normalMap"].SetValue(4);
+            CompiledShader.UniformMap["metallicMap"].SetValue(5);
+            CompiledShader.UniformMap["roughnessMap"].SetValue(6);
+            CompiledShader.UniformMap["aoMap"].SetValue(7);
             UnbindShader();
         }
 

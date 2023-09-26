@@ -81,7 +81,7 @@ namespace Mana.Code
 
         public void update(double deltaTime)
         {
-            UpdateFrame++;
+            UpdateFrame++;            
 
             // Make sure ImGui is up-to-date
             _ImGui.Update((float)deltaTime);
@@ -141,7 +141,7 @@ namespace Mana.Code
                 return;
             }
 
-            //Trace.WriteLine($"{severity} {type} | {messageString}");
+            Trace.WriteLine($"{severity} {type} | {messageString}");
 
             if (type == GLEnum.DebugTypeError)
             {
