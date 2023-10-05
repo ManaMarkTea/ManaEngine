@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using ManaVoxel.Code.Loaders;
+using Silk.NET.SDL;
 using System.Diagnostics;
 
 namespace Mana.Code.GameModes
@@ -14,6 +15,8 @@ namespace Mana.Code.GameModes
         public override void Load()
         {
             base.Load();
+
+            Context.Window.FileDrop += Window_FileDrop;
 
             ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
 
@@ -35,6 +38,26 @@ namespace Mana.Code.GameModes
 
             voxelShapes[0].CommitData();
             
+        }
+
+        Vector3 startImportPos = new Vector3(30.0f, 0, 20);
+        Vector3 lastImportPos = new Vector3(30.0f, 0, 20);
+        private void Window_FileDrop(string[] files)
+        {
+            foreach (var file in files)
+            {
+                var fileWorld = Context.World;
+                var model = fileWorld.LoadFromGltf(file);                
+                model.Position = lastImportPos;
+                lastImportPos.X += 2.0f;
+
+                if (lastImportPos.X > startImportPos.X + 30)
+                {
+                    lastImportPos.X = startImportPos.X;
+                    lastImportPos.Z += 2.0f;
+                }                
+            }
+
         }
 
         public override void Update(double deltaTime)

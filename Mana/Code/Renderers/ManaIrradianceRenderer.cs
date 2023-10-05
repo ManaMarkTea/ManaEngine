@@ -113,6 +113,7 @@ namespace Mana.Code.Renderers
         public override void Clear()
         {
             Context.gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+
         }
 
         public void ClearDepth()
@@ -168,19 +169,19 @@ namespace Mana.Code.Renderers
 
         private static Vector3[] lightPositions =
         {
-            new Vector3(-10.0f,  10.0f, 10.0f),
-            new Vector3( 10.0f,  10.0f, 10.0f),
-            new Vector3(-10.0f, -10.0f, 10.0f),
-            new Vector3( 10.0f, -10.0f, 10.0f),
+            new Vector3(-100.0f,  100.0f, 100.0f),
+            new Vector3( 100.0f,  100.0f, 100.0f),
+            new Vector3(-100.0f, -100.0f, 100.0f),
+            new Vector3( 100.0f, -100.0f, 100.0f),
         };
 
         
         private static Vector3[] lightColors =
         {
-            new Vector3(300.0f, 300.0f, 300.0f),
-            new Vector3(300.0f, 300.0f, 300.0f),
-            new Vector3(300.0f, 300.0f, 300.0f),
-            new Vector3(300.0f, 300.0f, 300.0f)
+            new Vector3(8000.0f, 8000.0f, 8000.0f),
+            new Vector3(8000.0f, 8000.0f, 8000.0f),
+            new Vector3(8000.0f, 8000.0f, 8000.0f),
+            new Vector3(8000.0f, 8000.0f, 8000.0f)
         };
 
 

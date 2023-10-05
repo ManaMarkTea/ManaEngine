@@ -1,4 +1,6 @@
 ﻿using ImGuiNET;
+using Mana.Code.Materials;
+using Mana.Code.Shapes.Loaders;
 using Silk.NET.Assimp;
 using System.Diagnostics;
 
@@ -7,7 +9,7 @@ namespace Mana
     public struct ManaPerformanceLog
     {
         public string Name { get; set; }
-        public TimeSpan Duration { get; set; }        
+        public TimeSpan Duration { get; set; }
     }
 
     public class ManaWorld : ManaObject
@@ -45,9 +47,7 @@ namespace Mana
         public CameraComponent MainCamera;
 
         public ManaRenderer Renderer;
-
-        public Assimp _AssetImporter { get; set; }
-        public string ActivePath { get; set; }
+        
         public ManaWorld() : base(null)
         {
             Meshes = new List<ManaMesh>();
@@ -92,42 +92,21 @@ namespace Mana
         }
        
 
-        public unsafe void LoadFromGltf(string sceneFile)
+        public unsafe ManaSceneNode LoadFromGltf(string sceneFile)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            _AssetImporter = Assimp.GetApi();
-
-            var scene = _AssetImporter.ImportFile(sceneFile, (uint)PostProcessSteps.Triangulate);
-            ActivePath = System.IO.Path.GetDirectoryName(sceneFile);
-
-            if (scene == null || scene->MFlags == Silk.NET.Assimp.Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
-            {
-                var error = _AssetImporter.GetErrorStringS();
-                throw new Exception(error);
-            }
-
-            for (int i = 0; i < scene->MNumMaterials; i++)
-            {
-                var material = scene->MMaterials[i];
-
-                ManaMaterial manaMaterial = ManaMaterialLoaderGltf.LoadFromGltf(Context, material);
-                Materials.Add(manaMaterial);
-            }
-
-            for (int i = 0; i < scene->MNumMeshes; i++)
-            {
-                var mesh = scene->MMeshes[i];
-                ManaMesh model = ManaMeshLoaderGltf.LoadFromGltf(Context, mesh);
-                Meshes.Add(model);
-            }
-
-            ManaScene manaScene = new ManaScene(Context);
-            manaScene.LoadFromGltf(scene);
-            Scenes.Add(manaScene);
+            ManaGltfLoader loader = new ManaGltfLoader(Context);
+            var rootSceneNode = loader.LoadFile(sceneFile);
 
             stopwatch.Stop();
             manaPerformanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
+
+            Scenes.AddRange(loader.Scenes);
+            Meshes.AddRange(loader.Meshes);
+            Materials.AddRange(loader.Materials);
+
+            return rootSceneNode;
         }
 
         private void RunFutures(List<Action> futures, List<Action> activeFutures)

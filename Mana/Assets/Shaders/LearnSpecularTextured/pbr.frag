@@ -94,15 +94,26 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 // ----------------------------------------------------------------------------
 void main()
 {		
+    vec3 tint = Color.rgb;
     // material properties
-    vec3 albedo = pow(texture(albedoMap, TexCoords).rgb * Color.rgb, vec3(2.2));
-    
+    //vec3 albedo = pow(texture(albedoMap, TexCoords).rgb * Color.rgb, vec3(2.2));
+    vec3 albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.0));
+
+    albedo *= tint;
+
     float metallic = texture(metallicMap, TexCoords).r;
     float roughness = texture(roughnessMap, TexCoords).r;
     float ao = texture(aoMap, TexCoords).r;
        
     // input lighting data
     vec3 N = mix(getNormalFromMap(), Normal, normalMapSelection);
+
+    // There seems to be a bug in get from normal map, that results in noise instead on flat normals
+    if (normalMapSelection == 1.0f)
+    {
+        N = Normal;
+    }
+
     //vec3 N = normalize(Normal);
     vec3 V = normalize(camPos - WorldPos);
     vec3 R = reflect(-V, N); 
@@ -182,6 +193,8 @@ void main()
 
     FragColor = vec4(color , 1.0);
 
+    //FragColor = vec4(albedo.xyz, 1.0);
+    //FragColor = vec4(albedoPure.xyz, 1.0);    
     //FragColor = vec4(metallic, 0.0, 0.0 , 1.0);
     //FragColor = vec4(roughness, 0.0, 0.0 , 1.0);
     //FragColor = vec4(specular, 1.0);

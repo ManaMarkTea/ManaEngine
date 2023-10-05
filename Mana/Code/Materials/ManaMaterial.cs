@@ -33,11 +33,13 @@
             var shader = new ManaPbrShader(context);
             Shader = shader;
 
+            Random r = new Random();            
+
             Albedo = new ManaTextureVector4(Context, Colors.Orange);
-            Normal = new ManaTextureVector4(Context, Vector4.UnitX);
-            Emission = new ManaTextureVector4(Context, Colors.Black);
-            Metallic = new ManaTextureSingle(Context, 0.5);
-            Roughness = new ManaTextureSingle(Context, 0.5);
+            Normal = new ManaTextureVector4(Context, new Vector4((float)r.NextDouble(), (float)r.NextDouble(), (float)r.NextDouble(), 1.0f));
+            Emission = new ManaTextureVector4(Context, Colors.Cyan);
+            Metallic = new ManaTextureSingle(Context, 0);
+            Roughness = new ManaTextureSingle(Context, 1);
             Ambient = new ManaTextureSingle(Context, 0.25);
         }
 
@@ -47,11 +49,12 @@
         public void Bind(Matrix4x4 objectMatrix, ManaSceneNode? owner = null)
         {
             int i = 0;
+
             foreach (var texture in Channels)
             {
                 if (texture.Value.Texture != null)
                 {
-                    texture.Value.Texture.Bind(i++);
+                   texture.Value.Texture.Bind(i++);
                 }
             }
 

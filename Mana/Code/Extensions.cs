@@ -104,8 +104,8 @@ namespace Mana
 
         public static Quaternion ToQuaternionFromEuler(this Vector3 eulerAngles)
         {
-            return Quaternion.CreateFromYawPitchRoll(eulerAngles.Y, eulerAngles.X, eulerAngles.Z);
-            //return Quaternion.CreateFromYawPitchRoll(eulerAngles.X, eulerAngles.Y, eulerAngles.Z);
+            //return Quaternion.CreateFromYawPitchRoll(eulerAngles.Y, eulerAngles.X, eulerAngles.Z);
+            return Quaternion.CreateFromYawPitchRoll(eulerAngles.X, eulerAngles.Y, eulerAngles.Z);
         }
 
         public static Vector3 Transform(this Vector3 value, Matrix4x4 transform)

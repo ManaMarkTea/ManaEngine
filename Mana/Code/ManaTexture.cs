@@ -210,7 +210,7 @@ namespace Mana
                 case 8: gl.ActiveTexture(TextureUnit.Texture8); break;
                 case 9: gl.ActiveTexture(TextureUnit.Texture9); break;
             }
-
+            
             if (Handle > 0)
             {
                 gl.BindTexture(TextureTargetType, Handle);

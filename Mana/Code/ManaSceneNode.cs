@@ -61,9 +61,10 @@
             Children = new List<ManaSceneNode>();
             Components = new List<ManaComponent>();
 
-            Rotation = Quaternion.CreateFromRotationMatrix(localTransform).ToEuler();
-            Position = localTransform.Translation;
-            Scale = Vector3.One;
+            Matrix4x4.Decompose(localTransform, out Vector3 dScale, out Quaternion dRotation, out Vector3 dPosition);
+            Rotation = dRotation.ToEuler();
+            Position = dPosition;
+            Scale = dScale;
         }
 
         public void AddChild(ManaSceneNode child)
@@ -84,9 +85,11 @@
 
         public void UpdateTransform()
         {
-            LocalTransform = Matrix4x4.CreateScale(Scale);
+            LocalTransform = Matrix4x4.Identity;
+            LocalTransform *= Matrix4x4.CreateScale(Scale);
             LocalTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
             LocalTransform *= Matrix4x4.CreateTranslation(Position);
+            
 
             if (Parent != null)
             {

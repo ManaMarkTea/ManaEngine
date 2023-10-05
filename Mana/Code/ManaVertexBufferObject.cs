@@ -74,6 +74,12 @@ namespace Mana
             this.colors = colors;
             this.textureCoordinates0 = textureCoordinates0;
             this.textureCoordinates1 = textureCoordinates1;
+
+            if (colors.Length == 0)
+            {
+                this.colors = new Vector4[positions.Length];
+                Parallel.For(0, this.colors.Length, c => this.colors[c] = Vector4.One);
+            }
         }
 
 
