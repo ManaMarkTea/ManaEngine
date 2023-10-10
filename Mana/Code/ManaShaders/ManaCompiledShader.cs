@@ -37,6 +37,7 @@ namespace Mana.Code.ManaShaders
             public static ManaSemantic ViewMatrix = new ManaSemantic(new string[] { "view", "viewMatrix" });
             public static ManaSemantic NormalMatrix = new ManaSemantic(new string[] { "normalMatrix" });
             public static ManaSemantic BaseColor = new ManaSemantic(new string[] { });
+            public static ManaSemantic ObjectPosition = new ManaSemantic(new string[] { "objPos", "object", "obj" });
             public static ManaSemantic CameraPosition = new ManaSemantic(new string[] { "camPos", "gEyeWorldPos" });
 
             // Shader Toy Common Semantics
@@ -219,6 +220,8 @@ namespace Mana.Code.ManaShaders
                 }
 
                 ManaSemantics.CameraPosition.Apply(uniform, () => gl.Uniform3(uniform.location, camera.Owner.Position));
+                
+                ManaSemantics.ObjectPosition.Apply(uniform, () => gl.Uniform3(uniform.location, owner.Position));
 
                 ManaSemantics.ModelViewProjectionMatrix.Apply(uniform, () =>
                 {

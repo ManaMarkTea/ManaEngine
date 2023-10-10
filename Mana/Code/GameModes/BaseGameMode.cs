@@ -150,6 +150,11 @@ namespace Mana.Code
                     return;
                 }
 
+                if (messageString.Contains("linked"))
+                {
+                    return;
+                }
+
                 throw new Exception(messageString);
             }
         }

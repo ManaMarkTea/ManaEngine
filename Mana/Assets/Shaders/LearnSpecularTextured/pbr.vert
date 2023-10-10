@@ -26,6 +26,7 @@ uniform mat4 view;
 uniform mat4 model;
 uniform mat3 normalMatrix;
 
+
 void main()
 {
     TexCoords = aTexCoords;

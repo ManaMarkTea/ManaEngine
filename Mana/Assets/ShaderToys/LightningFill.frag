@@ -24,14 +24,14 @@ uniform sampler2D iChannel2;
 // Contact the author for other licensing options
 
 //looks best with around 25 rays
-#define NUM_RAYS 13.
+#define NUM_RAYS 6.
 
-#define VOLUMETRIC_STEPS 19
+#define VOLUMETRIC_STEPS 9
 
 #define MAX_ITER 35
-#define FAR 6.
+#define FAR 130.
 
-#define time iTime*1.1
+#define time iTime*0.8
 
 
 mat2 mm2(in float a){float c = cos(a), s = sin(a);return mat2(c,-s,s,c);}
@@ -106,13 +106,15 @@ vec3 path(in float i, in float d)
     return en;
 }
 
+uniform float ballThickness = 0.2;
+
 vec2 map(vec3 p, float i)
 {
 	float lp = length(p);
     vec3 bg = vec3(0.);   
     vec3 en = path(i,lp);
     
-    float ins = smoothstep(0.11,.46,lp);
+    float ins = smoothstep(ballThickness,.46,lp);
     float outs = .15+smoothstep(.0,.15,abs(lp-1.));
     p *= ins*outs;
     float id = ins*outs;
@@ -153,7 +155,7 @@ vec3 vmarch(in vec3 ro, in vec3 rd, in float j, in vec3 orig)
         col.rgb *= smoothstep(.0,.015,-r.x);
         col *= smoothstep(0.04,.2,abs(lp-1.1));
         col *= smoothstep(0.1,.34,lp);
-        sum += abs(col)*5. * (1.2-noise(lp*2.+j*13.+time*5.)*1.1) / (log(distance(p,orig)-2.)+.75);
+        sum += abs(col)*9. * (1.2-noise(lp*2.+j*13.+time*5.)*1.1) / (log(distance(p,orig)-2.)+.75);
     }
     return sum;
 }
@@ -173,7 +175,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {	
 	vec2 p = fragCoord.xy;
     p.x -= 0.5f;
-    p.y += 0.5f;
+    p.y -= -0.5f;
 
 	vec2 um = vec2(0,0);
     
@@ -209,7 +211,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     vec2 sph = iSphere2(ro,rd);
     
-    
+    if (sph.x > 0.)
+    {
         vec3 pos = ro+rd*sph.x;
         vec3 pos2 = ro+rd*sph.y;
         vec3 rf = reflect( rd, pos );
@@ -217,18 +220,64 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         float nz = (-log(abs(flow(rf*1.2,time)-.01)));
         float nz2 = (-log(abs(flow(rf2*1.2,-time)-.01)));
         col += (0.1*nz*nz* vec3(0.12,0.12,.5) + 0.05*nz2*nz2*vec3(0.55,0.2,.55))*0.8;
-    
+    }
     
 	fragColor = vec4(col*1.3, 1.0);
 }
 
+uniform mat4 view;
+uniform vec3 camPos;
+uniform vec3 objPos;
+in vec3 WorldPos;
+in vec3 Normal;
 
 in vec2 TexCoords;
+
+mat3 LookAt(vec3 eye, vec3 at) {
+
+	vec3 localUp = vec3(0, 1, 0); // temp sop space up vector
+	vec3 fwd = normalize(at - eye); // direction to look at position
+	vec3 right = normalize(cross(localUp, fwd)); // right vector of direction
+	vec3 up = normalize(cross(fwd, right)); // up vector of direction
+
+	return mat3(right, up, fwd);
+}
+
+float fresnel(float amount, vec3 normal, vec3 view)
+{
+	return pow((1.0 - clamp(dot(normalize(normal), normalize(view)), 0.0, 1.0 )), amount);
+}
+
+vec3 fresnel_glow(float amount, float intensity, vec3 color, vec3 normal, vec3 view)
+{
+	return pow((1.0 - dot(normalize(normal), normalize(view))), amount) * color * intensity;
+}
+
+void fragment()
+{
+	vec3 base_color = vec3(0.5, 0.2, 0.9);
+	vec3 fresnel_color = vec3(0.0, 0.7, 0.9);
+	vec3 fresnel = fresnel_glow(4.0, 4.5, fresnel_color, Normal, camPos);
+}
+
 
 void main(void)
 {
     FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     vec4 color = vec4(1e20);
+
+    mat3 lookat = LookAt(objPos, camPos);
+
+    vec2 rotatedTexCoords = (lookat* vec3(TexCoords, 1.0)).xy;
+
+	vec3 base_color = vec3(0.5, 0.2, 0.9);
+	vec3 fresnel_color = vec3(0.0, 0.7, 0.9);
+	vec3 fresnel = fresnel_glow(4.0, 4.5, fresnel_color, Normal, camPos-objPos);
+    
+    float u =  mix(0., 1., length(fresnel));
+    float v =  mix(0., 1., length(fresnel));
+    
+
     mainImage(color, TexCoords);
     color.w = 1.0;
     if (FragColor.w < 0.0) color = vec4(1.0, 0.0, 0.0, 1.0);
@@ -236,7 +285,11 @@ void main(void)
     if (FragColor.y < 0.0) color = vec4(0.0, 1.0, 0.0, 1.0);
     if (FragColor.z < 0.0) color = vec4(0.0, 0.0, 1.0, 1.0);
     if (FragColor.w < 0.0) color = vec4(1.0, 1.0, 0.0, 1.0);
-    FragColor = vec4(color.xyz, 1.0);
+    FragColor = vec4(color.xyz+fresnel, 1.0);
+    //FragColor = vec4(uv, 0.0, 1.0);
+    //FragColor = vec4(fresnel, 1.0);
+    //FragColor = vec4(Normal, 1.0);
+    //FragColor = vec4(rotatedTexCoords, 0.0, 1.0);
 }
 
 

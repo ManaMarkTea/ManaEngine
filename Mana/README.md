@@ -8,6 +8,8 @@ Rendering
 
 # Algorithms
 * https://google.github.io/filament/Filament.md.html#lighting/directlighting/directionallights
+* https://inspirnathan.com/posts/58-shadertoy-tutorial-part-12/ - Frensel
+* https://godotshaders.com/snippet/fresnel/
 
 # File Formats
 * https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox.txt
