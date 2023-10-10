@@ -10,7 +10,7 @@
 
         public ManaEnvironmentPrefilterShader(ManaContext context) : base(context)
         {
-            LoadShaderSource(shaderSources["cubemap.vert"], shaderSources["prefilter.frag"]);
+            LoadShaderSource(ShaderSources["cubemap.vert"], ShaderSources["prefilter.frag"]);
             BindShader();
 
 

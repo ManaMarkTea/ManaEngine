@@ -46,8 +46,12 @@ namespace Mana.Code.ManaShaders
         {
         }
 
-        public ManaCompiledShader GetCompiledShader(string vertSource, string fragSource, string geomSource = "")
+        public ManaCompiledShader GetCompiledShader(ShaderSource vertShaderSource, ShaderSource fragShaderSource, ShaderSource geomShaderSource)
         {
+            var vertSource = vertShaderSource.Source;
+            var fragSource = fragShaderSource.Source;
+            var geomSource = geomShaderSource != null ? geomShaderSource.Source : "";
+
             string allCode = vertSource + fragSource + geomSource;
             string hash = HashCode(allCode);
             if (!AllCompiledShaders.ContainsKey(hash))

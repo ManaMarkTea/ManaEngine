@@ -20,7 +20,7 @@
             EnvironmentTexture.OriginalFilename = environmentPath;
             EnvironmentTexture.Load();
 
-            LoadShaderSource(shaderSources["cubemap.vert"], shaderSources["equirectangular_to_cubemap.frag"]);
+            LoadShaderSource(ShaderSources["cubemap.vert"], ShaderSources["equirectangular_to_cubemap.frag"]);
             BindShader();
 
 

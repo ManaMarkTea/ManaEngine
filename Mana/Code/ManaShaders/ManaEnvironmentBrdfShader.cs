@@ -10,7 +10,7 @@
 
         public ManaEnvironmentBrdfShader(ManaContext context) : base(context)
         {
-            LoadShaderSource(shaderSources["brdf.vert"], shaderSources["brdf.frag"]);
+            LoadShaderSource(ShaderSources["brdf.vert"], ShaderSources["brdf.frag"]);
             BindShader();
 
 

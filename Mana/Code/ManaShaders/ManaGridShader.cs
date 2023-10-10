@@ -11,7 +11,7 @@
 
         public ManaGridShader(ManaContext context) : base(context)
         {
-            LoadShaderSource(shaderSources["grid.vert"], shaderSources["grid.frag"]);
+            LoadShaderSource(ShaderSources["grid.vert"], ShaderSources["grid.frag"]);
             BindShader();
             UnbindShader();
         }

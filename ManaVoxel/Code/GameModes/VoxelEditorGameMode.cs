@@ -24,6 +24,13 @@ namespace Mana.Code.GameModes
             var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, 64, 0, 64);
             var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, 64, 0, 64);
 
+            var liquid = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 2.0f);
+            if (liquid.Components[0] is MeshRendererComponent renderer)
+            {
+                renderer.Material.Shader = new ManaLiquidShader(Context);
+            }
+
+
             MagicaVoxLoader vox = new MagicaVoxLoader();
             vox.Load();
 

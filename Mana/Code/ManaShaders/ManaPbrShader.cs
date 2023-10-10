@@ -27,7 +27,7 @@
 
         public void LoadPBR()
         {
-            LoadShader(shaderFiles["pbr.vert"], shaderFiles["pbr.frag"]);
+            LoadShaderSource(ShaderSources["pbr.vert"], ShaderSources["pbr.frag"]);
             BindShader();
 
             // Environment

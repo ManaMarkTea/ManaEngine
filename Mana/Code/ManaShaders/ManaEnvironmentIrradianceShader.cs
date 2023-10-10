@@ -10,7 +10,7 @@
 
         public ManaEnvironmentIrradianceShader(ManaContext context) : base(context)
         {
-            LoadShaderSource(shaderSources["cubemap.vert"], shaderSources["irradiance_convolution.frag"]);
+            LoadShaderSource(ShaderSources["cubemap.vert"], ShaderSources["irradiance_convolution.frag"]);
             BindShader();
             UnbindShader();
         }

@@ -13,11 +13,11 @@
         {
             if (isCube)
             {
-                LoadShaderSource(shaderSources["basic_pos_uv.vert"], shaderSources["basic_texture_cube.frag"]);
+                LoadShaderSource(ShaderSources["basic_pos_uv.vert"], ShaderSources["basic_texture_cube.frag"]);
             }
             else
             {
-                LoadShaderSource(shaderSources["basic_pos_uv.vert"], shaderSources["basic_texture.frag"]);
+                LoadShaderSource(ShaderSources["basic_pos_uv.vert"], ShaderSources["basic_texture.frag"]);
             }
 
             BindShader();
