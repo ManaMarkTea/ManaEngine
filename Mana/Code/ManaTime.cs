@@ -46,5 +46,29 @@
 
             LastUpdate = now;
         }
+
+        public TimeSpan[] OrderedHistory()
+        {
+            TimeSpan[] history = new TimeSpan[History.Length];
+            
+            for (int i = 0; i < history.Length; i++)
+            {
+                int orderedI = (i + HistoryIndex) % History.Length;                
+                history[i] = History[orderedI];
+            }
+
+            return history;
+        }
+
+        public TimeSpan[] OrderedHistory(ref TimeSpan[] buffer)
+        {            
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                int orderedI = (i + HistoryIndex) % History.Length;
+                buffer[i] = History[orderedI];
+            }
+
+            return buffer;
+        }
     }
 }

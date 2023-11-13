@@ -1,20 +1,112 @@
-﻿using ImGuiNET;
+﻿using BepuPhysics;
+using BepuPhysics.Collidables;
+using BepuPhysics.Trees;
+using BepuUtilities;
+using BepuUtilities.Collections;
+using BepuUtilities.Memory;
+using ImGuiNET;
+using ManaVoxel.Code;
 using ManaVoxel.Code.Loaders;
 using Silk.NET.SDL;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 
 namespace Mana.Code.GameModes
 {
     public class VoxelEditorGameMode : BaseGameMode
     {
+        TimeSpan[] fpsData;
+
+        public Simulation Simulation { get; protected set; }
+        public BufferPool BufferPool { get; private set; }        
+        public ThreadDispatcher ThreadDispatcher { get; private set; }
+
+        public ManaSceneNode Cursor { get; private set; }
+
         public VoxelEditorGameMode()
         {
 
         }
 
+        struct RayHit
+        {
+            public Vector3 Position;
+            public Vector3 Normal;
+            public float T;
+            public CollidableReference Collidable;
+            public bool Hit;
+        }
+
+        struct HitHandler : IRayHitHandler
+        {
+            public Buffer<RayHit> Hits;
+            public int IntersectionCount;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool AllowTest(CollidableReference collidable)
+            {
+                return true;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool AllowTest(CollidableReference collidable, int childIndex)
+            {
+                return true;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void OnRayHit(in RayData ray, ref float maximumT, float t, Vector3 normal, CollidableReference collidable, int childIndex)
+            { 
+                maximumT = t;
+                ref var hit = ref Hits[ray.Id]; 
+                if (t < hit.T)
+                {
+                    if (hit.T == float.MaxValue)
+                    {
+                        ++IntersectionCount;
+                    }
+                     
+                    hit.Position = ray.Origin + ray.Direction * t;
+                    hit.Normal = normal;
+                    hit.T = t;
+                    hit.Collidable = collidable;
+                    hit.Hit = true;
+                }
+            }
+        }
+
+
         public override void Load()
         {
             base.Load();
+
+            BufferPool = new BufferPool();
+            var targetThreadCount = int.Max(1, Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
+            ThreadDispatcher = new ThreadDispatcher(targetThreadCount);
+
+            Simulation = Simulation.Create(BufferPool, new NoCollisionCallbacks(), new DemoPoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
+
+            var sphere = new Sphere(10);            
+            var capsule = new Capsule(0, 0.5f);
+            var box = new Box(0.5f, 1.5f, 1f);
+            var cylinder = new Cylinder(0.5f, 1);
+            const int pointCount = 16;
+            var points = new QuickList<Vector3>(pointCount, BufferPool);
+            var random = new Random(5);
+            for (int i = 0; i < pointCount; ++i)
+            {
+                points.AllocateUnsafely() = new Vector3(1 * random.NextSingle(), 1 * random.NextSingle(), 1 * random.NextSingle());
+            }
+            var hullShape = new ConvexHull(points, BufferPool, out _);
+            var sphereIndex = Simulation.Shapes.Add(sphere);
+            var capsuleIndex = Simulation.Shapes.Add(capsule);
+            var boxIndex = Simulation.Shapes.Add(box);
+            var cylinderIndex = Simulation.Shapes.Add(cylinder);
+            var hullIndex = Simulation.Shapes.Add(hullShape);
+
+
+            Simulation.Statics.Add(new StaticDescription(new Vector3(0,0,0), Quaternion.Identity, sphereIndex, ContinuousDetection.Continuous()));
+
 
             Context.Window.FileDrop += Window_FileDrop;
 
@@ -24,8 +116,8 @@ namespace Mana.Code.GameModes
             var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, 64, 0, 64);
             var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, 64, 0, 64);
 
-            var liquid = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 2.0f);
-            if (liquid.Components[0] is MeshRendererComponent renderer)
+            Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 0.5f);
+            if (Cursor.Components[0] is MeshRendererComponent renderer)
             {
                 renderer.Material.Shader = new ManaLiquidShader(Context);
             }
@@ -64,26 +156,56 @@ namespace Mana.Code.GameModes
                     lastImportPos.Z += 2.0f;
                 }                
             }
-
         }
 
+
+        public const float TimestepDuration = 1 / 60f;
         public override void Update(double deltaTime)
         {
             ImGui.SetNextWindowPos(new Vector2(this._Window.Size.X - 200, 15));
             ImGui.Begin("Mana");
             ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
-            //ImGui.PlotLines()
-            ImGui.End();
 
+            if (fpsData == null)
+            {
+                fpsData = new TimeSpan[ManaTime.GlobalTime.History.Length];
+            }
 
-
+            float[] data = ManaTime.GlobalTime.OrderedHistory(ref fpsData).Select((i) => (float)i.TotalMilliseconds).ToArray<float>();
+            ImGui.PlotLines("FPS", ref data[0], data.Length, 0, "fps", 0, 100, new Vector2(150, 90));            
+      
             var MouseState = Context.Input.Mice.First();
 
             var mouseStart = new Vector3(MouseState.Position, 0.0f);
             var mouseEnd = new Vector3(MouseState.Position, 1.0f);
-
+            
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+            var rayOrigin = ray.Origin;
+            var rayDirection = ray.Direction;
+
+
+
+            BufferPool.Take(1, out Buffer<RayHit> hits);
+            hits[0].T = float.MaxValue;
+            hits[0].Hit = false;
+        
+            var hitHandler = new HitHandler() { Hits = hits };
+            Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, ref hitHandler);
+
+            if (hitHandler.IntersectionCount > 0)
+            {
+                Cursor.Position = hits[0].Position;
+            }
+
+            ImGui.InputFloat3("RAY", ref rayOrigin);
+            ImGui.InputFloat3("DIR", ref rayDirection);
+
+            
+            ImGui.End();
+
+
+            Simulation.Timestep(TimestepDuration, ThreadDispatcher);
 
         }
 

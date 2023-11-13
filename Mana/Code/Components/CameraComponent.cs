@@ -220,29 +220,37 @@ namespace Mana
         }
 
         public Ray ProjectScreenToWorld(in Vector3 MousePositionStart,  in Vector3 MousePositionEnd)
-        {
-            Matrix4x4 inverseWorldMatrix;
-            Matrix4x4.Invert(_ProjectionMatrix * _ViewMatrix, out inverseWorldMatrix);
+        {            
+            Matrix4x4.Invert(_ViewMatrix * _ProjectionMatrix, out Matrix4x4 inverseWorldMatrix);
+            Matrix4x4.Invert(_ProjectionMatrix, out Matrix4x4 inverseProjectionMatrix);
+            Matrix4x4.Invert(_ViewMatrix, out Matrix4x4 inverseViewMatrix);
+
+            Matrix4x4 world = _ViewMatrix * _ProjectionMatrix;
 
             var windowSize = Context.Window.Size;
 
-            var start = new Vector3(MousePositionStart.X / windowSize.X, MousePositionStart.Y / windowSize.Y, MousePositionStart.Z);
-            var end = new Vector3(MousePositionEnd.X / windowSize.X, MousePositionEnd.Y / windowSize.Y, MousePositionEnd.Z);
+            Vector4 viewportCoordinate;
+            viewportCoordinate.X = 2.0f * MousePositionStart.X / (float)windowSize.X - 1;
+            viewportCoordinate.Y = -(2.0f * MousePositionStart.Y / (float)windowSize.Y - 1);
+            viewportCoordinate.Z = MousePositionStart.Z;
+            viewportCoordinate.W = 1.0f;
 
-            Vector4 worldPositionStart = Vector4.Transform(start, inverseWorldMatrix);
-            Vector4 worldPositionEnd = Vector4.Transform(end, inverseWorldMatrix);
+            Vector4 viewportCoordinateEnd;
+            viewportCoordinateEnd.X = 2.0f * MousePositionEnd.X / (float)windowSize.X - 1;
+            viewportCoordinateEnd.Y = -(2.0f * MousePositionEnd.Y / (float)windowSize.Y - 1);
+            viewportCoordinateEnd.Z = MousePositionEnd.Z;
+            viewportCoordinateEnd.W = 1.0f;
+            
+            Vector4 eyeSpaceCoordinate = Vector4.Transform(viewportCoordinate, inverseProjectionMatrix);
+            Vector4 eyeSpaceCoordinateEnd = Vector4.Transform(viewportCoordinateEnd, inverseProjectionMatrix);
 
-            if (worldPositionStart.W != 0)
-            {
-                worldPositionStart /= worldPositionStart.W;
-            }
+            Vector4 worldCoordinate = Vector4.Transform(eyeSpaceCoordinate, inverseViewMatrix);            
+            Vector4 worldCoordinateEnd = Vector4.Transform(eyeSpaceCoordinateEnd, inverseViewMatrix);
 
-            if (worldPositionEnd.W != 0)
-            {
-                worldPositionEnd /= worldPositionEnd.W;                
-            }
-
-            return new Ray(worldPositionStart.ToVector3(), (worldPositionEnd - worldPositionStart).ToVector3().Normalized());
+            worldCoordinate /= worldCoordinate.W;
+            worldCoordinateEnd /= worldCoordinateEnd.W;
+            
+            return new Ray(worldCoordinate.ToVector3(), (worldCoordinateEnd - worldCoordinate).ToVector3().Normalized());
         }
 
         public void AddDebugCameraRayTest(ManaShapeFactory shapes)
