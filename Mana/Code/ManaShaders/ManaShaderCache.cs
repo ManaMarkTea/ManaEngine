@@ -46,7 +46,7 @@ namespace Mana.Code.ManaShaders
         {
         }
 
-        public ManaCompiledShader GetCompiledShader(ShaderSource vertShaderSource, ShaderSource fragShaderSource, ShaderSource geomShaderSource)
+        public ManaCompiledShader GetCompiledShader(ShaderSource vertShaderSource, ShaderSource fragShaderSource, ShaderSource geomShaderSource, ManaCompiledShader? previousVersion = null)
         {
             var vertSource = vertShaderSource.Source;
             var fragSource = fragShaderSource.Source;
@@ -56,7 +56,12 @@ namespace Mana.Code.ManaShaders
             string hash = HashCode(allCode);
             if (!AllCompiledShaders.ContainsKey(hash))
             {
-                var shader = new ManaCompiledShader(Context);
+                var shader = previousVersion;
+                if (shader == null)
+                {
+                    shader = new ManaCompiledShader(Context);
+                }
+
                 shader.LoadShaderSource(vertSource, fragSource, geomSource);
                 AllCompiledShaders.Add(hash, shader);
             }

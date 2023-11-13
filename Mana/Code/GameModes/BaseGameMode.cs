@@ -38,7 +38,7 @@ namespace Mana.Code
                 WindowBorder.Resizable,
                 isVSync: true,
                 shouldSwapAutomatically: true,
-                new Silk.NET.Windowing.VideoMode(64));
+                new Silk.NET.Windowing.VideoMode(90));
 
             _Window = Window.Create(optionOpenGL);
             _Window.Load += Load;

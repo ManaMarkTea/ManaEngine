@@ -179,7 +179,7 @@ namespace Mana
 
                 image.CopyPixelDataTo(pixels);
 
-                device.GetQueue().WriteTexture<Rgba32>(
+                device.Queue.WriteTexture<Rgba32>(
                     destination: new ImageCopyTexture
                     {
                         Aspect = Wgpu.TextureAspect.All,
@@ -465,7 +465,7 @@ namespace Mana
 
                     swapChain = device.CreateSwapChain(surface, swapChainDescriptor);
 
-                    depthTexture.DestroyResource();
+                    depthTexture.Dispose();
                     depthTexture = device.CreateTexture(depthTextureDescriptor);
                     depthTextureView = depthTexture.CreateTextureView();
                 }
@@ -527,7 +527,7 @@ namespace Mana
                 renderPass.Draw(3, 1, 0, 0);
                 renderPass.End();
 
-                var queue = device.GetQueue();
+                var queue = device.Queue;
 
                 uniformBufferSpan[0] = uniformBufferData;
 

@@ -38,7 +38,7 @@ namespace Mana.Code.ManaShaders
             public static ManaSemantic NormalMatrix = new ManaSemantic(new string[] { "normalMatrix" });
             public static ManaSemantic BaseColor = new ManaSemantic(new string[] { });
             public static ManaSemantic ObjectPosition = new ManaSemantic(new string[] { "objPos", "object", "obj" });
-            public static ManaSemantic CameraPosition = new ManaSemantic(new string[] { "camPos", "gEyeWorldPos" });
+            public static ManaSemantic CameraPosition = new ManaSemantic(new string[] { "camPos", "iCameraPosition", "gEyeWorldPos" });
 
             // Shader Toy Common Semantics
             public static ManaSemantic iResolution = new ManaSemantic(new string[] { "iResolution" });

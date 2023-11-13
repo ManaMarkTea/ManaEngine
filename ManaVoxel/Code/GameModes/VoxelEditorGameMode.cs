@@ -73,6 +73,7 @@ namespace Mana.Code.GameModes
             ImGui.Begin("Mana");
             ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
+            //ImGui.PlotLines()
             ImGui.End();
 
 

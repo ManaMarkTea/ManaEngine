@@ -101,18 +101,18 @@ namespace Mana
         {
             if (VertexSource.IsDirty || FragmentSource.IsDirty || GeometrySource.IsDirty)
             {
-                CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(VertexSource, FragmentSource, GeometrySource);
+                CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(VertexSource, FragmentSource, GeometrySource, CompiledShader);
                 VertexSource.IsDirty = FragmentSource.IsDirty = GeometrySource.IsDirty = false;
             }
 
             CompiledShader.BindShader();
-        }
+       }
         
         public virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             if (VertexSource.IsDirty || FragmentSource.IsDirty || GeometrySource.IsDirty)
             {
-                CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(VertexSource, FragmentSource, GeometrySource);
+                CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(VertexSource, FragmentSource, GeometrySource, CompiledShader);
                 VertexSource.IsDirty = FragmentSource.IsDirty = GeometrySource.IsDirty = false;
             }
 

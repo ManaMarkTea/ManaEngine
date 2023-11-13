@@ -10,6 +10,7 @@ Rendering
 * https://google.github.io/filament/Filament.md.html#lighting/directlighting/directionallights
 * https://inspirnathan.com/posts/58-shadertoy-tutorial-part-12/ - Frensel
 * https://godotshaders.com/snippet/fresnel/
+* https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/ - Grid Line Shader
 
 # File Formats
 * https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox.txt
