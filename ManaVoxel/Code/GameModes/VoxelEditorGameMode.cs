@@ -29,53 +29,6 @@ namespace Mana.Code.GameModes
 
         }
 
-        struct RayHit
-        {
-            public Vector3 Position;
-            public Vector3 Normal;
-            public float T;
-            public CollidableReference Collidable;
-            public bool Hit;
-        }
-
-        struct HitHandler : IRayHitHandler
-        {
-            public Buffer<RayHit> Hits;
-            public int IntersectionCount;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool AllowTest(CollidableReference collidable)
-            {
-                return true;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool AllowTest(CollidableReference collidable, int childIndex)
-            {
-                return true;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void OnRayHit(in RayData ray, ref float maximumT, float t, Vector3 normal, CollidableReference collidable, int childIndex)
-            { 
-                maximumT = t;
-                ref var hit = ref Hits[ray.Id]; 
-                if (t < hit.T)
-                {
-                    if (hit.T == float.MaxValue)
-                    {
-                        ++IntersectionCount;
-                    }
-                     
-                    hit.Position = ray.Origin + ray.Direction * t;
-                    hit.Normal = normal;
-                    hit.T = t;
-                    hit.Collidable = collidable;
-                    hit.Hit = true;
-                }
-            }
-        }
-
-
         public override void Load()
         {
             base.Load();
@@ -90,6 +43,9 @@ namespace Mana.Code.GameModes
             var capsule = new Capsule(0, 0.5f);
             var box = new Box(0.5f, 1.5f, 1f);
             var cylinder = new Cylinder(0.5f, 1);
+
+            BepuPhysics.Collidables.Box
+
             const int pointCount = 16;
             var points = new QuickList<Vector3>(pointCount, BufferPool);
             var random = new Random(5);
@@ -116,7 +72,7 @@ namespace Mana.Code.GameModes
             var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, 64, 0, 64);
             var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, 64, 0, 64);
 
-            Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 0.5f);
+            Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
             if (Cursor.Components[0] is MeshRendererComponent renderer)
             {
                 renderer.Material.Shader = new ManaLiquidShader(Context);
