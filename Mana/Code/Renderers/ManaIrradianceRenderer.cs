@@ -141,14 +141,20 @@ namespace Mana.Code.Renderers
             RenderPrefilteredReflectionMap();
 
             var window = Context.Window;
-            Context.gl.Viewport(window.Size);
+            Context.gl.Viewport(window.FramebufferSize);
             Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D() * 255.0f);
             Clear();
 
             RenderEnvironmentBackground();
 
             Context.gl.Enable(EnableCap.DepthTest);
-            Context.gl.Viewport(window.Size);
+            Context.gl.Viewport(window.FramebufferSize);
+            Context.gl.ClearDepth(0);
+            Context.gl.Enable(EnableCap.DepthTest);
+            Context.gl.DepthFunc(DepthFunction.Lequal);
+            Context.gl.ColorMask(true, true, true, true);
+            Context.gl.ClearDepth(1.0);
+            Clear();
 
             drawScenes();
 

@@ -32,13 +32,15 @@ namespace Mana.Code
             WindowOptions optionOpenGL = new WindowOptions(
                 isVisible: true,
                 new Vector2D<int>(50, 50),
-                new Vector2D<int>(1280, 720), 0.0, 0.0,
+                new Vector2D<int>(1280, 720), 90, 90,
                 GraphicsAPI.Default, "ManaGL - SceneViewerMode",
                 WindowState.Normal,
                 WindowBorder.Resizable,
                 isVSync: true,
                 shouldSwapAutomatically: true,
-                new Silk.NET.Windowing.VideoMode(90));
+                new Silk.NET.Windowing.VideoMode(90),
+                preferredDepthBufferBits:32,
+                preferredStencilBufferBits:8);
 
             _Window = Window.Create(optionOpenGL);
             _Window.Load += Load;

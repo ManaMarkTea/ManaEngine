@@ -44,7 +44,7 @@ namespace Mana.Code.GameModes
             var box = new Box(0.5f, 1.5f, 1f);
             var cylinder = new Cylinder(0.5f, 1);
 
-            BepuPhysics.Collidables.Box
+            
 
             const int pointCount = 16;
             var points = new QuickList<Vector3>(pointCount, BufferPool);
