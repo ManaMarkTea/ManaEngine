@@ -39,11 +39,6 @@ namespace Mana.Code.GameModes
 
             Simulation = Simulation.Create(BufferPool, new NoCollisionCallbacks(), new DemoPoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
 
-            var sphere = new Sphere(10);            
-            var capsule = new Capsule(0, 0.5f);
-            var box = new Box(0.5f, 1.5f, 1f);
-            var cylinder = new Cylinder(0.5f, 1);
-
             
 
             const int pointCount = 16;
@@ -53,16 +48,23 @@ namespace Mana.Code.GameModes
             {
                 points.AllocateUnsafely() = new Vector3(1 * random.NextSingle(), 1 * random.NextSingle(), 1 * random.NextSingle());
             }
-            var hullShape = new ConvexHull(points, BufferPool, out _);
-            var sphereIndex = Simulation.Shapes.Add(sphere);
-            var capsuleIndex = Simulation.Shapes.Add(capsule);
-            var boxIndex = Simulation.Shapes.Add(box);
-            var cylinderIndex = Simulation.Shapes.Add(cylinder);
-            var hullIndex = Simulation.Shapes.Add(hullShape);
 
 
-            Simulation.Statics.Add(new StaticDescription(new Vector3(0,0,0), Quaternion.Identity, sphereIndex, ContinuousDetection.Continuous()));
+            var xzBox = new Box(64.0f, 0.1f, 64.0f);
+            var yxBox = new Box(64.0f, 64.0f, 0.1f);
+            var zyBox = new Box(0.1f, 64.0f, 64.0f);
 
+            var xzBoxIndex = Simulation.Shapes.Add(xzBox);
+            var yxBoxIndex = Simulation.Shapes.Add(yxBox);
+            var zyBoxIndex = Simulation.Shapes.Add(zyBox);
+            
+            var xzBody = BodyDescription.CreateKinematic(new RigidPose(new Vector3(32, 00, 32)), new CollidableDescription(xzBoxIndex), new BodyActivityDescription());
+            var yxBody = BodyDescription.CreateKinematic(new RigidPose(new Vector3(32, 32, 00)), new CollidableDescription(yxBoxIndex), new BodyActivityDescription());
+            var zyBody = BodyDescription.CreateKinematic(new RigidPose(new Vector3(00, 32, 32)), new CollidableDescription(zyBoxIndex), new BodyActivityDescription());
+
+            Simulation.Bodies.Add(xzBody);
+            Simulation.Bodies.Add(yxBody);
+            Simulation.Bodies.Add(zyBody);
 
             Context.Window.FileDrop += Window_FileDrop;
 
@@ -77,7 +79,6 @@ namespace Mana.Code.GameModes
             {
                 renderer.Material.Shader = new ManaLiquidShader(Context);
             }
-
 
             MagicaVoxLoader vox = new MagicaVoxLoader();
             vox.Load();
@@ -99,10 +100,16 @@ namespace Mana.Code.GameModes
         Vector3 lastImportPos = new Vector3(30.0f, 0, 20);
         private void Window_FileDrop(string[] files)
         {
+            var mouseDropWorld = GetProjectedMouseHit();
+            if (mouseDropWorld.Position.LengthSquared() != 0)
+            {
+                lastImportPos = mouseDropWorld.Position;
+            }
+
             foreach (var file in files)
             {
                 var fileWorld = Context.World;
-                var model = fileWorld.LoadFromGltf(file);                
+                var model = fileWorld.LoadFromGltf(file);
                 model.Position = lastImportPos;
                 lastImportPos.X += 2.0f;
 
@@ -112,6 +119,41 @@ namespace Mana.Code.GameModes
                     lastImportPos.Z += 2.0f;
                 }                
             }
+        }
+
+        RayHit GetProjectedMouseHit()
+        {
+            var MouseState = Context.Input.Mice.First();
+
+            var mouseStart = new Vector3(MouseState.Position, 0.0f);
+            var mouseEnd = new Vector3(MouseState.Position, 1.0f);
+
+            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+            var rayOrigin = ray.Origin;
+            var rayDirection = ray.Direction;
+
+
+            BufferPool.Take(1, out Buffer<RayHit> hits);
+            hits[0].T = float.MaxValue;
+            hits[0].Hit = false;
+
+            var hitHandler = new HitHandler() { Hits = hits };
+            Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, ref hitHandler);
+
+            RayHit hit = new RayHit();
+            if (hitHandler.IntersectionCount > 0)
+            {
+                hit = hits[0];
+                var pos = hit.Position;
+                pos *= 1;
+                pos.X = MathF.Round(pos.X);
+                pos.Y = MathF.Round(pos.Y);
+                pos.Z = MathF.Round(pos.Z);
+                pos *= 1f;
+                hit.Position = pos;
+            }
+
+            return hit;
         }
 
 
@@ -151,7 +193,14 @@ namespace Mana.Code.GameModes
 
             if (hitHandler.IntersectionCount > 0)
             {
-                Cursor.Position = hits[0].Position;
+                var pos = hits[0].Position;
+                pos *= 1;
+                pos.X = MathF.Round(pos.X);
+                pos.Y = MathF.Round(pos.Y);
+                pos.Z = MathF.Round(pos.Z);
+                pos *= 1f;
+
+                Cursor.Position = pos;
             }
 
             ImGui.InputFloat3("RAY", ref rayOrigin);

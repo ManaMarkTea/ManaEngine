@@ -129,8 +129,8 @@ namespace Mana
 
             if (MouseState.IsButtonPressed(MouseButton.Right))
             {
-                rotationEuler.Y += dxAvg;
-                rotationEuler.X += dyAvg;
+                rotationEuler.Y += dxAvg * 0.4f;
+                rotationEuler.X += dyAvg * 0.4f;
                 rotationEuler.X = rotationEuler.X.Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
             }
             else
@@ -145,19 +145,12 @@ namespace Mana
             }
 
             ImGui.Begin("Camera");
-
-            //ImGui.PlotLines("dx", ref dxHist, dxHist.Length, 0, "", -5.0f, 5.0f, new System.Numerics.Vector2(100, 100));
-            //ImGui.PlotLines("dy", &dyHist.front(), dyHist.size(), 0, NULL, -5.0f, 5.0f, ImVec2(100, 100));
-
+            
             Owner.Position = position;
             Owner.Rotation = rotationEuler;
-
-
             _ViewMatrix = Matrix4x4.CreateLookAt(position, position + forward, new Vector3(0, 1, 0));
 
-
             ImGui.Text(_ViewMatrix.ToPrettyMatrixString());
-
 
             var numericPos = position;
             var numericRot = rotationEuler;
@@ -168,8 +161,12 @@ namespace Mana
             ImGui.Text($"Yaw {yaw.ToDegrees()}");
             ImGui.InputFloat("Yaw", ref yaw);
 
-            ImGui.SliderFloat("dx", ref dxAvg, -5.0f, 5.0f);
-            ImGui.SliderFloat("dy", ref dyAvg, -5.0f, 5.0f);
+            var dxHist = _deltaHistoryX.ToArray();
+            var dyHist = _deltaHistoryY.ToArray();
+            
+            ImGui.PlotLines("dx", ref dxHist[0], dxHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
+            ImGui.PlotLines("dy", ref dyHist[0], dyHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
+            
             ImGui.SliderFloat("CameraSpeed", ref _MovementSpeed, 0.25f, 100.0f);
 
             if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
@@ -191,7 +188,6 @@ namespace Mana
 
         void UpdateAverage(float deltaTime, ref float dxAvg, ref float dyAvg)
         {
-
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();
 
@@ -204,12 +200,12 @@ namespace Mana
             _deltaHistoryY.Enqueue(dy);
 
             int avgSize = Math.Min(_MouseAverageSize, _deltaHistoryX.Count);
-            dxAvg = _deltaHistoryX.Average();
-            dyAvg = _deltaHistoryY.Average();
+            dxAvg = dx;
+            dyAvg = dy;
             _deltaAvgHistoryX.Enqueue(dx);
             _deltaAvgHistoryY.Enqueue(dy);
 
-            if (_deltaHistoryX.Count > 1)
+            if (_deltaHistoryX.Count > 90)
             {
                 _deltaHistoryX.Dequeue();
                 _deltaHistoryY.Dequeue();
@@ -323,105 +319,3 @@ namespace Mana
 
     }
 }
-
-
-
-/*var MouseState = Game.Instance._Input.Mice.First();
-            var KeyboardState = Game.Instance._Input.Keyboards.First();
-
-            var position = Owner.Position;
-            var rotation = Owner.Rotation;
-            var rotationEuler = rotation;
-
-            float pitch = rotationEuler.X;
-            float yaw = rotationEuler.Y - 90.0f.ToRadians();
-            float roll = rotationEuler.Z;
-
-            Vector3 forward = Vector3.Zero;
-            forward.X = MathF.Cos(yaw) * MathF.Cos(pitch);
-            forward.Y = MathF.Sin(pitch);
-            forward.Z = MathF.Sin(yaw) * MathF.Cos(pitch);
-
-            var up = new Vector3(0, 1, 0);
-            var right = Vector3.Cross(forward, up);
-
-            float delta = 0.001f;
-            float dxAvg = 0, dyAvg = 0;
-            UpdateAverage(delta, ref dxAvg, ref dyAvg);
-
-            if (KeyboardState.IsKeyPressed(Key.W))
-            {
-                position += forward * +delta * _MovementSpeed;
-            }
-
-            if (KeyboardState.IsKeyPressed(Key.S))
-            {
-                position += forward * -delta * _MovementSpeed;
-            }
-
-            if (KeyboardState.IsKeyPressed(Key.A))
-            {
-                position += right * delta * _MovementSpeed;
-            }
-
-            if (KeyboardState.IsKeyPressed(Key.D))
-            {
-                position += right * -delta * _MovementSpeed;
-            }
-
-            if (KeyboardState.IsKeyPressed(Key.E))
-            {
-                position += up * +delta * _MovementSpeed;
-            }
-
-            if (KeyboardState.IsKeyPressed(Key.Q))
-            {
-                position += up * -delta * _MovementSpeed;
-            }
-
-            var transform = Owner.LocalTransform;
-            transform.Translation = Vector3.Zero;
-            transform *= Matrix4x4.CreateTranslation(position);
-            Owner.LocalTransform = transform;
-
-            if (MouseState.IsButtonPressed(MouseButton.Right))
-            {
-                rotationEuler.Y += dxAvg;
-                rotationEuler.X += dyAvg;
-                rotationEuler.X = rotationEuler.X.Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
-            }
-            else
-            {
-
-            }
-
-            
-            if (MouseState.IsButtonPressed(MouseButton.Right) && MouseState.ScrollWheels[0].Y != 0)
-            {
-                _MovementSpeed += MouseState.ScrollWheels[0].Y;
-                _MovementSpeed = _MovementSpeed.Clamp(1.0f, 1000.0f);
-            }
-          
-            ImGui.Begin("Camera");
-
-            //ImGui.PlotLines("dx", ref dxHist, dxHist.Length, 0, "", -5.0f, 5.0f, new System.Numerics.Vector2(100, 100));
-            //ImGui.PlotLines("dy", &dyHist.front(), dyHist.size(), 0, NULL, -5.0f, 5.0f, ImVec2(100, 100));
-
-            var numericPos = position;
-            var numericRot = rotationEuler;
-
-            
-            pitch = rotationEuler.X;
-            yaw = rotationEuler.Y - (90.0f).ToRadians();
-            roll = rotationEuler.Z;
-            
-            forward.X = MathF.Cos(yaw) * MathF.Cos(pitch);
-            forward.Y = MathF.Sin(pitch);
-            forward.Z = MathF.Sin(yaw) * MathF.Cos(pitch);
-
-            Owner.Position = position;
-            Owner.Rotation = rotationEuler;
-
-            
-            var mat = Matrix4x4.CreateLookAt(position, position + forward, new Vector3(0, 1, 0));
-            _WorldMatrix = mat;*/
