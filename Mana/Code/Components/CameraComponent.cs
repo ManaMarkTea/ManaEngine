@@ -150,36 +150,56 @@ namespace Mana
             Owner.Rotation = rotationEuler;
             _ViewMatrix = Matrix4x4.CreateLookAt(position, position + forward, new Vector3(0, 1, 0));
 
-            ImGui.Text(_ViewMatrix.ToPrettyMatrixString());
-
+            
             var numericPos = position;
             var numericRot = rotationEuler;
 
-            ImGui.InputFloat3("POS", ref numericPos);
-            ImGui.InputFloat3("ROT", ref numericRot);
-            ImGui.Text($"Pitch {pitch.ToDegrees()}");
-            ImGui.Text($"Yaw {yaw.ToDegrees()}");
+
+            ImGui.SeparatorText("Transform");
+            {
+                if (ImGui.InputFloat3("Pos", ref numericPos)) { Owner.Position = numericPos; }
+                if (ImGui.InputFloat3("Rot", ref numericRot)) { Owner.Rotation = rotationEuler; }
+            }
+
+            
+            ImGui.InputFloat("Pitch", ref pitch);
             ImGui.InputFloat("Yaw", ref yaw);
 
             var dxHist = _deltaHistoryX.ToArray();
             var dyHist = _deltaHistoryY.ToArray();
-            
-            ImGui.PlotLines("dx", ref dxHist[0], dxHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
-            ImGui.PlotLines("dy", ref dyHist[0], dyHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
-            
-            ImGui.SliderFloat("CameraSpeed", ref _MovementSpeed, 0.25f, 100.0f);
 
-            if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
+            ImGui.SeparatorText("Mouse");
             {
-
-                UpdateProjection();
+                ImGui.PlotLines("dx", ref dxHist[0], dxHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
+                ImGui.PlotLines("dy", ref dyHist[0], dyHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
             }
 
-            if (ImGui.Button("Ortho"))
+            ImGui.SeparatorText("Camera");
             {
-                OrthoGraphic = !OrthoGraphic;
-                UpdateProjection();
+                ImGui.SliderFloat("Speed", ref _MovementSpeed, 0.25f, 100.0f);
+
+                if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
+                {
+                    UpdateProjection();
+                }
+
+                if (ImGui.Button("Ortho"))
+                {
+                    OrthoGraphic = !OrthoGraphic;
+                    UpdateProjection();
+                }
+
+
+                if (ImGui.CollapsingHeader("Advanced"))
+                {
+                    ImGuiExt.InputMatrix4("Proj", ref _ProjectionMatrix);
+                    ImGui.Spacing();
+                    ImGui.Spacing();
+                    ImGuiExt.InputMatrix4("View", ref _ViewMatrix);
+                }
+
             }
+
 
             ImGui.End();
 

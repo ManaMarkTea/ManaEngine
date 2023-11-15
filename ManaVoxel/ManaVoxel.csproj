@@ -9,12 +9,13 @@
 
   <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.14" />
-    <PackageReference Include="Silk.NET.Assimp" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.GLFW" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.Input" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Assimp" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.19.0" />
+    <PackageReference Include="Stateless" Version="5.14.0" />
   </ItemGroup>
 
   <ItemGroup>

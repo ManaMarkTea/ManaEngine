@@ -206,6 +206,8 @@ namespace Mana.Code.GameModes
             ImGui.InputFloat3("RAY", ref rayOrigin);
             ImGui.InputFloat3("DIR", ref rayDirection);
 
+
+            ImGui.ShowDemoWindow();
             
             ImGui.End();
 

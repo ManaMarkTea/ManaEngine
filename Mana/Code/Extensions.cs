@@ -1,9 +1,26 @@
 ﻿using CSharpColorSpaceConverter;
+using ImGuiNET;
 using Silk.NET.Maths;
 using System.Text;
 
 namespace Mana
 {
+    public static class ImGuiExt
+    {
+        public static void InputMatrix4(string label, ref Matrix4x4 matrix)
+        {
+            Vector4 row1 = new Vector4(matrix.M11, matrix.M12, matrix.M13, matrix.M14);
+            Vector4 row2 = new Vector4(matrix.M21, matrix.M22, matrix.M23, matrix.M24);
+            Vector4 row3 = new Vector4(matrix.M31, matrix.M32, matrix.M33, matrix.M34);
+            Vector4 row4 = new Vector4(matrix.M41, matrix.M42, matrix.M43, matrix.M44);
+
+            ImGui.InputFloat4(label, ref row1, "%.1f");
+            ImGui.InputFloat4("", ref row2, "%.1f");
+            ImGui.InputFloat4("", ref row3, "%.1f");
+            ImGui.InputFloat4("", ref row4, "%.1f");
+        }
+    }
+
     public static class Extensions
     {
         public static Matrix4x4 LookAt(Vector3 position, Vector3 target, Vector3 up)

@@ -131,10 +131,10 @@ namespace Mana.Code.Renderers
             ImGui.SliderFloat("Metallic", ref debugMetallic, 0.0f, 1.0f);
             ImGui.SliderFloat("Roughness", ref debugRoughness, 0.0f, 1.0f);
             ImGui.SliderFloat("Ambience", ref debugAmbient, 0.0f, 1.0f);
-            ImGui.ColorPicker4("Albedo", ref debugAlbedo);
+            ImGui.ColorEdit4("Albedo", ref debugAlbedo);
 
             ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 100.0f);
-            ImGui.ColorPicker4("Light Color", ref debugLightColor);
+            ImGui.ColorEdit4("Light Color", ref debugLightColor);
 
             ImGui.End();            
             RenderIrradiance();
