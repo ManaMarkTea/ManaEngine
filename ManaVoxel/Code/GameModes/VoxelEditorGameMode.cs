@@ -108,14 +108,8 @@ namespace Mana.Code.GameModes
             RayHit hit = new RayHit();
             if (hitHandler.ClosestHit.HasValue)
             {
+                var target = Context.Physics.Simulation.Bodies[hit.Collidable.BodyHandle];
                 hit = hitHandler.ClosestHit.Value;
-                var pos = hit.Position;
-                pos *= 1;
-                pos.X = MathF.Round(pos.X);
-                pos.Y = MathF.Round(pos.Y);
-                pos.Z = MathF.Round(pos.Z);
-                pos *= 1f;
-                hit.Position = pos;
             }
 
             return hit;
@@ -150,12 +144,14 @@ namespace Mana.Code.GameModes
             RayHit hit = GetProjectedMouseHit();
             if (hit.Hit)
             {
-                var pos = hit.Position;
-                pos *= 1;
-                pos.X = MathF.Round(pos.X);
-                pos.Y = MathF.Round(pos.Y);
-                pos.Z = MathF.Round(pos.Z);
-                pos *= 1f;
+                var pos = hit.Position;               
+                pos.X = MathF.Floor(pos.X);
+                pos.Y = MathF.Floor(pos.Y);
+                pos.Z = MathF.Floor(pos.Z);
+
+                pos.X += 0.5f;
+                pos.Y += 0.5f;
+                pos.Z += 0.5f;
 
                 Cursor.Position = pos;
 
@@ -163,8 +159,8 @@ namespace Mana.Code.GameModes
                 {
                     
                     // Too slow, needs to be on press
-                    //voxel.AddVoxel(pos, Colors.Magenta);
-                    //voxel.CommitData();
+                    voxel.AddVoxel(pos, Colors.Magenta);
+                    voxel.CommitData();
                 }
             }
 

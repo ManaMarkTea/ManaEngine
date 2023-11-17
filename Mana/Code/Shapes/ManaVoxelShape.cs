@@ -1,14 +1,34 @@
-﻿namespace Mana
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace Mana
 {
-    public struct ManaVoxelData
+    public struct ManaVoxelData : IEqualityComparer<ManaVoxelData>
     {
         public Vector3 Position;
         public Vector4 Color;
+
+        bool Equals(ManaVoxelData x, ManaVoxelData y)
+        {
+            return x.Position.AlmostEquals(y.Position);
+        }
+
+        public int GetHashCode([DisallowNull] ManaVoxelData obj)
+        {
+            return obj.Position.GetHashCode();
+        }
+
+        bool IEqualityComparer<ManaVoxelData>.Equals(ManaVoxelData x, ManaVoxelData y)
+        {
+            return x.Equals(y);
+        }
     }
 
     public class ManaVoxelShape : ManaProceduralMesh
     {
         protected List<ManaVoxelData> Voxels = new List<ManaVoxelData>();
+
+        protected List<ManaVoxelData> AddVoxels = new List<ManaVoxelData>();
+
 
         public ManaVoxelShape(ManaContext context) : base(context)
         {
@@ -22,7 +42,13 @@
         public void AddVoxel(Vector3 position, Vector4 color)
         {
             var newVoxelData = new ManaVoxelData { Position = position, Color = color };
-            Voxels.Add(newVoxelData);
+            
+            if (Voxels.Contains(newVoxelData))
+            {
+                return;
+            }
+
+            AddVoxels.Add(newVoxelData);
             OnVoxelAdded?.Invoke(newVoxelData);
         }
 
@@ -35,14 +61,15 @@
         {
             base.GenerateData();
 
-
 			Vector3 c = Vector3.One;
 
-			foreach (var voxel in Voxels)
+			foreach (var voxel in AddVoxels)
             {
-				DynamicGeometryContainer.AddCube(voxel.Position, c, voxel.Color);
+                Voxels.Add(voxel);
+                DynamicGeometryContainer.AddCube(voxel.Position, c, voxel.Color);
 			}            
-         
+
+            AddVoxels.Clear();         
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
         }
 

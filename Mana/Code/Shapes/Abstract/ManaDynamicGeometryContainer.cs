@@ -324,7 +324,17 @@ namespace Mana.Code
                 Faces.Add(face);
             }
         }
-        
+
+        internal void Clear()
+        {
+            Verts.Clear();
+            Indexes.Clear();
+            Edges.Clear();
+            Faces.Clear();
+            Colors.Clear();
+            Quads.Clear();
+        }
+
         public List<uint> Indexes
         {
             get

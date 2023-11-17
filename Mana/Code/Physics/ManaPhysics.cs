@@ -14,6 +14,8 @@ namespace Mana.Code
         public BufferPool BufferPool { get; private set; }
         public ThreadDispatcher ThreadDispatcher { get; private set; }
 
+        public Dictionary<BodyHandle, ManaCollisionComponent> PhysicsMap = new ();
+
         public ManaPhysics(ManaContext context) : base(context)
         {            
             BufferPool = new BufferPool();
@@ -38,6 +40,7 @@ namespace Mana.Code
             collisionComponent.Shape = boxShape;
             collisionComponent.ShapeIndex = boxIndex;
             collisionComponent.Body = handle;
+            PhysicsMap[handle] = collisionComponent;
             node.Components.Add(collisionComponent);
         }
 

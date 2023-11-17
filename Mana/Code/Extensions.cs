@@ -23,6 +23,8 @@ namespace Mana
 
     public static class Extensions
     {
+
+
         public static Matrix4x4 LookAt(Vector3 position, Vector3 target, Vector3 up)
         {
             Vector3 zaxis = Vector3.Normalize(target - position);
@@ -66,6 +68,28 @@ namespace Mana
             byte byte3 = (byte)((value >> 8) & 0xFF);
             byte byte4 = (byte)(value & 0xFF);
             return new Vector4(byte1 / 255.0f, byte2 / 255.0f, byte3 / 255.0f, byte4 / 255.0f);
+        }
+
+        public const float SmallValue = 0.0000001f;
+
+        public static bool AlmostEquals(this Vector3 a, Vector3 b)
+        {
+            if (Vector3.DistanceSquared(a,b) < SmallValue)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool AlmostEquals(this Vector4 a, Vector4 b)
+        {
+            if (Vector4.DistanceSquared(a, b) < SmallValue)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         public static bool Contains(this string text, IEnumerable<string> possibleTexts)
