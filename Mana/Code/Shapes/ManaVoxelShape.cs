@@ -71,6 +71,8 @@ namespace Mana
 
             AddVoxels.Clear();         
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+
+            // TODO: Reuse the existing buffers better
         }
 
     }
