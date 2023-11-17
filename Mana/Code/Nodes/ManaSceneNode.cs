@@ -1,4 +1,4 @@
-﻿namespace Mana
+﻿namespace Mana.Code.Nodes
 {
     public class ManaSceneNode : ManaObject
     {
@@ -55,9 +55,9 @@
 
         public ManaSceneNode(ManaContext context, Matrix4x4 localTransform) : base(context)
         {
-            this.Parent = null;
-            this.LocalTransform = localTransform;
-            this.WorldTransform = localTransform;
+            Parent = null;
+            LocalTransform = localTransform;
+            WorldTransform = localTransform;
             Children = new List<ManaSceneNode>();
             Components = new List<ManaComponent>();
 
@@ -89,7 +89,7 @@
             LocalTransform *= Matrix4x4.CreateScale(Scale);
             LocalTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
             LocalTransform *= Matrix4x4.CreateTranslation(Position);
-            
+
 
             if (Parent != null)
             {
@@ -126,22 +126,22 @@
 
         public void RotateX(float degrees)
         {
-            this.Rotation = new Vector3(Rotation.X + degrees.ToRadians(), Rotation.Y, Rotation.Z);
+            Rotation = new Vector3(Rotation.X + degrees.ToRadians(), Rotation.Y, Rotation.Z);
         }
 
         public void RotateY(float degrees)
         {
-            this.Rotation = new Vector3(Rotation.X, Rotation.Y + degrees.ToRadians(), Rotation.Z);
+            Rotation = new Vector3(Rotation.X, Rotation.Y + degrees.ToRadians(), Rotation.Z);
         }
 
         public void RotateZ(float degrees)
         {
-            this.Rotation = new Vector3(Rotation.X, Rotation.Y, Rotation.Z + degrees.ToRadians());
+            Rotation = new Vector3(Rotation.X, Rotation.Y, Rotation.Z + degrees.ToRadians());
         }
 
         public void SetLocalTransform(Matrix4x4 localTransform)
         {
-            this.LocalTransform = localTransform;
+            LocalTransform = localTransform;
         }
 
         public Matrix4x4 GetLocalTransform()

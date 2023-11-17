@@ -10,7 +10,9 @@ namespace Mana.Code
         public IWindow Window { get; set; }
 
         public ManaWorld World { get; private set; }
-        
+
+        public ManaPhysics Physics {  get; set; }
+
         public BaseGameMode GameMode { get; set; }
 
         public ManaContext(BaseGameMode gameMode)

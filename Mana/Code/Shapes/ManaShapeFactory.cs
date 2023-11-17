@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mana.Code.Nodes;
 
 namespace Mana.Code.Shapes
 {
@@ -75,10 +76,9 @@ namespace Mana.Code.Shapes
 
         public ManaSceneNode AddVoxels(Vector3 position)
         {
-            ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaVoxelShape(Context)));
-            Scene.Children.Add(extraCube);
-            return extraCube;
+            ManaSceneNode voxelNode = new ManaVoxelsNode(Context, Matrix4x4.CreateTranslation(position));            
+            Scene.Children.Add(voxelNode);
+            return voxelNode;
         }
     }
 }

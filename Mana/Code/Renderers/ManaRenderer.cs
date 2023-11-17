@@ -1,4 +1,6 @@
-﻿namespace Mana.Code.Renderers
+﻿using Mana.Code.Nodes;
+
+namespace Mana.Code.Renderers
 {
     public class ManaRenderer : ManaObject
     {

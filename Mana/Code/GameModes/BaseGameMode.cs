@@ -18,11 +18,13 @@ namespace Mana.Code
         public IWindow _Window;
         public GL GL;
         public GameModeGraphicsLevelDebugger _GlDebugger;
+
         public ManaContext Context;
 
 
         public BaseGameMode()
         {
+            
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 var glfw = GlfwProvider.GLFW.Value;
@@ -70,6 +72,9 @@ namespace Mana.Code
             _GlDebugger = new GameModeGraphicsLevelDebugger(GL);
             _ImGui = new ImGuiController(GL, _Window, input);
             ConfigImStyle();
+
+            // Initialize the physics engine
+            Context.Physics = new ManaPhysics(Context);
         }
 
         void ConfigImStyle()
@@ -149,12 +154,14 @@ namespace Mana.Code
 
         public void update(double deltaTime)
         {
-            UpdateFrame++;            
+            ManaTime.GlobalTime.UpdateTime(deltaTime);
+
+            UpdateFrame++;
+            
+            Context.Physics.Update();
 
             // Make sure ImGui is up-to-date
             _ImGui.Update((float)deltaTime);
-
-            ManaTime.GlobalTime.UpdateTime(deltaTime);
 
             Update(deltaTime);
 

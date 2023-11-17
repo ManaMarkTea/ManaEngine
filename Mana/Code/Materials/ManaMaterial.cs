@@ -1,4 +1,6 @@
-﻿namespace Mana.Code.Materials
+﻿using Mana.Code.Nodes;
+
+namespace Mana.Code.Materials
 {
     public class ManaMaterial : ManaObject, ICloneable
     {

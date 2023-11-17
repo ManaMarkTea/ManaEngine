@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
+using Mana.Code.Nodes;
 using Mana.Code.Shapes.Modifiers;
 
 namespace Mana.Code.Shapes

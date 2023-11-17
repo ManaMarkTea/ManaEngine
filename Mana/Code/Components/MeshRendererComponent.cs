@@ -1,4 +1,6 @@
-﻿namespace Mana
+﻿using Mana.Code.Nodes;
+
+namespace Mana
 {
     public class MeshRendererComponent : ManaComponent
     {

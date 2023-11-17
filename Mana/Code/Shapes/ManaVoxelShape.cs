@@ -16,9 +16,14 @@
             GenerateData();
         }
 
+        public event Action<ManaVoxelData> OnVoxelAdded;
+        public event Action<ManaVoxelData> OnVoxelRemoved;
+
         public void AddVoxel(Vector3 position, Vector4 color)
         {
-            Voxels.Add(new ManaVoxelData {  Position = position, Color = color });
+            var newVoxelData = new ManaVoxelData { Position = position, Color = color };
+            Voxels.Add(newVoxelData);
+            OnVoxelAdded?.Invoke(newVoxelData);
         }
 
         public void CommitData()

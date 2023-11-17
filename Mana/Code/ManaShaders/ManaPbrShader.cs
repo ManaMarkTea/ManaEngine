@@ -1,4 +1,6 @@
-﻿namespace Mana.Code
+﻿using Mana.Code.Nodes;
+
+namespace Mana.Code
 {
     public class ManaPbrShader : ManaShader
     {

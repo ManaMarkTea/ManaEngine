@@ -1,4 +1,6 @@
-﻿namespace Mana.Code.ManaShaders
+﻿using Mana.Code.Nodes;
+
+namespace Mana.Code.ManaShaders
 {
     public class ManaEnvironmentCubeShader : ManaShader
     {

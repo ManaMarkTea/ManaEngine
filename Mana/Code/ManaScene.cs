@@ -1,5 +1,5 @@
-﻿using Silk.NET.Assimp;
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using Mana.Code.Nodes;
 
 namespace Mana
 {
@@ -11,7 +11,7 @@ namespace Mana
         public ManaScene(ManaContext context) : base(context)
         {
             Children = new List<ManaSceneNode>();
-        }        
+        }
 
         public void Update()
         {

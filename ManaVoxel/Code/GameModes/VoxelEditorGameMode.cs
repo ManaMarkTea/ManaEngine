@@ -5,6 +5,7 @@ using BepuUtilities;
 using BepuUtilities.Collections;
 using BepuUtilities.Memory;
 using ImGuiNET;
+using Mana.Code.Nodes;
 using ManaVoxel.Code;
 using ManaVoxel.Code.Loaders;
 using Silk.NET.SDL;
@@ -18,10 +19,6 @@ namespace Mana.Code.GameModes
     {
         TimeSpan[] fpsData;
 
-        public Simulation Simulation { get; protected set; }
-        public BufferPool BufferPool { get; private set; }        
-        public ThreadDispatcher ThreadDispatcher { get; private set; }
-
         public ManaSceneNode Cursor { get; private set; }
 
         public VoxelEditorGameMode()
@@ -29,42 +26,11 @@ namespace Mana.Code.GameModes
 
         }
 
+        ManaVoxelShape voxel;
+
         public override void Load()
         {
             base.Load();
-
-            BufferPool = new BufferPool();
-            var targetThreadCount = int.Max(1, Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
-            ThreadDispatcher = new ThreadDispatcher(targetThreadCount);
-
-            Simulation = Simulation.Create(BufferPool, new NoCollisionCallbacks(), new DemoPoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
-
-            
-
-            const int pointCount = 16;
-            var points = new QuickList<Vector3>(pointCount, BufferPool);
-            var random = new Random(5);
-            for (int i = 0; i < pointCount; ++i)
-            {
-                points.AllocateUnsafely() = new Vector3(1 * random.NextSingle(), 1 * random.NextSingle(), 1 * random.NextSingle());
-            }
-
-
-            var xzBox = new Box(64.0f, 0.1f, 64.0f);
-            var yxBox = new Box(64.0f, 64.0f, 0.1f);
-            var zyBox = new Box(0.1f, 64.0f, 64.0f);
-
-            var xzBoxIndex = Simulation.Shapes.Add(xzBox);
-            var yxBoxIndex = Simulation.Shapes.Add(yxBox);
-            var zyBoxIndex = Simulation.Shapes.Add(zyBox);
-            
-            var xzBody = BodyDescription.CreateKinematic(new RigidPose(new Vector3(32, 00, 32)), new CollidableDescription(xzBoxIndex), new BodyActivityDescription());
-            var yxBody = BodyDescription.CreateKinematic(new RigidPose(new Vector3(32, 32, 00)), new CollidableDescription(yxBoxIndex), new BodyActivityDescription());
-            var zyBody = BodyDescription.CreateKinematic(new RigidPose(new Vector3(00, 32, 32)), new CollidableDescription(zyBoxIndex), new BodyActivityDescription());
-
-            Simulation.Bodies.Add(xzBody);
-            Simulation.Bodies.Add(yxBody);
-            Simulation.Bodies.Add(zyBody);
 
             Context.Window.FileDrop += Window_FileDrop;
 
@@ -73,12 +39,18 @@ namespace Mana.Code.GameModes
             var xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, 64, 0, 64);
             var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, 64, 0, 64);
             var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, 64, 0, 64);
+            
+            Context.Physics.AddBoxBody(xzPlane, new Vector3(64.0f, 0.1f, 64.0f), new Vector3(32, 0, 32));
+            Context.Physics.AddBoxBody(xzPlane, new Vector3(64.0f, 64.0f, 0.1f), new Vector3(32, 32, 0));
+            Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, 64.0f, 64.0f), new Vector3(0, 32, 32));
+
 
             Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
             if (Cursor.Components[0] is MeshRendererComponent renderer)
             {
                 renderer.Material.Shader = new ManaLiquidShader(Context);
             }
+
 
             MagicaVoxLoader vox = new MagicaVoxLoader();
             vox.Load();
@@ -93,7 +65,7 @@ namespace Mana.Code.GameModes
             }
 
             voxelShapes[0].CommitData();
-            
+            voxel = voxelShapes[0];
         }
 
         Vector3 startImportPos = new Vector3(30.0f, 0, 20);
@@ -129,21 +101,14 @@ namespace Mana.Code.GameModes
             var mouseEnd = new Vector3(MouseState.Position, 1.0f);
 
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
-            var rayOrigin = ray.Origin;
-            var rayDirection = ray.Direction;
 
-
-            BufferPool.Take(1, out Buffer<RayHit> hits);
-            hits[0].T = float.MaxValue;
-            hits[0].Hit = false;
-
-            var hitHandler = new HitHandler() { Hits = hits };
-            Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, ref hitHandler);
+            var hitHandler = new SingleHitHandler();
+            Context.Physics.Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, ref hitHandler);
 
             RayHit hit = new RayHit();
-            if (hitHandler.IntersectionCount > 0)
+            if (hitHandler.ClosestHit.HasValue)
             {
-                hit = hits[0];
+                hit = hitHandler.ClosestHit.Value;
                 var pos = hit.Position;
                 pos *= 1;
                 pos.X = MathF.Round(pos.X);
@@ -182,18 +147,10 @@ namespace Mana.Code.GameModes
             var rayOrigin = ray.Origin;
             var rayDirection = ray.Direction;
 
-
-
-            BufferPool.Take(1, out Buffer<RayHit> hits);
-            hits[0].T = float.MaxValue;
-            hits[0].Hit = false;
-        
-            var hitHandler = new HitHandler() { Hits = hits };
-            Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, ref hitHandler);
-
-            if (hitHandler.IntersectionCount > 0)
+            RayHit hit = GetProjectedMouseHit();
+            if (hit.Hit)
             {
-                var pos = hits[0].Position;
+                var pos = hit.Position;
                 pos *= 1;
                 pos.X = MathF.Round(pos.X);
                 pos.Y = MathF.Round(pos.Y);
@@ -201,6 +158,14 @@ namespace Mana.Code.GameModes
                 pos *= 1f;
 
                 Cursor.Position = pos;
+
+                if (MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left))
+                {
+                    
+                    // Too slow, needs to be on press
+                    //voxel.AddVoxel(pos, Colors.Magenta);
+                    //voxel.CommitData();
+                }
             }
 
             ImGui.InputFloat3("RAY", ref rayOrigin);
@@ -210,10 +175,6 @@ namespace Mana.Code.GameModes
             ImGui.ShowDemoWindow();
             
             ImGui.End();
-
-
-            Simulation.Timestep(TimestepDuration, ThreadDispatcher);
-
         }
 
         public override void Render(double deltaTime)

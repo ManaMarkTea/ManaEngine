@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using Mana.Code.Materials;
+using Mana.Code.Nodes;
 using Mana.Code.Shapes.Loaders;
 using Silk.NET.Assimp;
 using System.Diagnostics;
