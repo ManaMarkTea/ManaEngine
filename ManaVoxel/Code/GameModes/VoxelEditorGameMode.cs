@@ -36,13 +36,16 @@ namespace Mana.Code.GameModes
 
             ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
 
-            var xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, 64, 0, 64);
-            var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, 64, 0, 64);
-            var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, 64, 0, 64);
+            float gridSize = 256.0f;
+            float halfGridSize = gridSize * 0.5f;
+
+            var xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize);
+            var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize);
+            var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize);
             
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(64.0f, 0.1f, 64.0f), new Vector3(32, 0, 32));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(64.0f, 64.0f, 0.1f), new Vector3(32, 32, 0));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, 64.0f, 64.0f), new Vector3(0, 32, 32));
+            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
+            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
+            Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
 
 
             Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);

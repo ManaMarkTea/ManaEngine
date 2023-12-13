@@ -68,7 +68,7 @@ namespace Mana.Code.ManaShaders
 
             vertexShaderObject = gl.CreateShader(ShaderType.VertexShader);
             fragmentShaderObject = gl.CreateShader(ShaderType.FragmentShader);
-            
+
             gl.ShaderSource(vertexShaderObject, vertSource);
             gl.ShaderSource(fragmentShaderObject, fragSource);
 
@@ -127,6 +127,9 @@ namespace Mana.Code.ManaShaders
         public void LoadUniforms()
         {
             var gl = Context.gl;
+
+            UniformMap.Clear();
+            UniformNames.Clear();
 
             gl.GetProgram(shaderProgram, ProgramPropertyARB.ActiveUniforms, out int uniformCount);
             for (uint i = 0; i < uniformCount; i++)

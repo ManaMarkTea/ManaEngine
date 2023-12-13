@@ -1,7 +1,5 @@
 ﻿#version 330
-
 #extension GL_OES_standard_derivatives : enable
-
 
 uniform vec3      iResolution;
 uniform float     iTime;
@@ -23,21 +21,20 @@ uniform float scaleEnd = 0.9;
 
 in vec3 WorldPos;
 in vec2 TexCoords;
+
 layout(location = 0) out vec4 FragColor;
 
-float size = 64.0;
-float thickness = 1.0;
-
-
-uniform vec2 chunkSize = vec2(64.0, 64.0);
+//uniform vec2 chunkSize = vec2(64.0, 64.0);
+uniform vec2 chunkSize = vec2(256.0, 256.0);
 uniform vec2 tileSize = vec2(8.0, 8.0);
 uniform vec2 cellSize = vec2(1.0, 1.0);
 
 uniform vec3 chunkBorderColor = vec3(0.0, 0.0, 1.0);
 uniform vec3 tileBorderColor = vec3(0.5, 0.5, 0.5);
 
+vec4 fillA = vec4(0xC6,0xC4,0xC7, 255.0) / 255;
+vec4 fillB = vec4(0xBF,0xBD,0xC0, 255.0) / 255;
 
-vec4 fill = vec4(0x4E,0x73,0xA6, 255.0) / 255;
 vec4 cellStroke = vec4(0xAB, 0xBD, 0xD8, 255) / 255;
 vec4 stroke = vec4(0xF2, 0xD3, 0x98, 255) / 255;
 
@@ -57,7 +54,6 @@ float computeDepth(vec3 pos)
     return (clip_space_pos.z / clip_space_pos.w);
 }
 
-
 float computeLinearDepth(vec3 pos) 
 {
     vec4 clip_space_pos = projection * view * vec4(pos.xyz, 1.0);
@@ -68,11 +64,9 @@ float computeLinearDepth(vec3 pos)
 
 vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
 {
-
     float dRanged = (clamp(d, distanceStart, distanceEnd) - distanceStart) / (distanceEnd - distanceStart);
     float scale = mix(scaleStart, scaleEnd, dRanged);
 
-    
     vec2 uv = fragCoord.xy * chunkSize;
     vec2 derivative = fwidth(uv);
 
@@ -88,31 +82,37 @@ vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
     vec2 aGrid = abs(mod(uv - halfChunkSize, chunkSize) - halfChunkSize) / derivative;
     vec2 bGrid = abs(mod(uv - halfTileSize, tileSize) - halfTileSize) / derivative;
     vec2 cGrid = abs(mod(uv - halfCellSize, cellSize) - halfCellSize) / derivative;
-
-    //vec2 a = abs(mod(uv - halfChunkSize, chunkSize) - halfChunkSize);
-    //vec2 b = abs(mod(uv - halfTileSize, tileSize) - halfTileSize);
-    //vec2 c = abs(mod(uv - halfCellSize, cellSize) - halfCellSize);
-
-    vec4 colorVal = fill;
     
+    vec2 fillMod = floor(uv / tileSize);    
+    float white = fract((fillMod.x + fillMod.y) / 2.0) * 2.0;
+
+    vec4 colorVal = mix(
+        fillA, 
+        fillB,  
+        smoothstep(0.0, 1.0, (white))
+    );
+   
+    vec4 cellStrokeDynamic = (fillA + fillB) / 2.2;
+    vec4 strokeDynamic = (fillA + fillB) / 2.4;
+
     colorVal = mix(
         colorVal, 
-        cellStroke, 
+        cellStrokeDynamic, 
         smoothstep(cScale, .0, min(cGrid.x, cGrid.y))
     );
 
     colorVal = mix(
         colorVal, 
-        stroke, 
-        smoothstep(bScale, .0, min(bGrid.x, bGrid.y))
+        strokeDynamic, 
+        smoothstep(aScale, .0, min(aGrid.x, aGrid.y))
     );
 
     colorVal = mix(
         colorVal, 
-        fill,  
-        smoothstep(aScale, .0, min(aGrid.x, aGrid.y))
-    );    
-    
+        strokeDynamic, 
+        smoothstep(bScale, .0, min(bGrid.x, bGrid.y))
+    );
+     
     return colorVal;
 }
 
