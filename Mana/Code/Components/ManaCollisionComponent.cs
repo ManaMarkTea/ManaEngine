@@ -11,7 +11,7 @@ namespace Mana.Code.Components
 {
     public class ManaCollisionComponent : ManaComponent
     {
-        public IConvexShape Shape { get; set; }
+        public IConvexShape? Shape { get; set; }
         public TypedIndex ShapeIndex { get; set; }
         public BodyHandle Body { get; set; }
         public bool SyncNodeToPhysics { get; set; } = true;

@@ -1,10 +1,6 @@
 ﻿using Mana;
 using Mana.Code.Shapes.Loaders;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ManaVoxel.Code.Loaders
 {
@@ -15,7 +11,7 @@ namespace ManaVoxel.Code.Loaders
 
         public override string ToString()
         {
-            return $"{Position.ToString()}";
+            return $"{Position}";
         }
     }
 
@@ -56,9 +52,7 @@ namespace ManaVoxel.Code.Loaders
             ManaRiff riffer = new ManaRiff(tempPath);
 
             riffer.Load();
-
-            ManaRiffChunk voxelChunk = null;
-            ManaRiffChunk voxelPaletteChunk = null;
+            Voxels.Clear();
 
             foreach (var chunk in riffer.Chunks)
             {

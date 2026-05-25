@@ -1,32 +1,23 @@
-﻿using BepuPhysics;
-using BepuPhysics.Collidables;
-using BepuPhysics.Trees;
-using BepuUtilities;
-using BepuUtilities.Collections;
-using BepuUtilities.Memory;
-using ImGuiNET;
+﻿using ImGuiNET;
 using Mana.Code.Nodes;
-using ManaVoxel.Code;
 using ManaVoxel.Code.Loaders;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 
 namespace Mana.Code.GameModes
 {
     public class VoxelEditorGameMode : BaseGameMode
     {
-        TimeSpan[] fpsData;
+        TimeSpan[]? fpsData;
 
-        public ManaSceneNode Cursor { get; private set; }
+        public ManaSceneNode Cursor { get; private set; } = null!;
 
         public VoxelEditorGameMode()
         {
 
         }
 
-        ManaVoxelShape voxel;
-        ManaVoxelsNode voxelNode;
+        ManaVoxelShape? voxel;
+        ManaVoxelsNode? voxelNode;
         int initialVoxelCount;
         int bakedPhysicsVoxelCount;
         Vector4 paintVoxelColor = Colors.Magenta;
@@ -102,6 +93,11 @@ namespace Mana.Code.GameModes
                     var voxLoader = new MagicaVoxLoader();
                     voxLoader.Load(file);
 
+                    if (voxel == null)
+                    {
+                        continue;
+                    }
+
                     foreach (var voxelData in voxLoader.Voxels)
                     {
                         var voxelPosition = voxelData.Position + Vector3.One * 0.5f;
@@ -150,7 +146,6 @@ namespace Mana.Code.GameModes
             RayHit hit = new RayHit();
             if (hitHandler.ClosestHit.HasValue)
             {
-                var target = Context.Physics.Simulation.Bodies[hit.Collidable.BodyHandle];
                 hit = hitHandler.ClosestHit.Value;
             }
 
@@ -183,7 +178,10 @@ namespace Mana.Code.GameModes
 
             if (ImGui.Button("Bake Voxels To Physics (Fall)"))
             {
-                bakedPhysicsVoxelCount = voxelNode.BakeVoxelsToDynamicPhysics();
+                if (voxelNode != null)
+                {
+                    bakedPhysicsVoxelCount = voxelNode.BakeVoxelsToDynamicPhysics();
+                }
             }
 
             if (!canBakeToPhysics)
@@ -235,8 +233,11 @@ namespace Mana.Code.GameModes
                         else
                         {
                             // Place voxels only when the scene has mouse focus, not while dragging ImGui windows.
-                            voxel.AddVoxel(pos, paintVoxelColor);
-                            voxel.CommitData();
+                            if (voxel != null)
+                            {
+                                voxel.AddVoxel(pos, paintVoxelColor);
+                                voxel.CommitData();
+                            }
                         }
                     }
                 }
