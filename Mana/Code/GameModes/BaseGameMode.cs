@@ -32,10 +32,37 @@ namespace Mana.Code
                 glfw.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
             }
 
+            var initialWindowWidth = 1280;
+            var initialWindowHeight = 720;
+
+            var windowingGlfw = GlfwProvider.GLFW.Value;
+            unsafe
+            {
+                var primaryMonitor = windowingGlfw.GetPrimaryMonitor();
+                if (primaryMonitor != null)
+                {
+                    var videoMode = windowingGlfw.GetVideoMode(primaryMonitor);
+                    if (videoMode != null)
+                    {
+                        var screenWidth = (int)videoMode->Width;
+                        var screenHeight = (int)videoMode->Height;
+
+                        if (screenWidth > 0 && screenHeight > 0)
+                        {
+                            initialWindowHeight = Math.Max(480, (int)(screenHeight * 0.92f));
+
+                            var targetWidthFromHeight = (int)(initialWindowHeight * (16.0f / 10.0f));
+                            var maxUsableWidth = (int)(screenWidth * 0.92f);
+                            initialWindowWidth = Math.Max(640, Math.Min(targetWidthFromHeight, maxUsableWidth));
+                        }
+                    }
+                }
+            }
+
             WindowOptions optionOpenGL = new WindowOptions(
                 isVisible: true,
                 new Vector2D<int>(50, 50),
-                new Vector2D<int>(1280, 720), 90, 90,
+                new Vector2D<int>(initialWindowWidth, initialWindowHeight), 90, 90,
                 GraphicsAPI.Default, "ManaGL - SceneViewerMode",
                 WindowState.Normal,
                 WindowBorder.Resizable,

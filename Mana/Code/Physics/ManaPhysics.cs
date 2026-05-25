@@ -6,6 +6,7 @@ using BepuUtilities.Collections;
 using BepuUtilities.Memory;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
+using System.Linq;
 
 namespace Mana.Code
 {
@@ -16,6 +17,7 @@ namespace Mana.Code
         public ThreadDispatcher ThreadDispatcher { get; private set; }
 
         public Dictionary<BodyHandle, ManaCollisionComponent> PhysicsMap = new ();
+        public List<BodyHandle> DirectBodies = new ();
 
         public ManaPhysics(ManaContext context) : base(context)
         {            
@@ -27,7 +29,7 @@ namespace Mana.Code
             Simulation = Simulation.Create(
                 BufferPool,
                 new DemoNarrowPhaseCallbacks(new SpringSettings(30, 1), maximumRecoveryVelocity: 2f, frictionCoefficient: 1f),
-                new DemoPoseIntegratorCallbacks(new Vector3(0, -22, 0), linearDamping: 0.03f, angularDamping: 0.12f),
+                new DemoPoseIntegratorCallbacks(new Vector3(0, -64, 0), linearDamping: 0.03f, angularDamping: 0.12f),
                 new SolveDescription(8, 1));
 
         }
@@ -92,18 +94,46 @@ namespace Mana.Code
                 collisionComponent.Owner.Components.Remove(collisionComponent);
             }
 
+            DirectBodies.Remove(handle);
+
             if (Simulation.Bodies.BodyExists(handle))
             {
                 Simulation.Bodies.Remove(handle);
             }
         }
 
-        public int ApplyExplosion(Vector3 center, float radius, float strength)
+        public BodyHandle AddDynamicBoxBodyDirect(Vector3 position, Vector3 size, float mass = 1.0f, Vector3? initialLinearVelocity = null)
+        {
+            Box boxShape = new Box(size.X, size.Y, size.Z);
+            TypedIndex boxIndex = Simulation.Shapes.Add(boxShape);
+            var boxInertia = boxShape.ComputeInertia(mass);
+            BodyDescription boxBody = BodyDescription.CreateDynamic(
+                new RigidPose(position),
+                boxInertia,
+                new CollidableDescription(boxIndex),
+                new BodyActivityDescription());
+            BodyHandle handle = Simulation.Bodies.Add(boxBody);
+
+            var bodyReference = Simulation.Bodies[handle];
+            bodyReference.Awake = true;
+            var bodyVelocity = bodyReference.Velocity;
+            bodyVelocity.Linear += new Vector3(0, -0.5f, 0);
+            if (initialLinearVelocity.HasValue)
+                bodyVelocity.Linear += initialLinearVelocity.Value;
+            bodyReference.Velocity = bodyVelocity;
+
+            Simulation.Awakener.AwakenBody(handle);
+            DirectBodies.Add(handle);
+            return handle;
+        }
+
+        public int ApplyExplosion(Vector3 center, float radius, float strength, IEnumerable<BodyHandle>? handles = null)
         {
             int affectedBodyCount = 0;
             float radiusSquared = radius * radius;
 
-            foreach (var handle in PhysicsMap.Keys)
+            var allHandles = handles ?? PhysicsMap.Keys.Concat(DirectBodies);
+            foreach (var handle in allHandles)
             {
                 if (!Simulation.Bodies.BodyExists(handle))
                 {

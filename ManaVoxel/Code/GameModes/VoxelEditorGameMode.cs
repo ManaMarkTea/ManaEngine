@@ -24,6 +24,14 @@ namespace Mana.Code.GameModes
         Vector3 importPositionOffset = Vector3.Zero;
         Vector3 importRotationDegrees = Vector3.Zero;
         Vector3 importScale = Vector3.One;
+        float bakeExplosionStrength = 70.5f;
+        float bakeExplosionRadiusPadding = 1.0f;
+        float reassembleSettleDistance = 0.06f;
+        float reassembleSettleVelocity = 0.18f;
+        float reassemblePullGain = 9.5f;
+        float reassembleVelocityDamping = 0.86f;
+        float reassembleRotationLerp = 0.18f;
+        float clickExplosionStrengthScale = 0.2f;
 
         public override void Load()
         {
@@ -170,6 +178,28 @@ namespace Mana.Code.GameModes
             ImGui.InputFloat3("Import Rot (deg)", ref importRotationDegrees);
             ImGui.InputFloat3("Import Scale", ref importScale);
 
+            ImGui.Separator();
+            ImGui.Text("Baked Physics Tuning");
+            ImGui.SliderFloat("Explosion Strength", ref bakeExplosionStrength, 1.0f, 150.0f);
+            ImGui.SliderFloat("Click Explosion Scale", ref clickExplosionStrengthScale, 0.02f, 1.0f);
+            ImGui.SliderFloat("Explosion Radius Padding", ref bakeExplosionRadiusPadding, 0.0f, 6.0f);
+            ImGui.SliderFloat("Reassemble Pull", ref reassemblePullGain, 0.0f, 30.0f);
+            ImGui.SliderFloat("Reassemble Damping", ref reassembleVelocityDamping, 0.0f, 0.99f);
+            ImGui.SliderFloat("Reassemble Rotation Lerp", ref reassembleRotationLerp, 0.0f, 1.0f);
+            ImGui.SliderFloat("Settle Distance", ref reassembleSettleDistance, 0.01f, 0.5f);
+            ImGui.SliderFloat("Settle Velocity", ref reassembleSettleVelocity, 0.01f, 2.0f);
+
+            if (voxelNode != null)
+            {
+                voxelNode.ExplosionStrength = bakeExplosionStrength;
+                voxelNode.ExplosionRadiusPadding = bakeExplosionRadiusPadding;
+                voxelNode.ReassemblePullGain = reassemblePullGain;
+                voxelNode.ReassembleVelocityDamping = reassembleVelocityDamping;
+                voxelNode.ReassembleRotationLerp = reassembleRotationLerp;
+                voxelNode.ReassembleSettleDistance = reassembleSettleDistance;
+                voxelNode.ReassembleSettleVelocity = reassembleSettleVelocity;
+            }
+
             bool canBakeToPhysics = voxelNode != null && !voxelNode.IsBakedToDynamicPhysics;
             if (!canBakeToPhysics)
             {
@@ -185,6 +215,32 @@ namespace Mana.Code.GameModes
             }
 
             if (!canBakeToPhysics)
+            {
+                ImGui.EndDisabled();
+            }
+
+            bool hasBakedVoxels = voxelNode != null && voxelNode.IsBakedToDynamicPhysics;
+            if (!hasBakedVoxels)
+            {
+                ImGui.BeginDisabled();
+            }
+
+            if (ImGui.Button("Reassemble Baked Voxels"))
+            {
+                voxelNode?.BeginReassembleBakedVoxels();
+            }
+
+            if (ImGui.Button("Explode Baked Voxels"))
+            {
+                voxelNode?.ExplodeBakedVoxels();
+            }
+
+            if (voxelNode != null && voxelNode.IsBakedToDynamicPhysics)
+            {
+                ImGui.Text(voxelNode.IsReassembling ? "Reassembly: in progress" : "Reassembly: idle");
+            }
+
+            if (!hasBakedVoxels)
             {
                 ImGui.EndDisabled();
             }
@@ -228,7 +284,12 @@ namespace Mana.Code.GameModes
                     {
                         if (voxelNode != null && voxelNode.IsBakedToDynamicPhysics)
                         {
-                            Context.Physics.ApplyExplosion(pos, radius: 6.0f, strength: 6.0f);
+                            var clickStrength = MathF.Max(1.0f, bakeExplosionStrength * clickExplosionStrengthScale);
+                            voxelNode.ExplodeBakedVoxelsAt(
+                                pos,
+                                radius: 6.0f,
+                                strength: clickStrength,
+                                preserveReassembly: voxelNode.IsReassembling);
                         }
                         else
                         {

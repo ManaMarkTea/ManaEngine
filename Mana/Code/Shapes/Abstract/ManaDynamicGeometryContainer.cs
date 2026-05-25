@@ -1,4 +1,5 @@
 ﻿using Silk.NET.Assimp;
+using Silk.NET.OpenGL;
 
 namespace Mana.Code
 {
@@ -30,7 +31,7 @@ namespace Mana.Code
         public List<ManaGeometryQuad> Quads = new List<ManaGeometryQuad>();
         public List<ManaGeometryEdge> Edges = new List<ManaGeometryEdge>();
 
-        public ManaVertexBufferObject CreateVertexBufferObject(ManaContext context)
+        public ManaVertexBufferObject CreateVertexBufferObject(ManaContext context, BufferUsageARB usageHint = BufferUsageARB.StaticDraw)
         {
             var positions = Positions.ToArray();
             var normals = Normals.ToArray();
@@ -39,7 +40,7 @@ namespace Mana.Code
             var textureCoordinates1 = TexCoords1.ToArray();
             var indexes = Indexes.ToArray();
 
-            var vertexBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
+            var vertexBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1, usageHint);
             vertexBufferObject.ConstructVBO();
             return vertexBufferObject;
         }
@@ -172,6 +173,20 @@ namespace Mana.Code
                 var rotation = CubeFaceRotations[i];
                 var scaleRotation = CubeFaceScales[i];
                 AddQuad(position, cubeSize, rotation, scaleRotation, color);
+            }
+        }
+
+        /// <summary>
+        /// Adds a cube with an arbitrary body orientation (for physics-driven cubes).
+        /// </summary>
+        public void AddOrientedCube(Vector3 position, System.Numerics.Quaternion orientation, Vector3 cubeSize, Vector4 color)
+        {
+            var bodyMatrix = Matrix4x4.CreateFromQuaternion(orientation);
+            for (int i = 0; i < 6; i++)
+            {
+                // Face rotation first, then body orientation
+                var combinedRotation = CubeFaceRotations[i] * bodyMatrix;
+                AddQuad(position, cubeSize, combinedRotation, CubeFaceScales[i], color);
             }
         }
 

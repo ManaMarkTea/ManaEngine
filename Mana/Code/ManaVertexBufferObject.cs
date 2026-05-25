@@ -23,6 +23,7 @@ namespace Mana
         public Vector4[] colors;
         public Vector2[] textureCoordinates0;
         public Vector2[] textureCoordinates1;
+        private readonly BufferUsageARB usageHint;
 
         int maxIndexes;
         int maxVerts;
@@ -64,7 +65,8 @@ namespace Mana
             Vector3[] normals,
             Vector4[] colors,
             Vector2[] textureCoordinates0,
-            Vector2[] textureCoordinates1
+            Vector2[] textureCoordinates1,
+            BufferUsageARB usageHint = BufferUsageARB.StaticDraw
         ) : base(context)
         {
             gl = Context.gl;
@@ -74,6 +76,7 @@ namespace Mana
             this.colors = colors;
             this.textureCoordinates0 = textureCoordinates0;
             this.textureCoordinates1 = textureCoordinates1;
+            this.usageHint = usageHint;
 
             if (colors.Length == 0)
             {
@@ -137,7 +140,7 @@ namespace Mana
             gl.GenBuffers(1, out vertexData);
             gl.GenBuffers(1, out indexData);
 
-            BufferUsageARB drawType = BufferUsageARB.StaticDraw;
+            BufferUsageARB drawType = usageHint;
             gl.BindBuffer(BufferTargetARB.ArrayBuffer, vertexData);
             {                
                 byte[] bogusBuffer = new byte[dataSize];
@@ -241,6 +244,33 @@ namespace Mana
         public unsafe void DrawElements()
         {
             gl.DrawElements(PrimitiveType.Triangles, (uint)validIndex, DrawElementsType.UnsignedInt, null);
+        }
+
+        /// <summary>
+        /// Updates position, normal, and color sub-buffers in-place without reallocating GPU memory.
+        /// The arrays must have the same element count as when the VBO was originally constructed.
+        /// </summary>
+        public void UpdateDynamicData(Vector3[] newPositions, Vector3[] newNormals, Vector4[] newColors)
+        {
+            gl.BindBuffer(BufferTargetARB.ArrayBuffer, vertexData);
+
+            if (newPositions.Length > 0)
+            {
+                nuint posSize = (nuint)(newPositions.Length * sizeof(float) * 3);
+                gl.BufferSubData<Vector3>(BufferTargetARB.ArrayBuffer, offsetVertex, posSize, newPositions);
+            }
+            if (newNormals.Length > 0)
+            {
+                nuint normSize = (nuint)(newNormals.Length * sizeof(float) * 3);
+                gl.BufferSubData<Vector3>(BufferTargetARB.ArrayBuffer, offsetNormal, normSize, newNormals);
+            }
+            if (newColors.Length > 0)
+            {
+                nuint colSize = (nuint)(newColors.Length * sizeof(float) * 4);
+                gl.BufferSubData<Vector4>(BufferTargetARB.ArrayBuffer, offsetColor, colSize, newColors);
+            }
+
+            gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
         }
 
         public void UnBind()
