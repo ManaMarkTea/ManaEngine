@@ -17,7 +17,7 @@ namespace Mana
     {
         public bool UseRayTracing = false;
 
-        public ManaContext Context;
+        public new ManaContext Context;
 
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
 

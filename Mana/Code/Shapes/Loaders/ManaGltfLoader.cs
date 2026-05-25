@@ -138,7 +138,7 @@ namespace Mana.Code.Shapes.Loaders
                 else if (channel->MType == PropertyTypeInfo.Float)
                 {
                     var floatArray = new float[byteArray.Length / 4];
-                    Buffer.BlockCopy(byteArray, 0, floatArray, 0, byteArray.Length);
+                    System.Buffer.BlockCopy(byteArray, 0, floatArray, 0, byteArray.Length);
 
                     if (floatArray.Length == 4)
                     {
@@ -154,7 +154,7 @@ namespace Mana.Code.Shapes.Loaders
                 else if (channel->MType == PropertyTypeInfo.Integer)
                 {
                     var intArray = new int[byteArray.Length / 4];
-                    Buffer.BlockCopy(byteArray, 0, intArray, 0, byteArray.Length);
+                    System.Buffer.BlockCopy(byteArray, 0, intArray, 0, byteArray.Length);
 
                     if (intArray.Length == 1)
                     {
@@ -165,7 +165,7 @@ namespace Mana.Code.Shapes.Loaders
                 else if (channel->MType == PropertyTypeInfo.Buffer && byteArray.Length == 4)
                 {
                     var intArray = new int[byteArray.Length / 4];
-                    Buffer.BlockCopy(byteArray, 0, intArray, 0, byteArray.Length);
+                    System.Buffer.BlockCopy(byteArray, 0, intArray, 0, byteArray.Length);
 
                     if (intArray.Length == 1)
                     {
@@ -176,7 +176,7 @@ namespace Mana.Code.Shapes.Loaders
                 else if (channel->MType == PropertyTypeInfo.Buffer && byteArray.Length == 1)
                 {
                     var singleByte = new byte[1];
-                    Buffer.BlockCopy(byteArray, 0, singleByte, 0, byteArray.Length);
+                    System.Buffer.BlockCopy(byteArray, 0, singleByte, 0, byteArray.Length);
 
                     if (singleByte.Length == 1)
                     {

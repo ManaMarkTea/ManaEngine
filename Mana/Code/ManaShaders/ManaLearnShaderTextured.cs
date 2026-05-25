@@ -7,7 +7,7 @@ namespace Mana.Code
         public static Dictionary<string, string> shaderSources = new Dictionary<string, string>();
         public static Dictionary<string, string> shaderFiles = new Dictionary<string, string>();
 
-        static void CacheShader(string shaderFile)
+        new static void CacheShader(string shaderFile)
         {
             Encoding encoding = Encoding.UTF8;
 

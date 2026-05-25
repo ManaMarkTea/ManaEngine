@@ -5,7 +5,7 @@ VisualStudioVersion = 17.4.33403.182
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mana", "Mana.csproj", "{12813B90-4533-42C9-AC39-499DBDF25D23}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaVoxel", "..\ManaVoxel\ManaVoxel.csproj", "{C92481EB-795F-4DEC-BBF4-7F219F9A724F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaVoxel", "..\ManaVoxel\ManaVoxel.csproj", "{C92481EB-795F-4DEC-BBF4-7F219F9A724F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{12813B90-4533-42C9-AC39-499DBDF25D23} = {12813B90-4533-42C9-AC39-499DBDF25D23}
 	EndProjectSection

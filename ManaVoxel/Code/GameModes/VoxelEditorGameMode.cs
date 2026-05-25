@@ -8,7 +8,6 @@ using ImGuiNET;
 using Mana.Code.Nodes;
 using ManaVoxel.Code;
 using ManaVoxel.Code.Loaders;
-using Silk.NET.SDL;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -27,6 +26,7 @@ namespace Mana.Code.GameModes
         }
 
         ManaVoxelShape voxel;
+        int initialVoxelCount;
 
         public override void Load()
         {
@@ -69,6 +69,7 @@ namespace Mana.Code.GameModes
 
             voxelShapes[0].CommitData();
             voxel = voxelShapes[0];
+            initialVoxelCount = voxel.VoxelCount;
         }
 
         Vector3 startImportPos = new Vector3(30.0f, 0, 20);
@@ -126,6 +127,10 @@ namespace Mana.Code.GameModes
             ImGui.Begin("Mana");
             ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
+            ImGui.Text($"Voxels: {voxel?.VoxelCount ?? 0}");
+            ImGui.Text($"Created This Session: {Math.Max(0, (voxel?.VoxelCount ?? 0) - initialVoxelCount)}");
+            ImGui.Text($"Pending Voxels: {voxel?.PendingVoxelCount ?? 0}");
+            ImGui.Text($"Duplicate Skips: {voxel?.DuplicateVoxelRejectCount ?? 0}");
 
             if (fpsData == null)
             {
@@ -144,26 +149,30 @@ namespace Mana.Code.GameModes
             var rayOrigin = ray.Origin;
             var rayDirection = ray.Direction;
 
-            RayHit hit = GetProjectedMouseHit();
-            if (hit.Hit)
+            bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse;
+
+            if (!imguiCapturesMouse)
             {
-                var pos = hit.Position;               
-                pos.X = MathF.Floor(pos.X);
-                pos.Y = MathF.Floor(pos.Y);
-                pos.Z = MathF.Floor(pos.Z);
-
-                pos.X += 0.5f;
-                pos.Y += 0.5f;
-                pos.Z += 0.5f;
-
-                Cursor.Position = pos;
-
-                if (MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left))
+                RayHit hit = GetProjectedMouseHit();
+                if (hit.Hit)
                 {
-                    
-                    // Too slow, needs to be on press
-                    voxel.AddVoxel(pos, Colors.Magenta);
-                    voxel.CommitData();
+                    var pos = hit.Position;
+                    pos.X = MathF.Floor(pos.X);
+                    pos.Y = MathF.Floor(pos.Y);
+                    pos.Z = MathF.Floor(pos.Z);
+
+                    pos.X += 0.5f;
+                    pos.Y += 0.5f;
+                    pos.Z += 0.5f;
+
+                    Cursor.Position = pos;
+
+                    if (MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left))
+                    {
+                        // Place voxels only when the scene has mouse focus, not while dragging ImGui windows.
+                        voxel.AddVoxel(pos, Colors.Magenta);
+                        voxel.CommitData();
+                    }
                 }
             }
 

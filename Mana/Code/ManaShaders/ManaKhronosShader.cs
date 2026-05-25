@@ -6,23 +6,52 @@ namespace Mana.Code
     public class ManaKhronosShader : ManaShader
     {
         public static Dictionary<string, string> shaderSources = new Dictionary<string, string>();
+
+        private static string ResolveShaderPath(string relativePath)
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, relativePath),
+                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
+                Path.Combine(AppContext.BaseDirectory, relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            throw new FileNotFoundException($"Could not locate shader file '{relativePath}'.");
+        }
+
+        private static string ReadShader(string relativePath, Encoding encoding)
+        {
+            return File.ReadAllText(ResolveShaderPath(relativePath), encoding);
+        }
+
         static ManaKhronosShader()
         {
             Encoding encoding = Encoding.UTF8;
 
-            string pbrShader = File.ReadAllText("Assets/shaders/Khronos/pbr.frag", encoding);
-            string brdfShader = File.ReadAllText("Assets/shaders/Khronos/brdf.glsl", encoding);
-            string iridescenceShader = File.ReadAllText("Assets/shaders/Khronos/iridescence.glsl", encoding);
-            string materialInfoShader = File.ReadAllText("Assets/shaders/Khronos/material_info.glsl", encoding);
-            string iblShader = File.ReadAllText("Assets/shaders/Khronos/ibl.glsl", encoding);
-            string punctualShader = File.ReadAllText("Assets/shaders/Khronos/punctual.glsl", encoding);
-            string primitiveShader = File.ReadAllText("Assets/shaders/Khronos/primitive.vert", encoding);
-            string texturesShader = File.ReadAllText("Assets/shaders/Khronos/textures.glsl", encoding);
-            string tonemappingShader = File.ReadAllText("Assets/shaders/Khronos/tonemapping.glsl", encoding);
-            string shaderFunctions = File.ReadAllText("Assets/shaders/Khronos/functions.glsl", encoding);
-            string animationShader = File.ReadAllText("Assets/shaders/Khronos/animation.glsl", encoding);
-            string cubemapVertShader = File.ReadAllText("Assets/shaders/Khronos/cubemap.vert", encoding);
-            string cubemapFragShader = File.ReadAllText("Assets/shaders/Khronos/cubemap.frag", encoding);
+            string pbrShader = ReadShader("Assets/Shaders/Khronos/pbr.frag", encoding);
+            string brdfShader = ReadShader("Assets/Shaders/Khronos/brdf.glsl", encoding);
+            string iridescenceShader = ReadShader("Assets/Shaders/Khronos/iridescence.glsl", encoding);
+            string materialInfoShader = ReadShader("Assets/Shaders/Khronos/material_info.glsl", encoding);
+            string iblShader = ReadShader("Assets/Shaders/Khronos/ibl.glsl", encoding);
+            string punctualShader = ReadShader("Assets/Shaders/Khronos/punctual.glsl", encoding);
+            string primitiveShader = ReadShader("Assets/Shaders/Khronos/primitive.vert", encoding);
+            string texturesShader = ReadShader("Assets/Shaders/Khronos/textures.glsl", encoding);
+            string tonemappingShader = ReadShader("Assets/Shaders/Khronos/tonemapping.glsl", encoding);
+            string shaderFunctions = ReadShader("Assets/Shaders/Khronos/functions.glsl", encoding);
+            string animationShader = ReadShader("Assets/Shaders/Khronos/animation.glsl", encoding);
+            string cubemapVertShader = ReadShader("Assets/Shaders/Khronos/cubemap.vert", encoding);
+            string cubemapFragShader = ReadShader("Assets/Shaders/Khronos/cubemap.frag", encoding);
 
             shaderSources["primitive.vert"] = primitiveShader;
             shaderSources["pbr.frag"] = pbrShader;

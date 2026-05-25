@@ -28,6 +28,21 @@ namespace Mana
         protected List<ManaVoxelData> Voxels = new List<ManaVoxelData>();
 
         protected List<ManaVoxelData> AddVoxels = new List<ManaVoxelData>();
+        private readonly HashSet<(int X, int Y, int Z)> _voxelKeys = new HashSet<(int X, int Y, int Z)>();
+        private readonly HashSet<(int X, int Y, int Z)> _pendingVoxelKeys = new HashSet<(int X, int Y, int Z)>();
+
+        public int VoxelCount => Voxels.Count;
+        public int PendingVoxelCount => AddVoxels.Count;
+        public int DuplicateVoxelRejectCount { get; private set; }
+
+        private static (int X, int Y, int Z) ToVoxelKey(Vector3 position)
+        {
+            return (
+                (int)MathF.Round(position.X * 2.0f),
+                (int)MathF.Round(position.Y * 2.0f),
+                (int)MathF.Round(position.Z * 2.0f)
+            );
+        }
 
 
         public ManaVoxelShape(ManaContext context) : base(context)
@@ -42,13 +57,16 @@ namespace Mana
         public void AddVoxel(Vector3 position, Vector4 color)
         {
             var newVoxelData = new ManaVoxelData { Position = position, Color = color };
-            
-            if (Voxels.Contains(newVoxelData))
+            var key = ToVoxelKey(position);
+
+            if (_voxelKeys.Contains(key) || _pendingVoxelKeys.Contains(key))
             {
+                DuplicateVoxelRejectCount++;
                 return;
             }
 
             AddVoxels.Add(newVoxelData);
+            _pendingVoxelKeys.Add(key);
             OnVoxelAdded?.Invoke(newVoxelData);
         }
 
@@ -66,10 +84,12 @@ namespace Mana
 			foreach (var voxel in AddVoxels)
             {
                 Voxels.Add(voxel);
+                _voxelKeys.Add(ToVoxelKey(voxel.Position));
                 DynamicGeometryContainer.AddCube(voxel.Position, c, voxel.Color);
 			}            
 
-            AddVoxels.Clear();         
+            AddVoxels.Clear();
+            _pendingVoxelKeys.Clear();
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
 
             // TODO: Reuse the existing buffers better

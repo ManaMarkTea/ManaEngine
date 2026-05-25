@@ -1,5 +1,8 @@
 ﻿using Silk.NET.OpenGL;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace Mana
 {
@@ -143,7 +146,7 @@ namespace Mana
                     Height = (uint)img.Height;
                     SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
                     AllocateEmptyTextImage2D(gl, TextureTargetType, (uint)img.Width, (uint)img.Height);
-                    img.ProcessPixelRows(accessor => ProcessPixelRows(accessor, gl));
+                    UploadImageRows(img, gl);
                 }
             }
             else if (string.IsNullOrEmpty(OriginalFilename))
@@ -153,17 +156,47 @@ namespace Mana
             }
             else
             {
+                var resolvedFilename = ResolveTexturePath(OriginalFilename);
+
                 DecoderOptions options = new DecoderOptions();
-                using (var img = Image.Load<Rgba32>(options, OriginalFilename))
+                using (var img = Image.Load<Rgba32>(options, resolvedFilename))
                 {
                     img.Mutate(x => x.Flip(FlipMode.Vertical));
                     Width = (uint)img.Width;
                     Height = (uint)img.Height;
                     SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
                     AllocateEmptyTextImage2D(gl, TextureTargetType, (uint)img.Width, (uint)img.Height);
-                    img.ProcessPixelRows(accessor => ProcessPixelRows(accessor, gl));
+                    UploadImageRows(img, gl);
                 }
             }
+        }
+
+        private static string ResolveTexturePath(string texturePath)
+        {
+            if (string.IsNullOrWhiteSpace(texturePath) || Path.IsPathRooted(texturePath))
+            {
+                return texturePath;
+            }
+
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, texturePath),
+                Path.Combine(Environment.CurrentDirectory, "Mana", texturePath),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", texturePath),
+                Path.Combine(AppContext.BaseDirectory, texturePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", texturePath)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            return texturePath;
         }
 
         protected unsafe void AllocateEmptyTextImage2D(GL gl, TextureTarget textureType, uint width, uint height)
@@ -181,15 +214,18 @@ namespace Mana
             gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
         }
 
-        private unsafe void ProcessPixelRows(PixelAccessor<Rgba32> accessor, GL gl)
+        private unsafe void UploadImageRows(Image<Rgba32> image, GL gl)
         {
-            for (int y = 0; y < accessor.Height; y++)
+            image.ProcessPixelRows(accessor =>
             {
-                fixed (void* data = accessor.GetRowSpan(y))
+                for (int y = 0; y < accessor.Height; y++)
                 {
-                    gl.TexSubImage2D(TextureTargetType, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
+                    fixed (void* data = accessor.GetRowSpan(y))
+                    {
+                        gl.TexSubImage2D(TextureTargetType, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
+                    }
                 }
-            }
+            });
         }
 
         public virtual void Bind(int channel)

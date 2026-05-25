@@ -4,21 +4,49 @@ namespace Mana.Code.Renderers
 {
     public class ManaRenderer : ManaObject
     {
+        private static string ResolveShaderPath(string relativePath)
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, relativePath),
+                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
+                Path.Combine(AppContext.BaseDirectory, relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            throw new FileNotFoundException($"Could not locate shader file '{relativePath}'.");
+        }
+
+        private static string ReadShader(string relativePath)
+        {
+            return File.ReadAllText(ResolveShaderPath(relativePath));
+        }
+
         static ManaRenderer()
         {
-            string pbrShader = File.ReadAllText("Assets/shaders/Khronos/pbr.frag");
-            string brdfShader = File.ReadAllText("Assets/shaders/Khronos/brdf.glsl");
-            string iridescenceShader = File.ReadAllText("Assets/shaders/Khronos/iridescence.glsl");
-            string materialInfoShader = File.ReadAllText("Assets/shaders/Khronos/material_info.glsl");
-            string iblShader = File.ReadAllText("Assets/shaders/Khronos/ibl.glsl");
-            string punctualShader = File.ReadAllText("Assets/shaders/Khronos/punctual.glsl");
-            string primitiveShader = File.ReadAllText("Assets/shaders/Khronos/primitive.vert");
-            string texturesShader = File.ReadAllText("Assets/shaders/Khronos/textures.glsl");
-            string tonemappingShader = File.ReadAllText("Assets/shaders/Khronos/tonemapping.glsl");
-            string shaderFunctions = File.ReadAllText("Assets/shaders/Khronos/functions.glsl");
-            string animationShader = File.ReadAllText("Assets/shaders/Khronos/animation.glsl");
-            string cubemapVertShader = File.ReadAllText("Assets/shaders/Khronos/cubemap.vert");
-            string cubemapFragShader = File.ReadAllText("Assets/shaders/Khronos/cubemap.frag");
+            string pbrShader = ReadShader("Assets/Shaders/Khronos/pbr.frag");
+            string brdfShader = ReadShader("Assets/Shaders/Khronos/brdf.glsl");
+            string iridescenceShader = ReadShader("Assets/Shaders/Khronos/iridescence.glsl");
+            string materialInfoShader = ReadShader("Assets/Shaders/Khronos/material_info.glsl");
+            string iblShader = ReadShader("Assets/Shaders/Khronos/ibl.glsl");
+            string punctualShader = ReadShader("Assets/Shaders/Khronos/punctual.glsl");
+            string primitiveShader = ReadShader("Assets/Shaders/Khronos/primitive.vert");
+            string texturesShader = ReadShader("Assets/Shaders/Khronos/textures.glsl");
+            string tonemappingShader = ReadShader("Assets/Shaders/Khronos/tonemapping.glsl");
+            string shaderFunctions = ReadShader("Assets/Shaders/Khronos/functions.glsl");
+            string animationShader = ReadShader("Assets/Shaders/Khronos/animation.glsl");
+            string cubemapVertShader = ReadShader("Assets/Shaders/Khronos/cubemap.vert");
+            string cubemapFragShader = ReadShader("Assets/Shaders/Khronos/cubemap.frag");
 
             shaderSources["primitive.vert"] = primitiveShader;
             shaderSources["pbr.frag"] = pbrShader;

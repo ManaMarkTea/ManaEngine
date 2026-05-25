@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "Launch Mana",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Mana",
+      "program": "${workspaceFolder}/Mana/bin/Debug/net10.0/Mana.exe",
+      "cwd": "${workspaceFolder}/Mana",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Launch ManaVoxel",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build ManaVoxel",
+      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.exe",
+      "cwd": "${workspaceFolder}/ManaVoxel",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Launch Both",
+      "configurations": [
+        "Launch Mana",
+        "Launch ManaVoxel"
+      ]
+    }
+  ]
+}

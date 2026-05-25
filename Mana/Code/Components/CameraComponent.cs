@@ -141,8 +141,9 @@ namespace Mana
 
             if (MouseState.IsButtonPressed(MouseButton.Right) && MouseState.ScrollWheels[0].Y != 0)
             {
-                _MovementSpeed += MouseState.ScrollWheels[0].Y;
-                _MovementSpeed = _MovementSpeed.Clamp(1.0f, 1000.0f);
+                const float scrollSpeedMultiplierPerNotch = 1.5f;
+                _MovementSpeed *= MathF.Pow(scrollSpeedMultiplierPerNotch, MouseState.ScrollWheels[0].Y);
+                _MovementSpeed = _MovementSpeed.Clamp(0.25f, 5000.0f);
             }
 
             ImGui.Begin("Camera");

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -337,16 +337,16 @@
   <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.14" />
     <PackageReference Include="GeometRi" Version="1.4.0.5" />
-    <PackageReference Include="Silk.NET.Assimp" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.Core" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.GLFW" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.Input" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.Maths" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.19.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.0.2" />
+    <PackageReference Include="Silk.NET.Assimp" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Core" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Stateless" Version="5.14.0" />
     <PackageReference Include="WGPU.NET" Version="0.6.0" />
   </ItemGroup>

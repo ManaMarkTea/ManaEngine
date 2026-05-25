@@ -128,18 +128,56 @@ namespace Mana
 
         public static Dictionary<string, FileSystemWatcher> WatchedSources = new Dictionary<string, FileSystemWatcher>();
         public static Dictionary<string, ShaderSource> ShaderSources = new Dictionary<string, ShaderSource>();
+
+        private static string ResolveShaderPath(string shaderFile)
+        {
+            if (string.IsNullOrWhiteSpace(shaderFile))
+            {
+                return shaderFile;
+            }
+
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, shaderFile),
+                Path.Combine(Environment.CurrentDirectory, "Mana", shaderFile),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", shaderFile),
+                Path.Combine(AppContext.BaseDirectory, shaderFile),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", shaderFile)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            return shaderFile;
+        }
+
         protected static ShaderSource CacheShader(string shaderFile)
         {
-            if (!File.Exists(shaderFile))
+            if (string.IsNullOrWhiteSpace(shaderFile))
             {
                 return new ShaderSource() { Path = shaderFile, Source = "" };
             }
 
+            var resolvedPath = ResolveShaderPath(shaderFile);
+            string key = System.IO.Path.GetFileName(shaderFile);
+
+            if (!File.Exists(resolvedPath))
+            {
+                var missing = new ShaderSource() { Path = resolvedPath, Source = "" };
+                ShaderSources[key] = missing;
+                return missing;
+            }
+
             Encoding encoding = Encoding.UTF8;
-            
-            var fullPath = Path.Combine(Environment.CurrentDirectory, shaderFile);
-            var watchPath = Path.GetDirectoryName(shaderFile);
-            if (!WatchedSources.ContainsKey(watchPath))
+
+            var watchPath = Path.GetDirectoryName(resolvedPath);
+            if (!string.IsNullOrEmpty(watchPath) && Directory.Exists(watchPath) && !WatchedSources.ContainsKey(watchPath))
             {
                 FileSystemWatcher watcher = new FileSystemWatcher(watchPath);
                 watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime;
@@ -166,10 +204,9 @@ namespace Mana
             }
 #endif
 
-            string source = File.ReadAllText(shaderFile, encoding);
-            string key = System.IO.Path.GetFileName(shaderFile);
+            string source = File.ReadAllText(resolvedPath, encoding);
 
-            var output = new ShaderSource() { Path = shaderFile, Source = source };
+            var output = new ShaderSource() { Path = resolvedPath, Source = source };
             ShaderSources[key] = output;
             return output;
         }
@@ -187,7 +224,7 @@ namespace Mana
                             fileNotification.Value.Source = File.ReadAllText(e.FullPath);
                             fileNotification.Value.IsDirty = true;
                         }
-                        catch (IOException ex)
+                        catch (IOException)
                         {
                             Thread.Sleep(1);
                         }
