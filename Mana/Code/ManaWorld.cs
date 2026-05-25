@@ -166,6 +166,11 @@ namespace Mana
             Renderer.Render(drawScenes);
 
 
+            if (BaseGameMode.UtilityDockId != 0)
+            {
+                ImGui.SetNextWindowDockID(BaseGameMode.UtilityDockId, ImGuiCond.Always);
+            }
+
             ImGui.Begin("World Perf");
 
             foreach (var perf in manaPerformanceLogs)

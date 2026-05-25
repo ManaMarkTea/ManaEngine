@@ -36,6 +36,7 @@ namespace Mana.Code.Renderers
         float debugAmbient = 0.25f;
         float debugRoughness = 0.1f;
         Vector4 debugAlbedo = Colors.White;
+        float debugSceneScale = 1.0f;
 
         float debugLightIntensity = 10.0f;
         Vector4 debugLightColor = Colors.White;
@@ -125,6 +126,11 @@ namespace Mana.Code.Renderers
 
         public override void Render(Action drawScenes)
         {
+            if (BaseGameMode.UtilityDockId != 0)
+            {
+                ImGui.SetNextWindowDockID(BaseGameMode.UtilityDockId, ImGuiCond.Always);
+            }
+
             ImGui.Begin("Irradiance");
 
             ImGui.Checkbox("Debug World", ref drawDebugWorld);
@@ -136,6 +142,7 @@ namespace Mana.Code.Renderers
 
             ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 100.0f);
             ImGui.ColorEdit4("Light Color", ref debugLightColor);
+            ImGui.SliderFloat("Debug Scene Scale", ref debugSceneScale, 0.35f, 2.75f);
 
             ImGui.End();            
             RenderIrradiance();
@@ -174,21 +181,23 @@ namespace Mana.Code.Renderers
         //    new Vector4(64, 64, -64, 1.0f),
         //};
 
-        private static Vector3[] lightPositions =
+        private static readonly Vector3[] lightPositionOffsets =
         {
-            new Vector3(-100.0f,  100.0f, 100.0f),
-            new Vector3( 100.0f,  100.0f, 100.0f),
-            new Vector3(-100.0f, -100.0f, 100.0f),
-            new Vector3( 100.0f, -100.0f, 100.0f),
+            new Vector3(-12.0f,  12.0f, 12.0f),
+            new Vector3( 12.0f,  12.0f, 12.0f),
+            new Vector3(-12.0f,  -8.0f, 12.0f),
+            new Vector3( 12.0f,  -8.0f, 12.0f),
         };
 
+        private Vector3 debugSceneCenter = new Vector3(64.0f, 3.0f, 64.0f);
+
         
-        private static Vector3[] lightColors =
+        private static readonly Vector3[] lightColors =
         {
-            new Vector3(8000.0f, 8000.0f, 8000.0f),
-            new Vector3(8000.0f, 8000.0f, 8000.0f),
-            new Vector3(8000.0f, 8000.0f, 8000.0f),
-            new Vector3(8000.0f, 8000.0f, 8000.0f)
+            new Vector3(220.0f, 220.0f, 220.0f),
+            new Vector3(220.0f, 220.0f, 220.0f),
+            new Vector3(200.0f, 200.0f, 200.0f),
+            new Vector3(200.0f, 200.0f, 200.0f)
         };
 
 
@@ -327,9 +336,11 @@ namespace Mana.Code.Renderers
         void RenderTestScene()
         {
             Matrix4x4 model = Matrix4x4.Identity;
-            float rows = 6;
-            float cols = 8;
-            float spacing = 1.5f;
+            float rows = 5;
+            float cols = 6;
+            float spacing = 1.1f * debugSceneScale;
+            var rowCenter = (rows - 1) * 0.5f;
+            var colCenter = (cols - 1) * 0.5f;
 
             if (TestModels.Count == 0)
             {
@@ -362,9 +373,10 @@ namespace Mana.Code.Renderers
                     {
                         float roughness = Math.Clamp(col / (float)cols, 0.05f, 1.0f);
 
-                        Vector3 gridPosition = new Vector3((float)(col - (cols / 2)) * spacing, (float)(row - (rows / 2)) * spacing, -2.0f);
+                        Vector3 gridPosition = new Vector3((col - colCenter) * spacing, (row - rowCenter) * spacing, -1.4f * debugSceneScale);
+                        gridPosition += debugSceneCenter;
                         var sphereModel = createSphereModelAtPoint(gridPosition, metallic, roughness);
-                        gridPosition.Z = -8.0f;
+                        gridPosition.Z = debugSceneCenter.Z - 4.8f * debugSceneScale;
                         var cubeModel = createCubeModelAtPoint(gridPosition, metallic, roughness);
 
                         TestModels.Add(cubeModel);
@@ -375,7 +387,7 @@ namespace Mana.Code.Renderers
             }
 
             DebugModel = new ManaMeshSceneNode(Context, SimpleCube);
-            DebugModel.LocalTransform = Matrix4x4.CreateTranslation(8, 0, 1);
+            DebugModel.LocalTransform = Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(4.0f, 0.0f, 0.5f) * debugSceneScale);
 
 
             foreach (var testModel in TestModels)
@@ -385,25 +397,25 @@ namespace Mana.Code.Renderers
             }
 
 
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, -1);
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, -1.0f) * debugSceneScale);
             BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             EnvironmentMap.Bind(0);
             BasicCubeShader.FindUniform("model").SetValue(model);
             SimpleCube.RenderDirectly();
 
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 1);
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, 1.0f) * debugSceneScale);
             BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             IrradianceFramebuffer.bufferMap["Irradiance"]?.Texture?.Bind(0);
             BasicCubeShader.FindUniform("model").SetValue(model);
             SimpleCube.RenderDirectly();
 
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 3);
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, 3.0f) * debugSceneScale);
             BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             PrefilterFramebuffer.bufferMap["PreFilter"]?.Texture?.Bind(0);
             BasicCubeShader.FindUniform("model").SetValue(model);
             SimpleCube.RenderDirectly();
 
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(10, 0, 5);
+            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, 5.0f) * debugSceneScale);
             BasicShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
             BrdfFramebuffer.bufferMap["BRDF"]?.Texture?.Bind(0);
             BasicShader.FindUniform("model").SetValue(model);
@@ -412,9 +424,10 @@ namespace Mana.Code.Renderers
 
         public void ApplyLights(ManaPbrShader manaPbrShader)
         {
-            for (int i = 0; i < lightPositions.Length; ++i)
+            for (int i = 0; i < lightPositionOffsets.Length; ++i)
             {
-                manaPbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPositions[i], i);
+                var lightPosition = debugSceneCenter + lightPositionOffsets[i] * debugSceneScale;
+                manaPbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPosition, i);
                 manaPbrShader.FindUniform($"lightColors[0]")?.SetValue(lightColors[i], i);
             }
         }

@@ -146,6 +146,11 @@ namespace Mana
                 _MovementSpeed = _MovementSpeed.Clamp(0.25f, 5000.0f);
             }
 
+            if (BaseGameMode.UtilityDockId != 0)
+            {
+                ImGui.SetNextWindowDockID(BaseGameMode.UtilityDockId, ImGuiCond.Always);
+            }
+
             ImGui.Begin("Camera");
             
             Owner.Position = position;

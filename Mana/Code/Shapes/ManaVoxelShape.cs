@@ -76,6 +76,24 @@ namespace Mana
             GenerateData();
         }
 
+        public void ReplaceCommittedVoxels(IEnumerable<ManaVoxelData> voxels)
+        {
+            Voxels.Clear();
+            AddVoxels.Clear();
+            _voxelKeys.Clear();
+            _pendingVoxelKeys.Clear();
+            DynamicGeometryContainer.Clear();
+
+            foreach (var voxel in voxels)
+            {
+                Voxels.Add(voxel);
+                _voxelKeys.Add(ToVoxelKey(voxel.Position));
+                DynamicGeometryContainer.AddCube(voxel.Position, Vector3.One, voxel.Color);
+            }
+
+            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+        }
+
         protected override void GenerateData()
         {
             base.GenerateData();

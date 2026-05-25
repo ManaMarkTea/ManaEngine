@@ -2,9 +2,30 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "stop active Mana debug session",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/.vscode/stop-active-debug.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "build Mana",
       "type": "process",
       "command": "dotnet",
+      "dependsOn": [
+        "stop active Mana debug session"
+      ],
+      "dependsOrder": "sequence",
       "args": [
         "build",
         "${workspaceFolder}/Mana/Mana.csproj"
@@ -16,6 +37,10 @@
       "label": "build ManaVoxel",
       "type": "process",
       "command": "dotnet",
+      "dependsOn": [
+        "stop active Mana debug session"
+      ],
+      "dependsOrder": "sequence",
       "args": [
         "build",
         "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj"
@@ -27,6 +52,10 @@
       "label": "build Mana solution",
       "type": "process",
       "command": "dotnet",
+      "dependsOn": [
+        "stop active Mana debug session"
+      ],
+      "dependsOrder": "sequence",
       "args": [
         "build",
         "${workspaceFolder}/Mana/Mana.sln"

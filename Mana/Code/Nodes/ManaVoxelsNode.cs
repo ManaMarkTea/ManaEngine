@@ -10,6 +10,13 @@ namespace Mana.Code.Nodes
 {
     public class ManaVoxelsNode : ManaSceneNode
     {
+        public enum LockOverlapPolicy
+        {
+            Closest = 0,
+            Brightest = 1,
+            FirstSeen = 2
+        }
+
         private readonly struct BakedVoxelBody
         {
             public BodyHandle Handle { get; }
@@ -24,6 +31,13 @@ namespace Mana.Code.Nodes
             }
         }
 
+        private struct SnappedVoxelCandidate
+        {
+            public ManaVoxelData Voxel;
+            public float DistanceSquared;
+            public float ColorPriority;
+        }
+
         private readonly ManaVoxelShape shape;
         private readonly MeshRendererComponent mergedVoxelRenderer;
         public bool AutoCreateKinematicVoxelBodies { get; private set; } = true;
@@ -36,8 +50,16 @@ namespace Mana.Code.Nodes
         public float ReassemblePullGain { get; set; } = 9.5f;
         public float ReassembleVelocityDamping { get; set; } = 0.86f;
         public float ReassembleRotationLerp { get; set; } = 0.18f;
+        public bool IsLockPreviewEnabled { get; private set; }
+        public int LockPreviewVoxelCount { get; private set; }
+        public int LockPreviewOverlapCount { get; private set; }
+        public LockOverlapPolicy OverlapPolicy { get; set; } = LockOverlapPolicy.Closest;
 
         private List<BakedVoxelBody>? _bakedBodies;
+        private BakedVoxelsMeshUpdater? _bakedMeshUpdater;
+        private MeshRendererComponent? _bakedMeshRenderer;
+        private LockPreviewMeshUpdater? _lockPreviewMeshUpdater;
+        private MeshRendererComponent? _lockPreviewRenderer;
 
         public ManaVoxelsNode(ManaContext context, Matrix4x4 localTransform) : base(context, localTransform)
         {
@@ -102,11 +124,276 @@ namespace Mana.Code.Nodes
             bakedMesh.VertexBufferObject = geom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
 
             // Add updater (runs first) then renderer — order matters
-            Components.Add(new BakedVoxelsMeshUpdater(this, _bakedBodies, bakedMesh));
-            var renderer = new MeshRendererComponent(this, bakedMesh);
-            Components.Add(renderer);
+            _bakedMeshUpdater = new BakedVoxelsMeshUpdater(this, _bakedBodies, bakedMesh);
+            Components.Add(_bakedMeshUpdater);
+            _bakedMeshRenderer = new MeshRendererComponent(this, bakedMesh);
+            Components.Add(_bakedMeshRenderer);
 
             return shape.CommittedVoxels.Count;
+        }
+
+        public int LockBakedVoxelsForEditing()
+        {
+            if (!IsBakedToDynamicPhysics || _bakedBodies == null)
+            {
+                return 0;
+            }
+
+            IsReassembling = false;
+
+            var rebakedVoxels = BuildLockPreviewVoxels();
+
+            foreach (var bakedBody in _bakedBodies)
+            {
+                Context.Physics.RemoveBody(bakedBody.Handle);
+            }
+
+            _bakedBodies.Clear();
+
+            if (_bakedMeshUpdater != null)
+            {
+                Components.Remove(_bakedMeshUpdater);
+                _bakedMeshUpdater = null;
+            }
+
+            if (_bakedMeshRenderer != null)
+            {
+                Components.Remove(_bakedMeshRenderer);
+                _bakedMeshRenderer = null;
+            }
+
+            if (!Components.Contains(mergedVoxelRenderer))
+            {
+                Components.Add(mergedVoxelRenderer);
+            }
+
+            AutoCreateKinematicVoxelBodies = true;
+            shape.ReplaceCommittedVoxels(rebakedVoxels);
+            foreach (var voxel in shape.CommittedVoxels)
+            {
+                Context.Physics.AddBoxBody(this, Vector3.One, voxel.Position);
+            }
+
+            _bakedBodies = null;
+            IsBakedToDynamicPhysics = false;
+            SetLockPreviewEnabled(false);
+            return shape.CommittedVoxels.Count;
+        }
+
+        public void SetLockPreviewEnabled(bool enabled)
+        {
+            if (enabled == IsLockPreviewEnabled)
+            {
+                return;
+            }
+
+            IsLockPreviewEnabled = enabled;
+
+            if (!enabled)
+            {
+                RemoveLockPreviewComponents();
+                return;
+            }
+
+            if (!IsBakedToDynamicPhysics || _bakedBodies == null || _bakedBodies.Count == 0)
+            {
+                IsLockPreviewEnabled = false;
+                return;
+            }
+
+            EnsureLockPreviewComponents();
+        }
+
+        public int GetLockPreviewVoxelCount()
+        {
+            if (!IsBakedToDynamicPhysics || _bakedBodies == null)
+            {
+                LockPreviewVoxelCount = 0;
+                LockPreviewOverlapCount = 0;
+                return 0;
+            }
+
+            BuildLockPreviewVoxels();
+            return LockPreviewVoxelCount;
+        }
+
+        private static Vector3 SnapToVoxelCenter(Vector3 position)
+        {
+            return new Vector3(
+                MathF.Round(position.X - 0.5f) + 0.5f,
+                MathF.Round(position.Y - 0.5f) + 0.5f,
+                MathF.Round(position.Z - 0.5f) + 0.5f);
+        }
+
+        private static (int X, int Y, int Z) ToVoxelKey(Vector3 position)
+        {
+            return (
+                (int)MathF.Round(position.X * 2.0f),
+                (int)MathF.Round(position.Y * 2.0f),
+                (int)MathF.Round(position.Z * 2.0f));
+        }
+
+        private List<ManaVoxelData> BuildLockPreviewVoxels()
+        {
+            var preview = new List<ManaVoxelData>(_bakedBodies?.Count ?? 0);
+            if (_bakedBodies == null)
+            {
+                LockPreviewVoxelCount = 0;
+                LockPreviewOverlapCount = 0;
+                return preview;
+            }
+
+            var candidates = new Dictionary<(int X, int Y, int Z), SnappedVoxelCandidate>(_bakedBodies.Count);
+            var overlapCount = 0;
+
+            foreach (var bakedBody in _bakedBodies)
+            {
+                var bodyPosition = Context.Physics.Simulation.Bodies.BodyExists(bakedBody.Handle)
+                    ? Context.Physics.Simulation.Bodies[bakedBody.Handle].Pose.Position
+                    : bakedBody.TargetPosition;
+
+                var snappedPosition = SnapToVoxelCenter(bodyPosition);
+                var key = ToVoxelKey(snappedPosition);
+                var candidate = new SnappedVoxelCandidate
+                {
+                    Voxel = new ManaVoxelData
+                    {
+                        Position = snappedPosition,
+                        Color = bakedBody.Color
+                    },
+                    DistanceSquared = Vector3.DistanceSquared(bodyPosition, snappedPosition),
+                    ColorPriority = ComputeColorPriority(bakedBody.Color)
+                };
+
+                if (candidates.TryGetValue(key, out var existing))
+                {
+                    overlapCount++;
+                    if (!ShouldReplaceSnappedCandidate(existing, candidate, OverlapPolicy))
+                    {
+                        continue;
+                    }
+                }
+
+                candidates[key] = candidate;
+            }
+
+            preview.AddRange(candidates.Values.Select(candidate => candidate.Voxel));
+            LockPreviewVoxelCount = preview.Count;
+            LockPreviewOverlapCount = overlapCount;
+            return preview;
+        }
+
+        private static bool ShouldReplaceSnappedCandidate(
+            SnappedVoxelCandidate existing,
+            SnappedVoxelCandidate incoming,
+            LockOverlapPolicy overlapPolicy)
+        {
+            const float epsilon = 0.0001f;
+            if (overlapPolicy == LockOverlapPolicy.FirstSeen)
+            {
+                return false;
+            }
+
+            if (overlapPolicy == LockOverlapPolicy.Brightest)
+            {
+                if (incoming.ColorPriority > existing.ColorPriority + epsilon)
+                {
+                    return true;
+                }
+
+                if (existing.ColorPriority > incoming.ColorPriority + epsilon)
+                {
+                    return false;
+                }
+
+                if (incoming.DistanceSquared + epsilon < existing.DistanceSquared)
+                {
+                    return true;
+                }
+
+                if (existing.DistanceSquared + epsilon < incoming.DistanceSquared)
+                {
+                    return false;
+                }
+
+                return incoming.Voxel.Position.Y > existing.Voxel.Position.Y;
+            }
+
+            if (incoming.DistanceSquared + epsilon < existing.DistanceSquared)
+            {
+                return true;
+            }
+
+            if (existing.DistanceSquared + epsilon < incoming.DistanceSquared)
+            {
+                return false;
+            }
+
+            if (incoming.ColorPriority > existing.ColorPriority + epsilon)
+            {
+                return true;
+            }
+
+            if (existing.ColorPriority > incoming.ColorPriority + epsilon)
+            {
+                return false;
+            }
+
+            return incoming.Voxel.Position.Y > existing.Voxel.Position.Y;
+        }
+
+        private static float ComputeColorPriority(Vector4 color)
+        {
+            return color.W * 4.0f + color.X * 0.2126f + color.Y * 0.7152f + color.Z * 0.0722f;
+        }
+
+        private void EnsureLockPreviewComponents()
+        {
+            if (_bakedBodies == null || _bakedBodies.Count == 0)
+            {
+                return;
+            }
+
+            if (_lockPreviewMeshUpdater != null && _lockPreviewRenderer != null)
+            {
+                return;
+            }
+
+            var previewGeom = new ManaDynamicGeometryContainer();
+            for (var i = 0; i < _bakedBodies.Count; i++)
+            {
+                previewGeom.AddOrientedCube(Vector3.Zero, Quaternion.Identity, Vector3.One * 1.03f, new Vector4(1, 1, 1, 0));
+            }
+
+            var previewMesh = new ManaMesh(Context);
+            var previewMaterial = new ManaMaterial(Context);
+            previewMaterial.Albedo.Value = Colors.White;
+            previewMaterial.Emission.Value = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
+            previewMesh.Materials = new[] { previewMaterial };
+            previewMesh.VertexBufferObject = previewGeom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+
+            _lockPreviewMeshUpdater = new LockPreviewMeshUpdater(this, _bakedBodies, previewMesh);
+            Components.Add(_lockPreviewMeshUpdater);
+            _lockPreviewRenderer = new MeshRendererComponent(this, previewMesh);
+            Components.Add(_lockPreviewRenderer);
+        }
+
+        private void RemoveLockPreviewComponents()
+        {
+            if (_lockPreviewMeshUpdater != null)
+            {
+                Components.Remove(_lockPreviewMeshUpdater);
+                _lockPreviewMeshUpdater = null;
+            }
+
+            if (_lockPreviewRenderer != null)
+            {
+                Components.Remove(_lockPreviewRenderer);
+                _lockPreviewRenderer = null;
+            }
+
+            LockPreviewVoxelCount = 0;
+            LockPreviewOverlapCount = 0;
         }
 
         public int ExplodeBakedVoxels(float? strength = null, float? minRadiusPadding = null)
@@ -363,6 +650,99 @@ namespace Mana.Code.Nodes
                 }
 
                 return allSettled;
+            }
+        }
+
+        private sealed class LockPreviewMeshUpdater : ManaComponent
+        {
+            private readonly ManaVoxelsNode _voxelsNode;
+            private readonly List<BakedVoxelBody> _bodies;
+            private readonly ManaMesh _mesh;
+            private readonly Vector3[] _positions;
+            private readonly Vector3[] _normals;
+            private readonly Vector4[] _colors;
+
+            public LockPreviewMeshUpdater(ManaSceneNode owner, List<BakedVoxelBody> bodies, ManaMesh mesh) : base(owner)
+            {
+                _voxelsNode = (ManaVoxelsNode)owner;
+                _bodies = bodies;
+                _mesh = mesh;
+
+                var vertexCount = _bodies.Count * 24;
+                _positions = new Vector3[vertexCount];
+                _normals = new Vector3[vertexCount];
+                _colors = new Vector4[vertexCount];
+
+                for (var i = 0; i < vertexCount; i++)
+                {
+                    _normals[i] = Vector3.UnitY;
+                    _colors[i] = new Vector4(1, 1, 1, 0);
+                }
+            }
+
+            public override void DrawComponent()
+            {
+                if (!_voxelsNode.IsLockPreviewEnabled)
+                {
+                    ClearUnusedSlots(0);
+                    _mesh.VertexBufferObject?.UpdateDynamicData(_positions, _normals, _colors);
+                    return;
+                }
+
+                var previewVoxels = _voxelsNode.BuildLockPreviewVoxels();
+                var previewCount = previewVoxels.Count;
+
+                for (var voxelIndex = 0; voxelIndex < previewCount; voxelIndex++)
+                {
+                    WritePreviewCube(voxelIndex, previewVoxels[voxelIndex]);
+                }
+
+                ClearUnusedSlots(previewCount);
+                _mesh.VertexBufferObject?.UpdateDynamicData(_positions, _normals, _colors);
+            }
+
+            private void WritePreviewCube(int voxelIndex, ManaVoxelData voxel)
+            {
+                var writeOffset = voxelIndex * 24;
+                var previewColor = new Vector4(voxel.Color.X, voxel.Color.Y, voxel.Color.Z, 0.55f);
+
+                for (var face = 0; face < 6; face++)
+                {
+                    var scale = ManaDynamicGeometryContainer.CubeFaceScales[face];
+                    var cR = Vector3.Transform(Vector3.One * 0.515f, scale);
+                    var combinedRotation = ManaDynamicGeometryContainer.CubeFaceRotations[face];
+                    var faceOffset = writeOffset + face * 4;
+
+                    _positions[faceOffset + 0] = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), combinedRotation) + voxel.Position;
+                    _positions[faceOffset + 1] = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), combinedRotation) + voxel.Position;
+                    _positions[faceOffset + 2] = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), combinedRotation) + voxel.Position;
+                    _positions[faceOffset + 3] = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), combinedRotation) + voxel.Position;
+
+                    var normal = new Vector3(0, 0, 1).TransformNormal(combinedRotation);
+                    _normals[faceOffset + 0] = normal;
+                    _normals[faceOffset + 1] = normal;
+                    _normals[faceOffset + 2] = normal;
+                    _normals[faceOffset + 3] = normal;
+
+                    _colors[faceOffset + 0] = previewColor;
+                    _colors[faceOffset + 1] = previewColor;
+                    _colors[faceOffset + 2] = previewColor;
+                    _colors[faceOffset + 3] = previewColor;
+                }
+            }
+
+            private void ClearUnusedSlots(int usedVoxelCount)
+            {
+                for (var voxelIndex = usedVoxelCount; voxelIndex < _bodies.Count; voxelIndex++)
+                {
+                    var writeOffset = voxelIndex * 24;
+                    for (var i = 0; i < 24; i++)
+                    {
+                        _positions[writeOffset + i] = Vector3.Zero;
+                        _normals[writeOffset + i] = Vector3.UnitY;
+                        _colors[writeOffset + i] = new Vector4(1, 1, 1, 0);
+                    }
+                }
             }
         }
     }
