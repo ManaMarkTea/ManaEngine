@@ -49,9 +49,9 @@ namespace ManaVoxel.Code.Loaders
     
         public List<MagicaVoxel> Voxels = new List<MagicaVoxel>();
 
-        public void Load()
+        public void Load(string? voxPath = null)
         {
-            var tempPath = @"Assets/Models/Vox/Captain.vox";
+            var tempPath = voxPath ?? @"Assets/Models/Vox/Captain.vox";
             //tempPath = @"Assets/Models/Vox/Ship_Pirate_01.vox"; // TOO BIG for now, needs Mesh Instancing and Shader Caching when its the same shader.
             ManaRiff riffer = new ManaRiff(tempPath);
 

@@ -29,6 +29,10 @@ namespace Mana.Code.GameModes
         ManaVoxelsNode voxelNode;
         int initialVoxelCount;
         int bakedPhysicsVoxelCount;
+        Vector4 paintVoxelColor = Colors.Magenta;
+        Vector3 importPositionOffset = Vector3.Zero;
+        Vector3 importRotationDegrees = Vector3.Zero;
+        Vector3 importScale = Vector3.One;
 
         public override void Load()
         {
@@ -87,9 +91,40 @@ namespace Mana.Code.GameModes
 
             foreach (var file in files)
             {
+                if (Path.GetExtension(file).Equals(".vox", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (voxelNode != null && voxelNode.IsBakedToDynamicPhysics)
+                    {
+                        // Ignore voxel imports once baked into dynamic physics mode.
+                        continue;
+                    }
+
+                    var voxLoader = new MagicaVoxLoader();
+                    voxLoader.Load(file);
+
+                    foreach (var voxelData in voxLoader.Voxels)
+                    {
+                        var voxelPosition = voxelData.Position + Vector3.One * 0.5f;
+                        voxelPosition += lastImportPos + importPositionOffset;
+                        voxel.AddVoxel(voxelPosition, voxelData.Color);
+                    }
+
+                    voxel.CommitData();
+                    lastImportPos.X += 2.0f;
+                    continue;
+                }
+
                 var fileWorld = Context.World;
                 var model = fileWorld.LoadFromGltf(file);
-                model.Position = lastImportPos;
+                model.Position = lastImportPos + importPositionOffset;
+                model.Rotation = new Vector3(
+                    importRotationDegrees.X.ToRadians(),
+                    importRotationDegrees.Y.ToRadians(),
+                    importRotationDegrees.Z.ToRadians());
+                model.Scale = new Vector3(
+                    MathF.Max(0.01f, importScale.X),
+                    MathF.Max(0.01f, importScale.Y),
+                    MathF.Max(0.01f, importScale.Z));
                 lastImportPos.X += 2.0f;
 
                 if (lastImportPos.X > startImportPos.X + 30)
@@ -135,6 +170,10 @@ namespace Mana.Code.GameModes
             ImGui.Text($"Pending Voxels: {voxel?.PendingVoxelCount ?? 0}");
             ImGui.Text($"Duplicate Skips: {voxel?.DuplicateVoxelRejectCount ?? 0}");
             ImGui.Text($"Physics Baked Voxels: {bakedPhysicsVoxelCount}");
+            ImGui.ColorEdit4("Voxel Paint", ref paintVoxelColor);
+            ImGui.InputFloat3("Import Pos Offset", ref importPositionOffset);
+            ImGui.InputFloat3("Import Rot (deg)", ref importRotationDegrees);
+            ImGui.InputFloat3("Import Scale", ref importScale);
 
             bool canBakeToPhysics = voxelNode != null && !voxelNode.IsBakedToDynamicPhysics;
             if (!canBakeToPhysics)
@@ -171,7 +210,7 @@ namespace Mana.Code.GameModes
 
             bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse;
 
-            if (!imguiCapturesMouse && (voxelNode == null || !voxelNode.IsBakedToDynamicPhysics))
+            if (!imguiCapturesMouse)
             {
                 RayHit hit = GetProjectedMouseHit();
                 if (hit.Hit)
@@ -189,9 +228,16 @@ namespace Mana.Code.GameModes
 
                     if (MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left))
                     {
-                        // Place voxels only when the scene has mouse focus, not while dragging ImGui windows.
-                        voxel.AddVoxel(pos, Colors.Magenta);
-                        voxel.CommitData();
+                        if (voxelNode != null && voxelNode.IsBakedToDynamicPhysics)
+                        {
+                            Context.Physics.ApplyExplosion(pos, radius: 6.0f, strength: 6.0f);
+                        }
+                        else
+                        {
+                            // Place voxels only when the scene has mouse focus, not while dragging ImGui windows.
+                            voxel.AddVoxel(pos, paintVoxelColor);
+                            voxel.CommitData();
+                        }
                     }
                 }
             }

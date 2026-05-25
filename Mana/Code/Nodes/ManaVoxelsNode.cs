@@ -52,6 +52,8 @@ namespace Mana.Code.Nodes
             Components.Remove(mergedVoxelRenderer);
 
             var bakeSpawnOffset = new Vector3(0, 2.0f, 0);
+            var random = Random.Shared;
+            const float bakeImpulseStrength = 4.5f;
 
             foreach (var voxel in shape.CommittedVoxels)
             {
@@ -59,7 +61,25 @@ namespace Mana.Code.Nodes
                 voxelNode.Components.Add(new MeshRendererComponent(voxelNode, new ManaCube(Context, voxel.Color, Vector3.One)));
                 AddChild(voxelNode);
 
-                Context.Physics.AddDynamicBoxBody(voxelNode, Vector3.One, Vector3.Zero, massPerVoxel);
+                var randomDirection = new Vector3(
+                    random.NextSingle() * 2.0f - 1.0f,
+                    random.NextSingle() * 0.5f + 0.1f,
+                    random.NextSingle() * 2.0f - 1.0f);
+                if (randomDirection.LengthSquared() < 1e-5f)
+                {
+                    randomDirection = Vector3.UnitY;
+                }
+                else
+                {
+                    randomDirection = Vector3.Normalize(randomDirection);
+                }
+
+                Context.Physics.AddDynamicBoxBody(
+                    voxelNode,
+                    Vector3.One,
+                    Vector3.Zero,
+                    massPerVoxel,
+                    randomDirection * bakeImpulseStrength);
             }
 
             return shape.CommittedVoxels.Count;

@@ -36,7 +36,16 @@ namespace Mana.Code.Components
             }
 
             var parentWorldPosition = Owner.Parent?.WorldTransform.Translation ?? Vector3.Zero;
-            Owner.Position = pose.Position - parentWorldPosition - Position;
+            var localPosition = pose.Position - parentWorldPosition - Position;
+            Owner.Position = localPosition;
+
+            var localTransform = Matrix4x4.Identity;
+            localTransform *= Matrix4x4.CreateScale(Owner.Scale);
+            localTransform *= Matrix4x4.CreateFromQuaternion(pose.Orientation);
+            localTransform *= Matrix4x4.CreateTranslation(localPosition);
+
+            Owner.LocalTransform = localTransform;
+            Owner.WorldTransform = Owner.Parent != null ? localTransform * Owner.Parent.WorldTransform : localTransform;
         }
     }
 }

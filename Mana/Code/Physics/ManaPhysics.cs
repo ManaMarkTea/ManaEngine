@@ -27,7 +27,7 @@ namespace Mana.Code
             Simulation = Simulation.Create(
                 BufferPool,
                 new DemoNarrowPhaseCallbacks(new SpringSettings(30, 1), maximumRecoveryVelocity: 2f, frictionCoefficient: 1f),
-                new DemoPoseIntegratorCallbacks(new Vector3(0, -10, 0)),
+                new DemoPoseIntegratorCallbacks(new Vector3(0, -22, 0), linearDamping: 0.03f, angularDamping: 0.12f),
                 new SolveDescription(8, 1));
 
         }
@@ -49,7 +49,7 @@ namespace Mana.Code
             node.Components.Add(collisionComponent);
         }
 
-        public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f)
+        public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f, Vector3? initialLinearVelocity = null)
         {
             var worldPosition = node.WorldTransform.Translation;
             Box boxShape = new Box(size.X, size.Y, size.Z);
@@ -60,13 +60,17 @@ namespace Mana.Code
                 new RigidPose(worldPosition + offset),
                 boxInertia,
                 new CollidableDescription(boxIndex),
-                -1f);
+                new BodyActivityDescription());
             BodyHandle handle = Simulation.Bodies.Add(boxBody);
 
             var bodyReference = Simulation.Bodies[handle];
             bodyReference.Awake = true;
             var bodyVelocity = bodyReference.Velocity;
             bodyVelocity.Linear += new Vector3(0, -0.5f, 0);
+            if (initialLinearVelocity.HasValue)
+            {
+                bodyVelocity.Linear += initialLinearVelocity.Value;
+            }
             bodyReference.Velocity = bodyVelocity;
 
             Simulation.Awakener.AwakenBody(handle);
@@ -92,6 +96,46 @@ namespace Mana.Code
             {
                 Simulation.Bodies.Remove(handle);
             }
+        }
+
+        public int ApplyExplosion(Vector3 center, float radius, float strength)
+        {
+            int affectedBodyCount = 0;
+            float radiusSquared = radius * radius;
+
+            foreach (var handle in PhysicsMap.Keys)
+            {
+                if (!Simulation.Bodies.BodyExists(handle))
+                {
+                    continue;
+                }
+
+                var bodyReference = Simulation.Bodies[handle];
+                if (bodyReference.Kinematic)
+                {
+                    continue;
+                }
+
+                var offset = bodyReference.Pose.Position - center;
+                float distanceSquared = offset.LengthSquared();
+                if (distanceSquared > radiusSquared)
+                {
+                    continue;
+                }
+
+                float distance = MathF.Sqrt(MathF.Max(distanceSquared, 1e-6f));
+                var direction = distance > 1e-5f ? offset / distance : Vector3.UnitY;
+                float falloff = 1.0f - MathF.Min(distance / radius, 1.0f);
+
+                var velocity = bodyReference.Velocity;
+                velocity.Linear += direction * (strength * falloff);
+                bodyReference.Velocity = velocity;
+                bodyReference.Awake = true;
+
+                affectedBodyCount++;
+            }
+
+            return affectedBodyCount;
         }
 
         public void Update()
