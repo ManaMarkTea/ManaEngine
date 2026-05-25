@@ -34,6 +34,7 @@ namespace Mana
         public int VoxelCount => Voxels.Count;
         public int PendingVoxelCount => AddVoxels.Count;
         public int DuplicateVoxelRejectCount { get; private set; }
+        public IReadOnlyList<ManaVoxelData> CommittedVoxels => Voxels;
 
         private static (int X, int Y, int Z) ToVoxelKey(Vector3 position)
         {

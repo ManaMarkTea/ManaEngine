@@ -26,7 +26,9 @@ namespace Mana.Code.GameModes
         }
 
         ManaVoxelShape voxel;
+        ManaVoxelsNode voxelNode;
         int initialVoxelCount;
+        int bakedPhysicsVoxelCount;
 
         public override void Load()
         {
@@ -59,6 +61,7 @@ namespace Mana.Code.GameModes
             vox.Load();
 
             var voxelsNode = shapes.AddVoxels(Vector3.Zero);
+            voxelNode = (ManaVoxelsNode)voxelsNode;
             var voxelShapes = voxelsNode.FindShapes<ManaVoxelShape>();
             Debug.Assert(voxelShapes.Count == 1);
 
@@ -107,7 +110,7 @@ namespace Mana.Code.GameModes
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
 
             var hitHandler = new SingleHitHandler();
-            Context.Physics.Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, ref hitHandler);
+            Context.Physics.Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, Context.Physics.BufferPool, ref hitHandler, 0);
 
             RayHit hit = new RayHit();
             if (hitHandler.ClosestHit.HasValue)
@@ -131,6 +134,23 @@ namespace Mana.Code.GameModes
             ImGui.Text($"Created This Session: {Math.Max(0, (voxel?.VoxelCount ?? 0) - initialVoxelCount)}");
             ImGui.Text($"Pending Voxels: {voxel?.PendingVoxelCount ?? 0}");
             ImGui.Text($"Duplicate Skips: {voxel?.DuplicateVoxelRejectCount ?? 0}");
+            ImGui.Text($"Physics Baked Voxels: {bakedPhysicsVoxelCount}");
+
+            bool canBakeToPhysics = voxelNode != null && !voxelNode.IsBakedToDynamicPhysics;
+            if (!canBakeToPhysics)
+            {
+                ImGui.BeginDisabled();
+            }
+
+            if (ImGui.Button("Bake Voxels To Physics (Fall)"))
+            {
+                bakedPhysicsVoxelCount = voxelNode.BakeVoxelsToDynamicPhysics();
+            }
+
+            if (!canBakeToPhysics)
+            {
+                ImGui.EndDisabled();
+            }
 
             if (fpsData == null)
             {
@@ -151,7 +171,7 @@ namespace Mana.Code.GameModes
 
             bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse;
 
-            if (!imguiCapturesMouse)
+            if (!imguiCapturesMouse && (voxelNode == null || !voxelNode.IsBakedToDynamicPhysics))
             {
                 RayHit hit = GetProjectedMouseHit();
                 if (hit.Hit)

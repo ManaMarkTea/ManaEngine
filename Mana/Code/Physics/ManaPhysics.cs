@@ -1,5 +1,6 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
+using BepuPhysics.Constraints;
 using BepuUtilities;
 using BepuUtilities.Collections;
 using BepuUtilities.Memory;
@@ -23,7 +24,11 @@ namespace Mana.Code
             var targetThreadCount = int.Max(1, Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
             ThreadDispatcher = new ThreadDispatcher(targetThreadCount);
             
-            Simulation = Simulation.Create(BufferPool, new NoCollisionCallbacks(), new DemoPoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
+            Simulation = Simulation.Create(
+                BufferPool,
+                new DemoNarrowPhaseCallbacks(new SpringSettings(30, 1), maximumRecoveryVelocity: 2f, frictionCoefficient: 1f),
+                new DemoPoseIntegratorCallbacks(new Vector3(0, -10, 0)),
+                new SolveDescription(8, 1));
 
         }
 
@@ -44,10 +49,66 @@ namespace Mana.Code
             node.Components.Add(collisionComponent);
         }
 
+        public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f)
+        {
+            var worldPosition = node.WorldTransform.Translation;
+            Box boxShape = new Box(size.X, size.Y, size.Z);
+            TypedIndex boxIndex = Simulation.Shapes.Add(boxShape);
+
+            var boxInertia = boxShape.ComputeInertia(mass);
+            BodyDescription boxBody = BodyDescription.CreateDynamic(
+                new RigidPose(worldPosition + offset),
+                boxInertia,
+                new CollidableDescription(boxIndex),
+                -1f);
+            BodyHandle handle = Simulation.Bodies.Add(boxBody);
+
+            var bodyReference = Simulation.Bodies[handle];
+            bodyReference.Awake = true;
+            var bodyVelocity = bodyReference.Velocity;
+            bodyVelocity.Linear += new Vector3(0, -0.5f, 0);
+            bodyReference.Velocity = bodyVelocity;
+
+            Simulation.Awakener.AwakenBody(handle);
+
+            ManaCollisionComponent collisionComponent = new ManaCollisionComponent(node);
+            collisionComponent.Position = offset;
+            collisionComponent.Shape = boxShape;
+            collisionComponent.ShapeIndex = boxIndex;
+            collisionComponent.Body = handle;
+            collisionComponent.SyncNodeToPhysics = false;
+            PhysicsMap[handle] = collisionComponent;
+            node.Components.Add(collisionComponent);
+        }
+
+        public void RemoveBody(BodyHandle handle)
+        {
+            if (PhysicsMap.Remove(handle, out var collisionComponent))
+            {
+                collisionComponent.Owner.Components.Remove(collisionComponent);
+            }
+
+            if (Simulation.Bodies.BodyExists(handle))
+            {
+                Simulation.Bodies.Remove(handle);
+            }
+        }
+
         public void Update()
         {
-            var TimestepDuration = ManaTime.GlobalTime.DeltaTime;
-            Simulation.Timestep(TimestepDuration.Milliseconds, ThreadDispatcher);
+            var timestepDuration = ManaTime.GlobalTime.DeltaTime;
+            var dtSeconds = (float)timestepDuration.TotalSeconds;
+
+            if (!float.IsFinite(dtSeconds) || dtSeconds <= 0)
+            {
+                dtSeconds = 1.0f / 60.0f;
+            }
+            else
+            {
+                dtSeconds = Math.Clamp(dtSeconds, 1.0f / 240.0f, 1.0f / 30.0f);
+            }
+
+            Simulation.Timestep(dtSeconds, ThreadDispatcher);
         }
 
         public void LoadSampleWorld()
