@@ -314,13 +314,14 @@ namespace ManaVoxel.Code.UI
             float fpsMax = _recentFpsData.Max();
             float fpsAvg = _recentFpsData.Average();
             float fpsCurrent = _recentFpsData[^1];
+            float fpsGraphMax = fpsMax;
 
-            if (MathF.Abs(fpsMax - fpsMin) < 1.0f)
+            if (MathF.Abs(fpsGraphMax - fpsMin) < 1.0f)
             {
-                fpsMax = fpsMin + 1.0f;
+                fpsGraphMax = fpsMin + 1.0f;
             }
 
-            float currentFpsGraphCeiling = NextFpsGraphStep(fpsMax);
+            float currentFpsGraphCeiling = NextFpsGraphStep(fpsGraphMax);
             _fpsGraphCeiling = MathF.Max(_fpsGraphCeiling, currentFpsGraphCeiling);
 
             if (ImGui.SmallButton("Reset FPS Range"))
@@ -338,7 +339,42 @@ namespace ManaVoxel.Code.UI
                 _fpsGraphCeiling,
                 new Vector2(ImGui.GetContentRegionAvail().X, 70));
 
-            ImGui.Text($"Current: {fpsCurrent:0.0}  Avg: {fpsAvg:0.0}  Min: {fpsMin:0.0}  Max: {fpsMax:0.0}  Range: 0-{_fpsGraphCeiling:0}");
+            DrawFpsStatsTable(fpsCurrent, fpsAvg, fpsMin, fpsMax, _fpsGraphCeiling);
+        }
+
+        private static void DrawFpsStatsTable(float current, float average, float minimum, float maximum, float graphCeiling)
+        {
+            const ImGuiTableFlags flags =
+                ImGuiTableFlags.Borders |
+                ImGuiTableFlags.RowBg |
+                ImGuiTableFlags.SizingStretchSame;
+
+            if (!ImGui.BeginTable("FpsStats", 5, flags))
+            {
+                return;
+            }
+
+            ImGui.TableSetupColumn("Current");
+            ImGui.TableSetupColumn("Avg");
+            ImGui.TableSetupColumn("Min");
+            ImGui.TableSetupColumn("Max");
+            ImGui.TableSetupColumn("Range");
+            ImGui.TableHeadersRow();
+
+            ImGui.TableNextRow();
+            DrawFpsStatsCell($"{current:0.0}");
+            DrawFpsStatsCell($"{average:0.0}");
+            DrawFpsStatsCell($"{minimum:0.0}");
+            DrawFpsStatsCell($"{maximum:0.0}");
+            DrawFpsStatsCell($"0-{graphCeiling:0}");
+
+            ImGui.EndTable();
+        }
+
+        private static void DrawFpsStatsCell(string value)
+        {
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(value);
         }
 
         private static float NextFpsGraphStep(float value)
