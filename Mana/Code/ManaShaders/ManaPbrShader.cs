@@ -78,6 +78,8 @@ namespace Mana.Code
                 CompiledShader.FindUniform("aoMap")?.SetValue(8);
 
                 renderer.ApplyLights(this);
+                CompiledShader.FindUniform("exposure")?.SetValue(renderer.PbrExposure);
+                CompiledShader.FindUniform("iblIntensity")?.SetValue(renderer.IblIntensity);
             }
 
             material.Albedo.Bind(3);

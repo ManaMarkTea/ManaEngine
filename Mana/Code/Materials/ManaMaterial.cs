@@ -42,7 +42,7 @@ namespace Mana.Code.Materials
             Emission = new ManaTextureVector4(Context, Colors.Cyan);
             Metallic = new ManaTextureSingle(Context, 0);
             Roughness = new ManaTextureSingle(Context, 1);
-            Ambient = new ManaTextureSingle(Context, 0.25);
+            Ambient = new ManaTextureSingle(Context, 1.0);
         }
 
         public Dictionary<string, ManaMaterialChannel> Channels { get; set; }

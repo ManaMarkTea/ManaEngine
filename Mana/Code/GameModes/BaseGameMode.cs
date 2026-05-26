@@ -64,6 +64,8 @@ namespace Mana.Code
 
         public ManaContext Context = null!;
 
+        private static readonly GraphicsAPI RequestedGraphicsApi = GraphicsAPI.Default;
+
 
         public BaseGameMode()
         {
@@ -106,7 +108,7 @@ namespace Mana.Code
                 isVisible: true,
                 new Vector2D<int>(50, 50),
                 new Vector2D<int>(initialWindowWidth, initialWindowHeight), 90, 90,
-                GraphicsAPI.Default, "ManaGL - SceneViewerMode",
+                RequestedGraphicsApi, "ManaGL - SceneViewerMode",
                 WindowState.Normal,
                 WindowBorder.Resizable,
                 isVSync: true,
@@ -128,12 +130,11 @@ namespace Mana.Code
             GL = _Window.CreateOpenGL();
             var input = _Window.CreateInput();
 
-            var majorVersion = GL.GetInteger(GLEnum.MajorVersion);
-            var minorVersion = GL.GetInteger(GLEnum.MinorVersion);
-            Console.WriteLine($"Mana: GL {majorVersion}.{minorVersion}");
+            LogLoadDiagnostics(input);
 
             var world = new ManaWorld();
             Context = new ManaContext(_Window, GL, input, world);
+            Context.GameMode = this;
 
             world.Initialize(Context);
 
@@ -153,6 +154,62 @@ namespace Mana.Code
 
             // Initialize the physics engine
             Context.Physics = new ManaPhysics(Context);
+        }
+
+        private void LogLoadDiagnostics(IInputContext input)
+        {
+            var majorVersion = GL.GetInteger(GLEnum.MajorVersion);
+            var minorVersion = GL.GetInteger(GLEnum.MinorVersion);
+            var requestedApi = DescribeGraphicsApi(RequestedGraphicsApi);
+            var windowApi = DescribeGraphicsApi(_Window.API);
+            var debugCallbacks = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                ? "disabled on macOS before OpenGL 4.3"
+                : "enabled after startup diagnostics";
+
+            WriteStartupLog("Mana: startup diagnostics");
+            WriteStartupLog($"Mana: Requested API: {requestedApi}");
+            WriteStartupLog($"Mana: Window API: {windowApi}");
+            WriteStartupLog(
+                $"Mana: OpenGL {majorVersion}.{minorVersion} | Version='{GetGlString(StringName.Version)}' | GLSL='{GetGlString(StringName.ShadingLanguageVersion)}'");
+            WriteStartupLog($"Mana: GPU: {GetGlString(StringName.Renderer)}");
+            WriteStartupLog($"Mana: Vendor: {GetGlString(StringName.Vendor)}");
+            WriteStartupLog(
+                $"Mana: Window: size={_Window.Size.X}x{_Window.Size.Y}, framebuffer={_Window.FramebufferSize.X}x{_Window.FramebufferSize.Y}, " +
+                $"fps={_Window.FramesPerSecond:0.##}, updateHz={_Window.UpdatesPerSecond:0.##}, vsync={_Window.VSync}, " +
+                $"depth={_Window.PreferredDepthBufferBits?.ToString() ?? "default"}, stencil={_Window.PreferredStencilBufferBits?.ToString() ?? "default"}");
+            WriteStartupLog(
+                $"Mana: Input: keyboards={input.Keyboards.Count}, mice={input.Mice.Count}, gamepads={input.Gamepads.Count}, joysticks={input.Joysticks.Count}, other={input.OtherDevices.Count}");
+            WriteStartupLog(
+                $"Mana: GL limits: maxTexture={GL.GetInteger(GLEnum.MaxTextureSize)}, maxCubeMap={GL.GetInteger(GLEnum.MaxCubeMapTextureSize)}, " +
+                $"maxTextureUnits={GL.GetInteger(GLEnum.MaxCombinedTextureImageUnits)}, maxVertexAttribs={GL.GetInteger(GLEnum.MaxVertexAttribs)}, " +
+                $"maxDrawBuffers={GL.GetInteger(GLEnum.MaxDrawBuffers)}, maxColorAttachments={GL.GetInteger(GLEnum.MaxColorAttachments)}, " +
+                $"maxSamples={GL.GetInteger(GLEnum.MaxSamples)}, maxRenderbuffer={GL.GetInteger(GLEnum.MaxRenderbufferSize)}");
+            WriteStartupLog($"Mana: Runtime: {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture}");
+            WriteStartupLog($"Mana: GL debug callback: {debugCallbacks}");
+            WriteStartupLog("Mana: GL 3.3 note: Silk.NET GraphicsAPI.Default requests OpenGL 3.3 Core/ForwardCompatible, matching the project's #version 330 shaders.");
+        }
+
+        private string GetGlString(StringName name)
+        {
+            try
+            {
+                return GL.GetStringS(name);
+            }
+            catch (Exception ex)
+            {
+                return $"unavailable ({ex.GetType().Name})";
+            }
+        }
+
+        private static string DescribeGraphicsApi(GraphicsAPI api)
+        {
+            return $"{api.API} {api.Version.MajorVersion}.{api.Version.MinorVersion} {api.Profile}/{api.Flags}";
+        }
+
+        private static void WriteStartupLog(string message)
+        {
+            Console.WriteLine(message);
+            Trace.WriteLine(message);
         }
 
         public void ApplyImGuiFontPreset(ImGuiFontPreset preset)

@@ -6,6 +6,8 @@ namespace ManaVoxel.Code.UI
 {
     public class VoxelEditorViewModel : IVoxelEditorCommands
     {
+        private const int MaxToolPreviewVoxelCount = 50_000;
+
         private static readonly string[] LockOverlapPolicies = { "Closest", "Brightest", "First Seen" };
 
         private readonly List<VoxelLayerViewModel> _voxelLayers = new();
@@ -134,6 +136,12 @@ namespace ManaVoxel.Code.UI
                 return;
             }
 
+            if (result.Voxels.Count > MaxToolPreviewVoxelCount)
+            {
+                ClearToolPreview();
+                return;
+            }
+
             previewNode.Position = result.Anchor;
             var previewVoxels = result.Voxels
                 .Select(voxel => new ManaVoxelData
@@ -143,12 +151,12 @@ namespace ManaVoxel.Code.UI
                 })
                 .ToArray();
 
-            previewNode.VoxelShape.ReplaceCommittedVoxels(previewVoxels);
+            previewNode.VoxelShape.ReplaceCommittedVoxels(previewVoxels, logStats: false);
         }
 
         public void ClearToolPreview()
         {
-            _previewNode?.VoxelShape.ReplaceCommittedVoxels(Array.Empty<ManaVoxelData>());
+            _previewNode?.VoxelShape.ReplaceCommittedVoxels(Array.Empty<ManaVoxelData>(), logStats: false);
         }
 
         public bool CreateVoxelLayer(

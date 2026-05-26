@@ -38,8 +38,14 @@ namespace Mana.Code.Renderers
         Vector4 debugAlbedo = Colors.White;
         float debugSceneScale = 1.0f;
 
-        float debugLightIntensity = 10.0f;
+        float debugLightIntensity = 1.35f;
         Vector4 debugLightColor = Colors.White;
+        bool debugLightsFollowVoxelBounds = true;
+        float debugPbrExposure = 0.92f;
+        float debugIblIntensity = 0.90f;
+
+        public float PbrExposure => debugPbrExposure;
+        public float IblIntensity => debugIblIntensity;
 
         public override void Initialize()
         {
@@ -141,8 +147,11 @@ namespace Mana.Code.Renderers
             ImGui.SliderFloat("Ambience", ref debugAmbient, 0.0f, 1.0f);
             ImGui.ColorEdit4("Albedo", ref debugAlbedo);
 
-            ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 100.0f);
+            ImGui.Checkbox("Lights Follow Voxels", ref debugLightsFollowVoxelBounds);
+            ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 8.0f);
             ImGui.ColorEdit4("Light Color", ref debugLightColor);
+            ImGui.SliderFloat("Exposure", ref debugPbrExposure, 0.25f, 3.0f);
+            ImGui.SliderFloat("IBL Intensity", ref debugIblIntensity, 0.0f, 4.0f);
             ImGui.SliderFloat("Debug Scene Scale", ref debugSceneScale, 0.35f, 2.75f);
 
             ImGui.End();            
@@ -151,19 +160,18 @@ namespace Mana.Code.Renderers
 
             var window = Context.Window;
             Context.gl.Viewport(window.FramebufferSize);
-            Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D() * 255.0f);
+            Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D());
+            Context.gl.ClearDepth(1.0);
+            Context.gl.DepthFunc(DepthFunction.Lequal);
+            Context.gl.ColorMask(true, true, true, true);
             Clear();
 
             RenderEnvironmentBackground();
 
             Context.gl.Enable(EnableCap.DepthTest);
             Context.gl.Viewport(window.FramebufferSize);
-            Context.gl.ClearDepth(0);
-            Context.gl.Enable(EnableCap.DepthTest);
-            Context.gl.DepthFunc(DepthFunction.Lequal);
-            Context.gl.ColorMask(true, true, true, true);
             Context.gl.ClearDepth(1.0);
-            Clear();
+            ClearDepth();
 
             drawScenes();
 
@@ -193,13 +201,17 @@ namespace Mana.Code.Renderers
         private Vector3 debugSceneCenter = new Vector3(64.0f, 3.0f, 64.0f);
 
         
-        private static readonly Vector3[] lightColors =
+        private static readonly float[] lightWeights =
         {
-            new Vector3(220.0f, 220.0f, 220.0f),
-            new Vector3(220.0f, 220.0f, 220.0f),
-            new Vector3(200.0f, 200.0f, 200.0f),
-            new Vector3(200.0f, 200.0f, 200.0f)
+            1.00f,
+            0.65f,
+            0.35f,
+            0.35f
         };
+
+        private long cachedLightFrame = -1;
+        private Vector3 cachedLightCenter;
+        private float cachedLightRadius = 16.0f;
 
 
 
@@ -425,11 +437,88 @@ namespace Mana.Code.Renderers
 
         public void ApplyLights(ManaPbrShader manaPbrShader)
         {
+            ResolveLightingTarget(out var lightCenter, out var lightRadius);
+            var lightDistance = Math.Clamp(lightRadius * 1.8f, 8.0f, 80.0f);
+            var directLightColor = debugLightColor.ToVector3() * debugLightIntensity * lightDistance * lightDistance;
+
             for (int i = 0; i < lightPositionOffsets.Length; ++i)
             {
-                var lightPosition = debugSceneCenter + lightPositionOffsets[i] * debugSceneScale;
+                var lightDirection = Vector3.Normalize(lightPositionOffsets[i]);
+                var lightPosition = lightCenter + lightDirection * lightDistance;
                 manaPbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPosition, i);
-                manaPbrShader.FindUniform($"lightColors[0]")?.SetValue(lightColors[i], i);
+                manaPbrShader.FindUniform($"lightColors[0]")?.SetValue(directLightColor * lightWeights[i], i);
+            }
+        }
+
+        private void ResolveLightingTarget(out Vector3 center, out float radius)
+        {
+            if (!debugLightsFollowVoxelBounds)
+            {
+                center = debugSceneCenter;
+                radius = 16.0f * debugSceneScale;
+                return;
+            }
+
+            var updateFrame = Context.GameMode?.UpdateFrame ?? -1;
+            if (cachedLightFrame != updateFrame)
+            {
+                cachedLightFrame = updateFrame;
+                if (TryGetVoxelBounds(out var min, out var max))
+                {
+                    cachedLightCenter = (min + max) * 0.5f;
+                    cachedLightRadius = Math.Max(Vector3.Distance(min, max) * 0.5f, 4.0f);
+                }
+                else
+                {
+                    cachedLightCenter = debugSceneCenter;
+                    cachedLightRadius = 16.0f * debugSceneScale;
+                }
+            }
+
+            center = cachedLightCenter;
+            radius = cachedLightRadius;
+        }
+
+        private bool TryGetVoxelBounds(out Vector3 min, out Vector3 max)
+        {
+            min = new Vector3(float.MaxValue);
+            max = new Vector3(float.MinValue);
+            var foundVoxel = false;
+
+            if (Context.World == null)
+            {
+                return false;
+            }
+
+            foreach (var scene in Context.World.Scenes)
+            {
+                foreach (var child in scene.Children)
+                {
+                    AccumulateVoxelBounds(child, ref min, ref max, ref foundVoxel);
+                }
+            }
+
+            return foundVoxel;
+        }
+
+        private static void AccumulateVoxelBounds(ManaSceneNode node, ref Vector3 min, ref Vector3 max, ref bool foundVoxel)
+        {
+            if (node is ManaVoxelsNode voxelsNode)
+            {
+                foreach (var voxel in voxelsNode.VoxelShape.CommittedVoxels)
+                {
+                    var halfSize = Vector3.One * 0.5f;
+                    var voxelMin = Vector3.Transform(voxel.Position - halfSize, voxelsNode.WorldTransform);
+                    var voxelMax = Vector3.Transform(voxel.Position + halfSize, voxelsNode.WorldTransform);
+                    min = Vector3.Min(min, Vector3.Min(voxelMin, voxelMax));
+                    max = Vector3.Max(max, Vector3.Max(voxelMin, voxelMax));
+                    foundVoxel = true;
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                AccumulateVoxelBounds(child, ref min, ref max, ref foundVoxel);
             }
         }
     }

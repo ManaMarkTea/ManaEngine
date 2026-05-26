@@ -19,7 +19,7 @@ namespace Mana
             ElementCount = 1;
 
             InternalDataFormat = InternalFormat.Red;
-            InternalPixelFormat = PixelFormat.Rgb;
+            InternalPixelFormat = PixelFormat.Red;
             InternalPixelType = GLEnum.Float;
 
             Load();

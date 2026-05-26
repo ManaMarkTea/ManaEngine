@@ -216,8 +216,8 @@ namespace Mana.Code.Shapes.Loaders
                                 case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
                                 case TextureType.Emissive: { outputMaterial.Emission.TextureValue = channelTexture; } break;
                                 case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = channelTexture; } break;
-                                case TextureType.Normals: { outputMaterial.Normal.TextureValue = channelTexture; } break;
-                                case TextureType.NormalCamera: { outputMaterial.Normal.TextureValue = channelTexture; } break;
+                                case TextureType.Normals: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                                case TextureType.NormalCamera: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
                             }
                         }
                     }

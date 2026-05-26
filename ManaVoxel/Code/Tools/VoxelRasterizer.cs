@@ -2,6 +2,9 @@ namespace ManaVoxel.Code.Tools
 {
     public static class VoxelRasterizer
     {
+        public const int MaxFilledSphereRadiusCells = 18;
+        public const int MaxFilledCircleRadiusCells = 64;
+
         public static Vector3 SnapToCenter(Vector3 position)
         {
             return new Vector3(
@@ -98,7 +101,9 @@ namespace ManaVoxel.Code.Tools
             Vector4 color)
         {
             var centerCell = ToCell(SnapToCenter(center));
-            var radius = MathF.Max(0.0f, PlaneDistance(center, edge, plane));
+            var radius = MathF.Min(
+                MathF.Max(0.0f, PlaneDistance(center, edge, plane)),
+                MaxFilledCircleRadiusCells);
             var radiusCells = (int)MathF.Ceiling(radius);
             var radiusSquared = radius * radius + 0.001f;
             var axes = GetPlaneAxes(plane);
@@ -126,7 +131,9 @@ namespace ManaVoxel.Code.Tools
             Vector4 color)
         {
             var centerCell = ToCell(SnapToCenter(center));
-            var radius = MathF.Max(0.0f, Vector3.Distance(SnapToCenter(center), SnapToCenter(edge)));
+            var radius = MathF.Min(
+                MathF.Max(0.0f, Vector3.Distance(SnapToCenter(center), SnapToCenter(edge))),
+                MaxFilledSphereRadiusCells);
             var radiusCells = (int)MathF.Ceiling(radius);
             var radiusSquared = radius * radius + 0.001f;
 

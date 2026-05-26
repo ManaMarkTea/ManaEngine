@@ -121,6 +121,9 @@ namespace Mana.Code.Nodes
             var bakedMesh = new ManaMesh(Context);
             var sharedMaterial = new ManaMaterial(Context);
             sharedMaterial.Albedo.Value = Colors.White;
+            sharedMaterial.Metallic.Value = 0.0f;
+            sharedMaterial.Roughness.Value = ManaVoxelShape.DefaultVoxelRoughness;
+            sharedMaterial.Ambient.Value = 1.0f;
             bakedMesh.Materials = new ManaMaterial[] { sharedMaterial };
             bakedMesh.VertexBufferObject = geom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
 
@@ -385,6 +388,9 @@ namespace Mana.Code.Nodes
             var previewMaterial = new ManaMaterial(Context);
             previewMaterial.Albedo.Value = Colors.White;
             previewMaterial.Emission.Value = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
+            previewMaterial.Metallic.Value = 0.0f;
+            previewMaterial.Roughness.Value = ManaVoxelShape.DefaultVoxelRoughness;
+            previewMaterial.Ambient.Value = 1.0f;
             previewMesh.Materials = new[] { previewMaterial };
             previewMesh.VertexBufferObject = previewGeom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
 
@@ -603,7 +609,13 @@ namespace Mana.Code.Nodes
                     _positions[faceOffset + 2] = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), combinedRotation) + localPosePosition;
                     _positions[faceOffset + 3] = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), combinedRotation) + localPosePosition;
 
+                    var faceCenter = (_positions[faceOffset + 0] + _positions[faceOffset + 1] + _positions[faceOffset + 2] + _positions[faceOffset + 3]) * 0.25f;
                     var normal = new Vector3(0, 0, 1).TransformNormal(combinedRotation);
+                    if (Vector3.Dot(faceCenter - localPosePosition, normal) < 0.0f)
+                    {
+                        normal = -normal;
+                    }
+                    normal = Vector3.Normalize(normal);
                     _normals[faceOffset + 0] = normal;
                     _normals[faceOffset + 1] = normal;
                     _normals[faceOffset + 2] = normal;
@@ -735,7 +747,13 @@ namespace Mana.Code.Nodes
                     _positions[faceOffset + 2] = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), combinedRotation) + voxel.Position;
                     _positions[faceOffset + 3] = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), combinedRotation) + voxel.Position;
 
+                    var faceCenter = (_positions[faceOffset + 0] + _positions[faceOffset + 1] + _positions[faceOffset + 2] + _positions[faceOffset + 3]) * 0.25f;
                     var normal = new Vector3(0, 0, 1).TransformNormal(combinedRotation);
+                    if (Vector3.Dot(faceCenter - voxel.Position, normal) < 0.0f)
+                    {
+                        normal = -normal;
+                    }
+                    normal = Vector3.Normalize(normal);
                     _normals[faceOffset + 0] = normal;
                     _normals[faceOffset + 1] = normal;
                     _normals[faceOffset + 2] = normal;

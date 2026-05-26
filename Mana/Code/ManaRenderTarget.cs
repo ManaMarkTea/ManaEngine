@@ -189,7 +189,7 @@ namespace Mana
                 if (bufferInfo.RedFloatBuffer)
                 {
                     internalFormat = InternalFormat.Red;
-                    internalFormat2 = PixelFormat.Rgb;
+                    internalFormat2 = PixelFormat.Red;
                     internalDataType = GLEnum.Float;
                     filterTypeMin = TextureMinFilter.Nearest;
                     filterTypeMag = TextureMagFilter.Nearest;

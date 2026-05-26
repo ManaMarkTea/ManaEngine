@@ -74,13 +74,20 @@
             var vb = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), rotation);
             var vc = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), rotation);
             var vd = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), rotation);
+            var normal = new Vector3(0, 0, 1).TransformNormal(rotation);
+            var center = (va + vb + vc + vd) * 0.25f;
+            if (Vector3.Dot(center, normal) < 0.0f)
+            {
+                normal = -normal;
+            }
+            normal = Vector3.Normalize(normal);
 
             Verts.AddRange(new List<ManaVertex>
             {
                 new ManaVertex()
                 {
                     Position = va,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(0,0)
                 },
@@ -88,7 +95,7 @@
                 new ManaVertex()
                 {
                     Position = vb,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(1,0)
                 },
@@ -96,7 +103,7 @@
                 new ManaVertex()
                 {
                     Position = vc,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(1,1)
                 },
@@ -104,7 +111,7 @@
                 new ManaVertex()
                 {
                     Position = vd,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(0,1)
                 },

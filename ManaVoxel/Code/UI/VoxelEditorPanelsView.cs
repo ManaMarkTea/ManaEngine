@@ -163,7 +163,7 @@ namespace ManaVoxel.Code.UI
 
             ImGui.SeparatorText("Tuning");
             ImGui.SliderFloat("Explosion Strength", ref viewModel.BakeExplosionStrength, 1.0f, 150.0f);
-            ImGui.SliderFloat("Click Explosion Scale", ref viewModel.ClickExplosionStrengthScale, 0.02f, 1.0f);
+            ImGui.SliderFloat("Click Explosion Scale", ref viewModel.ClickExplosionStrengthScale, 0.02f, 10.0f);
             ImGui.SliderFloat("Explosion Radius Padding", ref viewModel.BakeExplosionRadiusPadding, 0.0f, 6.0f);
             ImGui.SliderFloat("Reassemble Pull", ref viewModel.ReassemblePullGain, 0.0f, 30.0f);
             ImGui.SliderFloat("Reassemble Damping", ref viewModel.ReassembleVelocityDamping, 0.0f, 0.99f);

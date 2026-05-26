@@ -126,6 +126,14 @@ namespace Mana.Code
             var vb = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), rotation) + positionOffset;
             var vc = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), rotation) + positionOffset;
             var vd = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), rotation) + positionOffset;
+            var normal = new Vector3(0, 0, 1).TransformNormal(rotation);
+            var center = (va + vb + vc + vd) * 0.25f;
+            var outward = center - positionOffset;
+            if (Vector3.Dot(outward, normal) < 0.0f)
+            {
+                normal = -normal;
+            }
+            normal = Vector3.Normalize(normal);
             
 
             var verts = AddVertexRange
@@ -133,7 +141,7 @@ namespace Mana.Code
                 new ManaGeometryVertex()
                 {
                     Position = va,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(0, 0)
                 },
@@ -141,7 +149,7 @@ namespace Mana.Code
                 new ManaGeometryVertex()
                 {
                     Position = vb,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(1, 0)
                 },
@@ -149,7 +157,7 @@ namespace Mana.Code
                 new ManaGeometryVertex()
                 {
                     Position = vc,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(1, 1)
                 },
@@ -157,7 +165,7 @@ namespace Mana.Code
                 new ManaGeometryVertex()
                 {
                     Position = vd,
-                    Normal = new Vector3(0, 0, 1).TransformNormal(rotation),
+                    Normal = normal,
                     Color = color,
                     TexCoord0 = new Vector2(0, 1)
                 }
