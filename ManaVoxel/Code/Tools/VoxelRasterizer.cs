@@ -10,6 +10,16 @@ namespace ManaVoxel.Code.Tools
                 MathF.Floor(position.Z) + 0.5f);
         }
 
+        public static Vector3 SnapHitToAdjacentCenter(Vector3 position, Vector3 normal)
+        {
+            if (normal.LengthSquared() <= 0.0001f)
+            {
+                return SnapToCenter(position);
+            }
+
+            return SnapToCenter(position + Vector3.Normalize(normal) * 0.5f);
+        }
+
         public static (int X, int Y, int Z) ToCell(Vector3 position)
         {
             return (

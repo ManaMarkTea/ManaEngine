@@ -1,4 +1,6 @@
 using ImGuiNET;
+using ManaVoxel.Code.Tools;
+
 namespace ManaVoxel.Code.UI
 {
     public class VoxelEditorPanelsView
@@ -44,6 +46,9 @@ namespace ManaVoxel.Code.UI
 
             ImGui.SeparatorText("Session");
             DrawSessionTable(viewModel);
+
+            ImGui.Spacing();
+            DrawPlacementReadout(viewModel);
 
             ImGui.Spacing();
             DrawVoxelNodeControls(viewModel);
@@ -115,6 +120,26 @@ namespace ManaVoxel.Code.UI
             }
         }
 
+        private static void DrawPlacementReadout(VoxelEditorViewModel viewModel)
+        {
+            ImGui.SeparatorText("Placement");
+            if (!viewModel.HasHoverVoxel)
+            {
+                ImGui.TextUnformatted("No hovered voxel");
+                return;
+            }
+
+            var cell = VoxelRasterizer.ToCell(viewModel.HoverVoxelPosition);
+            ImGui.TextUnformatted($"Cell: {cell.X}, {cell.Y}, {cell.Z}");
+            ImGui.TextUnformatted($"Center: {FormatVector(viewModel.HoverVoxelPosition)}");
+            ImGui.TextUnformatted($"Camera Distance: {viewModel.HoverCameraDistance:0.0}");
+
+            if (viewModel.HasHoverDelta)
+            {
+                ImGui.TextUnformatted($"Delta From Last: {FormatVector(viewModel.HoverDeltaFromLast)}");
+            }
+        }
+
         private static void DrawSessionTableRow(string label, int value)
         {
             ImGui.TableNextRow();
@@ -122,6 +147,11 @@ namespace ManaVoxel.Code.UI
             ImGui.TextUnformatted(label);
             ImGui.TableNextColumn();
             ImGui.TextUnformatted(value.ToString());
+        }
+
+        private static string FormatVector(Vector3 value)
+        {
+            return $"{value.X:0.0}, {value.Y:0.0}, {value.Z:0.0}";
         }
 
         private static void DrawPhysicsTab(VoxelEditorViewModel viewModel)

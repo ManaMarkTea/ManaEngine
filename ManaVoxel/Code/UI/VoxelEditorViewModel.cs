@@ -31,6 +31,11 @@ namespace ManaVoxel.Code.UI
         public Vector3 ImportPositionOffset = Vector3.Zero;
         public Vector3 ImportRotationDegrees = Vector3.Zero;
         public Vector3 ImportScale = Vector3.One;
+        public bool HasHoverVoxel { get; private set; }
+        public Vector3 HoverVoxelPosition { get; private set; }
+        public Vector3 HoverVoxelNormal { get; private set; }
+        public float HoverCameraDistance { get; private set; }
+        public Vector3? LastCommittedVoxelPosition { get; private set; }
 
         public int SelectedToolIndex;
         public int SelectedWorkPlaneIndex;
@@ -72,6 +77,10 @@ namespace ManaVoxel.Code.UI
         public int PendingVoxelCount => _voxelLayers.Sum(layer => layer.Shape.PendingVoxelCount);
         public int DuplicateVoxelRejectCount => _voxelLayers.Sum(layer => layer.Shape.DuplicateVoxelRejectCount);
         public int CreatedThisSessionVoxelCount => Math.Max(0, VoxelCount - InitialVoxelCount);
+        public bool HasHoverDelta => HasHoverVoxel && LastCommittedVoxelPosition.HasValue;
+        public Vector3 HoverDeltaFromLast => HasHoverDelta
+            ? HoverVoxelPosition - LastCommittedVoxelPosition!.Value
+            : Vector3.Zero;
         public IVoxelEditorCommands Commands => this;
 
         public void AttachScene(ManaContext context, ManaScene scene)
@@ -102,7 +111,13 @@ namespace ManaVoxel.Code.UI
 
         public bool CommitToolResult(VoxelToolResult result)
         {
-            return CreateVoxelLayer(result.Name, result.Name, result.Anchor, result.Voxels);
+            var created = CreateVoxelLayer(result.Name, result.Name, result.Anchor, result.Voxels);
+            if (created)
+            {
+                LastCommittedVoxelPosition = result.Anchor;
+            }
+
+            return created;
         }
 
         public void SetToolPreview(VoxelToolResult? result)
@@ -215,7 +230,25 @@ namespace ManaVoxel.Code.UI
                 Position = Vector3.Zero,
                 Color = PaintVoxelColor
             };
-            CreateVoxelLayer("Voxel", "Stroke", position, new[] { voxel });
+
+            if (CreateVoxelLayer("Voxel", "Stroke", position, new[] { voxel }))
+            {
+                LastCommittedVoxelPosition = position;
+            }
+        }
+
+        public void SetHoveredVoxel(Vector3 position, Vector3 normal, Vector3 cameraPosition)
+        {
+            HasHoverVoxel = true;
+            HoverVoxelPosition = position;
+            HoverVoxelNormal = normal;
+            HoverCameraDistance = Vector3.Distance(position, cameraPosition);
+        }
+
+        public void ClearHoveredVoxel()
+        {
+            HasHoverVoxel = false;
+            HoverCameraDistance = 0.0f;
         }
 
         public int GetLockPreviewVoxelCount()

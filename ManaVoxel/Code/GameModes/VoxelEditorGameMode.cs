@@ -19,6 +19,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelToolPaletteView _toolPaletteView = new();
         private readonly VoxelEditorPanelsView _panelsView = new();
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
+        private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
 
         public ManaSceneNode Cursor { get; private set; } = null!;
@@ -205,6 +206,7 @@ namespace Mana.Code.GameModes
             {
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();
+                _viewModel.ClearHoveredVoxel();
             }
             else
             {
@@ -213,15 +215,20 @@ namespace Mana.Code.GameModes
 
                 if (hit.Hit)
                 {
-                    var pos = VoxelRasterizer.SnapToCenter(hit.Position);
+                    var pos = VoxelRasterizer.SnapHitToAdjacentCenter(hit.Position, hit.Normal);
 
                     Cursor.Position = pos;
+                    _viewModel.SetHoveredVoxel(pos, hit.Normal, Context.World.MainCamera.Owner.Position);
                     toolPoint = new VoxelToolPoint(pos, hit.Normal);
 
                     if (leftMouseDown && _viewModel.HasBakedVoxels)
                     {
                         _viewModel.ExplodeBakedVoxelsAt(pos);
                     }
+                }
+                else
+                {
+                    _viewModel.ClearHoveredVoxel();
                 }
 
                 if (_viewModel.HasBakedVoxels)
@@ -243,6 +250,8 @@ namespace Mana.Code.GameModes
                     }
                 }
             }
+
+            _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
 
             if (_viewModel.ShowImGuiDemoWindow)
             {
