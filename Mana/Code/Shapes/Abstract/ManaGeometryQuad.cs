@@ -2,15 +2,15 @@
 {
     public class ManaGeometryQuad
     {
-        public ManaDynamicGeometryContainer Geom;
+        public ManaDynamicGeometryContainer Geom = null!;
 
-        public ManaGeometryVertex A;
-        public ManaGeometryVertex B;
-        public ManaGeometryVertex C;
-        public ManaGeometryVertex D;
+        public ManaGeometryVertex A = null!;
+        public ManaGeometryVertex B = null!;
+        public ManaGeometryVertex C = null!;
+        public ManaGeometryVertex D = null!;
 
-        public ManaGeometryFace Face1;
-        public ManaGeometryFace Face2;
+        public ManaGeometryFace Face1 = null!;
+        public ManaGeometryFace Face2 = null!;
 
         public Vector3 Normal;
 

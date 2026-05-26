@@ -8,8 +8,8 @@ namespace Mana
 {
     public class ShaderSource
     {
-        public string Path;
-        public string Source;
+        public string Path = string.Empty;
+        public string Source = string.Empty;
         
         public bool IsDirty { get; set; } = false;
 
@@ -57,11 +57,11 @@ namespace Mana
 
     public class ManaShader : ManaObject
     {
-        public ManaCompiledShader CompiledShader { get; set; }
+        public ManaCompiledShader CompiledShader { get; set; } = null!;
 
-        public ShaderSource VertexSource { get; set; }
-        public ShaderSource FragmentSource { get; set; }
-        public ShaderSource GeometrySource { get; set; }
+        public ShaderSource VertexSource { get; set; } = null!;
+        public ShaderSource FragmentSource { get; set; } = null!;
+        public ShaderSource GeometrySource { get; set; } = null!;
 
 
         public ManaShader(ManaContext context) : base(context)
@@ -79,23 +79,19 @@ namespace Mana
             LoadShaderSource(VertexSource, FragmentSource, GeometrySource);
         }
 
-        public virtual void LoadShaderSource(ShaderSource vertSource, ShaderSource fragSource, ShaderSource geomSource = null)
+        public virtual void LoadShaderSource(ShaderSource vertSource, ShaderSource fragSource, ShaderSource? geomSource = null)
         {
             VertexSource = vertSource;
             FragmentSource = fragSource;
-            GeometrySource = geomSource;
-            if (GeometrySource == null)
-            {
-                GeometrySource = new ShaderSource() { Path = "", Source = "" };
-            }
+            GeometrySource = geomSource ?? new ShaderSource() { Path = "", Source = "" };
 
-            CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(vertSource, fragSource, geomSource);
+            CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(vertSource, fragSource, GeometrySource);
         }
 
         // Proxy for the compiled shader
         public ManaShaderUniform FindUniform(string v)
         {
-            return CompiledShader.FindUniform(v);
+            return CompiledShader.FindUniform(v)!;
         }
 
         public void BindShader()
@@ -188,6 +184,11 @@ namespace Mana
 
 #if DEBUG
             var devAssetFolder = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Environment.CurrentDirectory))));
+            if (string.IsNullOrEmpty(devAssetFolder))
+            {
+                goto skipDevWatch;
+            }
+
             devAssetFolder = Path.Combine(devAssetFolder, "Mana");
             var fullDevPath = Path.Combine(devAssetFolder, shaderFile);
             var watchDevPath = Path.GetDirectoryName(fullDevPath);
@@ -202,6 +203,8 @@ namespace Mana
                 watcher.Deleted += Watcher_Changed;
                 WatchedSources.Add(watchDevPath, watcher);
             }
+
+skipDevWatch:
 #endif
 
             string source = File.ReadAllText(resolvedPath, encoding);

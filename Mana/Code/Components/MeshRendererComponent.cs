@@ -16,7 +16,7 @@ namespace Mana
                     return dynamicMaterial;
                 }
 
-                return material;
+                return material ?? ManaMaterial.GetDefaultMaterial(Context);
             }
             set
             {
@@ -63,7 +63,7 @@ namespace Mana
         public override void DrawComponent()
         {
             base.DrawComponent();
-            if (Mesh == null || Mesh.VertexBufferObject.indexes.Length == 0)
+            if (Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
                 return;
             }

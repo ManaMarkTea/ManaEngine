@@ -12,24 +12,24 @@ namespace Mana.Code.Renderers
 
         }
         
-        public ManaRenderTarget EnvironmentCubeTarget;
-        public ManaRenderTarget IrradianceFramebuffer;
-        public ManaRenderTarget PrefilterFramebuffer;
-        public ManaRenderTarget BrdfFramebuffer;
+        public ManaRenderTarget EnvironmentCubeTarget = null!;
+        public ManaRenderTarget IrradianceFramebuffer = null!;
+        public ManaRenderTarget PrefilterFramebuffer = null!;
+        public ManaRenderTarget BrdfFramebuffer = null!;
 
-        public ManaEnvironmentIrradianceShader EnvironmentIrradianceShader;
-        public ManaEnvironmentCubeShader EnvironmentShader;
-        public ManaEnvironmentBrdfShader EnvironmentBrdfShader;
-        public ManaEnvironmentPrefilterShader EnvironmentPrefilterShader;
+        public ManaEnvironmentIrradianceShader EnvironmentIrradianceShader = null!;
+        public ManaEnvironmentCubeShader EnvironmentShader = null!;
+        public ManaEnvironmentBrdfShader EnvironmentBrdfShader = null!;
+        public ManaEnvironmentPrefilterShader EnvironmentPrefilterShader = null!;
 
-        public ManaBasicTextureShader BasicShader;
-        public ManaBasicTextureShader BasicCubeShader;
+        public ManaBasicTextureShader BasicShader = null!;
+        public ManaBasicTextureShader BasicCubeShader = null!;
 
-        public ManaTexture EnvironmentMap;
+        public ManaTexture EnvironmentMap = null!;
 
-        public ManaCube SimpleCube;
-        public ManaQuad SimpleQuad;
-        public ManaSphere SimpleSphere;
+        public ManaCube SimpleCube = null!;
+        public ManaQuad SimpleQuad = null!;
+        public ManaSphere SimpleSphere = null!;
 
         bool drawDebugWorld = false;
         float debugMetallic = 1.0f;
@@ -79,7 +79,8 @@ namespace Mana.Code.Renderers
             }
             // Load the environment into a texture;
             RenderEnvironmentMapTarget();
-            EnvironmentMap = EnvironmentCubeTarget.bufferMap["EnvironmentCube"].Texture;
+            EnvironmentMap = EnvironmentCubeTarget.bufferMap["EnvironmentCube"].Texture
+                ?? throw new InvalidOperationException("Environment cube buffer did not create a texture.");
 
 
             IrradianceFramebuffer = new ManaRenderTarget(Context, 32, 32);

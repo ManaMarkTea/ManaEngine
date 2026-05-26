@@ -25,32 +25,32 @@ namespace Mana
     public unsafe class GameWebGpu
     {
         public int Frame = 0;
-        public ImGuiController _ImGui;
+        public ImGuiController _ImGui = null!;
 
         public Glfw glfw;
         WindowHandle* window;
-        WGPU.NET.Surface surface;
+        WGPU.NET.Surface surface = null!;
 
         int prevWidth = 0;
         int prevHeight = 0;
         Wgpu.SwapChainDescriptor swapChainDescriptor;
         Wgpu.TextureDescriptor depthTextureDescriptor;
-        Device device;
+        Device device = null!;
 
-        WGPU.NET.Buffer uniformBuffer;
-        WGPU.NET.Buffer vertexBuffer;
+        WGPU.NET.Buffer uniformBuffer = null!;
+        WGPU.NET.Buffer vertexBuffer = null!;
 
         UniformBuffer uniformBufferData;
-        Vertex[] vertices;
+        Vertex[] vertices = null!;
 
-        SwapChain swapChain;
-        WGPU.NET.Texture depthTexture;
-        TextureView depthTextureView;
-        RenderPipeline renderPipeline;
+        SwapChain swapChain = null!;
+        WGPU.NET.Texture depthTexture = null!;
+        TextureView depthTextureView = null!;
+        RenderPipeline renderPipeline = null!;
 
-        BindGroup bindGroup;
+        BindGroup bindGroup = null!;
 
-        public ManaContext Context;
+        public ManaContext Context = null!;
 
 
 
@@ -97,36 +97,65 @@ namespace Mana
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                var nativeWindow = new GlfwNativeWindow(glfw, window).Win32.Value;
+                var nativeWindowOpt = new GlfwNativeWindow(glfw, window).Win32;
+                if (!nativeWindowOpt.HasValue)
+                {
+                    throw new InvalidOperationException("Could not acquire Win32 native window.");
+                }
+
+                var nativeWindow = nativeWindowOpt.Value;
                 surface = instance.CreateSurfaceFromWindowsHWND(nativeWindow.HInstance, nativeWindow.Hwnd);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                var nativeWindow = new GlfwNativeWindow(glfw, window).X11.Value;
+                var nativeWindowOpt = new GlfwNativeWindow(glfw, window).X11;
+                if (!nativeWindowOpt.HasValue)
+                {
+                    throw new InvalidOperationException("Could not acquire X11 native window.");
+                }
+
+                var nativeWindow = nativeWindowOpt.Value;
                 surface = instance.CreateSurfaceFromXlibWindow(nativeWindow.Display, (uint)nativeWindow.Window);
             }
             else
             {
-                var nativeWindow = new GlfwNativeWindow(glfw, window).Cocoa.Value;
+                var nativeWindowOpt = new GlfwNativeWindow(glfw, window).Cocoa;
+                if (!nativeWindowOpt.HasValue)
+                {
+                    throw new InvalidOperationException("Could not acquire Cocoa native window.");
+                }
+
+                var nativeWindow = nativeWindowOpt.Value;
                 surface = instance.CreateSurfaceFromMetalLayer(nativeWindow);
             }
 
 
-            Adapter adapter = default;
+            Adapter? adapter = null;
 
             instance.RequestAdapter(surface, default, default, (s, a, m) => adapter = a, Wgpu.BackendType.Vulkan);
+            if (adapter == null)
+            {
+                throw new InvalidOperationException("Failed to request WGPU adapter.");
+            }
 
             adapter.GetProperties(out Wgpu.AdapterProperties properties);
 
             adapter.GetLimits(out var supportedLimits);
 
-            device = default;
+            Device? createdDevice = null;
 
-            adapter.RequestDevice((s, d, m) => device = d,
+            adapter.RequestDevice((s, d, m) => createdDevice = d,
                 limits: supportedLimits.limits,
                 label: "Device",
                 nativeFeatures: Array.Empty<Wgpu.NativeFeature>()
             );
+
+            if (createdDevice == null)
+            {
+                throw new InvalidOperationException("Failed to request WGPU device.");
+            }
+
+            device = createdDevice;
 
 
             device.SetUncapturedErrorCallback(ErrorCallback);

@@ -52,8 +52,7 @@ namespace Mana
             GenerateData();
         }
 
-        public event Action<ManaVoxelData> OnVoxelAdded;
-        public event Action<ManaVoxelData> OnVoxelRemoved;
+        public event Action<ManaVoxelData>? OnVoxelAdded;
 
         public void AddVoxel(Vector3 position, Vector4 color)
         {

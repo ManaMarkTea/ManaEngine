@@ -2,11 +2,11 @@
 {
     public class ManaGeometryFace
     {
-        public ManaDynamicGeometryContainer Geom;
+        public ManaDynamicGeometryContainer Geom = null!;
 
-        public ManaGeometryVertex A;
-        public ManaGeometryVertex B;
-        public ManaGeometryVertex C;
+        public ManaGeometryVertex A = null!;
+        public ManaGeometryVertex B = null!;
+        public ManaGeometryVertex C = null!;
 
         public Vector3 Normal;
 

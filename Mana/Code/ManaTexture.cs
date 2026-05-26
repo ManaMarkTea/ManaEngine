@@ -284,7 +284,7 @@ namespace Mana
                 copy.Handle = 0;
                 copy.IsLoaded = false;
             }
-            return copy;
+            return copy ?? this;
         }
     }
 }

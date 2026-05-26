@@ -56,13 +56,13 @@ namespace Mana.Code
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
 
-        public ImGuiController _ImGui;
-        public IWindow _Window;
-        public GL GL;
-        public GameModeGraphicsLevelDebugger _GlDebugger;
+        public ImGuiController _ImGui = null!;
+        public IWindow _Window = null!;
+        public GL GL = null!;
+        public GameModeGraphicsLevelDebugger _GlDebugger = null!;
         private MethodInfo? _recreateImGuiFontTextureMethod;
 
-        public ManaContext Context;
+        public ManaContext Context = null!;
 
 
         public BaseGameMode()
@@ -579,6 +579,11 @@ namespace Mana.Code
             style.Colors[(int)ImGuiCol.Header] = new Vector4(0.79f, 0.88f, 0.98f, 0.95f);
             style.Colors[(int)ImGuiCol.HeaderHovered] = new Vector4(0.70f, 0.84f, 0.97f, 1.00f);
             style.Colors[(int)ImGuiCol.HeaderActive] = new Vector4(color_for_head.X, color_for_head.Y, color_for_head.Z, 0.90f);
+            style.Colors[(int)ImGuiCol.TableHeaderBg] = new Vector4(color_for_area.X, color_for_area.Y, color_for_area.Z, 1.00f);
+            style.Colors[(int)ImGuiCol.TableBorderStrong] = new Vector4(0.77f, 0.83f, 0.90f, 0.95f);
+            style.Colors[(int)ImGuiCol.TableBorderLight] = new Vector4(0.78f, 0.84f, 0.91f, 0.45f);
+            style.Colors[(int)ImGuiCol.TableRowBg] = new Vector4(0.0f, 0.0f, 0.0f, 0.00f);
+            style.Colors[(int)ImGuiCol.TableRowBgAlt] = new Vector4(color_for_area.X, color_for_area.Y, color_for_area.Z, 0.40f);
             
             style.Colors[(int)ImGuiCol.PlotLines] = new Vector4(0.26f, 0.48f, 0.73f, 0.90f);
             style.Colors[(int)ImGuiCol.PlotLinesHovered] = new Vector4(color_for_head.X, color_for_head.Y, color_for_head.Z, 1.00f);
@@ -762,7 +767,8 @@ namespace Mana.Code
                     true);
 
                 _debugProcCallbackHandle = GCHandle.Alloc(_debugProcCallback);
-                GL.DebugMessageCallback(DebugCallback, IntPtr.Zero);
+                var userParam = IntPtr.Zero;
+                GL.DebugMessageCallback(_debugProcCallback, in userParam);
             }
         }
 

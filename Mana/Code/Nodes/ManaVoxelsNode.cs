@@ -40,6 +40,7 @@ namespace Mana.Code.Nodes
 
         private readonly ManaVoxelShape shape;
         private readonly MeshRendererComponent mergedVoxelRenderer;
+        public ManaVoxelShape VoxelShape => shape;
         public bool AutoCreateKinematicVoxelBodies { get; private set; } = true;
         public bool IsBakedToDynamicPhysics { get; private set; }
         public bool IsReassembling { get; private set; }
@@ -102,7 +103,7 @@ namespace Mana.Code.Nodes
 
             foreach (var voxel in shape.CommittedVoxels)
             {
-                var spawnPos = voxel.Position + bakeSpawnOffset;
+                var spawnPos = LocalToWorldPosition(voxel.Position) + bakeSpawnOffset;
                 var handle = Context.Physics.AddDynamicBoxBodyDirect(spawnPos, Vector3.One, massPerVoxel);
                 _bakedBodies.Add(new BakedVoxelBody(handle, voxel.Color, spawnPos));
             }
@@ -114,7 +115,7 @@ namespace Mana.Code.Nodes
             foreach (var bakedBody in _bakedBodies)
             {
                 var pose = Context.Physics.Simulation.Bodies[bakedBody.Handle].Pose;
-                geom.AddOrientedCube(pose.Position, pose.Orientation, Vector3.One, bakedBody.Color);
+                geom.AddOrientedCube(WorldToLocalPosition(pose.Position), pose.Orientation, Vector3.One, bakedBody.Color);
             }
 
             var bakedMesh = new ManaMesh(Context);
@@ -233,6 +234,21 @@ namespace Mana.Code.Nodes
                 (int)MathF.Round(position.Z * 2.0f));
         }
 
+        private Vector3 LocalToWorldPosition(Vector3 localPosition)
+        {
+            return Vector3.Transform(localPosition, WorldTransform);
+        }
+
+        private Vector3 WorldToLocalPosition(Vector3 worldPosition)
+        {
+            if (Matrix4x4.Invert(WorldTransform, out var worldToLocal))
+            {
+                return Vector3.Transform(worldPosition, worldToLocal);
+            }
+
+            return worldPosition - WorldTransform.Translation;
+        }
+
         private List<ManaVoxelData> BuildLockPreviewVoxels()
         {
             var preview = new List<ManaVoxelData>(_bakedBodies?.Count ?? 0);
@@ -258,7 +274,7 @@ namespace Mana.Code.Nodes
                 {
                     Voxel = new ManaVoxelData
                     {
-                        Position = snappedPosition,
+                        Position = WorldToLocalPosition(snappedPosition),
                         Color = bakedBody.Color
                     },
                     DistanceSquared = Vector3.DistanceSquared(bodyPosition, snappedPosition),
@@ -573,6 +589,7 @@ namespace Mana.Code.Nodes
 
                 var pose = physics.Simulation.Bodies[handle].Pose;
                 var bodyMatrix = Matrix4x4.CreateFromQuaternion(pose.Orientation);
+                var localPosePosition = _voxelsNode.WorldToLocalPosition(pose.Position);
 
                 for (var face = 0; face < 6; face++)
                 {
@@ -581,10 +598,10 @@ namespace Mana.Code.Nodes
                     var combinedRotation = ManaDynamicGeometryContainer.CubeFaceRotations[face] * bodyMatrix;
 
                     var faceOffset = writeOffset + face * 4;
-                    _positions[faceOffset + 0] = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), combinedRotation) + pose.Position;
-                    _positions[faceOffset + 1] = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), combinedRotation) + pose.Position;
-                    _positions[faceOffset + 2] = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), combinedRotation) + pose.Position;
-                    _positions[faceOffset + 3] = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), combinedRotation) + pose.Position;
+                    _positions[faceOffset + 0] = Vector3.Transform(new Vector3(-cR.X, -cR.Y, -cR.Z), combinedRotation) + localPosePosition;
+                    _positions[faceOffset + 1] = Vector3.Transform(new Vector3(cR.X, -cR.Y, -cR.Z), combinedRotation) + localPosePosition;
+                    _positions[faceOffset + 2] = Vector3.Transform(new Vector3(cR.X, cR.Y, -cR.Z), combinedRotation) + localPosePosition;
+                    _positions[faceOffset + 3] = Vector3.Transform(new Vector3(-cR.X, cR.Y, -cR.Z), combinedRotation) + localPosePosition;
 
                     var normal = new Vector3(0, 0, 1).TransformNormal(combinedRotation);
                     _normals[faceOffset + 0] = normal;

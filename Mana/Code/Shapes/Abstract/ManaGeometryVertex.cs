@@ -12,7 +12,7 @@
 
     public class ManaVertexAttribute
     {
-        public string Name;
+        public string Name = string.Empty;
         public ManaVertexAttributeClass AttributeClass = ManaVertexAttributeClass.Vector3;
 
         public float X;
@@ -20,7 +20,7 @@
         public Vector3 XYZ;
         public Vector4 XYZW;
         public Matrix4x4 Mat4;
-        public string Text;
+        public string Text = string.Empty;
 
         public override string ToString()
         {
@@ -40,7 +40,7 @@
 
     public class ManaGeometryVertex
     {
-        public ManaDynamicGeometryContainer Geom;
+        public ManaDynamicGeometryContainer Geom = null!;
         public int Index = -1;
 
         public Vector3 Position;

@@ -17,7 +17,7 @@ namespace Mana
     {
         public bool UseRayTracing = false;
 
-        public new ManaContext Context;
+        public new ManaContext Context = null!;
 
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
 
@@ -43,13 +43,13 @@ namespace Mana
 
         public Matrix4x4 ViewMatrix { get; set; } = Matrix4x4.Identity;
 
-        public ManaScene DefaultScene { get; set; }
-        public ManaSceneNode CameraNode;
-        public CameraComponent MainCamera;
+        public ManaScene DefaultScene { get; set; } = null!;
+        public ManaSceneNode CameraNode = null!;
+        public CameraComponent MainCamera = null!;
 
-        public ManaRenderer Renderer;
+        public ManaRenderer Renderer = null!;
         
-        public ManaWorld() : base(null)
+        public ManaWorld() : base(null!)
         {
             Meshes = new List<ManaMesh>();
             Scenes = new List<ManaScene>();

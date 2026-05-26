@@ -225,7 +225,7 @@ namespace Mana.Code.ManaShaders
 
                 ManaSemantics.CameraPosition.Apply(uniform, () => gl.Uniform3(uniform.location, camera.Owner.Position));
                 
-                ManaSemantics.ObjectPosition.Apply(uniform, () => gl.Uniform3(uniform.location, owner.Position));
+                ManaSemantics.ObjectPosition.Apply(uniform, () => gl.Uniform3(uniform.location, owner?.Position ?? Vector3.Zero));
 
                 ManaSemantics.ModelViewProjectionMatrix.Apply(uniform, () =>
                 {

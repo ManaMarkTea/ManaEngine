@@ -65,7 +65,7 @@ namespace Mana.Code.Renderers
 
         public int InternalMSAA = 4;
 
-        public List<ManaSceneNode> visibleLights;
+        public List<ManaSceneNode> visibleLights = new List<ManaSceneNode>();
         public Matrix4x4 viewMatrix;
         public Matrix4x4 projMatrix;
         public Matrix4x4 viewProjectionMatrix;

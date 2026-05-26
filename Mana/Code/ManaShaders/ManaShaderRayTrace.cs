@@ -27,35 +27,50 @@ namespace Mana.Code.ManaShaders
 
         public bool SetSphereUniforms(int index, ManaSceneNode sphereNode)
         {
-            var renderer = sphereNode.Components[0] as MeshRendererComponent;
-            if (renderer == null)
+            if (sphereNode.Components[0] is not MeshRendererComponent renderer)
             {
                 return false;
             }
 
-            ManaSphere? sphere = renderer?.Mesh as ManaSphere;
-            if (sphere == null)
+            if (renderer.Mesh is not ManaSphere sphere)
             {
                 return false;
             }
 
-            CompiledShader.UniformMap[$@"spheres[{index}].position"].SetValue(sphereNode.Position);
-            CompiledShader.UniformMap[$@"spheres[{index}].material.color"].SetValue(sphere.DefaultVertexColor);
-
-            if (renderer.Material.EmissionStrength == 0)
+            var uniforms = CompiledShader.UniformMap;
+            if (uniforms == null)
             {
-                CompiledShader.UniformMap[$@"spheres[{index}].material.emission"].SetValue(sphere.DefaultVertexColor);
+                return false;
+            }
+
+            static void SetUniform(IDictionary<string, ManaShaderUniform> map, string key, Action<ManaShaderUniform> apply)
+            {
+                if (map.TryGetValue(key, out var uniform) && uniform != null)
+                {
+                    apply(uniform);
+                }
+            }
+
+            var material = renderer.Material;
+
+            SetUniform(uniforms, $@"spheres[{index}].position", uniform => uniform.SetValue(sphereNode.Position));
+            SetUniform(uniforms, $@"spheres[{index}].material.color", uniform => uniform.SetValue(sphere.DefaultVertexColor));
+
+            if (material.EmissionStrength == 0)
+            {
+                SetUniform(uniforms, $@"spheres[{index}].material.emission", uniform => uniform.SetValue(sphere.DefaultVertexColor));
             }
             else
             {
-                CompiledShader.UniformMap[$@"spheres[{index}].material.emission"].SetValue(renderer.Material.Emission.Value);
+                var emissionColor = material.Emission?.Value ?? sphere.DefaultVertexColor;
+                SetUniform(uniforms, $@"spheres[{index}].material.emission", uniform => uniform.SetValue(emissionColor));
             }
 
-            CompiledShader.UniformMap[$@"spheres[{index}].material.emissionStrength"].SetValue(renderer.Material.EmissionStrength);
-            CompiledShader.UniformMap[$@"spheres[{index}].material.smoothness"].SetValue(renderer.Material.Roughness.Value);
-            CompiledShader.UniformMap[$@"spheres[{index}].material.specularColor"].SetValue(Colors.White);
-            CompiledShader.UniformMap[$@"spheres[{index}].material.specularColorScatterChance"].SetValue(renderer.Material.Ambient.Value);
-            CompiledShader.UniformMap[$@"spheres[{index}].radius"].SetValue(sphereNode.Scale.X * 0.25f);
+            SetUniform(uniforms, $@"spheres[{index}].material.emissionStrength", uniform => uniform.SetValue(material.EmissionStrength));
+            SetUniform(uniforms, $@"spheres[{index}].material.smoothness", uniform => uniform.SetValue(material.Roughness.Value));
+            SetUniform(uniforms, $@"spheres[{index}].material.specularColor", uniform => uniform.SetValue(Colors.White));
+            SetUniform(uniforms, $@"spheres[{index}].material.specularColorScatterChance", uniform => uniform.SetValue(material.Ambient.Value));
+            SetUniform(uniforms, $@"spheres[{index}].radius", uniform => uniform.SetValue(sphereNode.Scale.X * 0.25f));
             return true;
         }
         public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)

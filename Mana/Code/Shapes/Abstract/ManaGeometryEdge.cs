@@ -2,11 +2,11 @@
 {
     public class ManaGeometryEdge
     {
-        public ManaDynamicGeometryContainer Geom;
+        public ManaDynamicGeometryContainer Geom = null!;
         public List<ManaGeometryFace> Faces = new List<ManaGeometryFace>();
 
-        public ManaGeometryVertex A;
-        public ManaGeometryVertex B;
+        public ManaGeometryVertex A = null!;
+        public ManaGeometryVertex B = null!;
 
         public override string ToString()
         {

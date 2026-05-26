@@ -5,6 +5,16 @@ using Silk.NET.Maths;
 
 namespace Mana
 {
+    public enum CameraViewPreset
+    {
+        Front,
+        Back,
+        Left,
+        Right,
+        Top,
+        Bottom
+    }
+
     public class CameraComponent : ManaComponent
     {
         public bool OrthoGraphic = false;
@@ -12,6 +22,9 @@ namespace Mana
         public float FarClipPlane = 1000.0f;
         public float AspectRatio = 1.0f;
         public float FieldOfViewDegrees = 55.0f;
+        public float OrthographicHeight = 80.0f;
+        public float PanSpeed = 1.0f;
+        public bool TouchpadPanInOrthographic = true;
         public Vector2D<int> DebugPointCount = new Vector2D<int>(5, 3);
 
 
@@ -23,24 +36,28 @@ namespace Mana
 
 
         float _MovementSpeed = 200;
+        public float MovementSpeed
+        {
+            get => _MovementSpeed;
+            set => _MovementSpeed = value;
+        }
+
         int _MouseAverageSize = 4;
         Vector2 _MouseSensitivity = new(8.0f, 8.0f);
         Vector2 _LastMousePos;
-
-        Key _MouseLookKey = Key.AltLeft;
 
         Queue<float> _deltaHistoryX = new Queue<float>();
         Queue<float> _deltaHistoryY = new Queue<float>();
 
         Queue<float> _deltaAvgHistoryX = new Queue<float>();
         Queue<float> _deltaAvgHistoryY = new Queue<float>();
-
-        bool first = true;
+        private float _viewCenterDistance;
 
         public CameraComponent(ManaSceneNode owner) : base(owner)
         {
             owner.Context.Window.Resize += _Window_Resize;
             UpdateProjection();
+            _viewCenterDistance = EstimateInitialViewCenterDistance(owner);
         }
 
         private void _Window_Resize(Vector2D<int> obj)
@@ -55,7 +72,10 @@ namespace Mana
             AspectRatio = (float)window.Size.X / (float)window.Size.Y;
             if (OrthoGraphic)
             {
-                _ProjectionMatrix = Matrix4x4.CreateOrthographic(window.Size.X / 100, window.Size.Y / 100, NearClipPlane, FarClipPlane);
+                OrthographicHeight = MathF.Max(1.0f, OrthographicHeight);
+                _ProjectionMatrix = Matrix4x4.CreateOrthographic(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane, FarClipPlane);
+                ViewParams = new Vector3(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane);
+                return;
             }
             else
             {
@@ -68,12 +88,50 @@ namespace Mana
             ViewParams = new Vector3(planeWidth, planeHeight, NearClipPlane);
         }
 
+        public void SetProjectionMode(bool orthographic)
+        {
+            if (OrthoGraphic == orthographic)
+            {
+                return;
+            }
+
+            OrthoGraphic = orthographic;
+            UpdateProjection();
+        }
+
+        public void SetViewPreset(CameraViewPreset preset)
+        {
+            float distance = GetViewCenterDistance();
+            Vector3 target = GetViewCenter(distance);
+
+            Owner.Rotation = preset switch
+            {
+                CameraViewPreset.Back => new Vector3(0.0f, 180.0f.ToRadians(), 0.0f),
+                CameraViewPreset.Left => new Vector3(0.0f, -90.0f.ToRadians(), 0.0f),
+                CameraViewPreset.Right => new Vector3(0.0f, 90.0f.ToRadians(), 0.0f),
+                CameraViewPreset.Top => new Vector3(-90.0f.ToRadians(), 0.0f, 0.0f),
+                CameraViewPreset.Bottom => new Vector3(90.0f.ToRadians(), 0.0f, 0.0f),
+                _ => Vector3.Zero,
+            };
+
+            Owner.Position = target - Owner.Forward.Normalized() * distance;
+            UpdateViewMatrix();
+        }
+
+        public void UpdateViewMatrix()
+        {
+            Vector3 forward = Owner.Forward.Normalized();
+            Vector3 up = Owner.Up.Normalized();
+            _ViewMatrix = Matrix4x4.CreateLookAt(Owner.Position, Owner.Position + forward, up);
+        }
+
         public override void UpdateComponent()
         {
             base.UpdateComponent();
 
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();
+            bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse;
 
             var position = Owner.Position;
             var rotation = Owner.Rotation;
@@ -83,15 +141,15 @@ namespace Mana
             float yaw = rotationEuler.Y;
             float roll = rotationEuler.Z;
 
-            Vector3 forward = -Vector3.UnitZ;
-            forward = forward.TransformNormal(Matrix4x4.CreateFromYawPitchRoll(yaw, pitch, roll));
+            var rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(yaw, pitch, roll);
+            Vector3 forward = Vector3.TransformNormal(-Vector3.UnitZ, rotationMatrix);
+            Vector3 right = Vector3.TransformNormal(Vector3.UnitX, rotationMatrix);
 
-            var up = new Vector3(0, 1, 0);
-            var right = Vector3.Cross(forward, up);
+            var worldUp = new Vector3(0, 1, 0);
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            UpdateAverage(delta, ref dxAvg, ref dyAvg);
+            Vector2 mouseDelta = UpdateAverage(delta, ref dxAvg, ref dyAvg);
 
             if (KeyboardState.IsKeyPressed(Key.W))
             {
@@ -115,12 +173,32 @@ namespace Mana
 
             if (KeyboardState.IsKeyPressed(Key.E))
             {
-                position += up * +delta * _MovementSpeed;
+                position += worldUp * +delta * _MovementSpeed;
             }
 
             if (KeyboardState.IsKeyPressed(Key.Q))
             {
-                position += up * -delta * _MovementSpeed;
+                position += worldUp * -delta * _MovementSpeed;
+            }
+
+            if (!imguiCapturesMouse && MouseState.IsButtonPressed(MouseButton.Middle))
+            {
+                position += GetPanTranslation(mouseDelta);
+            }
+
+            if (!imguiCapturesMouse && OrthoGraphic && !MouseState.IsButtonPressed(MouseButton.Right))
+            {
+                var scroll = MouseState.ScrollWheels[0];
+                if (scroll.Y != 0.0f)
+                {
+                    ZoomOrthographicAtMouse(scroll.Y, MouseState.Position, ref position);
+                }
+
+                if (TouchpadPanInOrthographic && scroll.X != 0.0f)
+                {
+                    const float touchpadPanPixelsPerScrollUnit = 48.0f;
+                    position += GetPanTranslation(new Vector2(scroll.X, 0.0f) * touchpadPanPixelsPerScrollUnit);
+                }
             }
 
             var transform = Owner.LocalTransform;
@@ -133,10 +211,6 @@ namespace Mana
                 rotationEuler.Y += dxAvg * 0.4f;
                 rotationEuler.X += dyAvg * 0.4f;
                 rotationEuler.X = rotationEuler.X.Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
-            }
-            else
-            {
-
             }
 
             if (MouseState.IsButtonPressed(MouseButton.Right) && MouseState.ScrollWheels[0].Y != 0)
@@ -155,7 +229,7 @@ namespace Mana
             
             Owner.Position = position;
             Owner.Rotation = rotationEuler;
-            _ViewMatrix = Matrix4x4.CreateLookAt(position, position + forward, new Vector3(0, 1, 0));
+            UpdateViewMatrix();
 
             
             var numericPos = position;
@@ -165,7 +239,7 @@ namespace Mana
             ImGui.SeparatorText("Transform");
             {
                 if (ImGui.InputFloat3("Pos", ref numericPos)) { Owner.Position = numericPos; }
-                if (ImGui.InputFloat3("Rot", ref numericRot)) { Owner.Rotation = rotationEuler; }
+                if (ImGui.InputFloat3("Rot", ref numericRot)) { Owner.Rotation = numericRot; }
             }
 
             
@@ -184,18 +258,66 @@ namespace Mana
             ImGui.SeparatorText("Camera");
             {
                 ImGui.SliderFloat("Speed", ref _MovementSpeed, 0.25f, 100.0f);
+                ImGui.SliderFloat("Pan Speed", ref PanSpeed, 0.05f, 5.0f);
+
+                ImGui.Text($"Projection: {(OrthoGraphic ? "Orthographic" : "Perspective")}");
+                if (ImGui.Button("Perspective"))
+                {
+                    SetProjectionMode(false);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Ortho"))
+                {
+                    SetProjectionMode(true);
+                }
 
                 if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
                 {
                     UpdateProjection();
                 }
 
-                if (ImGui.Button("Ortho"))
+                if (ImGui.DragFloat("Ortho Height", ref OrthographicHeight, 1.0f, 1.0f, 1000.0f))
                 {
-                    OrthoGraphic = !OrthoGraphic;
                     UpdateProjection();
                 }
 
+                ImGui.Checkbox("Touchpad Horizontal Pan In Ortho", ref TouchpadPanInOrthographic);
+
+                ImGui.SeparatorText("Views");
+                if (ImGui.Button("Front"))
+                {
+                    SetViewPreset(CameraViewPreset.Front);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Back"))
+                {
+                    SetViewPreset(CameraViewPreset.Back);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Left"))
+                {
+                    SetViewPreset(CameraViewPreset.Left);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Right"))
+                {
+                    SetViewPreset(CameraViewPreset.Right);
+                }
+
+                if (ImGui.Button("Top"))
+                {
+                    SetViewPreset(CameraViewPreset.Top);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Bottom"))
+                {
+                    SetViewPreset(CameraViewPreset.Bottom);
+                }
 
                 if (ImGui.CollapsingHeader("Advanced"))
                 {
@@ -209,14 +331,86 @@ namespace Mana
 
 
             ImGui.End();
+            UpdateViewMatrix();
 
         }
 
 
-        void UpdateAverage(float deltaTime, ref float dxAvg, ref float dyAvg)
+        private Vector3 GetPanTranslation(Vector2 screenDelta)
+        {
+            float unitsPerPixel = GetPanUnitsPerPixel();
+            return (-Owner.Right * screenDelta.X + Owner.Up * screenDelta.Y) * unitsPerPixel * PanSpeed;
+        }
+
+        private void ZoomOrthographicAtMouse(float scrollY, Vector2 mousePosition, ref Vector3 position)
+        {
+            const float zoomMultiplierPerNotch = 1.15f;
+            float oldOrthographicHeight = MathF.Max(1.0f, OrthographicHeight);
+            Vector3 worldPointBeforeZoom = GetOrthographicWorldPoint(mousePosition, oldOrthographicHeight, position);
+
+            OrthographicHeight = oldOrthographicHeight / MathF.Pow(zoomMultiplierPerNotch, scrollY);
+            OrthographicHeight = OrthographicHeight.Clamp(1.0f, 1000.0f);
+            UpdateProjection();
+
+            Vector3 worldPointAfterZoom = GetOrthographicWorldPoint(mousePosition, OrthographicHeight, position);
+            position += worldPointBeforeZoom - worldPointAfterZoom;
+        }
+
+        private float GetPanUnitsPerPixel()
+        {
+            float viewportHeight = MathF.Max(1.0f, Context.Window.Size.Y);
+            if (OrthoGraphic)
+            {
+                return MathF.Max(1.0f, OrthographicHeight) / viewportHeight;
+            }
+
+            float targetDistance = GetViewCenterDistance();
+            float visibleHeight = 2.0f * targetDistance * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f);
+            return visibleHeight / viewportHeight;
+        }
+
+        private Vector3 GetViewCenter(float distance)
+        {
+            return Owner.Position + Owner.Forward.Normalized() * distance;
+        }
+
+        private float GetViewCenterDistance()
+        {
+            if (_viewCenterDistance <= NearClipPlane)
+            {
+                _viewCenterDistance = EstimateInitialViewCenterDistance(Owner);
+            }
+
+            return MathF.Max(NearClipPlane, _viewCenterDistance);
+        }
+
+        private float EstimateInitialViewCenterDistance(ManaSceneNode owner)
+        {
+            float originDistance = Vector3.Distance(owner.Position, Vector3.Zero);
+            return MathF.Max(originDistance, MathF.Max(OrthographicHeight, 1.0f));
+        }
+
+        private Vector3 GetOrthographicWorldPoint(Vector2 screenPosition, float orthographicHeight, Vector3 cameraPosition)
+        {
+            float viewportWidth = MathF.Max(1.0f, Context.Window.Size.X);
+            float viewportHeight = MathF.Max(1.0f, Context.Window.Size.Y);
+            float aspectRatio = viewportWidth / viewportHeight;
+
+            float normalizedX = (screenPosition.X / viewportWidth) * 2.0f - 1.0f;
+            float normalizedY = 1.0f - (screenPosition.Y / viewportHeight) * 2.0f;
+
+            float orthographicWidth = orthographicHeight * aspectRatio;
+            Vector3 cameraRight = Owner.Right.Normalized();
+            Vector3 cameraUp = Owner.Up.Normalized();
+
+            return cameraPosition +
+                   cameraRight * (normalizedX * orthographicWidth * 0.5f) +
+                   cameraUp * (normalizedY * orthographicHeight * 0.5f);
+        }
+
+        Vector2 UpdateAverage(float deltaTime, ref float dxAvg, ref float dyAvg)
         {
             var MouseState = Context.Input.Mice.First();
-            var KeyboardState = Context.Input.Keyboards.First();
 
             var mouseDelta = MouseState.Position - _LastMousePos;
             _LastMousePos = MouseState.Position;
@@ -240,6 +434,7 @@ namespace Mana
                 _deltaAvgHistoryY.Dequeue();
             }
 
+            return mouseDelta;
         }
 
         public Ray ProjectScreenToWorld(in Vector3 MousePositionStart,  in Vector3 MousePositionEnd)
@@ -321,27 +516,6 @@ namespace Mana
                 }
             }
 
-            if (false)
-            {
-                float planeHeight = FarClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
-                float planeWidth = planeHeight * AspectRatio;
-
-                Vector3 bottomLeftLocal = new Vector3(-planeWidth / 2, -planeHeight / 2, NearClipPlane);
-
-                for (int x = 0; x < DebugPointCount.X; x++)
-                {
-                    for (int y = 0; y < DebugPointCount.Y; y++)
-                    {
-                        float tx = x / (DebugPointCount.X - 1.0f);
-                        float ty = y / (DebugPointCount.Y - 1.0f);
-
-                        Vector3 pointLocal = bottomLeftLocal + new Vector3(planeWidth * tx, planeHeight * ty, 0);
-                        Vector3 point = Owner.Position + Owner.Right * pointLocal.X + Owner.Up * pointLocal.Y + Owner.Forward * pointLocal.Z;
-
-                        shapes.AddCube(point, Colors.White, 2f);
-                    }
-                }
-            }
         }
 
     }

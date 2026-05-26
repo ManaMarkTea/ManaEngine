@@ -5,7 +5,7 @@ namespace Mana.Code
 {
     public class SceneViewerMode : BaseGameMode
     {
-        public static SceneViewerMode Instance;
+        public static SceneViewerMode Instance = null!;
 
 
         public SceneViewerMode()
@@ -15,7 +15,7 @@ namespace Mana.Code
 
 
 
-        GameWebGpu gameWebGpu;
+        GameWebGpu? gameWebGpu;
 
         public override void Load()
         {
@@ -27,7 +27,12 @@ namespace Mana.Code
 
             var sun = shapes.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
 
-            var sunMaterial = (sun.Components[0] as MeshRendererComponent).DynamicMaterial;
+            if (sun.Components[0] is not MeshRendererComponent sunRenderer)
+            {
+                return;
+            }
+
+            var sunMaterial = sunRenderer.DynamicMaterial;
             sunMaterial.Emission.Value = Colors.Gold;
             sunMaterial.EmissionStrength = 10.0f;
 

@@ -2,7 +2,7 @@
 {
     public class ManaSceneNode : ManaObject
     {
-        public ManaSceneNode Parent { get; set; }
+        public ManaSceneNode? Parent { get; set; }
         public List<ManaSceneNode> Children { get; set; }
 
         public List<ManaComponent> Components { get; set; }

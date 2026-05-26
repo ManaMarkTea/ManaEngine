@@ -14,15 +14,15 @@
 
     public class ManaMaterialChannel
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         public ManaMaterialChannelTypes ChannelType = ManaMaterialChannelTypes.None;
         public int IntValue { get; set; }
         public bool BooleanValue { get; set; }
         public float ScalarValue { get; set; }
         public Vector4 VectorValue { get; set; }
-        public ManaTexture Texture { get; set; }
-        public string Value { get; set; }
+        public ManaTexture Texture { get; set; } = null!;
+        public string Value { get; set; } = string.Empty;
 
         public override string ToString()
         {

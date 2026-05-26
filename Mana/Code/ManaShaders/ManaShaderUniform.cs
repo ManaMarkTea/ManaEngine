@@ -4,12 +4,12 @@ namespace Mana.Code.ManaShaders
 {
     public class ManaShaderUniform
     {
-        public GL gl;
+        public GL gl = null!;
         public uint shaderLocation;
         public int location;
         public int size;
         public UniformType type;
-        public string name;
+        public string name = string.Empty;
 
         public void SetValue(int value, int arrayIndex = 0)
         {

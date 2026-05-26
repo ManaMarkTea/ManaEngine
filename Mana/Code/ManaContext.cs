@@ -5,15 +5,15 @@ namespace Mana.Code
 {
     public class ManaContext
     {
-        public GL gl;
-        public IInputContext Input { get; set; }
-        public IWindow Window { get; set; }
+        public GL gl = null!;
+        public IInputContext Input { get; set; } = null!;
+        public IWindow Window { get; set; } = null!;
 
-        public ManaWorld World { get; private set; }
+        public ManaWorld World { get; private set; } = null!;
 
-        public ManaPhysics Physics {  get; set; }
+        public ManaPhysics Physics {  get; set; } = null!;
 
-        public BaseGameMode GameMode { get; set; }
+        public BaseGameMode GameMode { get; set; } = null!;
 
         public ManaContext(BaseGameMode gameMode)
         {

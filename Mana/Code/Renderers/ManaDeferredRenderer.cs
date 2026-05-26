@@ -15,11 +15,11 @@ namespace Mana.Code.Renderers
 
         public GL webGl;
 
-        public ManaShader shader;
+        public ManaShader shader = null!;
 
         // Opaque Frame Buffer Object
 
-        public ManaRenderTarget OpaqueFrameBuffer;
+        public ManaRenderTarget OpaqueFrameBuffer = null!;
 
         public uint opaqueRenderTexture;
         public uint opaqueFramebuffer;

@@ -80,6 +80,10 @@ namespace Mana.Code.Materials
         public object Clone()
         {
             var copy = MemberwiseClone() as ManaMaterial;
+            if (copy == null)
+            {
+                return this;
+            }
 
             copy.Albedo = (ManaTextureVector4)copy.Albedo.Clone();
             copy.Normal = (ManaTextureVector4)copy.Normal.Clone();

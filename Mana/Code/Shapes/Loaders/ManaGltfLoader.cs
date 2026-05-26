@@ -12,8 +12,8 @@ namespace Mana.Code.Shapes.Loaders
 {
     public class ManaGltfLoader : ManaObject
     {
-        public Assimp _AssetImporter { get; set; }
-        public string ActivePath { get; set; }
+        public Assimp _AssetImporter { get; set; } = null!;
+        public string ActivePath { get; set; } = string.Empty;
 
         public List<ManaMesh> Meshes { get; set; }
 
@@ -34,7 +34,7 @@ namespace Mana.Code.Shapes.Loaders
             _AssetImporter = Assimp.GetApi();
 
             var scene = _AssetImporter.ImportFile(sceneFile, (uint)PostProcessSteps.Triangulate);
-            ActivePath = System.IO.Path.GetDirectoryName(sceneFile);
+            ActivePath = System.IO.Path.GetDirectoryName(sceneFile) ?? string.Empty;
 
             if (scene == null || scene->MFlags == Silk.NET.Assimp.Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
             {

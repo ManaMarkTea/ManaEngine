@@ -59,10 +59,9 @@ namespace Mana
 
         private bool HasDepth { get; set; }
 
-        private ManaShader DebugQuadShader;
-        private ManaMaterial QuadMaterial;
+        private ManaMaterial? QuadMaterial;
 
-        private uint VertexArrayObject;
+        private uint VertexArrayObject = 0;
 
         public Dictionary<string, RenderBufferInfo> bufferMap;
         public List<RenderBufferInfo> bufferInfos;
@@ -77,6 +76,7 @@ namespace Mana
             ClearColor = new Vector4(100 / 255.0f, 149 / 255.0f, 237 / 255.0f, 255 / 255.0f);
             bufferInfos = new List<RenderBufferInfo>();
             bufferMap = new Dictionary<string, RenderBufferInfo>();
+            QuadMaterial = ManaMaterial.GetDefaultMaterial(context);
 
             for (int colorAttachment = 0; colorAttachment < attachments.Length; colorAttachment++)
             {
@@ -302,6 +302,11 @@ namespace Mana
 
                 if (buffer.HasCube)
                 {
+                    if (buffer.Texture == null)
+                    {
+                        continue;
+                    }
+
                     gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
 
                     // Bind the face of the cube we're drawing to
@@ -328,12 +333,22 @@ namespace Mana
         {
             var gl = Context.gl;
 
+            if (QuadMaterial == null)
+            {
+                return;
+            }
+
             UnBind();
             Clear();
 
             QuadMaterial.Bind(Matrix4x4.Identity);
 
             gl.Viewport(0, 0, Width, Height);
+
+            if (bufferInfos.Count == 0)
+            {
+                return;
+            }
 
             bufferInfos[0].Texture?.Bind(0);
             gl.BindVertexArray(VertexArrayObject);
