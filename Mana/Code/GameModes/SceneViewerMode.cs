@@ -83,6 +83,10 @@ namespace Mana.Code
 
 
         public override void Update(double deltaTime)
+        {
+        }
+
+        protected override void DrawImGui(double deltaTime)
         {            
             ImGui.SetNextWindowPos(new Vector2(this._Window.Size.X - 200, 15));
             ImGui.Begin("Mana");

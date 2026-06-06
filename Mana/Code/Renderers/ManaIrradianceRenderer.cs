@@ -131,7 +131,7 @@ namespace Mana.Code.Renderers
         }
 
 
-        public override void Render(Action drawScenes)
+        public override void DrawImGui()
         {
             if (BaseGameMode.UtilityDockId != 0)
             {
@@ -154,7 +154,11 @@ namespace Mana.Code.Renderers
             ImGui.SliderFloat("IBL Intensity", ref debugIblIntensity, 0.0f, 4.0f);
             ImGui.SliderFloat("Debug Scene Scale", ref debugSceneScale, 0.35f, 2.75f);
 
-            ImGui.End();            
+            ImGui.End();
+        }
+
+        public override void Render(Action drawScenes)
+        {
             RenderIrradiance();
             RenderPrefilteredReflectionMap();
 

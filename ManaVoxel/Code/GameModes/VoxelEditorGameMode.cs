@@ -161,6 +161,10 @@ namespace Mana.Code.GameModes
 
         public override void Update(double deltaTime)
         {
+        }
+
+        protected override void DrawImGui(double deltaTime)
+        {
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
             Vector2 sceneMax = mainViewport.WorkPos + mainViewport.WorkSize;
@@ -218,6 +222,7 @@ namespace Mana.Code.GameModes
                     var pos = VoxelRasterizer.SnapHitToAdjacentCenter(hit.Position, hit.Normal);
 
                     Cursor.Position = pos;
+                    Cursor.UpdateTransform();
                     _viewModel.SetHoveredVoxel(pos, hit.Normal, Context.World.MainCamera.Owner.Position);
                     toolPoint = new VoxelToolPoint(pos, hit.Normal);
 

@@ -22,12 +22,14 @@ namespace Mana
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
 
         public List<Action> PostDrawFutures { get; set; }
+        public List<Action> ImGuiFutures { get; set; }
         public List<Action> PreDrawFutures { get; set; }
         public List<Action> PreUpdateFutures { get; set; }
         public List<Action> PostUpdateFutures { get; set; }
 
 
         private List<Action> activePostDrawFutures { get; set; }
+        private List<Action> activeImGuiFutures { get; set; }
         private List<Action> activePreDrawFutures { get; set; }
         private List<Action> activePreUpdateFutures { get; set; }
         private List<Action> activePostUpdateFutures { get; set; }
@@ -56,11 +58,13 @@ namespace Mana
             Materials = new List<ManaMaterial>();
 
             activePostDrawFutures = new List<Action>();
+            activeImGuiFutures = new List<Action>();
             activePreDrawFutures = new List<Action>();
             activePreUpdateFutures = new List<Action>();
             activePostUpdateFutures = new List<Action>();
 
             PostDrawFutures = new List<Action>();
+            ImGuiFutures = new List<Action>();
             PreDrawFutures = new List<Action>();
             PreUpdateFutures = new List<Action>();
             PostUpdateFutures = new List<Action>();
@@ -164,7 +168,13 @@ namespace Mana
             };
 
             Renderer.Render(drawScenes);
+        }
 
+        public void DrawImGui()
+        {
+            MainCamera.DrawImGui();
+            Renderer.DrawImGui();
+            RunFutures(ImGuiFutures, activeImGuiFutures);
 
             if (BaseGameMode.UtilityDockId != 0)
             {
@@ -179,7 +189,6 @@ namespace Mana
             }
 
             ImGui.End();
-
         }
 
     }

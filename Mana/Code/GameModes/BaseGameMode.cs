@@ -691,18 +691,7 @@ namespace Mana.Code
 
             UpdateFrame++;
 
-            if (_pendingImGuiFontPreset.HasValue)
-            {
-                ApplyImGuiFontPreset(_pendingImGuiFontPreset.Value);
-                _pendingImGuiFontPreset = null;
-            }
-            
             Context.Physics.Update();
-
-            // Make sure ImGui is up-to-date
-            _ImGui.Update((float)deltaTime);
-            DrawMainMenuBar();
-            DrawDockSpace();
 
             Update(deltaTime);
 
@@ -712,6 +701,10 @@ namespace Mana.Code
         public abstract void Update(double deltaTime);
 
         protected virtual void DrawMainMenuBar()
+        {
+        }
+
+        protected virtual void DrawImGui(double deltaTime)
         {
         }
 
@@ -758,6 +751,19 @@ namespace Mana.Code
         public virtual void Render(double deltaTime)
         {
             RenderFrame++;
+
+            if (_pendingImGuiFontPreset.HasValue)
+            {
+                ApplyImGuiFontPreset(_pendingImGuiFontPreset.Value);
+                _pendingImGuiFontPreset = null;
+            }
+
+            _ImGui.Update((float)deltaTime);
+            DrawMainMenuBar();
+            DrawDockSpace();
+            DrawImGui(deltaTime);
+            Context.World.DrawImGui();
+
             Context.World.Draw();
             _ImGui.Render();
         }

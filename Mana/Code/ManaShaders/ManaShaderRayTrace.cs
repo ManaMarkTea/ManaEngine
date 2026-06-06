@@ -7,7 +7,7 @@ namespace Mana.Code.ManaShaders
     {
         public ManaShaderRayTrace(ManaContext context) : base(context)
         {
-            context.World.PostDrawFutures.Add(() => OnGui());
+            context.World.ImGuiFutures.Add(() => OnGui());
         }
 
         void OnGui()
@@ -19,7 +19,7 @@ namespace Mana.Code.ManaShaders
 
             ImGui.End();
 
-            Context.World.PostDrawFutures.Add(() => OnGui());
+            Context.World.ImGuiFutures.Add(() => OnGui());
         }
 
         public int RayCasts = 1;

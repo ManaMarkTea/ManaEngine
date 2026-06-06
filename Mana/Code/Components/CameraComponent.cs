@@ -220,29 +220,37 @@ namespace Mana
                 _MovementSpeed = _MovementSpeed.Clamp(0.25f, 5000.0f);
             }
 
+            Owner.Position = position;
+            Owner.Rotation = rotationEuler;
+            UpdateViewMatrix();
+
+        }
+
+        public void DrawImGui()
+        {
             if (BaseGameMode.UtilityDockId != 0)
             {
                 ImGui.SetNextWindowDockID(BaseGameMode.UtilityDockId, ImGuiCond.Always);
             }
 
             ImGui.Begin("Camera");
-            
-            Owner.Position = position;
-            Owner.Rotation = rotationEuler;
-            UpdateViewMatrix();
 
-            
-            var numericPos = position;
-            var numericRot = rotationEuler;
-
+            var numericPos = Owner.Position;
+            var numericRot = Owner.Rotation;
+            var pitch = numericRot.X;
+            var yaw = numericRot.Y;
 
             ImGui.SeparatorText("Transform");
+            if (ImGui.InputFloat3("Pos", ref numericPos))
             {
-                if (ImGui.InputFloat3("Pos", ref numericPos)) { Owner.Position = numericPos; }
-                if (ImGui.InputFloat3("Rot", ref numericRot)) { Owner.Rotation = numericRot; }
+                Owner.Position = numericPos;
             }
 
-            
+            if (ImGui.InputFloat3("Rot", ref numericRot))
+            {
+                Owner.Rotation = numericRot;
+            }
+
             ImGui.InputFloat("Pitch", ref pitch);
             ImGui.InputFloat("Yaw", ref yaw);
 
@@ -250,89 +258,89 @@ namespace Mana
             var dyHist = _deltaHistoryY.ToArray();
 
             ImGui.SeparatorText("Mouse");
+            if (dxHist.Length > 0)
             {
                 ImGui.PlotLines("dx", ref dxHist[0], dxHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
+            }
+
+            if (dyHist.Length > 0)
+            {
                 ImGui.PlotLines("dy", ref dyHist[0], dyHist.Length, 0, "", -0.010f, 0.01f, new Vector2(0, 50));
             }
 
             ImGui.SeparatorText("Camera");
+            ImGui.SliderFloat("Speed", ref _MovementSpeed, 0.25f, 100.0f);
+            ImGui.SliderFloat("Pan Speed", ref PanSpeed, 0.05f, 5.0f);
+
+            ImGui.Text($"Projection: {(OrthoGraphic ? "Orthographic" : "Perspective")}");
+            if (ImGui.Button("Perspective"))
             {
-                ImGui.SliderFloat("Speed", ref _MovementSpeed, 0.25f, 100.0f);
-                ImGui.SliderFloat("Pan Speed", ref PanSpeed, 0.05f, 5.0f);
-
-                ImGui.Text($"Projection: {(OrthoGraphic ? "Orthographic" : "Perspective")}");
-                if (ImGui.Button("Perspective"))
-                {
-                    SetProjectionMode(false);
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Ortho"))
-                {
-                    SetProjectionMode(true);
-                }
-
-                if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
-                {
-                    UpdateProjection();
-                }
-
-                if (ImGui.DragFloat("Ortho Height", ref OrthographicHeight, 1.0f, 1.0f, 1000.0f))
-                {
-                    UpdateProjection();
-                }
-
-                ImGui.Checkbox("Touchpad Horizontal Pan In Ortho", ref TouchpadPanInOrthographic);
-
-                ImGui.SeparatorText("Views");
-                if (ImGui.Button("Front"))
-                {
-                    SetViewPreset(CameraViewPreset.Front);
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Back"))
-                {
-                    SetViewPreset(CameraViewPreset.Back);
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Left"))
-                {
-                    SetViewPreset(CameraViewPreset.Left);
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Right"))
-                {
-                    SetViewPreset(CameraViewPreset.Right);
-                }
-
-                if (ImGui.Button("Top"))
-                {
-                    SetViewPreset(CameraViewPreset.Top);
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Bottom"))
-                {
-                    SetViewPreset(CameraViewPreset.Bottom);
-                }
-
-                if (ImGui.CollapsingHeader("Advanced"))
-                {
-                    ImGuiExt.InputMatrix4("Proj", ref _ProjectionMatrix);
-                    ImGui.Spacing();
-                    ImGui.Spacing();
-                    ImGuiExt.InputMatrix4("View", ref _ViewMatrix);
-                }
-
+                SetProjectionMode(false);
             }
 
+            ImGui.SameLine();
+            if (ImGui.Button("Ortho"))
+            {
+                SetProjectionMode(true);
+            }
+
+            if (ImGui.DragFloat("FoV", ref FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
+            {
+                UpdateProjection();
+            }
+
+            if (ImGui.DragFloat("Ortho Height", ref OrthographicHeight, 1.0f, 1.0f, 1000.0f))
+            {
+                UpdateProjection();
+            }
+
+            ImGui.Checkbox("Touchpad Horizontal Pan In Ortho", ref TouchpadPanInOrthographic);
+
+            ImGui.SeparatorText("Views");
+            if (ImGui.Button("Front"))
+            {
+                SetViewPreset(CameraViewPreset.Front);
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Back"))
+            {
+                SetViewPreset(CameraViewPreset.Back);
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Left"))
+            {
+                SetViewPreset(CameraViewPreset.Left);
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Right"))
+            {
+                SetViewPreset(CameraViewPreset.Right);
+            }
+
+            if (ImGui.Button("Top"))
+            {
+                SetViewPreset(CameraViewPreset.Top);
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Bottom"))
+            {
+                SetViewPreset(CameraViewPreset.Bottom);
+            }
+
+            if (ImGui.CollapsingHeader("Advanced"))
+            {
+                ImGuiExt.InputMatrix4("Proj", ref _ProjectionMatrix);
+                ImGui.Spacing();
+                ImGui.Spacing();
+                ImGuiExt.InputMatrix4("View", ref _ViewMatrix);
+            }
 
             ImGui.End();
             UpdateViewMatrix();
-
         }
 
 
