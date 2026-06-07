@@ -30,6 +30,18 @@ namespace Mana.Code.Shapes
         {
             return AddPyramid(position, color, new Vector3(size, size, size));
         }
+        public ManaSceneNode AddTorus(Vector3 position, Vector4 color, float size)
+        {
+            return AddTorus(position, color, new Vector3(size, size, size));
+        }
+        public ManaSceneNode AddIcosahedron(Vector3 position, Vector4 color, float size)
+        {
+            return AddIcosahedron(position, color, new Vector3(size, size, size));
+        }
+        public ManaSceneNode AddIsoSphere(Vector3 position, Vector4 color, float size)
+        {
+            return AddIsoSphere(position, color, new Vector3(size, size, size));
+        }
 
         public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
         {
@@ -58,6 +70,36 @@ namespace Mana.Code.Shapes
             extraCube.Scale = size;
             Scene.Children.Add(extraCube);
             return extraCube;
+        }
+
+        public ManaSceneNode AddTorus(Vector3 position, Vector4 color, Vector3 size)
+        {
+            ManaSceneNode torusNode = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            torusNode.Name = "Torus";
+            torusNode.Components.Add(new MeshRendererComponent(torusNode, new ManaTorus(Context, color)));
+            torusNode.Scale = size;
+            Scene.Children.Add(torusNode);
+            return torusNode;
+        }
+
+        public ManaSceneNode AddIcosahedron(Vector3 position, Vector4 color, Vector3 size)
+        {
+            ManaSceneNode icosahedronNode = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            icosahedronNode.Name = "Icosahedron";
+            icosahedronNode.Components.Add(new MeshRendererComponent(icosahedronNode, new ManaIcosahedron(Context, color)));
+            icosahedronNode.Scale = size;
+            Scene.Children.Add(icosahedronNode);
+            return icosahedronNode;
+        }
+
+        public ManaSceneNode AddIsoSphere(Vector3 position, Vector4 color, Vector3 size)
+        {
+            ManaSceneNode isoSphereNode = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            isoSphereNode.Name = "Icosphere";
+            isoSphereNode.Components.Add(new MeshRendererComponent(isoSphereNode, new ManaIsoSphere(Context, color, 0.5f)));
+            isoSphereNode.Scale = size;
+            Scene.Children.Add(isoSphereNode);
+            return isoSphereNode;
         }
 
         public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)

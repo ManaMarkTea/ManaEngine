@@ -56,7 +56,7 @@ namespace Mana.Code.Renderers
 
             this.lightKey = new ManaLightSourceComponent(context);
             this.lightFill = new ManaLightSourceComponent(context);
-            this.lightFill.Intensity = 0.5;
+            this.lightFill.Intensity = 0.5f;
 
             var quatKey = new Quaternion(
                 -0.3535534f,

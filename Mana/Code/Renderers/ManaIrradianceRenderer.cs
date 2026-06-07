@@ -30,6 +30,10 @@ namespace Mana.Code.Renderers
         public ManaCube SimpleCube = null!;
         public ManaQuad SimpleQuad = null!;
         public ManaSphere SimpleSphere = null!;
+        public ManaTorus SimpleTorus = null!;
+        public ManaIcosahedron SimpleIcosahedron = null!;
+        public ManaIsoSphere SimpleIsoSphere = null!;
+        public ManaPyramid SimplePyramid = null!;
 
         bool drawDebugWorld = false;
         float debugMetallic = 1.0f;
@@ -40,7 +44,6 @@ namespace Mana.Code.Renderers
 
         float debugLightIntensity = 1.35f;
         Vector4 debugLightColor = Colors.White;
-        bool debugLightsFollowVoxelBounds = true;
         float debugPbrExposure = 0.92f;
         float debugIblIntensity = 0.90f;
 
@@ -68,6 +71,10 @@ namespace Mana.Code.Renderers
             SimpleCube = new ManaCube(Context, Colors.White, Vector3.One);
             SimpleQuad = new ManaQuad(Context, Colors.White, Vector3.One * 2.0f);
             SimpleSphere = new ManaSphere(Context, Colors.White, 0.5f);
+            SimpleTorus = new ManaTorus(Context, Colors.White);
+            SimpleIcosahedron = new ManaIcosahedron(Context, Colors.White, 0.6f);
+            SimpleIsoSphere = new ManaIsoSphere(Context, Colors.White, 0.55f);
+            SimplePyramid = new ManaPyramid(Context, Colors.White, Vector3.One);
 
             // Targets
             EnvironmentCubeTarget = new ManaRenderTarget(Context, 512, 512);
@@ -150,7 +157,6 @@ namespace Mana.Code.Renderers
             ImGui.SliderFloat("Ambience", ref debugAmbient, 0.0f, 1.0f);
             ImGui.ColorEdit4("Albedo", ref debugAlbedo);
 
-            ImGui.Checkbox("Lights Follow Voxels", ref debugLightsFollowVoxelBounds);
             ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 8.0f);
             ImGui.ColorEdit4("Light Color", ref debugLightColor);
             ImGui.SliderFloat("Exposure", ref debugPbrExposure, 0.25f, 3.0f);
@@ -183,25 +189,29 @@ namespace Mana.Code.Renderers
             Context.gl.ClearDepth(1.0);
             ClearDepth();
 
+            SyncGridLightRig();
             SyncDebugSceneMembership();
             drawScenes();
             
         }
 
-        //private static Vector4[] lightPositions =
-        //{
-        //    new Vector4(-10.0f,  10.0f, 10.0f, 1.0f),
-        //    new Vector4( 10.0f,  10.0f, 10.0f, 1.0f),
-        //    new Vector4(-10.0f, -10.0f, 10.0f, 1.0f),
-        //    new Vector4(64, 64, -64, 1.0f),
-        //};
+        private const float DebugGridSize = 256.0f;
+        private const float GridLightPowerScale = DebugGridSize * DebugGridSize;
 
-        private static readonly Vector3[] lightPositionOffsets =
+        private static readonly Vector3[] gridLightPositions =
         {
-            new Vector3(-12.0f,  12.0f, 12.0f),
-            new Vector3( 12.0f,  12.0f, 12.0f),
-            new Vector3(-12.0f,  -8.0f, 12.0f),
-            new Vector3( 12.0f,  -8.0f, 12.0f),
+            new Vector3(0.0f, DebugGridSize, 0.0f),
+            new Vector3(DebugGridSize, DebugGridSize, 0.0f),
+            new Vector3(0.0f, DebugGridSize, DebugGridSize),
+            new Vector3(DebugGridSize, DebugGridSize, DebugGridSize),
+        };
+
+        private static readonly string[] gridLightNames =
+        {
+            "PBR Grid Light Top Near Left",
+            "PBR Grid Light Top Near Right",
+            "PBR Grid Light Top Far Left",
+            "PBR Grid Light Top Far Right",
         };
 
         private Vector3 debugSceneCenter = new Vector3(64.0f, 3.0f, 64.0f);
@@ -215,9 +225,8 @@ namespace Mana.Code.Renderers
             0.35f
         };
 
-        private long cachedLightFrame = -1;
-        private Vector3 cachedLightCenter;
-        private float cachedLightRadius = 16.0f;
+        private ManaSceneNode? gridLightRigNode;
+        private readonly List<ManaSceneNode> gridLightNodes = new();
 
 
 
@@ -348,6 +357,77 @@ namespace Mana.Code.Renderers
 
         private int preFilterSlice = 0;
 
+        private void SyncGridLightRig()
+        {
+            if (Context.World == null || Context.World.DefaultScene == null)
+            {
+                return;
+            }
+
+            var rig = EnsureGridLightRigNode();
+            if (rig.Parent != null)
+            {
+                rig.Parent.RemoveChild(rig);
+            }
+
+            if (!Context.World.DefaultScene.Children.Contains(rig))
+            {
+                Context.World.DefaultScene.Children.Add(rig);
+            }
+
+            UpdateGridLightSettings();
+            rig.UpdateTransform();
+        }
+
+        private ManaSceneNode EnsureGridLightRigNode()
+        {
+            if (gridLightRigNode != null)
+            {
+                return gridLightRigNode;
+            }
+
+            gridLightRigNode = new ManaSceneNode(Context, Matrix4x4.Identity)
+            {
+                Name = "PBR Grid Lights"
+            };
+
+            for (int i = 0; i < gridLightPositions.Length; ++i)
+            {
+                var lightNode = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(gridLightPositions[i]))
+                {
+                    Name = gridLightNames[i]
+                };
+
+                var light = new ManaLightSourceComponent(lightNode)
+                {
+                    Name = "PBR Point Light",
+                    Color = debugLightColor,
+                    Intensity = debugLightIntensity * lightWeights[i]
+                };
+
+                lightNode.Components.Add(light);
+                gridLightRigNode.AddChild(lightNode);
+                gridLightNodes.Add(lightNode);
+            }
+
+            return gridLightRigNode;
+        }
+
+        private void UpdateGridLightSettings()
+        {
+            for (int i = 0; i < gridLightNodes.Count; ++i)
+            {
+                var light = GetLightComponent(gridLightNodes[i]);
+                if (light == null)
+                {
+                    continue;
+                }
+
+                light.Color = debugLightColor;
+                light.Intensity = debugLightIntensity * lightWeights[Math.Clamp(i, 0, lightWeights.Length - 1)];
+            }
+        }
+
         private ManaSceneNode? debugSceneNode;
 
         public ManaSceneNode GetOrCreateDebugSceneNode()
@@ -476,6 +556,8 @@ namespace Mana.Code.Renderers
                 }
             }
 
+            AddPrimitiveReferenceNodes(root);
+
             root.AddChild(CreateTexturePreviewNode(
                 "Environment Map Preview",
                 SimpleCube,
@@ -503,6 +585,47 @@ namespace Mana.Code.Renderers
                 BasicShader,
                 () => BrdfFramebuffer.bufferMap["BRDF"]?.Texture,
                 new Vector3(5.0f, 0.0f, 5.0f)));
+        }
+
+        private void AddPrimitiveReferenceNodes(ManaSceneNode root)
+        {
+            var primitiveRoot = new ManaSceneNode(Context, Matrix4x4.Identity)
+            {
+                Name = "PBR Primitive Reference Shapes",
+                Position = new Vector3(-5.0f, 0.0f, 1.0f)
+            };
+
+            var torus = CreatePbrDebugNode(
+                "PBR Torus Reference",
+                SimpleTorus,
+                new Vector3(0.0f, 1.6f, -3.0f),
+                0.8f,
+                0.18f);
+            torus.Rotation = new Vector3(65.0f.ToRadians(), 0.0f, 0.0f);
+            primitiveRoot.AddChild(torus);
+
+            primitiveRoot.AddChild(CreatePbrDebugNode(
+                "PBR Icosahedron Reference",
+                SimpleIcosahedron,
+                new Vector3(0.0f, 0.5f, -1.0f),
+                0.45f,
+                0.32f));
+
+            primitiveRoot.AddChild(CreatePbrDebugNode(
+                "PBR Icosphere Reference",
+                SimpleIsoSphere,
+                new Vector3(0.0f, -0.6f, 1.0f),
+                0.2f,
+                0.58f));
+
+            primitiveRoot.AddChild(CreatePbrDebugNode(
+                "PBR Pyramid Reference",
+                SimplePyramid,
+                new Vector3(0.0f, -1.7f, 3.0f),
+                0.05f,
+                0.75f));
+
+            root.AddChild(primitiveRoot);
         }
 
         private ManaMeshSceneNode CreatePbrDebugNode(string name, ManaMesh mesh, Vector3 localPosition, float metallic, float roughness)
@@ -533,89 +656,38 @@ namespace Mana.Code.Renderers
 
         public void ApplyLights(ManaPbrShader manaPbrShader)
         {
-            ResolveLightingTarget(out var lightCenter, out var lightRadius);
-            var lightDistance = Math.Clamp(lightRadius * 1.8f, 8.0f, 80.0f);
-            var directLightColor = debugLightColor.ToVector3() * debugLightIntensity * lightDistance * lightDistance;
-
-            for (int i = 0; i < lightPositionOffsets.Length; ++i)
+            if (gridLightNodes.Count == 0)
             {
-                var lightDirection = Vector3.Normalize(lightPositionOffsets[i]);
-                var lightPosition = lightCenter + lightDirection * lightDistance;
+                SyncGridLightRig();
+            }
+
+            for (int i = 0; i < gridLightPositions.Length; ++i)
+            {
+                var lightNode = i < gridLightNodes.Count ? gridLightNodes[i] : null;
+                var light = lightNode == null ? null : GetLightComponent(lightNode);
+                var lightPosition = lightNode?.WorldTransform.Translation ?? gridLightPositions[i];
+                var lightColor = light?.Enabled == false
+                    ? Vector3.Zero
+                    : (light?.Color ?? debugLightColor).ToVector3()
+                        * (light?.Intensity ?? debugLightIntensity * lightWeights[i])
+                        * GridLightPowerScale;
+
                 manaPbrShader.FindUniform($"lightPositions[0]")?.SetValue(lightPosition, i);
-                manaPbrShader.FindUniform($"lightColors[0]")?.SetValue(directLightColor * lightWeights[i], i);
+                manaPbrShader.FindUniform($"lightColors[0]")?.SetValue(lightColor, i);
             }
         }
 
-        private void ResolveLightingTarget(out Vector3 center, out float radius)
+        private static ManaLightSourceComponent? GetLightComponent(ManaSceneNode node)
         {
-            if (!debugLightsFollowVoxelBounds)
+            foreach (var component in node.Components)
             {
-                center = debugSceneCenter;
-                radius = 16.0f * debugSceneScale;
-                return;
-            }
-
-            var updateFrame = Context.GameMode?.UpdateFrame ?? -1;
-            if (cachedLightFrame != updateFrame)
-            {
-                cachedLightFrame = updateFrame;
-                if (TryGetVoxelBounds(out var min, out var max))
+                if (component is ManaLightSourceComponent light)
                 {
-                    cachedLightCenter = (min + max) * 0.5f;
-                    cachedLightRadius = Math.Max(Vector3.Distance(min, max) * 0.5f, 4.0f);
-                }
-                else
-                {
-                    cachedLightCenter = debugSceneCenter;
-                    cachedLightRadius = 16.0f * debugSceneScale;
+                    return light;
                 }
             }
 
-            center = cachedLightCenter;
-            radius = cachedLightRadius;
-        }
-
-        private bool TryGetVoxelBounds(out Vector3 min, out Vector3 max)
-        {
-            min = new Vector3(float.MaxValue);
-            max = new Vector3(float.MinValue);
-            var foundVoxel = false;
-
-            if (Context.World == null)
-            {
-                return false;
-            }
-
-            foreach (var scene in Context.World.Scenes)
-            {
-                foreach (var child in scene.Children)
-                {
-                    AccumulateVoxelBounds(child, ref min, ref max, ref foundVoxel);
-                }
-            }
-
-            return foundVoxel;
-        }
-
-        private static void AccumulateVoxelBounds(ManaSceneNode node, ref Vector3 min, ref Vector3 max, ref bool foundVoxel)
-        {
-            if (node is ManaVoxelsNode voxelsNode)
-            {
-                foreach (var voxel in voxelsNode.VoxelShape.CommittedVoxels)
-                {
-                    var halfSize = Vector3.One * 0.5f;
-                    var voxelMin = Vector3.Transform(voxel.Position - halfSize, voxelsNode.WorldTransform);
-                    var voxelMax = Vector3.Transform(voxel.Position + halfSize, voxelsNode.WorldTransform);
-                    min = Vector3.Min(min, Vector3.Min(voxelMin, voxelMax));
-                    max = Vector3.Max(max, Vector3.Max(voxelMin, voxelMax));
-                    foundVoxel = true;
-                }
-            }
-
-            foreach (var child in node.Children)
-            {
-                AccumulateVoxelBounds(child, ref min, ref max, ref foundVoxel);
-            }
+            return null;
         }
 
         private class DebugTexturePreviewComponent : ManaComponent

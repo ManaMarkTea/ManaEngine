@@ -1,18 +1,22 @@
-﻿namespace Mana.Code
+using Mana.Code.Nodes;
+
+namespace Mana.Code
 {
-    public class ManaLightSourceComponent
+    public class ManaLightSourceComponent : ManaComponent
     {
-        private ManaContext Context;
+        public float Intensity { get; set; } = 1.0f;
+        public Vector4 Color { get; set; } = Colors.White;
+        public Vector3 Direction { get; set; } = -Vector3.UnitY;
+        public bool Enabled { get; set; } = true;
 
-        public double Intensity { get; set; } = 1.0;
-
-        public Vector3 Direction { get; set; } = Vector3.UnitY * -1;
-
-        public ManaLightSourceComponent(ManaContext context)
+        public ManaLightSourceComponent(ManaSceneNode owner) : base(owner)
         {
-            this.Context = context;
+            Name = "Point Light";
         }
 
-
+        public ManaLightSourceComponent(ManaContext context)
+            : this(new ManaSceneNode(context, Matrix4x4.Identity))
+        {
+        }
     }
 }

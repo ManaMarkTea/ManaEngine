@@ -120,6 +120,12 @@ namespace Mana.Code.UI
                 return;
             }
 
+            if (component is ManaLightSourceComponent light)
+            {
+                DrawLightSourceComponent(light);
+                return;
+            }
+
             ImGui.BulletText(GetComponentLabel(component));
         }
 
@@ -147,6 +153,19 @@ namespace Mana.Code.UI
                     ImGui.TreePop();
                 }
 
+                ImGui.TreePop();
+            }
+        }
+
+        private void DrawLightSourceComponent(ManaLightSourceComponent light)
+        {
+            var label = $"{GetComponentLabel(light)} | Intensity: {light.Intensity:0.###}";
+
+            if (ImGui.TreeNode(label))
+            {
+                ImGui.TextUnformatted($"Color: {FormatVector4(light.Color)}");
+                ImGui.TextUnformatted($"Direction: {FormatVector3(light.Direction)}");
+                ImGui.TextUnformatted($"Enabled: {light.Enabled}");
                 ImGui.TreePop();
             }
         }
@@ -187,6 +206,11 @@ namespace Mana.Code.UI
         private static string FormatVector3(Vector3 value)
         {
             return $"({value.X:0.###}, {value.Y:0.###}, {value.Z:0.###})";
+        }
+
+        private static string FormatVector4(Vector4 value)
+        {
+            return $"({value.X:0.###}, {value.Y:0.###}, {value.Z:0.###}, {value.W:0.###})";
         }
     }
 }
