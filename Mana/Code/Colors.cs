@@ -2,12 +2,13 @@
 {
     public static class Colors
     {
-        public static readonly Vector4 Red = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
-        public static readonly Vector4 Green = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
-        public static readonly Vector4 Blue = new Vector4(0.0f, 0.0f, 1.0f, 1.0f);
-        public static readonly Vector4 Yellow = new Vector4(1.0f, 1.0f, 0.0f, 1.0f);
-        public static readonly Vector4 Magenta = new Vector4(1.0f, 0.0f, 1.0f, 1.0f);
-        public static readonly Vector4 Cyan = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);
+    public static readonly Vector4 Red = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+    public static readonly Vector4 Green = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
+    public static readonly Vector4 Blue = new Vector4(0.0f, 0.0f, 1.0f, 1.0f);
+    public static readonly Vector4 CornflowerBlue = new Vector4(100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f, 1.0f);
+    public static readonly Vector4 Yellow = new Vector4(1.0f, 1.0f, 0.0f, 1.0f);
+    public static readonly Vector4 Magenta = new Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+    public static readonly Vector4 Cyan = new Vector4(0.0f, 1.0f, 1.0f, 1.0f);
         public static readonly Vector4 White = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
         public static readonly Vector4 Black = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
         public static readonly Vector4 Brown = new Vector4(0.65f, 0.32f, 0.15f, 1.0f);

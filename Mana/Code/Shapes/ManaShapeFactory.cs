@@ -34,6 +34,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddCube(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Name = "Cube";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(Context, color, size)));
             Scene.Children.Add(extraCube);
             return extraCube;
@@ -42,6 +43,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddSphere(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Name = "Sphere";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(Context, color, 0.5f)));
             extraCube.Scale = size;
             Scene.Children.Add(extraCube);
@@ -50,6 +52,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddPyramid(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Name = "Pyramid";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaPyramid(Context, color, Vector3.One)));
             //extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));
             extraCube.Scale = size;
@@ -60,6 +63,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Name = "Quad";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, size)));
             Scene.Children.Add(extraCube);
             return extraCube;
@@ -69,6 +73,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddQuad(Vector3 position, Vector4 color, ManaQuadPlanes plane, float axisStart, float axisEnd, float extrusionStart, float extrusionEnd)
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            extraCube.Name = "Quad";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, plane, axisStart, axisEnd, extrusionStart, extrusionEnd)));
             Scene.Children.Add(extraCube);
             return extraCube;
@@ -77,6 +82,7 @@ namespace Mana.Code.Shapes
         public ManaSceneNode AddVoxels(Vector3 position)
         {
             ManaSceneNode voxelNode = new ManaVoxelsNode(Context, Matrix4x4.CreateTranslation(position));            
+            voxelNode.Name = "Voxel Scene";
             Scene.Children.Add(voxelNode);
             return voxelNode;
         }

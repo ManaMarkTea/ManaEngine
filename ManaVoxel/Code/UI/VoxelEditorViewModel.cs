@@ -29,7 +29,7 @@ namespace ManaVoxel.Code.UI
             .Where(layer => layer.Node.IsBakedToDynamicPhysics)
             .Sum(layer => layer.Node.GetBakedBodyCount());
 
-        public Vector4 PaintVoxelColor = Colors.Magenta;
+    public Vector4 PaintVoxelColor = Colors.CornflowerBlue;
         public Vector3 ImportPositionOffset = Vector3.Zero;
         public Vector3 ImportRotationDegrees = Vector3.Zero;
         public Vector3 ImportScale = Vector3.One;

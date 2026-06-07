@@ -43,6 +43,7 @@ namespace Mana.Code
         }
 
         public static uint UtilityDockId { get; set; }
+        public static uint OutlinerDockId { get; set; }
         public ImGuiFontPreset CurrentImGuiFontPreset { get; private set; } = ImGuiFontPreset.Default;
         public ImGuiMonoSizeTier CurrentMonoSizeTier { get; private set; } = ImGuiMonoSizeTier.Small;
         public bool EmojiFallbackEnabled { get; private set; } = true;

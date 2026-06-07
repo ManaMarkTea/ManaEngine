@@ -10,7 +10,10 @@ namespace Mana.Code.Materials
         {
             if (!DefaultMaterial.ContainsKey(context))
             {
-                DefaultMaterial.Add(context, new ManaMaterial(context));
+                DefaultMaterial.Add(context, new ManaMaterial(context)
+                {
+                    Name = "Default PBR Material"
+                });
             }
 
             return DefaultMaterial[context];
@@ -30,7 +33,7 @@ namespace Mana.Code.Materials
 
         public ManaMaterial(ManaContext context) : base(context)
         {
-            Name = "Material";
+            Name = "PBR Material";
             Channels = new Dictionary<string, ManaMaterialChannel>();
             var shader = new ManaPbrShader(context);
             Shader = shader;

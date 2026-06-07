@@ -485,18 +485,29 @@ namespace Mana
 
             float pegSize = 0.25f * 0.5f;
  
-            shapes.AddCube(Vector3.UnitX * 0.5f, Colors.Red, new Vector3(1, pegSize, pegSize));
-            shapes.AddCube(Vector3.UnitY * 0.5f, Colors.Green, new Vector3(pegSize, 1, pegSize));
-            shapes.AddCube(Vector3.UnitZ * 0.5f, Colors.Blue, new Vector3(pegSize, pegSize, 1));
+            shapes.AddCube(Vector3.UnitX * 0.5f, Colors.Red, new Vector3(1, pegSize, pegSize)).Name = "Camera Debug X Axis";
+            shapes.AddCube(Vector3.UnitY * 0.5f, Colors.Green, new Vector3(pegSize, 1, pegSize)).Name = "Camera Debug Y Axis";
+            shapes.AddCube(Vector3.UnitZ * 0.5f, Colors.Blue, new Vector3(pegSize, pegSize, 1)).Name = "Camera Debug Z Axis";
 
-            shapes.AddPyramid(Vector3.UnitX * 1f, Colors.Red, 0.25f).Rotation = new Vector3(0, 0, -90.0f.ToRadians());
-            shapes.AddPyramid(Vector3.UnitY * 1f, Colors.Green, 0.25f).Rotation = new Vector3(0, 0, 0);
-            shapes.AddPyramid(Vector3.UnitY * 0.75f, Colors.Green, 0.25f).Rotation = new Vector3(0, 0, 0);
-            shapes.AddPyramid(Vector3.UnitZ * 1f, Colors.Blue, 0.25f).Rotation = new Vector3(90.0f.ToRadians(), 0, 0);
+            var xArrow = shapes.AddPyramid(Vector3.UnitX * 1f, Colors.Red, 0.25f);
+            xArrow.Name = "Camera Debug X Arrow";
+            xArrow.Rotation = new Vector3(0, 0, -90.0f.ToRadians());
 
-            shapes.AddQuad(Vector3.Zero, Colors.Silver, Vector3.One);
+            var yArrow = shapes.AddPyramid(Vector3.UnitY * 1f, Colors.Green, 0.25f);
+            yArrow.Name = "Camera Debug Y Arrow";
+            yArrow.Rotation = new Vector3(0, 0, 0);
 
-            shapes.AddSphere(transform.Translation, Colors.Red, 0.004f);
+            var yMidArrow = shapes.AddPyramid(Vector3.UnitY * 0.75f, Colors.Green, 0.25f);
+            yMidArrow.Name = "Camera Debug Y Mid Arrow";
+            yMidArrow.Rotation = new Vector3(0, 0, 0);
+
+            var zArrow = shapes.AddPyramid(Vector3.UnitZ * 1f, Colors.Blue, 0.25f);
+            zArrow.Name = "Camera Debug Z Arrow";
+            zArrow.Rotation = new Vector3(90.0f.ToRadians(), 0, 0);
+
+            shapes.AddQuad(Vector3.Zero, Colors.Silver, Vector3.One).Name = "Camera Debug View Plane";
+
+            shapes.AddSphere(transform.Translation, Colors.Red, 0.004f).Name = "Camera Debug Ray Origin";
             {
                 float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
                 float planeWidth = planeHeight * AspectRatio;

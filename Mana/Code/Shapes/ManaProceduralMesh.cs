@@ -25,8 +25,17 @@
         public virtual ManaMaterial GenerateMaterial()
         {
             var foundMaterial = new ManaMaterial(Context);
+            foundMaterial.Name = $"{GetShapeDisplayName()} Material";
             foundMaterial.Albedo.Value = DefaultVertexColor;
             return foundMaterial;
+        }
+
+        protected string GetShapeDisplayName()
+        {
+            var name = GetType().Name;
+            return name.StartsWith("Mana", StringComparison.Ordinal)
+                ? name.Substring("Mana".Length)
+                : name;
         }
 
         protected virtual void GenerateData() 

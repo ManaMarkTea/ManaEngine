@@ -140,7 +140,10 @@ namespace Mana.Code.Renderers
 
             ImGui.Begin("Irradiance");
 
-            ImGui.Checkbox("Debug World", ref drawDebugWorld);
+            if (ImGui.Checkbox("Debug World", ref drawDebugWorld))
+            {
+                SyncDebugSceneMembership();
+            }
 
             ImGui.SliderFloat("Metallic", ref debugMetallic, 0.0f, 1.0f);
             ImGui.SliderFloat("Roughness", ref debugRoughness, 0.0f, 1.0f);
@@ -152,7 +155,10 @@ namespace Mana.Code.Renderers
             ImGui.ColorEdit4("Light Color", ref debugLightColor);
             ImGui.SliderFloat("Exposure", ref debugPbrExposure, 0.25f, 3.0f);
             ImGui.SliderFloat("IBL Intensity", ref debugIblIntensity, 0.0f, 4.0f);
-            ImGui.SliderFloat("Debug Scene Scale", ref debugSceneScale, 0.35f, 2.75f);
+            if (ImGui.SliderFloat("Debug Scene Scale", ref debugSceneScale, 0.35f, 2.75f))
+            {
+                SyncDebugSceneTransform();
+            }
 
             ImGui.End();
         }
@@ -177,12 +183,8 @@ namespace Mana.Code.Renderers
             Context.gl.ClearDepth(1.0);
             ClearDepth();
 
+            SyncDebugSceneMembership();
             drawScenes();
-
-            if (drawDebugWorld) 
-            {
-                RenderTestScene();
-            }
             
         }
 
@@ -346,97 +348,187 @@ namespace Mana.Code.Renderers
 
         private int preFilterSlice = 0;
 
-        private List<ManaMeshSceneNode> TestModels = new List<ManaMeshSceneNode>();
+        private ManaSceneNode? debugSceneNode;
 
-        private ManaMeshSceneNode? DebugModel = null;
-
-        void RenderTestScene()
+        public ManaSceneNode GetOrCreateDebugSceneNode()
         {
-            Matrix4x4 model = Matrix4x4.Identity;
-            float rows = 5;
-            float cols = 6;
-            float spacing = 1.1f * debugSceneScale;
+            return EnsureDebugSceneNode();
+        }
+
+        public void AddDebugSceneToWorld()
+        {
+            drawDebugWorld = true;
+            AttachDebugSceneToWorld();
+        }
+
+        public void RemoveDebugSceneFromWorld()
+        {
+            drawDebugWorld = false;
+            DetachDebugSceneFromWorld();
+        }
+
+        private void SyncDebugSceneMembership()
+        {
+            if (drawDebugWorld)
+            {
+                AttachDebugSceneToWorld();
+            }
+            else
+            {
+                DetachDebugSceneFromWorld();
+            }
+        }
+
+        private void AttachDebugSceneToWorld()
+        {
+            var node = EnsureDebugSceneNode();
+
+            if (node.Parent != null)
+            {
+                node.Parent.RemoveChild(node);
+            }
+
+            if (!Context.World.DefaultScene.Children.Contains(node))
+            {
+                Context.World.DefaultScene.Children.Add(node);
+            }
+
+            SyncDebugSceneTransform();
+        }
+
+        private void DetachDebugSceneFromWorld()
+        {
+            if (debugSceneNode == null)
+            {
+                return;
+            }
+
+            foreach (var scene in Context.World.Scenes)
+            {
+                scene.Children.Remove(debugSceneNode);
+            }
+
+            debugSceneNode.Parent?.RemoveChild(debugSceneNode);
+        }
+
+        private void SyncDebugSceneTransform()
+        {
+            if (debugSceneNode == null)
+            {
+                return;
+            }
+
+            debugSceneNode.Position = debugSceneCenter;
+            debugSceneNode.Scale = Vector3.One * debugSceneScale;
+            debugSceneNode.UpdateTransform();
+        }
+
+        private ManaSceneNode EnsureDebugSceneNode()
+        {
+            if (debugSceneNode != null)
+            {
+                return debugSceneNode;
+            }
+
+            debugSceneNode = new ManaSceneNode(Context, Matrix4x4.Identity)
+            {
+                Name = "PBR Debug Scene",
+                Position = debugSceneCenter,
+                Scale = Vector3.One * debugSceneScale
+            };
+
+            BuildDebugScene(debugSceneNode);
+            debugSceneNode.UpdateTransform();
+            return debugSceneNode;
+        }
+
+        private void BuildDebugScene(ManaSceneNode root)
+        {
+            const int rows = 5;
+            const int cols = 6;
+            const float spacing = 1.1f;
+
             var rowCenter = (rows - 1) * 0.5f;
             var colCenter = (cols - 1) * 0.5f;
 
-            if (TestModels.Count == 0)
+            for (int row = 0; row < rows; ++row)
             {
-                Func<Vector3, float, float, ManaMeshSceneNode> createSphereModelAtPoint = (pos, metallic, roughness) =>
+                float metallic = row / (float)rows;
+
+                for (int col = 0; col < cols; ++col)
                 {
-                    ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleSphere);
-                    newNode.Name = $"TestSphere_{pos}_{metallic}x{roughness}";
-                    newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
-                    newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
-                    newNode.MeshRenderer.DynamicMaterial.Roughness.Value = roughness;
-                    newNode.MeshRenderer.DynamicMaterial.Albedo.Value = new Vector4(roughness * 360, 0.5f, 0.5f, 1.0f).ToRgbFromHsl();
-                    newNode.Position = pos;
-                    return newNode;
-                };
+                    float roughness = Math.Clamp(col / (float)cols, 0.05f, 1.0f);
+                    var rowColumnOffset = new Vector3((col - colCenter) * spacing, (row - rowCenter) * spacing, 0.0f);
 
-                Func<Vector3, float, float, ManaMeshSceneNode> createCubeModelAtPoint = (pos, metallic, roughness) =>
-                {
-                    ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, SimpleCube);
-                    newNode.Name = $"TestCube_{pos}_{metallic}x{roughness}";
-                    newNode.MeshRenderer.DynamicMaterial.Metallic.Value = metallic;
-                    newNode.MeshRenderer.DynamicMaterial.Roughness.Value = roughness;
-                    newNode.Position = pos;
-                    return newNode;
-                };
+                    root.AddChild(CreatePbrDebugNode(
+                        $"PBR Cube M{metallic:0.##} R{roughness:0.##}",
+                        SimpleCube,
+                        rowColumnOffset + new Vector3(0.0f, 0.0f, -4.8f),
+                        metallic,
+                        roughness));
 
-                for (int row = 0; row < rows; ++row)
-                {
-                    float metallic = row / rows;
-                    for (int col = 0; col < cols; ++col)
-                    {
-                        float roughness = Math.Clamp(col / (float)cols, 0.05f, 1.0f);
-
-                        Vector3 gridPosition = new Vector3((col - colCenter) * spacing, (row - rowCenter) * spacing, -1.4f * debugSceneScale);
-                        gridPosition += debugSceneCenter;
-                        var sphereModel = createSphereModelAtPoint(gridPosition, metallic, roughness);
-                        gridPosition.Z = debugSceneCenter.Z - 4.8f * debugSceneScale;
-                        var cubeModel = createCubeModelAtPoint(gridPosition, metallic, roughness);
-
-                        TestModels.Add(cubeModel);
-                        TestModels.Add(sphereModel);
-
-                    }
+                    root.AddChild(CreatePbrDebugNode(
+                        $"PBR Sphere M{metallic:0.##} R{roughness:0.##}",
+                        SimpleSphere,
+                        rowColumnOffset + new Vector3(0.0f, 0.0f, -1.4f),
+                        metallic,
+                        roughness));
                 }
             }
 
-            DebugModel = new ManaMeshSceneNode(Context, SimpleCube);
-            DebugModel.LocalTransform = Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(4.0f, 0.0f, 0.5f) * debugSceneScale);
+            root.AddChild(CreateTexturePreviewNode(
+                "Environment Map Preview",
+                SimpleCube,
+                BasicCubeShader,
+                () => EnvironmentMap,
+                new Vector3(5.0f, 0.0f, -1.0f)));
 
+            root.AddChild(CreateTexturePreviewNode(
+                "Irradiance Map Preview",
+                SimpleCube,
+                BasicCubeShader,
+                () => IrradianceFramebuffer.bufferMap["Irradiance"]?.Texture,
+                new Vector3(5.0f, 0.0f, 1.0f)));
 
-            foreach (var testModel in TestModels)
+            root.AddChild(CreateTexturePreviewNode(
+                "Prefilter Map Preview",
+                SimpleCube,
+                BasicCubeShader,
+                () => PrefilterFramebuffer.bufferMap["PreFilter"]?.Texture,
+                new Vector3(5.0f, 0.0f, 3.0f)));
+
+            root.AddChild(CreateTexturePreviewNode(
+                "BRDF LUT Preview",
+                SimpleQuad,
+                BasicShader,
+                () => BrdfFramebuffer.bufferMap["BRDF"]?.Texture,
+                new Vector3(5.0f, 0.0f, 5.0f)));
+        }
+
+        private ManaMeshSceneNode CreatePbrDebugNode(string name, ManaMesh mesh, Vector3 localPosition, float metallic, float roughness)
+        {
+            ManaMeshSceneNode newNode = new ManaMeshSceneNode(Context, mesh);
+            newNode.Name = name;
+            newNode.Position = localPosition;
+            var material = newNode.MeshRenderer.DynamicMaterial;
+            material.Name = $"{name} Material";
+            material.Metallic.Value = metallic;
+            material.Roughness.Value = roughness;
+            material.Albedo.Value = new Vector4(roughness * 360, 0.5f, 0.5f, 1.0f).ToRgbFromHsl();
+            return newNode;
+        }
+
+        private ManaSceneNode CreateTexturePreviewNode(string name, ManaMesh mesh, ManaBasicTextureShader shader, Func<ManaTexture?> getTexture, Vector3 localPosition)
+        {
+            var node = new ManaSceneNode(Context, Matrix4x4.Identity)
             {
-                testModel.UpdateTransform();
-                testModel.Draw();
-            }
+                Name = name,
+                Position = localPosition,
+                Rotation = new Vector3(0.0f, -90.0f.ToRadians(), 0.0f)
+            };
 
-
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, -1.0f) * debugSceneScale);
-            BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
-            EnvironmentMap.Bind(0);
-            BasicCubeShader.FindUniform("model").SetValue(model);
-            SimpleCube.RenderDirectly();
-
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, 1.0f) * debugSceneScale);
-            BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
-            IrradianceFramebuffer.bufferMap["Irradiance"]?.Texture?.Bind(0);
-            BasicCubeShader.FindUniform("model").SetValue(model);
-            SimpleCube.RenderDirectly();
-
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, 3.0f) * debugSceneScale);
-            BasicCubeShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
-            PrefilterFramebuffer.bufferMap["PreFilter"]?.Texture?.Bind(0);
-            BasicCubeShader.FindUniform("model").SetValue(model);
-            SimpleCube.RenderDirectly();
-
-            model = Matrix4x4.CreateRotationY(-90.0f.ToRadians()) * Matrix4x4.CreateTranslation(debugSceneCenter + new Vector3(5.0f, 0.0f, 5.0f) * debugSceneScale);
-            BasicShader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Matrix4x4.Identity, Context.World.MainCamera);
-            BrdfFramebuffer.bufferMap["BRDF"]?.Texture?.Bind(0);
-            BasicShader.FindUniform("model").SetValue(model);
-            SimpleQuad.RenderDirectly();
+            node.Components.Add(new DebugTexturePreviewComponent(node, mesh, shader, getTexture));
+            return node;
         }
 
         public void ApplyLights(ManaPbrShader manaPbrShader)
@@ -523,6 +615,42 @@ namespace Mana.Code.Renderers
             foreach (var child in node.Children)
             {
                 AccumulateVoxelBounds(child, ref min, ref max, ref foundVoxel);
+            }
+        }
+
+        private class DebugTexturePreviewComponent : ManaComponent
+        {
+            private readonly ManaMesh mesh;
+            private readonly ManaBasicTextureShader shader;
+            private readonly Func<ManaTexture?> getTexture;
+
+            public DebugTexturePreviewComponent(
+                ManaSceneNode owner,
+                ManaMesh mesh,
+                ManaBasicTextureShader shader,
+                Func<ManaTexture?> getTexture) : base(owner)
+            {
+                this.mesh = mesh;
+                this.shader = shader;
+                this.getTexture = getTexture;
+            }
+
+            public override void DrawComponent()
+            {
+                base.DrawComponent();
+
+                var texture = getTexture();
+                if (texture == null)
+                {
+                    return;
+                }
+
+                shader.BindShader(ManaMaterial.GetDefaultMaterial(Context), Owner.WorldTransform, Context.World.MainCamera, Owner);
+                shader.FindUniform("mainTexture")?.SetValue(0);
+                texture.Bind(0);
+                mesh.RenderDirectly();
+                texture.UnBind(0);
+                shader.UnbindShader();
             }
         }
     }

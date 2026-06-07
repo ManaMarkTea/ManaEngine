@@ -58,6 +58,7 @@
         public override ManaMaterial GenerateMaterial()
         {
             var material = new ManaMaterial(Context);
+            material.Name = $"{Plane} Grid Material";
             material.Shader = new ManaGridShader(Context);
             return material;
         }

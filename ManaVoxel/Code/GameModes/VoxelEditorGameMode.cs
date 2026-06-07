@@ -12,6 +12,7 @@ namespace Mana.Code.GameModes
     {
         private const string ManaWindowTitle = "Mana";
         private uint _toolDockId;
+        private uint _outlinerDockId;
         private uint _manaDockId;
         private uint _utilityDockId;
         private readonly VoxelEditorViewModel _viewModel = new();
@@ -275,13 +276,28 @@ namespace Mana.Code.GameModes
         {
             ImGuiDockNative.DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
 
+            var leftColumnRatio = dockspaceSize.X > 0.0f
+                ? Math.Clamp(340.0f / dockspaceSize.X, 0.16f, 0.26f)
+                : 0.20f;
+            var outlinerHeightRatio = dockspaceSize.Y > 0.0f
+                ? Math.Clamp((dockspaceSize.Y - 280.0f) / dockspaceSize.Y, 0.45f, 0.68f)
+                : 0.58f;
+
+            uint leftColumnDockId;
             uint leftRemainderDockId;
             _ = ImGuiDockNative.DockBuilderSplitNode(
                 dockspaceId,
                 ImGuiDir.Left,
-                0.07f,
-                out _toolDockId,
+                leftColumnRatio,
+                out leftColumnDockId,
                 out leftRemainderDockId);
+
+            _ = ImGuiDockNative.DockBuilderSplitNode(
+                leftColumnDockId,
+                ImGuiDir.Down,
+                outlinerHeightRatio,
+                out _outlinerDockId,
+                out _toolDockId);
 
             uint centerDockId;
             uint rightDockId;
@@ -300,12 +316,14 @@ namespace Mana.Code.GameModes
                 out _manaDockId);
 
             ImGuiDockNative.DockBuilderDockWindow(VoxelToolPaletteView.WindowTitle, _toolDockId);
+            ImGuiDockNative.DockBuilderDockWindow("Outliner", _outlinerDockId);
             ImGuiDockNative.DockBuilderDockWindow(ManaWindowTitle, _manaDockId);
             ImGuiDockNative.DockBuilderDockWindow("Camera", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("World Perf", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Irradiance", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Dear ImGui Demo", _utilityDockId);
             BaseGameMode.UtilityDockId = _utilityDockId;
+            BaseGameMode.OutlinerDockId = _outlinerDockId;
             ImGuiDockNative.DockBuilderFinish(dockspaceId);
         }
 

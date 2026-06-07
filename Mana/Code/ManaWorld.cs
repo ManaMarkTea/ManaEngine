@@ -1,6 +1,7 @@
 ﻿using ImGuiNET;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
+using Mana.Code.UI;
 using Mana.Code.Shapes.Loaders;
 using Silk.NET.Assimp;
 using System.Diagnostics;
@@ -20,6 +21,7 @@ namespace Mana
         public new ManaContext Context = null!;
 
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
+        private readonly SceneOutlinerPanelView sceneOutlinerPanelView = new SceneOutlinerPanelView();
 
         public List<Action> PostDrawFutures { get; set; }
         public List<Action> ImGuiFutures { get; set; }
@@ -77,7 +79,7 @@ namespace Mana
             Context.Window.Resize += _Window_Resize;
             CameraNode = new ManaSceneNode(context, Matrix4x4.Identity);
             CameraNode.Position = new Vector3(20, 32, 90);
-            CameraNode.Name = "MainCamera";
+            CameraNode.Name = "Main Camera";
             MainCamera = new CameraComponent(CameraNode);
             CameraNode.Components.Add(MainCamera);
 
@@ -88,6 +90,7 @@ namespace Mana
             this.Renderer.Initialize();
 
             DefaultScene = new ManaScene(context);
+            DefaultScene.Name = "Default Scene";
             Scenes.Add(DefaultScene);
         }
 
@@ -175,6 +178,7 @@ namespace Mana
             MainCamera.DrawImGui();
             Renderer.DrawImGui();
             RunFutures(ImGuiFutures, activeImGuiFutures);
+            sceneOutlinerPanelView.Draw(this);
 
             if (BaseGameMode.UtilityDockId != 0)
             {

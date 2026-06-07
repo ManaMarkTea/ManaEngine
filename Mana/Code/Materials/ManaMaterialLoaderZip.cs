@@ -7,6 +7,7 @@ namespace Mana.Code.Materials
         public static unsafe ManaMaterial LoadFromZip(ManaContext context, string filePath)
         {
             ManaMaterial output = new ManaMaterial(context);
+            output.Name = ToMaterialName(filePath);
 
             var zipArchive = System.IO.Compression.ZipFile.OpenRead(filePath);
 
@@ -32,6 +33,27 @@ namespace Mana.Code.Materials
         private static List<string> normalNames = new List<string> { "_normal" };
         private static List<string> emissionNames = new List<string> { "_emissive", "_emission" };
         private static List<string> metallicNames = new List<string> { "_metallic", "_specular" };
+
+        private static string ToMaterialName(string filePath)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(filePath);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return "Zip Material";
+            }
+
+            fileName = fileName
+                .Replace("-bl", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("_bl", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace('-', ' ')
+                .Replace('_', ' ');
+
+            var words = fileName
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(word => char.ToUpperInvariant(word[0]) + word.Substring(1).ToLowerInvariant());
+
+            return $"{string.Join(' ', words)} Material";
+        }
 
         private static void AssignToMaterial(ManaContext context, ManaMaterial material, ManaTexture texture)
         {

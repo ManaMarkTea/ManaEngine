@@ -242,16 +242,37 @@ namespace Mana.Code.Shapes.Loaders
                 outputMaterial.Channels[key] = metaChannel;
             }
 
-            if (outputMaterial.Channels.ContainsKey("?mat.name"))
+            if (outputMaterial.Channels.ContainsKey("?mat.name") &&
+                !string.IsNullOrWhiteSpace(outputMaterial.Channels["?mat.name"].Value))
             {
-                outputMaterial.Name = outputMaterial.Channels["?mat.name"].Value;
+                outputMaterial.Name = ToMaterialDisplayName(outputMaterial.Channels["?mat.name"].Value);
+            }
+            else if (textureNames.Count > 0)
+            {
+                outputMaterial.Name = $"{ToMaterialDisplayName(textureNames[0])} Material";
             }
             else
             {
-                
+                outputMaterial.Name = "Imported Material";
             }
 
             return outputMaterial;
+        }
+
+        private static string ToMaterialDisplayName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return "Imported";
+            }
+
+            var words = name
+                .Replace('-', ' ')
+                .Replace('_', ' ')
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(word => char.ToUpperInvariant(word[0]) + word.Substring(1));
+
+            return string.Join(' ', words);
         }
 
         private static unsafe string ExtracKey(MaterialProperty* channel)

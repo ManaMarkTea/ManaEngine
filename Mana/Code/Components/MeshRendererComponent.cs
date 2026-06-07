@@ -38,11 +38,32 @@ namespace Mana
                         dynamicMaterial = new ManaMaterial(Context);
                     }
 
-                    dynamicMaterial.Name = Material.Name + "_Clone";
+                    dynamicMaterial.Name = BuildDynamicMaterialName(Material.Name);
                 }
 
                 return dynamicMaterial;
             }
+        }
+
+        private string BuildDynamicMaterialName(string baseMaterialName)
+        {
+            var ownerName = string.IsNullOrWhiteSpace(Owner.Name)
+                ? Owner.GetType().Name
+                : Owner.Name;
+
+            if (string.IsNullOrWhiteSpace(baseMaterialName) ||
+                baseMaterialName == "PBR Material" ||
+                baseMaterialName == "Default PBR Material")
+            {
+                return $"{ownerName} Material";
+            }
+
+            if (baseMaterialName.Contains(ownerName, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{baseMaterialName} Instance";
+            }
+
+            return $"{ownerName} {baseMaterialName}";
         }
 
         public MeshRendererComponent(ManaSceneNode owner, ManaMesh mesh) : base(owner)

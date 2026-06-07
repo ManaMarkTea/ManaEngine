@@ -120,6 +120,7 @@ namespace Mana.Code.Nodes
 
             var bakedMesh = new ManaMesh(Context);
             var sharedMaterial = new ManaMaterial(Context);
+            sharedMaterial.Name = $"{Name} Baked Voxels Material";
             sharedMaterial.Albedo.Value = Colors.White;
             sharedMaterial.Metallic.Value = 0.0f;
             sharedMaterial.Roughness.Value = ManaVoxelShape.DefaultVoxelRoughness;
@@ -386,6 +387,7 @@ namespace Mana.Code.Nodes
 
             var previewMesh = new ManaMesh(Context);
             var previewMaterial = new ManaMaterial(Context);
+            previewMaterial.Name = $"{Name} Lock Preview Material";
             previewMaterial.Albedo.Value = Colors.White;
             previewMaterial.Emission.Value = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
             previewMaterial.Metallic.Value = 0.0f;
