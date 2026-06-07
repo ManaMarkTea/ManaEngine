@@ -5,6 +5,13 @@ namespace Mana.Code.UI
 {
     public class SceneOutlinerPanelView
     {
+        private readonly SceneSelectionState selectionState;
+
+        public SceneOutlinerPanelView(SceneSelectionState selectionState)
+        {
+            this.selectionState = selectionState;
+        }
+
         public void Draw(ManaWorld world)
         {
             var dockId = BaseGameMode.OutlinerDockId != 0
@@ -60,18 +67,27 @@ namespace Mana.Code.UI
 
             var hasContents = node.Components.Count > 0 || node.Children.Count > 0;
             var label = $"{GetDisplayName(node, node.GetType().Name)} ({node.GetType().Name})";
+            var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+            if (selectionState.SelectedNode == node)
+            {
+                flags |= ImGuiTreeNodeFlags.Selected;
+            }
 
             if (!hasContents)
             {
-                ImGui.BulletText(label);
-                DrawNodeTooltip(node);
-                ImGui.PopID();
-                return;
+                flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
             }
 
-            if (ImGui.TreeNode(label))
+            var open = ImGui.TreeNodeEx(label, flags);
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
-                DrawNodeTooltip(node);
+                selectionState.SelectedNode = node;
+            }
+
+            DrawNodeTooltip(node);
+
+            if (hasContents && open)
+            {
                 DrawComponents(node);
 
                 foreach (var child in node.Children)
@@ -80,10 +96,6 @@ namespace Mana.Code.UI
                 }
 
                 ImGui.TreePop();
-            }
-            else
-            {
-                DrawNodeTooltip(node);
             }
 
             ImGui.PopID();
@@ -122,7 +134,7 @@ namespace Mana.Code.UI
 
             if (component is ManaLightSourceComponent light)
             {
-                DrawLightSourceComponent(light);
+                DrawLightSourceComponentSummary(light);
                 return;
             }
 
@@ -157,7 +169,7 @@ namespace Mana.Code.UI
             }
         }
 
-        private void DrawLightSourceComponent(ManaLightSourceComponent light)
+        private void DrawLightSourceComponentSummary(ManaLightSourceComponent light)
         {
             var label = $"{GetComponentLabel(light)} | Intensity: {light.Intensity:0.###}";
 

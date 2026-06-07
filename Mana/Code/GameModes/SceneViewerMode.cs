@@ -116,6 +116,7 @@ namespace Mana.Code
             OutlinerDockId = UtilityDockId;
 
             ImGuiDockNative.DockBuilderDockWindow("Outliner", UtilityDockId);
+            ImGuiDockNative.DockBuilderDockWindow("Inspector", UtilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Camera", UtilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Irradiance", UtilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("World Perf", UtilityDockId);

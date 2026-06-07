@@ -7,12 +7,32 @@ namespace Mana.Code.Shapes
         public int MajorSegments { get; set; } = 64;
         public int MinorSegments { get; set; } = 18;
 
+        public float InnerRadius
+        {
+            get => MathF.Max(0.0f, MajorRadius - MinorRadius);
+            set => SetInnerOuterRadii(value, OuterRadius);
+        }
+
+        public float OuterRadius
+        {
+            get => MajorRadius + MinorRadius;
+            set => SetInnerOuterRadii(InnerRadius, value);
+        }
+
         public ManaTorus(ManaContext context, Vector4 color, float majorRadius = 0.38f, float minorRadius = 0.14f) : base(context)
         {
             MajorRadius = majorRadius;
             MinorRadius = minorRadius;
             DefaultVertexColor = color;
             GenerateData();
+        }
+
+        public void SetInnerOuterRadii(float innerRadius, float outerRadius)
+        {
+            var inner = MathF.Max(0.001f, innerRadius);
+            var outer = MathF.Max(inner + 0.001f, outerRadius);
+            MajorRadius = (inner + outer) * 0.5f;
+            MinorRadius = (outer - inner) * 0.5f;
         }
 
         protected override void GenerateData()

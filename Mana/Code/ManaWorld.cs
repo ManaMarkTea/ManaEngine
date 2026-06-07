@@ -21,7 +21,9 @@ namespace Mana
         public new ManaContext Context = null!;
 
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
-        private readonly SceneOutlinerPanelView sceneOutlinerPanelView = new SceneOutlinerPanelView();
+        private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
+        private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
+        private readonly SceneInspectorPanelView sceneInspectorPanelView;
 
         public List<Action> PostDrawFutures { get; set; }
         public List<Action> ImGuiFutures { get; set; }
@@ -55,6 +57,9 @@ namespace Mana
         
         public ManaWorld() : base(null!)
         {
+            sceneOutlinerPanelView = new SceneOutlinerPanelView(sceneSelectionState);
+            sceneInspectorPanelView = new SceneInspectorPanelView(sceneSelectionState);
+
             Meshes = new List<ManaMesh>();
             Scenes = new List<ManaScene>();
             Materials = new List<ManaMaterial>();
@@ -179,6 +184,7 @@ namespace Mana
             Renderer.DrawImGui();
             RunFutures(ImGuiFutures, activeImGuiFutures);
             sceneOutlinerPanelView.Draw(this);
+            sceneInspectorPanelView.Draw();
 
             if (BaseGameMode.UtilityDockId != 0)
             {

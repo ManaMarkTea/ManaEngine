@@ -38,9 +38,20 @@
                 : name;
         }
 
+        public void RebuildGeometry()
+        {
+            GenerateData();
+        }
+
         protected virtual void GenerateData() 
         {
-            Materials = new ManaMaterial[] { GenerateMaterial() };
+            DynamicGeometryContainer = new ManaDynamicGeometryContainer();
+            VertexBufferObject = null;
+
+            if (Materials.Length == 0)
+            {
+                Materials = new ManaMaterial[] { GenerateMaterial() };
+            }
         }
 
     }

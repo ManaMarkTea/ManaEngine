@@ -319,6 +319,7 @@ namespace Mana.Code.GameModes
             ImGuiDockNative.DockBuilderDockWindow("Outliner", _outlinerDockId);
             ImGuiDockNative.DockBuilderDockWindow(ManaWindowTitle, _manaDockId);
             ImGuiDockNative.DockBuilderDockWindow("Camera", _utilityDockId);
+            ImGuiDockNative.DockBuilderDockWindow("Inspector", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("World Perf", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Irradiance", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Dear ImGui Demo", _utilityDockId);

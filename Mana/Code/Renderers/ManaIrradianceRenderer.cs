@@ -157,8 +157,14 @@ namespace Mana.Code.Renderers
             ImGui.SliderFloat("Ambience", ref debugAmbient, 0.0f, 1.0f);
             ImGui.ColorEdit4("Albedo", ref debugAlbedo);
 
-            ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 8.0f);
-            ImGui.ColorEdit4("Light Color", ref debugLightColor);
+            var lightSettingsChanged = false;
+            lightSettingsChanged |= ImGui.SliderFloat("Light Intensity", ref debugLightIntensity, 0.0f, 8.0f);
+            lightSettingsChanged |= ImGui.ColorEdit4("Light Color", ref debugLightColor);
+            if (lightSettingsChanged)
+            {
+                UpdateGridLightSettings();
+            }
+
             ImGui.SliderFloat("Exposure", ref debugPbrExposure, 0.25f, 3.0f);
             ImGui.SliderFloat("IBL Intensity", ref debugIblIntensity, 0.0f, 4.0f);
             if (ImGui.SliderFloat("Debug Scene Scale", ref debugSceneScale, 0.35f, 2.75f))
@@ -214,7 +220,7 @@ namespace Mana.Code.Renderers
             "PBR Grid Light Top Far Right",
         };
 
-        private Vector3 debugSceneCenter = new Vector3(64.0f, 3.0f, 64.0f);
+        private Vector3 debugSceneCenter = new Vector3(64.0f, 32.0f, 64.0f);
 
         
         private static readonly float[] lightWeights =
@@ -375,7 +381,6 @@ namespace Mana.Code.Renderers
                 Context.World.DefaultScene.Children.Add(rig);
             }
 
-            UpdateGridLightSettings();
             rig.UpdateTransform();
         }
 
@@ -526,10 +531,22 @@ namespace Mana.Code.Renderers
         {
             const int rows = 5;
             const int cols = 6;
-            const float spacing = 1.1f;
+            const float spacing = 2.0f;
+            const float shapeSpacing = 10.0f;
+
+            var shapeSamples = new (string Name, ManaMesh Mesh, Vector3 Rotation)[]
+            {
+                ("Cube", SimpleCube, Vector3.Zero),
+                ("Sphere", SimpleSphere, Vector3.Zero),
+                ("Torus", SimpleTorus, new Vector3(65.0f.ToRadians(), 0.0f, 0.0f)),
+                ("Icosahedron", SimpleIcosahedron, Vector3.Zero),
+                ("Icosphere", SimpleIsoSphere, Vector3.Zero),
+                ("Pyramid", SimplePyramid, Vector3.Zero)
+            };
 
             var rowCenter = (rows - 1) * 0.5f;
             var colCenter = (cols - 1) * 0.5f;
+            var shapeCenter = (shapeSamples.Length - 1) * 0.5f;
 
             for (int row = 0; row < rows; ++row)
             {
@@ -540,23 +557,22 @@ namespace Mana.Code.Renderers
                     float roughness = Math.Clamp(col / (float)cols, 0.05f, 1.0f);
                     var rowColumnOffset = new Vector3((col - colCenter) * spacing, (row - rowCenter) * spacing, 0.0f);
 
-                    root.AddChild(CreatePbrDebugNode(
-                        $"PBR Cube M{metallic:0.##} R{roughness:0.##}",
-                        SimpleCube,
-                        rowColumnOffset + new Vector3(0.0f, 0.0f, -4.8f),
-                        metallic,
-                        roughness));
+                    for (int shapeIndex = 0; shapeIndex < shapeSamples.Length; ++shapeIndex)
+                    {
+                        var shape = shapeSamples[shapeIndex];
+                        var shapeOffset = new Vector3(0.0f, 0.0f, (shapeIndex - shapeCenter) * shapeSpacing);
+                        var debugNode = CreatePbrDebugNode(
+                            $"PBR {shape.Name} M{metallic:0.##} R{roughness:0.##}",
+                            shape.Mesh,
+                            rowColumnOffset + shapeOffset,
+                            metallic,
+                            roughness);
 
-                    root.AddChild(CreatePbrDebugNode(
-                        $"PBR Sphere M{metallic:0.##} R{roughness:0.##}",
-                        SimpleSphere,
-                        rowColumnOffset + new Vector3(0.0f, 0.0f, -1.4f),
-                        metallic,
-                        roughness));
+                        debugNode.Rotation = shape.Rotation;
+                        root.AddChild(debugNode);
+                    }
                 }
             }
-
-            AddPrimitiveReferenceNodes(root);
 
             root.AddChild(CreateTexturePreviewNode(
                 "Environment Map Preview",
@@ -585,47 +601,6 @@ namespace Mana.Code.Renderers
                 BasicShader,
                 () => BrdfFramebuffer.bufferMap["BRDF"]?.Texture,
                 new Vector3(5.0f, 0.0f, 5.0f)));
-        }
-
-        private void AddPrimitiveReferenceNodes(ManaSceneNode root)
-        {
-            var primitiveRoot = new ManaSceneNode(Context, Matrix4x4.Identity)
-            {
-                Name = "PBR Primitive Reference Shapes",
-                Position = new Vector3(-5.0f, 0.0f, 1.0f)
-            };
-
-            var torus = CreatePbrDebugNode(
-                "PBR Torus Reference",
-                SimpleTorus,
-                new Vector3(0.0f, 1.6f, -3.0f),
-                0.8f,
-                0.18f);
-            torus.Rotation = new Vector3(65.0f.ToRadians(), 0.0f, 0.0f);
-            primitiveRoot.AddChild(torus);
-
-            primitiveRoot.AddChild(CreatePbrDebugNode(
-                "PBR Icosahedron Reference",
-                SimpleIcosahedron,
-                new Vector3(0.0f, 0.5f, -1.0f),
-                0.45f,
-                0.32f));
-
-            primitiveRoot.AddChild(CreatePbrDebugNode(
-                "PBR Icosphere Reference",
-                SimpleIsoSphere,
-                new Vector3(0.0f, -0.6f, 1.0f),
-                0.2f,
-                0.58f));
-
-            primitiveRoot.AddChild(CreatePbrDebugNode(
-                "PBR Pyramid Reference",
-                SimplePyramid,
-                new Vector3(0.0f, -1.7f, 3.0f),
-                0.05f,
-                0.75f));
-
-            root.AddChild(primitiveRoot);
         }
 
         private ManaMeshSceneNode CreatePbrDebugNode(string name, ManaMesh mesh, Vector3 localPosition, float metallic, float roughness)

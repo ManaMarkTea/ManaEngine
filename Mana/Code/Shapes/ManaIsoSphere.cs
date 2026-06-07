@@ -3,6 +3,7 @@
     public class ManaIsoSphere : ManaProceduralMesh
     {
         public float Radius { get; set; }
+        public int RecursionLevel { get; set; } = 3;
 
         public ManaIsoSphere(ManaContext context, Vector4 color, float radius) : base(context)
         {
@@ -19,7 +20,7 @@
             List<Vector3> vertList = new List<Vector3>();
             Dictionary<long, int> middlePointIndexCache = new Dictionary<long, int>();
 
-            int recursionLevel = 3;
+            int recursionLevel = Math.Clamp(RecursionLevel, 0, 5);
             float radius = Radius;
 
             // create 12 vertices of a icosahedron
