@@ -24,6 +24,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelToolController _toolController = new();
 
         public ManaSceneNode Cursor { get; private set; } = null!;
+        private ManaSceneNode? _lightningBall;
 
         public VoxelEditorGameMode()
         {
@@ -55,6 +56,16 @@ namespace Mana.Code.GameModes
             if (Cursor.Components[0] is MeshRendererComponent renderer)
             {
                 renderer.Material.Shader = new ManaLiquidShader(Context);
+            }
+
+            _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
+            _lightningBall.Name = "Lightning Ball";
+            _lightningBall.Scale = new Vector3(20, 20, 20);
+            if (_lightningBall.Components[0] is MeshRendererComponent lightningRenderer)
+            {
+                var lightningMaterial = lightningRenderer.DynamicMaterial;
+                lightningMaterial.Name = "Lightning Ball Material";
+                lightningMaterial.Shader = new ManaLightningBallShader(Context);
             }
 
 
@@ -166,6 +177,8 @@ namespace Mana.Code.GameModes
 
         protected override void DrawImGui(double deltaTime)
         {
+            SyncLightningBallVisibility();
+
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
             Vector2 sceneMax = mainViewport.WorkPos + mainViewport.WorkSize;
@@ -331,6 +344,27 @@ namespace Mana.Code.GameModes
         public override void Render(double deltaTime)
         {
             base.Render(deltaTime);
+        }
+
+        private void SyncLightningBallVisibility()
+        {
+            if (_lightningBall == null)
+            {
+                return;
+            }
+
+            var sceneChildren = Context.World.DefaultScene.Children;
+            if (_viewModel.ShowLightningBall)
+            {
+                if (!sceneChildren.Contains(_lightningBall))
+                {
+                    sceneChildren.Add(_lightningBall);
+                }
+            }
+            else
+            {
+                sceneChildren.Remove(_lightningBall);
+            }
         }
 
     }
