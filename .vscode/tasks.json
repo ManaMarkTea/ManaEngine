@@ -4,14 +4,21 @@
     {
       "label": "stop active Mana debug session",
       "type": "process",
-      "command": "powershell",
+      "command": "sh",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/.vscode/stop-active-debug.ps1"
+        "-c",
+        "exit 0"
       ],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}/.vscode/stop-active-debug.ps1"
+        ]
+      },
       "problemMatcher": [],
       "presentation": {
         "reveal": "never",
@@ -22,10 +29,6 @@
       "label": "build Mana",
       "type": "process",
       "command": "dotnet",
-      "dependsOn": [
-        "stop active Mana debug session"
-      ],
-      "dependsOrder": "sequence",
       "args": [
         "build",
         "${workspaceFolder}/Mana/Mana.csproj"
@@ -34,13 +37,19 @@
       "group": "build"
     },
     {
+      "label": "build Mana (debug launch)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/Mana/Mana.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "build ManaVoxel",
       "type": "process",
       "command": "dotnet",
-      "dependsOn": [
-        "stop active Mana debug session"
-      ],
-      "dependsOrder": "sequence",
       "args": [
         "build",
         "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj"
@@ -49,13 +58,19 @@
       "group": "build"
     },
     {
+      "label": "build ManaVoxel (debug launch)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "build Mana solution",
       "type": "process",
       "command": "dotnet",
-      "dependsOn": [
-        "stop active Mana debug session"
-      ],
-      "dependsOrder": "sequence",
       "args": [
         "build",
         "${workspaceFolder}/Mana/Mana.sln"

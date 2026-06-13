@@ -38,6 +38,16 @@ namespace Mana.Code
             sunMaterial.Emission.Value = Colors.Gold;
             sunMaterial.EmissionStrength = 10.0f;
 
+            ManaMeshSceneNode lightningBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 1.0f));
+            lightningBall.Name = "Lightning Ball";
+            lightningBall.Position = new Vector3(10, 10, 10);
+            lightningBall.Scale = new Vector3(2, 2, 2);
+
+            var lightningMaterial = lightningBall.MeshRenderer.DynamicMaterial;
+            lightningMaterial.Name = "Lightning Ball Material";
+            lightningMaterial.Shader = new ManaLightningBallShader(Context);
+            world.DefaultScene.Children.Add(lightningBall);
+
             ManaMaterial steelMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/used-stainless-steel2-bl.zip");
             ManaMaterial pirateGoldMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/pirate-gold-bl.zip");
             ManaMaterial brickMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/beaten-down-brick-bl.zip");

@@ -35,6 +35,13 @@ namespace ManaVoxel.Code.UI
 
             if (ImGui.BeginMenu("View"))
             {
+                if (ImGui.MenuItem("Show Lightning Ball", string.Empty, viewModel.ShowLightningBall))
+                {
+                    viewModel.ShowLightningBall = !viewModel.ShowLightningBall;
+                }
+
+                ImGui.Separator();
+
                 if (ImGui.MenuItem("Light Theme", string.Empty, viewModel.UseLightTheme))
                 {
                     viewModel.UseLightTheme = true;

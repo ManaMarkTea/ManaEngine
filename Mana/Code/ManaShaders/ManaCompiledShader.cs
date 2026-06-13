@@ -33,6 +33,7 @@ namespace Mana.Code.ManaShaders
             public static ManaSemantic ModelViewProjection = new ManaSemantic(new string[] { "gWVP" });
             public static ManaSemantic ModelViewProjectionMatrix = new ManaSemantic(new string[] { "gWVP" });
             public static ManaSemantic ObjectMatrix = new ManaSemantic(new string[] { "gWorld", "model" });
+            public static ManaSemantic ObjectInverseMatrix = new ManaSemantic(new string[] { "modelInverse", "inverseModel", "inverseModelMatrix", "gWorldInverse" });
             public static ManaSemantic ModelViewMatrix = new ManaSemantic(new string[] { "modelViewMatrix" });
             public static ManaSemantic ProjectionMatrix = new ManaSemantic(new string[] { "projectionMatrix", "projection" });
             public static ManaSemantic ViewMatrix = new ManaSemantic(new string[] { "view", "viewMatrix" });
@@ -40,10 +41,11 @@ namespace Mana.Code.ManaShaders
             public static ManaSemantic BaseColor = new ManaSemantic(new string[] { });
             public static ManaSemantic ObjectPosition = new ManaSemantic(new string[] { "objPos", "object", "obj" });
             public static ManaSemantic CameraPosition = new ManaSemantic(new string[] { "camPos", "iCameraPosition", "gEyeWorldPos" });
+            public static ManaSemantic CameraObjectPosition = new ManaSemantic(new string[] { "camPosObject", "iCameraPositionObject", "cameraObjectPosition", "objectCameraPos" });
 
             // Shader Toy Common Semantics
             public static ManaSemantic iResolution = new ManaSemantic(new string[] { "iResolution" });
-            public static ManaSemantic iTime = new ManaSemantic(new string[] { "iTime" });
+            public static ManaSemantic iTime = new ManaSemantic(new string[] { "iTime", "uTime" });
             public static ManaSemantic iChannelTime = new ManaSemantic(new string[] { "iChannelTime" });
             public static ManaSemantic iChannelResolution = new ManaSemantic(new string[] { "iChannelResolution" });
             public static ManaSemantic iMouse = new ManaSemantic(new string[] { "iMouse" });
@@ -81,6 +83,7 @@ namespace Mana.Code.ManaShaders
                 string infoLog = gl.GetShaderInfoLog(vertexShaderObject);
                 VertexShaderCompilerLog = infoLog;
                 Debug.WriteLine(infoLog);
+                Console.Error.WriteLine($"[ShaderCompile][Vertex] {infoLog}");
             }
 
             gl.GetShader(fragmentShaderObject, ShaderParameterName.CompileStatus, out success);
@@ -89,6 +92,7 @@ namespace Mana.Code.ManaShaders
                 string infoLog = gl.GetShaderInfoLog(fragmentShaderObject);
                 FragmentShaderCompilerLog = infoLog;
                 Debug.WriteLine(infoLog);
+                Console.Error.WriteLine($"[ShaderCompile][Fragment] {infoLog}");
             }
 
             shaderProgram = gl.CreateProgram();
@@ -107,6 +111,7 @@ namespace Mana.Code.ManaShaders
                     string infoLog = gl.GetShaderInfoLog(geomShaderObject);
                     GeometryShaderCompilerLog = infoLog;
                     Debug.WriteLine(infoLog);
+                    Console.Error.WriteLine($"[ShaderCompile][Geometry] {infoLog}");
                 }
 
                 gl.AttachShader(shaderProgram, geomShaderObject);
@@ -119,6 +124,7 @@ namespace Mana.Code.ManaShaders
             {
                 LinkCompilerLog = gl.GetProgramInfoLog(shaderProgram);
                 Debug.WriteLine(LinkCompilerLog);
+                Console.Error.WriteLine($"[ShaderLink] {LinkCompilerLog}");
             }
 
             LoadUniforms();
@@ -178,6 +184,15 @@ namespace Mana.Code.ManaShaders
             var gl = Context.gl;
 
             gl.UseProgram(shaderProgram);
+
+            if (!Matrix4x4.Invert(objectMatrix, out Matrix4x4 modelInverseMatrix))
+            {
+                modelInverseMatrix = Matrix4x4.Identity;
+            }
+            var normalMatrix = Matrix4x4.Transpose(modelInverseMatrix).ToMatrix3();
+
+            Vector3 cameraWorldPosition = camera.Owner.Position;
+            Vector3 cameraObjectPosition = Vector3.Transform(cameraWorldPosition, modelInverseMatrix);
             
             foreach (var uniform in UniformNames)
             {
@@ -223,7 +238,9 @@ namespace Mana.Code.ManaShaders
                     ManaSemantics.iMouse.Apply(uniform, () => gl.Uniform4(uniform.location, mouseInfo));
                 }
 
-                ManaSemantics.CameraPosition.Apply(uniform, () => gl.Uniform3(uniform.location, camera.Owner.Position));
+                ManaSemantics.CameraPosition.Apply(uniform, () => gl.Uniform3(uniform.location, cameraWorldPosition));
+
+                ManaSemantics.CameraObjectPosition.Apply(uniform, () => gl.Uniform3(uniform.location, cameraObjectPosition));
                 
                 ManaSemantics.ObjectPosition.Apply(uniform, () => gl.Uniform3(uniform.location, owner?.Position ?? Vector3.Zero));
 
@@ -234,6 +251,8 @@ namespace Mana.Code.ManaShaders
                 });
 
                 ManaSemantics.ObjectMatrix.Apply(uniform, () => { gl.UniformMatrix4(uniform.location, 1, false, objectMatrix.ToSpan()); });
+
+                ManaSemantics.ObjectInverseMatrix.Apply(uniform, () => { gl.UniformMatrix4(uniform.location, 1, false, modelInverseMatrix.ToSpan()); });
 
                 ManaSemantics.ModelViewMatrix.Apply(uniform, () =>
                 {
@@ -255,9 +274,7 @@ namespace Mana.Code.ManaShaders
 
                 ManaSemantics.NormalMatrix.Apply(uniform, () =>
                 {
-                    Matrix4x4.Invert(objectMatrix, out Matrix4x4 modelInv);
-                    var debugModelInverse = Matrix4x4.Transpose(modelInv).ToMatrix3();
-                    gl.UniformMatrix3(uniform.location, 1, false, debugModelInverse.ToSpan());
+                    gl.UniformMatrix3(uniform.location, 1, false, normalMatrix.ToSpan());
                 });
 
                 // Special ones
