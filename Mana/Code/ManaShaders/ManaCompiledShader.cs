@@ -330,6 +330,42 @@ namespace Mana.Code.ManaShaders
                     gl.Uniform1(uniform.location, 2.75f);
                 }
             }
+
+            ApplyMaterialUniformOverrides(material);
+        }
+
+        private void ApplyMaterialUniformOverrides(ManaMaterial material)
+        {
+            foreach (var entry in material.ShaderUniforms)
+            {
+                if (!UniformMap.TryGetValue(entry.Key, out var uniform))
+                {
+                    continue;
+                }
+
+                var value = entry.Value;
+                switch (uniform.type)
+                {
+                    case UniformType.Float:
+                        uniform.SetValue(value.FloatValue);
+                        break;
+                    case UniformType.FloatVec2:
+                        uniform.SetValue(value.Vector2Value);
+                        break;
+                    case UniformType.FloatVec3:
+                        uniform.SetValue(value.Vector3Value);
+                        break;
+                    case UniformType.FloatVec4:
+                        uniform.SetValue(value.Vector4Value);
+                        break;
+                    case UniformType.Int:
+                        uniform.SetValue(value.IntValue);
+                        break;
+                    case UniformType.Bool:
+                        uniform.SetValue(value.BoolValue ? 1 : 0);
+                        break;
+                }
+            }
         }
 
         public void UnbindShader()

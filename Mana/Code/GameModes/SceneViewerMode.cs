@@ -46,7 +46,26 @@ namespace Mana.Code
             var lightningMaterial = lightningBall.MeshRenderer.DynamicMaterial;
             lightningMaterial.Name = "Lightning Ball Material";
             lightningMaterial.Shader = new ManaLightningBallShader(Context);
+            lightningBall.MeshRenderer.DrawAfterScene = true;
             world.DefaultScene.Children.Add(lightningBall);
+
+            ManaMeshSceneNode liquidBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 1.0f));
+            liquidBall.Name = "Liquid Ball";
+            liquidBall.Position = new Vector3(14.75f, 10, 10);
+            liquidBall.Scale = new Vector3(2, 2, 2);
+
+            var liquidMaterial = liquidBall.MeshRenderer.DynamicMaterial;
+            liquidMaterial.Name = "Liquid Ball Material";
+            liquidMaterial.Shader = new ManaLiquidBallShader(Context);
+            liquidMaterial.SetShaderUniform("liquidFillLevel", -0.14f);
+            liquidMaterial.SetShaderUniform("liquidWaveStrength", 1.0f);
+            liquidMaterial.SetShaderUniform("liquidWaterOpacity", 1.0f);
+            liquidMaterial.SetShaderUniform("liquidSurfaceStrength", 1.0f);
+            liquidMaterial.SetShaderUniform("liquidPoolContourStrength", 1.0f);
+            liquidMaterial.SetShaderUniform("glassEdgeStrength", 1.0f);
+            liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
+            liquidBall.MeshRenderer.DrawAfterScene = true;
+            world.DefaultScene.Children.Add(liquidBall);
 
             ManaMaterial steelMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/used-stainless-steel2-bl.zip");
             ManaMaterial pirateGoldMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/pirate-gold-bl.zip");

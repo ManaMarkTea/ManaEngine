@@ -1,12 +1,66 @@
 using ImGuiNET;
 using Mana.Code.Materials;
+using Mana.Code.ManaShaders;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
+using Silk.NET.OpenGL;
 
 namespace Mana.Code.UI
 {
     public sealed class SceneInspectorPanelView
     {
+        private static readonly HashSet<string> AutomaticUniformNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "gWVP",
+            "gWorld",
+            "model",
+            "modelInverse",
+            "inverseModel",
+            "inverseModelMatrix",
+            "gWorldInverse",
+            "modelViewMatrix",
+            "projectionMatrix",
+            "projection",
+            "view",
+            "viewMatrix",
+            "normalMatrix",
+            "objPos",
+            "object",
+            "obj",
+            "camPos",
+            "iCameraPosition",
+            "gEyeWorldPos",
+            "camPosObject",
+            "iCameraPositionObject",
+            "cameraObjectPosition",
+            "objectCameraPos",
+            "iResolution",
+            "iTime",
+            "uTime",
+            "iChannelTime",
+            "iChannelResolution",
+            "iMouse",
+            "iDate",
+            "iSampleRate",
+            "iFrame",
+            "iTimeDelta",
+            "iFrameRate",
+            "iChannel0",
+            "iChannel1",
+            "iChannel2",
+            "baseColor",
+            "gColorMap",
+            "FrameNumber",
+            "ViewParams",
+            "gPointLight.Base.Color",
+            "gPointLight.Position",
+            "gPointLight.Atten.Constant",
+            "gCameraWorldMatrix",
+            "gProjectionMatrix",
+            "gCameraWorldMatrixProjection",
+            "gPointLight.Base.DiffuseIntensity",
+        };
+
         private readonly SceneSelectionState selectionState;
 
         public SceneInspectorPanelView(SceneSelectionState selectionState)
@@ -352,7 +406,167 @@ namespace Mana.Code.UI
                 material.EmissionStrength = emissionStrength;
             }
 
+            DrawShaderUniformInspector(material);
+
             ImGui.TreePop();
+        }
+
+        private static void DrawShaderUniformInspector(ManaMaterial material)
+        {
+            var uniforms = material.Shader.CompiledShader?.UniformNames;
+            if (uniforms == null || uniforms.Count == 0)
+            {
+                return;
+            }
+
+            if (!ImGui.TreeNodeEx($"Shader Uniforms ({uniforms.Count})", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                return;
+            }
+
+            var sortedUniforms = uniforms.OrderBy(uniform => uniform.name).ToList();
+            var editableUniforms = sortedUniforms
+                .Where(uniform => !IsAutomaticUniform(uniform) && CanEditUniform(uniform.type))
+                .ToList();
+            var automaticUniforms = sortedUniforms
+                .Where(IsAutomaticUniform)
+                .ToList();
+            var unsupportedUniforms = sortedUniforms
+                .Where(uniform => !IsAutomaticUniform(uniform) && !CanEditUniform(uniform.type))
+                .ToList();
+
+            foreach (var uniform in editableUniforms)
+            {
+                ImGui.PushID($"uniform_{uniform.name}");
+                DrawEditableUniform(material, uniform);
+                ImGui.PopID();
+            }
+
+            if (editableUniforms.Count == 0)
+            {
+                ImGui.TextDisabled("No editable material uniforms");
+            }
+
+            if (automaticUniforms.Count > 0 && ImGui.TreeNode($"Automatic / Engine ({automaticUniforms.Count})"))
+            {
+                foreach (var uniform in automaticUniforms)
+                {
+                    ImGui.BulletText($"{uniform.name}: {uniform.type}");
+                }
+
+                ImGui.TreePop();
+            }
+
+            if (unsupportedUniforms.Count > 0 && ImGui.TreeNode($"Unsupported ({unsupportedUniforms.Count})"))
+            {
+                foreach (var uniform in unsupportedUniforms)
+                {
+                    ImGui.BulletText($"{uniform.name}: {uniform.type}");
+                }
+
+                ImGui.TreePop();
+            }
+
+            if (material.ShaderUniforms.Count > 0)
+            {
+                ImGui.Spacing();
+                if (ImGui.SmallButton("Clear Uniform Overrides"))
+                {
+                    material.ShaderUniforms.Clear();
+                }
+            }
+
+            ImGui.TreePop();
+        }
+
+        private static void DrawEditableUniform(ManaMaterial material, ManaShaderUniform uniform)
+        {
+            var hasOverride = material.ShaderUniforms.TryGetValue(uniform.name, out var value);
+            value ??= CreateDefaultUniformValue(uniform.type);
+            var changed = false;
+
+            switch (uniform.type)
+            {
+                case UniformType.Float:
+                    var floatValue = value.FloatValue;
+                    changed = ImGui.DragFloat(uniform.name, ref floatValue, 0.01f);
+                    value.FloatValue = floatValue;
+                    break;
+                case UniformType.FloatVec2:
+                    var vector2Value = value.Vector2Value;
+                    changed = ImGui.InputFloat2(uniform.name, ref vector2Value);
+                    value.Vector2Value = vector2Value;
+                    break;
+                case UniformType.FloatVec3:
+                    var vector3Value = value.Vector3Value;
+                    changed = ImGui.InputFloat3(uniform.name, ref vector3Value);
+                    value.Vector3Value = vector3Value;
+                    break;
+                case UniformType.FloatVec4:
+                    var vector4Value = value.Vector4Value;
+                    changed = ImGui.InputFloat4(uniform.name, ref vector4Value);
+                    value.Vector4Value = vector4Value;
+                    break;
+                case UniformType.Int:
+                    var intValue = value.IntValue;
+                    changed = ImGui.InputInt(uniform.name, ref intValue);
+                    value.IntValue = intValue;
+                    break;
+                case UniformType.Bool:
+                    var boolValue = value.BoolValue;
+                    changed = ImGui.Checkbox(uniform.name, ref boolValue);
+                    value.BoolValue = boolValue;
+                    break;
+            }
+
+            if (changed)
+            {
+                value.Type = uniform.type;
+                material.ShaderUniforms[uniform.name] = value;
+            }
+
+            if (hasOverride || material.ShaderUniforms.ContainsKey(uniform.name))
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Reset"))
+                {
+                    material.ShaderUniforms.Remove(uniform.name);
+                }
+            }
+        }
+
+        private static ManaMaterialUniformValue CreateDefaultUniformValue(UniformType type)
+        {
+            return new ManaMaterialUniformValue
+            {
+                Type = type,
+                BoolValue = true,
+                FloatValue = 1.0f,
+                Vector2Value = Vector2.One,
+                Vector3Value = Vector3.One,
+                Vector4Value = Vector4.One
+            };
+        }
+
+        private static bool CanEditUniform(UniformType type)
+        {
+            return type is UniformType.Float
+                or UniformType.FloatVec2
+                or UniformType.FloatVec3
+                or UniformType.FloatVec4
+                or UniformType.Int
+                or UniformType.Bool;
+        }
+
+        private static bool IsAutomaticUniform(ManaShaderUniform uniform)
+        {
+            return AutomaticUniformNames.Contains(GetUniformBaseName(uniform.name));
+        }
+
+        private static string GetUniformBaseName(string uniformName)
+        {
+            var bracketIndex = uniformName.IndexOf('[');
+            return bracketIndex < 0 ? uniformName : uniformName[..bracketIndex];
         }
 
         private static void DrawColorEditor(string label, ManaTextureVector4 value)

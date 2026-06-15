@@ -25,6 +25,7 @@ namespace Mana.Code.GameModes
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
+        private ManaSceneNode? _liquidBall;
 
         public VoxelEditorGameMode()
         {
@@ -66,6 +67,25 @@ namespace Mana.Code.GameModes
                 var lightningMaterial = lightningRenderer.DynamicMaterial;
                 lightningMaterial.Name = "Lightning Ball Material";
                 lightningMaterial.Shader = new ManaLightningBallShader(Context);
+                lightningRenderer.DrawAfterScene = true;
+            }
+
+            _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
+            _liquidBall.Name = "Liquid Ball";
+            _liquidBall.Scale = new Vector3(20, 20, 20);
+            if (_liquidBall.Components[0] is MeshRendererComponent liquidRenderer)
+            {
+                var liquidMaterial = liquidRenderer.DynamicMaterial;
+                liquidMaterial.Name = "Liquid Ball Material";
+                liquidMaterial.Shader = new ManaLiquidBallShader(Context);
+                liquidMaterial.SetShaderUniform("liquidFillLevel", -0.14f);
+                liquidMaterial.SetShaderUniform("liquidWaveStrength", 1.0f);
+                liquidMaterial.SetShaderUniform("liquidWaterOpacity", 1.0f);
+                liquidMaterial.SetShaderUniform("liquidSurfaceStrength", 1.0f);
+                liquidMaterial.SetShaderUniform("liquidPoolContourStrength", 1.0f);
+                liquidMaterial.SetShaderUniform("glassEdgeStrength", 1.0f);
+                liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
+                liquidRenderer.DrawAfterScene = true;
             }
 
 
@@ -178,6 +198,7 @@ namespace Mana.Code.GameModes
         protected override void DrawImGui(double deltaTime)
         {
             SyncLightningBallVisibility();
+            SyncLiquidBallVisibility();
 
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
@@ -364,6 +385,27 @@ namespace Mana.Code.GameModes
             else
             {
                 sceneChildren.Remove(_lightningBall);
+            }
+        }
+
+        private void SyncLiquidBallVisibility()
+        {
+            if (_liquidBall == null)
+            {
+                return;
+            }
+
+            var sceneChildren = Context.World.DefaultScene.Children;
+            if (_viewModel.ShowLiquidBall)
+            {
+                if (!sceneChildren.Contains(_liquidBall))
+                {
+                    sceneChildren.Add(_liquidBall);
+                }
+            }
+            else
+            {
+                sceneChildren.Remove(_liquidBall);
             }
         }
 

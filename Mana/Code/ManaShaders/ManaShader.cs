@@ -116,7 +116,7 @@ namespace Mana
             CompiledShader.BindShader(material, objectMatrix, camera, owner);
         }
 
-        public void UnbindShader()
+        public virtual void UnbindShader()
         {
             CompiledShader.UnbindShader();
         }

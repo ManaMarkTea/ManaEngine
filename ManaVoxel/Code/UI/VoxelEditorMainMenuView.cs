@@ -40,6 +40,11 @@ namespace ManaVoxel.Code.UI
                     viewModel.ShowLightningBall = !viewModel.ShowLightningBall;
                 }
 
+                if (ImGui.MenuItem("Show Liquid Ball", string.Empty, viewModel.ShowLiquidBall))
+                {
+                    viewModel.ShowLiquidBall = !viewModel.ShowLiquidBall;
+                }
+
                 ImGui.Separator();
 
                 if (ImGui.MenuItem("Light Theme", string.Empty, viewModel.UseLightTheme))

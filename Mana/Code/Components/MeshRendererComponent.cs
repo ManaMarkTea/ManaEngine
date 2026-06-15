@@ -5,6 +5,7 @@ namespace Mana
     public class MeshRendererComponent : ManaComponent
     {
         public ManaMesh Mesh { get; set; }
+        public bool DrawAfterScene { get; set; }
 
         private ManaMaterial? material;
         public ManaMaterial Material
@@ -86,6 +87,12 @@ namespace Mana
             base.DrawComponent();
             if (Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
+                return;
+            }
+
+            if (DrawAfterScene)
+            {
+                Context.World.PostDrawFutures.Add(() => Mesh.Draw(Owner, this));
                 return;
             }
 
