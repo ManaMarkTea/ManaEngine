@@ -14,6 +14,8 @@ namespace Mana.Code.Shapes
         protected Vector3 MinSize;
         protected Vector3 MaxSize;
 
+        public ManaMeshCpuData? CpuData { get; private set; }
+
         public ManaVertexBufferObject? VertexBufferObject { get; internal set; }
 
         public ManaDynamicGeometryContainer DynamicGeometryContainer { get; internal set; }
@@ -68,6 +70,55 @@ namespace Mana.Code.Shapes
         {
             MinSize = minSize;
             MaxSize = maxSize;
+        }
+
+        public ManaMeshCpuData GetOrCreateCpuData()
+        {
+            if (CpuData != null)
+            {
+                return CpuData;
+            }
+
+            if (DynamicGeometryContainer.Verts.Count > 0)
+            {
+                CpuData = new ManaMeshCpuData
+                {
+                    Indexes = DynamicGeometryContainer.Indexes.ToArray(),
+                    Positions = DynamicGeometryContainer.Positions.ToArray(),
+                    Normals = DynamicGeometryContainer.Normals.ToArray(),
+                    Colors = DynamicGeometryContainer.Colors.ToArray(),
+                    TextureCoordinates0 = DynamicGeometryContainer.TexCoords0.ToArray(),
+                    TextureCoordinates1 = DynamicGeometryContainer.TexCoords1.ToArray(),
+                    AlbedoTexturePath = null,
+                    AlbedoFactor = null
+                };
+
+                return CpuData;
+            }
+
+            if (VertexBufferObject != null)
+            {
+                CpuData = new ManaMeshCpuData
+                {
+                    Indexes = VertexBufferObject.indexes.ToArray(),
+                    Positions = VertexBufferObject.positions.ToArray(),
+                    Normals = VertexBufferObject.normals.ToArray(),
+                    Colors = VertexBufferObject.colors.ToArray(),
+                    TextureCoordinates0 = VertexBufferObject.textureCoordinates0.ToArray(),
+                    TextureCoordinates1 = VertexBufferObject.textureCoordinates1.ToArray(),
+                    AlbedoTexturePath = null,
+                    AlbedoFactor = null
+                };
+
+                return CpuData;
+            }
+
+            throw new InvalidOperationException($"Mesh '{Name}' does not have CPU geometry data available.");
+        }
+
+        internal void SetCpuData(ManaMeshCpuData cpuData)
+        {
+            CpuData = cpuData;
         }
 
     }

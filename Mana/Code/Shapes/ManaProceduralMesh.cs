@@ -48,7 +48,7 @@
             DynamicGeometryContainer = new ManaDynamicGeometryContainer();
             VertexBufferObject = null;
 
-            if (Materials.Length == 0)
+            if (Materials.Length == 0 && Context?.gl != null)
             {
                 Materials = new ManaMaterial[] { GenerateMaterial() };
             }

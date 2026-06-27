@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
 
   <ItemGroup>
@@ -52,6 +53,7 @@
     <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
     <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
     <None Remove="Assets\Shaders\Math\FractalGlowRings.frag" />
+    <None Remove="Assets\Shaders\WebGpu\colored_mesh.wgsl" />
     <None Remove="Assets\Shaders\WebGpu\shader.wgsl" />
     <None Remove="Assets\Textures\DebugTexture_Grid.png" />
     <None Remove="Assets\Textures\Environments\chromatic.jpg" />
@@ -224,6 +226,9 @@
     <Content Include="Assets\Shaders\WebGpu\shader.wgsl">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\Shaders\WebGpu\colored_mesh.wgsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Textures\DebugTexture_Grid.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -345,6 +350,9 @@
     <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.23.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Stateless" Version="5.14.0" />

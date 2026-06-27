@@ -48,6 +48,20 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "run Mana WebGPU",
+      "type": "process",
+      "command": "dotnet",
+      "dependsOn": "build Mana",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/Mana/Mana.csproj",
+        "--",
+        "--webgpu"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "build ManaVoxel",
       "type": "process",
       "command": "dotnet",
@@ -68,6 +82,20 @@
         "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj"
       ],
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run ManaVoxel WebGPU",
+      "type": "process",
+      "command": "dotnet",
+      "dependsOn": "build ManaVoxel",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
+        "--",
+        "--webgpu"
+      ],
+      "problemMatcher": []
     },
     {
       "label": "build Mana solution",

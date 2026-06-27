@@ -1,0 +1,33 @@
+<Project>
+  <PropertyGroup>
+    <ManaWebGpuNativePackageVersion>2.23.0</ManaWebGpuNativePackageVersion>
+    <ManaWebGpuNativePackageRoot>$(NuGetPackageRoot)silk.net.webgpu.native.wgpu/$(ManaWebGpuNativePackageVersion)/</ManaWebGpuNativePackageRoot>
+    <_ManaWebGpuNativeArchitecture>$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)</_ManaWebGpuNativeArchitecture>
+
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true' And '$(_ManaWebGpuNativeArchitecture)' == 'X86'">win-x86</_ManaWebGpuNativeRuntime>
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true' And '$(_ManaWebGpuNativeArchitecture)' == 'Arm64'">win-arm64</_ManaWebGpuNativeRuntime>
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">win-x64</_ManaWebGpuNativeRuntime>
+
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true' And '$(_ManaWebGpuNativeArchitecture)' == 'Arm64'">osx-arm64</_ManaWebGpuNativeRuntime>
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">osx-x64</_ManaWebGpuNativeRuntime>
+
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true' And '$(_ManaWebGpuNativeArchitecture)' == 'Arm'">linux-arm</_ManaWebGpuNativeRuntime>
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true' And '$(_ManaWebGpuNativeArchitecture)' == 'Arm64'">linux-arm64</_ManaWebGpuNativeRuntime>
+    <_ManaWebGpuNativeRuntime Condition="'$(_ManaWebGpuNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">linux-x64</_ManaWebGpuNativeRuntime>
+
+    <_ManaWebGpuNativeLibraryName Condition="'$(_ManaWebGpuNativeRuntime)' == 'win-x86' Or '$(_ManaWebGpuNativeRuntime)' == 'win-x64' Or '$(_ManaWebGpuNativeRuntime)' == 'win-arm64'">wgpu_native.dll</_ManaWebGpuNativeLibraryName>
+    <_ManaWebGpuNativeLibraryName Condition="'$(_ManaWebGpuNativeRuntime)' == 'osx-x64' Or '$(_ManaWebGpuNativeRuntime)' == 'osx-arm64'">libwgpu_native.dylib</_ManaWebGpuNativeLibraryName>
+    <_ManaWebGpuNativeLibraryName Condition="'$(_ManaWebGpuNativeRuntime)' == 'linux-x64' Or '$(_ManaWebGpuNativeRuntime)' == 'linux-arm' Or '$(_ManaWebGpuNativeRuntime)' == 'linux-arm64'">libwgpu_native.so</_ManaWebGpuNativeLibraryName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <_ManaWebGpuNativeLibrary Include="$(ManaWebGpuNativePackageRoot)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaWebGpuNativeLibraryName)"
+                               Condition="'$(_ManaWebGpuNativeRuntime)' != '' And '$(_ManaWebGpuNativeLibraryName)' != '' And Exists('$(ManaWebGpuNativePackageRoot)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaWebGpuNativeLibraryName)')" />
+  </ItemGroup>
+
+  <Target Name="CopyManaWebGpuNativeRuntime" AfterTargets="Build" Condition="'@(_ManaWebGpuNativeLibrary)' != ''">
+    <Copy SourceFiles="@(_ManaWebGpuNativeLibrary)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>
