@@ -25,6 +25,16 @@ namespace Mana.Code.GameModes
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
+        private readonly IrradianceDebugPanelView _irradianceDebugPanelView = new();
+
+        private bool _drawDebugWorld = false;
+        private float _debugMetallic = 0.0f;
+        private float _debugRoughness = 0.0f;
+        private float _debugAmbient = 0.0f;
+        private System.Numerics.Vector4 _debugAlbedo = System.Numerics.Vector4.One;
+        private float _debugLightIntensity = 1.0f;
+        private System.Numerics.Vector4 _debugLightColor = System.Numerics.Vector4.One;
+        private float _debugSceneScale = 1.0f;
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
@@ -53,6 +63,7 @@ namespace Mana.Code.GameModes
                 deltaTime => update(deltaTime),
                 deltaTime =>
                 {
+                    ProcessPendingFontPreset();
                     _ImGui?.Update((float)deltaTime);
                     DrawMainMenuBar();
                     DrawDockSpace();
@@ -320,6 +331,20 @@ namespace Mana.Code.GameModes
                 var showDemo = _viewModel.ShowImGuiDemoWindow;
                 ImGui.ShowDemoWindow(ref showDemo);
                 _viewModel.ShowImGuiDemoWindow = showDemo;
+            }
+
+            if (GraphicsBackend == ManaGraphicsBackendKind.WebGpu)
+            {
+                _irradianceDebugPanelView.Draw(
+                    ref _drawDebugWorld,
+                    ref _debugMetallic,
+                    ref _debugRoughness,
+                    ref _debugAmbient,
+                    ref _debugAlbedo,
+                    ref _debugLightIntensity,
+                    ref _debugLightColor,
+                    ref _debugSceneScale
+                );
             }
         }
 

@@ -769,15 +769,20 @@ namespace Mana.Code
             ImGui.End();
         }
 
-        public virtual void Render(double deltaTime)
+        public void ProcessPendingFontPreset()
         {
-            RenderFrame++;
-
             if (_pendingImGuiFontPreset.HasValue)
             {
                 ApplyImGuiFontPreset(_pendingImGuiFontPreset.Value);
                 _pendingImGuiFontPreset = null;
             }
+        }
+
+        public virtual void Render(double deltaTime)
+        {
+            RenderFrame++;
+
+            ProcessPendingFontPreset();
 
             _ImGui.Update((float)deltaTime);
             DrawMainMenuBar();
