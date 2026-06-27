@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Nodes;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -52,7 +52,7 @@ namespace Mana.Code.Renderers
 
         public override void Initialize()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
             gl.Enable(EnableCap.DepthTest);
             gl.Enable(EnableCap.TextureCubeMapSeamless);
             gl.DepthFunc(DepthFunction.Lequal);
@@ -128,13 +128,13 @@ namespace Mana.Code.Renderers
 
         public override void Clear()
         {
-            Context.gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            Context.RequireOpenGl().Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
         }
 
         public void ClearDepth()
         {
-            Context.gl.Clear((uint)(ClearBufferMask.DepthBufferBit));
+            Context.RequireOpenGl().Clear((uint)(ClearBufferMask.DepthBufferBit));
         }
 
 
@@ -181,18 +181,18 @@ namespace Mana.Code.Renderers
             RenderPrefilteredReflectionMap();
 
             var window = Context.Window;
-            Context.gl.Viewport(window.FramebufferSize);
-            Context.gl.ClearColor<float>(DefaultClearColor.ToVector4D());
-            Context.gl.ClearDepth(1.0);
-            Context.gl.DepthFunc(DepthFunction.Lequal);
-            Context.gl.ColorMask(true, true, true, true);
+            Context.RequireOpenGl().Viewport(window.FramebufferSize);
+            Context.RequireOpenGl().ClearColor<float>(DefaultClearColor.ToVector4D());
+            Context.RequireOpenGl().ClearDepth(1.0);
+            Context.RequireOpenGl().DepthFunc(DepthFunction.Lequal);
+            Context.RequireOpenGl().ColorMask(true, true, true, true);
             Clear();
 
             RenderEnvironmentBackground();
 
-            Context.gl.Enable(EnableCap.DepthTest);
-            Context.gl.Viewport(window.FramebufferSize);
-            Context.gl.ClearDepth(1.0);
+            Context.RequireOpenGl().Enable(EnableCap.DepthTest);
+            Context.RequireOpenGl().Viewport(window.FramebufferSize);
+            Context.RequireOpenGl().ClearDepth(1.0);
             ClearDepth();
 
             SyncGridLightRig();
@@ -273,7 +273,7 @@ namespace Mana.Code.Renderers
         {
             BrdfFramebuffer.Bind();           
             var clearColor = Colors.Pink;
-            Context.gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
+            Context.RequireOpenGl().ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
             Clear();
             EnvironmentBrdfShader.BindShader();
             SimpleQuad.RenderDirectly();
@@ -290,7 +290,7 @@ namespace Mana.Code.Renderers
             EnvironmentShader.FindUniform("equirectangularMap").SetValue(0);
             EnvironmentShader.FindUniform("view").SetValue(directionOnly);
 
-            Context.gl.Disable(EnableCap.DepthTest);
+            Context.RequireOpenGl().Disable(EnableCap.DepthTest);
             SimpleCube.RenderDirectly();
         }
 
@@ -300,7 +300,7 @@ namespace Mana.Code.Renderers
             for (int i = 0; i < 6; i++)
             {
                 IrradianceFramebuffer.Bind(i);
-                Context.gl.ClearColor<float>(irradanceTestColor);
+                Context.RequireOpenGl().ClearColor<float>(irradanceTestColor);
                 Clear();
 
                 EnvironmentIrradianceShader.BindShader();
@@ -328,7 +328,7 @@ namespace Mana.Code.Renderers
             for (int i = 0; i < 6; i++)
             {
                 PrefilterFramebuffer.Bind(i, m);
-                Context.gl.ClearColor<float>(prefilterTestColor);
+                Context.RequireOpenGl().ClearColor<float>(prefilterTestColor);
                 ClearDepth();
 
                 float roughness = (float)m / (float)(PrefilterFramebuffer.MaxMips - 1);

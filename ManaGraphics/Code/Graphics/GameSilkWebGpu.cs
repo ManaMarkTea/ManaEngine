@@ -1,21 +1,42 @@
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
+using Silk.NET.Input;
 using Silk.NET.Windowing;
-using Mana.Code.Diagnostics;
+using ManaGraphics.Code.Diagnostics;
+using ManaCore.Graphics;
 
-namespace Mana.Code.Graphics
+namespace ManaGraphics.Code.Graphics
 {
     public sealed class GameSilkWebGpu
     {
         private readonly string _title;
         private readonly string? _requestedBackend;
+        private readonly Func<ManaRenderScene>? _renderSceneProvider;
+        private readonly Action<IWindow, IInputContext>? _inputReady;
+        private readonly Action<double>? _beforeRender;
+        private readonly Action<double>? _onRenderImGui;
+        private readonly Action<ManaWebGpuContext, IInputContext>? _webGpuReady;
+        private double _elapsedSeconds;
         private IWindow _window = null!;
+        private IInputContext? _input;
         private ManaWebGpuContext? _webGpu;
 
-        public GameSilkWebGpu(string title, string? requestedBackend)
+        public GameSilkWebGpu(
+            string title,
+            string? requestedBackend,
+            Func<ManaRenderScene>? renderSceneProvider = null,
+            Action<IWindow, IInputContext>? inputReady = null,
+            Action<double>? beforeRender = null,
+            Action<double>? onRenderImGui = null,
+            Action<ManaWebGpuContext, IInputContext>? webGpuReady = null)
         {
             _title = title;
             _requestedBackend = requestedBackend;
+            _renderSceneProvider = renderSceneProvider;
+            _inputReady = inputReady;
+            _beforeRender = beforeRender;
+            _onRenderImGui = onRenderImGui;
+            _webGpuReady = webGpuReady;
         }
 
         public void Run()
@@ -43,7 +64,10 @@ namespace Mana.Code.Graphics
             try
             {
                 ManaConsole.WriteDiagnostic("WebGPU window Load.");
-                _webGpu = new ManaWebGpuContext(_window, _requestedBackend);
+                _input = _window.CreateInput();
+                _inputReady?.Invoke(_window, _input);
+                _webGpu = new ManaWebGpuContext(_window, _requestedBackend, _renderSceneProvider);
+                _webGpuReady?.Invoke(_webGpu, _input);
                 ManaConsole.WriteDiagnostic("WebGPU context loaded.");
             }
             catch (Exception ex)
@@ -56,14 +80,17 @@ namespace Mana.Code.Graphics
 
         private void Render(double deltaTime)
         {
-            ManaTime.GlobalTime.UpdateTime(deltaTime);
-            var t = (float)ManaTime.GlobalTime.GameTime.TotalSeconds;
+            _elapsedSeconds += deltaTime;
+            _beforeRender?.Invoke(deltaTime);
+            _onRenderImGui?.Invoke(deltaTime);
+            
+            var t = (float)_elapsedSeconds;
             var clearColor = new Color
             {
-                R = 0.025 + Math.Sin(t * 0.55) * 0.015,
-                G = 0.035,
-                B = 0.085 + Math.Cos(t * 0.37) * 0.018,
-                A = 1.0
+                R = 100 / 255.0f,
+                G = 149 / 255.0f,
+                B = 237 / 255.0f,
+                A = 255 / 255.0f
             };
 
             _webGpu?.ClearFrame(clearColor);
@@ -78,6 +105,8 @@ namespace Mana.Code.Graphics
         {
             _webGpu?.Dispose();
             _webGpu = null;
+            _input?.Dispose();
+            _input = null;
         }
     }
 }

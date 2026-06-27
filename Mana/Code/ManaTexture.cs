@@ -1,4 +1,6 @@
-﻿using Silk.NET.OpenGL;
+using Mana.Code.Graphics;
+using ManaCore.Graphics;
+using Silk.NET.OpenGL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
@@ -22,6 +24,8 @@ namespace Mana
         public bool IsFound { get; set; }
         public bool IsWrapU { get; set; }
         public bool IsWrapV { get; set; }
+        public IManaGpuTexture? GpuTexture { get; private set; }
+        public IOpenGlGpuTexture? OpenGlTexture => GpuTexture as IOpenGlGpuTexture;
 
         public bool IsCube { get; set; }
         public TextureMinFilter MinFilter { get; set; }
@@ -71,7 +75,7 @@ namespace Mana
 
         public void UpdateParameters()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
 
             var targetType = TextureTargetType;
 
@@ -87,54 +91,23 @@ namespace Mana
 
         public void UpdateTextureSize()
         {
-            var gl = Context.gl;
-
-            SizeInBytes = (int)Width * (int)Height * 4;
-            gl.BindTexture(TextureTargetType, Handle);
-
-            if (!IsCube)
-            {
-                AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
-            }
-            else
-            {
-                for (int i = 0; i < 6; i++)
-                {
-                    AllocateEmptyTextImage2D(gl, TextureTarget.TextureCubeMapPositiveX + i, Width, Height);
-                }
-            }
+            EnsureOpenGlTexture().UpdateTextureSize();
         }
 
 
         public virtual void Load()
         {
-            var gl = Context.gl;
+            EnsureOpenGlTexture().Load();
+        }
 
-            if (IsLoaded == false)
-            {
-                if (Handle == 0)
-                {
-                    Handle = gl.GenTexture();
-                }
-
-                gl.BindTexture(TextureTargetType, Handle);
-
-                UpdateParameters();
-
-                LoadTextureData();
-
-                if (HasMipMaps)
-                {
-                    gl.GenerateMipmap(TextureTargetType);
-                }
-
-                IsLoaded = true;
-            }
+        internal void LoadOpenGlTextureData()
+        {
+            LoadTextureData();
         }
 
         protected virtual void LoadTextureData()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
 
             if (PixelStream != null)
             {
@@ -199,7 +172,7 @@ namespace Mana
             return texturePath;
         }
 
-        protected unsafe void AllocateEmptyTextImage2D(GL gl, TextureTarget textureType, uint width, uint height)
+        internal unsafe void AllocateEmptyTextImage2D(GL gl, TextureTarget textureType, uint width, uint height)
         {
             gl.TexImage2D(textureType, 0, InternalDataFormat, width, height, 0, InternalPixelFormat, InternalPixelType, null);
         }
@@ -230,50 +203,23 @@ namespace Mana
 
         public virtual void Bind(int channel)
         {
-            var gl = Context.gl;
-
-            switch (channel)
-            {
-                case 0: gl.ActiveTexture(TextureUnit.Texture0); break;
-                case 1: gl.ActiveTexture(TextureUnit.Texture1); break;
-                case 2: gl.ActiveTexture(TextureUnit.Texture2); break;
-                case 3: gl.ActiveTexture(TextureUnit.Texture3); break;
-                case 4: gl.ActiveTexture(TextureUnit.Texture4); break;
-
-                case 5: gl.ActiveTexture(TextureUnit.Texture5); break;
-                case 6: gl.ActiveTexture(TextureUnit.Texture6); break;
-                case 7: gl.ActiveTexture(TextureUnit.Texture7); break;
-                case 8: gl.ActiveTexture(TextureUnit.Texture8); break;
-                case 9: gl.ActiveTexture(TextureUnit.Texture9); break;
-            }
-            
-            if (Handle > 0)
-            {
-                gl.BindTexture(TextureTargetType, Handle);
-            }
+            EnsureOpenGlTexture().Bind(channel);
         }
 
         public void UnBind(int channel)
         {
-            var gl = Context.gl;
+            OpenGlTexture?.UnBind(channel);
+        }
 
-            switch (channel)
+        private IOpenGlGpuTexture EnsureOpenGlTexture()
+        {
+            if (GpuTexture is IOpenGlGpuTexture openGlTexture)
             {
-                case 0: gl.ActiveTexture(TextureUnit.Texture0); break;
-                case 1: gl.ActiveTexture(TextureUnit.Texture1); break;
-                case 2: gl.ActiveTexture(TextureUnit.Texture2); break;
-                case 3: gl.ActiveTexture(TextureUnit.Texture3); break;
-                case 4: gl.ActiveTexture(TextureUnit.Texture4); break;
-
-                case 5: gl.ActiveTexture(TextureUnit.Texture5); break;
-                case 6: gl.ActiveTexture(TextureUnit.Texture6); break;
-                case 7: gl.ActiveTexture(TextureUnit.Texture7); break;
-                case 8: gl.ActiveTexture(TextureUnit.Texture8); break;
-                case 9: gl.ActiveTexture(TextureUnit.Texture9); break;
+                return openGlTexture;
             }
 
-            gl.BindTexture(TextureTargetType, 0);
-            gl.ActiveTexture(TextureUnit.Texture0);
+            GpuTexture = new ManaOpenGlTexture(this);
+            return (IOpenGlGpuTexture)GpuTexture;
         }
 
         public object Clone()
@@ -283,6 +229,7 @@ namespace Mana
             {
                 copy.Handle = 0;
                 copy.IsLoaded = false;
+                copy.GpuTexture = null;
             }
             return copy ?? this;
         }

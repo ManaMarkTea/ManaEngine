@@ -1,4 +1,4 @@
-﻿using Mana.Code;
+using Mana.Code;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -69,7 +69,7 @@ namespace Mana
             BufferUsageARB usageHint = BufferUsageARB.StaticDraw
         ) : base(context)
         {
-            gl = Context.gl;
+            gl = Context.RequireOpenGl();
             this.indexes = indexes;
             this.positions = positions;
             this.normals = normals;

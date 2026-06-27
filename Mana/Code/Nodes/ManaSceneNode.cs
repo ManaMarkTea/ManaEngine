@@ -1,13 +1,26 @@
-﻿namespace Mana.Code.Nodes
+namespace Mana.Code.Nodes
 {
     public class ManaSceneNode : ManaObject
     {
+        private Vector3 _position;
+
         public ManaSceneNode? Parent { get; set; }
         public List<ManaSceneNode> Children { get; set; }
 
         public List<ManaComponent> Components { get; set; }
 
-        public Vector3 Position { get; set; }
+        public Vector3 Position 
+        { 
+            get => _position; 
+            set
+            {
+                if (!_position.Equals(value))
+                {
+                    _position = value;                 
+                }
+            }
+        }
+
         public Vector3 Rotation { get; set; }
         public Vector3 RotationDegrees { get { return Rotation.ToEulerDegrees(); } }
         public Vector3 Scale { get; set; }
@@ -90,7 +103,6 @@
             LocalTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
             LocalTransform *= Matrix4x4.CreateTranslation(Position);
 
-
             if (Parent != null)
             {
                 //WorldTransform = Parent.WorldTransform * LocalTransform;
@@ -121,6 +133,37 @@
             foreach (ManaComponent component in Components)
             {
                 component.DrawComponent();
+            }
+        }
+
+        public void CollectRenderMeshInstances(List<ManaCore.Graphics.ManaRenderMeshInstance> output)
+        {
+            foreach (var component in Components)
+            {
+                if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    output.Add(new ManaCore.Graphics.ManaRenderMeshInstance
+                    {
+                        Name = string.IsNullOrWhiteSpace(Name) ? renderer.Mesh.Name : Name,
+                        MeshData = renderer.Mesh.GetOrCreateCpuData(),
+                        WorldTransform = WorldTransform,
+                        ShaderName = renderer.Material.Shader?.GetType().Name
+                    });
+                }
+                catch (InvalidOperationException)
+                {
+                    // Legacy meshes that only exist as backend GPU buffers are skipped.
+                }
+            }
+
+            foreach (var child in Children)
+            {
+                child.CollectRenderMeshInstances(output);
             }
         }
 

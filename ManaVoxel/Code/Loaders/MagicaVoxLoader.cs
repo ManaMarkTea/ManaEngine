@@ -47,7 +47,7 @@ namespace ManaVoxel.Code.Loaders
 
         public void Load(string? voxPath = null)
         {
-            var tempPath = voxPath ?? @"Assets/Models/Vox/Captain.vox";
+            var tempPath = ResolveVoxPath(voxPath ?? @"Assets/Models/Vox/Captain.vox");
             //tempPath = @"Assets/Models/Vox/Ship_Pirate_01.vox"; // TOO BIG for now, needs Mesh Instancing and Shader Caching when its the same shader.
             ManaRiff riffer = new ManaRiff(tempPath);
 
@@ -98,6 +98,35 @@ namespace ManaVoxel.Code.Loaders
                     }
                 }
             }
+        }
+
+        private static string ResolveVoxPath(string path)
+        {
+            if (Path.IsPathRooted(path) && File.Exists(path))
+            {
+                return path;
+            }
+
+            string[] candidates =
+            {
+                path,
+                Path.Combine(Environment.CurrentDirectory, path),
+                Path.Combine(Environment.CurrentDirectory, "Mana", path),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", path),
+                Path.Combine(AppContext.BaseDirectory, path),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", path)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            throw new FileNotFoundException($"Could not locate MagicaVoxel file '{path}'.");
         }
     }
 }

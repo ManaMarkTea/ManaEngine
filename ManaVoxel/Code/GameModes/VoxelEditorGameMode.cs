@@ -1,9 +1,12 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Nodes;
 using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.UI;
+using ManaCore.Graphics;
+using ManaGraphics.Code.Diagnostics;
+using ManaGraphics.Code.Graphics;
 using System.Diagnostics;
 
 namespace Mana.Code.GameModes
@@ -27,17 +30,66 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _lightningBall;
         private ManaSceneNode? _liquidBall;
 
-        public VoxelEditorGameMode()
+        public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
 
         }
 
-        public override void Load()
+        public void RunWebGpu(string? requestedBackend)
         {
-            base.Load();
+            ManaConsole.AttachForDiagnostics("ManaVoxel WebGPU Diagnostics");
+            ManaConsole.WriteDiagnostic("Starting ManaVoxel game mode with WebGPU graphics backend.");
+            ManaConsole.WriteDiagnostic($"Requested WGPU backend: {requestedBackend ?? "auto"}");
 
+            new GameSilkWebGpu(
+                "ManaVoxel - WebGPU",
+                requestedBackend,
+                () => Context.World.CreateRenderScene(),
+                (window, input) =>
+                {
+                    LoadForGraphicsBackend(window, input, new ManaWebGpuGraphicsDevice(requestedBackend));
+                    LogWebGpuRenderSceneSummary();
+                },
+                deltaTime => update(deltaTime),
+                deltaTime =>
+                {
+                    _ImGui?.Update((float)deltaTime);
+                    DrawMainMenuBar();
+                    DrawDockSpace();
+                    DrawImGui(deltaTime);
+                    Context.World.DrawImGui();
+                },
+                (webGpuContext, input) =>
+                {
+                    _ImGui = webGpuContext.CreateImGuiController(input);
+                    var io = ImGuiNET.ImGui.GetIO();
+                    io.ConfigFlags |= ImGuiNET.ImGuiConfigFlags.DockingEnable;
+                    ConfigImStyle();
+
+                    if (GetAvailableImGuiFontPresets().Contains(ImGuiFontPreset.SegoeUIMono))
+                    {
+                        RequestImGuiFontPreset(ImGuiFontPreset.SegoeUIMono);
+                    }
+                }
+            ).Run();
+        }
+
+        private void LogWebGpuRenderSceneSummary()
+        {
+            var renderScene = Context.World.CreateRenderScene();
+            ManaConsole.WriteDiagnostic($"VoxelEditor WebGPU render scene: meshes={renderScene.Meshes.Count}.");
+            foreach (var mesh in renderScene.Meshes)
+            {
+                ManaConsole.WriteDiagnostic(
+                    $"VoxelEditor WebGPU mesh packet: name='{mesh.Name}', vertices={mesh.MeshData.Positions.Length}, indexes={mesh.MeshData.Indexes.Length}.");
+            }
+        }
+
+        protected override void LoadContent()
+        {
             Context.Window.FileDrop += Window_FileDrop;
             _viewModel.AttachScene(Context, Context.World.DefaultScene);
+            Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
 
             ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
 
@@ -54,9 +106,13 @@ namespace Mana.Code.GameModes
 
 
             Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
+            Cursor.Name = "CursorBall";
+            
             if (Cursor.Components[0] is MeshRendererComponent renderer)
             {
-                renderer.Material.Shader = new ManaLiquidShader(Context);
+                var cursorMaterial = renderer.DynamicMaterial;
+                cursorMaterial.Name = "Cursor Material";
+                cursorMaterial.Shader = new ManaLiquidShader(Context);
             }
 
             _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
@@ -165,7 +221,11 @@ namespace Mana.Code.GameModes
 
         RayHit GetProjectedMouseHit()
         {
-            var MouseState = Context.Input.Mice.First();
+            var MouseState = Context.Input.Mice.FirstOrDefault();
+            if (MouseState == null)
+            {
+                return new RayHit();
+            }
 
             var mouseStart = new Vector3(MouseState.Position, 0.0f);
             var mouseEnd = new Vector3(MouseState.Position, 1.0f);
@@ -193,6 +253,14 @@ namespace Mana.Code.GameModes
 
         public override void Update(double deltaTime)
         {
+            if (GraphicsBackend != ManaGraphicsBackendKind.WebGpu)
+            {
+                return;
+            }
+
+            SyncLightningBallVisibility();
+            SyncLiquidBallVisibility();
+            Context.World.PostUpdateFutures.Add(() => UpdateVoxelPointerInteraction(inputCaptured: false));
         }
 
         protected override void DrawImGui(double deltaTime)
@@ -238,58 +306,7 @@ namespace Mana.Code.GameModes
 
             bool gizmoCapturesMouse = _cameraGizmoView.Draw(Context.World.MainCamera, sceneMin, sceneMax);
             bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse || gizmoCapturesMouse;
-            bool leftMouseDown = MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
-            var toolSettings = _viewModel.CreateToolSettings();
-
-            if (imguiCapturesMouse)
-            {
-                _toolController.Cancel();
-                _viewModel.ClearToolPreview();
-                _viewModel.ClearHoveredVoxel();
-            }
-            else
-            {
-                RayHit hit = GetProjectedMouseHit();
-                VoxelToolPoint? toolPoint = null;
-
-                if (hit.Hit)
-                {
-                    var pos = VoxelRasterizer.SnapHitToAdjacentCenter(hit.Position, hit.Normal);
-
-                    Cursor.Position = pos;
-                    Cursor.UpdateTransform();
-                    _viewModel.SetHoveredVoxel(pos, hit.Normal, Context.World.MainCamera.Owner.Position);
-                    toolPoint = new VoxelToolPoint(pos, hit.Normal);
-
-                    if (leftMouseDown && _viewModel.HasBakedVoxels)
-                    {
-                        _viewModel.ExplodeBakedVoxelsAt(pos);
-                    }
-                }
-                else
-                {
-                    _viewModel.ClearHoveredVoxel();
-                }
-
-                if (_viewModel.HasBakedVoxels)
-                {
-                    _toolController.Cancel();
-                    _viewModel.ClearToolPreview();
-                }
-                else
-                {
-                    var result = _toolController.UpdatePointer(leftMouseDown, toolPoint, toolSettings);
-                    if (result != null)
-                    {
-                        _viewModel.ClearToolPreview();
-                        _viewModel.CommitToolResult(result);
-                    }
-                    else
-                    {
-                        _viewModel.SetToolPreview(_toolController.BuildPreview(toolSettings));
-                    }
-                }
-            }
+            UpdateVoxelPointerInteraction(imguiCapturesMouse);
 
             _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
 
@@ -304,6 +321,77 @@ namespace Mana.Code.GameModes
                 ImGui.ShowDemoWindow(ref showDemo);
                 _viewModel.ShowImGuiDemoWindow = showDemo;
             }
+        }
+
+        private void UpdateVoxelPointerInteraction(bool inputCaptured)
+        {
+            var MouseState = Context.Input.Mice.FirstOrDefault();
+            if (MouseState == null)
+            {
+                return;
+            }
+
+            bool leftMouseDown = MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
+            var toolSettings = _viewModel.CreateToolSettings();
+
+            if (inputCaptured)
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                _viewModel.ClearHoveredVoxel();
+                return;
+            }
+
+            RayHit hit = GetProjectedMouseHit();
+            VoxelToolPoint? toolPoint = null;
+
+            if (hit.Hit)
+            {
+                var pos = VoxelRasterizer.SnapHitToAdjacentCenter(hit.Position, hit.Normal);
+
+                Cursor.Position = pos;
+                Cursor.UpdateTransform();
+                _viewModel.SetHoveredVoxel(pos, hit.Normal, Context.World.MainCamera.Owner.Position);
+                toolPoint = new VoxelToolPoint(pos, hit.Normal);
+
+                if (leftMouseDown && _viewModel.HasBakedVoxels)
+                {
+                    _viewModel.ExplodeBakedVoxelsAt(pos);
+                }
+            }
+            else
+            {
+                _viewModel.ClearHoveredVoxel();
+            }
+
+            if (_viewModel.HasBakedVoxels)
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                return;
+            }
+
+            var result = _toolController.UpdatePointer(leftMouseDown, toolPoint, toolSettings);
+            if (result != null)
+            {
+                _viewModel.ClearToolPreview();
+                _viewModel.CommitToolResult(result);
+            }
+            else
+            {
+                _viewModel.SetToolPreview(_toolController.BuildPreview(toolSettings));
+            }
+        }
+
+        private bool ShouldCaptureEditorMouseInput()
+        {
+            if (GraphicsBackend != ManaGraphicsBackendKind.WebGpu)
+            {
+                return false;
+            }
+
+            var mouse = Context.Input.Mice.FirstOrDefault();
+            return _toolController.IsDrawing || mouse?.IsButtonPressed(Silk.NET.Input.MouseButton.Left) == true;
         }
 
         protected override void InitializeDockLayout(uint dockspaceId, Vector2 dockspaceSize)

@@ -1,4 +1,4 @@
-﻿namespace Mana
+namespace Mana
 {
     public class ManaTextureDynamic : ManaTexture
     {
@@ -13,7 +13,7 @@
 
         protected override void LoadTextureData()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
             SizeInBytes = (int)Width * (int)Height * buffer.Length;
             AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
             PushToTexture();
@@ -25,7 +25,7 @@
 
         protected void PushToTexture()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
             LoadBuffer();
             SubTextImage2D(gl, TextureTargetType, 0, 0, 1, 1, new ReadOnlySpan<float>(buffer));
         }

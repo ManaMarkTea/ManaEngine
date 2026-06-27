@@ -188,7 +188,11 @@ namespace Mana
             LastNaiveVertexCount = inputVoxelCount * 24;
             LastSavedVertexCount = Math.Max(0, LastNaiveVertexCount - LastGeneratedVertexCount);
 
-            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            }
 
             if (logStats && (inputVoxelCount > 0 || duplicateVoxelCount > 0))
             {

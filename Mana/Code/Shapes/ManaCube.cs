@@ -51,7 +51,7 @@
                 DynamicGeometryContainer.AddQuad(Vector3.Zero, c, rotation, scaleRotation, this.DefaultVertexColor);
             }
 
-            if (Context?.gl != null)
+            if (Context?.OpenGl != null)
             {
                 VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
             }

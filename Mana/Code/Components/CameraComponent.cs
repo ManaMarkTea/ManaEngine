@@ -25,6 +25,7 @@ namespace Mana
         public float OrthographicHeight = 80.0f;
         public float PanSpeed = 1.0f;
         public bool TouchpadPanInOrthographic = true;
+        public Func<bool>? ShouldCaptureMouseInput { get; set; }
         public Vector2D<int> DebugPointCount = new Vector2D<int>(5, 3);
 
 
@@ -67,9 +68,9 @@ namespace Mana
 
         public void UpdateProjection()
         {
-            var window = Context.Window;
+            var viewportSize = GetProjectionViewportSize();
 
-            AspectRatio = (float)window.Size.X / (float)window.Size.Y;
+            AspectRatio = (float)viewportSize.X / (float)viewportSize.Y;
             if (OrthoGraphic)
             {
                 OrthographicHeight = MathF.Max(1.0f, OrthographicHeight);
@@ -131,7 +132,8 @@ namespace Mana
 
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();
-            bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse;
+            bool externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
+            bool imguiCapturesMouse = GetImGuiWantsCaptureMouse() || externalCapturesMouse;
 
             var position = Owner.Position;
             var rotation = Owner.Rotation;
@@ -149,7 +151,9 @@ namespace Mana
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            Vector2 mouseDelta = UpdateAverage(delta, ref dxAvg, ref dyAvg);
+            bool cameraMouseActive = !imguiCapturesMouse &&
+                (MouseState.IsButtonPressed(MouseButton.Middle) || MouseState.IsButtonPressed(MouseButton.Right));
+            Vector2 mouseDelta = UpdateAverage(delta, cameraMouseActive, ref dxAvg, ref dyAvg);
 
             if (KeyboardState.IsKeyPressed(Key.W))
             {
@@ -224,6 +228,23 @@ namespace Mana
             Owner.Rotation = rotationEuler;
             UpdateViewMatrix();
 
+        }
+
+        private static bool GetImGuiWantsCaptureMouse()
+        {
+            try
+            {
+                if (ImGui.GetCurrentContext() == IntPtr.Zero)
+                {
+                    return false;
+                }
+
+                return ImGui.GetIO().WantCaptureMouse;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public void DrawImGui()
@@ -416,12 +437,18 @@ namespace Mana
                    cameraUp * (normalizedY * orthographicHeight * 0.5f);
         }
 
-        Vector2 UpdateAverage(float deltaTime, ref float dxAvg, ref float dyAvg)
+        Vector2 UpdateAverage(float deltaTime, bool acceptMouseDelta, ref float dxAvg, ref float dyAvg)
         {
             var MouseState = Context.Input.Mice.First();
 
             var mouseDelta = MouseState.Position - _LastMousePos;
             _LastMousePos = MouseState.Position;
+            if (!acceptMouseDelta)
+            {
+                dxAvg = 0.0f;
+                dyAvg = 0.0f;
+                return Vector2.Zero;
+            }
 
             float dx = -mouseDelta.X * deltaTime * _MouseSensitivity.X;
             float dy = -mouseDelta.Y * deltaTime * _MouseSensitivity.Y;
@@ -453,18 +480,20 @@ namespace Mana
 
             Matrix4x4 world = _ViewMatrix * _ProjectionMatrix;
 
-            var windowSize = Context.Window.Size;
+            var windowSize = GetProjectionViewportSize();
+            var mouseStart = ConvertMousePositionForProjection(MousePositionStart);
+            var mouseEnd = ConvertMousePositionForProjection(MousePositionEnd);
 
             Vector4 viewportCoordinate;
-            viewportCoordinate.X = 2.0f * MousePositionStart.X / (float)windowSize.X - 1;
-            viewportCoordinate.Y = -(2.0f * MousePositionStart.Y / (float)windowSize.Y - 1);
-            viewportCoordinate.Z = MousePositionStart.Z;
+            viewportCoordinate.X = 2.0f * mouseStart.X / (float)windowSize.X - 1;
+            viewportCoordinate.Y = -(2.0f * mouseStart.Y / (float)windowSize.Y - 1);
+            viewportCoordinate.Z = mouseStart.Z;
             viewportCoordinate.W = 1.0f;
 
             Vector4 viewportCoordinateEnd;
-            viewportCoordinateEnd.X = 2.0f * MousePositionEnd.X / (float)windowSize.X - 1;
-            viewportCoordinateEnd.Y = -(2.0f * MousePositionEnd.Y / (float)windowSize.Y - 1);
-            viewportCoordinateEnd.Z = MousePositionEnd.Z;
+            viewportCoordinateEnd.X = 2.0f * mouseEnd.X / (float)windowSize.X - 1;
+            viewportCoordinateEnd.Y = -(2.0f * mouseEnd.Y / (float)windowSize.Y - 1);
+            viewportCoordinateEnd.Z = mouseEnd.Z;
             viewportCoordinateEnd.W = 1.0f;
             
             Vector4 eyeSpaceCoordinate = Vector4.Transform(viewportCoordinate, inverseProjectionMatrix);
@@ -477,6 +506,45 @@ namespace Mana
             worldCoordinateEnd /= worldCoordinateEnd.W;
             
             return new Ray(worldCoordinate.ToVector3(), (worldCoordinateEnd - worldCoordinate).ToVector3().Normalized());
+        }
+
+        private Vector2D<int> GetProjectionViewportSize()
+        {
+            if (Context.GraphicsBackend == ManaCore.Graphics.ManaGraphicsBackendKind.WebGpu &&
+                Context.Window.FramebufferSize.X > 0 &&
+                Context.Window.FramebufferSize.Y > 0)
+            {
+                return Context.Window.FramebufferSize;
+            }
+
+            return Context.Window.Size;
+        }
+
+        private Vector3 ConvertMousePositionForProjection(Vector3 mousePosition)
+        {
+            if (Context.GraphicsBackend != ManaCore.Graphics.ManaGraphicsBackendKind.WebGpu)
+            {
+                return mousePosition;
+            }
+
+            var windowSize = Context.Window.Size;
+            var framebufferSize = Context.Window.FramebufferSize;
+            if (windowSize.X <= 0 || windowSize.Y <= 0 ||
+                framebufferSize.X <= 0 || framebufferSize.Y <= 0 ||
+                (windowSize.X == framebufferSize.X && windowSize.Y == framebufferSize.Y))
+            {
+                return mousePosition;
+            }
+
+            if (mousePosition.X > windowSize.X + 1.0f || mousePosition.Y > windowSize.Y + 1.0f)
+            {
+                return mousePosition;
+            }
+
+            return new Vector3(
+                mousePosition.X * framebufferSize.X / windowSize.X,
+                mousePosition.Y * framebufferSize.Y / windowSize.Y,
+                mousePosition.Z);
         }
 
         public void AddDebugCameraRayTest(ManaShapeFactory shapes)

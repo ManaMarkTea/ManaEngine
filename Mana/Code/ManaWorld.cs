@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using Mana.Code.UI;
@@ -77,7 +77,7 @@ namespace Mana
             PostUpdateFutures = new List<Action>();
         }
 
-        public void Initialize(ManaContext context)
+        public void Initialize(ManaContext context, bool createRenderer = true)
         {
             Context = context;
 
@@ -89,10 +89,13 @@ namespace Mana
             CameraNode.Components.Add(MainCamera);
 
 
-            //this.Renderer = new ManaDeferredRenderer(context);
-            //this.Renderer = new ManaForwardRenderer(context);
-            this.Renderer = new ManaIrradianceRenderer(context);
-            this.Renderer.Initialize();
+            if (createRenderer)
+            {
+                //this.Renderer = new ManaDeferredRenderer(context);
+                //this.Renderer = new ManaForwardRenderer(context);
+                this.Renderer = new ManaIrradianceRenderer(context);
+                this.Renderer.Initialize();
+            }
 
             DefaultScene = new ManaScene(context);
             DefaultScene.Name = "Default Scene";
@@ -101,7 +104,7 @@ namespace Mana
 
         private void _Window_Resize(Silk.NET.Maths.Vector2D<int> obj)
         {
-            Renderer.Resize(obj.X, obj.Y);
+            Renderer?.Resize(obj.X, obj.Y);
         }
        
 
@@ -161,6 +164,11 @@ namespace Mana
 
         public void Draw()
         {
+            if (Renderer == null)
+            {
+                return;
+            }
+
             Renderer.Clear();
 
             Action drawScenes = () =>
@@ -181,7 +189,7 @@ namespace Mana
         public void DrawImGui()
         {
             MainCamera.DrawImGui();
-            Renderer.DrawImGui();
+            Renderer?.DrawImGui();
             RunFutures(ImGuiFutures, activeImGuiFutures);
             sceneOutlinerPanelView.Draw(this);
             sceneInspectorPanelView.Draw();
@@ -201,6 +209,26 @@ namespace Mana
             ImGui.End();
         }
 
+        public ManaCore.Graphics.ManaRenderScene CreateRenderScene()
+        {
+            var meshes = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            foreach (var scene in Scenes)
+            {
+                scene.CollectRenderMeshInstances(meshes);
+            }
+
+            return new ManaCore.Graphics.ManaRenderScene
+            {
+                Camera = new ManaCore.Graphics.ManaCameraData(
+                    MainCamera._ViewMatrix,
+                    MainCamera._ProjectionMatrix,
+                    MainCamera.Owner.Position,
+                    MainCamera.NearClipPlane,
+                    MainCamera.FarClipPlane),
+                Meshes = meshes
+            };
+        }
+
     }
 }
 
@@ -212,7 +240,7 @@ namespace Mana
  
 if (UseRayTracing) { RenderTarget.Bind(); }
 
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
 
 
             Renderer.Clear();

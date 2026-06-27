@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace Mana.Code.Diagnostics
+namespace ManaGraphics.Code.Diagnostics
 {
     public static class ManaConsole
     {
@@ -9,7 +9,7 @@ namespace Mana.Code.Diagnostics
         private static readonly object LogLock = new object();
 
         public static string DiagnosticLogPath { get; } =
-            Path.Combine(Environment.CurrentDirectory, "ManaWebGpuStartup.log");
+            Path.Combine(Environment.CurrentDirectory, "ManaGraphicsStartup.log");
 
         public static void AttachForDiagnostics(string title)
         {

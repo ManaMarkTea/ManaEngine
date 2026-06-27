@@ -1,5 +1,6 @@
 struct TransformUniform {
     model_projection : mat4x4<f32>,
+    time : f32,
 };
 
 struct VertexOutput {

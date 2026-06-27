@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+using ImGuiNET;
+using ManaCore.Graphics;
 using Silk.NET.GLFW;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -44,7 +45,7 @@ namespace Mana.Code
 
         public static uint UtilityDockId { get; set; }
         public static uint OutlinerDockId { get; set; }
-        public ImGuiFontPreset CurrentImGuiFontPreset { get; private set; } = ImGuiFontPreset.Default;
+        public ImGuiFontPreset CurrentImGuiFontPreset { get; protected set; } = ImGuiFontPreset.Default;
         public ImGuiMonoSizeTier CurrentMonoSizeTier { get; private set; } = ImGuiMonoSizeTier.Small;
         public bool EmojiFallbackEnabled { get; private set; } = true;
         private ImGuiFontPreset? _pendingImGuiFontPreset;
@@ -57,19 +58,25 @@ namespace Mana.Code
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
 
-        public ImGuiController _ImGui = null!;
+        public ManaCore.Graphics.IManaImGuiController _ImGui = null!;
         public IWindow _Window = null!;
         public GL GL = null!;
         public GameModeGraphicsLevelDebugger _GlDebugger = null!;
-        private MethodInfo? _recreateImGuiFontTextureMethod;
 
         public ManaContext Context = null!;
 
         private static readonly GraphicsAPI RequestedGraphicsApi = GraphicsAPI.Default;
 
 
-        public BaseGameMode()
+        public ManaGraphicsBackendKind GraphicsBackend { get; }
+
+        public BaseGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL)
         {
+            GraphicsBackend = graphicsBackend;
+            if (graphicsBackend != ManaGraphicsBackendKind.OpenGL)
+            {
+                return;
+            }
             
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -142,7 +149,7 @@ namespace Mana.Code
             GL.Enable(EnableCap.DepthTest);
 
             _GlDebugger = new GameModeGraphicsLevelDebugger(GL);
-            _ImGui = new ImGuiController(GL, _Window, input);
+            _ImGui = new Mana.Code.Graphics.ManaOpenGlImGuiController(GL, _Window, input);
             var io = ImGui.GetIO();
             io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
             ConfigImStyle();
@@ -155,6 +162,23 @@ namespace Mana.Code
 
             // Initialize the physics engine
             Context.Physics = new ManaPhysics(Context);
+            LoadContent();
+        }
+
+        public virtual void LoadForGraphicsBackend(IWindow window, IInputContext input, IManaGraphicsDevice graphicsDevice, bool initializeWorldRenderer = false)
+        {
+            var world = new ManaWorld();
+            Context = new ManaContext(window, input, world, graphicsDevice);
+            Context.GameMode = this;
+
+            world.Initialize(Context, initializeWorldRenderer);
+
+            Context.Physics = new ManaPhysics(Context);
+            LoadContent();
+        }
+
+        protected virtual void LoadContent()
+        {
         }
 
         private void LogLoadDiagnostics(IInputContext input)
@@ -259,11 +283,7 @@ namespace Mana.Code
 
         private void TryRecreateImGuiFontDeviceTexture()
         {
-            _recreateImGuiFontTextureMethod ??= _ImGui.GetType().GetMethod(
-                "RecreateFontDeviceTexture",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
-            _recreateImGuiFontTextureMethod?.Invoke(_ImGui, null);
+            _ImGui?.RecreateFontDeviceTexture();
         }
 
         public void RequestImGuiFontPreset(ImGuiFontPreset preset)
@@ -568,7 +588,7 @@ namespace Mana.Code
             }
         }
 
-        void ConfigImStyle()
+        protected void ConfigImStyle()
         {
             ApplyLightImGuiTheme();
         }
@@ -713,7 +733,7 @@ namespace Mana.Code
         {
         }
 
-        private void DrawDockSpace()
+        protected void DrawDockSpace()
         {
             var viewport = ImGui.GetMainViewport();
             var dockspaceFlags = ImGuiDockNodeFlags.PassthruCentralNode;

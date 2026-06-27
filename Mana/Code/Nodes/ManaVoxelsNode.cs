@@ -573,7 +573,7 @@ namespace Mana.Code.Nodes
                     }
                 }
 
-                _mesh.VertexBufferObject?.UpdateDynamicData(
+                _mesh.OpenGlMesh?.UpdateDynamicData(
                     _positions,
                     _normals,
                     _colors);
@@ -716,7 +716,7 @@ namespace Mana.Code.Nodes
                 if (!_voxelsNode.IsLockPreviewEnabled)
                 {
                     ClearUnusedSlots(0);
-                    _mesh.VertexBufferObject?.UpdateDynamicData(_positions, _normals, _colors);
+                    _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
                     return;
                 }
 
@@ -729,7 +729,7 @@ namespace Mana.Code.Nodes
                 }
 
                 ClearUnusedSlots(previewCount);
-                _mesh.VertexBufferObject?.UpdateDynamicData(_positions, _normals, _colors);
+                _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 
             private void WritePreviewCube(int voxelIndex, ManaVoxelData voxel)

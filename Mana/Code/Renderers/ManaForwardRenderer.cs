@@ -1,4 +1,4 @@
-﻿using Silk.NET.OpenGL;
+using Silk.NET.OpenGL;
 
 namespace Mana.Code.Renderers
 {
@@ -15,7 +15,7 @@ namespace Mana.Code.Renderers
 
         public override void Clear()
         {
-            Context.gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            Context.RequireOpenGl().Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 
         public override void Render(Action drawScenes)

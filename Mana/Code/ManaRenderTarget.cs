@@ -1,4 +1,4 @@
-﻿using Silk.NET.OpenGL;
+using Silk.NET.OpenGL;
 
 namespace Mana
 {
@@ -169,7 +169,7 @@ namespace Mana
 
         public void Build()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
 
             FrameBufferID = gl.GenFramebuffer();
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
@@ -264,7 +264,7 @@ namespace Mana
 
         public void Clear()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
 
             Bind();
 
@@ -284,7 +284,7 @@ namespace Mana
 
         public void Bind(int index = 0, int mipIndex = 0)
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
   
             uint mipWidth = (uint)(Width * MathF.Pow(0.5f, mipIndex));
             uint mipHeight = (uint)(Height * MathF.Pow(0.5f, mipIndex));
@@ -319,7 +319,7 @@ namespace Mana
 
         public void UnBind()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
 
@@ -331,7 +331,7 @@ namespace Mana
 
         public void DrawFullScreenQuad()
         {
-            var gl = Context.gl;
+            var gl = Context.RequireOpenGl();
 
             if (QuadMaterial == null)
             {

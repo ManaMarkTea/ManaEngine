@@ -51,15 +51,42 @@
       "label": "run Mana WebGPU",
       "type": "process",
       "command": "dotnet",
-      "dependsOn": "build Mana",
+      "dependsOn": "build ManaGraphics",
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/Mana/Mana.csproj",
+        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
         "--",
         "--webgpu"
       ],
+      "options": {
+        "env": {
+          "MANA_WEBGPU_DEMO_MESH": "1"
+        }
+      },
       "problemMatcher": []
+    },
+    {
+      "label": "build ManaGraphics",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/ManaGraphics/ManaGraphics.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "build ManaGraphics (debug launch)",
+      "type": "process",
+      "command": "dotnet",
+      "dependsOn": "stop active Mana debug session",
+      "args": [
+        "build",
+        "${workspaceFolder}/ManaGraphics/ManaGraphics.csproj"
+      ],
+      "problemMatcher": "$msCompile"
     },
     {
       "label": "build ManaVoxel",
@@ -95,6 +122,11 @@
         "--",
         "--webgpu"
       ],
+      "options": {
+        "env": {
+          "MANA_WEBGPU_DEMO_MESH": "1"
+        }
+      },
       "problemMatcher": []
     },
     {

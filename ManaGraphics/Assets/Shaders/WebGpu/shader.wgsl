@@ -1,5 +1,6 @@
-﻿struct UniformBuffer {
-    mdlMat : mat4x4<f32>
+struct UniformBuffer {
+    mdlMat : mat4x4<f32>,
+    time : f32,
 };
 
 struct VOut {

@@ -13,10 +13,6 @@ namespace Mana.Code
             Instance = this;
         }
 
-
-
-        GameWebGpu? gameWebGpu;
-
         public override void Load()
         {
             base.Load();
@@ -123,11 +119,6 @@ namespace Mana.Code
         {            
             ImGui.SetNextWindowPos(new Vector2(this._Window.Size.X - 200, 15));
             ImGui.Begin("Mana");
-            if (ImGui.Button("WebGpu"))
-            {
-                gameWebGpu = new GameWebGpu();
-                gameWebGpu.RunAsync();
-            }
             ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
             ImGui.End();

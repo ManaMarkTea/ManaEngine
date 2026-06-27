@@ -118,7 +118,11 @@
 
             DynamicGeometryContainer.CreateFacesFromQuad(verts);
 
-            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            }
         }
 
     }

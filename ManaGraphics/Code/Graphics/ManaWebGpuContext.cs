@@ -1,0 +1,1335 @@
+using System.Runtime.InteropServices;
+using System.Numerics;
+using ManaGraphics.Code.Diagnostics;
+using ManaCore.Graphics;
+using SixLabors.ImageSharp.PixelFormats;
+using Silk.NET.Maths;
+using Silk.NET.WebGPU;
+using Silk.NET.WebGPU.Extensions.WGPU;
+using Silk.NET.Windowing;
+using Silk.NET.Input;
+using ImageSharpImage = SixLabors.ImageSharp.Image;
+
+namespace ManaGraphics.Code.Graphics
+{
+    public unsafe sealed class ManaWebGpuContext : IDisposable
+    {
+        private readonly WebGPU _api;
+        private readonly IWindow _window;
+        private readonly Func<ManaRenderScene>? _renderSceneProvider;
+        private readonly RequestAdapterCallback _requestAdapterCallback;
+        private readonly RequestDeviceCallback _requestDeviceCallback;
+        private readonly ErrorCallback _errorCallback;
+
+        private Instance* _instance;
+        private Surface* _surface;
+        private Adapter* _adapter;
+        private Device* _device;
+        private Queue* _queue;
+        private Texture* _depthTexture;
+        private TextureView* _depthTextureView;
+        private TextureFormat _surfaceFormat;
+        private readonly TextureFormat _depthFormat = TextureFormat.Depth24Plus;
+        private Vector2D<int> _framebufferSize;
+        private readonly DateTime _startTime = DateTime.UtcNow;
+        private bool _configured;
+        private readonly List<ManaWebGpuSceneMesh> _sceneMeshes = new();
+        private ManaRenderScene? _activeRenderScene;
+        private Vector3 _demoMeshCenter;
+        private float _demoMeshScale = 1.0f;
+        private BindGroupLayout* _demoBindGroupLayout;
+        private PipelineLayout* _demoPipelineLayout;
+        private Sampler* _demoSampler;
+        private readonly Dictionary<string, nint> _shaderModules = new();
+        private readonly Dictionary<string, nint> _pipelines = new();
+        private ManaWebGpuImGuiController? _imGuiController;
+
+        public ManaWebGpuContext(IWindow window, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
+        {
+            _window = window;
+            _renderSceneProvider = renderSceneProvider;
+            ManaConsole.WriteDiagnostic("Creating Silk WebGPU API.");
+            _api = WebGPU.GetApi();
+            _requestAdapterCallback = OnRequestAdapter;
+            _requestDeviceCallback = OnRequestDevice;
+            _errorCallback = OnError;
+
+            ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
+            var instanceBackend = ParseInstanceBackend(requestedBackend);
+            var instanceExtras = new InstanceExtras
+            {
+                Chain = new ChainedStruct
+                {
+                    SType = (SType)NativeSType.STypeInstanceExtras
+                },
+                Backends = instanceBackend
+            };
+
+            var instanceDescriptor = new InstanceDescriptor
+            {
+                NextInChain = &instanceExtras.Chain
+            };
+
+            _instance = _api.CreateInstance(&instanceDescriptor);
+            if (_instance == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU instance.");
+            }
+
+            ManaConsole.WriteDiagnostic("Creating WebGPU surface.");
+            _surface = WebGPUSurface.CreateWebGPUSurface(window, _api, _instance);
+            if (_surface == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU surface.");
+            }
+
+            ManaConsole.WriteDiagnostic("Requesting WebGPU adapter.");
+            RequestAdapter(requestedBackend);
+            ManaConsole.WriteDiagnostic("Requesting WebGPU device.");
+            RequestDevice();
+
+            ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
+            _queue = _api.DeviceGetQueue(_device);
+            _api.DeviceSetUncapturedErrorCallback(_device, _errorCallback, null);
+            _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
+            ConfigureSurface(window.FramebufferSize);
+            if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
+            {
+                if (CanCreateDemoMeshPipeline(requestedBackend))
+                {
+                    try
+                    {
+                        CreateDemoMeshPipeline();
+                    }
+                    catch (Exception ex)
+                    {
+                        ManaConsole.WriteDiagnostic("WebGPU mesh pipeline failed; continuing with clear-only renderer.");
+                        ManaConsole.WriteDiagnostic(ex);
+                        ReleaseDemoResources();
+                    }
+                }
+                else
+                {
+                    ManaConsole.WriteDiagnostic("WebGPU mesh pipeline disabled on this backend. On Windows, the default backend is now Vulkan; explicit DX11/DX12 requests still keep the mesh pipeline off while those paths remain unstable.");
+                }
+            }
+            else
+            {
+                ManaConsole.WriteDiagnostic("WebGPU mesh pipeline disabled. Set MANA_WEBGPU_DEMO_MESH=1 to test the fallback demo pipeline on the current backend.");
+            }
+            ManaConsole.WriteDiagnostic($"WebGPU surface configured: {window.FramebufferSize.X}x{window.FramebufferSize.Y}, format={_surfaceFormat}.");
+        }
+
+        public void Resize(Vector2D<int> framebufferSize)
+        {
+            ConfigureSurface(framebufferSize);
+        }
+
+        public IManaImGuiController CreateImGuiController(IInputContext input)
+        {
+            _imGuiController = new ManaWebGpuImGuiController(_api, _device, _queue, _surfaceFormat, _window, input);
+            return _imGuiController;
+        }
+
+        public void ClearFrame(Color clearColor)
+        {
+            if (!_configured)
+            {
+                return;
+            }
+
+            var surfaceTexture = new SurfaceTexture();
+            _api.SurfaceGetCurrentTexture(_surface, &surfaceTexture);
+            if (surfaceTexture.Status != SurfaceGetCurrentTextureStatus.Success || surfaceTexture.Texture == null)
+            {
+                return;
+            }
+
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = _surfaceFormat,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+
+            var textureView = _api.TextureCreateView(surfaceTexture.Texture, &viewDescriptor);
+            var colorAttachment = new RenderPassColorAttachment
+            {
+                View = textureView,
+                LoadOp = LoadOp.Clear,
+                StoreOp = StoreOp.Store,
+                ClearValue = clearColor
+            };
+
+            var depthStencilAttachment = new RenderPassDepthStencilAttachment
+            {
+                View = _depthTextureView,
+                DepthLoadOp = LoadOp.Clear,
+                DepthStoreOp = StoreOp.Store,
+                DepthClearValue = 1.0f,
+                DepthReadOnly = false,
+                StencilLoadOp = LoadOp.Undefined,
+                StencilStoreOp = StoreOp.Undefined,
+                StencilClearValue = 0,
+                StencilReadOnly = true
+            };
+
+            var renderPassDescriptor = new RenderPassDescriptor
+            {
+                ColorAttachmentCount = 1,
+                ColorAttachments = &colorAttachment,
+                DepthStencilAttachment = &depthStencilAttachment
+            };
+
+            var commandEncoderDescriptor = new CommandEncoderDescriptor();
+            var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+            var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+            DrawDemoMesh(renderPass);
+            _imGuiController?.Render(renderPass);
+            _api.RenderPassEncoderEnd(renderPass);
+
+            var commandBufferDescriptor = new CommandBufferDescriptor();
+            var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+            _api.QueueSubmit(_queue, 1, &commandBuffer);
+            _api.SurfacePresent(_surface);
+
+            _api.CommandBufferRelease(commandBuffer);
+            _api.CommandEncoderRelease(commandEncoder);
+            _api.RenderPassEncoderRelease(renderPass);
+            _api.TextureViewRelease(textureView);
+        }
+
+        public void Dispose()
+        {
+            ReleaseDemoResources();
+
+            if (_surface != null && _configured)
+            {
+                _api.SurfaceUnconfigure(_surface);
+                _configured = false;
+            }
+
+            ReleaseDepthResources();
+
+            if (_queue != null)
+            {
+                _api.QueueRelease(_queue);
+                _queue = null;
+            }
+
+            if (_device != null)
+            {
+                _api.DeviceRelease(_device);
+                _device = null;
+            }
+
+            if (_adapter != null)
+            {
+                _api.AdapterRelease(_adapter);
+                _adapter = null;
+            }
+
+            if (_surface != null)
+            {
+                _api.SurfaceRelease(_surface);
+                _surface = null;
+            }
+
+            if (_instance != null)
+            {
+                _api.InstanceRelease(_instance);
+                _instance = null;
+            }
+        }
+
+        private void ReleaseDemoResources()
+        {
+            foreach (var entry in _pipelines)
+            {
+                if (entry.Value != 0)
+                {
+                    _api.RenderPipelineRelease((RenderPipeline*)entry.Value);
+                }
+            }
+            _pipelines.Clear();
+
+            if (_demoPipelineLayout != null)
+            {
+                _api.PipelineLayoutRelease(_demoPipelineLayout);
+                _demoPipelineLayout = null;
+            }
+
+            if (_demoSampler != null)
+            {
+                _api.SamplerRelease(_demoSampler);
+                _demoSampler = null;
+            }
+
+            if (_demoBindGroupLayout != null)
+            {
+                _api.BindGroupLayoutRelease(_demoBindGroupLayout);
+                _demoBindGroupLayout = null;
+            }
+
+            ReleaseSceneMeshes();
+
+            foreach (var entry in _shaderModules)
+            {
+                if (entry.Value != 0)
+                {
+                    _api.ShaderModuleRelease((ShaderModule*)entry.Value);
+                }
+            }
+            _shaderModules.Clear();
+        }
+
+        private void ConfigureSurface(Vector2D<int> framebufferSize)
+        {
+            if (_device == null || _surface == null || framebufferSize.X <= 0 || framebufferSize.Y <= 0)
+            {
+                return;
+            }
+
+            if (_configured)
+            {
+                _api.SurfaceUnconfigure(_surface);
+            }
+
+            var configuration = new SurfaceConfiguration
+            {
+                Device = _device,
+                Format = _surfaceFormat,
+                Usage = TextureUsage.RenderAttachment,
+                Width = (uint)framebufferSize.X,
+                Height = (uint)framebufferSize.Y,
+                PresentMode = PresentMode.Fifo,
+                AlphaMode = CompositeAlphaMode.Auto
+            };
+
+            _api.SurfaceConfigure(_surface, &configuration);
+            _framebufferSize = framebufferSize;
+            CreateDepthResources(framebufferSize);
+            _configured = true;
+        }
+
+        private void ReleaseDepthResources()
+        {
+            if (_depthTextureView != null)
+            {
+                _api.TextureViewRelease(_depthTextureView);
+                _depthTextureView = null;
+            }
+
+            if (_depthTexture != null)
+            {
+                _api.TextureRelease(_depthTexture);
+                _depthTexture = null;
+            }
+        }
+
+        private void CreateDepthResources(Vector2D<int> framebufferSize)
+        {
+            ReleaseDepthResources();
+
+            var depthTextureDescriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.RenderAttachment,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D
+                {
+                    Width = (uint)framebufferSize.X,
+                    Height = (uint)framebufferSize.Y,
+                    DepthOrArrayLayers = 1
+                },
+                Format = _depthFormat,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+
+            _depthTexture = _api.DeviceCreateTexture(_device, &depthTextureDescriptor);
+            if (_depthTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU depth texture.");
+            }
+
+            var depthTextureViewDescriptor = new TextureViewDescriptor
+            {
+                Format = _depthFormat,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.DepthOnly
+            };
+
+            _depthTextureView = _api.TextureCreateView(_depthTexture, &depthTextureViewDescriptor);
+            if (_depthTextureView == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU depth texture view.");
+            }
+        }
+
+        private void CreateDemoMeshPipeline()
+        {
+            ManaConsole.WriteDiagnostic("Creating WebGPU mesh pipeline.");
+
+            var renderScene = _renderSceneProvider?.Invoke() ?? CreateDemoRenderScene();
+            if (renderScene.Meshes.Count == 0)
+            {
+                throw new InvalidOperationException("WebGPU render scene did not contain any mesh instances.");
+            }
+
+            _activeRenderScene = renderScene;
+            CreateSharedPipelineLayouts();
+            
+            // Pre-compile default pipeline
+            GetOrCreatePipeline("ManaPbrShader");
+            
+            ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
+            UploadSceneMeshes(renderScene);
+        }
+
+        private static ManaRenderScene CreateDemoRenderScene()
+        {
+            var meshData = CreateDemoMeshData();
+            var worldTransform = CreateNormalizedWorldTransform(meshData);
+
+            return new ManaRenderScene
+            {
+                Camera = new ManaCameraData(
+                    Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.55f, 4.25f), new Vector3(0.0f, 0.1f, 0.0f), Vector3.UnitY),
+                    Matrix4x4.CreatePerspectiveFieldOfView(DegreesToRadians(55.0f), 16.0f / 9.0f, 0.05f, 100.0f),
+                    new Vector3(0.0f, 0.55f, 4.25f),
+                    0.05f,
+                    100.0f),
+                Meshes = new[]
+                {
+                    new ManaRenderMeshInstance
+                    {
+                        Name = "WebGPU Core Demo Cube",
+                        MeshData = meshData,
+                        WorldTransform = worldTransform
+                    }
+                }
+            };
+        }
+
+        private static ManaMeshCpuData CreateDemoMeshData()
+        {
+            var positions = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var colors = new List<Vector4>();
+            var texCoords = new List<Vector2>();
+            var indexes = new List<uint>();
+
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, 0, 1), new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector4(0.12f, 0.95f, 1.0f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, 0, -1), new Vector3(-1, 0, 0), new Vector3(0, 1, 0), new Vector4(0.25f, 0.55f, 1.0f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(1, 0, 0), new Vector3(0, 0, -1), new Vector3(0, 1, 0), new Vector4(0.95f, 0.35f, 0.22f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(-1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector4(0.95f, 0.8f, 0.22f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, 1, 0), new Vector3(1, 0, 0), new Vector3(0, 0, -1), new Vector4(0.65f, 1.0f, 0.3f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, -1, 0), new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector4(0.9f, 0.45f, 1.0f, 1.0f));
+
+            return new ManaMeshCpuData
+            {
+                Positions = positions.ToArray(),
+                Normals = normals.ToArray(),
+                Colors = colors.ToArray(),
+                TextureCoordinates0 = texCoords.ToArray(),
+                TextureCoordinates1 = Array.Empty<Vector2>(),
+                Indexes = indexes.ToArray(),
+                AlbedoFactor = Vector4.One,
+                AlbedoTexturePath = null
+            };
+        }
+
+        private static void AddCubeFace(
+            List<Vector3> positions,
+            List<Vector3> normals,
+            List<Vector4> colors,
+            List<Vector2> texCoords,
+            List<uint> indexes,
+            Vector3 normal,
+            Vector3 tangent,
+            Vector3 bitangent,
+            Vector4 color)
+        {
+            var start = (uint)positions.Count;
+            var center = normal * 0.5f;
+            var halfTangent = tangent * 0.5f;
+            var halfBitangent = bitangent * 0.5f;
+
+            positions.Add(center - halfTangent - halfBitangent);
+            positions.Add(center + halfTangent - halfBitangent);
+            positions.Add(center + halfTangent + halfBitangent);
+            positions.Add(center - halfTangent + halfBitangent);
+
+            for (var i = 0; i < 4; i++)
+            {
+                normals.Add(normal);
+                colors.Add(color);
+            }
+
+            texCoords.Add(new Vector2(0, 1));
+            texCoords.Add(new Vector2(1, 1));
+            texCoords.Add(new Vector2(1, 0));
+            texCoords.Add(new Vector2(0, 0));
+
+            indexes.Add(start);
+            indexes.Add(start + 1);
+            indexes.Add(start + 2);
+            indexes.Add(start);
+            indexes.Add(start + 2);
+            indexes.Add(start + 3);
+        }
+
+        private static string ResolveAssetPath(string relativePath)
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, relativePath),
+                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
+                Path.Combine(AppContext.BaseDirectory, relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            throw new FileNotFoundException($"Could not locate asset file '{relativePath}'.");
+        }
+
+        private void DrawDemoMesh(RenderPassEncoder* renderPass)
+        {
+            if (_sceneMeshes.Count == 0)
+            {
+                return;
+            }
+
+            RefreshRenderScene();
+
+            foreach (var sceneMesh in _sceneMeshes)
+            {
+                UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
+                
+                var pipeline = GetOrCreatePipeline(sceneMesh.Instance.ShaderName);
+                if (pipeline != null)
+                {
+                    _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+                }
+
+                if (sceneMesh.BindGroup != null)
+                {
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+                }
+                sceneMesh.Mesh.Draw(renderPass);
+            }
+        }
+
+        private RenderPipeline* CreateDemoRenderPipeline(ShaderModule* shaderModule)
+        {
+            nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
+            nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
+
+            try
+            {
+                var vertexAttributes = stackalloc VertexAttribute[3];
+                vertexAttributes[0] = new VertexAttribute
+                {
+                    Format = VertexFormat.Float32x3,
+                    Offset = 0,
+                    ShaderLocation = 0
+                };
+                vertexAttributes[1] = new VertexAttribute
+                {
+                    Format = VertexFormat.Float32x4,
+                    Offset = (ulong)sizeof(Vector3),
+                    ShaderLocation = 1
+                };
+                vertexAttributes[2] = new VertexAttribute
+                {
+                    Format = VertexFormat.Float32x2,
+                    Offset = (ulong)(sizeof(float) * (3 + 4)),
+                    ShaderLocation = 2
+                };
+
+                var vertexBufferLayout = new VertexBufferLayout
+                {
+                    ArrayStride = ManaWebGpuMesh.VertexStride,
+                    StepMode = VertexStepMode.Vertex,
+                    AttributeCount = 3,
+                    Attributes = vertexAttributes
+                };
+
+                var vertexState = new VertexState
+                {
+                    Module = shaderModule,
+                    EntryPoint = (byte*)vertexEntryPoint,
+                    BufferCount = 1,
+                    Buffers = &vertexBufferLayout
+                };
+
+                var blendState = new BlendState
+                {
+                    Color = new BlendComponent
+                    {
+                        Operation = BlendOperation.Add,
+                        SrcFactor = BlendFactor.One,
+                        DstFactor = BlendFactor.Zero
+                    },
+                    Alpha = new BlendComponent
+                    {
+                        Operation = BlendOperation.Add,
+                        SrcFactor = BlendFactor.One,
+                        DstFactor = BlendFactor.Zero
+                    }
+                };
+
+                var colorTarget = new ColorTargetState
+                {
+                    Format = _surfaceFormat,
+                    Blend = &blendState,
+                    WriteMask = ColorWriteMask.All
+                };
+
+                var fragmentState = new FragmentState
+                {
+                    Module = shaderModule,
+                    EntryPoint = (byte*)fragmentEntryPoint,
+                    TargetCount = 1,
+                    Targets = &colorTarget
+                };
+
+                var depthStencilState = new DepthStencilState
+                {
+                    Format = _depthFormat,
+                    DepthWriteEnabled = true,
+                    DepthCompare = CompareFunction.Less,
+                    StencilFront = new StencilFaceState
+                    {
+                        Compare = CompareFunction.Always,
+                        FailOp = StencilOperation.Keep,
+                        DepthFailOp = StencilOperation.Keep,
+                        PassOp = StencilOperation.Keep
+                    },
+                    StencilBack = new StencilFaceState
+                    {
+                        Compare = CompareFunction.Always,
+                        FailOp = StencilOperation.Keep,
+                        DepthFailOp = StencilOperation.Keep,
+                        PassOp = StencilOperation.Keep
+                    },
+                    StencilReadMask = uint.MaxValue,
+                    StencilWriteMask = uint.MaxValue,
+                    DepthBias = 0,
+                    DepthBiasSlopeScale = 0,
+                    DepthBiasClamp = 0
+                };
+
+                var pipelineDescriptor = new RenderPipelineDescriptor
+                {
+                    Layout = _demoPipelineLayout,
+                    Vertex = vertexState,
+                    Primitive = new PrimitiveState
+                    {
+                        Topology = PrimitiveTopology.TriangleList,
+                        StripIndexFormat = IndexFormat.Undefined,
+                        FrontFace = FrontFace.Ccw,
+                        CullMode = CullMode.None
+                    },
+                    Multisample = new MultisampleState
+                    {
+                        Count = 1,
+                        Mask = uint.MaxValue
+                    },
+                    DepthStencil = &depthStencilState,
+                    Fragment = &fragmentState
+                };
+
+                ManaConsole.WriteDiagnostic("Creating WebGPU render pipeline object.");
+                var pipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDescriptor);
+                if (pipeline == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU mesh render pipeline.");
+                }
+
+                ManaConsole.WriteDiagnostic("WebGPU render pipeline object created.");
+
+                return pipeline;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(vertexEntryPoint);
+                Marshal.FreeCoTaskMem(fragmentEntryPoint);
+            }
+        }
+
+        private void UpdateDemoMeshBounds(ManaMeshCpuData cpuData)
+        {
+            if (cpuData.Positions.Length == 0)
+            {
+                _demoMeshCenter = Vector3.Zero;
+                _demoMeshScale = 1.0f;
+                return;
+            }
+
+            var min = cpuData.Positions[0];
+            var max = cpuData.Positions[0];
+            foreach (var position in cpuData.Positions)
+            {
+                min = Vector3.Min(min, position);
+                max = Vector3.Max(max, position);
+            }
+
+            _demoMeshCenter = (min + max) * 0.5f;
+            var extents = max - min;
+            var maxExtent = MathF.Max(extents.X, MathF.Max(extents.Y, extents.Z));
+            _demoMeshScale = maxExtent <= 0.0001f ? 1.0f : 2.0f / maxExtent;
+        }
+
+        private void UploadSceneMeshes(ManaRenderScene renderScene)
+        {
+            ReleaseSceneMeshes();
+
+            var renderableMeshes = GetRenderableMeshes(renderScene);
+            for (var i = 0; i < renderableMeshes.Count; i++)
+            {
+                var instance = renderableMeshes[i];
+                var meshData = instance.MeshData;
+
+                var mesh = ManaWebGpuMesh.CreateFromMeshData(_api, _device, _queue, meshData, instance.Name);
+
+                var bufferDescriptor = new BufferDescriptor
+                {
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                    Size = (ulong)sizeof(ManaWebGpuTransformUniform)
+                };
+                var uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
+                if (uniformBuffer == null)
+                {
+                    mesh.Dispose();
+                    throw new InvalidOperationException($"Failed to create WebGPU uniform buffer for mesh '{instance.Name}'.");
+                }
+
+                CreateMeshTexture(meshData, out var texture, out var textureView);
+
+                var bindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 0,
+                    Buffer = uniformBuffer,
+                    Offset = 0,
+                    Size = (ulong)sizeof(ManaWebGpuTransformUniform)
+                };
+
+                var samplerBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 1,
+                    Sampler = _demoSampler
+                };
+
+                var textureBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 2,
+                    TextureView = textureView
+                };
+
+                var bindGroupEntries = new BindGroupEntry[3];
+                bindGroupEntries[0] = bindGroupEntry;
+                bindGroupEntries[1] = samplerBindGroupEntry;
+                bindGroupEntries[2] = textureBindGroupEntry;
+
+                BindGroup* bindGroup = null;
+                fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
+                {
+                    var bindGroupDescriptor = new BindGroupDescriptor
+                    {
+                        Layout = _demoBindGroupLayout,
+                        EntryCount = 3,
+                        Entries = bindGroupEntriesPointer
+                    };
+                    bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
+                }
+                if (bindGroup == null)
+                {
+                    if (textureView != null) _api.TextureViewRelease(textureView);
+                    if (texture != null) _api.TextureRelease(texture);
+                    _api.BufferRelease(uniformBuffer);
+                    mesh.Dispose();
+                    throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
+                }
+
+                var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, texture, textureView, bindGroup);
+                _sceneMeshes.Add(sceneMesh);
+
+                UpdateDemoUniforms(instance, uniformBuffer);
+
+                ManaConsole.WriteDiagnostic($"WebGPU scene mesh uploaded: {instance.WorldTransform.Translation.ToString()}: {meshData.Positions.Length} vertices, {meshData.Indexes.Length} indexes from render packet '{instance.Name}'.");
+            }
+
+            if (renderableMeshes.Count > 4)
+            {
+                var instance = renderableMeshes[3];
+                var meshData = instance.MeshData;
+                ManaConsole.WriteDiagnostic($"WebGPU scene mesh uploaded: {instance.WorldTransform.Translation.ToString()}: {meshData.Positions.Length} vertices, {meshData.Indexes.Length} indexes from render packet '{instance.Name}'.");
+            }                        
+
+            var totalIndexes = _sceneMeshes.Sum(mesh => mesh.Mesh.IndexCount);
+            ManaConsole.WriteDiagnostic($"WebGPU scene upload complete: meshes={_sceneMeshes.Count}, indexes={totalIndexes}.");
+        }
+
+        private void ReleaseSceneMeshes()
+        {
+            foreach (var sceneMesh in _sceneMeshes)
+            {
+                sceneMesh.Dispose();
+            }
+
+            _sceneMeshes.Clear();
+        }
+
+        private void RefreshRenderScene()
+        {
+            var renderScene = _renderSceneProvider?.Invoke();
+            if (renderScene == null)
+            {
+                return;
+            }
+
+            var renderableMeshes = GetRenderableMeshes(renderScene);
+            _activeRenderScene = renderScene;
+            if (!CanReuseSceneMeshes(renderableMeshes))
+            {
+                UploadSceneMeshes(renderScene);
+                return;
+            }
+
+            for (var i = 0; i < _sceneMeshes.Count; i++)
+            {
+                _sceneMeshes[i].Instance = renderableMeshes[i];
+            }
+        }
+
+        private bool CanReuseSceneMeshes(IReadOnlyList<ManaRenderMeshInstance> renderableMeshes)
+        {
+            if (renderableMeshes.Count != _sceneMeshes.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < _sceneMeshes.Count; i++)
+            {
+                var current = _sceneMeshes[i].Instance;
+                var incoming = renderableMeshes[i];
+                if (current.MeshData.Indexes.Length != incoming.MeshData.Indexes.Length ||
+                    current.MeshData.Positions.Length != incoming.MeshData.Positions.Length ||
+                    !string.Equals(current.Name, incoming.Name, StringComparison.Ordinal) ||
+                    !ReferenceEquals(current.MeshData, incoming.MeshData))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static List<ManaRenderMeshInstance> GetRenderableMeshes(ManaRenderScene renderScene)
+        {
+            return renderScene.Meshes
+                .Where(instance => instance.MeshData.Positions.Length > 0 && instance.MeshData.Indexes.Length > 0)
+                .ToList();
+        }
+
+        private void CreateSharedPipelineLayouts()
+        {
+            var samplerDescriptor = new SamplerDescriptor
+            {
+                AddressModeU = AddressMode.Repeat,
+                AddressModeV = AddressMode.Repeat,
+                AddressModeW = AddressMode.Repeat,
+                MagFilter = FilterMode.Linear,
+                MinFilter = FilterMode.Linear,
+                MipmapFilter = MipmapFilterMode.Linear,
+                LodMinClamp = 0,
+                LodMaxClamp = 1,
+                Compare = CompareFunction.Undefined,
+                MaxAnisotropy = 1
+            };
+            _demoSampler = _api.DeviceCreateSampler(_device, &samplerDescriptor);
+            if (_demoSampler == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU demo sampler.");
+            }
+
+            var bindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 0,
+                Visibility = ShaderStage.Vertex | ShaderStage.Fragment,
+                Buffer = new BufferBindingLayout
+                {
+                    Type = BufferBindingType.Uniform,
+                    HasDynamicOffset = false,
+                    MinBindingSize = (ulong)sizeof(ManaWebGpuTransformUniform)
+                }
+            };
+
+            var samplerBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 1,
+                Visibility = ShaderStage.Fragment,
+                Sampler = new SamplerBindingLayout
+                {
+                    Type = SamplerBindingType.Filtering
+                }
+            };
+
+            var textureBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 2,
+                Visibility = ShaderStage.Fragment,
+                Texture = new TextureBindingLayout
+                {
+                    SampleType = TextureSampleType.Float,
+                    ViewDimension = TextureViewDimension.Dimension2D,
+                    Multisampled = false
+                }
+            };
+
+            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[3];
+            bindGroupLayoutEntries[0] = bindGroupLayoutEntry;
+            bindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
+            bindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
+
+            var bindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
+            {
+                EntryCount = 3,
+                Entries = bindGroupLayoutEntries
+            };
+            _demoBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
+            if (_demoBindGroupLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU demo bind group layout.");
+            }
+
+            var bindGroupLayoutPointer = _demoBindGroupLayout;
+            var pipelineLayoutDescriptor = new PipelineLayoutDescriptor
+            {
+                BindGroupLayoutCount = 1,
+                BindGroupLayouts = &bindGroupLayoutPointer
+            };
+            _demoPipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
+            if (_demoPipelineLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU demo pipeline layout.");
+            }
+        }
+
+        private void CreateMeshTexture(ManaMeshCpuData cpuData, out Texture* meshTexture, out TextureView* meshTextureView)
+        {
+            byte[] pixels;
+            uint width;
+            uint height;
+
+            if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
+            {
+                using var image = ImageSharpImage.Load<Rgba32>(cpuData.AlbedoTexturePath);
+                width = (uint)image.Width;
+                height = (uint)image.Height;
+                pixels = new byte[image.Width * image.Height * 4];
+                image.CopyPixelDataTo(pixels);
+                ManaConsole.WriteDiagnostic($"WebGPU mesh texture loaded: {cpuData.AlbedoTexturePath}");
+            }
+            else
+            {
+                var color = cpuData.AlbedoFactor ?? new Vector4(1, 1, 1, 1);
+                width = 1;
+                height = 1;
+                pixels = new[]
+                {
+                    (byte)(Math.Clamp(color.X, 0.0f, 1.0f) * 255.0f),
+                    (byte)(Math.Clamp(color.Y, 0.0f, 1.0f) * 255.0f),
+                    (byte)(Math.Clamp(color.Z, 0.0f, 1.0f) * 255.0f),
+                    (byte)(Math.Clamp(color.W, 0.0f, 1.0f) * 255.0f)
+                };
+                ManaConsole.WriteDiagnostic("WebGPU mesh texture fallback: solid albedo color.");
+            }
+
+            var textureDescriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
+                Format = TextureFormat.Rgba8Unorm,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+            meshTexture = _api.DeviceCreateTexture(_device, &textureDescriptor);
+            if (meshTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU mesh texture.");
+            }
+
+            fixed (byte* pixelPointer = pixels)
+            {
+                var destination = new ImageCopyTexture
+                {
+                    Texture = meshTexture,
+                    MipLevel = 0,
+                    Origin = new Origin3D(),
+                    Aspect = TextureAspect.All
+                };
+                var dataLayout = new TextureDataLayout
+                {
+                    Offset = 0,
+                    BytesPerRow = width * 4,
+                    RowsPerImage = height
+                };
+                var writeSize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
+                _api.QueueWriteTexture(_queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
+            }
+
+            var textureViewDescriptor = new TextureViewDescriptor
+            {
+                Format = TextureFormat.Rgba8Unorm,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+            meshTextureView = _api.TextureCreateView(meshTexture, &textureViewDescriptor);
+            if (meshTextureView == null)
+            {
+                _api.TextureRelease(meshTexture);
+                meshTexture = null;
+                throw new InvalidOperationException("Failed to create WebGPU mesh texture view.");
+            }
+        }
+
+        private void UpdateDemoUniforms(ManaRenderMeshInstance meshInstance, Silk.NET.WebGPU.Buffer* uniformBuffer)
+        {
+            if (uniformBuffer == null || _activeRenderScene == null)
+            {
+                return;
+            }
+
+            var model = meshInstance.WorldTransform;
+            var view = _activeRenderScene.Camera.View;
+            var projection = GetAspectCorrectedProjection(_activeRenderScene.Camera);
+            var modelProjection = model * view * projection;
+            var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+            
+            var uniform = new ManaWebGpuTransformUniform
+            {
+                ModelProjection = modelProjection,
+                Time = elapsedSeconds
+            };
+
+            _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuTransformUniform));
+        }
+
+        private RenderPipeline* GetOrCreatePipeline(string? shaderName)
+        {
+            shaderName ??= "ManaPbrShader";
+            
+            if (_pipelines.TryGetValue(shaderName, out var cachedPipeline))
+            {
+                return (RenderPipeline*)cachedPipeline;
+            }
+
+            string shaderFile = shaderName switch
+            {
+                "ManaLightningBallShader" => "lightning_ball.wgsl",
+                "ManaLiquidBallShader" => "liquid_ball.wgsl",
+                "ManaLiquidShader" => "liquid.wgsl",
+                "ManaGridShader" => "grid.wgsl",
+                _ => "colored_mesh.wgsl"
+            };
+
+            var shaderPath = Path.Combine("Assets", "Shaders", "WebGpu", shaderFile);
+            
+            ShaderModule* shaderModule = null;
+            try
+            {
+                shaderModule = CreateShaderModule(shaderPath);
+            }
+            catch (Exception ex)
+            {
+                ManaConsole.WriteDiagnostic($"Failed to load WGSL shader '{shaderPath}', falling back to default colored_mesh.wgsl. Error: {ex.Message}");
+                shaderFile = "colored_mesh.wgsl";
+                shaderPath = Path.Combine("Assets", "Shaders", "WebGpu", shaderFile);
+                shaderModule = CreateShaderModule(shaderPath);
+            }
+
+            _shaderModules[shaderName] = (nint)shaderModule;
+            var pipeline = CreateDemoRenderPipeline(shaderModule);
+            _pipelines[shaderName] = (nint)pipeline;
+
+            ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
+            return pipeline;
+        }
+
+        private ShaderModule* CreateShaderModule(string relativePath)
+        {
+            var path = ResolveAssetPath(relativePath);
+            var source = File.ReadAllText(path);
+            nint sourcePointer = Marshal.StringToCoTaskMemUTF8(source);
+
+            try
+            {
+                var wgslDescriptor = new ShaderModuleWGSLDescriptor
+                {
+                    Chain = new ChainedStruct
+                    {
+                        SType = SType.ShaderModuleWgslDescriptor
+                    },
+                    Code = (byte*)sourcePointer
+                };
+
+                var shaderDescriptor = new ShaderModuleDescriptor
+                {
+                    NextInChain = &wgslDescriptor.Chain
+                };
+
+                var shaderModule = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+                if (shaderModule == null)
+                {
+                    throw new InvalidOperationException($"Failed to create WebGPU shader module from {path}.");
+                }
+
+                return shaderModule;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(sourcePointer);
+            }
+        }
+
+        private static float DegreesToRadians(float degrees)
+        {
+            return degrees * MathF.PI / 180.0f;
+        }
+
+        private Matrix4x4 GetAspectCorrectedProjection(ManaCameraData camera)
+        {
+            if (_framebufferSize.Y <= 0)
+            {
+                return camera.Projection;
+            }
+
+            return camera.Projection;
+        }
+
+        private static Matrix4x4 CreateNormalizedWorldTransform(ManaMeshCpuData meshData)
+        {
+            if (meshData.Positions.Length == 0)
+            {
+                return Matrix4x4.Identity;
+            }
+
+            var min = meshData.Positions[0];
+            var max = meshData.Positions[0];
+            foreach (var position in meshData.Positions)
+            {
+                min = Vector3.Min(min, position);
+                max = Vector3.Max(max, position);
+            }
+
+            var center = (min + max) * 0.5f;
+            var extents = max - min;
+            var maxExtent = MathF.Max(extents.X, MathF.Max(extents.Y, extents.Z));
+            var scale = maxExtent <= 0.0001f ? 1.0f : 2.0f / maxExtent;
+            return Matrix4x4.CreateTranslation(-center) * Matrix4x4.CreateScale(scale);
+        }
+
+        private sealed class ManaWebGpuSceneMesh : IDisposable
+        {
+            private readonly WebGPU _api;
+
+            public ManaWebGpuSceneMesh(WebGPU api, ManaRenderMeshInstance instance, ManaWebGpuMesh mesh, Silk.NET.WebGPU.Buffer* uniformBuffer, Texture* texture, TextureView* textureView, BindGroup* bindGroup)
+            {
+                _api = api;
+                Instance = instance;
+                Mesh = mesh;
+                UniformBuffer = uniformBuffer;
+                Texture = texture;
+                TextureView = textureView;
+                BindGroup = bindGroup;
+            }
+
+            public ManaRenderMeshInstance Instance { get; set; }
+            public ManaWebGpuMesh Mesh { get; }
+            public Silk.NET.WebGPU.Buffer* UniformBuffer { get; }
+            public Texture* Texture { get; }
+            public TextureView* TextureView { get; }
+            public BindGroup* BindGroup { get; }
+
+            public void Dispose()
+            {
+                Mesh.Dispose();
+
+                if (BindGroup != null)
+                {
+                    _api.BindGroupRelease(BindGroup);
+                }
+                if (TextureView != null)
+                {
+                    _api.TextureViewRelease(TextureView);
+                }
+                if (Texture != null)
+                {
+                    _api.TextureRelease(Texture);
+                }
+                if (UniformBuffer != null)
+                {
+                    _api.BufferRelease(UniformBuffer);
+                }
+            }
+        }
+
+        private static ManaRenderMeshInstance SelectPrimaryMesh(ManaRenderScene renderScene)
+        {
+            var startupVoxels = renderScene.Meshes.FirstOrDefault(mesh =>
+                mesh.Name.Contains("Startup Voxels", StringComparison.OrdinalIgnoreCase) ||
+                mesh.Name.Contains("Voxel", StringComparison.OrdinalIgnoreCase));
+
+            if (startupVoxels != null)
+            {
+                return startupVoxels;
+            }
+
+            return renderScene.Meshes
+                .OrderByDescending(mesh => mesh.MeshData.Indexes.Length)
+                .First();
+        }
+
+        private void RequestAdapter(string? requestedBackend)
+        {
+            var options = new RequestAdapterOptions
+            {
+                CompatibleSurface = _surface,
+                PowerPreference = PowerPreference.HighPerformance
+            };
+
+            _api.InstanceRequestAdapter(_instance, &options, _requestAdapterCallback, null);
+            if (_adapter == null)
+            {
+                throw new InvalidOperationException("Failed to request WebGPU adapter.");
+            }
+        }
+
+        private void RequestDevice()
+        {
+            var descriptor = new DeviceDescriptor();
+            _api.AdapterRequestDevice(_adapter, &descriptor, _requestDeviceCallback, null);
+            if (_device == null)
+            {
+                throw new InvalidOperationException("Failed to request WebGPU device.");
+            }
+        }
+
+        private void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
+        {
+            if (status == RequestAdapterStatus.Success)
+            {
+                _adapter = adapter;
+                return;
+            }
+
+            throw new InvalidOperationException($"WebGPU adapter request failed: {status} {ReadMessage(message)}");
+        }
+
+        private void OnRequestDevice(RequestDeviceStatus status, Device* device, byte* message, void* userdata)
+        {
+            if (status == RequestDeviceStatus.Success)
+            {
+                _device = device;
+                return;
+            }
+
+            throw new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}");
+        }
+
+        private void OnError(ErrorType type, byte* message, void* userdata)
+        {
+            ManaConsole.WriteDiagnostic($"[WebGPU] {type}: {ReadMessage(message)}");
+        }
+
+        private static InstanceBackend ParseInstanceBackend(string? requestedBackend)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedBackend))
+            {
+                return requestedBackend.Trim().ToLowerInvariant() switch
+                {
+                    "d3d12" or "dx12" => InstanceBackend.DX12,
+                    "d3d11" or "dx11" => InstanceBackend.DX11,
+                    "metal" => InstanceBackend.Metal,
+                    "vulkan" or "vk" => InstanceBackend.Vulkan,
+                    "opengl" or "gl" => InstanceBackend.GL,
+                    "all" => InstanceBackend.All,
+                    "primary" => InstanceBackend.Primary,
+                    "secondary" => InstanceBackend.Secondary,
+                    _ => InstanceBackend.Primary
+                };
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return InstanceBackend.Metal;
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return InstanceBackend.Vulkan;
+                //return InstanceBackend.DX12;
+            }
+
+            return InstanceBackend.Vulkan;
+        }
+
+        private static string ReadMessage(byte* message)
+        {
+            return message == null ? string.Empty : Marshal.PtrToStringUTF8((nint)message) ?? string.Empty;
+        }
+
+        private static bool CanCreateDemoMeshPipeline(string? requestedBackend)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(requestedBackend))
+            {
+                return true;
+            }
+
+            return requestedBackend.Trim().ToLowerInvariant() is "vulkan" or "vk";
+        }
+
+        private static bool IsDemoMeshPipelineEnabled()
+        {
+            var value = Environment.GetEnvironmentVariable("MANA_WEBGPU_DEMO_MESH") ??
+                Environment.GetEnvironmentVariable("MANA_WEBGPU_UNSAFE_DEMO_MESH");
+            return value == "1" ||
+                value?.Equals("true", StringComparison.OrdinalIgnoreCase) == true ||
+                value?.Equals("yes", StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ManaWebGpuTransformUniform
+        {
+            public Matrix4x4 ModelProjection;
+            public float Time;
+            private float _padding0;
+            private float _padding1;
+            private float _padding2;
+        }
+    }
+}

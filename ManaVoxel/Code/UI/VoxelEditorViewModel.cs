@@ -14,6 +14,7 @@ namespace ManaVoxel.Code.UI
         private ManaContext? _context;
         private ManaScene? _scene;
         private ManaVoxelsNode? _previewNode;
+        private int? _previewSignature;
 
         public IReadOnlyList<VoxelLayerViewModel> VoxelLayers => _voxelLayers;
         public VoxelLayerViewModel? ActiveVoxelLayer => _voxelLayers.Count == 0
@@ -144,6 +145,13 @@ namespace ManaVoxel.Code.UI
                 return;
             }
 
+            var previewSignature = CalculatePreviewSignature(result);
+            if (_previewSignature == previewSignature)
+            {
+                return;
+            }
+
+            _previewSignature = previewSignature;
             previewNode.Position = result.Anchor;
             var previewVoxels = result.Voxels
                 .Select(voxel => new ManaVoxelData
@@ -154,10 +162,17 @@ namespace ManaVoxel.Code.UI
                 .ToArray();
 
             previewNode.VoxelShape.ReplaceCommittedVoxels(previewVoxels, logStats: false);
+            previewNode.UpdateTransform();
         }
 
         public void ClearToolPreview()
         {
+            if (_previewSignature == null)
+            {
+                return;
+            }
+
+            _previewSignature = null;
             _previewNode?.VoxelShape.ReplaceCommittedVoxels(Array.Empty<ManaVoxelData>(), logStats: false);
         }
 
@@ -182,8 +197,25 @@ namespace ManaVoxel.Code.UI
             }
 
             node.VoxelShape.CommitData();
+            node.UpdateTransform();
             RegisterVoxelLayer(node.Name, source, node.VoxelShape, node);
             return true;
+        }
+
+        private static int CalculatePreviewSignature(VoxelToolResult result)
+        {
+            var hash = new HashCode();
+            hash.Add(result.Name);
+            hash.Add(result.Anchor);
+            hash.Add(result.Voxels.Count);
+
+            foreach (var voxel in result.Voxels)
+            {
+                hash.Add(voxel.Position);
+                hash.Add(voxel.Color);
+            }
+
+            return hash.ToHashCode();
         }
 
         public void BakeToPhysics()

@@ -1,4 +1,4 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -66,6 +66,10 @@ namespace Mana.Code.ManaShaders
 
         public virtual void LoadShaderSource(string vertSource, string fragSource, string geomSource = "")
         {
+            if (Context.OpenGl == null)
+            {
+                return;
+            }
             var gl = Context.gl;
 
             vertexShaderObject = gl.CreateShader(ShaderType.VertexShader);
@@ -132,6 +136,10 @@ namespace Mana.Code.ManaShaders
 
         public void LoadUniforms()
         {
+            if (Context.OpenGl == null)
+            {
+                return;
+            }
             var gl = Context.gl;
 
             UniformMap.Clear();
@@ -176,11 +184,13 @@ namespace Mana.Code.ManaShaders
 
         public void BindShader()
         {
+            if (Context.OpenGl == null) return;
             Context.gl.UseProgram(shaderProgram);
         }
 
         public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
+            if (Context.OpenGl == null) return;
             var gl = Context.gl;
 
             gl.UseProgram(shaderProgram);
@@ -370,6 +380,7 @@ namespace Mana.Code.ManaShaders
 
         public void UnbindShader()
         {
+            if (Context.OpenGl == null) return;
             Context.gl.UseProgram(0);
         }
 

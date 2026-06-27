@@ -22,10 +22,10 @@
 
   <ItemGroup>
     <_ManaWebGpuNativeLibrary Include="$(ManaWebGpuNativePackageRoot)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaWebGpuNativeLibraryName)"
-                               Condition="'$(_ManaWebGpuNativeRuntime)' != '' And '$(_ManaWebGpuNativeLibraryName)' != '' And Exists('$(ManaWebGpuNativePackageRoot)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaWebGpuNativeLibraryName)')" />
+                               Condition="'$(ManaCopyWebGpuNativeRuntime)' == 'true' And '$(_ManaWebGpuNativeRuntime)' != '' And '$(_ManaWebGpuNativeLibraryName)' != '' And Exists('$(ManaWebGpuNativePackageRoot)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaWebGpuNativeLibraryName)')" />
   </ItemGroup>
 
-  <Target Name="CopyManaWebGpuNativeRuntime" AfterTargets="Build" Condition="'@(_ManaWebGpuNativeLibrary)' != ''">
+  <Target Name="CopyManaWebGpuNativeRuntime" AfterTargets="Build" Condition="'$(ManaCopyWebGpuNativeRuntime)' == 'true' And '@(_ManaWebGpuNativeLibrary)' != ''">
     <Copy SourceFiles="@(_ManaWebGpuNativeLibrary)"
           DestinationFolder="$(TargetDir)"
           SkipUnchangedFiles="true" />

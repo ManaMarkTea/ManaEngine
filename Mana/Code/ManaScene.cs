@@ -29,5 +29,13 @@ namespace Mana
             }
         }
 
+        public void CollectRenderMeshInstances(List<ManaCore.Graphics.ManaRenderMeshInstance> output)
+        {
+            foreach (var node in Children)
+            {
+                node.CollectRenderMeshInstances(output);
+            }
+        }
+
     }
 }

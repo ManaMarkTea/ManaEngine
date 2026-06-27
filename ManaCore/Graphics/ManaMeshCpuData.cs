@@ -1,4 +1,6 @@
-namespace Mana.Code.Shapes
+using System.Numerics;
+
+namespace ManaCore.Graphics
 {
     public sealed class ManaMeshCpuData
     {

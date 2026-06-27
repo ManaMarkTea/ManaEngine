@@ -1,4 +1,4 @@
-namespace Mana.Code.Graphics
+namespace ManaGraphics.Code.Graphics
 {
     public enum ManaGraphicsBackend
     {

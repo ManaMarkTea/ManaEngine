@@ -52,7 +52,6 @@
     <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
     <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
     <None Remove="Assets\Shaders\Math\FractalGlowRings.frag" />
-    <None Remove="Assets\Shaders\WebGpu\shader.wgsl" />
     <None Remove="Assets\Textures\DebugTexture_Grid.png" />
     <None Remove="Assets\Textures\Environments\chromatic.jpg" />
     <None Remove="Assets\Textures\Environments\field.jpg" />
@@ -221,9 +220,6 @@
     <Content Include="Assets\Shaders\Math\FractalGlowRings.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Assets\Shaders\WebGpu\shader.wgsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Assets\Textures\DebugTexture_Grid.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -345,7 +341,6 @@
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageReference Include="WGPU.NET" Version="0.6.0" />
   </ItemGroup>
 
   <ItemGroup>

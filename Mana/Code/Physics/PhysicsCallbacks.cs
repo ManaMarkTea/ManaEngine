@@ -11,7 +11,6 @@ using BepuPhysics.Constraints;
 using BepuUtilities;
 using BepuPhysics.Trees;
 using BepuUtilities.Memory;
-using WGPU.NET;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Mana.Code

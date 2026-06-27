@@ -1,4 +1,5 @@
 ﻿using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using Silk.NET.Assimp;
 using System;
 using System.Collections.Generic;
@@ -536,10 +537,7 @@ namespace Mana.Code.Shapes.Loaders
 
             output.SetSize(minSize, maxSize);
 
-            var meshBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1);
-            meshBufferObject.ConstructVBO();
-
-            output.SetCpuData(new ManaMeshCpuData
+            var meshData = new ManaMeshCpuData
             {
                 Indexes = indexes,
                 Positions = positions,
@@ -547,8 +545,14 @@ namespace Mana.Code.Shapes.Loaders
                 Colors = colors,
                 TextureCoordinates0 = textureCoordinates0,
                 TextureCoordinates1 = textureCoordinates1
-            });
-            output.VertexBufferObject = meshBufferObject;
+            };
+            var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData);
+
+            output.SetCpuData(meshData);
+            if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+            {
+                output.VertexBufferObject = openGlMesh.VertexBufferObject;
+            }
             output.Materials = newMaterials.ToArray();
             return output;
         }

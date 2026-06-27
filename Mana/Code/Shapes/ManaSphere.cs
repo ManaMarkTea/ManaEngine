@@ -95,7 +95,11 @@
 
             container.AddFaces(triList);
 
-            VertexBufferObject = container.CreateVertexBufferObject(Context);
+            SetCpuData(container.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                VertexBufferObject = container.CreateVertexBufferObject(Context);
+            }
         }
 
     }

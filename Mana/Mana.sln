@@ -4,10 +4,21 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.4.33403.182
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mana", "Mana.csproj", "{12813B90-4533-42C9-AC39-499DBDF25D23}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7C73D585-B758-46CF-AC1D-D32D1CF80C41} = {7C73D585-B758-46CF-AC1D-D32D1CF80C41}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaCore", "..\ManaCore\ManaCore.csproj", "{7C73D585-B758-46CF-AC1D-D32D1CF80C41}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaVoxel", "..\ManaVoxel\ManaVoxel.csproj", "{C92481EB-795F-4DEC-BBF4-7F219F9A724F}"
 	ProjectSection(ProjectDependencies) = postProject
+		{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0} = {6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}
 		{12813B90-4533-42C9-AC39-499DBDF25D23} = {12813B90-4533-42C9-AC39-499DBDF25D23}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaGraphics", "..\ManaGraphics\ManaGraphics.csproj", "{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7C73D585-B758-46CF-AC1D-D32D1CF80C41} = {7C73D585-B758-46CF-AC1D-D32D1CF80C41}
 	EndProjectSection
 EndProject
 Global
@@ -20,10 +31,18 @@ Global
 		{12813B90-4533-42C9-AC39-499DBDF25D23}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{12813B90-4533-42C9-AC39-499DBDF25D23}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{12813B90-4533-42C9-AC39-499DBDF25D23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C73D585-B758-46CF-AC1D-D32D1CF80C41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C73D585-B758-46CF-AC1D-D32D1CF80C41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C73D585-B758-46CF-AC1D-D32D1CF80C41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C73D585-B758-46CF-AC1D-D32D1CF80C41}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C92481EB-795F-4DEC-BBF4-7F219F9A724F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C92481EB-795F-4DEC-BBF4-7F219F9A724F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C92481EB-795F-4DEC-BBF4-7F219F9A724F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C92481EB-795F-4DEC-BBF4-7F219F9A724F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

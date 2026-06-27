@@ -3,7 +3,9 @@
 
 
 using Mana.Code.Nodes;
+using Mana.Code.Graphics;
 using Mana.Code.Shapes.Modifiers;
+using ManaCore.Graphics;
 
 namespace Mana.Code.Shapes
 {
@@ -16,7 +18,21 @@ namespace Mana.Code.Shapes
 
         public ManaMeshCpuData? CpuData { get; private set; }
 
-        public ManaVertexBufferObject? VertexBufferObject { get; internal set; }
+        private ManaVertexBufferObject? vertexBufferObject;
+
+        public IManaGpuMesh? GpuMesh { get; private set; }
+
+        public IOpenGlGpuMesh? OpenGlMesh => GpuMesh as IOpenGlGpuMesh;
+
+        public ManaVertexBufferObject? VertexBufferObject
+        {
+            get => vertexBufferObject;
+            internal set
+            {
+                vertexBufferObject = value;
+                GpuMesh = value == null ? null : new ManaOpenGlMesh(value);
+            }
+        }
 
         public ManaDynamicGeometryContainer DynamicGeometryContainer { get; internal set; }
 
@@ -32,7 +48,7 @@ namespace Mana.Code.Shapes
 
         public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
         {
-            if (VertexBufferObject != null)
+            if (OpenGlMesh != null)
             {
                 ManaMaterial material = Materials[0];
                 if (meshRenderer != null)
@@ -42,9 +58,7 @@ namespace Mana.Code.Shapes
 
                 material.Bind(owner.WorldTransform, owner);
 
-                VertexBufferObject.Bind();
-                VertexBufferObject.DrawElements();
-                VertexBufferObject.UnBind();
+                OpenGlMesh.Draw();
 
                 material.UnBind();
             }
@@ -52,11 +66,9 @@ namespace Mana.Code.Shapes
 
         public void RenderDirectly()
         {
-            if (VertexBufferObject != null)
+            if (OpenGlMesh != null)
             {
-                VertexBufferObject.Bind();
-                VertexBufferObject.DrawElements();
-                VertexBufferObject.UnBind();
+                OpenGlMesh.Draw();
             }
         }
 

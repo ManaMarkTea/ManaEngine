@@ -16,15 +16,15 @@
       "name": "Launch Mana WebGPU",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build Mana (debug launch)",
-      "program": "${workspaceFolder}/Mana/bin/Debug/net10.0/Mana.dll",
+      "preLaunchTask": "build ManaVoxel (debug launch)",
+      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
       "args": [
         "--webgpu"
       ],
       "env": {
         "MANA_WEBGPU_DEMO_MESH": "1"
       },
-      "cwd": "${workspaceFolder}/Mana",
+      "cwd": "${workspaceFolder}/ManaVoxel",
       "console": "integratedTerminal",
       "stopAtEntry": false
     },
@@ -59,8 +59,8 @@
     {
       "name": "Launch Both",
       "configurations": [
-        "Launch Mana",
-        "Launch ManaVoxel"
+        "Launch ManaVoxel",
+        "Launch ManaVoxel WebGPU"
       ]
     }
   ]

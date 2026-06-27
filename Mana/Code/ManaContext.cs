@@ -1,17 +1,22 @@
-﻿using Silk.NET.OpenGL;
+using Mana.Code.Graphics;
+using ManaCore.Graphics;
+using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
 namespace Mana.Code
 {
     public class ManaContext
     {
-        public GL gl = null!;
+        public GL gl => RequireOpenGl();
+        public GL? OpenGl => (GraphicsDevice as IOpenGlGraphicsDevice)?.Gl;
+        public IManaGraphicsDevice? GraphicsDevice { get; private set; }
+        public ManaGraphicsBackendKind GraphicsBackend => GraphicsDevice?.Backend ?? ManaGraphicsBackendKind.None;
         public IInputContext Input { get; set; } = null!;
         public IWindow Window { get; set; } = null!;
 
         public ManaWorld World { get; private set; } = null!;
 
-        public ManaPhysics Physics {  get; set; } = null!;
+        public ManaPhysics Physics { get; set; } = null!;
 
         public BaseGameMode GameMode { get; set; } = null!;
 
@@ -20,12 +25,29 @@ namespace Mana.Code
             GameMode = gameMode;
         }
 
-        public ManaContext(IWindow window, GL gl, IInputContext input, ManaWorld world)
+        public ManaContext(IWindow window, IInputContext input, ManaWorld world, IManaGraphicsDevice? graphicsDevice = null)
         {
-            this.gl = gl;
-            this.Window = window;
-            this.Input = input;
-            this.World = world;
+            Window = window;
+            Input = input;
+            World = world;
+            GraphicsDevice = graphicsDevice;
+        }
+
+        public ManaContext(IWindow window, GL gl, IInputContext input, ManaWorld world)
+            : this(window, input, world, new ManaOpenGlGraphicsDevice(gl))
+        {
+        }
+
+        public GL RequireOpenGl()
+        {
+            return RequireOpenGlDevice().Gl;
+        }
+
+        public IOpenGlGraphicsDevice RequireOpenGlDevice()
+        {
+            return GraphicsDevice as IOpenGlGraphicsDevice ?? throw new InvalidOperationException(
+                $"This ManaContext is using {GraphicsBackend} and does not have an OpenGL context. " +
+                "Move this call behind a graphics backend abstraction or use an OpenGL-specific path.");
         }
     }
 }

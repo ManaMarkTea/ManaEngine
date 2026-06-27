@@ -33,16 +33,27 @@ namespace Mana.Code
 
         public ManaVertexBufferObject CreateVertexBufferObject(ManaContext context, BufferUsageARB usageHint = BufferUsageARB.StaticDraw)
         {
-            var positions = Positions.ToArray();
-            var normals = Normals.ToArray();
-            var colors = Colors.ToArray();
-            var textureCoordinates0 = TexCoords0.ToArray();
-            var textureCoordinates1 = TexCoords1.ToArray();
-            var indexes = Indexes.ToArray();
+            var meshData = CreateCpuData();
+            var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData, usageHint);
+            if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+            {
+                return openGlMesh.VertexBufferObject;
+            }
 
-            var vertexBufferObject = new ManaVertexBufferObject(context, indexes, positions, normals, colors, textureCoordinates0, textureCoordinates1, usageHint);
-            vertexBufferObject.ConstructVBO();
-            return vertexBufferObject;
+            throw new InvalidOperationException($"OpenGL mesh factory returned unsupported mesh type '{gpuMesh.GetType().Name}'.");
+        }
+
+        public ManaCore.Graphics.ManaMeshCpuData CreateCpuData()
+        {
+            return new ManaCore.Graphics.ManaMeshCpuData
+            {
+                Positions = Positions.ToArray(),
+                Normals = Normals.ToArray(),
+                Colors = Colors.ToArray(),
+                TextureCoordinates0 = TexCoords0.ToArray(),
+                TextureCoordinates1 = TexCoords1.ToArray(),
+                Indexes = Indexes.ToArray()
+            };
         }
 
         public ManaGeometryVertex AddPoint(Vector3 point, Vector3 normal)
