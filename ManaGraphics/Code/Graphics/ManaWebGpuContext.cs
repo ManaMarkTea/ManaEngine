@@ -48,6 +48,7 @@ namespace ManaGraphics.Code.Graphics
         private BindGroupLayout* _sceneCaptureBindGroupLayout;
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;
+        private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private Texture* _sceneCaptureDepthTexture;
         private TextureView* _sceneCaptureDepthTextureView;
         private uint _sceneCaptureDepthSize;
@@ -302,6 +303,9 @@ namespace ManaGraphics.Code.Graphics
                 _api.BindGroupLayoutRelease(_sceneCaptureBindGroupLayout);
                 _sceneCaptureBindGroupLayout = null;
             }
+
+            _environmentPrefilterCompute?.Dispose();
+            _environmentPrefilterCompute = null;
 
             if (_demoPipelineLayout != null)
             {
@@ -703,16 +707,9 @@ namespace ManaGraphics.Code.Graphics
                     EnsureSceneCaptureDepthResources(irradianceMap.Width);
                     RenderSceneCaptureFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], pipeline, captureCamera, face);
                 }
-
-                var prefilterMipCount = prefilteredMap.RenderTargetViews.Count / 6;
-                for (var mip = 0; mip < prefilterMipCount; mip++)
-                {
-                    var mipSize = Math.Max(1u, prefilteredMap.Width >> mip);
-                    EnsureSceneCaptureDepthResources(mipSize);
-                    RenderSceneCaptureFace(commandEncoder, (TextureView*)prefilteredMap.RenderTargetViews[mip * 6 + face], pipeline, captureCamera, face);
-                }
             }
 
+            DispatchEnvironmentPrefilter(commandEncoder, environmentMap, prefilteredMap);
             _framesSinceEnvironmentCapture = 0;
         }
 
@@ -775,6 +772,33 @@ namespace ManaGraphics.Code.Graphics
 
             _api.RenderPassEncoderEnd(renderPass);
             _api.RenderPassEncoderRelease(renderPass);
+        }
+
+        private void DispatchEnvironmentPrefilter(
+            CommandEncoder* commandEncoder,
+            ManaWebGpuTextureResource sourceMap,
+            ManaWebGpuTextureResource destinationMap)
+        {
+            GetOrCreateEnvironmentPrefilterCompute().Dispatch(commandEncoder, sourceMap, destinationMap);
+        }
+
+        private void DispatchEnvironmentPrefilterNow(ManaWebGpuEnvironmentReflectionMap environmentReflectionMap)
+        {
+            GetOrCreateEnvironmentPrefilterCompute().DispatchNow(
+                environmentReflectionMap.EnvironmentMapResource,
+                environmentReflectionMap.PrefilteredReflectionMapResource);
+        }
+
+        private ManaWebGpuEnvironmentPrefilterCompute GetOrCreateEnvironmentPrefilterCompute()
+        {
+            if (_environmentPrefilterCompute != null)
+            {
+                return _environmentPrefilterCompute;
+            }
+
+            var shaderPath = ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "environment_prefilter_compute.wgsl"));
+            _environmentPrefilterCompute = new ManaWebGpuEnvironmentPrefilterCompute(_api, _device, _queue, shaderPath);
+            return _environmentPrefilterCompute;
         }
 
         private RenderPipeline* CreateDemoRenderPipeline(
@@ -1589,6 +1613,7 @@ namespace ManaGraphics.Code.Graphics
 
             ReleaseEnvironmentReflectionMap();
             _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, source, environmentPath);
+            DispatchEnvironmentPrefilterNow(_environmentReflectionMap);
             ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets loaded: {environmentPath}");
             return _environmentReflectionMap;
         }

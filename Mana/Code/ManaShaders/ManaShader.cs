@@ -94,7 +94,7 @@ namespace Mana
             return CompiledShader.FindUniform(v)!;
         }
 
-        public void BindShader()
+        public virtual void BindShader()
         {
             if (VertexSource.IsDirty || FragmentSource.IsDirty || GeometrySource.IsDirty)
             {

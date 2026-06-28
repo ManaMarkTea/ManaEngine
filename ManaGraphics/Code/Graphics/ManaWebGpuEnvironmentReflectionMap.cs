@@ -57,7 +57,15 @@ namespace ManaGraphics.Code.Graphics
 
             var environmentMap = CreateCubeResource(api, device, "EnvironmentMap", environmentSize, 1);
             var irradianceMap = CreateCubeResource(api, device, "IrradianceMap", irradianceSize, 1);
-            var prefilteredReflectionMap = CreateCubeResource(api, device, "PrefilteredReflectionMap", prefilterSize, prefilterMipCount);
+            var prefilteredReflectionMap = CreateCubeResource(
+                api,
+                device,
+                "PrefilteredReflectionMap",
+                prefilterSize,
+                prefilterMipCount,
+                TextureFormat.Rgba8Unorm,
+                TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding,
+                true);
 
             using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
             var sourcePixels = new Rgba32[image.Width * image.Height];
@@ -66,13 +74,6 @@ namespace ManaGraphics.Code.Graphics
 
             WriteCubeTexture(api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false);
             WriteCubeTexture(api, queue, irradianceMap.Texture, equirect, irradianceSize, 0, 0.85f, true);
-
-            for (var mip = 0; mip < prefilterMipCount; mip++)
-            {
-                var mipSize = Math.Max(1, prefilterSize >> mip);
-                var roughness = prefilterMipCount <= 1 ? 0.0f : mip / (float)(prefilterMipCount - 1);
-                WriteCubeTexture(api, queue, prefilteredReflectionMap.Texture, equirect, mipSize, mip, roughness, false);
-            }
 
             var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize);
             WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize);
@@ -88,11 +89,19 @@ namespace ManaGraphics.Code.Graphics
             BrdfLutResource.Dispose();
         }
 
-        private static ManaWebGpuTextureResource CreateCubeResource(WebGPU api, Device* device, string name, int size, int mipCount)
+        private static ManaWebGpuTextureResource CreateCubeResource(
+            WebGPU api,
+            Device* device,
+            string name,
+            int size,
+            int mipCount,
+            TextureFormat format = TextureFormat.Rgba8UnormSrgb,
+            TextureUsage usage = TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment,
+            bool createStorageViews = false)
         {
             var descriptor = new TextureDescriptor
             {
-                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment,
+                Usage = usage,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D
                 {
@@ -100,7 +109,7 @@ namespace ManaGraphics.Code.Graphics
                     Height = (uint)size,
                     DepthOrArrayLayers = 6
                 },
-                Format = TextureFormat.Rgba8UnormSrgb,
+                Format = format,
                 MipLevelCount = (uint)mipCount,
                 SampleCount = 1
             };
@@ -113,7 +122,7 @@ namespace ManaGraphics.Code.Graphics
 
             var cubeViewDescriptor = new TextureViewDescriptor
             {
-                Format = TextureFormat.Rgba8UnormSrgb,
+                Format = format,
                 Dimension = TextureViewDimension.DimensionCube,
                 MipLevelCount = (uint)mipCount,
                 ArrayLayerCount = 6,
@@ -134,7 +143,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     var faceViewDescriptor = new TextureViewDescriptor
                     {
-                        Format = TextureFormat.Rgba8UnormSrgb,
+                        Format = format,
                         Dimension = TextureViewDimension.Dimension2D,
                         BaseMipLevel = (uint)mip,
                         MipLevelCount = 1,
@@ -163,7 +172,52 @@ namespace ManaGraphics.Code.Graphics
                 }
             }
 
-            return new ManaWebGpuTextureResource(api, name, texture, cubeView, faceViews, (uint)size, (uint)size, true);
+            var storageViews = Array.Empty<nint>();
+            if (createStorageViews)
+            {
+                storageViews = new nint[mipCount];
+                for (var mip = 0; mip < mipCount; mip++)
+                {
+                    var storageViewDescriptor = new TextureViewDescriptor
+                    {
+                        Format = format,
+                        Dimension = TextureViewDimension.Dimension2DArray,
+                        BaseMipLevel = (uint)mip,
+                        MipLevelCount = 1,
+                        BaseArrayLayer = 0,
+                        ArrayLayerCount = 6,
+                        Aspect = TextureAspect.All
+                    };
+
+                    var storageView = api.TextureCreateView(texture, &storageViewDescriptor);
+                    if (storageView == null)
+                    {
+                        foreach (var createdStorageView in storageViews)
+                        {
+                            if (createdStorageView != 0)
+                            {
+                                api.TextureViewRelease((TextureView*)createdStorageView);
+                            }
+                        }
+
+                        foreach (var createdFaceView in faceViews)
+                        {
+                            if (createdFaceView != 0)
+                            {
+                                api.TextureViewRelease((TextureView*)createdFaceView);
+                            }
+                        }
+
+                        api.TextureViewRelease(cubeView);
+                        api.TextureRelease(texture);
+                        throw new InvalidOperationException($"Failed to create WebGPU {name} storage view.");
+                    }
+
+                    storageViews[mip] = (nint)storageView;
+                }
+            }
+
+            return new ManaWebGpuTextureResource(api, name, texture, cubeView, faceViews, storageViews, (uint)size, (uint)size, true);
         }
 
         private static ManaWebGpuTextureResource Create2DResource(WebGPU api, Device* device, string name, int width, int height)
@@ -205,7 +259,7 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to create WebGPU {name} texture view.");
             }
 
-            return new ManaWebGpuTextureResource(api, name, texture, view, Array.Empty<nint>(), (uint)width, (uint)height, false);
+            return new ManaWebGpuTextureResource(api, name, texture, view, Array.Empty<nint>(), Array.Empty<nint>(), (uint)width, (uint)height, false);
         }
 
         private static void WriteCubeTexture(WebGPU api, Queue* queue, Texture* texture, EquirectImage source, int size, int mip, float roughness, bool irradiance)
@@ -607,6 +661,7 @@ namespace ManaGraphics.Code.Graphics
     {
         private readonly WebGPU _api;
         private nint[] _renderTargetViews;
+        private nint[] _storageViews;
 
         public ManaWebGpuTextureResource(
             WebGPU api,
@@ -614,6 +669,7 @@ namespace ManaGraphics.Code.Graphics
             Texture* texture,
             TextureView* textureView,
             nint[] renderTargetViews,
+            nint[] storageViews,
             uint width,
             uint height,
             bool isCube)
@@ -623,6 +679,7 @@ namespace ManaGraphics.Code.Graphics
             Texture = texture;
             TextureView = textureView;
             _renderTargetViews = renderTargetViews;
+            _storageViews = storageViews;
             Width = width;
             Height = height;
             IsCube = isCube;
@@ -637,6 +694,7 @@ namespace ManaGraphics.Code.Graphics
         public Texture* Texture { get; private set; }
         public TextureView* TextureView { get; private set; }
         public IReadOnlyList<nint> RenderTargetViews => _renderTargetViews;
+        public IReadOnlyList<nint> StorageViews => _storageViews;
 
         public void Dispose()
         {
@@ -649,6 +707,16 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _renderTargetViews = Array.Empty<nint>();
+
+            foreach (var storageView in _storageViews)
+            {
+                if (storageView != 0)
+                {
+                    _api.TextureViewRelease((TextureView*)storageView);
+                }
+            }
+
+            _storageViews = Array.Empty<nint>();
 
             if (TextureView != null)
             {
