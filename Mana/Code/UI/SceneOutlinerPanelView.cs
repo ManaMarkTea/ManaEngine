@@ -67,7 +67,7 @@ namespace Mana.Code.UI
 
             var hasContents = node.Components.Count > 0 || node.Children.Count > 0;
             var label = $"{GetDisplayName(node, node.GetType().Name)} ({node.GetType().Name})";
-            var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+            var flags = ImGuiTreeNodeFlags.SpanAvailWidth;
             if (selectionState.SelectedNode == node)
             {
                 flags |= ImGuiTreeNodeFlags.Selected;
