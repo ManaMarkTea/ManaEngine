@@ -731,7 +731,7 @@ namespace ManaGraphics.Code.Graphics
             var colorAttachment = new RenderPassColorAttachment
             {
                 View = faceView,
-                LoadOp = LoadOp.Clear,
+                LoadOp = LoadOp.Load,
                 StoreOp = StoreOp.Store,
                 ClearValue = new Color(0.0, 0.0, 0.0, 1.0)
             };
@@ -1596,10 +1596,6 @@ namespace ManaGraphics.Code.Graphics
         private static ManaEnvironmentReflectionSource GetEffectiveEnvironmentReflectionSource(ManaEnvironmentReflectionSource? source)
         {
             source ??= new ManaEnvironmentReflectionSource();
-            if (!IsEnvironmentFlagEnabled("MANA_WEBGPU_SCENE_CAPTURE"))
-            {
-                return source;
-            }
 
             return new ManaEnvironmentReflectionSource
             {

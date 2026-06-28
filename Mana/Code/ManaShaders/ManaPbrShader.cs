@@ -80,6 +80,7 @@ namespace Mana.Code
                 renderer.ApplyLights(this);
                 CompiledShader.FindUniform("exposure")?.SetValue(renderer.PbrExposure);
                 CompiledShader.FindUniform("iblIntensity")?.SetValue(renderer.IblIntensity);
+                CompiledShader.FindUniform("pbrDebugMode")?.SetValue(Context.World.IrradianceSettings.WebGpuDebugMode);
             }
 
             material.Albedo.Bind(3);

@@ -49,11 +49,6 @@ namespace ManaGraphics.Code.Graphics
             ManaEnvironmentReflectionSource source,
             string sourcePath)
         {
-            using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
-            var sourcePixels = new Rgba32[image.Width * image.Height];
-            image.CopyPixelDataTo(sourcePixels);
-            var equirect = new EquirectImage(sourcePixels, image.Width, image.Height);
-
             var environmentSize = ClampTextureSize(source.EnvironmentCubeSize, 16, 2048);
             var irradianceSize = ClampTextureSize(source.IrradianceCubeSize, 8, 256);
             var prefilterSize = ClampTextureSize(source.PrefilterCubeSize, 16, 2048);
@@ -61,12 +56,17 @@ namespace ManaGraphics.Code.Graphics
             var prefilterMipCount = CalculateMipCount(prefilterSize);
 
             var environmentMap = CreateCubeResource(api, device, "EnvironmentMap", environmentSize, 1);
-            WriteCubeTexture(api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false);
-
             var irradianceMap = CreateCubeResource(api, device, "IrradianceMap", irradianceSize, 1);
+            var prefilteredReflectionMap = CreateCubeResource(api, device, "PrefilteredReflectionMap", prefilterSize, prefilterMipCount);
+
+            using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
+            var sourcePixels = new Rgba32[image.Width * image.Height];
+            image.CopyPixelDataTo(sourcePixels);
+            var equirect = new EquirectImage(sourcePixels, image.Width, image.Height);
+
+            WriteCubeTexture(api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false);
             WriteCubeTexture(api, queue, irradianceMap.Texture, equirect, irradianceSize, 0, 0.85f, true);
 
-            var prefilteredReflectionMap = CreateCubeResource(api, device, "PrefilteredReflectionMap", prefilterSize, prefilterMipCount);
             for (var mip = 0; mip < prefilterMipCount; mip++)
             {
                 var mipSize = Math.Max(1, prefilterSize >> mip);
@@ -210,17 +210,31 @@ namespace ManaGraphics.Code.Graphics
 
         private static void WriteCubeTexture(WebGPU api, Queue* queue, Texture* texture, EquirectImage source, int size, int mip, float roughness, bool irradiance)
         {
-            var face0Pixels = GenerateCubeFace(source, 0, size, roughness, irradiance);
-            PadRows(face0Pixels, size, size, out var bytesPerRow);
-
+            var sourceRowBytes = size * 4;
+            var paddedRowBytes = Align(sourceRowBytes, 256);
+            var bytesPerRow = (uint)paddedRowBytes;
             var paddedFaceSize = bytesPerRow * (uint)size;
             var combinedPixels = new byte[paddedFaceSize * 6];
 
             for (var face = 0; face < 6; face++)
             {
                 var pixels = GenerateCubeFace(source, face, size, roughness, irradiance);
-                var uploadPixels = PadRows(pixels, size, size, out _);
-                System.Buffer.BlockCopy(uploadPixels, 0, combinedPixels, (int)(face * paddedFaceSize), uploadPixels.Length);
+                var combinedOffset = (int)(face * paddedFaceSize);
+                if (sourceRowBytes == paddedRowBytes)
+                {
+                    System.Buffer.BlockCopy(pixels, 0, combinedPixels, combinedOffset, pixels.Length);
+                    continue;
+                }
+
+                for (var y = 0; y < size; y++)
+                {
+                    System.Buffer.BlockCopy(
+                        pixels,
+                        y * sourceRowBytes,
+                        combinedPixels,
+                        combinedOffset + y * paddedRowBytes,
+                        sourceRowBytes);
+                }
             }
 
             fixed (byte* pixelPointer = combinedPixels)
@@ -335,7 +349,7 @@ namespace ManaGraphics.Code.Graphics
         private static void WriteBrdfLut(WebGPU api, Queue* queue, Texture* texture, int width, int height)
         {
             var pixels = new byte[width * height * 4];
-            for (var y = 0; y < height; y++)
+            Parallel.For(0, height, y =>
             {
                 var roughness = y / (float)Math.Max(1, height - 1);
                 for (var x = 0; x < width; x++)
@@ -348,7 +362,7 @@ namespace ManaGraphics.Code.Graphics
                     pixels[offset + 2] = 0;
                     pixels[offset + 3] = byte.MaxValue;
                 }
-            }
+            });
 
             var uploadPixels = PadRows(pixels, width, height, out var bytesPerRow);
             fixed (byte* pixelPointer = uploadPixels)
@@ -374,7 +388,7 @@ namespace ManaGraphics.Code.Graphics
         private static byte[] GenerateCubeFace(EquirectImage source, int face, int size, float roughness, bool irradiance)
         {
             var pixels = new byte[size * size * 4];
-            for (var y = 0; y < size; y++)
+            Parallel.For(0, size, y =>
             {
                 for (var x = 0; x < size; x++)
                 {
@@ -388,7 +402,7 @@ namespace ManaGraphics.Code.Graphics
                     pixels[offset + 2] = ToByte(color.Z);
                     pixels[offset + 3] = ToByte(color.W);
                 }
-            }
+            });
 
             return pixels;
         }

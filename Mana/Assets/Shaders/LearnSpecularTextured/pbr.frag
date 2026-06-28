@@ -19,6 +19,7 @@ uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
 uniform float exposure = 1.0;
 uniform float iblIntensity = 1.0;
+uniform float pbrDebugMode = 0.0;
 
 // lights
 uniform vec3 lightPositions[4];
@@ -187,6 +188,38 @@ void main()
     vec3 ambient = (kD * diffuse + specular) * ao;
     
     vec3 color = (ambient + Lo) * exposure;
+
+    int debugMode = int(pbrDebugMode + 0.5);
+    if (debugMode == 1)
+    {
+        FragColor = vec4(V * 0.5 + vec3(0.5), 1.0);
+        return;
+    }
+    else if (debugMode == 2)
+    {
+        FragColor = vec4(N * 0.5 + vec3(0.5), 1.0);
+        return;
+    }
+    else if (debugMode == 3)
+    {
+        FragColor = vec4(R * 0.5 + vec3(0.5), 1.0);
+        return;
+    }
+    else if (debugMode == 4)
+    {
+        FragColor = vec4(normalize(R) * 0.5 + vec3(0.5), 1.0);
+        return;
+    }
+    else if (debugMode == 5)
+    {
+        FragColor = vec4(prefilteredColor, 1.0);
+        return;
+    }
+    else if (debugMode == 6)
+    {
+        FragColor = vec4((F * brdf.x + brdf.y) * iblIntensity, 1.0);
+        return;
+    }
 
     // HDR tonemapping
     color = color / (color + vec3(1.0));

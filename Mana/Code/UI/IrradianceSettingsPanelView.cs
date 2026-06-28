@@ -105,7 +105,7 @@ namespace Mana.Code.UI
 
             var debugMode = (int)settings.WebGpuDebugMode;
             string[] debugModes = { "Off", "View Vector (V)", "World Normal (N)", "Reflection (R)", "Cubemap Dir", "Reflection Radiance", "BRDF Scale" };
-            if (ImGui.Combo("WebGpu Debug", ref debugMode, debugModes, debugModes.Length))
+            if (ImGui.Combo("PBR Debug", ref debugMode, debugModes, debugModes.Length))
             {
                 settings.WebGpuDebugMode = debugMode;
                 lightSettingsChanged = true;
