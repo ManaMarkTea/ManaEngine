@@ -108,20 +108,13 @@ namespace Mana.Code.UI
                 return;
             }
 
-            ImGui.PushID("components");
-            if (ImGui.TreeNode($"Components ({node.Components.Count})"))
+            for (var i = 0; i < node.Components.Count; i++)
             {
-                foreach (var component in node.Components)
-                {
-                    ImGui.PushID(component.GetHashCode());
-                    DrawComponent(component);
-                    ImGui.PopID();
-                }
-
-                ImGui.TreePop();
+                var component = node.Components[i];
+                ImGui.PushID($"component_{i}_{component.GetHashCode()}");
+                DrawComponent(component);
+                ImGui.PopID();
             }
-
-            ImGui.PopID();
         }
 
         private void DrawComponent(ManaComponent component)

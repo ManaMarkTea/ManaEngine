@@ -137,42 +137,55 @@ namespace Mana.Code.Renderers
             var colCenter = (Columns - 1) * 0.5f;
             var shapeCenter = (shapeSamples.Length - 1) * 0.5f;
 
+            var sampleGroup = CreateGroupNode("Sample", new Vector3(-(Columns + 2.5f) * Spacing, 0.0f, 0.0f));
             var panelSample = CreateDebugNode(
                 "PBR Panel Material Sample",
                 shapeSamples[2].Mesh,
-                new Vector3(-(Columns + 2.5f) * Spacing, 0.0f, 0.0f),
+                Vector3.Zero,
                 settings.DebugMetallic,
                 settings.DebugRoughness,
                 usePanelMaterial: true);
             panelSample.Rotation = shapeSamples[2].Rotation;
-            root.AddChild(panelSample);
+            sampleGroup.AddChild(panelSample);
+            root.AddChild(sampleGroup);
 
-            for (int row = 0; row < Rows; ++row)
+            for (int shapeIndex = 0; shapeIndex < shapeSamples.Length; ++shapeIndex)
             {
-                float metallic = row / (float)(Rows - 1);
+                var shape = shapeSamples[shapeIndex];
+                var shapeOffset = new Vector3(0.0f, 0.0f, (shapeIndex - shapeCenter) * ShapeSpacing);
+                var shapeGroup = CreateGroupNode($"{shape.Name}s", shapeOffset);
+                root.AddChild(shapeGroup);
 
-                for (int col = 0; col < Columns; ++col)
+                for (int row = 0; row < Rows; ++row)
                 {
-                    float roughness = Math.Clamp(col / (float)(Columns - 1), 0.05f, 1.0f);
-                    var rowColumnOffset = new Vector3((col - colCenter) * Spacing, (row - rowCenter) * Spacing, 0.0f);
-                    
-                    for (int shapeIndex = 0; shapeIndex < shapeSamples.Length; ++shapeIndex)
+                    float metallic = row / (float)(Rows - 1);
+
+                    for (int col = 0; col < Columns; ++col)
                     {
-                        var shape = shapeSamples[shapeIndex];
-                        var shapeOffset = new Vector3(0.0f, 0.0f, (shapeIndex - shapeCenter) * ShapeSpacing);
+                        float roughness = Math.Clamp(col / (float)(Columns - 1), 0.05f, 1.0f);
+                        var rowColumnOffset = new Vector3((col - colCenter) * Spacing, (row - rowCenter) * Spacing, 0.0f);
                         var debugNode = CreateDebugNode(
-                            $"PBR {shape.Name} M{metallic:0.##} R{roughness:0.##}",
+                            $"{shape.Name}Grid M{metallic:0.##} R{roughness:0.##}",
                             shape.Mesh,
-                            rowColumnOffset + shapeOffset,
+                            rowColumnOffset,
                             metallic,
                             roughness,
                             usePanelMaterial: false);
 
                         debugNode.Rotation = shape.Rotation;
-                        root.AddChild(debugNode);
+                        shapeGroup.AddChild(debugNode);
                     }
                 }
             }
+        }
+
+        private ManaSceneNode CreateGroupNode(string name, Vector3 localPosition)
+        {
+            return new ManaSceneNode(context, Matrix4x4.Identity)
+            {
+                Name = name,
+                Position = localPosition
+            };
         }
 
         private ManaMeshSceneNode CreateDebugNode(
