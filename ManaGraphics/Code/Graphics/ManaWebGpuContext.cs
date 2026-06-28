@@ -43,9 +43,16 @@ namespace ManaGraphics.Code.Graphics
         private float _demoMeshScale = 1.0f;
         private BindGroupLayout* _demoBindGroupLayout;
         private PipelineLayout* _demoPipelineLayout;
+        private BindGroupLayout* _sceneCaptureBindGroupLayout;
+        private PipelineLayout* _sceneCapturePipelineLayout;
+        private RenderPipeline* _sceneCapturePipeline;
+        private Texture* _sceneCaptureDepthTexture;
+        private TextureView* _sceneCaptureDepthTextureView;
+        private uint _sceneCaptureDepthSize;
         private Sampler* _demoSampler;
         private Sampler* _clampSampler;
         private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
+        private int _framesSinceEnvironmentCapture = int.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
@@ -192,6 +199,9 @@ namespace ManaGraphics.Code.Graphics
 
             var commandEncoderDescriptor = new CommandEncoderDescriptor();
             var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+            RefreshRenderScene();
+            CaptureSceneEnvironmentIfNeeded(commandEncoder);
+
             var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
             DrawDemoMesh(renderPass);
             _imGuiController?.Render(renderPass);
@@ -261,6 +271,35 @@ namespace ManaGraphics.Code.Graphics
                 }
             }
             _pipelines.Clear();
+
+            foreach (var entry in _shaderModules)
+            {
+                if (entry.Value != 0)
+                {
+                    _api.ShaderModuleRelease((ShaderModule*)entry.Value);
+                }
+            }
+            _shaderModules.Clear();
+
+            if (_sceneCapturePipeline != null)
+            {
+                _api.RenderPipelineRelease(_sceneCapturePipeline);
+                _sceneCapturePipeline = null;
+            }
+
+            ReleaseSceneCaptureDepthResources();
+
+            if (_sceneCapturePipelineLayout != null)
+            {
+                _api.PipelineLayoutRelease(_sceneCapturePipelineLayout);
+                _sceneCapturePipelineLayout = null;
+            }
+
+            if (_sceneCaptureBindGroupLayout != null)
+            {
+                _api.BindGroupLayoutRelease(_sceneCaptureBindGroupLayout);
+                _sceneCaptureBindGroupLayout = null;
+            }
 
             if (_demoPipelineLayout != null)
             {
@@ -382,6 +421,73 @@ namespace ManaGraphics.Code.Graphics
             {
                 throw new InvalidOperationException("Failed to create WebGPU depth texture view.");
             }
+        }
+
+        private void ReleaseSceneCaptureDepthResources()
+        {
+            if (_sceneCaptureDepthTextureView != null)
+            {
+                _api.TextureViewRelease(_sceneCaptureDepthTextureView);
+                _sceneCaptureDepthTextureView = null;
+            }
+
+            if (_sceneCaptureDepthTexture != null)
+            {
+                _api.TextureRelease(_sceneCaptureDepthTexture);
+                _sceneCaptureDepthTexture = null;
+            }
+
+            _sceneCaptureDepthSize = 0;
+        }
+
+        private void EnsureSceneCaptureDepthResources(uint size)
+        {
+            if (_sceneCaptureDepthTexture != null &&
+                _sceneCaptureDepthTextureView != null &&
+                _sceneCaptureDepthSize == size)
+            {
+                return;
+            }
+
+            ReleaseSceneCaptureDepthResources();
+
+            var depthTextureDescriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.RenderAttachment,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D
+                {
+                    Width = size,
+                    Height = size,
+                    DepthOrArrayLayers = 1
+                },
+                Format = _depthFormat,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+
+            _sceneCaptureDepthTexture = _api.DeviceCreateTexture(_device, &depthTextureDescriptor);
+            if (_sceneCaptureDepthTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU scene capture depth texture.");
+            }
+
+            var depthTextureViewDescriptor = new TextureViewDescriptor
+            {
+                Format = _depthFormat,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.DepthOnly
+            };
+
+            _sceneCaptureDepthTextureView = _api.TextureCreateView(_sceneCaptureDepthTexture, &depthTextureViewDescriptor);
+            if (_sceneCaptureDepthTextureView == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU scene capture depth texture view.");
+            }
+
+            _sceneCaptureDepthSize = size;
         }
 
         private void CreateDemoMeshPipeline()
@@ -528,8 +634,6 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            RefreshRenderScene();
-
             foreach (var sceneMesh in _sceneMeshes)
             {
                 UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
@@ -548,7 +652,128 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        private RenderPipeline* CreateDemoRenderPipeline(ShaderModule* shaderModule)
+        private void CaptureSceneEnvironmentIfNeeded(CommandEncoder* commandEncoder)
+        {
+            if (_activeRenderScene == null ||
+                _sceneMeshes.Count == 0)
+            {
+                return;
+            }
+
+            var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene.EnvironmentReflectionSource);
+            if (source.SourceKind != ManaEnvironmentSourceKind.SceneCapture)
+            {
+                return;
+            }
+
+            var refreshInterval = Math.Max(1, source.SceneCaptureRefreshIntervalFrames);
+            if (_framesSinceEnvironmentCapture < refreshInterval)
+            {
+                _framesSinceEnvironmentCapture++;
+                return;
+            }
+
+            var environmentReflectionMap = GetOrCreateEnvironmentReflectionMap();
+            var environmentMap = environmentReflectionMap.EnvironmentMapResource;
+            if (environmentMap.RenderTargetViews.Count < 6)
+            {
+                return;
+            }
+
+            var prefilteredMap = environmentReflectionMap.PrefilteredReflectionMapResource;
+            var irradianceMap = environmentReflectionMap.IrradianceMapResource;
+            var pipeline = GetOrCreateSceneCapturePipeline();
+            ManaConsole.WriteDiagnostic($"WebGPU scene environment capture: position={source.SceneCapturePosition}, meshes={_sceneMeshes.Count(mesh => mesh.Instance.IncludeInEnvironmentCapture)}.");
+
+            for (var face = 0; face < 6; face++)
+            {
+                var captureCamera = CreateSceneCaptureCamera(source, face);
+                EnsureSceneCaptureDepthResources(environmentMap.Width);
+                RenderSceneCaptureFace(commandEncoder, (TextureView*)environmentMap.RenderTargetViews[face], pipeline, captureCamera, face);
+
+                if (irradianceMap.RenderTargetViews.Count >= 6)
+                {
+                    EnsureSceneCaptureDepthResources(irradianceMap.Width);
+                    RenderSceneCaptureFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], pipeline, captureCamera, face);
+                }
+
+                var prefilterMipCount = prefilteredMap.RenderTargetViews.Count / 6;
+                for (var mip = 0; mip < prefilterMipCount; mip++)
+                {
+                    var mipSize = Math.Max(1u, prefilteredMap.Width >> mip);
+                    EnsureSceneCaptureDepthResources(mipSize);
+                    RenderSceneCaptureFace(commandEncoder, (TextureView*)prefilteredMap.RenderTargetViews[mip * 6 + face], pipeline, captureCamera, face);
+                }
+            }
+
+            _framesSinceEnvironmentCapture = 0;
+        }
+
+        private void RenderSceneCaptureFace(
+            CommandEncoder* commandEncoder,
+            TextureView* faceView,
+            RenderPipeline* pipeline,
+            ManaCameraData captureCamera,
+            int face)
+        {
+            if (faceView == null)
+            {
+                return;
+            }
+
+            var colorAttachment = new RenderPassColorAttachment
+            {
+                View = faceView,
+                LoadOp = LoadOp.Clear,
+                StoreOp = StoreOp.Store,
+                ClearValue = new Color(0.0, 0.0, 0.0, 1.0)
+            };
+
+            var depthStencilAttachment = new RenderPassDepthStencilAttachment
+            {
+                View = _sceneCaptureDepthTextureView,
+                DepthLoadOp = LoadOp.Clear,
+                DepthStoreOp = StoreOp.Store,
+                DepthClearValue = 1.0f,
+                DepthReadOnly = false,
+                StencilLoadOp = LoadOp.Undefined,
+                StencilStoreOp = StoreOp.Undefined,
+                StencilClearValue = 0,
+                StencilReadOnly = true
+            };
+
+            var renderPassDescriptor = new RenderPassDescriptor
+            {
+                ColorAttachmentCount = 1,
+                ColorAttachments = &colorAttachment,
+                DepthStencilAttachment = &depthStencilAttachment
+            };
+
+            var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+
+            _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+            foreach (var sceneMesh in _sceneMeshes)
+            {
+                if (!sceneMesh.Instance.IncludeInEnvironmentCapture)
+                {
+                    continue;
+                }
+
+                var captureUniformBuffer = sceneMesh.GetSceneCaptureUniformBuffer(face);
+                var captureBindGroup = sceneMesh.GetSceneCaptureBindGroup(face);
+                UpdateDemoUniforms(sceneMesh.Instance, captureUniformBuffer, captureCamera);
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, captureBindGroup, 0, null);
+                sceneMesh.Mesh.Draw(renderPass);
+            }
+
+            _api.RenderPassEncoderEnd(renderPass);
+            _api.RenderPassEncoderRelease(renderPass);
+        }
+
+        private RenderPipeline* CreateDemoRenderPipeline(
+            ShaderModule* shaderModule,
+            TextureFormat colorFormat,
+            PipelineLayout* pipelineLayout)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
@@ -615,7 +840,7 @@ namespace ManaGraphics.Code.Graphics
 
                 var colorTarget = new ColorTargetState
                 {
-                    Format = _surfaceFormat,
+                    Format = colorFormat,
                     Blend = &blendState,
                     WriteMask = ColorWriteMask.All
                 };
@@ -656,7 +881,7 @@ namespace ManaGraphics.Code.Graphics
 
                 var pipelineDescriptor = new RenderPipelineDescriptor
                 {
-                    Layout = _demoPipelineLayout,
+                    Layout = pipelineLayout,
                     Vertex = vertexState,
                     Primitive = new PrimitiveState
                     {
@@ -841,9 +1066,77 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
             }
 
-            var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, textureResource, ReleaseMeshTexture, bindGroup);
+            var sceneCaptureUniformBuffers = new nint[6];
+            var sceneCaptureBindGroups = new nint[6];
+            for (var face = 0; face < 6; face++)
+            {
+                var sceneCaptureUniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
+                if (sceneCaptureUniformBuffer == null)
+                {
+                    ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
+                    _api.BindGroupRelease(bindGroup);
+                    ReleaseMeshTexture(textureResource);
+                    _api.BufferRelease(uniformBuffer);
+                    mesh.Dispose();
+                    throw new InvalidOperationException($"Failed to create WebGPU scene capture uniform buffer for mesh '{instance.Name}'.");
+                }
+
+                sceneCaptureUniformBuffers[face] = (nint)sceneCaptureUniformBuffer;
+                var sceneCaptureBufferBindGroupEntry = bindGroupEntry;
+                sceneCaptureBufferBindGroupEntry.Buffer = sceneCaptureUniformBuffer;
+
+                var sceneCaptureBindGroupEntries = new BindGroupEntry[3];
+                sceneCaptureBindGroupEntries[0] = sceneCaptureBufferBindGroupEntry;
+                sceneCaptureBindGroupEntries[1] = samplerBindGroupEntry;
+                sceneCaptureBindGroupEntries[2] = textureBindGroupEntry;
+
+                BindGroup* sceneCaptureBindGroup = null;
+                fixed (BindGroupEntry* sceneCaptureBindGroupEntriesPointer = sceneCaptureBindGroupEntries)
+                {
+                    var sceneCaptureBindGroupDescriptor = new BindGroupDescriptor
+                    {
+                        Layout = _sceneCaptureBindGroupLayout,
+                        EntryCount = 3,
+                        Entries = sceneCaptureBindGroupEntriesPointer
+                    };
+                    sceneCaptureBindGroup = _api.DeviceCreateBindGroup(_device, &sceneCaptureBindGroupDescriptor);
+                }
+
+                if (sceneCaptureBindGroup == null)
+                {
+                    ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
+                    _api.BindGroupRelease(bindGroup);
+                    ReleaseMeshTexture(textureResource);
+                    _api.BufferRelease(uniformBuffer);
+                    mesh.Dispose();
+                    throw new InvalidOperationException($"Failed to create WebGPU scene capture bind group for mesh '{instance.Name}'.");
+                }
+
+                sceneCaptureBindGroups[face] = (nint)sceneCaptureBindGroup;
+            }
+
+            var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, textureResource, ReleaseMeshTexture, bindGroup, sceneCaptureUniformBuffers, sceneCaptureBindGroups);
             UpdateDemoUniforms(instance, uniformBuffer);
             return sceneMesh;
+        }
+
+        private void ReleaseSceneCaptureResources(IReadOnlyList<nint> uniformBuffers, IReadOnlyList<nint> bindGroups)
+        {
+            foreach (var bindGroup in bindGroups)
+            {
+                if (bindGroup != 0)
+                {
+                    _api.BindGroupRelease((BindGroup*)bindGroup);
+                }
+            }
+
+            foreach (var uniformBuffer in uniformBuffers)
+            {
+                if (uniformBuffer != 0)
+                {
+                    _api.BufferRelease((Silk.NET.WebGPU.Buffer*)uniformBuffer);
+                }
+            }
         }
 
         private void ReleaseSceneMeshes()
@@ -1142,6 +1435,22 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU demo bind group layout.");
             }
 
+            var sceneCaptureBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[3];
+            sceneCaptureBindGroupLayoutEntries[0] = bindGroupLayoutEntry;
+            sceneCaptureBindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
+            sceneCaptureBindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
+
+            var sceneCaptureBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
+            {
+                EntryCount = 3,
+                Entries = sceneCaptureBindGroupLayoutEntries
+            };
+            _sceneCaptureBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &sceneCaptureBindGroupLayoutDescriptor);
+            if (_sceneCaptureBindGroupLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU scene capture bind group layout.");
+            }
+
             var bindGroupLayoutPointer = _demoBindGroupLayout;
             var pipelineLayoutDescriptor = new PipelineLayoutDescriptor
             {
@@ -1152,6 +1461,18 @@ namespace ManaGraphics.Code.Graphics
             if (_demoPipelineLayout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU demo pipeline layout.");
+            }
+
+            var sceneCaptureBindGroupLayoutPointer = _sceneCaptureBindGroupLayout;
+            var sceneCapturePipelineLayoutDescriptor = new PipelineLayoutDescriptor
+            {
+                BindGroupLayoutCount = 1,
+                BindGroupLayouts = &sceneCaptureBindGroupLayoutPointer
+            };
+            _sceneCapturePipelineLayout = _api.DeviceCreatePipelineLayout(_device, &sceneCapturePipelineLayoutDescriptor);
+            if (_sceneCapturePipelineLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU scene capture pipeline layout.");
             }
         }
 
@@ -1251,10 +1572,10 @@ namespace ManaGraphics.Code.Graphics
 
         private ManaWebGpuEnvironmentReflectionMap GetOrCreateEnvironmentReflectionMap()
         {
-            var source = _activeRenderScene?.EnvironmentReflectionSource ?? new ManaEnvironmentReflectionSource();
+            var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene?.EnvironmentReflectionSource);
             var environmentPath = ResolveAssetPath(source.SourcePath);
             if (_environmentReflectionMap != null &&
-                string.Equals(_environmentReflectionMap.Source.SourcePath, source.SourcePath, StringComparison.OrdinalIgnoreCase))
+                HasSameEnvironmentSource(_environmentReflectionMap.Source, source))
             {
                 return _environmentReflectionMap;
             }
@@ -1263,6 +1584,56 @@ namespace ManaGraphics.Code.Graphics
             _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, source, environmentPath);
             ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets loaded: {environmentPath}");
             return _environmentReflectionMap;
+        }
+
+        private static ManaEnvironmentReflectionSource GetEffectiveEnvironmentReflectionSource(ManaEnvironmentReflectionSource? source)
+        {
+            source ??= new ManaEnvironmentReflectionSource();
+            if (!IsEnvironmentFlagEnabled("MANA_WEBGPU_SCENE_CAPTURE"))
+            {
+                return source;
+            }
+
+            return new ManaEnvironmentReflectionSource
+            {
+                SourceKind = ManaEnvironmentSourceKind.SceneCapture,
+                SourcePath = source.SourcePath,
+                Projection = source.Projection,
+                BuildReflectionCubeMap = source.BuildReflectionCubeMap,
+                EnvironmentCubeSize = source.EnvironmentCubeSize,
+                IrradianceCubeSize = source.IrradianceCubeSize,
+                PrefilterCubeSize = source.PrefilterCubeSize,
+                BrdfLutSize = source.BrdfLutSize,
+                SceneCapturePosition = source.SceneCapturePosition,
+                SceneCaptureNearPlane = source.SceneCaptureNearPlane,
+                SceneCaptureFarPlane = source.SceneCaptureFarPlane,
+                SceneCaptureRefreshIntervalFrames = source.SceneCaptureRefreshIntervalFrames
+            };
+        }
+
+        private static bool IsEnvironmentFlagEnabled(string name)
+        {
+            var value = Environment.GetEnvironmentVariable(name);
+            return !string.IsNullOrWhiteSpace(value) &&
+                !string.Equals(value, "0", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(value, "off", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasSameEnvironmentSource(ManaEnvironmentReflectionSource current, ManaEnvironmentReflectionSource incoming)
+        {
+            return current.SourceKind == incoming.SourceKind &&
+                string.Equals(current.SourcePath, incoming.SourcePath, StringComparison.OrdinalIgnoreCase) &&
+                current.Projection == incoming.Projection &&
+                current.BuildReflectionCubeMap == incoming.BuildReflectionCubeMap &&
+                current.EnvironmentCubeSize == incoming.EnvironmentCubeSize &&
+                current.IrradianceCubeSize == incoming.IrradianceCubeSize &&
+                current.PrefilterCubeSize == incoming.PrefilterCubeSize &&
+                current.BrdfLutSize == incoming.BrdfLutSize &&
+                current.SceneCapturePosition == incoming.SceneCapturePosition &&
+                Math.Abs(current.SceneCaptureNearPlane - incoming.SceneCaptureNearPlane) < 0.0001f &&
+                Math.Abs(current.SceneCaptureFarPlane - incoming.SceneCaptureFarPlane) < 0.0001f &&
+                current.SceneCaptureRefreshIntervalFrames == incoming.SceneCaptureRefreshIntervalFrames;
         }
 
         private void ReleaseEnvironmentReflectionMap()
@@ -1274,6 +1645,7 @@ namespace ManaGraphics.Code.Graphics
 
             _environmentReflectionMap.Dispose();
             _environmentReflectionMap = null;
+            _framesSinceEnvironmentCapture = int.MaxValue;
         }
 
         private ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)
@@ -1333,14 +1705,24 @@ namespace ManaGraphics.Code.Graphics
 
         private void UpdateDemoUniforms(ManaRenderMeshInstance meshInstance, Silk.NET.WebGPU.Buffer* uniformBuffer)
         {
+            if (_activeRenderScene == null)
+            {
+                return;
+            }
+
+            UpdateDemoUniforms(meshInstance, uniformBuffer, _activeRenderScene.Camera);
+        }
+
+        private void UpdateDemoUniforms(ManaRenderMeshInstance meshInstance, Silk.NET.WebGPU.Buffer* uniformBuffer, ManaCameraData camera)
+        {
             if (uniformBuffer == null || _activeRenderScene == null)
             {
                 return;
             }
 
             var model = meshInstance.WorldTransform;
-            var view = _activeRenderScene.Camera.View;
-            var projection = GetAspectCorrectedProjection(_activeRenderScene.Camera);
+            var view = camera.View;
+            var projection = GetAspectCorrectedProjection(camera);
             var modelProjection = model * view * projection;
             if (!Matrix4x4.Invert(model, out var inverseModel))
             {
@@ -1358,7 +1740,7 @@ namespace ManaGraphics.Code.Graphics
                 ModelProjection = modelProjection,
                 Model = model,
                 NormalMatrix = normalMatrix,
-                CameraPosition = new Vector4(_activeRenderScene.Camera.Position, 1.0f),
+                CameraPosition = new Vector4(camera.Position, 1.0f),
                 MaterialAlbedo = meshInstance.Albedo,
                 MaterialFactors = new Vector4(
                     Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
@@ -1423,11 +1805,25 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _shaderModules[shaderName] = (nint)shaderModule;
-            var pipeline = CreateDemoRenderPipeline(shaderModule);
+            var pipeline = CreateDemoRenderPipeline(shaderModule, _surfaceFormat, _demoPipelineLayout);
             _pipelines[shaderName] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
             return pipeline;
+        }
+
+        private RenderPipeline* GetOrCreateSceneCapturePipeline()
+        {
+            if (_sceneCapturePipeline != null)
+            {
+                return _sceneCapturePipeline;
+            }
+
+            var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "scene_capture.wgsl"));
+            _sceneCapturePipeline = CreateDemoRenderPipeline(shaderModule, TextureFormat.Rgba8UnormSrgb, _sceneCapturePipelineLayout);
+            _shaderModules["SceneCapture"] = (nint)shaderModule;
+            ManaConsole.WriteDiagnostic("WebGPU scene capture pipeline created successfully.");
+            return _sceneCapturePipeline;
         }
 
         private ShaderModule* CreateShaderModule(string relativePath)
@@ -1469,6 +1865,32 @@ namespace ManaGraphics.Code.Graphics
         private static float DegreesToRadians(float degrees)
         {
             return degrees * MathF.PI / 180.0f;
+        }
+
+        private static ManaCameraData CreateSceneCaptureCamera(ManaEnvironmentReflectionSource source, int face)
+        {
+            var position = source.SceneCapturePosition;
+            var nearPlane = Math.Max(0.001f, source.SceneCaptureNearPlane);
+            var farPlane = Math.Max(nearPlane + 1.0f, source.SceneCaptureFarPlane);
+            var direction = face switch
+            {
+                0 => Vector3.UnitX,
+                1 => -Vector3.UnitX,
+                2 => Vector3.UnitY,
+                3 => -Vector3.UnitY,
+                4 => Vector3.UnitZ,
+                _ => -Vector3.UnitZ
+            };
+            var up = face switch
+            {
+                2 => -Vector3.UnitZ,
+                3 => Vector3.UnitZ,
+                _ => Vector3.UnitY
+            };
+
+            var view = Matrix4x4.CreateLookAt(position, position + direction, up);
+            var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI * 0.5f, 1.0f, nearPlane, farPlane);
+            return new ManaCameraData(view, projection, position, nearPlane, farPlane);
         }
 
         private Matrix4x4 GetAspectCorrectedProjection(ManaCameraData camera)
@@ -1530,7 +1952,9 @@ namespace ManaGraphics.Code.Graphics
                 Silk.NET.WebGPU.Buffer* uniformBuffer,
                 ManaWebGpuMeshTexture texture,
                 Action<ManaWebGpuMeshTexture> releaseTexture,
-                BindGroup* bindGroup)
+                BindGroup* bindGroup,
+                nint[] sceneCaptureUniformBuffers,
+                nint[] sceneCaptureBindGroups)
             {
                 _api = api;
                 _releaseTexture = releaseTexture;
@@ -1539,6 +1963,8 @@ namespace ManaGraphics.Code.Graphics
                 UniformBuffer = uniformBuffer;
                 Texture = texture;
                 BindGroup = bindGroup;
+                SceneCaptureUniformBuffers = sceneCaptureUniformBuffers;
+                SceneCaptureBindGroups = sceneCaptureBindGroups;
             }
 
             public ManaRenderMeshInstance Instance { get; set; }
@@ -1546,10 +1972,40 @@ namespace ManaGraphics.Code.Graphics
             public Silk.NET.WebGPU.Buffer* UniformBuffer { get; }
             public ManaWebGpuMeshTexture Texture { get; }
             public BindGroup* BindGroup { get; }
+            public nint[] SceneCaptureUniformBuffers { get; private set; }
+            public nint[] SceneCaptureBindGroups { get; private set; }
+
+            public Silk.NET.WebGPU.Buffer* GetSceneCaptureUniformBuffer(int face)
+            {
+                return (Silk.NET.WebGPU.Buffer*)SceneCaptureUniformBuffers[Math.Clamp(face, 0, SceneCaptureUniformBuffers.Length - 1)];
+            }
+
+            public BindGroup* GetSceneCaptureBindGroup(int face)
+            {
+                return (BindGroup*)SceneCaptureBindGroups[Math.Clamp(face, 0, SceneCaptureBindGroups.Length - 1)];
+            }
 
             public void Dispose()
             {
                 Mesh.Dispose();
+
+                foreach (var sceneCaptureBindGroup in SceneCaptureBindGroups)
+                {
+                    if (sceneCaptureBindGroup != 0)
+                    {
+                        _api.BindGroupRelease((BindGroup*)sceneCaptureBindGroup);
+                    }
+                }
+                SceneCaptureBindGroups = Array.Empty<nint>();
+
+                foreach (var sceneCaptureUniformBuffer in SceneCaptureUniformBuffers)
+                {
+                    if (sceneCaptureUniformBuffer != 0)
+                    {
+                        _api.BufferRelease((Silk.NET.WebGPU.Buffer*)sceneCaptureUniformBuffer);
+                    }
+                }
+                SceneCaptureUniformBuffers = Array.Empty<nint>();
 
                 if (BindGroup != null)
                 {

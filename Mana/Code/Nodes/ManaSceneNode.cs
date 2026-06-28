@@ -26,6 +26,7 @@ namespace Mana.Code.Nodes
         public Vector3 Rotation { get; set; }
         public Vector3 RotationDegrees { get { return Rotation.ToEulerDegrees(); } }
         public Vector3 Scale { get; set; }
+        public bool IncludeInEnvironmentCapture { get; set; } = true;
 
         public override string ToString()
         {
@@ -140,6 +141,11 @@ namespace Mana.Code.Nodes
 
         public void CollectRenderMeshInstances(List<ManaCore.Graphics.ManaRenderMeshInstance> output)
         {
+            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture);
+        }
+
+        private void CollectRenderMeshInstances(List<ManaCore.Graphics.ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
+        {
             foreach (var component in Components)
             {
                 if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
@@ -162,7 +168,8 @@ namespace Mana.Code.Nodes
                         Albedo = renderer.Material.Albedo.Value,
                         Metallic = renderer.Material.Metallic.Value,
                         Roughness = renderer.Material.Roughness.Value,
-                        AmbientOcclusion = renderer.Material.Ambient.Value
+                        AmbientOcclusion = renderer.Material.Ambient.Value,
+                        IncludeInEnvironmentCapture = includeInEnvironmentCapture
                     });
                 }
                 catch (InvalidOperationException)
@@ -173,7 +180,7 @@ namespace Mana.Code.Nodes
 
             foreach (var child in Children)
             {
-                child.CollectRenderMeshInstances(output);
+                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture);
             }
         }
 

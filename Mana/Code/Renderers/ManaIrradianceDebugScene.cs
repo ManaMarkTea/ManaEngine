@@ -112,7 +112,8 @@ namespace Mana.Code.Renderers
             {
                 Name = "PBR Debug Scene",
                 Position = debugSceneCenter,
-                Scale = Vector3.One * settings.DebugSceneScale
+                Scale = Vector3.One * settings.DebugSceneScale,
+                IncludeInEnvironmentCapture = false
             };
 
             BuildDebugScene(debugSceneNode);
