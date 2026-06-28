@@ -172,7 +172,9 @@ namespace Mana.Code.Nodes
                         Emission = renderer.Material.Emission.Value,
                         EmissionStrength = (float)renderer.Material.EmissionStrength,
                         PbrDebugMode = GetPbrDebugMode(renderer.Material),
-                        IncludeInEnvironmentCapture = includeInEnvironmentCapture
+                        IncludeInEnvironmentCapture = includeInEnvironmentCapture,
+                        IsTransparent = renderer.Material.Shader?.IsTransparent ?? false,
+                        DisableDepthWrite = renderer.Material.Shader?.DisableDepthWrite ?? false
                     });
                 }
                 catch (InvalidOperationException)

@@ -1,8 +1,10 @@
-﻿namespace Mana.Code
+namespace Mana.Code
 {
 
     public class ManaLiquidShader : ManaShader
     {
+        public override bool IsTransparent => true;
+        public override bool DisableDepthWrite => true;
         static ManaLiquidShader()
         {
             CacheShader("Assets/Shaders/LearnSpecularTextured/pbr.vert");

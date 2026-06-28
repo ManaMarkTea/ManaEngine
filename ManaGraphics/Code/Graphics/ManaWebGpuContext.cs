@@ -682,7 +682,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
                 
-                var pipeline = GetOrCreatePipeline(sceneMesh.Instance.ShaderName);
+                var pipeline = GetOrCreatePipeline(sceneMesh.Instance.ShaderName, sceneMesh.Instance.IsTransparent, sceneMesh.Instance.DisableDepthWrite);
                 if (pipeline != null)
                 {
                     _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
@@ -859,13 +859,17 @@ namespace ManaGraphics.Code.Graphics
         private RenderPipeline* CreateDemoRenderPipeline(
             ShaderModule* shaderModule,
             TextureFormat colorFormat,
-            PipelineLayout* pipelineLayout)
+            PipelineLayout* pipelineLayout,
+            string? shaderName = null,
+            bool isTransparent = false,
+            bool disableDepthWrite = false)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
 
             try
             {
+                ManaConsole.WriteDiagnostic($"[WebGPU Pipeline] Creating '{shaderName}' with isTransparent={isTransparent}, disableDepthWrite={disableDepthWrite}");
                 var vertexAttributes = stackalloc VertexAttribute[4];
                 vertexAttributes[0] = new VertexAttribute
                 {
@@ -908,19 +912,21 @@ namespace ManaGraphics.Code.Graphics
                     Buffers = &vertexBufferLayout
                 };
 
+                // Blending and depth settings are now parameter driven
+
                 var blendState = new BlendState
                 {
                     Color = new BlendComponent
                     {
                         Operation = BlendOperation.Add,
-                        SrcFactor = BlendFactor.One,
-                        DstFactor = BlendFactor.Zero
+                        SrcFactor = isTransparent ? BlendFactor.SrcAlpha : BlendFactor.One,
+                        DstFactor = isTransparent ? BlendFactor.OneMinusSrcAlpha : BlendFactor.Zero
                     },
                     Alpha = new BlendComponent
                     {
                         Operation = BlendOperation.Add,
-                        SrcFactor = BlendFactor.One,
-                        DstFactor = BlendFactor.Zero
+                        SrcFactor = isTransparent ? BlendFactor.One : BlendFactor.One,
+                        DstFactor = isTransparent ? BlendFactor.OneMinusSrcAlpha : BlendFactor.Zero
                     }
                 };
 
@@ -942,7 +948,7 @@ namespace ManaGraphics.Code.Graphics
                 var depthStencilState = new DepthStencilState
                 {
                     Format = _depthFormat,
-                    DepthWriteEnabled = true,
+                    DepthWriteEnabled = !disableDepthWrite,
                     DepthCompare = CompareFunction.Less,
                     StencilFront = new StencilFaceState
                     {
@@ -1857,11 +1863,12 @@ namespace ManaGraphics.Code.Graphics
             _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuTransformUniform));
         }
 
-        private RenderPipeline* GetOrCreatePipeline(string? shaderName)
+        private RenderPipeline* GetOrCreatePipeline(string? shaderName, bool isTransparent = false, bool disableDepthWrite = false)
         {
             shaderName ??= "ManaPbrShader";
             
-            if (_pipelines.TryGetValue(shaderName, out var cachedPipeline))
+            string pipelineKey = $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}";
+            if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
                 return (RenderPipeline*)cachedPipeline;
             }
@@ -1893,8 +1900,8 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _shaderModules[shaderName] = (nint)shaderModule;
-            var pipeline = CreateDemoRenderPipeline(shaderModule, GetSceneColorFormat(), _demoPipelineLayout);
-            _pipelines[shaderName] = (nint)pipeline;
+            var pipeline = CreateDemoRenderPipeline(shaderModule, GetSceneColorFormat(), _demoPipelineLayout, shaderName, isTransparent, disableDepthWrite);
+            _pipelines[pipelineKey] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
             return pipeline;
@@ -1908,7 +1915,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "scene_capture.wgsl"));
-            _sceneCapturePipeline = CreateDemoRenderPipeline(shaderModule, TextureFormat.Rgba8UnormSrgb, _sceneCapturePipelineLayout);
+            _sceneCapturePipeline = CreateDemoRenderPipeline(shaderModule, TextureFormat.Rgba8UnormSrgb, _sceneCapturePipelineLayout, "SceneCapture");
             _shaderModules["SceneCapture"] = (nint)shaderModule;
             ManaConsole.WriteDiagnostic("WebGPU scene capture pipeline created successfully.");
             return _sceneCapturePipeline;

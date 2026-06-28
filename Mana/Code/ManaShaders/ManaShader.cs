@@ -1,4 +1,4 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
 using Silk.NET.OpenGL;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
@@ -58,6 +58,8 @@ namespace Mana
     public class ManaShader : ManaObject
     {
         public ManaCompiledShader CompiledShader { get; set; } = null!;
+        public virtual bool IsTransparent => false;
+        public virtual bool DisableDepthWrite => false;
 
         public ShaderSource VertexSource { get; set; } = null!;
         public ShaderSource FragmentSource { get; set; } = null!;

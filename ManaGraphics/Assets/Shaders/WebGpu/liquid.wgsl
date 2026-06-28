@@ -1,6 +1,18 @@
 struct TransformUniform {
     model_projection : mat4x4<f32>,
+    model : mat4x4<f32>,
+    normal_matrix : mat4x4<f32>,
+    camera_position : vec4<f32>,
+    material_albedo : vec4<f32>,
+    material_factors : vec4<f32>,
+    material_emission : vec4<f32>,
+    irradiance_factors : vec4<f32>,
+    light_positions : array<vec4<f32>, 4>,
+    light_colors : array<vec4<f32>, 4>,
     time : f32,
+    webgpu_debug_mode : f32,
+    _padding1 : f32,
+    _padding2 : f32,
 };
 
 struct VertexOutput {

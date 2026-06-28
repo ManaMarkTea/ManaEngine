@@ -6,6 +6,8 @@ namespace Mana.Code
 {
     public class ManaLightningBallShader : ManaShader
     {
+        public override bool IsTransparent => true;
+        public override bool DisableDepthWrite => true;
         static ManaLightningBallShader()
         {
             CacheShader("Assets/ShaderToys/LightningBall.vert");

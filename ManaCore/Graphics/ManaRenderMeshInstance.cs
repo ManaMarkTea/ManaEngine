@@ -19,5 +19,7 @@ namespace ManaCore.Graphics
         public float EmissionStrength { get; init; }
         public float? PbrDebugMode { get; init; }
         public bool IncludeInEnvironmentCapture { get; init; } = true;
+        public bool IsTransparent { get; init; }
+        public bool DisableDepthWrite { get; init; }
     }
 }

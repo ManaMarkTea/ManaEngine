@@ -235,5 +235,6 @@ void main(void)
     float glowEnergy = clamp(max(max(accum.r, accum.g), accum.b) * 0.28, 0.0, 1.0);
     float alpha = clamp(0.08 + fresnel * 0.34 + glowEnergy * 0.58, 0.08, 0.78);
 
-    FragColor = vec4(color, alpha);
+    float boost = 1.0 + glowEnergy * 5.0;
+    FragColor = vec4(color * boost, alpha);
 }
