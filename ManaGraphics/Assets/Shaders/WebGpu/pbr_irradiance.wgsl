@@ -91,7 +91,7 @@ fn mana_environment_radiance(direction : vec3<f32>) -> vec3<f32> {
 }
 
 fn mana_environment_reflection(direction : vec3<f32>, roughness : f32) -> vec3<f32> {
-    let max_lod = 9.0;
+    let max_lod = 4.0;
     return textureSampleLevel(prefiltered_reflection_map, clamp_sampler, normalize(direction), saturate(roughness) * max_lod).rgb;
 }
 
@@ -148,7 +148,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     let reflection = reflect(-v, n);
     let reflection_radiance = mana_environment_reflection(reflection, roughness);
-    let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(max(dot(n, v), 0.0), roughness)).rg;
+    let ndotv = max(dot(n, v), 0.0);
+    let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(ndotv, roughness)).rg;
     let specular_ibl = reflection_radiance * (F * brdf.x + brdf.y) * ibl_intensity;
     let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao;
 
@@ -169,10 +170,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         color = normalize(reflection) * 0.5 + vec3<f32>(0.5);
     } else if (debug_mode == 5u) {
         // Mode 5: Reflection Radiance
-        color = reflection_radiance;
+        color = reflection_radiance * ibl_intensity;
     } else if (debug_mode == 6u) {
         // Mode 6: BRDF Scale
-        color = F * brdf.x + brdf.y;
+        color = (F * brdf.x + brdf.y) * ibl_intensity;
     } else {
         // Mode 0: Normal shading
         color = color * exposure;

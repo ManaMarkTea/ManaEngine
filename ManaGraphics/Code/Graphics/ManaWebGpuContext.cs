@@ -1346,7 +1346,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 inverseModel = Matrix4x4.Identity;
             }
-            var normalMatrix = inverseModel;
+            var normalMatrix = Matrix4x4.Transpose(inverseModel);
             var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
             var irradianceSettings = _activeRenderScene.IrradianceSettings;
             var lightDirection = irradianceSettings.LightDirection.LengthSquared() > 0.0001f

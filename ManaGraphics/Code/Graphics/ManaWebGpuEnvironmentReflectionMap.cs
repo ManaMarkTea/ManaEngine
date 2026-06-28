@@ -395,6 +395,11 @@ namespace ManaGraphics.Code.Graphics
         private static Vector4 SampleReflection(EquirectImage source, Vector3 direction, float roughness, bool irradiance)
         {
             var d = Vector3.Normalize(direction);
+            if (!irradiance)
+            {
+                return SamplePrefilteredReflection(source, d, roughness);
+            }
+
             var radius = irradiance ? 0.85f : roughness * roughness * 0.5f;
             if (radius <= 0.0001f)
             {
@@ -418,6 +423,57 @@ namespace ManaGraphics.Code.Graphics
             }
 
             return color / 6.0f;
+        }
+
+        private static Vector4 SamplePrefilteredReflection(EquirectImage source, Vector3 direction, float roughness)
+        {
+            if (roughness <= 0.0001f)
+            {
+                return source.Sample(direction);
+            }
+
+            var n = Vector3.Normalize(direction);
+            var v = n;
+            var color = Vector4.Zero;
+            var totalWeight = 0.0f;
+            var sampleCount = GetPrefilterSampleCount(roughness);
+
+            for (uint i = 0; i < sampleCount; ++i)
+            {
+                var xi = Hammersley(i, sampleCount);
+                var h = ImportanceSampleGGX(xi, n, roughness);
+                var l = Vector3.Normalize(2.0f * Vector3.Dot(v, h) * h - v);
+                var nDotL = MathF.Max(Vector3.Dot(n, l), 0.0f);
+                if (nDotL <= 0.0f)
+                {
+                    continue;
+                }
+
+                color += source.Sample(l) * nDotL;
+                totalWeight += nDotL;
+            }
+
+            if (totalWeight <= 0.0001f)
+            {
+                return source.Sample(direction);
+            }
+
+            return color / totalWeight;
+        }
+
+        private static uint GetPrefilterSampleCount(float roughness)
+        {
+            if (roughness < 0.08f)
+            {
+                return 32u;
+            }
+
+            if (roughness < 0.35f)
+            {
+                return 64u;
+            }
+
+            return 128u;
         }
 
         private static Vector3 GetCubeDirection(int face, float u, float v)

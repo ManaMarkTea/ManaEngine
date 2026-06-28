@@ -61,7 +61,7 @@ namespace Mana.Code.Renderers
                 var material = binding.Material;
                 material.Albedo.Value = binding.UsePanelMaterial
                     ? settings.DebugAlbedo
-                    : TintDebugAlbedo(settings.DebugAlbedo, binding.Metallic, binding.Roughness);
+                    : TintDebugAlbedo(Vector4.One, binding.Metallic, binding.Roughness);
                 material.Metallic.Value = binding.UsePanelMaterial ? settings.DebugMetallic : binding.Metallic;
                 material.Roughness.Value = binding.UsePanelMaterial ? settings.DebugRoughness : binding.Roughness;
                 material.Ambient.Value = settings.DebugAmbient;
@@ -139,11 +139,12 @@ namespace Mana.Code.Renderers
 
             var panelSample = CreateDebugNode(
                 "PBR Panel Material Sample",
-                shapeSamples[1].Mesh,
+                shapeSamples[2].Mesh,
                 new Vector3(-(Columns + 2.5f) * Spacing, 0.0f, 0.0f),
                 settings.DebugMetallic,
                 settings.DebugRoughness,
                 usePanelMaterial: true);
+            panelSample.Rotation = shapeSamples[2].Rotation;
             root.AddChild(panelSample);
 
             for (int row = 0; row < Rows; ++row)
@@ -154,7 +155,7 @@ namespace Mana.Code.Renderers
                 {
                     float roughness = Math.Clamp(col / (float)(Columns - 1), 0.05f, 1.0f);
                     var rowColumnOffset = new Vector3((col - colCenter) * Spacing, (row - rowCenter) * Spacing, 0.0f);
-
+                    
                     for (int shapeIndex = 0; shapeIndex < shapeSamples.Length; ++shapeIndex)
                     {
                         var shape = shapeSamples[shapeIndex];
