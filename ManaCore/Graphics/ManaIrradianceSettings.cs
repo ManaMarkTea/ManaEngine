@@ -15,6 +15,7 @@ namespace ManaCore.Graphics
         public float DebugRoughness { get; set; } = 0.1f;
         public Vector4 DebugAlbedo { get; set; } = Vector4.One;
         public float DebugSceneScale { get; set; } = 1.0f;
+        public float WebGpuDebugMode { get; set; } = 0.0f;
 
         public ManaIrradianceSettings Clone()
         {
@@ -30,7 +31,8 @@ namespace ManaCore.Graphics
                 DebugAmbient = DebugAmbient,
                 DebugRoughness = DebugRoughness,
                 DebugAlbedo = DebugAlbedo,
-                DebugSceneScale = DebugSceneScale
+                DebugSceneScale = DebugSceneScale,
+                WebGpuDebugMode = WebGpuDebugMode
             };
         }
     }

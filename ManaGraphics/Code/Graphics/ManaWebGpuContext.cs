@@ -44,6 +44,7 @@ namespace ManaGraphics.Code.Graphics
         private BindGroupLayout* _demoBindGroupLayout;
         private PipelineLayout* _demoPipelineLayout;
         private Sampler* _demoSampler;
+        private Sampler* _clampSampler;
         private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
@@ -53,6 +54,7 @@ namespace ManaGraphics.Code.Graphics
         {
             _window = window;
             _renderSceneProvider = renderSceneProvider;
+
             ManaConsole.WriteDiagnostic("Creating Silk WebGPU API.");
             _api = WebGPU.GetApi();
             _requestAdapterCallback = OnRequestAdapter;
@@ -270,6 +272,12 @@ namespace ManaGraphics.Code.Graphics
             {
                 _api.SamplerRelease(_demoSampler);
                 _demoSampler = null;
+            }
+
+            if (_clampSampler != null)
+            {
+                _api.SamplerRelease(_clampSampler);
+                _clampSampler = null;
             }
 
             if (_demoBindGroupLayout != null)
@@ -797,7 +805,13 @@ namespace ManaGraphics.Code.Graphics
                 TextureView = environmentReflectionMap.BrdfLutResource.TextureView
             };
 
-            var bindGroupEntries = new BindGroupEntry[7];
+            var clampSamplerBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 7,
+                Sampler = _clampSampler
+            };
+
+            var bindGroupEntries = new BindGroupEntry[8];
             bindGroupEntries[0] = bindGroupEntry;
             bindGroupEntries[1] = samplerBindGroupEntry;
             bindGroupEntries[2] = textureBindGroupEntry;
@@ -805,6 +819,7 @@ namespace ManaGraphics.Code.Graphics
             bindGroupEntries[4] = irradianceMapBindGroupEntry;
             bindGroupEntries[5] = prefilteredReflectionMapBindGroupEntry;
             bindGroupEntries[6] = brdfLutBindGroupEntry;
+            bindGroupEntries[7] = clampSamplerBindGroupEntry;
 
             BindGroup* bindGroup = null;
             fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
@@ -812,7 +827,7 @@ namespace ManaGraphics.Code.Graphics
                 var bindGroupDescriptor = new BindGroupDescriptor
                 {
                     Layout = _demoBindGroupLayout,
-                    EntryCount = 7,
+                    EntryCount = 8,
                     Entries = bindGroupEntriesPointer
                 };
                 bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
@@ -1002,8 +1017,8 @@ namespace ManaGraphics.Code.Graphics
                 MagFilter = FilterMode.Linear,
                 MinFilter = FilterMode.Linear,
                 MipmapFilter = MipmapFilterMode.Linear,
-                LodMinClamp = 0,
-                LodMaxClamp = 1,
+                LodMinClamp = 0.0f,
+                LodMaxClamp = 32.0f,
                 Compare = CompareFunction.Undefined,
                 MaxAnisotropy = 1
             };
@@ -1011,6 +1026,25 @@ namespace ManaGraphics.Code.Graphics
             if (_demoSampler == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU demo sampler.");
+            }
+
+            var clampSamplerDescriptor = new SamplerDescriptor
+            {
+                AddressModeU = AddressMode.ClampToEdge,
+                AddressModeV = AddressMode.ClampToEdge,
+                AddressModeW = AddressMode.ClampToEdge,
+                MagFilter = FilterMode.Linear,
+                MinFilter = FilterMode.Linear,
+                MipmapFilter = MipmapFilterMode.Linear,
+                LodMinClamp = 0.0f,
+                LodMaxClamp = 32.0f,
+                Compare = CompareFunction.Undefined,
+                MaxAnisotropy = 1
+            };
+            _clampSampler = _api.DeviceCreateSampler(_device, &clampSamplerDescriptor);
+            if (_clampSampler == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU clamp sampler.");
             }
 
             var bindGroupLayoutEntry = new BindGroupLayoutEntry
@@ -1077,7 +1111,17 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[7];
+            var clampSamplerBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 7,
+                Visibility = ShaderStage.Fragment,
+                Sampler = new SamplerBindingLayout
+                {
+                    Type = SamplerBindingType.Filtering
+                }
+            };
+
+            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[8];
             bindGroupLayoutEntries[0] = bindGroupLayoutEntry;
             bindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
             bindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
@@ -1085,10 +1129,11 @@ namespace ManaGraphics.Code.Graphics
             bindGroupLayoutEntries[4] = irradianceMapBindGroupLayoutEntry;
             bindGroupLayoutEntries[5] = prefilteredReflectionMapBindGroupLayoutEntry;
             bindGroupLayoutEntries[6] = brdfLutBindGroupLayoutEntry;
+            bindGroupLayoutEntries[7] = clampSamplerBindGroupLayoutEntry;
 
             var bindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
             {
-                EntryCount = 7,
+                EntryCount = 8,
                 Entries = bindGroupLayoutEntries
             };
             _demoBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
@@ -1301,7 +1346,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 inverseModel = Matrix4x4.Identity;
             }
-            var normalMatrix = Matrix4x4.Transpose(inverseModel);
+            var normalMatrix = inverseModel;
             var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
             var irradianceSettings = _activeRenderScene.IrradianceSettings;
             var lightDirection = irradianceSettings.LightDirection.LengthSquared() > 0.0001f
@@ -1311,7 +1356,6 @@ namespace ManaGraphics.Code.Graphics
             var uniform = new ManaWebGpuTransformUniform
             {
                 ModelProjection = modelProjection,
-                Time = elapsedSeconds,
                 Model = model,
                 NormalMatrix = normalMatrix,
                 CameraPosition = new Vector4(_activeRenderScene.Camera.Position, 1.0f),
@@ -1327,7 +1371,11 @@ namespace ManaGraphics.Code.Graphics
                     Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
                     1.0f),
                 IrradianceLightColor = irradianceSettings.LightColor,
-                IrradianceLightDirection = new Vector4(lightDirection, 0.0f)
+                IrradianceLightDirection = new Vector4(lightDirection, 0.0f),
+                Time = elapsedSeconds,
+                WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
+                _padding1 = 0.0f,
+                _padding2 = 0.0f
             };
 
             _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuTransformUniform));
@@ -1642,10 +1690,6 @@ namespace ManaGraphics.Code.Graphics
         private struct ManaWebGpuTransformUniform
         {
             public Matrix4x4 ModelProjection;
-            public float Time;
-            private float _padding0;
-            private float _padding1;
-            private float _padding2;
             public Matrix4x4 Model;
             public Matrix4x4 NormalMatrix;
             public Vector4 CameraPosition;
@@ -1654,6 +1698,10 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 IrradianceFactors;
             public Vector4 IrradianceLightColor;
             public Vector4 IrradianceLightDirection;
+            public float Time;
+            public float WebGpuDebugMode;
+            public float _padding1;
+            public float _padding2;
         }
     }
 }

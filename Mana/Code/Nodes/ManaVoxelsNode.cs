@@ -425,7 +425,7 @@ namespace Mana.Code.Nodes
             LockPreviewVoxelCount = 0;
             LockPreviewOverlapCount = 0;
         }
-
+    
         public int ExplodeBakedVoxels(float? strength = null, float? minRadiusPadding = null)
         {
             if (!IsBakedToDynamicPhysics || _bakedBodies == null || _bakedBodies.Count == 0)

@@ -105,6 +105,7 @@ namespace Mana
             DefaultScene.Name = "Default Scene";
             Scenes.Add(DefaultScene);
             irradianceDebugScene = new ManaIrradianceDebugScene(context, IrradianceSettings);
+            irradianceDebugScene.SyncMembership();
         }
 
         private void _Window_Resize(Silk.NET.Maths.Vector2D<int> obj)

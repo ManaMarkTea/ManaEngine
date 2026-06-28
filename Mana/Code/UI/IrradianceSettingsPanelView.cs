@@ -103,6 +103,14 @@ namespace Mana.Code.UI
                 debugSceneScaleChanged = true;
             }
 
+            var debugMode = (int)settings.WebGpuDebugMode;
+            string[] debugModes = { "Off", "View Vector (V)", "World Normal (N)", "Reflection (R)", "Cubemap Dir", "Reflection Radiance", "BRDF Scale" };
+            if (ImGui.Combo("WebGpu Debug", ref debugMode, debugModes, debugModes.Length))
+            {
+                settings.WebGpuDebugMode = debugMode;
+                lightSettingsChanged = true;
+            }
+
             if (ImGui.Button("Reset"))
             {
                 var defaults = new ManaIrradianceSettings();
@@ -117,6 +125,7 @@ namespace Mana.Code.UI
                 settings.LightColor = defaults.LightColor;
                 settings.LightDirection = defaults.LightDirection;
                 settings.DebugSceneScale = defaults.DebugSceneScale;
+                settings.WebGpuDebugMode = defaults.WebGpuDebugMode;
 
                 debugWorldChanged = true;
                 debugMaterialChanged = true;

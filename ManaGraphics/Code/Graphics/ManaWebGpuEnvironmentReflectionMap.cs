@@ -178,7 +178,7 @@ namespace ManaGraphics.Code.Graphics
                     Height = (uint)height,
                     DepthOrArrayLayers = 1
                 },
-                Format = TextureFormat.Rgba8UnormSrgb,
+                Format = TextureFormat.Rgba8Unorm,
                 MipLevelCount = 1,
                 SampleCount = 1
             };
@@ -191,7 +191,7 @@ namespace ManaGraphics.Code.Graphics
 
             var viewDescriptor = new TextureViewDescriptor
             {
-                Format = TextureFormat.Rgba8UnormSrgb,
+                Format = TextureFormat.Rgba8Unorm,
                 Dimension = TextureViewDimension.Dimension2D,
                 MipLevelCount = 1,
                 ArrayLayerCount = 1,
@@ -210,29 +210,125 @@ namespace ManaGraphics.Code.Graphics
 
         private static void WriteCubeTexture(WebGPU api, Queue* queue, Texture* texture, EquirectImage source, int size, int mip, float roughness, bool irradiance)
         {
+            var face0Pixels = GenerateCubeFace(source, 0, size, roughness, irradiance);
+            PadRows(face0Pixels, size, size, out var bytesPerRow);
+
+            var paddedFaceSize = bytesPerRow * (uint)size;
+            var combinedPixels = new byte[paddedFaceSize * 6];
+
             for (var face = 0; face < 6; face++)
             {
                 var pixels = GenerateCubeFace(source, face, size, roughness, irradiance);
-                var uploadPixels = PadRows(pixels, size, size, out var bytesPerRow);
-                fixed (byte* pixelPointer = uploadPixels)
+                var uploadPixels = PadRows(pixels, size, size, out _);
+                System.Buffer.BlockCopy(uploadPixels, 0, combinedPixels, (int)(face * paddedFaceSize), uploadPixels.Length);
+            }
+
+            fixed (byte* pixelPointer = combinedPixels)
+            {
+                var destination = new ImageCopyTexture
                 {
-                    var destination = new ImageCopyTexture
-                    {
-                        Texture = texture,
-                        MipLevel = (uint)mip,
-                        Origin = new Origin3D { X = 0, Y = 0, Z = (uint)face },
-                        Aspect = TextureAspect.All
-                    };
-                    var dataLayout = new TextureDataLayout
-                    {
-                        Offset = 0,
-                        BytesPerRow = bytesPerRow,
-                        RowsPerImage = (uint)size
-                    };
-                    var writeSize = new Extent3D { Width = (uint)size, Height = (uint)size, DepthOrArrayLayers = 1 };
-                    api.QueueWriteTexture(queue, &destination, pixelPointer, (nuint)uploadPixels.Length, &dataLayout, &writeSize);
+                    Texture = texture,
+                    MipLevel = (uint)mip,
+                    Origin = new Origin3D { X = 0, Y = 0, Z = 0 },
+                    Aspect = TextureAspect.All
+                };
+                var dataLayout = new TextureDataLayout
+                {
+                    Offset = 0,
+                    BytesPerRow = bytesPerRow,
+                    RowsPerImage = (uint)size
+                };
+                var writeSize = new Extent3D { Width = (uint)size, Height = (uint)size, DepthOrArrayLayers = 6 };
+                api.QueueWriteTexture(queue, &destination, pixelPointer, (nuint)combinedPixels.Length, &dataLayout, &writeSize);
+            }
+        }
+
+        private static float RadicalInverse_VdC(uint bits)
+        {
+            bits = (bits << 16) | (bits >> 16);
+            bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
+            bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
+            bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
+            bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
+            return bits * 2.3283064365386963e-10f; // / 0x100000000
+        }
+
+        private static Vector2 Hammersley(uint i, uint N)
+        {
+            return new Vector2(i / (float)N, RadicalInverse_VdC(i));
+        }
+
+        private static Vector3 ImportanceSampleGGX(Vector2 Xi, Vector3 N, float roughness)
+        {
+            float a = roughness * roughness;
+            float phi = 2.0f * MathF.PI * Xi.X;
+            float cosTheta = MathF.Sqrt((1.0f - Xi.Y) / (1.0f + (a * a - 1.0f) * Xi.Y));
+            float sinTheta = MathF.Sqrt(1.0f - cosTheta * cosTheta);
+
+            Vector3 H;
+            H.X = MathF.Cos(phi) * sinTheta;
+            H.Y = MathF.Sin(phi) * sinTheta;
+            H.Z = cosTheta;
+
+            Vector3 up = MathF.Abs(N.Z) < 0.999f ? new Vector3(0.0f, 0.0f, 1.0f) : new Vector3(1.0f, 0.0f, 0.0f);
+            Vector3 tangent = Vector3.Normalize(Vector3.Cross(up, N));
+            Vector3 bitangent = Vector3.Cross(N, tangent);
+
+            return Vector3.Normalize(tangent * H.X + bitangent * H.Y + N * H.Z);
+        }
+
+        private static float GeometrySchlickGGX(float NdotV, float roughness)
+        {
+            float a = roughness;
+            float k = (a * a) / 2.0f;
+            float nom = NdotV;
+            float denom = NdotV * (1.0f - k) + k;
+            return nom / Math.Max(denom, 0.0001f);
+        }
+
+        private static float GeometrySmith(Vector3 N, Vector3 V, Vector3 L, float roughness)
+        {
+            float NdotV = Math.Max(Vector3.Dot(N, V), 0.0f);
+            float NdotL = Math.Max(Vector3.Dot(N, L), 0.0f);
+            float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+            float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+            return ggx1 * ggx2;
+        }
+
+        private static Vector2 IntegrateBRDF(float NdotV, float roughness)
+        {
+            NdotV = Math.Clamp(NdotV, 0.0001f, 0.9999f);
+            Vector3 V;
+            V.X = MathF.Sqrt(Math.Max(1.0f - NdotV * NdotV, 0.0f));
+            V.Y = 0.0f;
+            V.Z = NdotV;
+
+            float A = 0.0f;
+            float B = 0.0f;
+
+            Vector3 N = new Vector3(0.0f, 0.0f, 1.0f);
+            const uint SAMPLE_COUNT = 128u;
+            for (uint i = 0u; i < SAMPLE_COUNT; ++i)
+            {
+                Vector2 Xi = Hammersley(i, SAMPLE_COUNT);
+                Vector3 H = ImportanceSampleGGX(Xi, N, roughness);
+                Vector3 L = Vector3.Normalize(2.0f * Vector3.Dot(V, H) * H - V);
+
+                float NdotL = Math.Max(L.Z, 0.0f);
+                float NdotH = Math.Max(H.Z, 0.0f);
+                float VdotH = Math.Max(Vector3.Dot(V, H), 0.0f);
+
+                if (NdotL > 0.0f)
+                {
+                    float G = GeometrySmith(N, V, L, roughness);
+                    float G_Vis = (G * VdotH) / Math.Max(NdotH * NdotV, 0.0001f);
+                    float Fc = MathF.Pow(1.0f - VdotH, 5.0f);
+
+                    A += (1.0f - Fc) * G_Vis;
+                    B += Fc * G_Vis;
                 }
             }
+            return new Vector2(A / SAMPLE_COUNT, B / SAMPLE_COUNT);
         }
 
         private static void WriteBrdfLut(WebGPU api, Queue* queue, Texture* texture, int width, int height)
@@ -244,11 +340,10 @@ namespace ManaGraphics.Code.Graphics
                 for (var x = 0; x < width; x++)
                 {
                     var ndotv = x / (float)Math.Max(1, width - 1);
-                    var fresnelScale = MathF.Pow(1.0f - ndotv, 5.0f);
-                    var visibility = 1.0f - roughness * 0.5f;
+                    var brdf = IntegrateBRDF(ndotv, roughness);
                     var offset = (y * width + x) * 4;
-                    pixels[offset + 0] = ToByte(visibility);
-                    pixels[offset + 1] = ToByte(fresnelScale);
+                    pixels[offset + 0] = ToByte(brdf.X);
+                    pixels[offset + 1] = ToByte(brdf.Y);
                     pixels[offset + 2] = 0;
                     pixels[offset + 3] = byte.MaxValue;
                 }
