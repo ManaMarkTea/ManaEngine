@@ -41,7 +41,7 @@ fn importance_sample_ggx(xi : vec2<f32>, n : vec3<f32>, roughness : f32) -> vec3
         sin(phi) * sin_theta,
         cos_theta);
 
-    let up = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(n.y) > 0.96);
+    let up = select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 0.0, 1.0), abs(n.z) < 0.999);
     let tangent = normalize(cross(up, n));
     let bitangent = cross(n, tangent);
     return normalize(tangent * h.x + bitangent * h.y + n * h.z);

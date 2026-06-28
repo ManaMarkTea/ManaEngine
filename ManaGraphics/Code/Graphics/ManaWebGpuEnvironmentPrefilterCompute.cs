@@ -373,13 +373,12 @@ namespace ManaGraphics.Code.Graphics
 
         private static uint GetPrefilterSampleCount(int mip, float roughness)
         {
-            uint[] samplesByMip = { 32u, 64u, 128u, 512u, 1024u };
             if (roughness < 0.0001f)
             {
                 return 1u;
             }
 
-            return samplesByMip[Math.Clamp(mip, 0, samplesByMip.Length - 1)];
+            return 1024u;
         }
 
         [StructLayout(LayoutKind.Sequential)]

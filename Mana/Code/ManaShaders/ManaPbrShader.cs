@@ -80,7 +80,10 @@ namespace Mana.Code
                 renderer.ApplyLights(this);
                 CompiledShader.FindUniform("exposure")?.SetValue(renderer.PbrExposure);
                 CompiledShader.FindUniform("iblIntensity")?.SetValue(renderer.IblIntensity);
-                CompiledShader.FindUniform("pbrDebugMode")?.SetValue(Context.World.IrradianceSettings.WebGpuDebugMode);
+                var debugMode = material.ShaderUniforms.TryGetValue("pbrDebugMode", out var debugOverride)
+                    ? debugOverride.FloatValue
+                    : Context.World.IrradianceSettings.WebGpuDebugMode;
+                CompiledShader.FindUniform("pbrDebugMode")?.SetValue(debugMode);
             }
 
             material.Albedo.Bind(3);

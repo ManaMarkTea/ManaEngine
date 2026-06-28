@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using Silk.NET.WebGPU;
@@ -75,7 +76,7 @@ namespace ManaGraphics.Code.Graphics
             WriteCubeTexture(api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false);
             WriteCubeTexture(api, queue, irradianceMap.Texture, equirect, irradianceSize, 0, 0.85f, true);
 
-            var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize);
+            var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float);
             WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize);
 
             return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut);
@@ -220,7 +221,13 @@ namespace ManaGraphics.Code.Graphics
             return new ManaWebGpuTextureResource(api, name, texture, cubeView, faceViews, storageViews, (uint)size, (uint)size, true);
         }
 
-        private static ManaWebGpuTextureResource Create2DResource(WebGPU api, Device* device, string name, int width, int height)
+        private static ManaWebGpuTextureResource Create2DResource(
+            WebGPU api,
+            Device* device,
+            string name,
+            int width,
+            int height,
+            TextureFormat format = TextureFormat.Rgba8Unorm)
         {
             var descriptor = new TextureDescriptor
             {
@@ -232,7 +239,7 @@ namespace ManaGraphics.Code.Graphics
                     Height = (uint)height,
                     DepthOrArrayLayers = 1
                 },
-                Format = TextureFormat.Rgba8Unorm,
+                Format = format,
                 MipLevelCount = 1,
                 SampleCount = 1
             };
@@ -245,7 +252,7 @@ namespace ManaGraphics.Code.Graphics
 
             var viewDescriptor = new TextureViewDescriptor
             {
-                Format = TextureFormat.Rgba8Unorm,
+                Format = format,
                 Dimension = TextureViewDimension.Dimension2D,
                 MipLevelCount = 1,
                 ArrayLayerCount = 1,
@@ -375,7 +382,7 @@ namespace ManaGraphics.Code.Graphics
             float B = 0.0f;
 
             Vector3 N = new Vector3(0.0f, 0.0f, 1.0f);
-            const uint SAMPLE_COUNT = 128u;
+            const uint SAMPLE_COUNT = 1024u;
             
             for (uint i = 0u; i < SAMPLE_COUNT; ++i)
             {
@@ -402,23 +409,22 @@ namespace ManaGraphics.Code.Graphics
 
         private static void WriteBrdfLut(WebGPU api, Queue* queue, Texture* texture, int width, int height)
         {
-            var pixels = new byte[width * height * 4];
+            var values = new Half[width * height * 2];
             Parallel.For(0, height, y =>
             {
-                var roughness = y / (float)Math.Max(1, height - 1);
+                var roughness = 1.0f - y / (float)Math.Max(1, height - 1);
                 for (var x = 0; x < width; x++)
                 {
                     var ndotv = x / (float)Math.Max(1, width - 1);
                     var brdf = IntegrateBRDF(ndotv, roughness);
-                    var offset = (y * width + x) * 4;
-                    pixels[offset + 0] = ToByte(brdf.X);
-                    pixels[offset + 1] = ToByte(brdf.Y);
-                    pixels[offset + 2] = 0;
-                    pixels[offset + 3] = byte.MaxValue;
+                    var offset = (y * width + x) * 2;
+                    values[offset + 0] = (Half)brdf.X;
+                    values[offset + 1] = (Half)brdf.Y;
                 }
             });
 
-            var uploadPixels = PadRows(pixels, width, height, out var bytesPerRow);
+            var pixels = MemoryMarshal.AsBytes(values.AsSpan()).ToArray();
+            var uploadPixels = PadRows(pixels, width, height, out var bytesPerRow, 4);
             fixed (byte* pixelPointer = uploadPixels)
             {
                 var destination = new ImageCopyTexture
@@ -587,9 +593,9 @@ namespace ManaGraphics.Code.Graphics
             return (byte)Math.Clamp(MathF.Round(value * 255.0f), 0.0f, 255.0f);
         }
 
-        private static byte[] PadRows(byte[] pixels, int width, int height, out uint bytesPerRow)
+        private static byte[] PadRows(byte[] pixels, int width, int height, out uint bytesPerRow, int bytesPerPixel = 4)
         {
-            var sourceRowBytes = width * 4;
+            var sourceRowBytes = width * bytesPerPixel;
             var paddedRowBytes = Align(sourceRowBytes, 256);
             bytesPerRow = (uint)paddedRowBytes;
             if (sourceRowBytes == paddedRowBytes)

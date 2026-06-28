@@ -104,7 +104,24 @@ namespace Mana.Code.UI
             }
 
             var debugMode = (int)settings.WebGpuDebugMode;
-            string[] debugModes = { "Off", "View Vector (V)", "World Normal (N)", "Reflection (R)", "Cubemap Dir", "Reflection Radiance", "BRDF Scale" };
+            string[] debugModes =
+            {
+                "Off",
+                "View Vector (V)",
+                "World Normal (N)",
+                "Reflection (R)",
+                "Cubemap Dir",
+                "Reflection Radiance",
+                "BRDF Scale",
+                "Linear Albedo",
+                "F0",
+                "Fresnel",
+                "BRDF LUT",
+                "Diffuse IBL",
+                "Specular IBL",
+                "Direct Lighting",
+                "Final Linear"
+            };
             if (ImGui.Combo("PBR Debug", ref debugMode, debugModes, debugModes.Length))
             {
                 settings.WebGpuDebugMode = debugMode;

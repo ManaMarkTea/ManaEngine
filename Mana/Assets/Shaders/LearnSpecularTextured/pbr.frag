@@ -220,6 +220,46 @@ void main()
         FragColor = vec4((F * brdf.x + brdf.y) * iblIntensity, 1.0);
         return;
     }
+    else if (debugMode == 7)
+    {
+        FragColor = vec4(albedo, 1.0);
+        return;
+    }
+    else if (debugMode == 8)
+    {
+        FragColor = vec4(F0, 1.0);
+        return;
+    }
+    else if (debugMode == 9)
+    {
+        FragColor = vec4(F, 1.0);
+        return;
+    }
+    else if (debugMode == 10)
+    {
+        FragColor = vec4(brdf, 0.0, 1.0);
+        return;
+    }
+    else if (debugMode == 11)
+    {
+        FragColor = vec4(kD * diffuse, 1.0);
+        return;
+    }
+    else if (debugMode == 12)
+    {
+        FragColor = vec4(specular, 1.0);
+        return;
+    }
+    else if (debugMode == 13)
+    {
+        FragColor = vec4(Lo, 1.0);
+        return;
+    }
+    else if (debugMode == 14)
+    {
+        FragColor = vec4(color, 1.0);
+        return;
+    }
 
     // HDR tonemapping
     color = color / (color + vec3(1.0));

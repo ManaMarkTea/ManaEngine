@@ -1789,7 +1789,7 @@ namespace ManaGraphics.Code.Graphics
                 LightColors2 = _activeRenderScene.LightColors[2],
                 LightColors3 = _activeRenderScene.LightColors[3],
                 Time = elapsedSeconds,
-                WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
+                WebGpuDebugMode = meshInstance.PbrDebugMode ?? irradianceSettings.WebGpuDebugMode,
                 _padding1 = 0.0f,
                 _padding2 = 0.0f
             };

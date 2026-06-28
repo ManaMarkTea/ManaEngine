@@ -11,6 +11,24 @@ namespace Mana.Code.Renderers
         private const int Columns = 6;
         private const float Spacing = 2.0f;
         private const float ShapeSpacing = 10.0f;
+        private static readonly string[] DebugModeNames =
+        {
+            "Off",
+            "View Vector",
+            "World Normal",
+            "Reflection",
+            "Cubemap Dir",
+            "Reflection Radiance",
+            "BRDF Scale",
+            "Linear Albedo",
+            "F0",
+            "Fresnel",
+            "BRDF LUT",
+            "Diffuse IBL",
+            "Specular IBL",
+            "Direct Lighting",
+            "Final Linear"
+        };
 
         private readonly ManaContext context;
         private readonly ManaIrradianceSettings settings;
@@ -138,16 +156,8 @@ namespace Mana.Code.Renderers
             var colCenter = (Columns - 1) * 0.5f;
             var shapeCenter = (shapeSamples.Length - 1) * 0.5f;
 
-            var sampleGroup = CreateGroupNode("Sample", new Vector3(-(Columns + 2.5f) * Spacing, 0.0f, 0.0f));
-            var panelSample = CreateDebugNode(
-                "PBR Panel Material Sample",
-                shapeSamples[2].Mesh,
-                Vector3.Zero,
-                settings.DebugMetallic,
-                settings.DebugRoughness,
-                usePanelMaterial: true);
-            panelSample.Rotation = shapeSamples[2].Rotation;
-            sampleGroup.AddChild(panelSample);
+            var sampleGroup = CreateGroupNode("Sample", new Vector3(-(Columns + 3.5f) * Spacing, 0.0f, 0.0f));
+            BuildDebugModeSamples(sampleGroup, shapeSamples[2].Mesh, shapeSamples[2].Rotation);
             root.AddChild(sampleGroup);
 
             for (int shapeIndex = 0; shapeIndex < shapeSamples.Length; ++shapeIndex)
@@ -180,6 +190,35 @@ namespace Mana.Code.Renderers
             }
         }
 
+        private void BuildDebugModeSamples(ManaSceneNode sampleGroup, ManaMesh mesh, Vector3 rotation)
+        {
+            const int sampleColumns = 5;
+            var sampleRows = (int)Math.Ceiling(DebugModeNames.Length / (float)sampleColumns);
+            var columnCenter = (sampleColumns - 1) * 0.5f;
+            var rowCenter = (sampleRows - 1) * 0.5f;
+
+            for (var mode = 0; mode < DebugModeNames.Length; mode++)
+            {
+                var column = mode % sampleColumns;
+                var row = mode / sampleColumns;
+                var offset = new Vector3(
+                    (column - columnCenter) * Spacing,
+                    (rowCenter - row) * Spacing,
+                    0.0f);
+
+                var sample = CreateDebugNode(
+                    $"{mode:00} {DebugModeNames[mode]}",
+                    mesh,
+                    offset,
+                    settings.DebugMetallic,
+                    settings.DebugRoughness,
+                    usePanelMaterial: true,
+                    pbrDebugMode: mode);
+                sample.Rotation = rotation;
+                sampleGroup.AddChild(sample);
+            }
+        }
+
         private ManaSceneNode CreateGroupNode(string name, Vector3 localPosition)
         {
             return new ManaSceneNode(context, Matrix4x4.Identity)
@@ -195,7 +234,8 @@ namespace Mana.Code.Renderers
             Vector3 localPosition,
             float metallic,
             float roughness,
-            bool usePanelMaterial)
+            bool usePanelMaterial,
+            float? pbrDebugMode = null)
         {
             var node = new ManaMeshSceneNode(context, mesh)
             {
@@ -209,6 +249,11 @@ namespace Mana.Code.Renderers
             };
 
             node.MeshRenderer.Material = material;
+            if (pbrDebugMode.HasValue)
+            {
+                material.SetShaderUniform("pbrDebugMode", pbrDebugMode.Value);
+            }
+
             materialBindings.Add(new DebugMaterialBinding(material, metallic, roughness, usePanelMaterial));
             return node;
         }

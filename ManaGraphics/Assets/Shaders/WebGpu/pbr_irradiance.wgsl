@@ -99,6 +99,13 @@ fn mana_irradiance(normal : vec3<f32>) -> vec3<f32> {
     return textureSample(irradiance_map, clamp_sampler, normalize(normal)).rgb;
 }
 
+fn debug_color_to_surface(value : vec3<f32>) -> vec3<f32> {
+    // OpenGL debug modes write raw RGB into a non-sRGB default framebuffer.
+    // This WebGPU target is sRGB, so pre-linearize diagnostic colors to display
+    // the same values after the attachment's linear-to-sRGB conversion.
+    return pow(max(value, vec3<f32>(0.0)), vec3<f32>(2.2));
+}
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let sampled = textureSample(color_texture, color_sampler, input.uv0);
@@ -174,10 +181,37 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     } else if (debug_mode == 6u) {
         // Mode 6: BRDF Scale
         color = (F * brdf.x + brdf.y) * ibl_intensity;
+    } else if (debug_mode == 7u) {
+        // Mode 7: Linear Albedo
+        color = vertex_albedo;
+    } else if (debug_mode == 8u) {
+        // Mode 8: F0
+        color = f0;
+    } else if (debug_mode == 9u) {
+        // Mode 9: Fresnel
+        color = F;
+    } else if (debug_mode == 10u) {
+        // Mode 10: BRDF LUT
+        color = vec3<f32>(brdf, 0.0);
+    } else if (debug_mode == 11u) {
+        // Mode 11: Diffuse IBL
+        color = kd_ambient * diffuse_ibl;
+    } else if (debug_mode == 12u) {
+        // Mode 12: Specular IBL
+        color = specular_ibl;
+    } else if (debug_mode == 13u) {
+        // Mode 13: Direct Lighting
+        color = direct;
+    } else if (debug_mode == 14u) {
+        // Mode 14: Final Linear
+        color = color * exposure;
     } else {
         // Mode 0: Normal shading
         color = color * exposure;
         color = color / (color + vec3<f32>(1.0));
+    }
+    if (debug_mode != 0u) {
+        color = debug_color_to_surface(color);
     }
     return vec4<f32>(color, alpha);
 }

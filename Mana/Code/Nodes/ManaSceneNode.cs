@@ -169,6 +169,7 @@ namespace Mana.Code.Nodes
                         Metallic = renderer.Material.Metallic.Value,
                         Roughness = renderer.Material.Roughness.Value,
                         AmbientOcclusion = renderer.Material.Ambient.Value,
+                        PbrDebugMode = GetPbrDebugMode(renderer.Material),
                         IncludeInEnvironmentCapture = includeInEnvironmentCapture
                     });
                 }
@@ -182,6 +183,13 @@ namespace Mana.Code.Nodes
             {
                 child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture);
             }
+        }
+
+        private static float? GetPbrDebugMode(Materials.ManaMaterial material)
+        {
+            return material.ShaderUniforms.TryGetValue("pbrDebugMode", out var value)
+                ? value.FloatValue
+                : null;
         }
 
         public void RotateX(float degrees)
