@@ -450,8 +450,11 @@ namespace Mana.Code.GameModes
             ImGuiDockNative.DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
 
             var leftColumnRatio = dockspaceSize.X > 0.0f
-                ? Math.Clamp(340.0f / dockspaceSize.X, 0.16f, 0.26f)
-                : 0.20f;
+                ? Math.Clamp(400.0f / dockspaceSize.X, 0.20f, 0.30f)
+                : 0.24f;
+            var rightColumnRatio = dockspaceSize.X > 0.0f
+                ? Math.Clamp(460.0f / dockspaceSize.X, 0.28f, 0.36f)
+                : 0.30f;
             var outlinerHeightRatio = dockspaceSize.Y > 0.0f
                 ? Math.Clamp((dockspaceSize.Y - 280.0f) / dockspaceSize.Y, 0.45f, 0.68f)
                 : 0.58f;
@@ -477,7 +480,7 @@ namespace Mana.Code.GameModes
             _ = ImGuiDockNative.DockBuilderSplitNode(
                 leftRemainderDockId,
                 ImGuiDir.Right,
-                0.28f,
+                rightColumnRatio,
                 out rightDockId,
                 out centerDockId);
 

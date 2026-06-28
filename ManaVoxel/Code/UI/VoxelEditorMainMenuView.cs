@@ -64,6 +64,11 @@ namespace ManaVoxel.Code.UI
                     uiHost.SetEmojiFallbackEnabled(!uiHost.EmojiFallbackEnabled);
                 }
 
+                if (ImGui.MenuItem("Reset Layout"))
+                {
+                    uiHost.ResetImGuiLayoutToDefaults();
+                }
+
                 ImGui.Separator();
                 DrawFontMenu(uiHost);
                 ImGui.EndMenu();

@@ -1,9 +1,9 @@
 using ImGuiNET;
+using Mana.Code.Graphics;
 using ManaCore.Graphics;
-using Silk.NET.GLFW;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -54,6 +54,7 @@ namespace Mana.Code
         private bool _emojiGlyphRangesBuilt;
 
         private bool _dockLayoutInitialized;
+        private bool _dockLayoutResetRequested;
 
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
@@ -73,70 +74,12 @@ namespace Mana.Code
         public BaseGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL)
         {
             GraphicsBackend = graphicsBackend;
-            if (graphicsBackend != ManaGraphicsBackendKind.OpenGL)
-            {
-                return;
-            }
-            
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                var glfw = GlfwProvider.GLFW.Value;
-                glfw.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
-                glfw.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
-            }
-
-            var initialWindowWidth = 1280;
-            var initialWindowHeight = 720;
-
-            var windowingGlfw = GlfwProvider.GLFW.Value;
-            unsafe
-            {
-                var primaryMonitor = windowingGlfw.GetPrimaryMonitor();
-                if (primaryMonitor != null)
-                {
-                    var videoMode = windowingGlfw.GetVideoMode(primaryMonitor);
-                    if (videoMode != null)
-                    {
-                        var screenWidth = (int)videoMode->Width;
-                        var screenHeight = (int)videoMode->Height;
-
-                        if (screenWidth > 0 && screenHeight > 0)
-                        {
-                            initialWindowHeight = Math.Max(480, (int)(screenHeight * 0.92f));
-
-                            var targetWidthFromHeight = (int)(initialWindowHeight * (16.0f / 10.0f));
-                            var maxUsableWidth = (int)(screenWidth * 0.92f);
-                            initialWindowWidth = Math.Max(640, Math.Min(targetWidthFromHeight, maxUsableWidth));
-                        }
-                    }
-                }
-            }
-
-            WindowOptions optionOpenGL = new WindowOptions(
-                isVisible: true,
-                new Vector2D<int>(50, 50),
-                new Vector2D<int>(initialWindowWidth, initialWindowHeight), 90, 90,
-                RequestedGraphicsApi, "ManaGL - SceneViewerMode",
-                WindowState.Normal,
-                WindowBorder.Resizable,
-                isVSync: true,
-                shouldSwapAutomatically: true,
-                new Silk.NET.Windowing.VideoMode(90),
-                preferredDepthBufferBits:32,
-                preferredStencilBufferBits:8);
-
-            _Window = Window.Create(optionOpenGL);
-            _Window.Load += Load;
-            _Window.FramebufferResize += Resize;
-            _Window.Update += update;
-            _Window.Render += Render;
-
         }
 
-        public virtual void Load()
+        public virtual void LoadForOpenGlBackend(IWindow window, GL gl, IInputContext input)
         {
-            GL = _Window.CreateOpenGL();
-            var input = _Window.CreateInput();
+            _Window = window;
+            GL = gl;
 
             LogLoadDiagnostics(input);
 
@@ -162,7 +105,7 @@ namespace Mana.Code
 
             // Initialize the physics engine
             Context.Physics = new ManaPhysics(Context);
-            LoadContent();
+            Load();
         }
 
         public virtual void LoadForGraphicsBackend(IWindow window, IInputContext input, IManaGraphicsDevice graphicsDevice, bool initializeWorldRenderer = false)
@@ -174,6 +117,11 @@ namespace Mana.Code
             world.Initialize(Context, initializeWorldRenderer);
 
             Context.Physics = new ManaPhysics(Context);
+            LoadContent();
+        }
+
+        public virtual void Load()
+        {
             LoadContent();
         }
 
@@ -695,15 +643,9 @@ namespace Mana.Code
         }
 
 
-        public void Resize(Vector2D<int> size)
-        {
-            // Adjust the viewport to the new window size
-            Context.gl.Viewport(size);
-        }
-
         public virtual void Run()
         {
-            _Window.Run();
+            new GameSilkOpenGl(this, "ManaGL - SceneViewerMode", RequestedGraphicsApi).Run();
         }
 
         public void update(double deltaTime)
@@ -723,6 +665,16 @@ namespace Mana.Code
 
         protected virtual void DrawMainMenuBar()
         {
+        }
+
+        public void ResetImGuiLayoutToDefaults()
+        {
+            ManaImGuiSettingsStorage.DeleteIniFile();
+            ImGui.LoadIniSettingsFromMemory(string.Empty);
+            _dockLayoutInitialized = false;
+            _dockLayoutResetRequested = true;
+            UtilityDockId = 0;
+            OutlinerDockId = 0;
         }
 
         protected virtual void DrawImGui(double deltaTime)
@@ -762,7 +714,20 @@ namespace Mana.Code
 
             if (!_dockLayoutInitialized)
             {
-                InitializeDockLayout(dockspaceId, viewport.WorkSize);
+                var useDefaultLayout = _dockLayoutResetRequested || !File.Exists(ManaImGuiSettingsStorage.IniFilePath);
+                if (useDefaultLayout)
+                {
+                    if (_dockLayoutResetRequested)
+                    {
+                        ImGuiDockNative.DockBuilderRemoveNode(dockspaceId);
+                        ImGuiDockNative.DockBuilderAddNode(dockspaceId, dockspaceFlags);
+                    }
+
+                    InitializeDockLayout(dockspaceId, viewport.WorkSize);
+                    ImGui.SaveIniSettingsToDisk(ManaImGuiSettingsStorage.IniFilePath);
+                }
+
+                _dockLayoutResetRequested = false;
                 _dockLayoutInitialized = true;
             }
 
@@ -807,6 +772,12 @@ namespace Mana.Code
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igDockBuilderSplitNode")]
         private static extern uint DockBuilderSplitNodeNative(uint nodeId, ImGuiDir splitDir, float sizeRatioForNodeAtDir, out uint outIdAtDir, out uint outIdAtOppositeDir);
 
+        [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igDockBuilderAddNode")]
+        private static extern uint DockBuilderAddNodeNative(uint nodeId, ImGuiDockNodeFlags flags);
+
+        [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igDockBuilderRemoveNode")]
+        private static extern void DockBuilderRemoveNodeNative(uint nodeId);
+
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igDockBuilderDockWindow")]
         private static extern void DockBuilderDockWindowNative(byte[] windowName, uint nodeId);
 
@@ -819,6 +790,16 @@ namespace Mana.Code
         public static uint DockBuilderSplitNode(uint nodeId, ImGuiDir splitDir, float sizeRatioForNodeAtDir, out uint outIdAtDir, out uint outIdAtOppositeDir)
         {
             return DockBuilderSplitNodeNative(nodeId, splitDir, sizeRatioForNodeAtDir, out outIdAtDir, out outIdAtOppositeDir);
+        }
+
+        public static uint DockBuilderAddNode(uint nodeId, ImGuiDockNodeFlags flags)
+        {
+            return DockBuilderAddNodeNative(nodeId, flags);
+        }
+
+        public static void DockBuilderRemoveNode(uint nodeId)
+        {
+            DockBuilderRemoveNodeNative(nodeId);
         }
 
         public static void DockBuilderDockWindow(string windowName, uint nodeId)

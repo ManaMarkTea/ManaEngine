@@ -45,7 +45,8 @@ namespace ManaGraphics.Code.Graphics
             var options = WindowOptions.Default;
             options.API = new GraphicsAPI(ContextAPI.None, new APIVersion(0, 0));
             options.Title = _title;
-            options.Size = new Vector2D<int>(1280, 720);
+            options.Size = new Vector2D<int>(1920, 1080);
+            options.WindowState = WindowState.Normal;
             options.FramesPerSecond = 90;
             options.UpdatesPerSecond = 90;
             options.ShouldSwapAutomatically = false;

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Numerics;
+using System.Text;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
@@ -43,7 +44,7 @@ namespace ManaGraphics.Code.Graphics
         private BindGroupLayout* _demoBindGroupLayout;
         private PipelineLayout* _demoPipelineLayout;
         private Sampler* _demoSampler;
-        private ManaWebGpuMeshTexture? _environmentTexture;
+        private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
@@ -278,7 +279,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             ReleaseSceneMeshes();
-            ReleaseEnvironmentTexture();
+            ReleaseEnvironmentReflectionMap();
 
             foreach (var entry in _shaderModules)
             {
@@ -750,7 +751,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var textureResource = AcquireMeshTexture(meshData);
-            var environmentTexture = GetOrCreateEnvironmentTexture();
+            var environmentReflectionMap = GetOrCreateEnvironmentReflectionMap();
 
             var bindGroupEntry = new BindGroupEntry
             {
@@ -772,17 +773,38 @@ namespace ManaGraphics.Code.Graphics
                 TextureView = textureResource.TextureView
             };
 
-            var environmentTextureBindGroupEntry = new BindGroupEntry
+            var environmentMapBindGroupEntry = new BindGroupEntry
             {
                 Binding = 3,
-                TextureView = environmentTexture.TextureView
+                TextureView = environmentReflectionMap.EnvironmentMapResource.TextureView
             };
 
-            var bindGroupEntries = new BindGroupEntry[4];
+            var irradianceMapBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 4,
+                TextureView = environmentReflectionMap.IrradianceMapResource.TextureView
+            };
+
+            var prefilteredReflectionMapBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 5,
+                TextureView = environmentReflectionMap.PrefilteredReflectionMapResource.TextureView
+            };
+
+            var brdfLutBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 6,
+                TextureView = environmentReflectionMap.BrdfLutResource.TextureView
+            };
+
+            var bindGroupEntries = new BindGroupEntry[7];
             bindGroupEntries[0] = bindGroupEntry;
             bindGroupEntries[1] = samplerBindGroupEntry;
             bindGroupEntries[2] = textureBindGroupEntry;
-            bindGroupEntries[3] = environmentTextureBindGroupEntry;
+            bindGroupEntries[3] = environmentMapBindGroupEntry;
+            bindGroupEntries[4] = irradianceMapBindGroupEntry;
+            bindGroupEntries[5] = prefilteredReflectionMapBindGroupEntry;
+            bindGroupEntries[6] = brdfLutBindGroupEntry;
 
             BindGroup* bindGroup = null;
             fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
@@ -790,7 +812,7 @@ namespace ManaGraphics.Code.Graphics
                 var bindGroupDescriptor = new BindGroupDescriptor
                 {
                     Layout = _demoBindGroupLayout,
-                    EntryCount = 4,
+                    EntryCount = 7,
                     Entries = bindGroupEntriesPointer
                 };
                 bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
@@ -839,6 +861,9 @@ namespace ManaGraphics.Code.Graphics
             var activeKeys = new HashSet<string>(StringComparer.Ordinal);
             var uploadedCount = 0;
             var removedCount = 0;
+            ulong uploadedIndexes = 0;
+            ulong removedIndexes = 0;
+            List<string>? changedMeshSummaries = null;
 
             for (var i = 0; i < renderableMeshes.Count; i++)
             {
@@ -858,12 +883,16 @@ namespace ManaGraphics.Code.Graphics
                     existing.Dispose();
                     _sceneMeshMap.Remove(key);
                     removedCount++;
+                    removedIndexes += existing.Mesh.IndexCount;
                 }
 
                 var created = CreateSceneMesh(instance);
                 _sceneMeshMap[key] = created;
                 nextSceneMeshes.Add(created);
                 uploadedCount++;
+                uploadedIndexes += created.Mesh.IndexCount;
+                changedMeshSummaries ??= new List<string>();
+                changedMeshSummaries.Add(FormatSceneMeshDelta(instance, key, existing?.Mesh.IndexCount, created.Mesh.IndexCount));
             }
 
             var staleKeys = _sceneMeshMap.Keys
@@ -875,6 +904,9 @@ namespace ManaGraphics.Code.Graphics
                 {
                     staleMesh.Dispose();
                     removedCount++;
+                    removedIndexes += staleMesh.Mesh.IndexCount;
+                    changedMeshSummaries ??= new List<string>();
+                    changedMeshSummaries.Add(FormatSceneMeshDelta(staleMesh.Instance, staleKey, staleMesh.Mesh.IndexCount, null));
                 }
             }
 
@@ -883,9 +915,40 @@ namespace ManaGraphics.Code.Graphics
 
             if (uploadedCount > 0 || removedCount > 0)
             {
-                var totalIndexes = _sceneMeshes.Sum(mesh => mesh.Mesh.IndexCount);
-                ManaConsole.WriteDiagnostic($"WebGPU scene mesh delta: uploaded={uploadedCount}, removed={removedCount}, meshes={_sceneMeshes.Count}, indexes={totalIndexes}.");
+                var residentIndexes = _sceneMeshes.Sum(mesh => mesh.Mesh.IndexCount);
+                ManaConsole.WriteDiagnostic(
+                    $"WebGPU scene mesh delta: uploaded={uploadedCount} (indexes={uploadedIndexes}), " +
+                    $"removed={removedCount} (indexes={removedIndexes}), residentMeshes={_sceneMeshes.Count}, " +
+                    $"residentIndexes={residentIndexes}.");
+
+                if (changedMeshSummaries is { Count: > 0 })
+                {
+                    ManaConsole.WriteDiagnostic($"WebGPU changed meshes: {string.Join("; ", changedMeshSummaries)}.");
+                }
             }
+        }
+
+        private static string FormatSceneMeshDelta(ManaRenderMeshInstance instance, string key, uint? oldIndexes, uint? newIndexes)
+        {
+            var builder = new StringBuilder();
+            builder.Append('\'');
+            builder.Append(string.IsNullOrWhiteSpace(instance.Name) ? "<unnamed>" : instance.Name);
+            builder.Append("' key=");
+            builder.Append(key);
+
+            if (oldIndexes.HasValue)
+            {
+                builder.Append(" oldIndexes=");
+                builder.Append(oldIndexes.Value);
+            }
+
+            if (newIndexes.HasValue)
+            {
+                builder.Append(" newIndexes=");
+                builder.Append(newIndexes.Value);
+            }
+
+            return builder.ToString();
         }
 
         private static bool CanReuseSceneMesh(ManaRenderMeshInstance current, ManaRenderMeshInstance incoming)
@@ -984,9 +1047,27 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var environmentTextureBindGroupLayoutEntry = new BindGroupLayoutEntry
+            var environmentMapBindGroupLayoutEntry = new BindGroupLayoutEntry
             {
                 Binding = 3,
+                Visibility = ShaderStage.Fragment,
+                Texture = new TextureBindingLayout
+                {
+                    SampleType = TextureSampleType.Float,
+                    ViewDimension = TextureViewDimension.DimensionCube,
+                    Multisampled = false
+                }
+            };
+
+            var irradianceMapBindGroupLayoutEntry = environmentMapBindGroupLayoutEntry;
+            irradianceMapBindGroupLayoutEntry.Binding = 4;
+
+            var prefilteredReflectionMapBindGroupLayoutEntry = environmentMapBindGroupLayoutEntry;
+            prefilteredReflectionMapBindGroupLayoutEntry.Binding = 5;
+
+            var brdfLutBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 6,
                 Visibility = ShaderStage.Fragment,
                 Texture = new TextureBindingLayout
                 {
@@ -996,15 +1077,18 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[4];
+            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[7];
             bindGroupLayoutEntries[0] = bindGroupLayoutEntry;
             bindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
             bindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
-            bindGroupLayoutEntries[3] = environmentTextureBindGroupLayoutEntry;
+            bindGroupLayoutEntries[3] = environmentMapBindGroupLayoutEntry;
+            bindGroupLayoutEntries[4] = irradianceMapBindGroupLayoutEntry;
+            bindGroupLayoutEntries[5] = prefilteredReflectionMapBindGroupLayoutEntry;
+            bindGroupLayoutEntries[6] = brdfLutBindGroupLayoutEntry;
 
             var bindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
             {
-                EntryCount = 4,
+                EntryCount = 7,
                 Entries = bindGroupLayoutEntries
             };
             _demoBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
@@ -1120,45 +1204,31 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        private ManaWebGpuMeshTexture GetOrCreateEnvironmentTexture()
+        private ManaWebGpuEnvironmentReflectionMap GetOrCreateEnvironmentReflectionMap()
         {
             var source = _activeRenderScene?.EnvironmentReflectionSource ?? new ManaEnvironmentReflectionSource();
             var environmentPath = ResolveAssetPath(source.SourcePath);
-            var textureKey = $"environment:{environmentPath}";
-            if (_environmentTexture != null && string.Equals(_environmentTexture.Key, textureKey, StringComparison.OrdinalIgnoreCase))
+            if (_environmentReflectionMap != null &&
+                string.Equals(_environmentReflectionMap.Source.SourcePath, source.SourcePath, StringComparison.OrdinalIgnoreCase))
             {
-                return _environmentTexture;
+                return _environmentReflectionMap;
             }
 
-            ReleaseEnvironmentTexture();
-            CreateImageTexture(environmentPath, false, "environment", out var texture, out var textureView);
-            _environmentTexture = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
-            {
-                RefCount = 1
-            };
-            return _environmentTexture;
+            ReleaseEnvironmentReflectionMap();
+            _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, source, environmentPath);
+            ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets loaded: {environmentPath}");
+            return _environmentReflectionMap;
         }
 
-        private void ReleaseEnvironmentTexture()
+        private void ReleaseEnvironmentReflectionMap()
         {
-            if (_environmentTexture == null)
+            if (_environmentReflectionMap == null)
             {
                 return;
             }
 
-            if (_environmentTexture.TextureView != null)
-            {
-                _api.TextureViewRelease(_environmentTexture.TextureView);
-                _environmentTexture.TextureView = null;
-            }
-
-            if (_environmentTexture.Texture != null)
-            {
-                _api.TextureRelease(_environmentTexture.Texture);
-                _environmentTexture.Texture = null;
-            }
-
-            _environmentTexture = null;
+            _environmentReflectionMap.Dispose();
+            _environmentReflectionMap = null;
         }
 
         private ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)

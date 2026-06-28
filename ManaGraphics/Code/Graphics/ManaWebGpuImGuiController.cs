@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using ImGuiNET;
 using Silk.NET.Input;
@@ -35,6 +37,7 @@ namespace ManaGraphics.Code.Graphics
         private ulong _vertexBufferSize = 0;
         private Buffer* _indexBuffer;
         private ulong _indexBufferSize = 0;
+        private nint _iniFilename;
 
         public ManaWebGpuImGuiController(WebGPU api, Device* device, Queue* queue, TextureFormat surfaceFormat, IWindow window, IInputContext input)
         {
@@ -55,9 +58,16 @@ namespace ManaGraphics.Code.Graphics
         {
             ImGui.CreateContext();
             var io = ImGui.GetIO();
+            var iniPath = ManaImGuiSettingsStorage.IniFilePath;
+            _iniFilename = Marshal.StringToHGlobalAnsi(iniPath);
+            io.NativePtr->IniFilename = (byte*)_iniFilename;
             io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
             io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
             io.DisplaySize = new Vector2(_window.Size.X, _window.Size.Y);
+            if (File.Exists(iniPath))
+            {
+                ImGui.LoadIniSettingsFromDisk(iniPath);
+            }
         }
 
         private void SetupPipeline()
@@ -471,6 +481,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         public void Render(RenderPassEncoder* renderPass)
         {
             ImGui.Render();
+            SavePendingIniSettings();
             var drawData = ImGui.GetDrawData();
             if (drawData.CmdListsCount == 0) return;
 
@@ -625,6 +636,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         public void Dispose()
         {
+            SaveIniSettings();
             var keyboard = _input.Keyboards.FirstOrDefault();
             if (keyboard != null)
             {
@@ -649,6 +661,28 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             if (_shaderModule != null) _api.ShaderModuleRelease(_shaderModule);
 
             ImGui.DestroyContext();
+            if (_iniFilename != 0)
+            {
+                Marshal.FreeHGlobal(_iniFilename);
+                _iniFilename = 0;
+            }
+        }
+
+        private static void SavePendingIniSettings()
+        {
+            var io = ImGui.GetIO();
+            if (!io.WantSaveIniSettings)
+            {
+                return;
+            }
+
+            SaveIniSettings();
+            io.WantSaveIniSettings = false;
+        }
+
+        private static void SaveIniSettings()
+        {
+            ImGui.SaveIniSettingsToDisk(ManaImGuiSettingsStorage.IniFilePath);
         }
 
         private static byte* SilksEntry(string entry)

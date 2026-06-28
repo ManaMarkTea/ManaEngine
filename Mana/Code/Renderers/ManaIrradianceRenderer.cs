@@ -1,4 +1,5 @@
 using Mana.Code.Nodes;
+using Mana.Code.Graphics;
 using ManaCore.Graphics;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -23,6 +24,7 @@ namespace Mana.Code.Renderers
         public ManaEnvironmentPrefilterShader EnvironmentPrefilterShader = null!;
 
         public ManaTexture EnvironmentMap = null!;
+        public IManaEnvironmentReflectionMap? EnvironmentReflectionMap { get; private set; }
 
         public ManaCube SimpleCube = null!;
         public ManaQuad SimpleQuad = null!;
@@ -95,6 +97,13 @@ namespace Mana.Code.Renderers
             BrdfFramebuffer.Build();
             BrdfFramebuffer.UnBind();
             RenderBrdfTarget();
+
+            EnvironmentReflectionMap = new ManaOpenGlEnvironmentReflectionMap(
+                Context.World.EnvironmentReflectionSource,
+                EnvironmentMap,
+                IrradianceFramebuffer.bufferMap["Irradiance"].Texture,
+                PrefilterFramebuffer.bufferMap["PreFilter"].Texture,
+                BrdfFramebuffer.bufferMap["BRDF"].Texture);
 
         }
 
