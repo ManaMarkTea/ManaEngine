@@ -311,7 +311,7 @@ namespace ManaGraphics.Code.Graphics
                 Width = (uint)framebufferSize.X,
                 Height = (uint)framebufferSize.Y,
                 PresentMode = PresentMode.Fifo,
-                AlphaMode = CompositeAlphaMode.Auto
+                AlphaMode = CompositeAlphaMode.Opaque
             };
 
             _api.SurfaceConfigure(_surface, &configuration);

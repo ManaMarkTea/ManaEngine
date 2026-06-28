@@ -75,10 +75,16 @@ namespace Mana
         public override ManaMaterial GenerateMaterial()
         {
             var material = base.GenerateMaterial();
+            ConfigureVoxelPbrMaterial(Context, material);
+            return material;
+        }
+
+        public static void ConfigureVoxelPbrMaterial(ManaContext context, ManaMaterial material)
+        {
+            material.Shader = new ManaPbrShader(context);
             material.Metallic.Value = 0.0f;
             material.Roughness.Value = DefaultVoxelRoughness;
             material.Ambient.Value = 1.0f;
-            return material;
         }
 
         public event Action<ManaVoxelData>? OnVoxelAdded;

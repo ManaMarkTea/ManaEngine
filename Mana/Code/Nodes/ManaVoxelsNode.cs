@@ -122,11 +122,13 @@ namespace Mana.Code.Nodes
             var sharedMaterial = new ManaMaterial(Context);
             sharedMaterial.Name = $"{Name} Baked Voxels Material";
             sharedMaterial.Albedo.Value = Colors.White;
-            sharedMaterial.Metallic.Value = 0.0f;
-            sharedMaterial.Roughness.Value = ManaVoxelShape.DefaultVoxelRoughness;
-            sharedMaterial.Ambient.Value = 1.0f;
+            ManaVoxelShape.ConfigureVoxelPbrMaterial(Context, sharedMaterial);
             bakedMesh.Materials = new ManaMaterial[] { sharedMaterial };
-            bakedMesh.VertexBufferObject = geom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+            bakedMesh.SetCpuData(geom.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                bakedMesh.VertexBufferObject = geom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+            }
 
             // Add updater (runs first) then renderer — order matters
             _bakedMeshUpdater = new BakedVoxelsMeshUpdater(this, _bakedBodies, bakedMesh);
@@ -394,7 +396,11 @@ namespace Mana.Code.Nodes
             previewMaterial.Roughness.Value = ManaVoxelShape.DefaultVoxelRoughness;
             previewMaterial.Ambient.Value = 1.0f;
             previewMesh.Materials = new[] { previewMaterial };
-            previewMesh.VertexBufferObject = previewGeom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+            previewMesh.SetCpuData(previewGeom.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                previewMesh.VertexBufferObject = previewGeom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+            }
 
             _lockPreviewMeshUpdater = new LockPreviewMeshUpdater(this, _bakedBodies, previewMesh);
             Components.Add(_lockPreviewMeshUpdater);
@@ -548,7 +554,7 @@ namespace Mana.Code.Nodes
                 }
             }
 
-            public override void DrawComponent()
+            public override void UpdateComponent()
             {
                 var physics = Context.Physics;
 
@@ -573,10 +579,25 @@ namespace Mana.Code.Nodes
                     }
                 }
 
-                _mesh.OpenGlMesh?.UpdateDynamicData(
-                    _positions,
-                    _normals,
-                    _colors);
+                UpdateMeshGeometry();
+            }
+
+            private void UpdateMeshGeometry()
+            {
+                var currentData = _mesh.GetOrCreateCpuData();
+                _mesh.SetCpuData(new ManaCore.Graphics.ManaMeshCpuData
+                {
+                    Indexes = currentData.Indexes,
+                    Positions = _positions,
+                    Normals = _normals,
+                    Colors = _colors,
+                    TextureCoordinates0 = currentData.TextureCoordinates0,
+                    TextureCoordinates1 = currentData.TextureCoordinates1,
+                    AlbedoTexturePath = currentData.AlbedoTexturePath,
+                    AlbedoFactor = currentData.AlbedoFactor
+                });
+
+                _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 
             private void UpdateBodyGeometry(ManaPhysics physics, int bodyIndex)
@@ -711,12 +732,12 @@ namespace Mana.Code.Nodes
                 }
             }
 
-            public override void DrawComponent()
+            public override void UpdateComponent()
             {
                 if (!_voxelsNode.IsLockPreviewEnabled)
                 {
                     ClearUnusedSlots(0);
-                    _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
+                    UpdateMeshGeometry();
                     return;
                 }
 
@@ -729,6 +750,24 @@ namespace Mana.Code.Nodes
                 }
 
                 ClearUnusedSlots(previewCount);
+                UpdateMeshGeometry();
+            }
+
+            private void UpdateMeshGeometry()
+            {
+                var currentData = _mesh.GetOrCreateCpuData();
+                _mesh.SetCpuData(new ManaCore.Graphics.ManaMeshCpuData
+                {
+                    Indexes = currentData.Indexes,
+                    Positions = _positions,
+                    Normals = _normals,
+                    Colors = _colors,
+                    TextureCoordinates0 = currentData.TextureCoordinates0,
+                    TextureCoordinates1 = currentData.TextureCoordinates1,
+                    AlbedoTexturePath = currentData.AlbedoTexturePath,
+                    AlbedoFactor = currentData.AlbedoFactor
+                });
+
                 _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 

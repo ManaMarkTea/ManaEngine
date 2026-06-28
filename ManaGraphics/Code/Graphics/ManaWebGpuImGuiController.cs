@@ -94,6 +94,26 @@ struct Uniforms {
 @group(0) @binding(1) var font_sampler : sampler;
 @group(0) @binding(2) var font_texture : texture_2d<f32>;
 
+fn srgb_to_linear_channel(value : f32) -> f32 {
+    if (value <= 0.04045) {
+        return value / 12.92;
+    }
+
+    return pow((value + 0.055) / 1.055, 2.4);
+}
+
+fn srgb_to_linear(value : vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(
+        srgb_to_linear_channel(value.r),
+        srgb_to_linear_channel(value.g),
+        srgb_to_linear_channel(value.b)
+    );
+}
+
+fn thicken_font_coverage(value : f32) -> f32 {
+    return pow(clamp(value, 0.0, 1.0), 0.82);
+}
+
 @vertex
 fn vs_main(input : VertexInput) -> VertexOutput {
     var output : VertexOutput;
@@ -105,7 +125,10 @@ fn vs_main(input : VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-    return input.color * textureSample(font_texture, font_sampler, input.uv);
+    let font_sample = textureSample(font_texture, font_sampler, input.uv);
+    let linear_color = vec4<f32>(srgb_to_linear(input.color.rgb), input.color.a);
+    let coverage = thicken_font_coverage(font_sample.a);
+    return vec4<f32>(linear_color.rgb * font_sample.rgb, linear_color.a * coverage);
 }
 ";
 
