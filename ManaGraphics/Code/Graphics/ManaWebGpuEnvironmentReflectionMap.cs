@@ -308,6 +308,7 @@ namespace ManaGraphics.Code.Graphics
 
             Vector3 N = new Vector3(0.0f, 0.0f, 1.0f);
             const uint SAMPLE_COUNT = 128u;
+            
             for (uint i = 0u; i < SAMPLE_COUNT; ++i)
             {
                 Vector2 Xi = Hammersley(i, SAMPLE_COUNT);

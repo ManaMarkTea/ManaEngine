@@ -16,6 +16,8 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed class ManaWebGpuContext : IDisposable
     {
+        public bool UseSceneCapture = false;
+
         private readonly WebGPU _api;
         private readonly IWindow _window;
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
@@ -654,6 +656,11 @@ namespace ManaGraphics.Code.Graphics
 
         private void CaptureSceneEnvironmentIfNeeded(CommandEncoder* commandEncoder)
         {
+            if (!UseSceneCapture)
+            {
+                return;
+            }
+
             if (_activeRenderScene == null ||
                 _sceneMeshes.Count == 0)
             {
