@@ -49,7 +49,11 @@
             DynamicGeometryContainer.AddTriangle(CubeSize.Y, CubeSize.X, rotations[3], scaleRotations[3], this.DefaultVertexColor);
 
             DynamicGeometryContainer.AddQuad(Vector3.Zero, CubeSize, rotations[5], scaleRotations[5], this.DefaultVertexColor);
-            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            }
         }
 
     }

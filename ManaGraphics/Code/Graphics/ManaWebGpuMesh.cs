@@ -7,7 +7,7 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed class ManaWebGpuMesh : IManaGpuMesh
     {
-        public const ulong VertexStride = (ulong)(sizeof(float) * (3 + 4 + 2));
+        public const ulong VertexStride = (ulong)(sizeof(float) * (3 + 3 + 4 + 2));
 
         private readonly WebGPU _api;
         private Silk.NET.WebGPU.Buffer* _vertexBuffer;
@@ -36,7 +36,10 @@ namespace ManaGraphics.Code.Graphics
                 var uv = meshData.TextureCoordinates0.Length == meshData.Positions.Length
                     ? meshData.TextureCoordinates0[i]
                     : Vector2.Zero;
-                vertices[i] = new ManaWebGpuVertex(meshData.Positions[i], color, uv);
+                var normal = meshData.Normals.Length == meshData.Positions.Length
+                    ? meshData.Normals[i]
+                    : Vector3.UnitY;
+                vertices[i] = new ManaWebGpuVertex(meshData.Positions[i], normal, color, uv);
             }
 
             var vertexBufferDescriptor = new BufferDescriptor
@@ -106,12 +109,14 @@ namespace ManaGraphics.Code.Graphics
         private readonly struct ManaWebGpuVertex
         {
             public readonly Vector3 Position;
+            public readonly Vector3 Normal;
             public readonly Vector4 Color;
             public readonly Vector2 TexCoord0;
 
-            public ManaWebGpuVertex(Vector3 position, Vector4 color, Vector2 texCoord0)
+            public ManaWebGpuVertex(Vector3 position, Vector3 normal, Vector4 color, Vector2 texCoord0)
             {
                 Position = position;
+                Normal = normal;
                 Color = color;
                 TexCoord0 = texCoord0;
             }

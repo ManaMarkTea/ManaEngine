@@ -339,7 +339,10 @@ namespace Mana.Code.Shapes.Loaders
                             {
                                 channelTexture.OriginalFilename = fullPath;
                                 channelTexture.Name = metaChannel.Value;
-                                channelTexture.Load();
+                                if (context.OpenGl != null)
+                                {
+                                    channelTexture.Load();
+                                }
                             }
                             metaChannel.Texture = channelTexture;
 
@@ -544,17 +547,43 @@ namespace Mana.Code.Shapes.Loaders
                 Normals = normals,
                 Colors = colors,
                 TextureCoordinates0 = textureCoordinates0,
-                TextureCoordinates1 = textureCoordinates1
+                TextureCoordinates1 = textureCoordinates1,
+                AlbedoTexturePath = GetMaterialTexturePath(foundMaterial, TextureType.BaseColor, TextureType.Diffuse),
+                AlbedoFactor = foundMaterial?.Albedo.Value
             };
-            var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData);
 
             output.SetCpuData(meshData);
-            if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+            if (context.OpenGl != null)
             {
-                output.VertexBufferObject = openGlMesh.VertexBufferObject;
+                var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData);
+                if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+                {
+                    output.VertexBufferObject = openGlMesh.VertexBufferObject;
+                }
             }
             output.Materials = newMaterials.ToArray();
             return output;
+        }
+
+        private static string? GetMaterialTexturePath(ManaMaterial? material, params TextureType[] textureTypes)
+        {
+            if (material == null)
+            {
+                return null;
+            }
+
+            foreach (var textureType in textureTypes)
+            {
+                var match = material.Channels.Values.FirstOrDefault(channel =>
+                    channel.Texture != null &&
+                    channel.Name.EndsWith($"_{textureType}", StringComparison.OrdinalIgnoreCase));
+                if (match?.Texture != null && !string.IsNullOrWhiteSpace(match.Texture.OriginalFilename))
+                {
+                    return match.Texture.OriginalFilename;
+                }
+            }
+
+            return null;
         }
     }
 }

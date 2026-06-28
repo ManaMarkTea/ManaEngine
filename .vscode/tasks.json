@@ -51,7 +51,7 @@
       "label": "run Mana WebGPU",
       "type": "process",
       "command": "dotnet",
-      "dependsOn": "build ManaGraphics",
+      "dependsOn": "build ManaVoxel",
       "args": [
         "run",
         "--project",

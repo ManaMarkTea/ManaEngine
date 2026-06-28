@@ -24,6 +24,8 @@ namespace Mana
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
         private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
         private readonly SceneInspectorPanelView sceneInspectorPanelView;
+        private readonly IrradianceSettingsPanelView irradianceSettingsPanelView = new IrradianceSettingsPanelView();
+        private ManaIrradianceDebugScene? irradianceDebugScene;
 
         public List<Action> PostDrawFutures { get; set; }
         public List<Action> ImGuiFutures { get; set; }
@@ -54,6 +56,7 @@ namespace Mana
         public CameraComponent MainCamera = null!;
 
         public ManaRenderer Renderer = null!;
+        public ManaCore.Graphics.ManaIrradianceSettings IrradianceSettings { get; } = new();
         
         public ManaWorld() : base(null!)
         {
@@ -100,6 +103,7 @@ namespace Mana
             DefaultScene = new ManaScene(context);
             DefaultScene.Name = "Default Scene";
             Scenes.Add(DefaultScene);
+            irradianceDebugScene = new ManaIrradianceDebugScene(context, IrradianceSettings);
         }
 
         private void _Window_Resize(Silk.NET.Maths.Vector2D<int> obj)
@@ -190,6 +194,22 @@ namespace Mana
         {
             MainCamera.DrawImGui();
             Renderer?.DrawImGui();
+            var irradiancePanelResult = irradianceSettingsPanelView.Draw(IrradianceSettings);
+            if (irradiancePanelResult.DebugWorldChanged)
+            {
+                irradianceDebugScene?.SyncMembership();
+            }
+
+            if (IrradianceSettings.DrawDebugWorld && irradiancePanelResult.DebugMaterialChanged)
+            {
+                irradianceDebugScene?.SyncMaterials();
+            }
+
+            if (IrradianceSettings.DrawDebugWorld && irradiancePanelResult.DebugSceneScaleChanged)
+            {
+                irradianceDebugScene?.SyncTransform();
+            }
+
             RunFutures(ImGuiFutures, activeImGuiFutures);
             sceneOutlinerPanelView.Draw(this);
             sceneInspectorPanelView.Draw();
@@ -225,7 +245,8 @@ namespace Mana
                     MainCamera.Owner.Position,
                     MainCamera.NearClipPlane,
                     MainCamera.FarClipPlane),
-                Meshes = meshes
+                Meshes = meshes,
+                IrradianceSettings = IrradianceSettings.Clone()
             };
         }
 

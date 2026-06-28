@@ -3,6 +3,7 @@ using System.Numerics;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
@@ -34,6 +35,8 @@ namespace ManaGraphics.Code.Graphics
         private readonly DateTime _startTime = DateTime.UtcNow;
         private bool _configured;
         private readonly List<ManaWebGpuSceneMesh> _sceneMeshes = new();
+        private readonly Dictionary<string, ManaWebGpuSceneMesh> _sceneMeshMap = new();
+        private readonly Dictionary<string, ManaWebGpuMeshTexture> _meshTextureCache = new(StringComparer.OrdinalIgnoreCase);
         private ManaRenderScene? _activeRenderScene;
         private Vector3 _demoMeshCenter;
         private float _demoMeshScale = 1.0f;
@@ -541,7 +544,7 @@ namespace ManaGraphics.Code.Graphics
 
             try
             {
-                var vertexAttributes = stackalloc VertexAttribute[3];
+                var vertexAttributes = stackalloc VertexAttribute[4];
                 vertexAttributes[0] = new VertexAttribute
                 {
                     Format = VertexFormat.Float32x3,
@@ -550,22 +553,28 @@ namespace ManaGraphics.Code.Graphics
                 };
                 vertexAttributes[1] = new VertexAttribute
                 {
-                    Format = VertexFormat.Float32x4,
+                    Format = VertexFormat.Float32x3,
                     Offset = (ulong)sizeof(Vector3),
                     ShaderLocation = 1
                 };
                 vertexAttributes[2] = new VertexAttribute
                 {
-                    Format = VertexFormat.Float32x2,
-                    Offset = (ulong)(sizeof(float) * (3 + 4)),
+                    Format = VertexFormat.Float32x4,
+                    Offset = (ulong)(sizeof(float) * (3 + 3)),
                     ShaderLocation = 2
+                };
+                vertexAttributes[3] = new VertexAttribute
+                {
+                    Format = VertexFormat.Float32x2,
+                    Offset = (ulong)(sizeof(float) * (3 + 3 + 4)),
+                    ShaderLocation = 3
                 };
 
                 var vertexBufferLayout = new VertexBufferLayout
                 {
                     ArrayStride = ManaWebGpuMesh.VertexStride,
                     StepMode = VertexStepMode.Vertex,
-                    AttributeCount = 3,
+                    AttributeCount = 4,
                     Attributes = vertexAttributes
                 };
 
@@ -703,75 +712,11 @@ namespace ManaGraphics.Code.Graphics
             for (var i = 0; i < renderableMeshes.Count; i++)
             {
                 var instance = renderableMeshes[i];
-                var meshData = instance.MeshData;
-
-                var mesh = ManaWebGpuMesh.CreateFromMeshData(_api, _device, _queue, meshData, instance.Name);
-
-                var bufferDescriptor = new BufferDescriptor
-                {
-                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-                    Size = (ulong)sizeof(ManaWebGpuTransformUniform)
-                };
-                var uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
-                if (uniformBuffer == null)
-                {
-                    mesh.Dispose();
-                    throw new InvalidOperationException($"Failed to create WebGPU uniform buffer for mesh '{instance.Name}'.");
-                }
-
-                CreateMeshTexture(meshData, out var texture, out var textureView);
-
-                var bindGroupEntry = new BindGroupEntry
-                {
-                    Binding = 0,
-                    Buffer = uniformBuffer,
-                    Offset = 0,
-                    Size = (ulong)sizeof(ManaWebGpuTransformUniform)
-                };
-
-                var samplerBindGroupEntry = new BindGroupEntry
-                {
-                    Binding = 1,
-                    Sampler = _demoSampler
-                };
-
-                var textureBindGroupEntry = new BindGroupEntry
-                {
-                    Binding = 2,
-                    TextureView = textureView
-                };
-
-                var bindGroupEntries = new BindGroupEntry[3];
-                bindGroupEntries[0] = bindGroupEntry;
-                bindGroupEntries[1] = samplerBindGroupEntry;
-                bindGroupEntries[2] = textureBindGroupEntry;
-
-                BindGroup* bindGroup = null;
-                fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
-                {
-                    var bindGroupDescriptor = new BindGroupDescriptor
-                    {
-                        Layout = _demoBindGroupLayout,
-                        EntryCount = 3,
-                        Entries = bindGroupEntriesPointer
-                    };
-                    bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
-                }
-                if (bindGroup == null)
-                {
-                    if (textureView != null) _api.TextureViewRelease(textureView);
-                    if (texture != null) _api.TextureRelease(texture);
-                    _api.BufferRelease(uniformBuffer);
-                    mesh.Dispose();
-                    throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
-                }
-
-                var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, texture, textureView, bindGroup);
+                var sceneMesh = CreateSceneMesh(instance);
                 _sceneMeshes.Add(sceneMesh);
+                _sceneMeshMap[GetSceneMeshKey(instance, i)] = sceneMesh;
 
-                UpdateDemoUniforms(instance, uniformBuffer);
-
-                ManaConsole.WriteDiagnostic($"WebGPU scene mesh uploaded: {instance.WorldTransform.Translation.ToString()}: {meshData.Positions.Length} vertices, {meshData.Indexes.Length} indexes from render packet '{instance.Name}'.");
+                ManaConsole.WriteDiagnostic($"WebGPU scene mesh uploaded: {instance.WorldTransform.Translation.ToString()}: {instance.MeshData.Positions.Length} vertices, {instance.MeshData.Indexes.Length} indexes from render packet '{instance.Name}'.");
             }
 
             if (renderableMeshes.Count > 4)
@@ -785,6 +730,75 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic($"WebGPU scene upload complete: meshes={_sceneMeshes.Count}, indexes={totalIndexes}.");
         }
 
+        private ManaWebGpuSceneMesh CreateSceneMesh(ManaRenderMeshInstance instance)
+        {
+            var meshData = instance.MeshData;
+            var mesh = ManaWebGpuMesh.CreateFromMeshData(_api, _device, _queue, meshData, instance.Name);
+
+            var bufferDescriptor = new BufferDescriptor
+            {
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                Size = (ulong)sizeof(ManaWebGpuTransformUniform)
+            };
+            var uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
+            if (uniformBuffer == null)
+            {
+                mesh.Dispose();
+                throw new InvalidOperationException($"Failed to create WebGPU uniform buffer for mesh '{instance.Name}'.");
+            }
+
+            var textureResource = AcquireMeshTexture(meshData);
+
+            var bindGroupEntry = new BindGroupEntry
+            {
+                Binding = 0,
+                Buffer = uniformBuffer,
+                Offset = 0,
+                Size = (ulong)sizeof(ManaWebGpuTransformUniform)
+            };
+
+            var samplerBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 1,
+                Sampler = _demoSampler
+            };
+
+            var textureBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 2,
+                TextureView = textureResource.TextureView
+            };
+
+            var bindGroupEntries = new BindGroupEntry[3];
+            bindGroupEntries[0] = bindGroupEntry;
+            bindGroupEntries[1] = samplerBindGroupEntry;
+            bindGroupEntries[2] = textureBindGroupEntry;
+
+            BindGroup* bindGroup = null;
+            fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
+            {
+                var bindGroupDescriptor = new BindGroupDescriptor
+                {
+                    Layout = _demoBindGroupLayout,
+                    EntryCount = 3,
+                    Entries = bindGroupEntriesPointer
+                };
+                bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
+            }
+
+            if (bindGroup == null)
+            {
+                ReleaseMeshTexture(textureResource);
+                _api.BufferRelease(uniformBuffer);
+                mesh.Dispose();
+                throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
+            }
+
+            var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, textureResource, ReleaseMeshTexture, bindGroup);
+            UpdateDemoUniforms(instance, uniformBuffer);
+            return sceneMesh;
+        }
+
         private void ReleaseSceneMeshes()
         {
             foreach (var sceneMesh in _sceneMeshes)
@@ -793,6 +807,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _sceneMeshes.Clear();
+            _sceneMeshMap.Clear();
         }
 
         private void RefreshRenderScene()
@@ -805,39 +820,96 @@ namespace ManaGraphics.Code.Graphics
 
             var renderableMeshes = GetRenderableMeshes(renderScene);
             _activeRenderScene = renderScene;
-            if (!CanReuseSceneMeshes(renderableMeshes))
+            ReconcileSceneMeshes(renderableMeshes);
+        }
+
+        private void ReconcileSceneMeshes(IReadOnlyList<ManaRenderMeshInstance> renderableMeshes)
+        {
+            var nextSceneMeshes = new List<ManaWebGpuSceneMesh>(renderableMeshes.Count);
+            var activeKeys = new HashSet<string>(StringComparer.Ordinal);
+            var uploadedCount = 0;
+            var removedCount = 0;
+
+            for (var i = 0; i < renderableMeshes.Count; i++)
             {
-                UploadSceneMeshes(renderScene);
-                return;
+                var instance = renderableMeshes[i];
+                var key = GetSceneMeshKey(instance, i);
+                activeKeys.Add(key);
+
+                if (_sceneMeshMap.TryGetValue(key, out var existing))
+                {
+                    if (CanReuseSceneMesh(existing.Instance, instance))
+                    {
+                        existing.Instance = instance;
+                        nextSceneMeshes.Add(existing);
+                        continue;
+                    }
+
+                    existing.Dispose();
+                    _sceneMeshMap.Remove(key);
+                    removedCount++;
+                }
+
+                var created = CreateSceneMesh(instance);
+                _sceneMeshMap[key] = created;
+                nextSceneMeshes.Add(created);
+                uploadedCount++;
             }
 
-            for (var i = 0; i < _sceneMeshes.Count; i++)
+            var staleKeys = _sceneMeshMap.Keys
+                .Where(key => !activeKeys.Contains(key))
+                .ToArray();
+            foreach (var staleKey in staleKeys)
             {
-                _sceneMeshes[i].Instance = renderableMeshes[i];
+                if (_sceneMeshMap.Remove(staleKey, out var staleMesh))
+                {
+                    staleMesh.Dispose();
+                    removedCount++;
+                }
+            }
+
+            _sceneMeshes.Clear();
+            _sceneMeshes.AddRange(nextSceneMeshes);
+
+            if (uploadedCount > 0 || removedCount > 0)
+            {
+                var totalIndexes = _sceneMeshes.Sum(mesh => mesh.Mesh.IndexCount);
+                ManaConsole.WriteDiagnostic($"WebGPU scene mesh delta: uploaded={uploadedCount}, removed={removedCount}, meshes={_sceneMeshes.Count}, indexes={totalIndexes}.");
             }
         }
 
-        private bool CanReuseSceneMeshes(IReadOnlyList<ManaRenderMeshInstance> renderableMeshes)
+        private static bool CanReuseSceneMesh(ManaRenderMeshInstance current, ManaRenderMeshInstance incoming)
         {
-            if (renderableMeshes.Count != _sceneMeshes.Count)
+            if (!string.Equals(current.Name, incoming.Name, StringComparison.Ordinal) ||
+                !string.Equals(current.MeshKey, incoming.MeshKey, StringComparison.Ordinal) ||
+                current.MeshData.Indexes.Length != incoming.MeshData.Indexes.Length ||
+                current.MeshData.Positions.Length != incoming.MeshData.Positions.Length ||
+                !string.Equals(current.MeshData.AlbedoTexturePath, incoming.MeshData.AlbedoTexturePath, StringComparison.Ordinal))
             {
                 return false;
             }
 
-            for (var i = 0; i < _sceneMeshes.Count; i++)
+            if (current.MeshVersion != 0 || incoming.MeshVersion != 0)
             {
-                var current = _sceneMeshes[i].Instance;
-                var incoming = renderableMeshes[i];
-                if (current.MeshData.Indexes.Length != incoming.MeshData.Indexes.Length ||
-                    current.MeshData.Positions.Length != incoming.MeshData.Positions.Length ||
-                    !string.Equals(current.Name, incoming.Name, StringComparison.Ordinal) ||
-                    !ReferenceEquals(current.MeshData, incoming.MeshData))
-                {
-                    return false;
-                }
+                return current.MeshVersion == incoming.MeshVersion;
             }
 
-            return true;
+            return ReferenceEquals(current.MeshData, incoming.MeshData);
+        }
+
+        private static string GetSceneMeshKey(ManaRenderMeshInstance instance, int index)
+        {
+            if (!string.IsNullOrWhiteSpace(instance.InstanceKey))
+            {
+                return instance.InstanceKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(instance.MeshKey))
+            {
+                return $"{instance.MeshKey}:{index}";
+            }
+
+            return $"{instance.Name}:{index}";
         }
 
         private static List<ManaRenderMeshInstance> GetRenderableMeshes(ManaRenderScene renderScene)
@@ -940,6 +1012,7 @@ namespace ManaGraphics.Code.Graphics
             if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
             {
                 using var image = ImageSharpImage.Load<Rgba32>(cpuData.AlbedoTexturePath);
+                image.Mutate(x => x.Flip(FlipMode.Vertical));
                 width = (uint)image.Width;
                 height = (uint)image.Height;
                 pixels = new byte[image.Width * image.Height * 4];
@@ -948,16 +1021,9 @@ namespace ManaGraphics.Code.Graphics
             }
             else
             {
-                var color = cpuData.AlbedoFactor ?? new Vector4(1, 1, 1, 1);
                 width = 1;
                 height = 1;
-                pixels = new[]
-                {
-                    (byte)(Math.Clamp(color.X, 0.0f, 1.0f) * 255.0f),
-                    (byte)(Math.Clamp(color.Y, 0.0f, 1.0f) * 255.0f),
-                    (byte)(Math.Clamp(color.Z, 0.0f, 1.0f) * 255.0f),
-                    (byte)(Math.Clamp(color.W, 0.0f, 1.0f) * 255.0f)
-                };
+                pixels = new[] { byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue };
                 ManaConsole.WriteDiagnostic("WebGPU mesh texture fallback: solid albedo color.");
             }
 
@@ -966,7 +1032,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
-                Format = TextureFormat.Rgba8Unorm,
+                Format = TextureFormat.Rgba8UnormSrgb,
                 MipLevelCount = 1,
                 SampleCount = 1
             };
@@ -997,7 +1063,7 @@ namespace ManaGraphics.Code.Graphics
 
             var textureViewDescriptor = new TextureViewDescriptor
             {
-                Format = TextureFormat.Rgba8Unorm,
+                Format = TextureFormat.Rgba8UnormSrgb,
                 Dimension = TextureViewDimension.Dimension2D,
                 MipLevelCount = 1,
                 ArrayLayerCount = 1,
@@ -1012,6 +1078,61 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
+        private ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)
+        {
+            var textureKey = GetMeshTextureKey(cpuData);
+            if (_meshTextureCache.TryGetValue(textureKey, out var cachedTexture))
+            {
+                cachedTexture.RefCount++;
+                return cachedTexture;
+            }
+
+            CreateMeshTexture(cpuData, out var texture, out var textureView);
+            var textureResource = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
+            {
+                RefCount = 1
+            };
+            _meshTextureCache[textureKey] = textureResource;
+            return textureResource;
+        }
+
+        private void ReleaseMeshTexture(ManaWebGpuMeshTexture textureResource)
+        {
+            if (textureResource.RefCount <= 0)
+            {
+                return;
+            }
+
+            textureResource.RefCount--;
+            if (textureResource.RefCount > 0)
+            {
+                return;
+            }
+
+            _meshTextureCache.Remove(textureResource.Key);
+            if (textureResource.TextureView != null)
+            {
+                _api.TextureViewRelease(textureResource.TextureView);
+                textureResource.TextureView = null;
+            }
+
+            if (textureResource.Texture != null)
+            {
+                _api.TextureRelease(textureResource.Texture);
+                textureResource.Texture = null;
+            }
+        }
+
+        private static string GetMeshTextureKey(ManaMeshCpuData cpuData)
+        {
+            if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
+            {
+                return $"file:{Path.GetFullPath(cpuData.AlbedoTexturePath)}";
+            }
+
+            return "fallback:white";
+        }
+
         private void UpdateDemoUniforms(ManaRenderMeshInstance meshInstance, Silk.NET.WebGPU.Buffer* uniformBuffer)
         {
             if (uniformBuffer == null || _activeRenderScene == null)
@@ -1023,12 +1144,37 @@ namespace ManaGraphics.Code.Graphics
             var view = _activeRenderScene.Camera.View;
             var projection = GetAspectCorrectedProjection(_activeRenderScene.Camera);
             var modelProjection = model * view * projection;
+            if (!Matrix4x4.Invert(model, out var inverseModel))
+            {
+                inverseModel = Matrix4x4.Identity;
+            }
+            var normalMatrix = Matrix4x4.Transpose(inverseModel);
             var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+            var irradianceSettings = _activeRenderScene.IrradianceSettings;
+            var lightDirection = irradianceSettings.LightDirection.LengthSquared() > 0.0001f
+                ? Vector3.Normalize(irradianceSettings.LightDirection)
+                : Vector3.Normalize(new Vector3(0.35f, 0.82f, 0.45f));
             
             var uniform = new ManaWebGpuTransformUniform
             {
                 ModelProjection = modelProjection,
-                Time = elapsedSeconds
+                Time = elapsedSeconds,
+                Model = model,
+                NormalMatrix = normalMatrix,
+                CameraPosition = new Vector4(_activeRenderScene.Camera.Position, 1.0f),
+                MaterialAlbedo = meshInstance.Albedo,
+                MaterialFactors = new Vector4(
+                    Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
+                    Math.Clamp(meshInstance.Roughness, 0.04f, 1.0f),
+                    Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
+                    1.0f),
+                IrradianceFactors = new Vector4(
+                    Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
+                    1.0f),
+                IrradianceLightColor = irradianceSettings.LightColor,
+                IrradianceLightDirection = new Vector4(lightDirection, 0.0f)
             };
 
             _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuTransformUniform));
@@ -1049,7 +1195,9 @@ namespace ManaGraphics.Code.Graphics
                 "ManaLiquidBallShader" => "liquid_ball.wgsl",
                 "ManaLiquidShader" => "liquid.wgsl",
                 "ManaGridShader" => "grid.wgsl",
-                _ => "colored_mesh.wgsl"
+                "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
+                "ManaPbrShader" => "pbr_irradiance.wgsl",
+                _ => "pbr_irradiance.wgsl"
             };
 
             var shaderPath = Path.Combine("Assets", "Shaders", "WebGpu", shaderFile);
@@ -1148,26 +1296,48 @@ namespace ManaGraphics.Code.Graphics
             return Matrix4x4.CreateTranslation(-center) * Matrix4x4.CreateScale(scale);
         }
 
+        private unsafe sealed class ManaWebGpuMeshTexture
+        {
+            public ManaWebGpuMeshTexture(string key, Texture* texture, TextureView* textureView)
+            {
+                Key = key;
+                Texture = texture;
+                TextureView = textureView;
+            }
+
+            public string Key { get; }
+            public Texture* Texture { get; set; }
+            public TextureView* TextureView { get; set; }
+            public int RefCount { get; set; }
+        }
+
         private sealed class ManaWebGpuSceneMesh : IDisposable
         {
             private readonly WebGPU _api;
+            private readonly Action<ManaWebGpuMeshTexture> _releaseTexture;
 
-            public ManaWebGpuSceneMesh(WebGPU api, ManaRenderMeshInstance instance, ManaWebGpuMesh mesh, Silk.NET.WebGPU.Buffer* uniformBuffer, Texture* texture, TextureView* textureView, BindGroup* bindGroup)
+            public ManaWebGpuSceneMesh(
+                WebGPU api,
+                ManaRenderMeshInstance instance,
+                ManaWebGpuMesh mesh,
+                Silk.NET.WebGPU.Buffer* uniformBuffer,
+                ManaWebGpuMeshTexture texture,
+                Action<ManaWebGpuMeshTexture> releaseTexture,
+                BindGroup* bindGroup)
             {
                 _api = api;
+                _releaseTexture = releaseTexture;
                 Instance = instance;
                 Mesh = mesh;
                 UniformBuffer = uniformBuffer;
                 Texture = texture;
-                TextureView = textureView;
                 BindGroup = bindGroup;
             }
 
             public ManaRenderMeshInstance Instance { get; set; }
             public ManaWebGpuMesh Mesh { get; }
             public Silk.NET.WebGPU.Buffer* UniformBuffer { get; }
-            public Texture* Texture { get; }
-            public TextureView* TextureView { get; }
+            public ManaWebGpuMeshTexture Texture { get; }
             public BindGroup* BindGroup { get; }
 
             public void Dispose()
@@ -1178,14 +1348,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _api.BindGroupRelease(BindGroup);
                 }
-                if (TextureView != null)
-                {
-                    _api.TextureViewRelease(TextureView);
-                }
-                if (Texture != null)
-                {
-                    _api.TextureRelease(Texture);
-                }
+                _releaseTexture(Texture);
                 if (UniformBuffer != null)
                 {
                     _api.BufferRelease(UniformBuffer);
@@ -1330,6 +1493,14 @@ namespace ManaGraphics.Code.Graphics
             private float _padding0;
             private float _padding1;
             private float _padding2;
+            public Matrix4x4 Model;
+            public Matrix4x4 NormalMatrix;
+            public Vector4 CameraPosition;
+            public Vector4 MaterialAlbedo;
+            public Vector4 MaterialFactors;
+            public Vector4 IrradianceFactors;
+            public Vector4 IrradianceLightColor;
+            public Vector4 IrradianceLightDirection;
         }
     }
 }

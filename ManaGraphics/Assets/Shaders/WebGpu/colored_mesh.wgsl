@@ -22,7 +22,7 @@ var color_sampler : sampler;
 var color_texture : texture_2d<f32>;
 
 @vertex
-fn vs_main(@location(0) position : vec3<f32>, @location(1) color : vec4<f32>, @location(2) uv0 : vec2<f32>) -> VertexOutput {
+fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @location(2) color : vec4<f32>, @location(3) uv0 : vec2<f32>) -> VertexOutput {
     var output : VertexOutput;
     output.position = transform.model_projection * vec4<f32>(position, 1.0);
     output.color = color;

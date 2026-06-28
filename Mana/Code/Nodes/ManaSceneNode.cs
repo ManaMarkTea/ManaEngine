@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Mana.Code.Nodes
 {
     public class ManaSceneNode : ManaObject
@@ -147,12 +149,20 @@ namespace Mana.Code.Nodes
 
                 try
                 {
+                    var meshData = renderer.Mesh.GetOrCreateCpuData();
                     output.Add(new ManaCore.Graphics.ManaRenderMeshInstance
                     {
+                        InstanceKey = $"{RuntimeHelpers.GetHashCode(this):x8}:{RuntimeHelpers.GetHashCode(renderer):x8}",
+                        MeshKey = renderer.Mesh.RenderKey,
+                        MeshVersion = renderer.Mesh.CpuDataVersion,
                         Name = string.IsNullOrWhiteSpace(Name) ? renderer.Mesh.Name : Name,
-                        MeshData = renderer.Mesh.GetOrCreateCpuData(),
+                        MeshData = meshData,
                         WorldTransform = WorldTransform,
-                        ShaderName = renderer.Material.Shader?.GetType().Name
+                        ShaderName = renderer.Material.Shader?.GetType().Name,
+                        Albedo = renderer.Material.Albedo.Value,
+                        Metallic = renderer.Material.Metallic.Value,
+                        Roughness = renderer.Material.Roughness.Value,
+                        AmbientOcclusion = renderer.Material.Ambient.Value
                     });
                 }
                 catch (InvalidOperationException)

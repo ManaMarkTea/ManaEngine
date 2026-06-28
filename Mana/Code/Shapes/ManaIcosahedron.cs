@@ -66,7 +66,11 @@ namespace Mana.Code.Shapes
                 AddFace(vertices[face.v1], vertices[face.v2], vertices[face.v3]);
             }
 
-            VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            if (Context.OpenGl != null)
+            {
+                VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+            }
         }
 
         private void AddFace(Vector3 a, Vector3 b, Vector3 c)

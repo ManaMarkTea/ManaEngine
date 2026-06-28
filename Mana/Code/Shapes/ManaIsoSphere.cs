@@ -119,7 +119,7 @@
                 texCoords[i] = new Vector2(u, v) * 4.0f;
             });
 
-            var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, new ManaCore.Graphics.ManaMeshCpuData
+            var meshData = new ManaCore.Graphics.ManaMeshCpuData
             {
                 Indexes = triList.ToArray(),
                 Positions = vertices,
@@ -127,10 +127,16 @@
                 Colors = colors,
                 TextureCoordinates0 = texCoords,
                 TextureCoordinates1 = texCoords
-            });
-            if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+            };
+
+            SetCpuData(meshData);
+            if (Context.OpenGl != null)
             {
-                VertexBufferObject = openGlMesh.VertexBufferObject;
+                var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, meshData);
+                if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+                {
+                    VertexBufferObject = openGlMesh.VertexBufferObject;
+                }
             }
         }
 

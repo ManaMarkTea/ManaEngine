@@ -17,6 +17,8 @@ namespace Mana.Code.Shapes
         protected Vector3 MaxSize;
 
         public ManaMeshCpuData? CpuData { get; private set; }
+        public string RenderKey { get; } = Guid.NewGuid().ToString("N");
+        public ulong CpuDataVersion { get; private set; }
 
         private ManaVertexBufferObject? vertexBufferObject;
 
@@ -93,7 +95,7 @@ namespace Mana.Code.Shapes
 
             if (DynamicGeometryContainer.Verts.Count > 0)
             {
-                CpuData = new ManaMeshCpuData
+                var meshData = new ManaMeshCpuData
                 {
                     Indexes = DynamicGeometryContainer.Indexes.ToArray(),
                     Positions = DynamicGeometryContainer.Positions.ToArray(),
@@ -104,13 +106,14 @@ namespace Mana.Code.Shapes
                     AlbedoTexturePath = null,
                     AlbedoFactor = null
                 };
+                SetCpuData(meshData);
 
-                return CpuData;
+                return meshData;
             }
 
             if (VertexBufferObject != null)
             {
-                CpuData = new ManaMeshCpuData
+                var meshData = new ManaMeshCpuData
                 {
                     Indexes = VertexBufferObject.indexes.ToArray(),
                     Positions = VertexBufferObject.positions.ToArray(),
@@ -121,8 +124,9 @@ namespace Mana.Code.Shapes
                     AlbedoTexturePath = null,
                     AlbedoFactor = null
                 };
+                SetCpuData(meshData);
 
-                return CpuData;
+                return meshData;
             }
 
             throw new InvalidOperationException($"Mesh '{Name}' does not have CPU geometry data available.");
@@ -131,6 +135,7 @@ namespace Mana.Code.Shapes
         internal void SetCpuData(ManaMeshCpuData cpuData)
         {
             CpuData = cpuData;
+            CpuDataVersion++;
         }
 
     }

@@ -4,9 +4,16 @@ namespace ManaCore.Graphics
 {
     public sealed class ManaRenderMeshInstance
     {
+        public string? InstanceKey { get; init; }
+        public string? MeshKey { get; init; }
+        public ulong MeshVersion { get; init; }
         public required string Name { get; init; }
         public required ManaMeshCpuData MeshData { get; init; }
         public required Matrix4x4 WorldTransform { get; init; }
         public string? ShaderName { get; init; }
+        public Vector4 Albedo { get; init; } = Vector4.One;
+        public float Metallic { get; init; }
+        public float Roughness { get; init; } = 1.0f;
+        public float AmbientOcclusion { get; init; } = 1.0f;
     }
 }

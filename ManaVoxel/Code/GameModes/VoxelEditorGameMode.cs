@@ -25,16 +25,6 @@ namespace Mana.Code.GameModes
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
-        private readonly IrradianceDebugPanelView _irradianceDebugPanelView = new();
-
-        private bool _drawDebugWorld = false;
-        private float _debugMetallic = 0.0f;
-        private float _debugRoughness = 0.0f;
-        private float _debugAmbient = 0.0f;
-        private System.Numerics.Vector4 _debugAlbedo = System.Numerics.Vector4.One;
-        private float _debugLightIntensity = 1.0f;
-        private System.Numerics.Vector4 _debugLightColor = System.Numerics.Vector4.One;
-        private float _debugSceneScale = 1.0f;
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
@@ -172,6 +162,56 @@ namespace Mana.Code.GameModes
 
             voxelShapes[0].CommitData();
             _viewModel.AttachVoxelData(voxelShapes[0], voxelNode);
+
+            AddFlightHelmetReferenceModel();
+        }
+
+        private void AddFlightHelmetReferenceModel()
+        {
+            var helmetPath = ResolveManaAssetPath(Path.Combine("Assets", "Models", "FlightHelmet", "glTF", "FlightHelmet.gltf"));
+            try
+            {
+                var helmetRoot = Context.World.LoadFromGltf(helmetPath);
+                helmetRoot.Name = "Flight Helmet";
+                helmetRoot.Position = new Vector3(96.0f, 6.0f, 32.0f);
+                helmetRoot.Rotation = new Vector3(0.0f, 35.0f.ToRadians(), 0.0f);
+                helmetRoot.Scale = Vector3.One * 8.0f;
+                helmetRoot.UpdateTransform();
+
+                if (Context.World.Scenes.Count > 0)
+                {
+                    Context.World.Scenes[^1].Name = "Flight Helmet Scene";
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to load Flight Helmet reference model: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to load Flight Helmet reference model: {ex}");
+            }
+        }
+
+        private static string ResolveManaAssetPath(string relativePath)
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, relativePath),
+                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
+                Path.Combine(AppContext.BaseDirectory, relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            return relativePath;
         }
 
         Vector3 startImportPos = new Vector3(30.0f, 0, 20);
@@ -331,20 +371,6 @@ namespace Mana.Code.GameModes
                 var showDemo = _viewModel.ShowImGuiDemoWindow;
                 ImGui.ShowDemoWindow(ref showDemo);
                 _viewModel.ShowImGuiDemoWindow = showDemo;
-            }
-
-            if (GraphicsBackend == ManaGraphicsBackendKind.WebGpu)
-            {
-                _irradianceDebugPanelView.Draw(
-                    ref _drawDebugWorld,
-                    ref _debugMetallic,
-                    ref _debugRoughness,
-                    ref _debugAmbient,
-                    ref _debugAlbedo,
-                    ref _debugLightIntensity,
-                    ref _debugLightColor,
-                    ref _debugSceneScale
-                );
             }
         }
 

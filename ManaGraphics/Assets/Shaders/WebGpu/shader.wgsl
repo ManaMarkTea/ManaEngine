@@ -14,7 +14,7 @@ struct VOut {
 var<uniform> ub : UniformBuffer;
 
 @vertex
-fn vs_main(@location(0) pos: vec3<f32>, @location(1) col: vec4<f32>, @location(2) uv: vec2<f32>) -> VOut {
+fn vs_main(@location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) col: vec4<f32>, @location(3) uv: vec2<f32>) -> VOut {
     
 
     return VOut(ub.mdlMat*vec4<f32>(pos, 1.0), col, uv);
