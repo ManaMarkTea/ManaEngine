@@ -43,6 +43,7 @@ namespace ManaGraphics.Code.Graphics
         private BindGroupLayout* _demoBindGroupLayout;
         private PipelineLayout* _demoPipelineLayout;
         private Sampler* _demoSampler;
+        private ManaWebGpuMeshTexture? _environmentTexture;
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
@@ -277,6 +278,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             ReleaseSceneMeshes();
+            ReleaseEnvironmentTexture();
 
             foreach (var entry in _shaderModules)
             {
@@ -748,6 +750,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var textureResource = AcquireMeshTexture(meshData);
+            var environmentTexture = GetOrCreateEnvironmentTexture();
 
             var bindGroupEntry = new BindGroupEntry
             {
@@ -769,10 +772,17 @@ namespace ManaGraphics.Code.Graphics
                 TextureView = textureResource.TextureView
             };
 
-            var bindGroupEntries = new BindGroupEntry[3];
+            var environmentTextureBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 3,
+                TextureView = environmentTexture.TextureView
+            };
+
+            var bindGroupEntries = new BindGroupEntry[4];
             bindGroupEntries[0] = bindGroupEntry;
             bindGroupEntries[1] = samplerBindGroupEntry;
             bindGroupEntries[2] = textureBindGroupEntry;
+            bindGroupEntries[3] = environmentTextureBindGroupEntry;
 
             BindGroup* bindGroup = null;
             fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
@@ -780,7 +790,7 @@ namespace ManaGraphics.Code.Graphics
                 var bindGroupDescriptor = new BindGroupDescriptor
                 {
                     Layout = _demoBindGroupLayout,
-                    EntryCount = 3,
+                    EntryCount = 4,
                     Entries = bindGroupEntriesPointer
                 };
                 bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
@@ -974,14 +984,27 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[3];
+            var environmentTextureBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 3,
+                Visibility = ShaderStage.Fragment,
+                Texture = new TextureBindingLayout
+                {
+                    SampleType = TextureSampleType.Float,
+                    ViewDimension = TextureViewDimension.Dimension2D,
+                    Multisampled = false
+                }
+            };
+
+            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[4];
             bindGroupLayoutEntries[0] = bindGroupLayoutEntry;
             bindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
             bindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
+            bindGroupLayoutEntries[3] = environmentTextureBindGroupLayoutEntry;
 
             var bindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
             {
-                EntryCount = 3,
+                EntryCount = 4,
                 Entries = bindGroupLayoutEntries
             };
             _demoBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
@@ -1027,6 +1050,25 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnostic("WebGPU mesh texture fallback: solid albedo color.");
             }
 
+            CreateRgba8SrgbTexture(pixels, width, height, "mesh", out meshTexture, out meshTextureView);
+        }
+
+        private void CreateImageTexture(string texturePath, bool flipVertical, string diagnosticName, out Texture* texture, out TextureView* textureView)
+        {
+            using var image = ImageSharpImage.Load<Rgba32>(texturePath);
+            if (flipVertical)
+            {
+                image.Mutate(x => x.Flip(FlipMode.Vertical));
+            }
+
+            var pixels = new byte[image.Width * image.Height * 4];
+            image.CopyPixelDataTo(pixels);
+            CreateRgba8SrgbTexture(pixels, (uint)image.Width, (uint)image.Height, diagnosticName, out texture, out textureView);
+            ManaConsole.WriteDiagnostic($"WebGPU {diagnosticName} texture loaded: {texturePath}");
+        }
+
+        private void CreateRgba8SrgbTexture(byte[] pixels, uint width, uint height, string diagnosticName, out Texture* texture, out TextureView* textureView)
+        {
             var textureDescriptor = new TextureDescriptor
             {
                 Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
@@ -1036,17 +1078,17 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            meshTexture = _api.DeviceCreateTexture(_device, &textureDescriptor);
-            if (meshTexture == null)
+            texture = _api.DeviceCreateTexture(_device, &textureDescriptor);
+            if (texture == null)
             {
-                throw new InvalidOperationException("Failed to create WebGPU mesh texture.");
+                throw new InvalidOperationException($"Failed to create WebGPU {diagnosticName} texture.");
             }
 
             fixed (byte* pixelPointer = pixels)
             {
                 var destination = new ImageCopyTexture
                 {
-                    Texture = meshTexture,
+                    Texture = texture,
                     MipLevel = 0,
                     Origin = new Origin3D(),
                     Aspect = TextureAspect.All
@@ -1069,13 +1111,54 @@ namespace ManaGraphics.Code.Graphics
                 ArrayLayerCount = 1,
                 Aspect = TextureAspect.All
             };
-            meshTextureView = _api.TextureCreateView(meshTexture, &textureViewDescriptor);
-            if (meshTextureView == null)
+            textureView = _api.TextureCreateView(texture, &textureViewDescriptor);
+            if (textureView == null)
             {
-                _api.TextureRelease(meshTexture);
-                meshTexture = null;
-                throw new InvalidOperationException("Failed to create WebGPU mesh texture view.");
+                _api.TextureRelease(texture);
+                texture = null;
+                throw new InvalidOperationException($"Failed to create WebGPU {diagnosticName} texture view.");
             }
+        }
+
+        private ManaWebGpuMeshTexture GetOrCreateEnvironmentTexture()
+        {
+            var source = _activeRenderScene?.EnvironmentReflectionSource ?? new ManaEnvironmentReflectionSource();
+            var environmentPath = ResolveAssetPath(source.SourcePath);
+            var textureKey = $"environment:{environmentPath}";
+            if (_environmentTexture != null && string.Equals(_environmentTexture.Key, textureKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return _environmentTexture;
+            }
+
+            ReleaseEnvironmentTexture();
+            CreateImageTexture(environmentPath, false, "environment", out var texture, out var textureView);
+            _environmentTexture = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
+            {
+                RefCount = 1
+            };
+            return _environmentTexture;
+        }
+
+        private void ReleaseEnvironmentTexture()
+        {
+            if (_environmentTexture == null)
+            {
+                return;
+            }
+
+            if (_environmentTexture.TextureView != null)
+            {
+                _api.TextureViewRelease(_environmentTexture.TextureView);
+                _environmentTexture.TextureView = null;
+            }
+
+            if (_environmentTexture.Texture != null)
+            {
+                _api.TextureRelease(_environmentTexture.Texture);
+                _environmentTexture.Texture = null;
+            }
+
+            _environmentTexture = null;
         }
 
         private ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)
@@ -1165,7 +1248,7 @@ namespace ManaGraphics.Code.Graphics
                 MaterialAlbedo = meshInstance.Albedo,
                 MaterialFactors = new Vector4(
                     Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
-                    Math.Clamp(meshInstance.Roughness, 0.04f, 1.0f),
+                    Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
                     Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
                     1.0f),
                 IrradianceFactors = new Vector4(

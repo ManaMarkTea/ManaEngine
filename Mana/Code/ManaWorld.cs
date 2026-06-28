@@ -57,6 +57,7 @@ namespace Mana
 
         public ManaRenderer Renderer = null!;
         public ManaCore.Graphics.ManaIrradianceSettings IrradianceSettings { get; } = new();
+        public ManaCore.Graphics.ManaEnvironmentReflectionSource EnvironmentReflectionSource { get; set; } = new();
         
         public ManaWorld() : base(null!)
         {
@@ -246,7 +247,8 @@ namespace Mana
                     MainCamera.NearClipPlane,
                     MainCamera.FarClipPlane),
                 Meshes = meshes,
-                IrradianceSettings = IrradianceSettings.Clone()
+                IrradianceSettings = IrradianceSettings.Clone(),
+                EnvironmentReflectionSource = EnvironmentReflectionSource.Clone()
             };
         }
 

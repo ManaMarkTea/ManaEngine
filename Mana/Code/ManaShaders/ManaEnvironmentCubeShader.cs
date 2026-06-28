@@ -14,7 +14,7 @@ namespace Mana.Code.ManaShaders
 
         public ManaEnvironmentCubeShader(ManaContext context) : base(context)
         {
-            var environmentPath = "Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png";
+            var environmentPath = context.World.EnvironmentReflectionSource.SourcePath;
             //var environmentPath = "Assets/Textures/Environments/newport_loft.png";
             //var environmentPath = "Assets/Textures/Environments/chromatic.jpg";
             //var environmentPath = "Assets/Textures/Environments/field.jpg";
