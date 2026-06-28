@@ -169,6 +169,8 @@ namespace Mana.Code.Nodes
                         Metallic = renderer.Material.Metallic.Value,
                         Roughness = renderer.Material.Roughness.Value,
                         AmbientOcclusion = renderer.Material.Ambient.Value,
+                        Emission = renderer.Material.Emission.Value,
+                        EmissionStrength = (float)renderer.Material.EmissionStrength,
                         PbrDebugMode = GetPbrDebugMode(renderer.Material),
                         IncludeInEnvironmentCapture = includeInEnvironmentCapture
                     });

@@ -25,6 +25,7 @@ namespace Mana.Code.Renderers
 
         public ManaTexture EnvironmentMap = null!;
         public IManaEnvironmentReflectionMap? EnvironmentReflectionMap { get; private set; }
+        public ManaOpenGlHdrPostProcessor? PostProcessor { get; private set; }
 
         public ManaCube SimpleCube = null!;
         public ManaQuad SimpleQuad = null!;
@@ -105,21 +106,24 @@ namespace Mana.Code.Renderers
                 PrefilterFramebuffer.bufferMap["PreFilter"].Texture,
                 BrdfFramebuffer.bufferMap["BRDF"].Texture);
 
+            var size = Context.Window.FramebufferSize;
+            PostProcessor = new ManaOpenGlHdrPostProcessor(Context, size.X, size.Y);
         }
 
-        public override void Resize(int width, int height) { }
+        public override void Resize(int width, int height)
+        {
+            PostProcessor?.Resize(width, height);
+        }
 
         public override void Clear()
         {
             Context.RequireOpenGl().Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-
         }
 
         public void ClearDepth()
         {
             Context.RequireOpenGl().Clear((uint)(ClearBufferMask.DepthBufferBit));
         }
-
 
         public override void DrawImGui()
         {
@@ -130,24 +134,31 @@ namespace Mana.Code.Renderers
             RenderIrradiance();
             RenderPrefilteredReflectionMap();
 
-            var window = Context.Window;
-            Context.RequireOpenGl().Viewport(window.FramebufferSize);
-            Context.RequireOpenGl().ClearColor<float>(DefaultClearColor.ToVector4D());
-            Context.RequireOpenGl().ClearDepth(1.0);
-            Context.RequireOpenGl().DepthFunc(DepthFunction.Lequal);
-            Context.RequireOpenGl().ColorMask(true, true, true, true);
-            Clear();
+            if (PostProcessor == null)
+            {
+                var size = Context.Window.FramebufferSize;
+                PostProcessor = new ManaOpenGlHdrPostProcessor(Context, size.X, size.Y);
+            }
+
+            PostProcessor.Begin();
+
+            var gl = Context.RequireOpenGl();
+            gl.Viewport(0, 0, PostProcessor.HdrSceneTarget.Width, PostProcessor.HdrSceneTarget.Height);
+            gl.ClearColor(DefaultClearColor.X, DefaultClearColor.Y, DefaultClearColor.Z, DefaultClearColor.W);
+            gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            gl.DepthFunc(DepthFunction.Lequal);
+            gl.ColorMask(true, true, true, true);
 
             RenderEnvironmentBackground();
 
-            Context.RequireOpenGl().Enable(EnableCap.DepthTest);
-            Context.RequireOpenGl().Viewport(window.FramebufferSize);
-            Context.RequireOpenGl().ClearDepth(1.0);
-            ClearDepth();
+            gl.Enable(EnableCap.DepthTest);
+            gl.ClearDepth(1.0);
+            gl.Clear((uint)ClearBufferMask.DepthBufferBit);
 
             SyncGridLightRig();
             drawScenes();
-            
+
+            PostProcessor.End();
         }
 
         private const float DebugGridSize = 256.0f;

@@ -11,6 +11,9 @@ uniform sampler2D normalMap;
 uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
+uniform sampler2D emissionMap;
+uniform vec3 emissionColor;
+uniform float emissionStrength;
 uniform float normalMapSelection = 0.0;
 
 // IBL
@@ -187,99 +190,82 @@ void main()
 
     vec3 ambient = (kD * diffuse + specular) * ao;
     
-    vec3 color = (ambient + Lo) * exposure;
+    vec3 linear_emission_color = pow(max(emissionColor, vec3(0.0)), vec3(2.2));
+    vec3 emissive = linear_emission_color * emissionStrength;
+
+    vec3 color = (ambient + Lo + emissive) * exposure;
 
     int debugMode = int(pbrDebugMode + 0.5);
     if (debugMode == 1)
     {
-        FragColor = vec4(V * 0.5 + vec3(0.5), 1.0);
+        FragColor = vec4(V * 0.5 + vec3(0.5), -1.0);
         return;
     }
     else if (debugMode == 2)
     {
-        FragColor = vec4(N * 0.5 + vec3(0.5), 1.0);
+        FragColor = vec4(N * 0.5 + vec3(0.5), -1.0);
         return;
     }
     else if (debugMode == 3)
     {
-        FragColor = vec4(R * 0.5 + vec3(0.5), 1.0);
+        FragColor = vec4(R * 0.5 + vec3(0.5), -1.0);
         return;
     }
     else if (debugMode == 4)
     {
-        FragColor = vec4(normalize(R) * 0.5 + vec3(0.5), 1.0);
+        FragColor = vec4(normalize(R) * 0.5 + vec3(0.5), -1.0);
         return;
     }
     else if (debugMode == 5)
     {
-        FragColor = vec4(prefilteredColor, 1.0);
+        FragColor = vec4(prefilteredColor, -1.0);
         return;
     }
     else if (debugMode == 6)
     {
-        FragColor = vec4((F * brdf.x + brdf.y) * iblIntensity, 1.0);
+        FragColor = vec4((F * brdf.x + brdf.y) * iblIntensity, -1.0);
         return;
     }
     else if (debugMode == 7)
     {
-        FragColor = vec4(albedo, 1.0);
+        FragColor = vec4(albedo, -1.0);
         return;
     }
     else if (debugMode == 8)
     {
-        FragColor = vec4(F0, 1.0);
+        FragColor = vec4(F0, -1.0);
         return;
     }
     else if (debugMode == 9)
     {
-        FragColor = vec4(F, 1.0);
+        FragColor = vec4(F, -1.0);
         return;
     }
     else if (debugMode == 10)
     {
-        FragColor = vec4(brdf, 0.0, 1.0);
+        FragColor = vec4(brdf, 0.0, -1.0);
         return;
     }
     else if (debugMode == 11)
     {
-        FragColor = vec4(kD * diffuse, 1.0);
+        FragColor = vec4(kD * diffuse, -1.0);
         return;
     }
     else if (debugMode == 12)
     {
-        FragColor = vec4(specular, 1.0);
+        FragColor = vec4(specular, -1.0);
         return;
     }
     else if (debugMode == 13)
     {
-        FragColor = vec4(Lo, 1.0);
+        FragColor = vec4(Lo, -1.0);
         return;
     }
     else if (debugMode == 14)
     {
-        FragColor = vec4(color, 1.0);
+        FragColor = vec4(color, -1.0);
         return;
     }
 
-    // HDR tonemapping
-    color = color / (color + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
-
-    FragColor = vec4(color , 1.0);
-
-    //FragColor = vec4(albedo.xyz, 1.0);
-    //FragColor = vec4(albedoPure.xyz, 1.0);    
-    //FragColor = vec4(metallic, 0.0, 0.0 , 1.0);
-    //FragColor = vec4(roughness, 0.0, 0.0 , 1.0);
-    //FragColor = vec4(specular, 1.0);
-    //FragColor = vec4(brdf, 0.0, 1.0);
-    //FragColor = vec4(N, 1.0);
-    //FragColor = vec4(F, 1.0);
-    //FragColor = vec4(TexCoords, 0.0, 1.0);
-    //FragColor = vec4(TexCoords.y, 0.0, 0.0, 1.0);
-    //FragColor = vec4(1.0, 1.0, 0.0, 1.0);
-    //FragColor = vec4(metallic, roughness, 0.0 , 1.0);
-    //FragColor = vec4(prefilteredColor , 1.0);
-    //FragColor = vec4(irradiance , 1.0);
+    FragColor = vec4(color, 1.0);
 }

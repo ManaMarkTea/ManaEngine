@@ -1,8 +1,10 @@
 using Silk.NET.OpenGL;
+using System;
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace Mana
 {
-
     public class RenderBufferInfo
     {
         public bool RedFloatBuffer;
@@ -45,11 +47,10 @@ namespace Mana
 
             BufferName = "";
         }
-    };
+    }
 
     public class ManaRenderTarget : ManaObject
     {
-
         public uint Width { get; set; }
         public uint Height { get; set; }
 
@@ -98,7 +99,6 @@ namespace Mana
                     attachments.Texture.UpdateTextureSize();
                 }
             }
-
         }
 
         public int MaxMips
@@ -116,6 +116,7 @@ namespace Mana
             bufferInfos.Add(info);
             bufferMap[name] = info;
         }
+
         public void AddDepthBuffer(string name)
         {
             var info = new RenderBufferInfo();
@@ -124,6 +125,7 @@ namespace Mana
             HasDepth = true;
             AddBuffer(name, info);
         }
+
         public void AddFloatBuffer(string name)
         {
             var info = new RenderBufferInfo();
@@ -148,18 +150,21 @@ namespace Mana
             info.HasAlpha = false;
             AddBuffer(name, info);
         }
+
         public void AddRedFloatBuffer(string name)
         {
             var info = new RenderBufferInfo();
             info.RedFloatBuffer = true;
             AddBuffer(name, info);
         }
+
         public void AddRgbBuffer(string name)
         {
             var info = new RenderBufferInfo();
             info.RgbBuffer = true;
             AddBuffer(name, info);
         }
+
         public void AddRgbaBuffer(string name)
         {
             var info = new RenderBufferInfo();
@@ -181,7 +186,7 @@ namespace Mana
                 TextureMinFilter filterTypeMin = bufferInfo.MinLinearMip ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear;
                 TextureMagFilter filterTypeMag = TextureMagFilter.Linear;
 
-                InternalFormat internalFormat = bufferInfo.FloatBuffer ? InternalFormat.Rgb16f : bufferInfo.RgbBuffer ? InternalFormat.Rgb : InternalFormat.Rgba;
+                InternalFormat internalFormat = bufferInfo.FloatBuffer ? (bufferInfo.HasAlpha ? InternalFormat.Rgba16f : InternalFormat.Rgb16f) : bufferInfo.RgbBuffer ? InternalFormat.Rgb : InternalFormat.Rgba;
                 PixelFormat internalFormat2 = bufferInfo.HasAlpha ? PixelFormat.Rgba : PixelFormat.Rgb;
 
                 GLEnum internalDataType = bufferInfo.FloatBuffer ? GLEnum.Float : GLEnum.UnsignedByte;
@@ -232,12 +237,9 @@ namespace Mana
                     texture.Load();
                 }
 
-
                 if (!bufferInfo.HasCube)
                 {
-                    // attach texture to framebuffer
                     gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, texture.FboAttachmentType, TextureTarget.Texture2D, texture.Handle, 0);
-                    //gl.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, bufferInfo.Samples, InternalFormat.Rgba8, Width, Height);
                 }
                 else
                 {
@@ -254,7 +256,6 @@ namespace Mana
                 i++;
             }
 
-            /* Check for errors */
             GLEnum status = gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
             if (status != GLEnum.FramebufferComplete)
             {
@@ -285,7 +286,7 @@ namespace Mana
         public void Bind(int index = 0, int mipIndex = 0)
         {
             var gl = Context.RequireOpenGl();
-  
+   
             uint mipWidth = (uint)(Width * MathF.Pow(0.5f, mipIndex));
             uint mipHeight = (uint)(Height * MathF.Pow(0.5f, mipIndex));
             gl.Viewport(0, 0, mipWidth, mipHeight);
@@ -308,8 +309,6 @@ namespace Mana
                     }
 
                     gl.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBufferID);
-
-                    // Bind the face of the cube we're drawing to
                     gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, buffer.Texture.FboAttachmentType, TextureTarget.TextureCubeMapPositiveX + index, buffer.Texture.Handle, mipIndex);
                 }
             }
@@ -322,12 +321,6 @@ namespace Mana
             var gl = Context.RequireOpenGl();
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
-
-        /*
-        void Blit();
-        void Blit(int dstWidth, int dstHeight);
-        void Blit(int srcWidth, int srchHeight, int dstWidth, int dstHeight);
-        */
 
         public void DrawFullScreenQuad()
         {

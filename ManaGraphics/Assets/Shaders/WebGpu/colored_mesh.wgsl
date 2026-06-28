@@ -33,5 +33,6 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let texel = textureSample(color_texture, color_sampler, input.uv0);
-    return texel * input.color;
+    let color = texel * input.color;
+    return vec4<f32>(color.rgb, -1.0);
 }

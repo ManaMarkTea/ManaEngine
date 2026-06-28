@@ -48,6 +48,7 @@ namespace ManaGraphics.Code.Graphics
         private BindGroupLayout* _sceneCaptureBindGroupLayout;
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;
+        private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private Texture* _sceneCaptureDepthTexture;
         private TextureView* _sceneCaptureDepthTextureView;
@@ -172,9 +173,20 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var textureView = _api.TextureCreateView(surfaceTexture.Texture, &viewDescriptor);
-            var colorAttachment = new RenderPassColorAttachment
+            var hdrSceneTextureView = _hdrPostProcessor?.SceneTextureView;
+            if (textureView == null || hdrSceneTextureView == null)
             {
-                View = textureView,
+                if (textureView != null)
+                {
+                    _api.TextureViewRelease(textureView);
+                }
+
+                return;
+            }
+
+            var sceneColorAttachment = new RenderPassColorAttachment
+            {
+                View = hdrSceneTextureView,
                 LoadOp = LoadOp.Clear,
                 StoreOp = StoreOp.Store,
                 ClearValue = clearColor
@@ -193,10 +205,10 @@ namespace ManaGraphics.Code.Graphics
                 StencilReadOnly = true
             };
 
-            var renderPassDescriptor = new RenderPassDescriptor
+            var sceneRenderPassDescriptor = new RenderPassDescriptor
             {
                 ColorAttachmentCount = 1,
-                ColorAttachments = &colorAttachment,
+                ColorAttachments = &sceneColorAttachment,
                 DepthStencilAttachment = &depthStencilAttachment
             };
 
@@ -205,10 +217,30 @@ namespace ManaGraphics.Code.Graphics
             RefreshRenderScene();
             CaptureSceneEnvironmentIfNeeded(commandEncoder);
 
-            var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
-            DrawDemoMesh(renderPass);
-            _imGuiController?.Render(renderPass);
-            _api.RenderPassEncoderEnd(renderPass);
+            var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
+            DrawDemoMesh(sceneRenderPass);
+            _api.RenderPassEncoderEnd(sceneRenderPass);
+
+            _hdrPostProcessor?.Process(commandEncoder);
+
+            var surfaceColorAttachment = new RenderPassColorAttachment
+            {
+                View = textureView,
+                LoadOp = LoadOp.Clear,
+                StoreOp = StoreOp.Store,
+                ClearValue = clearColor
+            };
+
+            var toneMapRenderPassDescriptor = new RenderPassDescriptor
+            {
+                ColorAttachmentCount = 1,
+                ColorAttachments = &surfaceColorAttachment
+            };
+
+            var toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
+            _hdrPostProcessor?.Draw(toneMapRenderPass);
+            _imGuiController?.Render(toneMapRenderPass);
+            _api.RenderPassEncoderEnd(toneMapRenderPass);
 
             var commandBufferDescriptor = new CommandBufferDescriptor();
             var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
@@ -217,7 +249,8 @@ namespace ManaGraphics.Code.Graphics
 
             _api.CommandBufferRelease(commandBuffer);
             _api.CommandEncoderRelease(commandEncoder);
-            _api.RenderPassEncoderRelease(renderPass);
+            _api.RenderPassEncoderRelease(sceneRenderPass);
+            _api.RenderPassEncoderRelease(toneMapRenderPass);
             _api.TextureViewRelease(textureView);
         }
 
@@ -289,6 +322,9 @@ namespace ManaGraphics.Code.Graphics
                 _api.RenderPipelineRelease(_sceneCapturePipeline);
                 _sceneCapturePipeline = null;
             }
+
+            _hdrPostProcessor?.Dispose();
+            _hdrPostProcessor = null;
 
             ReleaseSceneCaptureDepthResources();
 
@@ -370,6 +406,7 @@ namespace ManaGraphics.Code.Graphics
             _api.SurfaceConfigure(_surface, &configuration);
             _framebufferSize = framebufferSize;
             CreateDepthResources(framebufferSize);
+            _hdrPostProcessor?.Resize(framebufferSize);
             _configured = true;
         }
 
@@ -508,6 +545,7 @@ namespace ManaGraphics.Code.Graphics
 
             _activeRenderScene = renderScene;
             CreateSharedPipelineLayouts();
+            CreateHdrPostProcessor();
             
             // Pre-compile default pipeline
             GetOrCreatePipeline("ManaPbrShader");
@@ -656,6 +694,23 @@ namespace ManaGraphics.Code.Graphics
                 }
                 sceneMesh.Mesh.Draw(renderPass);
             }
+        }
+
+        private void CreateHdrPostProcessor()
+        {
+            if (_hdrPostProcessor != null)
+            {
+                return;
+            }
+
+            var shaderPath = ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "hdr_tonemap.wgsl"));
+            _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_api, _device, _surfaceFormat, shaderPath);
+            _hdrPostProcessor.Resize(_framebufferSize);
+        }
+
+        private TextureFormat GetSceneColorFormat()
+        {
+            return _hdrPostProcessor?.SceneFormat ?? _surfaceFormat;
         }
 
         private void CaptureSceneEnvironmentIfNeeded(CommandEncoder* commandEncoder)
@@ -1775,6 +1830,11 @@ namespace ManaGraphics.Code.Graphics
                     Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
                     Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
                     1.0f),
+                MaterialEmission = new Vector4(
+                    meshInstance.Emission.X,
+                    meshInstance.Emission.Y,
+                    meshInstance.Emission.Z,
+                    meshInstance.EmissionStrength),
                 IrradianceFactors = new Vector4(
                     Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
                     Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
@@ -1833,7 +1893,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _shaderModules[shaderName] = (nint)shaderModule;
-            var pipeline = CreateDemoRenderPipeline(shaderModule, _surfaceFormat, _demoPipelineLayout);
+            var pipeline = CreateDemoRenderPipeline(shaderModule, GetSceneColorFormat(), _demoPipelineLayout);
             _pipelines[shaderName] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
@@ -2185,6 +2245,7 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 CameraPosition;
             public Vector4 MaterialAlbedo;
             public Vector4 MaterialFactors;
+            public Vector4 MaterialEmission;
             public Vector4 IrradianceFactors;
             public Vector4 LightPositions0;
             public Vector4 LightPositions1;

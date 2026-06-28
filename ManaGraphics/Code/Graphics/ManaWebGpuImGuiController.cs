@@ -310,7 +310,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                     AlphaToCoverageEnabled = false
                 },
                 Fragment = &fragmentState,
-                DepthStencil = &depthStencilState
+                DepthStencil = null
             };
 
             _pipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDesc);

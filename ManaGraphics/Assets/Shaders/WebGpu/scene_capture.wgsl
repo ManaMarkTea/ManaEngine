@@ -5,6 +5,7 @@ struct TransformUniform {
     camera_position : vec4<f32>,
     material_albedo : vec4<f32>,
     material_factors : vec4<f32>,
+    material_emission : vec4<f32>,
     irradiance_factors : vec4<f32>,
     light_positions : array<vec4<f32>, 4>,
     light_colors : array<vec4<f32>, 4>,

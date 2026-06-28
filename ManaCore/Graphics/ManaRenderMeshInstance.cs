@@ -15,6 +15,8 @@ namespace ManaCore.Graphics
         public float Metallic { get; init; }
         public float Roughness { get; init; } = 1.0f;
         public float AmbientOcclusion { get; init; } = 1.0f;
+        public Vector4 Emission { get; init; } = Vector4.Zero;
+        public float EmissionStrength { get; init; }
         public float? PbrDebugMode { get; init; }
         public bool IncludeInEnvironmentCapture { get; init; } = true;
     }

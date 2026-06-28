@@ -67,5 +67,5 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     colorVal = mix(colorVal, strokeDynamic, 1.0 - smoothstep(0.0, 2.0, min(bGrid.x, bGrid.y)));
     colorVal = mix(colorVal, strokeDynamic, 1.0 - smoothstep(0.0, 4.0, min(aGrid.x, aGrid.y)));
     
-    return vec4<f32>(srgb_to_linear(colorVal.rgb), 1.0);
+    return vec4<f32>(srgb_to_linear(colorVal.rgb), -1.0);
 }

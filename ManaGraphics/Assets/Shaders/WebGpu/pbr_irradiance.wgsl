@@ -5,6 +5,7 @@ struct TransformUniform {
     camera_position : vec4<f32>,
     material_albedo : vec4<f32>,
     material_factors : vec4<f32>,
+    material_emission : vec4<f32>,
     irradiance_factors : vec4<f32>,
     light_positions : array<vec4<f32>, 4>,
     light_colors : array<vec4<f32>, 4>,
@@ -159,8 +160,12 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(ndotv, roughness)).rg;
     let specular_ibl = reflection_radiance * (F * brdf.x + brdf.y) * ibl_intensity;
     let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao;
+    let emissive_color = pow(max(transform.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
+    let emissive_strength = transform.material_emission.a;
+    let emissive = emissive_color * emissive_strength;
 
-    var color = ambient + direct;
+    var color = ambient + direct + emissive;
+    var output_alpha = alpha;
 
     let debug_mode = u32(transform.webgpu_debug_mode + 0.5);
     if (debug_mode == 1u) {
@@ -208,10 +213,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     } else {
         // Mode 0: Normal shading
         color = color * exposure;
-        color = color / (color + vec3<f32>(1.0));
     }
     if (debug_mode != 0u) {
         color = debug_color_to_surface(color);
+        output_alpha = -1.0;
     }
-    return vec4<f32>(color, alpha);
+    return vec4<f32>(color, output_alpha);
 }

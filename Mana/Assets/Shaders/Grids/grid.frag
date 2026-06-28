@@ -1,4 +1,4 @@
-﻿#version 330
+#version 330
 #extension GL_OES_standard_derivatives : enable
 
 #define GAME
@@ -124,7 +124,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         discard;
     }
 
-    fragColor = vec4(color.xyz, 0.25);
+    fragColor = vec4(color.xyz, -1.0);
 }
 
 #ifdef GAME

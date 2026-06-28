@@ -1,4 +1,5 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
+using System.Numerics;
 
 namespace Mana.Code
 {
@@ -11,15 +12,11 @@ namespace Mana.Code
             CacheShader("Assets/Shaders/LearnSpecular/cubemap.vert");
             CacheShader("Assets/Shaders/LearnSpecular/equirectangular_to_cubemap.frag");
             CacheShader("Assets/Shaders/LearnSpecular/irradiance_convolution.frag");
-            //CacheShader("Assets/Shaders/LearnSpecular/pbr.frag");
             CacheShader("Assets/Shaders/LearnSpecularTextured/pbr.frag");
             CacheShader("Assets/Shaders/LearnSpecularTextured/pbr.vert");
             CacheShader("Assets/Shaders/LearnSpecular/prefilter.frag");
-            
-            // For fun:
             CacheShader("Assets/Shaders/Math/FractalGlowRings.frag");
             CacheShader("Assets/ShaderToys/Sunflowers.frag");
-            
         }
 
         public ManaPbrShader(ManaContext context) : base(context)
@@ -40,9 +37,10 @@ namespace Mana.Code
             // Textures
             CompiledShader.FindUniform("albedoMap")?.SetValue(3);
             CompiledShader.FindUniform("normalMap")?.SetValue(4);
-            CompiledShader.FindUniform("metallicMap")?.SetValue(5);
-            CompiledShader.FindUniform("roughnessMap")?.SetValue(6);
-            CompiledShader.FindUniform("aoMap")?.SetValue(7);
+            CompiledShader.FindUniform("emissionMap")?.SetValue(5);
+            CompiledShader.FindUniform("metallicMap")?.SetValue(6);
+            CompiledShader.FindUniform("roughnessMap")?.SetValue(7);
+            CompiledShader.FindUniform("aoMap")?.SetValue(8);
 
             // Colors
             CompiledShader.FindUniform("albedo")?.SetValue(0.5f, 0.0f, 0.0f);
@@ -94,6 +92,8 @@ namespace Mana.Code
             material.Ambient.Bind(8);
 
             CompiledShader.FindUniform("normalMapSelection")?.SetValue(material.NormalSelector);
+            CompiledShader.FindUniform("emissionColor")?.SetValue(material.Emission.Value.X, material.Emission.Value.Y, material.Emission.Value.Z);
+            CompiledShader.FindUniform("emissionStrength")?.SetValue((float)material.EmissionStrength);
         }
 
         protected override string CleanSource(string source)
