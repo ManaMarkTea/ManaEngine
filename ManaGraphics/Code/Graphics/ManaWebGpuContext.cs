@@ -1370,8 +1370,14 @@ namespace ManaGraphics.Code.Graphics
                     Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
                     Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
                     1.0f),
-                IrradianceLightColor = irradianceSettings.LightColor,
-                IrradianceLightDirection = new Vector4(lightDirection, 0.0f),
+                LightPositions0 = _activeRenderScene.LightPositions[0],
+                LightPositions1 = _activeRenderScene.LightPositions[1],
+                LightPositions2 = _activeRenderScene.LightPositions[2],
+                LightPositions3 = _activeRenderScene.LightPositions[3],
+                LightColors0 = _activeRenderScene.LightColors[0],
+                LightColors1 = _activeRenderScene.LightColors[1],
+                LightColors2 = _activeRenderScene.LightColors[2],
+                LightColors3 = _activeRenderScene.LightColors[3],
                 Time = elapsedSeconds,
                 WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
                 _padding1 = 0.0f,
@@ -1696,8 +1702,14 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 MaterialAlbedo;
             public Vector4 MaterialFactors;
             public Vector4 IrradianceFactors;
-            public Vector4 IrradianceLightColor;
-            public Vector4 IrradianceLightDirection;
+            public Vector4 LightPositions0;
+            public Vector4 LightPositions1;
+            public Vector4 LightPositions2;
+            public Vector4 LightPositions3;
+            public Vector4 LightColors0;
+            public Vector4 LightColors1;
+            public Vector4 LightColors2;
+            public Vector4 LightColors3;
             public float Time;
             public float WebGpuDebugMode;
             public float _padding1;

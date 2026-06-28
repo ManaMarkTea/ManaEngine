@@ -421,5 +421,32 @@ namespace Mana.Code.Renderers
 
             return null;
         }
+
+        public override void GetLightPositionsAndColors(out System.Numerics.Vector4[] positions, out System.Numerics.Vector4[] colors)
+        {
+            positions = new System.Numerics.Vector4[4];
+            colors = new System.Numerics.Vector4[4];
+
+            if (gridLightNodes.Count == 0)
+            {
+                SyncGridLightRig();
+            }
+
+            for (int i = 0; i < gridLightPositions.Length; ++i)
+            {
+                var lightNode = i < gridLightNodes.Count ? gridLightNodes[i] : null;
+                var light = lightNode == null ? null : GetLightComponent(lightNode);
+                var lightPosition = lightNode?.WorldTransform.Translation ?? gridLightPositions[i];
+                var settings = IrradianceSettings;
+                var lightColor = light?.Enabled == false
+                    ? System.Numerics.Vector3.Zero
+                    : (light?.Color ?? settings.LightColor).ToVector3()
+                        * (light?.Intensity ?? settings.LightIntensity * lightWeights[i])
+                        * GridLightPowerScale;
+
+                positions[i] = new System.Numerics.Vector4(lightPosition, 1.0f);
+                colors[i] = new System.Numerics.Vector4(lightColor, 1.0f);
+            }
+        }
     }
 }

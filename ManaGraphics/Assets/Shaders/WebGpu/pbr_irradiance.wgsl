@@ -6,8 +6,8 @@ struct TransformUniform {
     material_albedo : vec4<f32>,
     material_factors : vec4<f32>,
     irradiance_factors : vec4<f32>,
-    irradiance_light_color : vec4<f32>,
-    irradiance_light_direction : vec4<f32>,
+    light_positions : array<vec4<f32>, 4>,
+    light_colors : array<vec4<f32>, 4>,
     time : f32,
     webgpu_debug_mode : f32,
     _padding1 : f32,
@@ -68,7 +68,10 @@ fn distribution_ggx(n : vec3<f32>, h : vec3<f32>, roughness : f32) -> f32 {
     let ndoth = max(dot(n, h), 0.0);
     let ndoth2 = ndoth * ndoth;
     let denom = (ndoth2 * (a2 - 1.0) + 1.0);
-    return a2 / max(PI * denom * denom, 0.0001);
+    if (a2 <= 0.0) {
+        return 0.0;
+    }
+    return a2 / (PI * denom * denom);
 }
 
 fn geometry_schlick_ggx(ndotv : f32, roughness : f32) -> f32 {
@@ -106,28 +109,37 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     let n = normalize(input.world_normal);
     let v = normalize(transform.camera_position.xyz - input.world_position);
-    let l = normalize(transform.irradiance_light_direction.xyz);
-    let h = normalize(v + l);
 
     let metallic = saturate(transform.material_factors.x);
     let roughness = saturate(transform.material_factors.y);
-    let specular_roughness = clamp(roughness, 0.025, 1.0);
+    let specular_roughness = roughness;
     let ao = saturate(transform.material_factors.z);
 
     let f0 = mix(vec3<f32>(0.04), vertex_albedo, metallic);
     let exposure = transform.irradiance_factors.x;
     let ibl_intensity = transform.irradiance_factors.y;
-    let light_intensity = transform.irradiance_factors.z;
-    let radiance = transform.irradiance_light_color.rgb * light_intensity;
-    let ndotl = max(dot(n, l), 0.0);
 
-    let ndf = distribution_ggx(n, h, specular_roughness);
-    let g = geometry_smith(n, v, l, specular_roughness);
-    let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
-    let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
+    var direct = vec3<f32>(0.0);
+    for (var i = 0u; i < 4u; i = i + 1u) {
+        let light_pos = transform.light_positions[i].xyz;
+        let light_color = transform.light_colors[i].xyz;
 
-    let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
-    let direct = (kd * vertex_albedo / PI + specular) * radiance * ndotl;
+        let l = normalize(light_pos - input.world_position);
+        let h = normalize(v + l);
+        let distance = length(light_pos - input.world_position);
+        let attenuation = 1.0 / (distance * distance);
+        let radiance = light_color * attenuation;
+
+        let ndotl = max(dot(n, l), 0.0);
+
+        let ndf = distribution_ggx(n, h, specular_roughness);
+        let g = geometry_smith(n, v, l, specular_roughness);
+        let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
+        let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
+
+        let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
+        direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl;
+    }
 
     let irradiance = mana_irradiance(n);
     let F = fresnel_schlick_roughness(max(dot(n, v), 0.0), f0, roughness);

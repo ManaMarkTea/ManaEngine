@@ -1,4 +1,4 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
 
 namespace Mana.Code.Renderers
 {
@@ -88,5 +88,11 @@ namespace Mana.Code.Renderers
         public virtual void DrawImGui() { }
 
         public virtual void Render(Action drawScenes) { }
+
+        public virtual void GetLightPositionsAndColors(out System.Numerics.Vector4[] positions, out System.Numerics.Vector4[] colors)
+        {
+            positions = new System.Numerics.Vector4[4];
+            colors = new System.Numerics.Vector4[4];
+        }
     }
 }

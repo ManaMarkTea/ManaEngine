@@ -231,12 +231,74 @@ namespace Mana
             ImGui.End();
         }
 
+        private void CollectLightsFromNode(Mana.Code.Nodes.ManaSceneNode node, List<(System.Numerics.Vector3 Position, System.Numerics.Vector3 Color)> output)
+        {
+            if (node == null) return;
+            foreach (var component in node.Components)
+            {
+                if (component is Mana.Code.ManaLightSourceComponent light && light.Enabled)
+                {
+                    var lightColorVec3 = new System.Numerics.Vector3(light.Color.X, light.Color.Y, light.Color.Z);
+                    var lightColor = lightColorVec3 * light.Intensity * 256.0f * 256.0f; // Scale by grid light power scale
+                    output.Add((node.WorldTransform.Translation, lightColor));
+                }
+            }
+            foreach (var child in node.Children)
+            {
+                CollectLightsFromNode(child, output);
+            }
+        }
+
         public ManaCore.Graphics.ManaRenderScene CreateRenderScene()
         {
             var meshes = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
             foreach (var scene in Scenes)
             {
                 scene.CollectRenderMeshInstances(meshes);
+            }
+
+            var lightPositions = new System.Numerics.Vector4[4];
+            var lightColors = new System.Numerics.Vector4[4];
+
+            // Default grid light definitions (matching ManaIrradianceRenderer defaults)
+            const float debugGridSize = 256.0f;
+            var defaultPositions = new System.Numerics.Vector3[]
+            {
+                new System.Numerics.Vector3(0.0f, debugGridSize, 0.0f),
+                new System.Numerics.Vector3(debugGridSize, debugGridSize, 0.0f),
+                new System.Numerics.Vector3(0.0f, debugGridSize, debugGridSize),
+                new System.Numerics.Vector3(debugGridSize, debugGridSize, debugGridSize)
+            };
+            var defaultWeights = new float[] { 1.0f, 0.8f, 0.5f, 0.3f };
+            const float gridLightPowerScale = debugGridSize * debugGridSize;
+
+            var collectedLights = new List<(System.Numerics.Vector3 Position, System.Numerics.Vector3 Color)>();
+            foreach (var scene in Scenes)
+            {
+                foreach (var child in scene.Children)
+                {
+                    CollectLightsFromNode(child, collectedLights);
+                }
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (i < collectedLights.Count)
+                {
+                    lightPositions[i] = new System.Numerics.Vector4(collectedLights[i].Position, 1.0f);
+                    lightColors[i] = new System.Numerics.Vector4(collectedLights[i].Color, 1.0f);
+                }
+                else
+                {
+                    // Fall back to default grid lights if none are instantiated in the scene
+                    var lightPosition = defaultPositions[i];
+                    var lightColor = IrradianceSettings.LightColor.ToVector3()
+                        * (IrradianceSettings.LightIntensity * defaultWeights[i])
+                        * gridLightPowerScale;
+
+                    lightPositions[i] = new System.Numerics.Vector4(lightPosition, 1.0f);
+                    lightColors[i] = new System.Numerics.Vector4(lightColor, 1.0f);
+                }
             }
 
             return new ManaCore.Graphics.ManaRenderScene
@@ -249,7 +311,9 @@ namespace Mana
                     MainCamera.FarClipPlane),
                 Meshes = meshes,
                 IrradianceSettings = IrradianceSettings.Clone(),
-                EnvironmentReflectionSource = EnvironmentReflectionSource.Clone()
+                EnvironmentReflectionSource = EnvironmentReflectionSource.Clone(),
+                LightPositions = lightPositions,
+                LightColors = lightColors
             };
         }
 
