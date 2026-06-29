@@ -1,7 +1,8 @@
 using ImGuiNET;
 using Mana.Code.Graphics;
+using Mana.Code.UI;
 using ManaCore.Graphics;
-using ManaCore.Diagnostics;
+using ManaCore.Loading;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -57,33 +58,9 @@ namespace Mana.Code
         private bool _dockLayoutInitialized;
         private bool _dockLayoutResetRequested;
 
-        public ManaLoadingViewModel Loading { get; } = new();
-        public bool IsLoading
-        {
-            get => Loading.IsActive;
-            protected set => Loading.SetActive(value);
-        }
-        public string LoadingStatus
-        {
-            get => Loading.Status;
-            protected set => Loading.SetStatus(value);
-        }
-        public float LoadingProgress
-        {
-            get => Loading.Progress;
-            protected set => Loading.SetProgress(value);
-        }
-
-        protected enum LoadingStage
-        {
-            NotStarted,
-            BackgroundLoading,
-            InitializeRenderer,
-            FinalizeGpuUploads,
-            Complete
-        }
-
-        protected LoadingStage _loadingStage = LoadingStage.NotStarted;
+        public ManaLoadingCoordinator LoadingCoordinator { get; }
+        public ManaLoadingViewModel Loading => LoadingCoordinator.Progress;
+        public bool IsLoading => LoadingCoordinator.IsLoading;
 
         public virtual bool DeferGpuUploadsOnStartup => false;
 
@@ -106,6 +83,11 @@ namespace Mana.Code
         public BaseGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL)
         {
             GraphicsBackend = graphicsBackend;
+            LoadingCoordinator = new ManaLoadingCoordinator(
+                InitializeRendererForLoading,
+                FinalizeGpuUploads,
+                CanCompleteLoading,
+                OnLoadingComplete);
         }
 
         public virtual void LoadForOpenGlBackend(IWindow window, GL gl, IInputContext input)
@@ -692,38 +674,7 @@ namespace Mana.Code
 
             if (IsLoading)
             {
-                switch (_loadingStage)
-                {
-                    case LoadingStage.InitializeRenderer:
-                        LoadingStatus = "Initializing Graphics Renderer";
-                        LoadingProgress = 0.85f;
-                        _loadingStage = LoadingStage.FinalizeGpuUploads;
-                        break;
-
-                    case LoadingStage.FinalizeGpuUploads:
-                        if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
-                        {
-                            Context.DeferGpuUploads = false;
-                            Context.World.Renderer.Initialize();
-                            Context.DeferGpuUploads = true;
-                        }
-                        LoadingStatus = "Finalizing GPU uploads";
-                        LoadingProgress = 0.95f;
-                        _loadingStage = LoadingStage.Complete;
-                        break;
-
-                    case LoadingStage.Complete:
-                        if (!CanCompleteLoading())
-                        {
-                            break;
-                        }
-
-                        Context.DeferGpuUploads = false;
-                        FinalizeGpuUploads();
-                        OnLoadingComplete();
-                        IsLoading = false;
-                        break;
-                }
+                LoadingCoordinator.Update();
             }
             else
             {
@@ -837,7 +788,7 @@ namespace Mana.Code
                     gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
                 }
 
-                DrawLoadingScreen();
+                ManaLoadingScreenView.Draw(Loading);
                 _ImGui.Render();
             }
             else
@@ -855,45 +806,21 @@ namespace Mana.Code
             }
         }
 
-        protected void DrawLoadingScreen()
-        {
-            var viewport = ImGui.GetMainViewport();
-            ImGui.SetNextWindowPos(viewport.Pos);
-            ImGui.SetNextWindowSize(viewport.Size);
-            ImGui.Begin("LoadingScreen", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoBackground);
-
-            var windowSize = viewport.Size;
-            var boxWidth = Math.Min(500.0f, windowSize.X * 0.8f);
-            var boxHeight = 160.0f;
-            var boxPos = new System.Numerics.Vector2((windowSize.X - boxWidth) * 0.5f, (windowSize.Y - boxHeight) * 0.5f);
-
-            ImGui.SetCursorPos(boxPos);
-            ImGui.BeginChild("LoadingBox", new System.Numerics.Vector2(boxWidth, boxHeight), ImGuiChildFlags.Border, ImGuiWindowFlags.NoScrollbar);
-            
-            double time = ManaTime.GlobalTime.GameTime.TotalSeconds;
-            float pulse = 0.6f + 0.4f * (float)Math.Sin(time * 3.0);
-            
-            ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(0.16f, 0.52f, 0.86f, pulse));
-            ImGui.Text("MANA RENDERER");
-            ImGui.PopStyleColor();
-            
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            int dotCount = (int)(time * 2.0) % 4;
-            string dots = new string('.', dotCount);
-            
-            var loading = Loading.Snapshot;
-            ImGui.Text($"{loading.Status}{dots}");
-            ImGui.ProgressBar(loading.Fraction, new System.Numerics.Vector2(-1, 22), $"{loading.Fraction * 100:0}%");
-
-            ImGui.EndChild();
-            ImGui.End();
-        }
-
         protected virtual void OnLoadingComplete() { }
 
         protected virtual bool CanCompleteLoading() => true;
+
+        private void InitializeRendererForLoading()
+        {
+            if (GraphicsBackend != ManaGraphicsBackendKind.OpenGL)
+            {
+                return;
+            }
+
+            Context.DeferGpuUploads = false;
+            Context.World.Renderer.Initialize();
+            Context.DeferGpuUploads = true;
+        }
 
         protected virtual void FinalizeGpuUploads()
         {

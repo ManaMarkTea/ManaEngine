@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Numerics;
 using System.Text;
 using ManaGraphics.Code.Diagnostics;
-using ManaCore.Diagnostics;
+using ManaCore.Loading;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;

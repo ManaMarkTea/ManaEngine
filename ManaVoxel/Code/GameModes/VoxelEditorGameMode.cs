@@ -5,7 +5,7 @@ using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.UI;
 using ManaCore.Graphics;
-using ManaCore.Diagnostics;
+using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
 using System.Diagnostics;
@@ -87,8 +87,7 @@ namespace Mana.Code.GameModes
 
         public override void Load()
         {
-            Loading.Start("Starting background load", 0.0f);
-            _loadingStage = LoadingStage.BackgroundLoading;
+            LoadingCoordinator.Begin();
 
             var world = Context.World;
 
@@ -168,12 +167,12 @@ namespace Mana.Code.GameModes
                     Loading.Report(new ManaLoadingProgress("Loading FlightHelmet GLTF model", 0.8f));
                     AddFlightHelmetReferenceModel();
 
-                    _loadingStage = LoadingStage.InitializeRenderer;
+                    LoadingCoordinator.CompleteBackgroundWork();
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error during background asset loading: {ex}");
-                    LoadingStatus = $"Error: {ex.Message}";
+                    LoadingCoordinator.Fail(ex);
                 }
             });
         }
@@ -230,7 +229,7 @@ namespace Mana.Code.GameModes
         private void UpdateWebGpuLoadingProgress()
         {
             if (!IsLoading ||
-                _loadingStage != LoadingStage.Complete ||
+                LoadingCoordinator.Stage != ManaLoadingStage.WaitingForDependencies ||
                 _webGpuContext == null)
             {
                 return;

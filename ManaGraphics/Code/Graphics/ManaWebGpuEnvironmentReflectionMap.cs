@@ -1,6 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using ManaCore.Diagnostics;
+using ManaCore.Loading;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using Silk.NET.WebGPU;

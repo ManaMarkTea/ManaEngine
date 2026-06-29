@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ManaCore.Diagnostics
+namespace ManaCore.Loading
 {
     public readonly record struct ManaLoadingProgress(string Status, float Fraction);
 
@@ -66,21 +66,6 @@ namespace ManaCore.Diagnostics
         public void Report(ManaLoadingProgress value)
         {
             Update(null, value.Status, value.Fraction);
-        }
-
-        public void SetActive(bool isActive)
-        {
-            Update(isActive, null, null);
-        }
-
-        public void SetStatus(string status)
-        {
-            Update(null, status, null);
-        }
-
-        public void SetProgress(float progress)
-        {
-            Update(null, null, progress);
         }
 
         public void Complete(string status = "Ready")

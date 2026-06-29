@@ -2,6 +2,7 @@ using ImGuiNET;
 using Mana.Code.Nodes;
 using System.Diagnostics;
 using Silk.NET.OpenGL;
+using ManaCore.Loading;
 
 namespace Mana.Code
 {
@@ -29,10 +30,7 @@ namespace Mana.Code
         {
             base.Load();
 
-            IsLoading = true;
-            LoadingStatus = "Starting background load";
-            LoadingProgress = 0.0f;
-            _loadingStage = LoadingStage.BackgroundLoading;
+            LoadingCoordinator.Begin();
 
             var world = Context.World;
 
@@ -44,16 +42,14 @@ namespace Mana.Code
                     Context.DeferGpuUploads = true;
 
                     // 0. Pre-decode environment reflection map CPU data
-                    LoadingStatus = "Loading environment reflection map";
-                    LoadingProgress = 0.05f;
+                    Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.05f));
                     var envPath = world.EnvironmentReflectionSource.SourcePath;
                     var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
                     envTexture.OriginalFilename = envPath;
                     envTexture.Load();
 
                     // 1. Generate shapes CPU data
-                    LoadingStatus = "Generating procedural shapes";
-                    LoadingProgress = 0.1f;
+                    Loading.Report(new ManaLoadingProgress("Generating procedural shapes", 0.1f));
                     _shapes = new ManaShapeFactory(Context, world.DefaultScene);
 
                     _sun = _shapes.AddSphere(new System.Numerics.Vector3(5, 5, -5), Colors.Yellow, 2.0f);
@@ -74,29 +70,24 @@ namespace Mana.Code
                     world.DefaultScene.Children.Add(_liquidBall);
 
                     // 2. Decode materials from Zip archives (CPU decoding)
-                    LoadingStatus = "Loading used-stainless-steel2-bl.zip";
-                    LoadingProgress = 0.2f;
+                    Loading.Report(new ManaLoadingProgress("Loading used-stainless-steel2-bl.zip", 0.2f));
                     _steelMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/used-stainless-steel2-bl.zip");
                     world.Materials.Add(_steelMaterial);
 
-                    LoadingStatus = "Loading pirate-gold-bl.zip";
-                    LoadingProgress = 0.4f;
+                    Loading.Report(new ManaLoadingProgress("Loading pirate-gold-bl.zip", 0.4f));
                     _pirateGoldMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/pirate-gold-bl.zip");
                     world.Materials.Add(_pirateGoldMaterial);
 
-                    LoadingStatus = "Loading beaten-down-brick-bl.zip";
-                    LoadingProgress = 0.6f;
+                    Loading.Report(new ManaLoadingProgress("Loading beaten-down-brick-bl.zip", 0.6f));
                     _brickMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/beaten-down-brick-bl.zip");
                     world.Materials.Add(_brickMaterial);
 
-                    LoadingStatus = "Loading wispy-grass-meadow-bl.zip";
-                    LoadingProgress = 0.7f;
+                    Loading.Report(new ManaLoadingProgress("Loading wispy-grass-meadow-bl.zip", 0.7f));
                     _grassMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/whispy-grass-meadow-bl.zip");
                     world.Materials.Add(_grassMaterial);
 
                     // 3. Load Flight Helmet scene model
-                    LoadingStatus = "Loading FlightHelmet GLTF model";
-                    LoadingProgress = 0.8f;
+                    Loading.Report(new ManaLoadingProgress("Loading FlightHelmet GLTF model", 0.8f));
                     world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
                     world.Scenes[1].Name = "Flight Helmet Scene";
                     var helmetNode = world.Scenes[1].Children[0];
@@ -133,13 +124,12 @@ namespace Mana.Code
                     grassBlock.Position = new System.Numerics.Vector3(2, 0, 9);
                     world.Scenes[1].Children[0].AddChild(grassBlock);
 
-                    // Move to the next stage (running on main thread via Update)
-                    _loadingStage = LoadingStage.InitializeRenderer;
+                    LoadingCoordinator.CompleteBackgroundWork();
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error during background asset loading: {ex}");
-                    LoadingStatus = $"Error: {ex.Message}";
+                    LoadingCoordinator.Fail(ex);
                 }
             });
         }
