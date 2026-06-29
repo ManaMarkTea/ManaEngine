@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Numerics;
 using System.Text;
 using ManaGraphics.Code.Diagnostics;
+using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
@@ -159,8 +160,23 @@ namespace ManaGraphics.Code.Graphics
             return _environmentPrefilterCompute;
         }
 
-        private ManaWebGpuEnvironmentReflectionMap? _pendingEnvironmentMap;
-        private bool _isEnvironmentLoading = false;
+        private volatile ManaWebGpuEnvironmentReflectionMap? _pendingEnvironmentMap;
+        private volatile bool _isEnvironmentLoading;
+
+        public ManaLoadingViewModel EnvironmentLoading { get; } = new();
+
+        public bool IsEnvironmentInitializationPending =>
+            _environmentReflectionMap == null ||
+            _isEnvironmentLoading ||
+            _pendingEnvironmentMap != null;
+
+        private void EnsureEnvironmentInitializationStarted()
+        {
+            if (_activeRenderScene != null)
+            {
+                _ = GetOrCreateEnvironmentReflectionMap();
+            }
+        }
 
         public void CheckPendingEnvironmentMap()
         {
@@ -171,6 +187,7 @@ namespace ManaGraphics.Code.Graphics
                 var environmentPath = ResolveAssetPath(_environmentReflectionMap.Source.SourcePath);
                 _pendingEnvironmentMap = null;
                 _isEnvironmentLoading = false;
+                EnvironmentLoading.Complete("WebGPU environment maps ready");
 
                 ReleaseSceneMeshes();
                 ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets swapped: {environmentPath}");
@@ -188,6 +205,7 @@ namespace ManaGraphics.Code.Graphics
                 _environmentReflectionMap = _pendingEnvironmentMap;
                 _pendingEnvironmentMap = null;
                 _isEnvironmentLoading = false;
+                EnvironmentLoading.Complete("WebGPU environment maps ready");
 
                 ReleaseSceneMeshes();
                 ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets swapped: {environmentPath}");
@@ -202,20 +220,25 @@ namespace ManaGraphics.Code.Graphics
             if (!_isEnvironmentLoading)
             {
                 _isEnvironmentLoading = true;
+                EnvironmentLoading.Start("Preparing WebGPU environment maps", 0.0f);
                 _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.CreateDummy(_api, _device, _queue, source);
 
                 Task.Run(() =>
                 {
                     try
                     {
-                        var map = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, source, environmentPath);
+                        var map = ManaWebGpuEnvironmentReflectionMap.Create(
+                            _api, _device, _queue, source, environmentPath, EnvironmentLoading);
+                        EnvironmentLoading.Report(new ManaLoadingProgress("Dispatching environment prefilter compute shader", 0.97f));
                         DispatchEnvironmentPrefilterNow(map);
                         _pendingEnvironmentMap = map;
+                        EnvironmentLoading.Report(new ManaLoadingProgress("Waiting to activate WebGPU environment maps", 0.99f));
                     }
                     catch (Exception ex)
                     {
                         ManaConsole.WriteDiagnostic($"Failed to load WebGPU environment map: {ex}");
                         _isEnvironmentLoading = false;
+                        EnvironmentLoading.Fail($"WebGPU environment initialization failed: {ex.Message}");
                     }
                 });
             }

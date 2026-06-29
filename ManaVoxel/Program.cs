@@ -7,6 +7,7 @@ global using Mana.Code.Shapes;
 global using Mana.Code.GameModes;
 global using ManaCore.Graphics;
 global using ManaGraphics.Code.Graphics;
+global using ManaGraphics.Code.Diagnostics;
 global using ManaVoxel.Code.Loaders;
 global using System.Numerics;
 global using Silk.NET.Input;
@@ -18,19 +19,26 @@ namespace Mana
     {
         static void Main(string[] args)
         {
-            var launchOptions = ManaLaunchOptions.Parse(args);
-            var backendKind = launchOptions.GraphicsBackend == ManaGraphicsBackend.WebGpu
-                ? ManaGraphicsBackendKind.WebGpu
-                : ManaGraphicsBackendKind.OpenGL;
-            var game = new VoxelEditorGameMode(backendKind);
-
-            if (backendKind == ManaGraphicsBackendKind.WebGpu)
+            try
             {
-                game.RunWebGpu(launchOptions.WebGpuBackend);
-                return;
-            }
+                var launchOptions = ManaLaunchOptions.Parse(args);
+                var backendKind = launchOptions.GraphicsBackend == ManaGraphicsBackend.WebGpu
+                    ? ManaGraphicsBackendKind.WebGpu
+                    : ManaGraphicsBackendKind.OpenGL;
+                var game = new VoxelEditorGameMode(backendKind);
 
-            game.Run();
+                if (backendKind == ManaGraphicsBackendKind.WebGpu)
+                {
+                    game.RunWebGpu(launchOptions.WebGpuBackend);
+                    return;
+                }
+
+                game.Run();
+            }
+            finally
+            {
+                ManaConsole.Shutdown();
+            }
         }
     }
 }

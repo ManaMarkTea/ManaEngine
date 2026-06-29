@@ -223,6 +223,7 @@ namespace ManaGraphics.Code.Graphics
             var commandEncoderDescriptor = new CommandEncoderDescriptor();
             var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
             RefreshRenderScene();
+            EnsureEnvironmentInitializationStarted();
             CaptureSceneEnvironmentIfNeeded(commandEncoder);
 
             var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);

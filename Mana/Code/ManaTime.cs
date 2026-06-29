@@ -11,10 +11,16 @@
         public TimeSpan DeltaTime = TimeSpan.Zero;
         public TimeSpan GameTime = TimeSpan.Zero;
 
-        public double FramesPerSecond { get { return 1.0 / DeltaTime.TotalSeconds; } }
+        public double FramesPerSecond => DeltaTime.TotalSeconds > 0.0
+            ? 1.0 / DeltaTime.TotalSeconds
+            : 0.0;
 
-        public TimeSpan DeltaTimeAvg { get { return History.Average(); } }
-        public double FramesPerSecondAvg { get { return History.Average(x => 1.0 / (x.TotalSeconds != 0 ? x.TotalSeconds : 1.0)); } }
+        public TimeSpan DeltaTimeAvg => HistoryCount > 0
+            ? TimeSpan.FromSeconds(_historySecondsTotal / HistoryCount)
+            : TimeSpan.Zero;
+        public double FramesPerSecondAvg => DeltaTimeAvg.TotalSeconds > 0.0
+            ? 1.0 / DeltaTimeAvg.TotalSeconds
+            : 0.0;
 
         public DateTime LastUpdate = DateTime.Now;
         public Vector4 EncodedDateTime
@@ -27,7 +33,9 @@
         }
 
         public TimeSpan[] History = new TimeSpan[300];
-        public int HistoryIndex = 0;
+        public int HistoryIndex = -1;
+        public int HistoryCount { get; private set; }
+        private double _historySecondsTotal;
 
         public void UpdateTime(double deltaTime)
         {
@@ -40,35 +48,57 @@
                 GameTime += DeltaTime;
             }
 
-            HistoryIndex++;
-            HistoryIndex %= History.Length;
+            HistoryIndex = (HistoryIndex + 1) % History.Length;
+            if (HistoryCount == History.Length)
+            {
+                _historySecondsTotal -= History[HistoryIndex].TotalSeconds;
+            }
+            else
+            {
+                HistoryCount++;
+            }
+
             History[HistoryIndex] = DeltaTime;
+            _historySecondsTotal += DeltaTime.TotalSeconds;
 
             LastUpdate = now;
         }
 
         public TimeSpan[] OrderedHistory()
         {
-            TimeSpan[] history = new TimeSpan[History.Length];
-            
-            for (int i = 0; i < history.Length; i++)
-            {
-                int orderedI = (i + HistoryIndex) % History.Length;                
-                history[i] = History[orderedI];
-            }
-
+            var history = new TimeSpan[HistoryCount];
+            CopyOrderedHistory(history);
             return history;
         }
 
         public TimeSpan[] OrderedHistory(ref TimeSpan[] buffer)
-        {            
-            for (int i = 0; i < buffer.Length; i++)
+        {
+            if (buffer.Length != HistoryCount)
             {
-                int orderedI = (i + HistoryIndex) % History.Length;
-                buffer[i] = History[orderedI];
+                buffer = new TimeSpan[HistoryCount];
             }
 
+            CopyOrderedHistory(buffer);
             return buffer;
+        }
+
+        public int CopyOrderedHistory(TimeSpan[] buffer)
+        {
+            var count = Math.Min(HistoryCount, buffer.Length);
+            if (count == 0)
+            {
+                return 0;
+            }
+
+            var skippedSamples = HistoryCount - count;
+            var oldestIndex = (HistoryIndex - HistoryCount + 1 + History.Length) % History.Length;
+            var firstIndex = (oldestIndex + skippedSamples) % History.Length;
+            for (var i = 0; i < count; i++)
+            {
+                buffer[i] = History[(firstIndex + i) % History.Length];
+            }
+
+            return count;
         }
     }
 }

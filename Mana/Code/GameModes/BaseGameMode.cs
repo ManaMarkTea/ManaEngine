@@ -1,6 +1,7 @@
 using ImGuiNET;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
+using ManaCore.Diagnostics;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -56,9 +57,22 @@ namespace Mana.Code
         private bool _dockLayoutInitialized;
         private bool _dockLayoutResetRequested;
 
-        public bool IsLoading { get; protected set; } = false;
-        public string LoadingStatus { get; protected set; } = "Initializing...";
-        public float LoadingProgress { get; protected set; } = 0.0f;
+        public ManaLoadingViewModel Loading { get; } = new();
+        public bool IsLoading
+        {
+            get => Loading.IsActive;
+            protected set => Loading.SetActive(value);
+        }
+        public string LoadingStatus
+        {
+            get => Loading.Status;
+            protected set => Loading.SetStatus(value);
+        }
+        public float LoadingProgress
+        {
+            get => Loading.Progress;
+            protected set => Loading.SetProgress(value);
+        }
 
         protected enum LoadingStage
         {
@@ -699,6 +713,11 @@ namespace Mana.Code
                         break;
 
                     case LoadingStage.Complete:
+                        if (!CanCompleteLoading())
+                        {
+                            break;
+                        }
+
                         Context.DeferGpuUploads = false;
                         FinalizeGpuUploads();
                         OnLoadingComplete();
@@ -864,14 +883,17 @@ namespace Mana.Code
             int dotCount = (int)(time * 2.0) % 4;
             string dots = new string('.', dotCount);
             
-            ImGui.Text($"{LoadingStatus}{dots}");
-            ImGui.ProgressBar(LoadingProgress, new System.Numerics.Vector2(-1, 22), $"{LoadingProgress * 100:0}%");
+            var loading = Loading.Snapshot;
+            ImGui.Text($"{loading.Status}{dots}");
+            ImGui.ProgressBar(loading.Fraction, new System.Numerics.Vector2(-1, 22), $"{loading.Fraction * 100:0}%");
 
             ImGui.EndChild();
             ImGui.End();
         }
 
         protected virtual void OnLoadingComplete() { }
+
+        protected virtual bool CanCompleteLoading() => true;
 
         protected virtual void FinalizeGpuUploads()
         {

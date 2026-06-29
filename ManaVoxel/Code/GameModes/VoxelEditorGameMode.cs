@@ -5,6 +5,7 @@ using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.UI;
 using ManaCore.Graphics;
+using ManaCore.Diagnostics;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
 using System.Diagnostics;
@@ -59,6 +60,7 @@ namespace Mana.Code.GameModes
                 (webGpuContext, input) =>
                 {
                     _webGpuContext = webGpuContext;
+                    webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
                     _ImGui = webGpuContext.CreateImGuiController(input);
                     var io = ImGuiNET.ImGui.GetIO();
                     io.ConfigFlags |= ImGuiNET.ImGuiConfigFlags.DockingEnable;
@@ -85,9 +87,7 @@ namespace Mana.Code.GameModes
 
         public override void Load()
         {
-            IsLoading = true;
-            LoadingStatus = "Starting background load";
-            LoadingProgress = 0.0f;
+            Loading.Start("Starting background load", 0.0f);
             _loadingStage = LoadingStage.BackgroundLoading;
 
             var world = Context.World;
@@ -99,16 +99,14 @@ namespace Mana.Code.GameModes
                     Context.DeferGpuUploads = true;
 
                     // 0. Pre-decode environment reflection map CPU data
-                    LoadingStatus = "Loading environment reflection map";
-                    LoadingProgress = 0.05f;
+                    Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.05f));
                     var envPath = world.EnvironmentReflectionSource.SourcePath;
                     var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
                     envTexture.OriginalFilename = envPath;
                     envTexture.Load();
 
                     // 1. Generate shapes CPU data
-                    LoadingStatus = "Generating procedural shapes";
-                    LoadingProgress = 0.2f;
+                    Loading.Report(new ManaLoadingProgress("Generating procedural shapes", 0.2f));
 
                     Context.Window.FileDrop += Window_FileDrop;
                     _viewModel.AttachScene(Context, Context.World.DefaultScene);
@@ -139,8 +137,7 @@ namespace Mana.Code.GameModes
                     _liquidBall.Scale = new Vector3(20, 20, 20);
 
                     // 2. Load voxel model
-                    LoadingStatus = "Loading MagicaVox model";
-                    LoadingProgress = 0.5f;
+                    Loading.Report(new ManaLoadingProgress("Loading MagicaVox model", 0.5f));
                     MagicaVoxLoader vox = new MagicaVoxLoader();
                     vox.Load();
 
@@ -150,17 +147,25 @@ namespace Mana.Code.GameModes
                     var voxelShapes = voxelsNode.FindShapes<ManaVoxelShape>();
                     Debug.Assert(voxelShapes.Count == 1);
 
-                    foreach (var voxel in vox.Voxels)
+                    var voxelProgressInterval = Math.Max(1, vox.Voxels.Count / 100);
+                    for (var voxelIndex = 0; voxelIndex < vox.Voxels.Count; voxelIndex++)
                     {
+                        var voxel = vox.Voxels[voxelIndex];
                         voxelShapes[0].AddVoxel(voxel.Position + Vector3.One * 0.5f, voxel.Color);
+                        if (voxelIndex == vox.Voxels.Count - 1 || voxelIndex % voxelProgressInterval == 0)
+                        {
+                            var importedVoxelFraction = (voxelIndex + 1) / (float)Math.Max(1, vox.Voxels.Count);
+                            Loading.Report(new ManaLoadingProgress(
+                                $"Building voxel model ({voxelIndex + 1:N0}/{vox.Voxels.Count:N0})",
+                                0.5f + importedVoxelFraction * 0.25f));
+                        }
                     }
 
                     voxelShapes[0].CommitData();
                     _viewModel.AttachVoxelData(voxelShapes[0], voxelNode);
 
                     // 3. Load Flight Helmet scene model
-                    LoadingStatus = "Loading FlightHelmet GLTF model";
-                    LoadingProgress = 0.8f;
+                    Loading.Report(new ManaLoadingProgress("Loading FlightHelmet GLTF model", 0.8f));
                     AddFlightHelmetReferenceModel();
 
                     _loadingStage = LoadingStage.InitializeRenderer;
@@ -204,6 +209,37 @@ namespace Mana.Code.GameModes
                 liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
                 liquidRenderer.DrawAfterScene = true;
             }
+        }
+
+        protected override bool CanCompleteLoading()
+        {
+            if (GraphicsBackend != ManaGraphicsBackendKind.WebGpu)
+            {
+                return true;
+            }
+
+            if (_webGpuContext == null || _webGpuContext.IsEnvironmentInitializationPending)
+            {
+                UpdateWebGpuLoadingProgress();
+                return false;
+            }
+
+            return true;
+        }
+
+        private void UpdateWebGpuLoadingProgress()
+        {
+            if (!IsLoading ||
+                _loadingStage != LoadingStage.Complete ||
+                _webGpuContext == null)
+            {
+                return;
+            }
+
+            var environmentLoading = _webGpuContext.EnvironmentLoading.Snapshot;
+            Loading.Report(new ManaLoadingProgress(
+                environmentLoading.Status,
+                0.95f + environmentLoading.Fraction * 0.05f));
         }
 
         private void AddFlightHelmetReferenceModel()

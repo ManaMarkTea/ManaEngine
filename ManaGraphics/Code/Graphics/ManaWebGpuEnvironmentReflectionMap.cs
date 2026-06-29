@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using Silk.NET.WebGPU;
@@ -66,8 +67,10 @@ namespace ManaGraphics.Code.Graphics
             Device* device,
             Queue* queue,
             ManaEnvironmentReflectionSource source,
-            string sourcePath)
+            string sourcePath,
+            IProgress<ManaLoadingProgress>? progress = null)
         {
+            progress?.Report(new ManaLoadingProgress("Allocating WebGPU environment textures", 0.02f));
             var environmentSize = ClampTextureSize(source.EnvironmentCubeSize, 16, 2048);
             var irradianceSize = ClampTextureSize(source.IrradianceCubeSize, 8, 256);
             var prefilterSize = ClampTextureSize(source.PrefilterCubeSize, 16, 2048);
@@ -86,16 +89,21 @@ namespace ManaGraphics.Code.Graphics
                 TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding,
                 true);
 
+            progress?.Report(new ManaLoadingProgress("Reading environment image", 0.07f));
             using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
             var sourcePixels = new Rgba32[image.Width * image.Height];
             image.CopyPixelDataTo(sourcePixels);
             var equirect = new EquirectImage(sourcePixels, image.Width, image.Height);
 
-            WriteCubeTexture(api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false);
-            WriteCubeTexture(api, queue, irradianceMap.Texture, equirect, irradianceSize, 0, 0.85f, true);
+            WriteCubeTexture(
+                api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false,
+                progress, 0.10f, 0.25f, "Converting environment cube map");
+            WriteCubeTexture(
+                api, queue, irradianceMap.Texture, equirect, irradianceSize, 0, 0.85f, true,
+                progress, 0.35f, 0.15f, "Generating irradiance cube map");
 
             var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float);
-            WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize);
+            WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize, progress, 0.50f, 0.45f);
 
             return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut);
         }
@@ -287,7 +295,19 @@ namespace ManaGraphics.Code.Graphics
             return new ManaWebGpuTextureResource(api, name, texture, view, Array.Empty<nint>(), Array.Empty<nint>(), (uint)width, (uint)height, false);
         }
 
-        private static void WriteCubeTexture(WebGPU api, Queue* queue, Texture* texture, EquirectImage source, int size, int mip, float roughness, bool irradiance)
+        private static void WriteCubeTexture(
+            WebGPU api,
+            Queue* queue,
+            Texture* texture,
+            EquirectImage source,
+            int size,
+            int mip,
+            float roughness,
+            bool irradiance,
+            IProgress<ManaLoadingProgress>? progress,
+            float progressStart,
+            float progressLength,
+            string progressStatus)
         {
             var sourceRowBytes = size * 4;
             var paddedRowBytes = Align(sourceRowBytes, 256);
@@ -302,18 +322,24 @@ namespace ManaGraphics.Code.Graphics
                 if (sourceRowBytes == paddedRowBytes)
                 {
                     System.Buffer.BlockCopy(pixels, 0, combinedPixels, combinedOffset, pixels.Length);
-                    continue;
+                }
+                else
+                {
+                    for (var y = 0; y < size; y++)
+                    {
+                        System.Buffer.BlockCopy(
+                            pixels,
+                            y * sourceRowBytes,
+                            combinedPixels,
+                            combinedOffset + y * paddedRowBytes,
+                            sourceRowBytes);
+                    }
                 }
 
-                for (var y = 0; y < size; y++)
-                {
-                    System.Buffer.BlockCopy(
-                        pixels,
-                        y * sourceRowBytes,
-                        combinedPixels,
-                        combinedOffset + y * paddedRowBytes,
-                        sourceRowBytes);
-                }
+                var faceProgress = (face + 1) / 6.0f;
+                progress?.Report(new ManaLoadingProgress(
+                    $"{progressStatus} ({face + 1}/6 faces)",
+                    progressStart + progressLength * faceProgress));
             }
 
             fixed (byte* pixelPointer = combinedPixels)
@@ -425,9 +451,20 @@ namespace ManaGraphics.Code.Graphics
             return new Vector2(A / SAMPLE_COUNT, B / SAMPLE_COUNT);
         }
 
-        private static void WriteBrdfLut(WebGPU api, Queue* queue, Texture* texture, int width, int height)
+        private static void WriteBrdfLut(
+            WebGPU api,
+            Queue* queue,
+            Texture* texture,
+            int width,
+            int height,
+            IProgress<ManaLoadingProgress>? progress,
+            float progressStart,
+            float progressLength)
         {
             var values = new Half[width * height * 2];
+            var completedRows = 0;
+            var reportInterval = Math.Max(1, height / 100);
+            var progressSync = new object();
             Parallel.For(0, height, y =>
             {
                 var roughness = 1.0f - y / (float)Math.Max(1, height - 1);
@@ -438,6 +475,17 @@ namespace ManaGraphics.Code.Graphics
                     var offset = (y * width + x) * 2;
                     values[offset + 0] = (Half)brdf.X;
                     values[offset + 1] = (Half)brdf.Y;
+                }
+
+                lock (progressSync)
+                {
+                    completedRows++;
+                    if (completedRows == height || completedRows % reportInterval == 0)
+                    {
+                        progress?.Report(new ManaLoadingProgress(
+                            $"Generating BRDF LUT ({completedRows:N0}/{height:N0} rows)",
+                            progressStart + progressLength * completedRows / height));
+                    }
                 }
             });
 

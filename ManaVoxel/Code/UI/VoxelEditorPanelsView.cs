@@ -259,8 +259,17 @@ namespace ManaVoxel.Code.UI
                 _fpsData = new TimeSpan[ManaTime.GlobalTime.History.Length];
             }
 
-            float[] data = ManaTime.GlobalTime.OrderedHistory(ref _fpsData).Select(i => (float)i.TotalMilliseconds).ToArray();
-            ImGui.PlotLines("FPS", ref data[0], data.Length, 0, "fps", 0, 100, new Vector2(150, 90));
+            var frameTimeCount = ManaTime.GlobalTime.CopyOrderedHistory(_fpsData);
+            if (frameTimeCount > 1)
+            {
+                var data = new float[frameTimeCount];
+                for (var i = 0; i < frameTimeCount; i++)
+                {
+                    data[i] = (float)_fpsData[i].TotalMilliseconds;
+                }
+
+                ImGui.PlotLines("Frame Time", ref data[0], data.Length, 0, "ms", 0, 100, new Vector2(150, 90));
+            }
 
             ImGui.Spacing();
             ImGui.SeparatorText("Ray");
@@ -281,17 +290,18 @@ namespace ManaVoxel.Code.UI
                 _fpsData = new TimeSpan[ManaTime.GlobalTime.History.Length];
             }
 
-            var history = ManaTime.GlobalTime.OrderedHistory(ref _fpsData);
-            if (history.Length == 0)
+            var historyCount = ManaTime.GlobalTime.CopyOrderedHistory(_fpsData);
+            if (historyCount <= 1)
             {
                 return;
             }
 
             // Keep approximately the most recent N seconds of frame history.
             float avgFrameSeconds = MathF.Max(0.001f, (float)ManaTime.GlobalTime.DeltaTimeAvg.TotalSeconds);
-            int desiredSamples = Math.Clamp((int)(FpsHistorySeconds / avgFrameSeconds), 60, history.Length);
-            int startIndex = Math.Max(0, history.Length - desiredSamples);
-            int sampleCount = history.Length - startIndex;
+            int minimumSamples = Math.Min(60, historyCount);
+            int desiredSamples = Math.Clamp((int)(FpsHistorySeconds / avgFrameSeconds), minimumSamples, historyCount);
+            int startIndex = Math.Max(0, historyCount - desiredSamples);
+            int sampleCount = historyCount - startIndex;
             if (sampleCount <= 1)
             {
                 return;
@@ -302,9 +312,11 @@ namespace ManaVoxel.Code.UI
                 _recentFpsData = new float[sampleCount];
             }
 
+            double sampledSeconds = 0.0;
             for (int i = 0; i < sampleCount; i++)
             {
-                var frame = history[startIndex + i];
+                var frame = _fpsData[startIndex + i];
+                sampledSeconds += frame.TotalSeconds;
                 _recentFpsData[i] = frame.TotalSeconds > 0
                     ? 1.0f / (float)frame.TotalSeconds
                     : 0.0f;
@@ -312,7 +324,9 @@ namespace ManaVoxel.Code.UI
 
             float fpsMin = _recentFpsData.Min();
             float fpsMax = _recentFpsData.Max();
-            float fpsAvg = _recentFpsData.Average();
+            float fpsAvg = sampledSeconds > 0.0
+                ? (float)(sampleCount / sampledSeconds)
+                : 0.0f;
             float fpsCurrent = _recentFpsData[^1];
             float fpsGraphMax = fpsMax;
 
