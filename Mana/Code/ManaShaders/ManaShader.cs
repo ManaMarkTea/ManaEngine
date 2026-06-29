@@ -96,12 +96,23 @@ namespace Mana
             return CompiledShader.FindUniform(v)!;
         }
 
+        public virtual void OnShaderCompiled()
+        {
+        }
+
         public virtual void BindShader()
         {
+            if (Context.DeferGpuUploads) return;
             if (VertexSource.IsDirty || FragmentSource.IsDirty || GeometrySource.IsDirty)
             {
                 CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(VertexSource, FragmentSource, GeometrySource, CompiledShader);
                 VertexSource.IsDirty = FragmentSource.IsDirty = GeometrySource.IsDirty = false;
+            }
+
+            if (CompiledShader.IsDeferredCompilationPending)
+            {
+                CompiledShader.EnsureCompiled();
+                OnShaderCompiled();
             }
 
             CompiledShader.BindShader();
@@ -109,10 +120,17 @@ namespace Mana
         
         public virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
+            if (Context.DeferGpuUploads) return;
             if (VertexSource.IsDirty || FragmentSource.IsDirty || GeometrySource.IsDirty)
             {
                 CompiledShader = ManaShaderCache.GetShaderCache(Context).GetCompiledShader(VertexSource, FragmentSource, GeometrySource, CompiledShader);
                 VertexSource.IsDirty = FragmentSource.IsDirty = GeometrySource.IsDirty = false;
+            }
+
+            if (CompiledShader.IsDeferredCompilationPending)
+            {
+                CompiledShader.EnsureCompiled();
+                OnShaderCompiled();
             }
 
             CompiledShader.BindShader(material, objectMatrix, camera, owner);
@@ -120,6 +138,7 @@ namespace Mana
 
         public virtual void UnbindShader()
         {
+            if (Context.DeferGpuUploads) return;
             CompiledShader.UnbindShader();
         }
 

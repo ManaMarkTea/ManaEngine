@@ -1,4 +1,4 @@
-﻿namespace Mana.Code.Shapes
+namespace Mana.Code.Shapes
 {
     public class ManaIsoSphere : ManaProceduralMesh
     {
@@ -130,7 +130,7 @@
             };
 
             SetCpuData(meshData);
-            if (Context.OpenGl != null)
+            if (Context.OpenGl != null && !Context.DeferGpuUploads)
             {
                 var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, meshData);
                 if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)

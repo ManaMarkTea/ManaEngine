@@ -32,6 +32,8 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _liquidBall;
         private ManaWebGpuContext? _webGpuContext;
 
+        public override bool DeferGpuUploadsOnStartup => true;
+
         public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
 
@@ -53,15 +55,7 @@ namespace Mana.Code.GameModes
                     LogWebGpuRenderSceneSummary();
                 },
                 deltaTime => update(deltaTime),
-                deltaTime =>
-                {
-                    ProcessPendingFontPreset();
-                    _ImGui?.Update((float)deltaTime);
-                    DrawMainMenuBar();
-                    DrawDockSpace();
-                    DrawImGui(deltaTime);
-                    Context.World.DrawImGui();
-                },
+                deltaTime => Render(deltaTime),
                 (webGpuContext, input) =>
                 {
                     _webGpuContext = webGpuContext;
@@ -89,29 +83,98 @@ namespace Mana.Code.GameModes
             }
         }
 
-        protected override void LoadContent()
+        public override void Load()
         {
-            Context.Window.FileDrop += Window_FileDrop;
-            _viewModel.AttachScene(Context, Context.World.DefaultScene);
-            Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
+            IsLoading = true;
+            LoadingStatus = "Starting background load";
+            LoadingProgress = 0.0f;
+            _loadingStage = LoadingStage.BackgroundLoading;
 
-            ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
+            var world = Context.World;
 
-            float gridSize = 256.0f;
-            float halfGridSize = gridSize * 0.5f;
+            Task.Run(() =>
+            {
+                try
+                {
+                    Context.DeferGpuUploads = true;
 
-            var xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize);
-            var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize);
-            var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize);
-            
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
+                    // 0. Pre-decode environment reflection map CPU data
+                    LoadingStatus = "Loading environment reflection map";
+                    LoadingProgress = 0.05f;
+                    var envPath = world.EnvironmentReflectionSource.SourcePath;
+                    var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
+                    envTexture.OriginalFilename = envPath;
+                    envTexture.Load();
 
+                    // 1. Generate shapes CPU data
+                    LoadingStatus = "Generating procedural shapes";
+                    LoadingProgress = 0.2f;
 
-            Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
-            Cursor.Name = "CursorBall";
-            
+                    Context.Window.FileDrop += Window_FileDrop;
+                    _viewModel.AttachScene(Context, Context.World.DefaultScene);
+                    Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
+
+                    ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
+
+                    float gridSize = 256.0f;
+                    float halfGridSize = gridSize * 0.5f;
+
+                    var xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize);
+                    var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize);
+                    var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize);
+
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
+
+                    Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
+                    Cursor.Name = "CursorBall";
+
+                    _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
+                    _lightningBall.Name = "Lightning Ball";
+                    _lightningBall.Scale = new Vector3(20, 20, 20);
+
+                    _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
+                    _liquidBall.Name = "Liquid Ball";
+                    _liquidBall.Scale = new Vector3(20, 20, 20);
+
+                    // 2. Load voxel model
+                    LoadingStatus = "Loading MagicaVox model";
+                    LoadingProgress = 0.5f;
+                    MagicaVoxLoader vox = new MagicaVoxLoader();
+                    vox.Load();
+
+                    var voxelsNode = shapes.AddVoxels(Vector3.Zero);
+                    var voxelNode = (ManaVoxelsNode)voxelsNode;
+                    voxelNode.Name = "Startup Voxels";
+                    var voxelShapes = voxelsNode.FindShapes<ManaVoxelShape>();
+                    Debug.Assert(voxelShapes.Count == 1);
+
+                    foreach (var voxel in vox.Voxels)
+                    {
+                        voxelShapes[0].AddVoxel(voxel.Position + Vector3.One * 0.5f, voxel.Color);
+                    }
+
+                    voxelShapes[0].CommitData();
+                    _viewModel.AttachVoxelData(voxelShapes[0], voxelNode);
+
+                    // 3. Load Flight Helmet scene model
+                    LoadingStatus = "Loading FlightHelmet GLTF model";
+                    LoadingProgress = 0.8f;
+                    AddFlightHelmetReferenceModel();
+
+                    _loadingStage = LoadingStage.InitializeRenderer;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error during background asset loading: {ex}");
+                    LoadingStatus = $"Error: {ex.Message}";
+                }
+            });
+        }
+
+        protected override void OnLoadingComplete()
+        {
             if (Cursor.Components[0] is MeshRendererComponent renderer)
             {
                 var cursorMaterial = renderer.DynamicMaterial;
@@ -119,10 +182,7 @@ namespace Mana.Code.GameModes
                 cursorMaterial.Shader = new ManaLiquidShader(Context);
             }
 
-            _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
-            _lightningBall.Name = "Lightning Ball";
-            _lightningBall.Scale = new Vector3(20, 20, 20);
-            if (_lightningBall.Components[0] is MeshRendererComponent lightningRenderer)
+            if (_lightningBall?.Components[0] is MeshRendererComponent lightningRenderer)
             {
                 var lightningMaterial = lightningRenderer.DynamicMaterial;
                 lightningMaterial.Name = "Lightning Ball Material";
@@ -130,10 +190,7 @@ namespace Mana.Code.GameModes
                 lightningRenderer.DrawAfterScene = true;
             }
 
-            _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
-            _liquidBall.Name = "Liquid Ball";
-            _liquidBall.Scale = new Vector3(20, 20, 20);
-            if (_liquidBall.Components[0] is MeshRendererComponent liquidRenderer)
+            if (_liquidBall?.Components[0] is MeshRendererComponent liquidRenderer)
             {
                 var liquidMaterial = liquidRenderer.DynamicMaterial;
                 liquidMaterial.Name = "Liquid Ball Material";
@@ -147,26 +204,6 @@ namespace Mana.Code.GameModes
                 liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
                 liquidRenderer.DrawAfterScene = true;
             }
-
-
-            MagicaVoxLoader vox = new MagicaVoxLoader();
-            vox.Load();
-
-            var voxelsNode = shapes.AddVoxels(Vector3.Zero);
-            var voxelNode = (ManaVoxelsNode)voxelsNode;
-            voxelNode.Name = "Startup Voxels";
-            var voxelShapes = voxelsNode.FindShapes<ManaVoxelShape>();
-            Debug.Assert(voxelShapes.Count == 1);
-
-            foreach (var voxel in vox.Voxels)
-            {
-                voxelShapes[0].AddVoxel(voxel.Position + Vector3.One * 0.5f, voxel.Color);
-            }
-
-            voxelShapes[0].CommitData();
-            _viewModel.AttachVoxelData(voxelShapes[0], voxelNode);
-
-            AddFlightHelmetReferenceModel();
         }
 
         private void AddFlightHelmetReferenceModel()

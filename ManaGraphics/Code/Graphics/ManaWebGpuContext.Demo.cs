@@ -21,10 +21,6 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic("Creating WebGPU mesh pipeline.");
 
             var renderScene = _renderSceneProvider?.Invoke() ?? CreateDemoRenderScene();
-            if (renderScene.Meshes.Count == 0)
-            {
-                throw new InvalidOperationException("WebGPU render scene did not contain any mesh instances.");
-            }
 
             _activeRenderScene = renderScene;
             CreateSharedPipelineLayouts();
@@ -34,7 +30,10 @@ namespace ManaGraphics.Code.Graphics
             GetOrCreatePipeline("ManaPbrShader");
             
             ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
-            UploadSceneMeshes(renderScene);
+            if (renderScene.Meshes.Count > 0)
+            {
+                UploadSceneMeshes(renderScene);
+            }
         }
 
         private static ManaRenderScene CreateDemoRenderScene()

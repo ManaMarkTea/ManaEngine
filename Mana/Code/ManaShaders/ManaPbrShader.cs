@@ -21,12 +21,20 @@ namespace Mana.Code
 
         public ManaPbrShader(ManaContext context) : base(context)
         {
-            LoadPBR();
+            LoadShaderSource(ShaderSources["pbr.vert"], ShaderSources["pbr.frag"]);
+            if (!context.DeferGpuUploads)
+            {
+                InitializeUniforms();
+            }
         }
 
-        public void LoadPBR()
+        public override void OnShaderCompiled()
         {
-            LoadShaderSource(ShaderSources["pbr.vert"], ShaderSources["pbr.frag"]);
+            InitializeUniforms();
+        }
+
+        private void InitializeUniforms()
+        {
             BindShader();
 
             // Environment

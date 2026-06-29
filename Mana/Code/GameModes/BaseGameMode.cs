@@ -56,6 +56,23 @@ namespace Mana.Code
         private bool _dockLayoutInitialized;
         private bool _dockLayoutResetRequested;
 
+        public bool IsLoading { get; protected set; } = false;
+        public string LoadingStatus { get; protected set; } = "Initializing...";
+        public float LoadingProgress { get; protected set; } = 0.0f;
+
+        protected enum LoadingStage
+        {
+            NotStarted,
+            BackgroundLoading,
+            InitializeRenderer,
+            FinalizeGpuUploads,
+            Complete
+        }
+
+        protected LoadingStage _loadingStage = LoadingStage.NotStarted;
+
+        public virtual bool DeferGpuUploadsOnStartup => false;
+
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
         public ManaGraphicsDiagnosticsProvider? GraphicsDiagnosticsProvider { get; protected set; }
@@ -87,6 +104,7 @@ namespace Mana.Code
             var world = new ManaWorld();
             Context = new ManaContext(_Window, GL, input, world);
             Context.GameMode = this;
+            Context.DeferGpuUploads = DeferGpuUploadsOnStartup;
 
             world.Initialize(Context);
 
@@ -116,11 +134,12 @@ namespace Mana.Code
             var world = new ManaWorld();
             Context = new ManaContext(window, input, world, graphicsDevice);
             Context.GameMode = this;
+            Context.DeferGpuUploads = DeferGpuUploadsOnStartup;
 
-            world.Initialize(Context, initializeWorldRenderer);
+            world.Initialize(Context, DeferGpuUploadsOnStartup ? false : initializeWorldRenderer);
 
             Context.Physics = new ManaPhysics(Context);
-            LoadContent();
+            Load();
         }
 
         public virtual void Load()
@@ -657,11 +676,42 @@ namespace Mana.Code
 
             UpdateFrame++;
 
-            Context.Physics.Update();
+            if (IsLoading)
+            {
+                switch (_loadingStage)
+                {
+                    case LoadingStage.InitializeRenderer:
+                        LoadingStatus = "Initializing Graphics Renderer";
+                        LoadingProgress = 0.85f;
+                        _loadingStage = LoadingStage.FinalizeGpuUploads;
+                        break;
 
-            Update(deltaTime);
+                    case LoadingStage.FinalizeGpuUploads:
+                        if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
+                        {
+                            Context.DeferGpuUploads = false;
+                            Context.World.Renderer.Initialize();
+                            Context.DeferGpuUploads = true;
+                        }
+                        LoadingStatus = "Finalizing GPU uploads";
+                        LoadingProgress = 0.95f;
+                        _loadingStage = LoadingStage.Complete;
+                        break;
 
-            Context.World.Update();
+                    case LoadingStage.Complete:
+                        Context.DeferGpuUploads = false;
+                        FinalizeGpuUploads();
+                        OnLoadingComplete();
+                        IsLoading = false;
+                        break;
+                }
+            }
+            else
+            {
+                Context.Physics.Update();
+                Update(deltaTime);
+                Context.World.Update();
+            }
         }
 
         public abstract void Update(double deltaTime);
@@ -753,13 +803,176 @@ namespace Mana.Code
             ProcessPendingFontPreset();
 
             _ImGui.Update((float)deltaTime);
-            DrawMainMenuBar();
-            DrawDockSpace();
-            DrawImGui(deltaTime);
-            Context.World.DrawImGui();
 
-            Context.World.Draw();
-            _ImGui.Render();
+            if (IsLoading)
+            {
+                if (GraphicsBackend == ManaGraphicsBackendKind.WebGpu)
+                {
+                    // In WebGPU mode, clear is done by the GameSilkWebGpu wrapper.
+                    // We just draw the loading screen over it.
+                }
+                else
+                {
+                    var gl = Context.RequireOpenGl();
+                    gl.ClearColor(0.12f, 0.14f, 0.18f, 1.0f);
+                    gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+                }
+
+                DrawLoadingScreen();
+                _ImGui.Render();
+            }
+            else
+            {
+                DrawMainMenuBar();
+                DrawDockSpace();
+                DrawImGui(deltaTime);
+                Context.World.DrawImGui();
+
+                if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
+                {
+                    Context.World.Draw();
+                }
+                _ImGui.Render();
+            }
+        }
+
+        protected void DrawLoadingScreen()
+        {
+            var viewport = ImGui.GetMainViewport();
+            ImGui.SetNextWindowPos(viewport.Pos);
+            ImGui.SetNextWindowSize(viewport.Size);
+            ImGui.Begin("LoadingScreen", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoBackground);
+
+            var windowSize = viewport.Size;
+            var boxWidth = Math.Min(500.0f, windowSize.X * 0.8f);
+            var boxHeight = 160.0f;
+            var boxPos = new System.Numerics.Vector2((windowSize.X - boxWidth) * 0.5f, (windowSize.Y - boxHeight) * 0.5f);
+
+            ImGui.SetCursorPos(boxPos);
+            ImGui.BeginChild("LoadingBox", new System.Numerics.Vector2(boxWidth, boxHeight), ImGuiChildFlags.Border, ImGuiWindowFlags.NoScrollbar);
+            
+            double time = ManaTime.GlobalTime.GameTime.TotalSeconds;
+            float pulse = 0.6f + 0.4f * (float)Math.Sin(time * 3.0);
+            
+            ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(0.16f, 0.52f, 0.86f, pulse));
+            ImGui.Text("MANA RENDERER");
+            ImGui.PopStyleColor();
+            
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            int dotCount = (int)(time * 2.0) % 4;
+            string dots = new string('.', dotCount);
+            
+            ImGui.Text($"{LoadingStatus}{dots}");
+            ImGui.ProgressBar(LoadingProgress, new System.Numerics.Vector2(-1, 22), $"{LoadingProgress * 100:0}%");
+
+            ImGui.EndChild();
+            ImGui.End();
+        }
+
+        protected virtual void OnLoadingComplete() { }
+
+        protected virtual void FinalizeGpuUploads()
+        {
+            Context.DeferGpuUploads = false;
+
+            // 1. Process all scenes for mesh/material uploads
+            foreach (var scene in Context.World.Scenes)
+            {
+                foreach (var rootNode in scene.Children)
+                {
+                    FinalizeSceneNodeGpuResources(rootNode);
+                }
+            }
+
+            // 2. Process world materials
+            foreach (var mat in Context.World.Materials)
+            {
+                FinalizeMaterialGpuResources(mat);
+            }
+        }
+
+        private void FinalizeSceneNodeGpuResources(ManaSceneNode node)
+        {
+            if (node == null) return;
+
+            foreach (var component in node.Components)
+            {
+                if (component is MeshRendererComponent meshRenderer)
+                {
+                    // Upload mesh geometry to GPU VBO
+                    var mesh = meshRenderer.Mesh;
+                    if (mesh != null)
+                    {
+                        if (mesh.VertexBufferObject == null && mesh.CpuData != null)
+                        {
+                            if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
+                            {
+                                var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, mesh.CpuData);
+                                if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+                                {
+                                    mesh.VertexBufferObject = openGlMesh.VertexBufferObject;
+                                }
+                            }
+                        }
+
+                        if (mesh.Materials != null)
+                        {
+                            foreach (var mat in mesh.Materials)
+                            {
+                                FinalizeMaterialGpuResources(mat);
+                            }
+                        }
+                    }
+
+                    // Upload mesh-renderer specific material to GPU
+                    if (meshRenderer.Material != null)
+                    {
+                        FinalizeMaterialGpuResources(meshRenderer.Material);
+                    }
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                FinalizeSceneNodeGpuResources(child);
+            }
+        }
+
+        private void FinalizeMaterialGpuResources(Materials.ManaMaterial material)
+        {
+            if (material == null) return;
+
+            // Compile PBR shader on main thread
+            if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL && material.Shader == null)
+            {
+                material.Shader = new ManaPbrShader(Context);
+            }
+
+            // Upload all standard textures
+            if (material.Albedo != null) FinalizeTexture(material.Albedo);
+            if (material.Normal != null) FinalizeTexture(material.Normal);
+            if (material.Emission != null) FinalizeTexture(material.Emission);
+            if (material.Metallic != null) FinalizeTexture(material.Metallic);
+            if (material.Roughness != null) FinalizeTexture(material.Roughness);
+            if (material.Ambient != null) FinalizeTexture(material.Ambient);
+
+            foreach (var channel in material.Channels.Values)
+            {
+                if (channel.Texture != null)
+                {
+                    FinalizeTexture(channel.Texture);
+                }
+            }
+        }
+
+        private void FinalizeTexture(ManaTexture texture)
+        {
+            if (texture != null && !texture.IsLoaded)
+            {
+                texture.Load();
+            }
         }
 
         public virtual void Closing()

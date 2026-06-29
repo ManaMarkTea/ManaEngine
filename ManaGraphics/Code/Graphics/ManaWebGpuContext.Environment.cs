@@ -159,21 +159,68 @@ namespace ManaGraphics.Code.Graphics
             return _environmentPrefilterCompute;
         }
 
+        private ManaWebGpuEnvironmentReflectionMap? _pendingEnvironmentMap;
+        private bool _isEnvironmentLoading = false;
+
+        public void CheckPendingEnvironmentMap()
+        {
+            if (_pendingEnvironmentMap != null)
+            {
+                ReleaseEnvironmentReflectionMap();
+                _environmentReflectionMap = _pendingEnvironmentMap;
+                var environmentPath = ResolveAssetPath(_environmentReflectionMap.Source.SourcePath);
+                _pendingEnvironmentMap = null;
+                _isEnvironmentLoading = false;
+
+                ReleaseSceneMeshes();
+                ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets swapped: {environmentPath}");
+            }
+        }
+
         private ManaWebGpuEnvironmentReflectionMap GetOrCreateEnvironmentReflectionMap()
         {
             var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene?.EnvironmentReflectionSource);
             var environmentPath = ResolveAssetPath(source.SourcePath);
+
+            if (_pendingEnvironmentMap != null)
+            {
+                ReleaseEnvironmentReflectionMap();
+                _environmentReflectionMap = _pendingEnvironmentMap;
+                _pendingEnvironmentMap = null;
+                _isEnvironmentLoading = false;
+
+                ReleaseSceneMeshes();
+                ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets swapped: {environmentPath}");
+            }
+
             if (_environmentReflectionMap != null &&
                 HasSameEnvironmentSource(_environmentReflectionMap.Source, source))
             {
                 return _environmentReflectionMap;
             }
 
-            ReleaseEnvironmentReflectionMap();
-            _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, source, environmentPath);
-            DispatchEnvironmentPrefilterNow(_environmentReflectionMap);
-            ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets loaded: {environmentPath}");
-            return _environmentReflectionMap;
+            if (!_isEnvironmentLoading)
+            {
+                _isEnvironmentLoading = true;
+                _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.CreateDummy(_api, _device, _queue, source);
+
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        var map = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, source, environmentPath);
+                        DispatchEnvironmentPrefilterNow(map);
+                        _pendingEnvironmentMap = map;
+                    }
+                    catch (Exception ex)
+                    {
+                        ManaConsole.WriteDiagnostic($"Failed to load WebGPU environment map: {ex}");
+                        _isEnvironmentLoading = false;
+                    }
+                });
+            }
+
+            return _environmentReflectionMap!;
         }
 
         private static ManaEnvironmentReflectionSource GetEffectiveEnvironmentReflectionSource(ManaEnvironmentReflectionSource? source)

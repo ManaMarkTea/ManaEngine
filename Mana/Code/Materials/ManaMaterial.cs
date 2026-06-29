@@ -1,4 +1,4 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
 
 using Silk.NET.OpenGL;
 
@@ -37,7 +37,7 @@ namespace Mana.Code.Materials
             return DefaultMaterial[context];
         }
 
-        public ManaShader Shader { get; set; }
+        public ManaShader? Shader { get; set; }
 
         public ManaTextureVector4 Albedo;
         public ManaTextureVector4 Normal;
@@ -55,8 +55,11 @@ namespace Mana.Code.Materials
             Name = "PBR Material";
             Channels = new Dictionary<string, ManaMaterialChannel>();
             ShaderUniforms = new Dictionary<string, ManaMaterialUniformValue>();
-            var shader = new ManaPbrShader(context);
-            Shader = shader;
+            if (context.OpenGl != null && !context.DeferGpuUploads)
+            {
+                var shader = new ManaPbrShader(context);
+                Shader = shader;
+            }
 
             Random r = new Random();            
 
@@ -137,7 +140,7 @@ namespace Mana.Code.Materials
                 }
             }
 
-            Shader.BindShader(this, objectMatrix, Context.World.MainCamera, owner);
+            Shader?.BindShader(this, objectMatrix, Context.World.MainCamera, owner);
         }
 
         public void UnBind()
@@ -151,7 +154,7 @@ namespace Mana.Code.Materials
                 }
             }
 
-            Shader.UnbindShader();
+            Shader?.UnbindShader();
         }
 
         public object Clone()
@@ -182,8 +185,6 @@ namespace Mana.Code.Materials
             return copy;
         }
     }
-
-
 
     /// <summary>
     /// Defines the purpose of a texture.

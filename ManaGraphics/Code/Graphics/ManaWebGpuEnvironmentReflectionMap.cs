@@ -43,6 +43,24 @@ namespace ManaGraphics.Code.Graphics
         public ManaWebGpuTextureResource PrefilteredReflectionMapResource { get; }
         public ManaWebGpuTextureResource BrdfLutResource { get; }
 
+        public static ManaWebGpuEnvironmentReflectionMap CreateDummy(WebGPU api, Device* device, Queue* queue, ManaEnvironmentReflectionSource source)
+        {
+            var environmentMap = CreateCubeResource(api, device, "DummyEnvironmentMap", 16, 1);
+            var irradianceMap = CreateCubeResource(api, device, "DummyIrradianceMap", 16, 1);
+            var prefilteredReflectionMap = CreateCubeResource(
+                api,
+                device,
+                "DummyPrefilteredReflectionMap",
+                16,
+                1,
+                TextureFormat.Rgba8Unorm,
+                TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding,
+                true);
+            var brdfLut = Create2DResource(api, device, "DummyBrdfLut", 16, 16, TextureFormat.RG16float);
+
+            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut);
+        }
+
         public static ManaWebGpuEnvironmentReflectionMap Create(
             WebGPU api,
             Device* device,

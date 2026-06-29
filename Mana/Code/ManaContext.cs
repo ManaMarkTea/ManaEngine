@@ -16,6 +16,8 @@ namespace Mana.Code
 
         public ManaWorld World { get; private set; } = null!;
 
+        public bool DeferGpuUploads { get; set; }
+
         public ManaPhysics Physics { get; set; } = null!;
 
         public BaseGameMode GameMode { get; set; } = null!;

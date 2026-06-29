@@ -143,7 +143,7 @@ namespace Mana.Code.UI
             {
                 ImGui.TextUnformatted($"Mesh: {meshRenderer.Mesh.GetType().Name}");
                 ImGui.TextUnformatted($"Material: {GetDisplayName(material, "Default Material")}");
-                ImGui.TextUnformatted($"Shader: {material.Shader.GetType().Name}");
+                ImGui.TextUnformatted($"Shader: {material.Shader?.GetType().Name ?? "None"}");
 
                 if (material.Channels.Count > 0 && ImGui.TreeNode($"Channels ({material.Channels.Count})"))
                 {

@@ -387,7 +387,7 @@ namespace Mana.Code.UI
                 material.Name = materialName;
             }
 
-            ImGui.TextUnformatted($"Shader: {material.Shader.GetType().Name}");
+            ImGui.TextUnformatted($"Shader: {material.Shader?.GetType().Name ?? "None"}");
             DrawColorEditor("Albedo", material.Albedo);
             DrawColorEditor("Emission", material.Emission);
             DrawScalarEditor("Metallic", material.Metallic, 0.0f, 1.0f);
@@ -413,7 +413,7 @@ namespace Mana.Code.UI
 
         private static void DrawShaderUniformInspector(ManaMaterial material)
         {
-            var uniforms = material.Shader.CompiledShader?.UniformNames;
+            var uniforms = material.Shader?.CompiledShader?.UniformNames;
             if (uniforms == null || uniforms.Count == 0)
             {
                 return;

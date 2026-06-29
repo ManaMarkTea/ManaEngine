@@ -60,11 +60,40 @@ namespace Mana.Code.ManaShaders
             public static ManaSemantic iChannel2 = new ManaSemantic(new string[] { "iChannel2" });
         }
 
+        private string? _deferredVertSource;
+        private string? _deferredFragSource;
+        private string? _deferredGeomSource;
+        private bool _isCompilationDeferred = false;
+        public bool IsDeferredCompilationPending => _isCompilationDeferred;
+
         public ManaCompiledShader(ManaContext context) : base(context)
         {
         }
 
+        public void EnsureCompiled()
+        {
+            if (_isCompilationDeferred)
+            {
+                _isCompilationDeferred = false;
+                LoadShaderSourceInternal(_deferredVertSource!, _deferredFragSource!, _deferredGeomSource ?? "");
+            }
+        }
+
         public virtual void LoadShaderSource(string vertSource, string fragSource, string geomSource = "")
+        {
+            if (Context.DeferGpuUploads)
+            {
+                _deferredVertSource = vertSource;
+                _deferredFragSource = fragSource;
+                _deferredGeomSource = geomSource;
+                _isCompilationDeferred = true;
+                return;
+            }
+
+            LoadShaderSourceInternal(vertSource, fragSource, geomSource);
+        }
+
+        private void LoadShaderSourceInternal(string vertSource, string fragSource, string geomSource)
         {
             if (Context.OpenGl == null)
             {
@@ -169,6 +198,8 @@ namespace Mana.Code.ManaShaders
 
         public ManaShaderUniform? FindUniform(string name)
         {
+            if (Context.DeferGpuUploads) return null;
+            EnsureCompiled();
             if (UniformMap.ContainsKey(name))
             {
                 return UniformMap[name];
@@ -184,13 +215,15 @@ namespace Mana.Code.ManaShaders
 
         public void BindShader()
         {
-            if (Context.OpenGl == null) return;
+            if (Context.OpenGl == null || Context.DeferGpuUploads) return;
+            EnsureCompiled();
             Context.gl.UseProgram(shaderProgram);
         }
 
         public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
-            if (Context.OpenGl == null) return;
+            if (Context.OpenGl == null || Context.DeferGpuUploads) return;
+            EnsureCompiled();
             var gl = Context.gl;
 
             gl.UseProgram(shaderProgram);
@@ -380,7 +413,7 @@ namespace Mana.Code.ManaShaders
 
         public void UnbindShader()
         {
-            if (Context.OpenGl == null) return;
+            if (Context.OpenGl == null || Context.DeferGpuUploads) return;
             Context.gl.UseProgram(0);
         }
 

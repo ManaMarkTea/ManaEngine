@@ -1,4 +1,4 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
 using ManaCore.Graphics;
 using Silk.NET.Assimp;
 using System;
@@ -553,7 +553,7 @@ namespace Mana.Code.Shapes.Loaders
             };
 
             output.SetCpuData(meshData);
-            if (context.OpenGl != null)
+            if (context.OpenGl != null && !context.DeferGpuUploads)
             {
                 var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData);
                 if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)

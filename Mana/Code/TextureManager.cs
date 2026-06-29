@@ -1,4 +1,4 @@
-﻿namespace Mana
+namespace Mana
 {
     public class TextureManager : ManaObject
     {
@@ -45,7 +45,9 @@
                 return LoadedTextures[key];
             }
 
-            return new ManaTexture(Context);
+            var texture = new ManaTexture(Context);
+            LoadedTextures.Add(key, texture);
+            return texture;
         }
 
         public ManaTexture FindTexture(string key)

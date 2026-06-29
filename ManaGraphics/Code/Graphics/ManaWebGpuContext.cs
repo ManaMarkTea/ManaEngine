@@ -162,6 +162,8 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
+            CheckPendingEnvironmentMap();
+
             var surfaceTexture = new SurfaceTexture();
             _api.SurfaceGetCurrentTexture(_surface, &surfaceTexture);
             if (surfaceTexture.Status != SurfaceGetCurrentTextureStatus.Success || surfaceTexture.Texture == null)

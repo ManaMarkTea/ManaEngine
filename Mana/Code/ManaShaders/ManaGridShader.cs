@@ -1,4 +1,4 @@
-﻿namespace Mana.Code
+namespace Mana.Code
 {
 
     public class ManaGridShader : ManaShader
@@ -12,8 +12,11 @@
         public ManaGridShader(ManaContext context) : base(context)
         {
             LoadShaderSource(ShaderSources["grid.vert"], ShaderSources["grid.frag"]);
-            BindShader();
-            UnbindShader();
+            if (!context.DeferGpuUploads)
+            {
+                BindShader();
+                UnbindShader();
+            }
         }
     }
 }

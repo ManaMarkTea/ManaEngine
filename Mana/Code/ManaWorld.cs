@@ -98,7 +98,10 @@ namespace Mana
                 //this.Renderer = new ManaDeferredRenderer(context);
                 //this.Renderer = new ManaForwardRenderer(context);
                 this.Renderer = new ManaIrradianceRenderer(context);
-                this.Renderer.Initialize();
+                if (!context.DeferGpuUploads)
+                {
+                    this.Renderer.Initialize();
+                }
             }
 
             DefaultScene = new ManaScene(context);

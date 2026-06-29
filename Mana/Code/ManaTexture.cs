@@ -95,9 +95,47 @@ namespace Mana
         }
 
 
+        public void LoadCpuPixelData()
+        {
+            if (PixelStream != null)
+            {
+                DecoderOptions options = new DecoderOptions();
+                using (var img = Image.Load<Rgba32>(options, PixelStream))
+                {
+                    img.Mutate(x => x.Flip(FlipMode.Vertical));
+                    Width = (uint)img.Width;
+                    Height = (uint)img.Height;
+                    SizeInBytes = img.Width * img.Height * 4;
+                    PixelData = new byte[SizeInBytes];
+                    img.CopyPixelDataTo(PixelData);
+                }
+            }
+            else if (!string.IsNullOrEmpty(OriginalFilename))
+            {
+                var resolvedFilename = ResolveTexturePath(OriginalFilename);
+                DecoderOptions options = new DecoderOptions();
+                using (var img = Image.Load<Rgba32>(options, resolvedFilename))
+                {
+                    img.Mutate(x => x.Flip(FlipMode.Vertical));
+                    Width = (uint)img.Width;
+                    Height = (uint)img.Height;
+                    SizeInBytes = img.Width * img.Height * 4;
+                    PixelData = new byte[SizeInBytes];
+                    img.CopyPixelDataTo(PixelData);
+                }
+            }
+        }
+
         public virtual void Load()
         {
-            EnsureOpenGlTexture().Load();
+            if (Context.DeferGpuUploads)
+            {
+                LoadCpuPixelData();
+            }
+            else
+            {
+                EnsureOpenGlTexture().Load();
+            }
         }
 
         internal void LoadOpenGlTextureData()
@@ -105,11 +143,19 @@ namespace Mana
             LoadTextureData();
         }
 
-        protected virtual void LoadTextureData()
+        protected virtual unsafe void LoadTextureData()
         {
             var gl = Context.RequireOpenGl();
 
-            if (PixelStream != null)
+            if (PixelData != null && PixelData.Length > 0)
+            {
+                AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
+                fixed (void* data = PixelData)
+                {
+                    gl.TexSubImage2D(TextureTargetType, 0, 0, 0, Width, Height, InternalPixelFormat, InternalPixelType, data);
+                }
+            }
+            else if (PixelStream != null)
             {
                 DecoderOptions options = new DecoderOptions();
                 using (var img = Image.Load<Rgba32>(options, PixelStream))

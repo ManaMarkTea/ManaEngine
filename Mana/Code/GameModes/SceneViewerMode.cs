@@ -1,5 +1,7 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Nodes;
+using System.Diagnostics;
+using Silk.NET.OpenGL;
 
 namespace Mana.Code
 {
@@ -7,6 +9,16 @@ namespace Mana.Code
     {
         public static SceneViewerMode Instance = null!;
 
+        public override bool DeferGpuUploadsOnStartup => true;
+
+        private ManaMeshSceneNode _lightningBall = null!;
+        private ManaMeshSceneNode _liquidBall = null!;
+        private ManaShapeFactory _shapes = null!;
+        private ManaSceneNode _sun = null!;
+        private ManaMaterial _steelMaterial = null!;
+        private ManaMaterial _pirateGoldMaterial = null!;
+        private ManaMaterial _brickMaterial = null!;
+        private ManaMaterial _grassMaterial = null!;
 
         public SceneViewerMode()
         {
@@ -17,40 +29,137 @@ namespace Mana.Code
         {
             base.Load();
 
+            IsLoading = true;
+            LoadingStatus = "Starting background load";
+            LoadingProgress = 0.0f;
+            _loadingStage = LoadingStage.BackgroundLoading;
+
             var world = Context.World;
 
-            ManaShapeFactory shapes = new ManaShapeFactory(Context, world.DefaultScene);
-
-            var sun = shapes.AddSphere(new Vector3(5, 5, -5), Colors.Yellow, 2.0f);
-            sun.Name = "Debug Sun";
-
-            if (sun.Components[0] is not MeshRendererComponent sunRenderer)
+            // Spawn background task to do CPU-heavy resource loading off the main thread
+            Task.Run(() =>
             {
-                return;
+                try
+                {
+                    Context.DeferGpuUploads = true;
+
+                    // 0. Pre-decode environment reflection map CPU data
+                    LoadingStatus = "Loading environment reflection map";
+                    LoadingProgress = 0.05f;
+                    var envPath = world.EnvironmentReflectionSource.SourcePath;
+                    var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
+                    envTexture.OriginalFilename = envPath;
+                    envTexture.Load();
+
+                    // 1. Generate shapes CPU data
+                    LoadingStatus = "Generating procedural shapes";
+                    LoadingProgress = 0.1f;
+                    _shapes = new ManaShapeFactory(Context, world.DefaultScene);
+
+                    _sun = _shapes.AddSphere(new System.Numerics.Vector3(5, 5, -5), Colors.Yellow, 2.0f);
+                    _sun.Name = "Debug Sun";
+
+                    _lightningBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 1.0f));
+                    _lightningBall.Name = "Lightning Ball";
+                    _lightningBall.Position = new System.Numerics.Vector3(10, 10, 10);
+                    _lightningBall.Scale = new System.Numerics.Vector3(2, 2, 2);
+                    _lightningBall.MeshRenderer.DrawAfterScene = true;
+                    world.DefaultScene.Children.Add(_lightningBall);
+
+                    _liquidBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 1.0f));
+                    _liquidBall.Name = "Liquid Ball";
+                    _liquidBall.Position = new System.Numerics.Vector3(14.75f, 10, 10);
+                    _liquidBall.Scale = new System.Numerics.Vector3(2, 2, 2);
+                    _liquidBall.MeshRenderer.DrawAfterScene = true;
+                    world.DefaultScene.Children.Add(_liquidBall);
+
+                    // 2. Decode materials from Zip archives (CPU decoding)
+                    LoadingStatus = "Loading used-stainless-steel2-bl.zip";
+                    LoadingProgress = 0.2f;
+                    _steelMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/used-stainless-steel2-bl.zip");
+                    world.Materials.Add(_steelMaterial);
+
+                    LoadingStatus = "Loading pirate-gold-bl.zip";
+                    LoadingProgress = 0.4f;
+                    _pirateGoldMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/pirate-gold-bl.zip");
+                    world.Materials.Add(_pirateGoldMaterial);
+
+                    LoadingStatus = "Loading beaten-down-brick-bl.zip";
+                    LoadingProgress = 0.6f;
+                    _brickMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/beaten-down-brick-bl.zip");
+                    world.Materials.Add(_brickMaterial);
+
+                    LoadingStatus = "Loading wispy-grass-meadow-bl.zip";
+                    LoadingProgress = 0.7f;
+                    _grassMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/whispy-grass-meadow-bl.zip");
+                    world.Materials.Add(_grassMaterial);
+
+                    // 3. Load Flight Helmet scene model
+                    LoadingStatus = "Loading FlightHelmet GLTF model";
+                    LoadingProgress = 0.8f;
+                    world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
+                    world.Scenes[1].Name = "Flight Helmet Scene";
+                    var helmetNode = world.Scenes[1].Children[0];
+                    helmetNode.Name = "Flight Helmet";
+                    helmetNode.Position = new System.Numerics.Vector3(2, 0, 2);
+
+                    ManaMeshSceneNode goldIngot = new ManaMeshSceneNode(Context, new ManaIngot(Context, Colors.White, System.Numerics.Vector3.One));
+                    goldIngot.Name = "Pirate Gold Ingot";
+                    goldIngot.MeshRenderer.Material = _pirateGoldMaterial;
+                    goldIngot.Position = new System.Numerics.Vector3(2, 1.1f, 5);
+                    world.Scenes[1].Children[0].AddChild(goldIngot);
+
+                    ManaMeshSceneNode steelBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
+                    steelBall.Name = "Stainless Steel Ball";
+                    steelBall.MeshRenderer.Material = _steelMaterial;
+                    steelBall.Position = new System.Numerics.Vector3(2, 0, 3);
+                    world.Scenes[1].Children[0].AddChild(steelBall);
+
+                    ManaMeshSceneNode pirateGoldBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
+                    pirateGoldBall.Name = "Pirate Gold Ball";
+                    pirateGoldBall.MeshRenderer.Material = _pirateGoldMaterial;
+                    pirateGoldBall.Position = new System.Numerics.Vector3(2, 0, 5);
+                    world.Scenes[1].Children[0].AddChild(pirateGoldBall);
+
+                    ManaMeshSceneNode brick = new ManaMeshSceneNode(Context, new ManaCube(Context, Colors.White, new System.Numerics.Vector3(1.0f, 0.5f, 0.5f)));
+                    brick.Name = "Beaten Brick Block";
+                    brick.MeshRenderer.Material = _brickMaterial;
+                    brick.Position = new System.Numerics.Vector3(2, 0, 7);
+                    world.Scenes[1].Children[0].AddChild(brick);
+
+                    ManaMeshSceneNode grassBlock = new ManaMeshSceneNode(Context, new ManaCube(Context, Colors.White, System.Numerics.Vector3.One));
+                    grassBlock.Name = "Grass Block";
+                    grassBlock.MeshRenderer.Material = _grassMaterial;
+                    grassBlock.Position = new System.Numerics.Vector3(2, 0, 9);
+                    world.Scenes[1].Children[0].AddChild(grassBlock);
+
+                    // Move to the next stage (running on main thread via Update)
+                    _loadingStage = LoadingStage.InitializeRenderer;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error during background asset loading: {ex}");
+                    LoadingStatus = $"Error: {ex.Message}";
+                }
+            });
+        }
+
+        protected override void OnLoadingComplete()
+        {
+            // Apply settings and shaders
+            var sunRenderer = _sun.Components[0] as MeshRendererComponent;
+            if (sunRenderer != null)
+            {
+                var sunMaterial = sunRenderer.DynamicMaterial;
+                sunMaterial.Name = "Debug Sun Material";
+                sunMaterial.Emission.Value = Colors.Gold;
+                sunMaterial.EmissionStrength = 10.0f;
             }
 
-            var sunMaterial = sunRenderer.DynamicMaterial;
-            sunMaterial.Name = "Debug Sun Material";
-            sunMaterial.Emission.Value = Colors.Gold;
-            sunMaterial.EmissionStrength = 10.0f;
+            _lightningBall.MeshRenderer.DynamicMaterial.Name = "Lightning Ball Material";
+            _lightningBall.MeshRenderer.DynamicMaterial.Shader = new ManaLightningBallShader(Context);
 
-            ManaMeshSceneNode lightningBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 1.0f));
-            lightningBall.Name = "Lightning Ball";
-            lightningBall.Position = new Vector3(10, 10, 10);
-            lightningBall.Scale = new Vector3(2, 2, 2);
-
-            var lightningMaterial = lightningBall.MeshRenderer.DynamicMaterial;
-            lightningMaterial.Name = "Lightning Ball Material";
-            lightningMaterial.Shader = new ManaLightningBallShader(Context);
-            lightningBall.MeshRenderer.DrawAfterScene = true;
-            world.DefaultScene.Children.Add(lightningBall);
-
-            ManaMeshSceneNode liquidBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 1.0f));
-            liquidBall.Name = "Liquid Ball";
-            liquidBall.Position = new Vector3(14.75f, 10, 10);
-            liquidBall.Scale = new Vector3(2, 2, 2);
-
-            var liquidMaterial = liquidBall.MeshRenderer.DynamicMaterial;
+            var liquidMaterial = _liquidBall.MeshRenderer.DynamicMaterial;
             liquidMaterial.Name = "Liquid Ball Material";
             liquidMaterial.Shader = new ManaLiquidBallShader(Context);
             liquidMaterial.SetShaderUniform("liquidFillLevel", -0.14f);
@@ -60,72 +169,26 @@ namespace Mana.Code
             liquidMaterial.SetShaderUniform("liquidPoolContourStrength", 1.0f);
             liquidMaterial.SetShaderUniform("glassEdgeStrength", 1.0f);
             liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
-            liquidBall.MeshRenderer.DrawAfterScene = true;
-            world.DefaultScene.Children.Add(liquidBall);
 
-            ManaMaterial steelMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/used-stainless-steel2-bl.zip");
-            ManaMaterial pirateGoldMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/pirate-gold-bl.zip");
-            ManaMaterial brickMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/beaten-down-brick-bl.zip");
-            ManaMaterial grassMaterial = ManaMaterialLoaderZip.LoadFromZip(Context, "Assets/Materials/whispy-grass-meadow-bl.zip");
-
-            world.LoadFromGltf("Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
-            world.Scenes[1].Name = "Flight Helmet Scene";
-            var helmetNode = world.Scenes[1].Children[0];
-            helmetNode.Name = "Flight Helmet";
-            helmetNode.Position = new Vector3(2, 0, 2);
-
-            ManaMeshSceneNode goldIngot = new ManaMeshSceneNode(Context, new ManaIngot(Context, Colors.White, Vector3.One));
-            goldIngot.Name = "Pirate Gold Ingot";
-            goldIngot.MeshRenderer.Material = pirateGoldMaterial;
-            goldIngot.Position = new Vector3(2, 1.1f, 5);
-            world.Scenes[1].Children[0].AddChild(goldIngot);
-
-            ManaMeshSceneNode steelBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
-            steelBall.Name = "Stainless Steel Ball";
-            steelBall.MeshRenderer.Material = steelMaterial;
-            steelBall.Position = new Vector3(2, 0, 3);
-            world.Scenes[1].Children[0].AddChild(steelBall);
-
-            ManaMeshSceneNode pirateGoldBall = new ManaMeshSceneNode(Context, new ManaSphere(Context, Colors.White, 0.5f));
-            pirateGoldBall.Name = "Pirate Gold Ball";
-            pirateGoldBall.MeshRenderer.Material = pirateGoldMaterial;
-            pirateGoldBall.Position = new Vector3(2, 0, 5);
-            world.Scenes[1].Children[0].AddChild(pirateGoldBall);
-
-            ManaMeshSceneNode brick = new ManaMeshSceneNode(Context, new ManaCube(Context, Colors.White, new Vector3(1.0f, 0.5f, 0.5f)));
-            brick.Name = "Beaten Brick Block";
-            brick.MeshRenderer.Material = brickMaterial;
-            brick.Position = new Vector3(2, 0, 7);
-            world.Scenes[1].Children[0].AddChild(brick);
-
-            ManaMeshSceneNode grassBlock = new ManaMeshSceneNode(Context, new ManaCube(Context, Colors.White, Vector3.One));
-            grassBlock.Name = "Grass Block";
-            grassBlock.MeshRenderer.Material = grassMaterial;
-            grassBlock.Position = new Vector3(2, 0, 9);
-            world.Scenes[1].Children[0].AddChild(grassBlock);
-
-            
-            world.MainCamera.AddDebugCameraRayTest(shapes);
-            world.Update();
+            Context.World.MainCamera.AddDebugCameraRayTest(_shapes);
+            Context.World.Update();
         }
-
-
 
         public override void Update(double deltaTime)
         {
+            // Subclass game logic (runs after loading completes)
         }
 
         protected override void DrawImGui(double deltaTime)
         {            
-            ImGui.SetNextWindowPos(new Vector2(this._Window.Size.X - 200, 15));
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(this._Window.Size.X - 200, 15));
             ImGui.Begin("Mana");
             ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
             ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
             ImGui.End();
-
         }
 
-        protected override void InitializeDockLayout(uint dockspaceId, Vector2 dockspaceSize)
+        protected override void InitializeDockLayout(uint dockspaceId, System.Numerics.Vector2 dockspaceSize)
         {
             var utilityRatio = dockspaceSize.X > 0.0f
                 ? Math.Clamp(360.0f / dockspaceSize.X, 0.20f, 0.34f)
@@ -143,17 +206,9 @@ namespace Mana.Code
             ImGuiDockNative.DockBuilderFinish(dockspaceId);
         }
 
-        public override void Render(double deltaTime)
-        {
-            base.Render(deltaTime);
-        }
-
         public override void Closing()
         {
             base.Closing();
         }
-
-
-
     }
 }

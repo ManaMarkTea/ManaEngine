@@ -1,4 +1,4 @@
-﻿using Silk.NET.Assimp;
+using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 
 namespace Mana.Code
@@ -33,6 +33,10 @@ namespace Mana.Code
 
         public ManaVertexBufferObject CreateVertexBufferObject(ManaContext context, BufferUsageARB usageHint = BufferUsageARB.StaticDraw)
         {
+            if (context.DeferGpuUploads)
+            {
+                return null!;
+            }
             var meshData = CreateCpuData();
             var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData, usageHint);
             if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
