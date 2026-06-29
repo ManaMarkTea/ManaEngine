@@ -67,7 +67,7 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnostic("WebGPU window Load.");
                 _input = _window.CreateInput();
                 _inputReady?.Invoke(_window, _input);
-                _webGpu = new ManaWebGpuContext(_window, _requestedBackend, _renderSceneProvider);
+                _webGpu = new ManaWebGpuContext(_window, _input, _requestedBackend, _renderSceneProvider);
                 _webGpuReady?.Invoke(_webGpu, _input);
                 ManaConsole.WriteDiagnostic("WebGPU context loaded.");
             }

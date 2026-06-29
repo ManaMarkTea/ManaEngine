@@ -11,6 +11,7 @@ namespace Mana.Code.Graphics
 
         public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.OpenGL;
         public uint IndexCount => (uint)VertexBufferObject.indexes.Length;
+        public uint VertexCount => (uint)VertexBufferObject.positions.Length;
         public ManaVertexBufferObject VertexBufferObject { get; }
 
         public void Draw()

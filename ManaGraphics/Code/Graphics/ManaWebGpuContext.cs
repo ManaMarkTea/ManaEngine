@@ -20,6 +20,7 @@ namespace ManaGraphics.Code.Graphics
 
         private readonly WebGPU _api;
         private readonly IWindow _window;
+        private readonly IInputContext? _input;
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
         private readonly RequestAdapterCallback _requestAdapterCallback;
         private readonly RequestDeviceCallback _requestDeviceCallback;
@@ -63,9 +64,10 @@ namespace ManaGraphics.Code.Graphics
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
 
-        public ManaWebGpuContext(IWindow window, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
+        public ManaWebGpuContext(IWindow window, IInputContext? input, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
         {
             _window = window;
+            _input = input;
             _renderSceneProvider = renderSceneProvider;
             _requestedBackend = requestedBackend;
 

@@ -19,12 +19,16 @@ namespace ManaVoxel.Code.UI
         private Vector2 _resizeStartMouse;
         private Vector2 _resizeStartPosition;
         private Vector2 _resizeStartSize;
+        private bool _wasOpen;
 
         public void Draw(
             VoxelEditorViewModel viewModel,
             ManaContext context,
             ManaWebGpuContext? webGpuContext)
         {
+            var justOpened = viewModel.ShowAboutWindow && !_wasOpen;
+            _wasOpen = viewModel.ShowAboutWindow;
+
             if (!viewModel.ShowAboutWindow)
             {
                 _resizingFromTop = false;
@@ -79,6 +83,11 @@ namespace ManaVoxel.Code.UI
                 }
             }
 
+            if (justOpened && _diagnosticsProvider != null)
+            {
+                _snapshot = _diagnosticsProvider.RefreshLiveDiagnosticsSnapshot();
+            }
+
             if (ImGui.Button("Refresh live values") && _diagnosticsProvider != null)
             {
                 _snapshot = _diagnosticsProvider.RefreshLiveDiagnosticsSnapshot();
@@ -102,7 +111,8 @@ namespace ManaVoxel.Code.UI
             {
                 var section = _snapshot.Sections[sectionIndex];
                 var defaultOpen = section.Name is "Graphics Adapter" or "Video Memory" or
-                    "Display and Rendering" or "Common Graphics Limits";
+                    "Display and Rendering" or "Common Graphics Limits" or
+                    "Input and Timing" or "Environment" or "Resources";
                 var flags = defaultOpen ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None;
                 var sectionScope = GetExclusiveSectionScope(section);
                 if (sectionScope != ManaGraphicsDiagnosticScope.Common)

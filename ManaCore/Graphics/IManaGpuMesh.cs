@@ -4,5 +4,6 @@ namespace ManaCore.Graphics
     {
         ManaGraphicsBackendKind Backend { get; }
         uint IndexCount { get; }
+        uint VertexCount { get; }
     }
 }

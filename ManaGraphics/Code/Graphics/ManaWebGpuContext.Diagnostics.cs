@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Linq;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
@@ -79,23 +80,28 @@ namespace ManaGraphics.Code.Graphics
                     new ManaGraphicsDiagnosticEntry("Surface configured", FormatBoolean(_configured), ManaGraphicsDiagnosticScope.WebGpu),
                     new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(_demoPipelineLayout != null), ManaGraphicsDiagnosticScope.WebGpu),
                     new ManaGraphicsDiagnosticEntry("Scene capture", FormatBoolean(UseSceneCapture), ManaGraphicsDiagnosticScope.WebGpu)));
-                sections.Add(CreateSection(
-                    "Environment",
-                    ("Source", environmentSource.SourceKind.ToString()),
-                    ("Projection", environmentSource.Projection.ToString()),
-                    ("Environment cube", $"{environmentSource.EnvironmentCubeSize} px"),
-                    ("Irradiance cube", $"{environmentSource.IrradianceCubeSize} px"),
-                    ("Prefilter cube", $"{environmentSource.PrefilterCubeSize} px"),
-                    ("BRDF LUT", $"{environmentSource.BrdfLutSize} px"),
-                    ("Capture refresh", $"{environmentSource.SceneCaptureRefreshIntervalFrames} frames"),
-                    ("Environment map ready", FormatBoolean(_environmentReflectionMap != null))));
-                sections.Add(CreateSection(
-                    "Resources",
-                    ("Scene meshes", _sceneMeshes.Count.ToString("N0")),
-                    ("Mesh textures", _meshTextureCache.Count.ToString("N0")),
-                    ("Shader modules", _shaderModules.Count.ToString("N0")),
-                    ("Render pipelines", _pipelines.Count.ToString("N0")),
-                    ("ImGui initialized", FormatBoolean(_imGuiController != null))));
+                sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateInputAndTiming(
+                    targetFrameRate: $"{_window.FramesPerSecond:0.##} Hz",
+                    targetUpdateRate: $"{_window.UpdatesPerSecond:0.##} Hz",
+                    keyboards: _input?.Keyboards.Count.ToString("N0") ?? "Unavailable",
+                    mice: _input?.Mice.Count.ToString("N0") ?? "Unavailable",
+                    gamepads: _input?.Gamepads.Count.ToString("N0") ?? "Unavailable",
+                    joysticks: _input?.Joysticks.Count.ToString("N0") ?? "Unavailable"));
+                sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateEnvironment(
+                    environmentSource,
+                    _environmentReflectionMap != null));
+
+                var totalWebGpuPolygons = (_sceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
+                var totalWebGpuVertices = _sceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
+
+                sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
+                    sceneMeshes: _sceneMeshes.Count.ToString("N0"),
+                    meshTextures: _meshTextureCache.Count.ToString("N0"),
+                    shaders: _shaderModules.Count.ToString("N0"),
+                    pipelines: _pipelines.Count.ToString("N0"),
+                    totalPolygons: totalWebGpuPolygons,
+                    totalVertices: totalWebGpuVertices,
+                    imguiInitialized: FormatBoolean(_imGuiController != null)));
 
                 return new ManaGraphicsDiagnosticsSnapshot(DateTimeOffset.Now, sections);
             }
@@ -468,6 +474,16 @@ namespace ManaGraphics.Code.Graphics
             return value == uint.MaxValue
                 ? "Undefined / not reported"
                 : value.ToString("N0");
+        }
+
+        private static string FormatLimitBytes(ulong value)
+        {
+            return FormatBytes(value);
+        }
+
+        private static SupportedLimits CreateSupportedLimitsQuery()
+        {
+            return new SupportedLimits();
         }
 
         private static void LogVideoMemoryDiagnostics(AdapterProperties properties)

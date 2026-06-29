@@ -9,19 +9,22 @@ namespace ManaGraphics.Code.Graphics
     {
         public const ulong VertexStride = (ulong)(sizeof(float) * (3 + 3 + 4 + 2));
 
+
         private readonly WebGPU _api;
         private Silk.NET.WebGPU.Buffer* _vertexBuffer;
         private Silk.NET.WebGPU.Buffer* _indexBuffer;
 
         public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.WebGpu;
         public uint IndexCount { get; }
+        public uint VertexCount { get; }
 
-        private ManaWebGpuMesh(WebGPU api, Silk.NET.WebGPU.Buffer* vertexBuffer, Silk.NET.WebGPU.Buffer* indexBuffer, uint indexCount)
+        private ManaWebGpuMesh(WebGPU api, Silk.NET.WebGPU.Buffer* vertexBuffer, Silk.NET.WebGPU.Buffer* indexBuffer, uint indexCount, uint vertexCount)
         {
             _api = api;
             _vertexBuffer = vertexBuffer;
             _indexBuffer = indexBuffer;
             IndexCount = indexCount;
+            VertexCount = vertexCount;
         }
 
         public static ManaWebGpuMesh CreateFromMeshData(WebGPU api, Device* device, Queue* queue, ManaMeshCpuData meshData, string meshName)
@@ -75,7 +78,7 @@ namespace ManaGraphics.Code.Graphics
                 api.QueueWriteBuffer(queue, indexBuffer, 0, indexPointer, (nuint)indexBufferDescriptor.Size);
             }
 
-            return new ManaWebGpuMesh(api, vertexBuffer, indexBuffer, (uint)meshData.Indexes.Length);
+            return new ManaWebGpuMesh(api, vertexBuffer, indexBuffer, (uint)meshData.Indexes.Length, (uint)meshData.Positions.Length);
         }
 
         public void Draw(RenderPassEncoder* renderPass)

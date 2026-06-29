@@ -229,6 +229,72 @@ namespace ManaCore.Graphics
             return new ManaGraphicsDiagnosticSection("Common Graphics Limits", entries);
         }
 
+        public static ManaGraphicsDiagnosticSection CreateInputAndTiming(
+            string targetFrameRate,
+            string targetUpdateRate,
+            string keyboards,
+            string mice,
+            string gamepads,
+            string joysticks,
+            params ManaGraphicsDiagnosticEntry[] additionalEntries)
+        {
+            var entries = new List<ManaGraphicsDiagnosticEntry>
+            {
+                new("Target frame rate", targetFrameRate),
+                new("Target update rate", targetUpdateRate),
+                new("Keyboards", keyboards),
+                new("Mice", mice),
+                new("Gamepads", gamepads),
+                new("Joysticks", joysticks)
+            };
+            entries.AddRange(additionalEntries);
+            return new ManaGraphicsDiagnosticSection("Input and Timing", entries);
+        }
+
+        public static ManaGraphicsDiagnosticSection CreateEnvironment(
+            ManaEnvironmentReflectionSource source,
+            bool isMapReady,
+            params ManaGraphicsDiagnosticEntry[] additionalEntries)
+        {
+            var entries = new List<ManaGraphicsDiagnosticEntry>
+            {
+                new("Source", source.SourceKind.ToString()),
+                new("Projection", source.Projection.ToString()),
+                new("Environment cube", $"{source.EnvironmentCubeSize} px"),
+                new("Irradiance cube", $"{source.IrradianceCubeSize} px"),
+                new("Prefilter cube", $"{source.PrefilterCubeSize} px"),
+                new("BRDF LUT", $"{source.BrdfLutSize} px"),
+                new("Capture refresh", $"{source.SceneCaptureRefreshIntervalFrames} frames"),
+                new("Environment map ready", isMapReady ? "Yes" : "No")
+            };
+            entries.AddRange(additionalEntries);
+            return new ManaGraphicsDiagnosticSection("Environment", entries);
+        }
+
+        public static ManaGraphicsDiagnosticSection CreateResources(
+            string sceneMeshes,
+            string meshTextures,
+            string shaders,
+            string pipelines,
+            string totalPolygons,
+            string totalVertices,
+            string imguiInitialized,
+            params ManaGraphicsDiagnosticEntry[] additionalEntries)
+        {
+            var entries = new List<ManaGraphicsDiagnosticEntry>
+            {
+                new("Scene meshes", sceneMeshes),
+                new("Mesh textures", meshTextures),
+                new("Shader modules / programs", shaders),
+                new("Render pipelines", pipelines),
+                new("Total polygons", totalPolygons),
+                new("Total vertices", totalVertices),
+                new("ImGui initialized", imguiInitialized)
+            };
+            entries.AddRange(additionalEntries);
+            return new ManaGraphicsDiagnosticSection("Resources", entries);
+        }
+
         private static ManaGraphicsDiagnosticSection Create(
             string name,
             params (string Label, string Value)[] entries)

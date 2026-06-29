@@ -1,6 +1,10 @@
 using System.Runtime.InteropServices;
+using System.Linq;
 using ManaCore.Graphics;
 using Silk.NET.OpenGL;
+using Mana.Code.Renderers;
+using Mana.Code.Nodes;
+using Mana.Code.Components;
 
 namespace Mana.Code.Graphics
 {
@@ -58,14 +62,51 @@ namespace Mana.Code.Graphics
                 sections.Add(CaptureSection(
                     "Display and Rendering",
                     () => CreateFramebufferSection(gl, context)));
-                sections.Add(CreateSection(
-                    "Input and Timing",
-                    ("Target frame rate", $"{context.Window.FramesPerSecond:0.##} Hz"),
-                    ("Target update rate", $"{context.Window.UpdatesPerSecond:0.##} Hz"),
-                    ("Keyboards", context.Input.Keyboards.Count.ToString("N0")),
-                    ("Mice", context.Input.Mice.Count.ToString("N0")),
-                    ("Gamepads", context.Input.Gamepads.Count.ToString("N0")),
-                    ("Joysticks", context.Input.Joysticks.Count.ToString("N0"))));
+                sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateInputAndTiming(
+                    targetFrameRate: $"{context.Window.FramesPerSecond:0.##} Hz",
+                    targetUpdateRate: $"{context.Window.UpdatesPerSecond:0.##} Hz",
+                    keyboards: context.Input.Keyboards.Count.ToString("N0"),
+                    mice: context.Input.Mice.Count.ToString("N0"),
+                    gamepads: context.Input.Gamepads.Count.ToString("N0"),
+                    joysticks: context.Input.Joysticks.Count.ToString("N0")));
+
+                var irradianceRenderer = context.World.Renderer as ManaIrradianceRenderer;
+                var environmentSource = context.World.EnvironmentReflectionSource;
+                if (environmentSource != null)
+                {
+                    sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateEnvironment(
+                        environmentSource,
+                        irradianceRenderer?.EnvironmentReflectionMap != null));
+                }
+
+                var renderableMeshes = new List<ManaRenderMeshInstance>();
+                var textures = new HashSet<uint>();
+                var shaders = new HashSet<int>();
+
+                if (context.World != null)
+                {
+                    foreach (var scene in context.World.Scenes)
+                    {
+                        scene.CollectRenderMeshInstances(renderableMeshes);
+                        foreach (var node in scene.Children)
+                        {
+                            CollectUniqueRenderResources(node, textures, shaders);
+                        }
+                    }
+                }
+
+                var totalOpenGlPolygons = (renderableMeshes.Sum(m => (long)m.MeshData.Indexes.Length) / 3).ToString("N0");
+                var totalOpenGlVertices = renderableMeshes.Sum(m => (long)m.MeshData.Positions.Length).ToString("N0");
+
+                sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
+                    sceneMeshes: renderableMeshes.Count.ToString("N0"),
+                    meshTextures: textures.Count.ToString("N0"),
+                    shaders: shaders.Count.ToString("N0"),
+                    pipelines: "N/A (OpenGL uses program-state)",
+                    totalPolygons: totalOpenGlPolygons,
+                    totalVertices: totalOpenGlVertices,
+                    imguiInitialized: (context.GameMode._ImGui != null ? "Yes" : "No")));
+
                 sections.Add(CreateSection(
                     "Extensions",
                     ("Count", extensions.Count.ToString("N0")),
@@ -95,20 +136,22 @@ namespace Mana.Code.Graphics
             }
 
             var liveSnapshot = CaptureSnapshotCore();
-            var liveMemorySection = liveSnapshot.Sections.FirstOrDefault(
-                section => section.Name == "Video Memory");
-            if (liveMemorySection == null)
-            {
-                return DiagnosticsSnapshot;
-            }
-
             var mergedSections = DiagnosticsSnapshot.Sections
-                .Select(section => section.Name == "Video Memory" ? liveMemorySection : section)
+                .Select(section =>
+                {
+                    var liveSection = liveSnapshot.Sections.FirstOrDefault(ls => ls.Name == section.Name);
+                    if (liveSection != null && (section.Name is "Video Memory" or "Resources" or "Input and Timing" or "Environment"))
+                    {
+                        return liveSection;
+                    }
+                    return section;
+                })
                 .ToArray();
+
             DiagnosticsSnapshot = new ManaGraphicsDiagnosticsSnapshot(
                 liveSnapshot.CapturedAt,
                 mergedSections,
-                "Pre-ImGui capabilities/state with refreshed live memory");
+                "Pre-ImGui capabilities/state with refreshed live resources, memory, and timing");
             return DiagnosticsSnapshot;
         }
 
@@ -404,6 +447,38 @@ namespace Mana.Code.Graphics
             var values = stackalloc int[4];
             gl.GetInteger((GLEnum)name, values);
             return new AtiMemoryInfo(values[0], values[1]);
+        }
+
+        private static void CollectUniqueRenderResources(
+            ManaSceneNode node,
+            HashSet<uint> textures,
+            HashSet<int> shaders)
+        {
+            if (node == null) return;
+
+            foreach (var component in node.Components)
+            {
+                if (component is MeshRendererComponent renderer && renderer.Material != null)
+                {
+                    var material = renderer.Material;
+                    if (material.Albedo != null && material.Albedo.Handle != 0) textures.Add(material.Albedo.Handle);
+                    if (material.Normal != null && material.Normal.Handle != 0) textures.Add(material.Normal.Handle);
+                    if (material.Emission != null && material.Emission.Handle != 0) textures.Add(material.Emission.Handle);
+                    if (material.Metallic != null && material.Metallic.Handle != 0) textures.Add(material.Metallic.Handle);
+                    if (material.Roughness != null && material.Roughness.Handle != 0) textures.Add(material.Roughness.Handle);
+                    if (material.Ambient != null && material.Ambient.Handle != 0) textures.Add(material.Ambient.Handle);
+
+                    if (material.Shader?.CompiledShader != null)
+                    {
+                        shaders.Add(material.Shader.CompiledShader.GetHashCode());
+                    }
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                CollectUniqueRenderResources(child, textures, shaders);
+            }
         }
 
         private static string DescribeProfile(int profileMask)
