@@ -61,7 +61,8 @@ namespace ManaGraphics.Code.Graphics
             var iniPath = ManaImGuiSettingsStorage.IniFilePath;
             _iniFilename = Marshal.StringToHGlobalAnsi(iniPath);
             io.NativePtr->IniFilename = (byte*)_iniFilename;
-            io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
+            io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset |
+                ImGuiBackendFlags.HasMouseCursors;
             io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
             io.DisplaySize = new Vector2(_window.Size.X, _window.Size.Y);
             if (File.Exists(iniPath))
@@ -487,6 +488,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             var mouse = _input.Mice.FirstOrDefault();
             if (mouse != null)
             {
+                UpdateMouseCursor(mouse, io);
                 io.MousePos = new Vector2(mouse.Position.X, mouse.Position.Y);
                 io.MouseDown[0] = mouse.IsButtonPressed(MouseButton.Left);
                 io.MouseDown[1] = mouse.IsButtonPressed(MouseButton.Right);
@@ -494,6 +496,58 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             }
 
             ImGui.NewFrame();
+        }
+
+        private static void UpdateMouseCursor(IMouse mouse, ImGuiIOPtr io)
+        {
+            if ((io.ConfigFlags & ImGuiConfigFlags.NoMouseCursorChange) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                var imguiCursor = ImGui.GetMouseCursor();
+                if (io.MouseDrawCursor || imguiCursor == ImGuiMouseCursor.None)
+                {
+                    if (mouse.Cursor.IsSupported(CursorMode.Hidden))
+                    {
+                        mouse.Cursor.CursorMode = CursorMode.Hidden;
+                    }
+
+                    return;
+                }
+
+                if (mouse.Cursor.IsSupported(CursorMode.Normal))
+                {
+                    mouse.Cursor.CursorMode = CursorMode.Normal;
+                }
+
+                var standardCursor = imguiCursor switch
+                {
+                    ImGuiMouseCursor.TextInput => StandardCursor.IBeam,
+                    ImGuiMouseCursor.ResizeAll => StandardCursor.ResizeAll,
+                    ImGuiMouseCursor.ResizeNS => StandardCursor.VResize,
+                    ImGuiMouseCursor.ResizeEW => StandardCursor.HResize,
+                    ImGuiMouseCursor.ResizeNESW => StandardCursor.NeswResize,
+                    ImGuiMouseCursor.ResizeNWSE => StandardCursor.NwseResize,
+                    ImGuiMouseCursor.Hand => StandardCursor.Hand,
+                    ImGuiMouseCursor.NotAllowed => StandardCursor.NotAllowed,
+                    _ => StandardCursor.Arrow
+                };
+
+                if (!mouse.Cursor.IsSupported(standardCursor))
+                {
+                    standardCursor = StandardCursor.Arrow;
+                }
+
+                mouse.Cursor.Type = CursorType.Standard;
+                mouse.Cursor.StandardCursor = standardCursor;
+            }
+            catch
+            {
+                // Cursor changes are cosmetic and must never interrupt rendering.
+            }
         }
 
         public void Render()

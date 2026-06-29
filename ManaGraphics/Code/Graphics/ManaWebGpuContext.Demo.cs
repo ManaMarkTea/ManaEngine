@@ -1,0 +1,200 @@
+using System.Runtime.InteropServices;
+using System.Numerics;
+using System.Text;
+using ManaGraphics.Code.Diagnostics;
+using ManaCore.Graphics;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using Silk.NET.Maths;
+using Silk.NET.WebGPU;
+using Silk.NET.WebGPU.Extensions.WGPU;
+using Silk.NET.Windowing;
+using Silk.NET.Input;
+using ImageSharpImage = SixLabors.ImageSharp.Image;
+
+namespace ManaGraphics.Code.Graphics
+{
+    public unsafe sealed partial class ManaWebGpuContext : IDisposable
+    {
+        private void CreateDemoMeshPipeline()
+        {
+            ManaConsole.WriteDiagnostic("Creating WebGPU mesh pipeline.");
+
+            var renderScene = _renderSceneProvider?.Invoke() ?? CreateDemoRenderScene();
+            if (renderScene.Meshes.Count == 0)
+            {
+                throw new InvalidOperationException("WebGPU render scene did not contain any mesh instances.");
+            }
+
+            _activeRenderScene = renderScene;
+            CreateSharedPipelineLayouts();
+            CreateHdrPostProcessor();
+            
+            // Pre-compile default pipeline
+            GetOrCreatePipeline("ManaPbrShader");
+            
+            ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
+            UploadSceneMeshes(renderScene);
+        }
+
+        private static ManaRenderScene CreateDemoRenderScene()
+        {
+            var meshData = CreateDemoMeshData();
+            var worldTransform = CreateNormalizedWorldTransform(meshData);
+
+            return new ManaRenderScene
+            {
+                Camera = new ManaCameraData(
+                    Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.55f, 4.25f), new Vector3(0.0f, 0.1f, 0.0f), Vector3.UnitY),
+                    Matrix4x4.CreatePerspectiveFieldOfView(DegreesToRadians(55.0f), 16.0f / 9.0f, 0.05f, 100.0f),
+                    new Vector3(0.0f, 0.55f, 4.25f),
+                    0.05f,
+                    100.0f),
+                Meshes = new[]
+                {
+                    new ManaRenderMeshInstance
+                    {
+                        Name = "WebGPU Core Demo Cube",
+                        MeshData = meshData,
+                        WorldTransform = worldTransform
+                    }
+                }
+            };
+        }
+
+        private static ManaMeshCpuData CreateDemoMeshData()
+        {
+            var positions = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var colors = new List<Vector4>();
+            var texCoords = new List<Vector2>();
+            var indexes = new List<uint>();
+
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, 0, 1), new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector4(0.12f, 0.95f, 1.0f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, 0, -1), new Vector3(-1, 0, 0), new Vector3(0, 1, 0), new Vector4(0.25f, 0.55f, 1.0f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(1, 0, 0), new Vector3(0, 0, -1), new Vector3(0, 1, 0), new Vector4(0.95f, 0.35f, 0.22f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(-1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector4(0.95f, 0.8f, 0.22f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, 1, 0), new Vector3(1, 0, 0), new Vector3(0, 0, -1), new Vector4(0.65f, 1.0f, 0.3f, 1.0f));
+            AddCubeFace(positions, normals, colors, texCoords, indexes, new Vector3(0, -1, 0), new Vector3(1, 0, 0), new Vector3(0, 0, 1), new Vector4(0.9f, 0.45f, 1.0f, 1.0f));
+
+            return new ManaMeshCpuData
+            {
+                Positions = positions.ToArray(),
+                Normals = normals.ToArray(),
+                Colors = colors.ToArray(),
+                TextureCoordinates0 = texCoords.ToArray(),
+                TextureCoordinates1 = Array.Empty<Vector2>(),
+                Indexes = indexes.ToArray(),
+                AlbedoFactor = Vector4.One,
+                AlbedoTexturePath = null
+            };
+        }
+
+        private static void AddCubeFace(
+            List<Vector3> positions,
+            List<Vector3> normals,
+            List<Vector4> colors,
+            List<Vector2> texCoords,
+            List<uint> indexes,
+            Vector3 normal,
+            Vector3 tangent,
+            Vector3 bitangent,
+            Vector4 color)
+        {
+            var start = (uint)positions.Count;
+            var center = normal * 0.5f;
+            var halfTangent = tangent * 0.5f;
+            var halfBitangent = bitangent * 0.5f;
+
+            positions.Add(center - halfTangent - halfBitangent);
+            positions.Add(center + halfTangent - halfBitangent);
+            positions.Add(center + halfTangent + halfBitangent);
+            positions.Add(center - halfTangent + halfBitangent);
+
+            for (var i = 0; i < 4; i++)
+            {
+                normals.Add(normal);
+                colors.Add(color);
+            }
+
+            texCoords.Add(new Vector2(0, 1));
+            texCoords.Add(new Vector2(1, 1));
+            texCoords.Add(new Vector2(1, 0));
+            texCoords.Add(new Vector2(0, 0));
+
+            indexes.Add(start);
+            indexes.Add(start + 1);
+            indexes.Add(start + 2);
+            indexes.Add(start);
+            indexes.Add(start + 2);
+            indexes.Add(start + 3);
+        }
+
+        private static string ResolveAssetPath(string relativePath)
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, relativePath),
+                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
+                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
+                Path.Combine(AppContext.BaseDirectory, relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            throw new FileNotFoundException($"Could not locate asset file '{relativePath}'.");
+        }
+
+        private void DrawDemoMesh(RenderPassEncoder* renderPass)
+        {
+            if (_sceneMeshes.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var sceneMesh in _sceneMeshes)
+            {
+                UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
+                
+                var pipeline = GetOrCreatePipeline(sceneMesh.Instance.ShaderName, sceneMesh.Instance.IsTransparent, sceneMesh.Instance.DisableDepthWrite);
+                if (pipeline != null)
+                {
+                    _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+                }
+
+                if (sceneMesh.BindGroup != null)
+                {
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+                }
+                sceneMesh.Mesh.Draw(renderPass);
+            }
+        }
+
+        private void CreateHdrPostProcessor()
+        {
+            if (_hdrPostProcessor != null)
+            {
+                return;
+            }
+
+            var shaderPath = ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "hdr_tonemap.wgsl"));
+            _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_api, _device, _surfaceFormat, shaderPath);
+            _hdrPostProcessor.Resize(_framebufferSize);
+        }
+
+        private TextureFormat GetSceneColorFormat()
+        {
+            return _hdrPostProcessor?.SceneFormat ?? _surfaceFormat;
+        }
+
+    }
+}

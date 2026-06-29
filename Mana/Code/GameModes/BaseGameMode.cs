@@ -58,6 +58,7 @@ namespace Mana.Code
 
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
+        public ManaGraphicsDiagnosticsProvider? GraphicsDiagnosticsProvider { get; protected set; }
 
         public ManaCore.Graphics.IManaImGuiController _ImGui = null!;
         public IWindow _Window = null!;
@@ -92,6 +93,8 @@ namespace Mana.Code
             GL.Enable(EnableCap.DepthTest);
 
             _GlDebugger = new GameModeGraphicsLevelDebugger(GL);
+            GraphicsDiagnosticsProvider = new ManaOpenGlDiagnosticsProvider(Context);
+            GraphicsDiagnosticsProvider.CaptureInitializationSnapshot();
             _ImGui = new Mana.Code.Graphics.ManaOpenGlImGuiController(GL, _Window, input);
             var io = ImGui.GetIO();
             io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;

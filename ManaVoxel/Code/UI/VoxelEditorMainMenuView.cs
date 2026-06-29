@@ -71,6 +71,13 @@ namespace ManaVoxel.Code.UI
 
                 ImGui.Separator();
                 DrawFontMenu(uiHost);
+
+                ImGui.Separator();
+                if (ImGui.MenuItem("About", string.Empty, viewModel.ShowAboutWindow))
+                {
+                    viewModel.ShowAboutWindow = !viewModel.ShowAboutWindow;
+                }
+
                 ImGui.EndMenu();
             }
 

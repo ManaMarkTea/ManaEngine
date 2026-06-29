@@ -22,6 +22,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelEditorMainMenuView _mainMenuView = new();
         private readonly VoxelToolPaletteView _toolPaletteView = new();
         private readonly VoxelEditorPanelsView _panelsView = new();
+        private readonly VoxelEditorAboutPanelView _aboutPanelView = new();
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
@@ -29,6 +30,7 @@ namespace Mana.Code.GameModes
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
         private ManaSceneNode? _liquidBall;
+        private ManaWebGpuContext? _webGpuContext;
 
         public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
@@ -62,6 +64,7 @@ namespace Mana.Code.GameModes
                 },
                 (webGpuContext, input) =>
                 {
+                    _webGpuContext = webGpuContext;
                     _ImGui = webGpuContext.CreateImGuiController(input);
                     var io = ImGuiNET.ImGui.GetIO();
                     io.ConfigFlags |= ImGuiNET.ImGuiConfigFlags.DockingEnable;
@@ -372,6 +375,8 @@ namespace Mana.Code.GameModes
                 ImGui.ShowDemoWindow(ref showDemo);
                 _viewModel.ShowImGuiDemoWindow = showDemo;
             }
+
+            _aboutPanelView.Draw(_viewModel, Context, _webGpuContext);
         }
 
         private void UpdateVoxelPointerInteraction(bool inputCaptured)
