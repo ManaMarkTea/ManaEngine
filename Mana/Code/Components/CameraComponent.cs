@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 
@@ -510,7 +511,7 @@ namespace Mana
 
         private Vector2D<int> GetProjectionViewportSize()
         {
-            if (Context.GraphicsBackend == ManaCore.Graphics.ManaGraphicsBackendKind.WebGpu &&
+            if (Context.GraphicsBackend == ManaGraphicsBackendKind.WebGpu &&
                 Context.Window.FramebufferSize.X > 0 &&
                 Context.Window.FramebufferSize.Y > 0)
             {
@@ -522,7 +523,7 @@ namespace Mana
 
         private Vector3 ConvertMousePositionForProjection(Vector3 mousePosition)
         {
-            if (Context.GraphicsBackend != ManaCore.Graphics.ManaGraphicsBackendKind.WebGpu)
+            if (Context.GraphicsBackend != ManaGraphicsBackendKind.WebGpu)
             {
                 return mousePosition;
             }

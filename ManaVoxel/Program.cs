@@ -22,9 +22,7 @@ namespace Mana
             try
             {
                 var launchOptions = ManaLaunchOptions.Parse(args);
-                var backendKind = launchOptions.GraphicsBackend == ManaGraphicsBackend.WebGpu
-                    ? ManaGraphicsBackendKind.WebGpu
-                    : ManaGraphicsBackendKind.OpenGL;
+                var backendKind = launchOptions.GraphicsBackend;
                 var game = new VoxelEditorGameMode(backendKind);
 
                 if (backendKind == ManaGraphicsBackendKind.WebGpu)

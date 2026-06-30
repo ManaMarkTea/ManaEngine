@@ -4,11 +4,13 @@ using Mana.Code.ManaShaders;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Silk.NET.OpenGL;
+using Mana;
 
 namespace Mana.Code.UI
 {
     public sealed class SceneInspectorPanelView
     {
+
         private static readonly HashSet<string> AutomaticUniformNames = new(StringComparer.OrdinalIgnoreCase)
         {
             "gWVP",
@@ -68,16 +70,35 @@ namespace Mana.Code.UI
             this.selectionState = selectionState;
         }
 
-        public void Draw()
+        public void Draw(ImFontPtr inspectorFont)
         {
             if (BaseGameMode.UtilityDockId != 0)
             {
                 ImGui.SetNextWindowDockID(BaseGameMode.UtilityDockId, ImGuiCond.Always);
             }
 
-            ImGui.Begin("Inspector");
-            DrawSelectionInspector();
-            ImGui.End();
+            var useInspectorFont = !inspectorFont.Equals(default(ImFontPtr));
+            if (useInspectorFont)
+            {
+                ImGui.PushFont(inspectorFont);
+            }
+
+            var visible = ImGui.Begin("Inspector");
+            try
+            {
+                if (visible)
+                {
+                    DrawSelectionInspector();
+                }
+            }
+            finally
+            {
+                ImGui.End();
+                if (useInspectorFont)
+                {
+                    ImGui.PopFont();
+                }
+            }
         }
 
         private void DrawSelectionInspector()
@@ -96,13 +117,24 @@ namespace Mana.Code.UI
         private void DrawSelectedNodeInspector(ManaSceneNode node)
         {
             var nodeName = node.Name;
-            if (ImGui.InputText("Name", ref nodeName, 160))
+            if (BeginPropertyTable("NodeProperties"))
             {
-                node.Name = nodeName;
+                if (DrawInputTextProperty("Name", ref nodeName, 160))
+                {
+                    node.Name = nodeName;
+                }
+
+                DrawReadOnlyProperty("Type", node.GetType().Name);
+                ImGui.EndTable();
             }
 
-            ImGui.TextUnformatted($"Type: {node.GetType().Name}");
+            ImGui.SeparatorText("Transform");
             DrawTransformEditor(node);
+
+            if (node is ManaVoxelsNode voxelsNode)
+            {
+                DrawVoxelsNodeInspector(voxelsNode);
+            }
 
             if (node.Components.Count == 0)
             {
@@ -125,13 +157,18 @@ namespace Mana.Code.UI
             var scale = node.Scale;
             var changed = false;
 
-            if (ImGui.InputFloat3("Position", ref position))
+            if (!BeginPropertyTable("TransformProperties"))
+            {
+                return;
+            }
+
+            if (DrawVector3Property("Position", ref position))
             {
                 node.Position = position;
                 changed = true;
             }
 
-            if (ImGui.InputFloat3("Rotation", ref rotationDegrees))
+            if (DrawVector3Property("Rotation", ref rotationDegrees))
             {
                 node.Rotation = new Vector3(
                     rotationDegrees.X.ToRadians(),
@@ -140,11 +177,13 @@ namespace Mana.Code.UI
                 changed = true;
             }
 
-            if (ImGui.InputFloat3("Scale", ref scale))
+            if (DrawVector3Property("Scale", ref scale))
             {
                 node.Scale = scale;
                 changed = true;
             }
+
+            ImGui.EndTable();
 
             if (changed)
             {
@@ -176,7 +215,12 @@ namespace Mana.Code.UI
                 return;
             }
 
-            ImGui.TextUnformatted($"Mesh: {meshRenderer.Mesh.GetType().Name}");
+            if (BeginPropertyTable("MeshRendererProperties"))
+            {
+                DrawReadOnlyProperty("Mesh", meshRenderer.Mesh.GetType().Name);
+                ImGui.EndTable();
+            }
+
             DrawPrimitiveMeshInspector(meshRenderer.Mesh);
             DrawMaterialInspector(meshRenderer.Material);
             ImGui.TreePop();
@@ -195,26 +239,31 @@ namespace Mana.Code.UI
             }
 
             var changed = false;
-            switch (mesh)
+            if (BeginPropertyTable("PrimitiveProperties"))
             {
-                case ManaTorus torus:
-                    changed |= DrawTorusInspector(torus);
-                    break;
-                case ManaSphere sphere:
-                    changed |= DrawSphereInspector(sphere);
-                    break;
-                case ManaIsoSphere isoSphere:
-                    changed |= DrawIsoSphereInspector(isoSphere);
-                    break;
-                case ManaIcosahedron icosahedron:
-                    changed |= DrawRadiusInspector(icosahedron);
-                    break;
-                case ManaCube cube:
-                    changed |= DrawCubeInspector(cube);
-                    break;
-                case ManaPyramid pyramid:
-                    changed |= DrawPyramidInspector(pyramid);
-                    break;
+                switch (mesh)
+                {
+                    case ManaTorus torus:
+                        changed |= DrawTorusInspector(torus);
+                        break;
+                    case ManaSphere sphere:
+                        changed |= DrawSphereInspector(sphere);
+                        break;
+                    case ManaIsoSphere isoSphere:
+                        changed |= DrawIsoSphereInspector(isoSphere);
+                        break;
+                    case ManaIcosahedron icosahedron:
+                        changed |= DrawRadiusInspector(icosahedron);
+                        break;
+                    case ManaCube cube:
+                        changed |= DrawCubeInspector(cube);
+                        break;
+                    case ManaPyramid pyramid:
+                        changed |= DrawPyramidInspector(pyramid);
+                        break;
+                }
+
+                ImGui.EndTable();
             }
 
             if (changed)
@@ -245,20 +294,20 @@ namespace Mana.Code.UI
                 changed = true;
             }
 
-            if (ImGui.SliderInt("Major Segments", ref majorSegments, 3, 192))
+            if (DrawSliderIntProperty("Major Segments", ref majorSegments, 3, 192))
             {
                 torus.MajorSegments = Math.Clamp(majorSegments, 3, 192);
                 changed = true;
             }
 
-            if (ImGui.SliderInt("Minor Segments", ref minorSegments, 3, 96))
+            if (DrawSliderIntProperty("Minor Segments", ref minorSegments, 3, 96))
             {
                 torus.MinorSegments = Math.Clamp(minorSegments, 3, 96);
                 changed = true;
             }
 
-            ImGui.TextUnformatted($"Major Radius: {torus.MajorRadius:0.###}");
-            ImGui.TextUnformatted($"Minor Radius: {torus.MinorRadius:0.###}");
+            DrawReadOnlyProperty("Major Radius", $"{torus.MajorRadius:0.###}");
+            DrawReadOnlyProperty("Minor Radius", $"{torus.MinorRadius:0.###}");
             return changed;
         }
 
@@ -275,13 +324,13 @@ namespace Mana.Code.UI
                 changed = true;
             }
 
-            if (ImGui.SliderInt("Latitude Segments", ref latitudeSegments, 3, 192))
+            if (DrawSliderIntProperty("Latitude Segments", ref latitudeSegments, 3, 192))
             {
                 sphere.LatitudeSegments = Math.Clamp(latitudeSegments, 3, 192);
                 changed = true;
             }
 
-            if (ImGui.SliderInt("Longitude Segments", ref longitudeSegments, 3, 192))
+            if (DrawSliderIntProperty("Longitude Segments", ref longitudeSegments, 3, 192))
             {
                 sphere.LongitudeSegments = Math.Clamp(longitudeSegments, 3, 192);
                 changed = true;
@@ -302,7 +351,7 @@ namespace Mana.Code.UI
                 changed = true;
             }
 
-            if (ImGui.SliderInt("Subdivisions", ref recursionLevel, 0, 5))
+            if (DrawSliderIntProperty("Subdivisions", ref recursionLevel, 0, 5))
             {
                 isoSphere.RecursionLevel = Math.Clamp(recursionLevel, 0, 5);
                 changed = true;
@@ -350,7 +399,7 @@ namespace Mana.Code.UI
         private static bool DrawVector3Inspector(string label, ref Vector3 value, float min)
         {
             var edited = value;
-            if (!ImGui.InputFloat3(label, ref edited))
+            if (!DrawVector3Property(label, ref edited))
             {
                 return false;
             }
@@ -365,7 +414,7 @@ namespace Mana.Code.UI
         private static bool DrawPositiveFloat(string label, ref float value, float min)
         {
             var edited = value;
-            if (!ImGui.InputFloat(label, ref edited))
+            if (!DrawDragFloatProperty(label, ref edited, 0.01f))
             {
                 return false;
             }
@@ -382,28 +431,33 @@ namespace Mana.Code.UI
             }
 
             var materialName = material.Name;
-            if (ImGui.InputText("Material Name", ref materialName, 160))
+            if (BeginPropertyTable("MaterialProperties"))
             {
-                material.Name = materialName;
-            }
+                if (DrawInputTextProperty("Name", ref materialName, 160))
+                {
+                    material.Name = materialName;
+                }
 
-            ImGui.TextUnformatted($"Shader: {material.Shader?.GetType().Name ?? "None"}");
-            DrawColorEditor("Albedo", material.Albedo);
-            DrawColorEditor("Emission", material.Emission);
-            DrawScalarEditor("Metallic", material.Metallic, 0.0f, 1.0f);
-            DrawScalarEditor("Roughness", material.Roughness, 0.0f, 1.0f);
-            DrawScalarEditor("Ambient", material.Ambient, 0.0f, 1.0f);
+                DrawReadOnlyProperty("Shader", material.Shader?.GetType().Name ?? "None");
+                DrawColorEditor("Albedo", material.Albedo);
+                DrawColorEditor("Emission", material.Emission);
+                DrawScalarEditor("Metallic", material.Metallic, 0.0f, 1.0f);
+                DrawScalarEditor("Roughness", material.Roughness, 0.0f, 1.0f);
+                DrawScalarEditor("Ambient", material.Ambient, 0.0f, 1.0f);
 
-            var normalSelector = (float)material.NormalSelector;
-            if (ImGui.SliderFloat("Normal Texture Mix", ref normalSelector, 0.0f, 1.0f))
-            {
-                material.NormalSelector = normalSelector;
-            }
+                var normalSelector = (float)material.NormalSelector;
+                if (DrawSliderFloatProperty("Normal Texture Mix", ref normalSelector, 0.0f, 1.0f))
+                {
+                    material.NormalSelector = normalSelector;
+                }
 
-            var emissionStrength = (float)material.EmissionStrength;
-            if (ImGui.SliderFloat("Emission Strength", ref emissionStrength, 0.0f, 25.0f))
-            {
-                material.EmissionStrength = emissionStrength;
+                var emissionStrength = (float)material.EmissionStrength;
+                if (DrawSliderFloatProperty("Emission Strength", ref emissionStrength, 0.0f, 25.0f))
+                {
+                    material.EmissionStrength = emissionStrength;
+                }
+
+                ImGui.EndTable();
             }
 
             DrawShaderUniformInspector(material);
@@ -435,11 +489,17 @@ namespace Mana.Code.UI
                 .Where(uniform => !IsAutomaticUniform(uniform) && !CanEditUniform(uniform.type))
                 .ToList();
 
-            foreach (var uniform in editableUniforms)
+            var propertyTableOpen = editableUniforms.Count > 0 && BeginPropertyTable("ShaderUniformProperties");
+            if (propertyTableOpen)
             {
-                ImGui.PushID($"uniform_{uniform.name}");
-                DrawEditableUniform(material, uniform);
-                ImGui.PopID();
+                foreach (var uniform in editableUniforms)
+                {
+                    ImGui.PushID($"uniform_{uniform.name}");
+                    DrawEditableUniform(material, uniform);
+                    ImGui.PopID();
+                }
+
+                ImGui.EndTable();
             }
 
             if (editableUniforms.Count == 0)
@@ -484,37 +544,43 @@ namespace Mana.Code.UI
             var hasOverride = material.ShaderUniforms.TryGetValue(uniform.name, out var value);
             value ??= CreateDefaultUniformValue(uniform.type);
             var changed = false;
+            var showReset = hasOverride || material.ShaderUniforms.ContainsKey(uniform.name);
+            var resetWidth = showReset
+                ? ImGui.CalcTextSize("Reset").X + ImGui.GetStyle().FramePadding.X * 2.0f + ImGui.GetStyle().ItemSpacing.X
+                : 0.0f;
+            BeginPropertyRow(uniform.name);
+            ImGui.SetNextItemWidth(showReset ? -resetWidth : -1.0f);
 
             switch (uniform.type)
             {
                 case UniformType.Float:
                     var floatValue = value.FloatValue;
-                    changed = ImGui.DragFloat(uniform.name, ref floatValue, 0.01f);
+                    changed = ImGui.DragFloat("##Value", ref floatValue, 0.01f);
                     value.FloatValue = floatValue;
                     break;
                 case UniformType.FloatVec2:
                     var vector2Value = value.Vector2Value;
-                    changed = ImGui.InputFloat2(uniform.name, ref vector2Value);
+                    changed = ImGui.InputFloat2("##Value", ref vector2Value);
                     value.Vector2Value = vector2Value;
                     break;
                 case UniformType.FloatVec3:
                     var vector3Value = value.Vector3Value;
-                    changed = ImGui.InputFloat3(uniform.name, ref vector3Value);
+                    changed = ImGuiExt.DrawVector3Value(ref vector3Value, resetWidth);
                     value.Vector3Value = vector3Value;
                     break;
                 case UniformType.FloatVec4:
                     var vector4Value = value.Vector4Value;
-                    changed = ImGui.InputFloat4(uniform.name, ref vector4Value);
+                    changed = ImGui.InputFloat4("##Value", ref vector4Value);
                     value.Vector4Value = vector4Value;
                     break;
                 case UniformType.Int:
                     var intValue = value.IntValue;
-                    changed = ImGui.InputInt(uniform.name, ref intValue);
+                    changed = ImGui.InputInt("##Value", ref intValue);
                     value.IntValue = intValue;
                     break;
                 case UniformType.Bool:
                     var boolValue = value.BoolValue;
-                    changed = ImGui.Checkbox(uniform.name, ref boolValue);
+                    changed = ImGui.Checkbox("##Value", ref boolValue);
                     value.BoolValue = boolValue;
                     break;
             }
@@ -525,7 +591,7 @@ namespace Mana.Code.UI
                 material.ShaderUniforms[uniform.name] = value;
             }
 
-            if (hasOverride || material.ShaderUniforms.ContainsKey(uniform.name))
+            if (showReset || material.ShaderUniforms.ContainsKey(uniform.name))
             {
                 ImGui.SameLine();
                 if (ImGui.SmallButton("Reset"))
@@ -572,7 +638,7 @@ namespace Mana.Code.UI
         private static void DrawColorEditor(string label, ManaTextureVector4 value)
         {
             var color = value.Value;
-            if (ImGui.ColorEdit4(label, ref color))
+            if (DrawColorProperty(label, ref color))
             {
                 value.Value = color;
             }
@@ -581,7 +647,7 @@ namespace Mana.Code.UI
         private static void DrawScalarEditor(string label, ManaTextureSingle value, float min, float max)
         {
             var scalar = value.Value;
-            if (ImGui.SliderFloat(label, ref scalar, min, max))
+            if (DrawSliderFloatProperty(label, ref scalar, min, max))
             {
                 value.Value = scalar;
             }
@@ -594,31 +660,146 @@ namespace Mana.Code.UI
                 return;
             }
 
-            var enabled = light.Enabled;
-            if (ImGui.Checkbox("Enabled", ref enabled))
+            if (BeginPropertyTable("LightProperties"))
             {
-                light.Enabled = enabled;
-            }
+                var enabled = light.Enabled;
+                if (DrawCheckboxProperty("Enabled", ref enabled))
+                {
+                    light.Enabled = enabled;
+                }
 
-            var intensity = light.Intensity;
-            if (ImGui.SliderFloat("Intensity", ref intensity, 0.0f, 8.0f))
-            {
-                light.Intensity = intensity;
-            }
+                var intensity = light.Intensity;
+                if (DrawSliderFloatProperty("Intensity", ref intensity, 0.0f, 8.0f))
+                {
+                    light.Intensity = intensity;
+                }
 
-            var color = light.Color;
-            if (ImGui.ColorEdit4("Color", ref color))
-            {
-                light.Color = color;
-            }
+                var color = light.Color;
+                if (DrawColorProperty("Color", ref color))
+                {
+                    light.Color = color;
+                }
 
-            var direction = light.Direction;
-            if (ImGui.InputFloat3("Direction", ref direction))
-            {
-                light.Direction = direction;
+                var direction = light.Direction;
+                if (DrawVector3Property("Direction", ref direction))
+                {
+                    light.Direction = direction;
+                }
+
+                ImGui.EndTable();
             }
 
             ImGui.TreePop();
+        }
+
+        private static bool BeginPropertyTable(string id)
+        {
+            const ImGuiTableFlags flags =
+                ImGuiTableFlags.SizingStretchProp |
+                ImGuiTableFlags.PadOuterX |
+                ImGuiTableFlags.NoSavedSettings;
+
+            if (!ImGui.BeginTable(id, 2, flags))
+            {
+                return false;
+            }
+
+            ImGui.TableSetupColumn("Property", ImGuiTableColumnFlags.WidthFixed, 112.0f);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+            return true;
+        }
+
+        private static void BeginPropertyRow(string label)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(label);
+            ImGui.TableNextColumn();
+        }
+
+        private static void DrawReadOnlyProperty(string label, string value)
+        {
+            BeginPropertyRow(label);
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(value);
+        }
+
+        private static bool DrawInputTextProperty(string label, ref string value, uint maxLength)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            ImGui.SetNextItemWidth(-1.0f);
+            var changed = ImGui.InputText("##Value", ref value, maxLength);
+            ImGui.PopID();
+            return changed;
+        }
+
+        private static bool DrawCheckboxProperty(string label, ref bool value)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            var changed = ImGui.Checkbox("##Value", ref value);
+            ImGui.PopID();
+            return changed;
+        }
+
+        private static bool DrawSliderFloatProperty(string label, ref float value, float min, float max)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            ImGui.SetNextItemWidth(-1.0f);
+            var changed = ImGui.SliderFloat("##Value", ref value, min, max);
+            ImGui.PopID();
+            return changed;
+        }
+
+        private static bool DrawSliderIntProperty(string label, ref int value, int min, int max)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            ImGui.SetNextItemWidth(-1.0f);
+            var changed = ImGui.SliderInt("##Value", ref value, min, max);
+            ImGui.PopID();
+            return changed;
+        }
+
+        private static bool DrawDragFloatProperty(string label, ref float value, float speed)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            ImGui.SetNextItemWidth(-1.0f);
+            var changed = ImGui.DragFloat("##Value", ref value, speed);
+            ImGui.PopID();
+            return changed;
+        }
+
+        private void DrawVoxelsNodeInspector(ManaVoxelsNode voxelsNode)
+        {
+            ImGui.SeparatorText("Voxel Node");
+            if (BeginPropertyTable("VoxelNodeProperties"))
+            {
+                DrawReadOnlyProperty("Source", voxelsNode.Source);
+                ImGui.EndTable();
+            }
+        }
+
+        private static bool DrawColorProperty(string label, ref Vector4 color)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            var changed = ImGuiExt.DrawColorValue(ref color);
+            ImGui.PopID();
+            return changed;
+        }
+
+        private static bool DrawVector3Property(string label, ref Vector3 value)
+        {
+            ImGui.PushID(label);
+            BeginPropertyRow(label);
+            var changed = ImGuiExt.DrawVector3Value(ref value);
+            ImGui.PopID();
+            return changed;
         }
 
         private static string GetComponentLabel(ManaComponent component)

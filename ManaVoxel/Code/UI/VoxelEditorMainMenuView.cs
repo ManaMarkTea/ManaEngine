@@ -113,6 +113,10 @@ namespace ManaVoxel.Code.UI
             DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.SegoeUI, "Segoe UI");
             DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.SegoeSemibold, "Segoe UI Semibold");
             DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.Bahnschrift, "Bahnschrift");
+            DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.BarlowCondensed, "Barlow Condensed");
+            DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.Roboto, "Roboto");
+            DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.RobotoSemiCondensed, "Roboto Semi Condensed");
+            DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.RobotoCondensed, "Roboto Condensed");
             DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.Calibri, "Calibri");
             DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.Candara, "Candara");
             DrawFontPresetMenuItem(uiHost, availableFontPresets, BaseGameMode.ImGuiFontPreset.Corbel, "Corbel");

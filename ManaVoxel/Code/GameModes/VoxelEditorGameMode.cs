@@ -27,6 +27,7 @@ namespace Mana.Code.GameModes
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
+        private bool _firstFrame = true;
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
@@ -391,6 +392,12 @@ namespace Mana.Code.GameModes
 
         protected override void DrawImGui(double deltaTime)
         {
+            if (_firstFrame)
+            {
+                ImGui.SetWindowFocus("Inspector");
+                _firstFrame = false;
+            }
+
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
 
@@ -571,8 +578,8 @@ namespace Mana.Code.GameModes
             ImGuiDockNative.DockBuilderDockWindow(VoxelToolPaletteView.WindowTitle, _toolDockId);
             ImGuiDockNative.DockBuilderDockWindow("Outliner", _outlinerDockId);
             ImGuiDockNative.DockBuilderDockWindow(ManaWindowTitle, _manaDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Camera", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Inspector", _utilityDockId);
+            ImGuiDockNative.DockBuilderDockWindow("Camera", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("World Perf", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Irradiance", _utilityDockId);
             ImGuiDockNative.DockBuilderDockWindow("Dear ImGui Demo", _utilityDockId);

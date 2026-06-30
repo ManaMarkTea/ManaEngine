@@ -504,7 +504,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Assets\Fonts\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
+  </ItemGroup>
+
+  <!-- Transitional bridge: these implementations now live with the graphics
+       subsystem, but still compile into Mana until their ManaContext-era
+       dependencies are replaced with ManaCore contracts. -->
+  <ItemGroup>
+    <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
+             Link="Code\Graphics\OpenGL\Legacy\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,6 @@
+using Mana.Code.Graphics;
+using ManaCore.Graphics;
+
 namespace Mana.Code.Shapes
 {
     public class ManaIsoSphere : ManaProceduralMesh
@@ -119,7 +122,7 @@ namespace Mana.Code.Shapes
                 texCoords[i] = new Vector2(u, v) * 4.0f;
             });
 
-            var meshData = new ManaCore.Graphics.ManaMeshCpuData
+            var meshData = new ManaMeshCpuData
             {
                 Indexes = triList.ToArray(),
                 Positions = vertices,
@@ -133,7 +136,7 @@ namespace Mana.Code.Shapes
             if (Context.OpenGl != null && !Context.DeferGpuUploads)
             {
                 var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, meshData);
-                if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+                if (gpuMesh is ManaOpenGlMesh openGlMesh)
                 {
                     VertexBufferObject = openGlMesh.VertexBufferObject;
                 }

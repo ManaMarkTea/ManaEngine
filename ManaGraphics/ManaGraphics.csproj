@@ -13,6 +13,12 @@
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
   </ItemGroup>
 
+  <!-- See Mana.csproj. Remove this exclusion as each legacy implementation is
+       detached from ManaContext and becomes owned by this assembly. -->
+  <ItemGroup>
+    <Compile Remove="Code\Graphics\OpenGL\Legacy\**\*.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
@@ -21,6 +27,7 @@
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />

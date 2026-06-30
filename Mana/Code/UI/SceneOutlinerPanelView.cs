@@ -23,19 +23,39 @@ namespace Mana.Code.UI
                 ImGui.SetNextWindowDockID(dockId, ImGuiCond.Always);
             }
 
-            ImGui.Begin("Outliner");
-
-            ImGui.Text($"Scenes: {world.Scenes.Count}");
-            ImGui.SeparatorText("Camera");
-            DrawNode(world.CameraNode);
-
-            ImGui.SeparatorText("Scenes");
-            for (int i = 0; i < world.Scenes.Count; ++i)
+            var outlinerFont = world.Context.GameMode.BarlowCondensedImGuiFont;
+            var useOutlinerFont = !outlinerFont.Equals(default(ImFontPtr));
+            if (useOutlinerFont)
             {
-                DrawScene(world.Scenes[i], i);
+                ImGui.PushFont(outlinerFont);
             }
 
-            ImGui.End();
+            var visible = ImGui.Begin("Outliner");
+            try
+            {
+                if (!visible)
+                {
+                    return;
+                }
+
+                ImGui.Text($"Scenes: {world.Scenes.Count}");
+                ImGui.SeparatorText("Camera");
+                DrawNode(world.CameraNode);
+
+                ImGui.SeparatorText("Scenes");
+                for (int i = 0; i < world.Scenes.Count; ++i)
+                {
+                    DrawScene(world.Scenes[i], i);
+                }
+            }
+            finally
+            {
+                ImGui.End();
+                if (useOutlinerFont)
+                {
+                    ImGui.PopFont();
+                }
+            }
         }
 
         private void DrawScene(ManaScene scene, int sceneIndex)
@@ -66,7 +86,7 @@ namespace Mana.Code.UI
             ImGui.PushID(node.GetHashCode());
 
             var hasContents = node.Components.Count > 0 || node.Children.Count > 0;
-            var label = $"{GetDisplayName(node, node.GetType().Name)} ({node.GetType().Name})";
+            var label = GetDisplayName(node, node.GetType().Name);
             var flags = ImGuiTreeNodeFlags.SpanAvailWidth;
             if (selectionState.SelectedNode == node)
             {
@@ -103,11 +123,6 @@ namespace Mana.Code.UI
 
         private void DrawComponents(ManaSceneNode node)
         {
-            if (node.Components.Count == 0)
-            {
-                return;
-            }
-
             for (var i = 0; i < node.Components.Count; i++)
             {
                 var component = node.Components[i];
@@ -127,52 +142,62 @@ namespace Mana.Code.UI
 
             if (component is ManaLightSourceComponent light)
             {
-                DrawLightSourceComponentSummary(light);
+                DrawLightSourceComponent(light);
                 return;
             }
 
-            ImGui.BulletText(GetComponentLabel(component));
+            ImGui.BulletText(GetDisplayName(component, component.GetType().Name));
         }
 
         private void DrawMeshRendererComponent(MeshRendererComponent meshRenderer)
         {
             var material = meshRenderer.Material;
-            var label = $"{GetComponentLabel(meshRenderer)} | Material: {GetDisplayName(material, "Default Material")}";
+            var label = GetDisplayName(meshRenderer, meshRenderer.GetType().Name);
 
-            if (ImGui.TreeNode(label))
+            if (!ImGui.TreeNode(label))
             {
-                ImGui.TextUnformatted($"Mesh: {meshRenderer.Mesh.GetType().Name}");
-                ImGui.TextUnformatted($"Material: {GetDisplayName(material, "Default Material")}");
-                ImGui.TextUnformatted($"Shader: {material.Shader?.GetType().Name ?? "None"}");
+                return;
+            }
 
-                if (material.Channels.Count > 0 && ImGui.TreeNode($"Channels ({material.Channels.Count})"))
+            var detailIndent = ImGui.GetTreeNodeToLabelSpacing();
+            ImGui.Indent(detailIndent);
+            ImGui.TextUnformatted($"Mesh: {meshRenderer.Mesh.GetType().Name}");
+            ImGui.TextUnformatted($"Material: {GetDisplayName(material, "Default Material")}");
+            ImGui.TextUnformatted($"Shader: {material.Shader?.GetType().Name ?? "None"}");
+
+            if (material.Channels.Count > 0 && ImGui.TreeNode($"Channels ({material.Channels.Count})"))
+            {
+                foreach (var channel in material.Channels)
                 {
-                    foreach (var channel in material.Channels)
-                    {
-                        var channelLabel = string.IsNullOrWhiteSpace(channel.Value.Name)
-                            ? channel.Key
-                            : channel.Value.Name;
-                        ImGui.BulletText(channelLabel);
-                    }
-
-                    ImGui.TreePop();
+                    var channelLabel = string.IsNullOrWhiteSpace(channel.Value.Name)
+                        ? channel.Key
+                        : channel.Value.Name;
+                    ImGui.BulletText(channelLabel);
                 }
 
                 ImGui.TreePop();
             }
+
+            ImGui.Unindent(detailIndent);
+            ImGui.TreePop();
         }
 
-        private void DrawLightSourceComponentSummary(ManaLightSourceComponent light)
+        private void DrawLightSourceComponent(ManaLightSourceComponent light)
         {
-            var label = $"{GetComponentLabel(light)} | Intensity: {light.Intensity:0.###}";
-
-            if (ImGui.TreeNode(label))
+            var label = GetDisplayName(light, light.GetType().Name);
+            if (!ImGui.TreeNode(label))
             {
-                ImGui.TextUnformatted($"Color: {FormatVector4(light.Color)}");
-                ImGui.TextUnformatted($"Direction: {FormatVector3(light.Direction)}");
-                ImGui.TextUnformatted($"Enabled: {light.Enabled}");
-                ImGui.TreePop();
+                return;
             }
+
+            var detailIndent = ImGui.GetTreeNodeToLabelSpacing();
+            ImGui.Indent(detailIndent);
+            ImGui.TextUnformatted($"Intensity: {light.Intensity:0.###}");
+            ImGui.TextUnformatted($"Color: {FormatVector4(light.Color)}");
+            ImGui.TextUnformatted($"Direction: {FormatVector3(light.Direction)}");
+            ImGui.TextUnformatted($"Enabled: {light.Enabled}");
+            ImGui.Unindent(detailIndent);
+            ImGui.TreePop();
         }
 
         private static void DrawNodeTooltip(ManaSceneNode node)
@@ -192,17 +217,6 @@ namespace Mana.Code.UI
             ImGui.EndTooltip();
         }
 
-        private static string GetComponentLabel(ManaComponent component)
-        {
-            var label = GetDisplayName(component, component.GetType().Name);
-            if (component is MeshRendererComponent meshRenderer)
-            {
-                label += $" -> {meshRenderer.Mesh.GetType().Name}";
-            }
-
-            return label;
-        }
-
         private static string GetDisplayName(ManaObject manaObject, string fallback)
         {
             return string.IsNullOrWhiteSpace(manaObject.Name) ? fallback : manaObject.Name;
@@ -217,5 +231,6 @@ namespace Mana.Code.UI
         {
             return $"({value.X:0.###}, {value.Y:0.###}, {value.Z:0.###}, {value.W:0.###})";
         }
+
     }
 }

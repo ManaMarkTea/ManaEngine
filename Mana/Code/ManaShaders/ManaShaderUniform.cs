@@ -1,5 +1,7 @@
 ﻿using Silk.NET.OpenGL;
 
+using Silk.NET.Maths;
+
 namespace Mana.Code.ManaShaders
 {
     public class ManaShaderUniform
@@ -55,7 +57,7 @@ namespace Mana.Code.ManaShaders
             gl.UniformMatrix4(location + arrayIndex, 1, false, value.ToSpan());
         }
 
-        public void SetValue(Silk.NET.Maths.Matrix3X3<float> value, int arrayIndex = 0)
+        public void SetValue(Matrix3X3<float> value, int arrayIndex = 0)
         {
             gl.UniformMatrix3(location + arrayIndex, 1, false, value.ToSpan());
         }

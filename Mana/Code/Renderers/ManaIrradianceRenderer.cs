@@ -1,6 +1,7 @@
 using Mana.Code.Nodes;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
+using System.Numerics;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 
@@ -99,12 +100,13 @@ namespace Mana.Code.Renderers
             BrdfFramebuffer.UnBind();
             RenderBrdfTarget();
 
-            EnvironmentReflectionMap = new ManaOpenGlEnvironmentReflectionMap(
+            EnvironmentReflectionMap = new ManaEnvironmentReflectionMap(
+                ManaGraphicsBackendKind.OpenGL,
                 Context.World.EnvironmentReflectionSource,
-                EnvironmentMap,
-                IrradianceFramebuffer.bufferMap["Irradiance"].Texture,
-                PrefilterFramebuffer.bufferMap["PreFilter"].Texture,
-                BrdfFramebuffer.bufferMap["BRDF"].Texture);
+                EnvironmentMap?.GpuTexture,
+                IrradianceFramebuffer.bufferMap["Irradiance"].Texture?.GpuTexture,
+                PrefilterFramebuffer.bufferMap["PreFilter"].Texture?.GpuTexture,
+                BrdfFramebuffer.bufferMap["BRDF"].Texture?.GpuTexture);
 
             var size = Context.Window.FramebufferSize;
             PostProcessor = new ManaOpenGlHdrPostProcessor(Context, size.X, size.Y);
@@ -433,10 +435,10 @@ namespace Mana.Code.Renderers
             return null;
         }
 
-        public override void GetLightPositionsAndColors(out System.Numerics.Vector4[] positions, out System.Numerics.Vector4[] colors)
+        public override void GetLightPositionsAndColors(out Vector4[] positions, out Vector4[] colors)
         {
-            positions = new System.Numerics.Vector4[4];
-            colors = new System.Numerics.Vector4[4];
+            positions = new Vector4[4];
+            colors = new Vector4[4];
 
             if (gridLightNodes.Count == 0)
             {
@@ -450,13 +452,13 @@ namespace Mana.Code.Renderers
                 var lightPosition = lightNode?.WorldTransform.Translation ?? gridLightPositions[i];
                 var settings = IrradianceSettings;
                 var lightColor = light?.Enabled == false
-                    ? System.Numerics.Vector3.Zero
+                    ? Vector3.Zero
                     : (light?.Color ?? settings.LightColor).ToVector3()
                         * (light?.Intensity ?? settings.LightIntensity * lightWeights[i])
                         * GridLightPowerScale;
 
-                positions[i] = new System.Numerics.Vector4(lightPosition, 1.0f);
-                colors[i] = new System.Numerics.Vector4(lightColor, 1.0f);
+                positions[i] = new Vector4(lightPosition, 1.0f);
+                colors[i] = new Vector4(lightColor, 1.0f);
             }
         }
     }

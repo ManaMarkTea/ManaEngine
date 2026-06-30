@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace ManaCore.Graphics
 {
     public abstract class ManaGraphicsDiagnosticsProvider
@@ -99,10 +101,10 @@ namespace ManaCore.Graphics
         {
             return Create(
                 "System",
-                ("Runtime", System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription),
-                ("Operating system", System.Runtime.InteropServices.RuntimeInformation.OSDescription),
-                ("Process architecture", System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString()),
-                ("OS architecture", System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString()));
+                ("Runtime", RuntimeInformation.FrameworkDescription),
+                ("Operating system", RuntimeInformation.OSDescription),
+                ("Process architecture", RuntimeInformation.ProcessArchitecture.ToString()),
+                ("OS architecture", RuntimeInformation.OSArchitecture.ToString()));
         }
 
         public static ManaGraphicsDiagnosticSection CreateAdapter(

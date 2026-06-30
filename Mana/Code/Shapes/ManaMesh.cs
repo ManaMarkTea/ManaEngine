@@ -24,7 +24,7 @@ namespace Mana.Code.Shapes
 
         public IManaGpuMesh? GpuMesh { get; private set; }
 
-        public IOpenGlGpuMesh? OpenGlMesh => GpuMesh as IOpenGlGpuMesh;
+        public IManaImmediateGpuMesh? ImmediateGpuMesh => GpuMesh as IManaImmediateGpuMesh;
 
         public ManaVertexBufferObject? VertexBufferObject
         {
@@ -50,7 +50,7 @@ namespace Mana.Code.Shapes
 
         public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
         {
-            if (OpenGlMesh != null)
+            if (ImmediateGpuMesh != null)
             {
                 ManaMaterial material = Materials[0];
                 if (meshRenderer != null)
@@ -60,7 +60,7 @@ namespace Mana.Code.Shapes
 
                 material.Bind(owner.WorldTransform, owner);
 
-                OpenGlMesh.Draw();
+                ImmediateGpuMesh.Draw();
 
                 material.UnBind();
             }
@@ -68,9 +68,9 @@ namespace Mana.Code.Shapes
 
         public void RenderDirectly()
         {
-            if (OpenGlMesh != null)
+            if (ImmediateGpuMesh != null)
             {
-                OpenGlMesh.Draw();
+                ImmediateGpuMesh.Draw();
             }
         }
 

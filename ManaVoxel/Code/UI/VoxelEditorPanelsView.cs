@@ -1,5 +1,7 @@
 using ImGuiNET;
 using ManaVoxel.Code.Tools;
+using Mana;
+using System.Numerics;
 
 namespace ManaVoxel.Code.UI
 {
@@ -26,11 +28,19 @@ namespace ManaVoxel.Code.UI
             ImGui.Text($"State: {viewModel.ReassemblyText}");
             ImGui.SameLine();
             ImGui.Text($"Baked Bodies: {viewModel.BakedPhysicsVoxelCount}");
+
+            ImGui.Spacing();
+            if (ImGui.CollapsingHeader("Session Stats"))
+            {
+                DrawSessionTable(viewModel);
+            }
+
             ImGui.Separator();
 
             if (ImGui.BeginTabBar("ManaTabs"))
             {
                 DrawEditorTab(viewModel);
+                DrawImportTab(viewModel);
                 DrawPhysicsTab(viewModel);
                 DrawDebugTab(viewModel, ref rayOrigin, ref rayDirection);
                 ImGui.EndTabBar();
@@ -44,20 +54,38 @@ namespace ManaVoxel.Code.UI
                 return;
             }
 
-            ImGui.SeparatorText("Session");
-            DrawSessionTable(viewModel);
+            DrawVoxelNodeControls(viewModel);
 
             ImGui.Spacing();
             DrawPlacementReadout(viewModel);
 
-            ImGui.Spacing();
-            DrawVoxelNodeControls(viewModel);
+            ImGui.EndTabItem();
+        }
 
+        private static void DrawImportTab(VoxelEditorViewModel viewModel)
+        {
+            if (!ImGui.BeginTabItem("Import"))
+            {
+                return;
+            }
+
+            ImGui.SeparatorText("Import Settings");
+            ImGui.TextWrapped("These settings apply to models imported when dropping file assets (.vox or .gltf) onto the editor window.");
             ImGui.Spacing();
-            ImGui.SeparatorText("Import");
-            ImGui.InputFloat3("Import Pos Offset", ref viewModel.ImportPositionOffset);
-            ImGui.InputFloat3("Import Rot (deg)", ref viewModel.ImportRotationDegrees);
-            ImGui.InputFloat3("Import Scale", ref viewModel.ImportScale);
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Import Pos Offset");
+            ImGuiExt.DrawVector3Value(ref viewModel.ImportPositionOffset);
+            ImGui.Spacing();
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Import Rot (deg)");
+            ImGuiExt.DrawVector3Value(ref viewModel.ImportRotationDegrees);
+            ImGui.Spacing();
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Import Scale");
+            ImGuiExt.DrawVector3Value(ref viewModel.ImportScale);
 
             ImGui.EndTabItem();
         }
@@ -91,7 +119,7 @@ namespace ManaVoxel.Code.UI
 
         private static void DrawVoxelNodeControls(VoxelEditorViewModel viewModel)
         {
-            ImGui.SeparatorText("Voxel Nodes");
+            ImGui.SeparatorText("Active Voxel Node");
             if (viewModel.VoxelLayers.Count == 0)
             {
                 ImGui.TextUnformatted("None");
@@ -103,21 +131,8 @@ namespace ManaVoxel.Code.UI
                 viewModel.ActiveVoxelLayerIndex,
                 0,
                 layerNames.Length - 1);
-            ImGui.Combo("Active Node", ref viewModel.ActiveVoxelLayerIndex, layerNames, layerNames.Length);
-
-            var activeLayer = viewModel.ActiveVoxelLayer;
-            if (activeLayer == null)
-            {
-                return;
-            }
-
-            ImGui.TextUnformatted($"Source: {activeLayer.Source}");
-
-            var nodePosition = activeLayer.Node.Position;
-            if (ImGui.InputFloat3("Node Pos", ref nodePosition))
-            {
-                activeLayer.Node.Position = nodePosition;
-            }
+            ImGui.SetNextItemWidth(-1.0f);
+            ImGui.Combo("##ActiveNode", ref viewModel.ActiveVoxelLayerIndex, layerNames, layerNames.Length);
         }
 
         private static void DrawPlacementReadout(VoxelEditorViewModel viewModel)
@@ -130,13 +145,25 @@ namespace ManaVoxel.Code.UI
             }
 
             var cell = VoxelRasterizer.ToCell(viewModel.HoverVoxelPosition);
-            ImGui.TextUnformatted($"Cell: {cell.X}, {cell.Y}, {cell.Z}");
-            ImGui.TextUnformatted($"Center: {FormatVector(viewModel.HoverVoxelPosition)}");
-            ImGui.TextUnformatted($"Camera Distance: {viewModel.HoverCameraDistance:0.0}");
+            var cellVec = new Vector3(cell.X, cell.Y, cell.Z);
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Cell");
+            ImGuiExt.DrawVector3Value(ref cellVec, 0.0f, readOnly: true);
+
+            var centerVec = viewModel.HoverVoxelPosition;
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Center");
+            ImGuiExt.DrawVector3Value(ref centerVec, 0.0f, readOnly: true);
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.Text($"Camera Distance: {viewModel.HoverCameraDistance:0.0}");
 
             if (viewModel.HasHoverDelta)
             {
-                ImGui.TextUnformatted($"Delta From Last: {FormatVector(viewModel.HoverDeltaFromLast)}");
+                var deltaVec = viewModel.HoverDeltaFromLast;
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted("Delta From Last");
+                ImGuiExt.DrawVector3Value(ref deltaVec, 0.0f, readOnly: true);
             }
         }
 

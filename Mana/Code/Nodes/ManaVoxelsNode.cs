@@ -1,4 +1,4 @@
-﻿using BepuPhysics;
+using BepuPhysics;
 using Mana.Code.Components;
 using Silk.NET.OpenGL;
 using System;
@@ -41,6 +41,7 @@ namespace Mana.Code.Nodes
         private readonly ManaVoxelShape shape;
         private readonly MeshRendererComponent mergedVoxelRenderer;
         public ManaVoxelShape VoxelShape => shape;
+        public string Source { get; set; } = string.Empty;
         public bool AutoCreateKinematicVoxelBodies { get; private set; } = true;
         public bool IsBakedToDynamicPhysics { get; private set; }
         public bool IsReassembling { get; private set; }
@@ -597,7 +598,7 @@ namespace Mana.Code.Nodes
                     AlbedoFactor = currentData.AlbedoFactor
                 });
 
-                _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
+                _mesh.ImmediateGpuMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 
             private void UpdateBodyGeometry(ManaPhysics physics, int bodyIndex)
@@ -768,7 +769,7 @@ namespace Mana.Code.Nodes
                     AlbedoFactor = currentData.AlbedoFactor
                 });
 
-                _mesh.OpenGlMesh?.UpdateDynamicData(_positions, _normals, _colors);
+                _mesh.ImmediateGpuMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 
             private void WritePreviewCube(int voxelIndex, ManaVoxelData voxel)

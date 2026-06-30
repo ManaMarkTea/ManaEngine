@@ -353,6 +353,7 @@ namespace ManaVoxel.Code.UI
                 node.Name = BuildUniqueLayerName(name);
             }
 
+            node.Source = source;
             _voxelLayers.Add(new VoxelLayerViewModel(node.Name, source, shape, node));
             ActiveVoxelLayerIndex = _voxelLayers.Count - 1;
         }

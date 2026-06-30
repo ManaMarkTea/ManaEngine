@@ -1,5 +1,8 @@
 using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
+using Mana.Code.Graphics;
+using ManaCore.Graphics;
+using System.Numerics;
 
 namespace Mana.Code
 {
@@ -39,7 +42,7 @@ namespace Mana.Code
             }
             var meshData = CreateCpuData();
             var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData, usageHint);
-            if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+            if (gpuMesh is ManaOpenGlMesh openGlMesh)
             {
                 return openGlMesh.VertexBufferObject;
             }
@@ -47,9 +50,9 @@ namespace Mana.Code
             throw new InvalidOperationException($"OpenGL mesh factory returned unsupported mesh type '{gpuMesh.GetType().Name}'.");
         }
 
-        public ManaCore.Graphics.ManaMeshCpuData CreateCpuData()
+        public ManaMeshCpuData CreateCpuData()
         {
-            return new ManaCore.Graphics.ManaMeshCpuData
+            return new ManaMeshCpuData
             {
                 Positions = Positions.ToArray(),
                 Normals = Normals.ToArray(),
@@ -202,7 +205,7 @@ namespace Mana.Code
         /// <summary>
         /// Adds a cube with an arbitrary body orientation (for physics-driven cubes).
         /// </summary>
-        public void AddOrientedCube(Vector3 position, System.Numerics.Quaternion orientation, Vector3 cubeSize, Vector4 color)
+        public void AddOrientedCube(Vector3 position, Quaternion orientation, Vector3 cubeSize, Vector4 color)
         {
             var bodyMatrix = Matrix4x4.CreateFromQuaternion(orientation);
             for (int i = 0; i < 6; i++)

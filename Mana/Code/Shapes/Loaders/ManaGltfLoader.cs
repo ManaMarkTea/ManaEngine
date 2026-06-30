@@ -1,4 +1,5 @@
 using Mana.Code.Nodes;
+using Mana.Code.Graphics;
 using ManaCore.Graphics;
 using Silk.NET.Assimp;
 using System;
@@ -556,7 +557,7 @@ namespace Mana.Code.Shapes.Loaders
             if (context.OpenGl != null && !context.DeferGpuUploads)
             {
                 var gpuMesh = context.RequireOpenGlDevice().CreateMesh(context, meshData);
-                if (gpuMesh is Mana.Code.Graphics.ManaOpenGlMesh openGlMesh)
+                if (gpuMesh is ManaOpenGlMesh openGlMesh)
                 {
                     output.VertexBufferObject = openGlMesh.VertexBufferObject;
                 }

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using ManaCore.Graphics;
 
 namespace Mana.Code.Nodes
 {
@@ -139,12 +140,12 @@ namespace Mana.Code.Nodes
             }
         }
 
-        public void CollectRenderMeshInstances(List<ManaCore.Graphics.ManaRenderMeshInstance> output)
+        public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
         {
             CollectRenderMeshInstances(output, IncludeInEnvironmentCapture);
         }
 
-        private void CollectRenderMeshInstances(List<ManaCore.Graphics.ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
+        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
         {
             foreach (var component in Components)
             {
@@ -156,7 +157,7 @@ namespace Mana.Code.Nodes
                 try
                 {
                     var meshData = renderer.Mesh.GetOrCreateCpuData();
-                    output.Add(new ManaCore.Graphics.ManaRenderMeshInstance
+                    output.Add(new ManaRenderMeshInstance
                     {
                         InstanceKey = $"{RuntimeHelpers.GetHashCode(this):x8}:{RuntimeHelpers.GetHashCode(renderer):x8}",
                         MeshKey = renderer.Mesh.RenderKey,
