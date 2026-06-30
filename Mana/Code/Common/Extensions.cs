@@ -99,11 +99,14 @@ namespace Mana
 
         public static bool DrawColorValue(ref Vector4 color)
         {
-            var availableWidth = Math.Max(120.0f, ImGui.GetContentRegionAvail().X);
             var style = ImGui.GetStyle();
-            const float labelFieldSpacing = 0.0f;
+            var frameHeight = ImGui.GetFrameHeight();
+            var pickerWidth = frameHeight;
             var groupSpacing = Math.Min(4.0f, style.ItemSpacing.X);
-            var axisWidth = Math.Max(18.0f, ImGui.GetFrameHeight() - 4.0f);
+
+            var availableWidth = Math.Max(150.0f, ImGui.GetContentRegionAvail().X) - pickerWidth - groupSpacing;
+            const float labelFieldSpacing = 0.0f;
+            var axisWidth = Math.Max(18.0f, frameHeight - 4.0f);
             var fieldWidth = Math.Max(
                 18.0f,
                 (availableWidth - axisWidth * 4.0f - labelFieldSpacing * 4.0f - groupSpacing * 3.0f) / 4.0f);
@@ -115,6 +118,12 @@ namespace Mana
             changed |= DrawAxisValue("B", ref color.Z, BluePastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.01f, 0.0f, 1.0f);
             ImGui.SameLine(0.0f, groupSpacing);
             changed |= DrawAxisValue("A", ref color.W, GrayPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.01f, 0.0f, 1.0f);
+
+            ImGui.SameLine(0.0f, groupSpacing);
+            ImGui.SetNextItemWidth(pickerWidth);
+            var pickerFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf;
+            changed |= ImGui.ColorEdit4("##Picker", ref color, pickerFlags);
+
             return changed;
         }
 

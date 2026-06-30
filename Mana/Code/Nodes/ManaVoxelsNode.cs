@@ -42,6 +42,7 @@ namespace Mana.Code.Nodes
         private readonly MeshRendererComponent mergedVoxelRenderer;
         public ManaVoxelShape VoxelShape => shape;
         public string Source { get; set; } = string.Empty;
+        public bool ShowOutline { get; set; }
         public bool AutoCreateKinematicVoxelBodies { get; private set; } = true;
         public bool IsBakedToDynamicPhysics { get; private set; }
         public bool IsReassembling { get; private set; }

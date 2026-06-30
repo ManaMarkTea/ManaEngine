@@ -1,4 +1,4 @@
-using ImGuiNET;
+﻿using ImGuiNET;
 using ManaVoxel.Code.Tools;
 using Mana;
 using System.Numerics;
@@ -88,21 +88,27 @@ namespace ManaVoxel.Code.UI
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("Pos Offset");
                 ImGui.TableNextColumn();
+                ImGui.PushID("PosOffset");
                 ImGuiExt.DrawVector3Value(ref viewModel.ImportPositionOffset);
+                ImGui.PopID();
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("Rot (deg)");
                 ImGui.TableNextColumn();
+                ImGui.PushID("RotDeg");
                 ImGuiExt.DrawVector3Value(ref viewModel.ImportRotationDegrees);
+                ImGui.PopID();
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("Scale");
                 ImGui.TableNextColumn();
+                ImGui.PushID("Scale");
                 ImGuiExt.DrawVector3Value(ref viewModel.ImportScale);
+                ImGui.PopID();
 
                 ImGui.EndTable();
             }
@@ -182,7 +188,9 @@ namespace ManaVoxel.Code.UI
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("Cell");
                 ImGui.TableNextColumn();
+                ImGui.PushID("Cell");
                 ImGuiExt.DrawVector3Value(ref cellVec, 0.0f, readOnly: true);
+                ImGui.PopID();
 
                 // Row 2: Center
                 var centerVec = viewModel.HoverVoxelPosition;
@@ -191,7 +199,9 @@ namespace ManaVoxel.Code.UI
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("Center");
                 ImGui.TableNextColumn();
+                ImGui.PushID("Center");
                 ImGuiExt.DrawVector3Value(ref centerVec, 0.0f, readOnly: true);
+                ImGui.PopID();
 
                 // Row 3: Delta From Last
                 if (viewModel.HasHoverDelta)
@@ -202,7 +212,9 @@ namespace ManaVoxel.Code.UI
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted("Delta From Last");
                     ImGui.TableNextColumn();
+                    ImGui.PushID("Delta");
                     ImGuiExt.DrawVector3Value(ref deltaVec, 0.0f, readOnly: true);
+                    ImGui.PopID();
                 }
 
                 // Row 4: Camera Distance

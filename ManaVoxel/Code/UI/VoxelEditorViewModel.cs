@@ -1,4 +1,4 @@
-using Mana;
+﻿using Mana;
 using Mana.Code.Nodes;
 using ManaVoxel.Code.Tools;
 
@@ -17,9 +17,18 @@ namespace ManaVoxel.Code.UI
         private int? _previewSignature;
 
         public IReadOnlyList<VoxelLayerViewModel> VoxelLayers => _voxelLayers;
-        public VoxelLayerViewModel? ActiveVoxelLayer => _voxelLayers.Count == 0
-            ? null
-            : _voxelLayers[Math.Clamp(ActiveVoxelLayerIndex, 0, _voxelLayers.Count - 1)];
+        public VoxelLayerViewModel? ActiveVoxelLayer
+        {
+            get
+            {
+                var index = ActiveVoxelLayerIndex - 1;
+                if (index < 0 || index >= _voxelLayers.Count)
+                {
+                    return null;
+                }
+                return _voxelLayers[index];
+            }
+        }
 
         public ManaVoxelShape? Voxel => ActiveVoxelLayer?.Shape;
         public ManaVoxelsNode? VoxelNode => ActiveVoxelLayer?.Node;
@@ -49,9 +58,15 @@ namespace ManaVoxel.Code.UI
 
         public string[] ToolOptions => VoxelToolCatalog.ToolNames;
         public string[] WorkPlaneOptions => VoxelToolCatalog.PlaneNames;
-        public string[] VoxelLayerNames => _voxelLayers
-            .Select((layer, index) => $"{index + 1}. {layer.Name} ({layer.Shape.VoxelCount})")
-            .ToArray();
+        public string[] VoxelLayerNames
+        {
+            get
+            {
+                var list = new List<string> { "<New Node>" };
+                list.AddRange(_voxelLayers.Select((layer, index) => $"{index + 1}. {layer.Name} ({layer.Shape.VoxelCount})"));
+                return list.ToArray();
+            }
+        }
 
         public float BakeExplosionStrength = 70.5f;
         public float BakeExplosionRadiusPadding = 1.0f;
@@ -117,13 +132,30 @@ namespace ManaVoxel.Code.UI
 
         public bool CommitToolResult(VoxelToolResult result)
         {
-            var created = CreateVoxelLayer(result.Name, result.Name, result.Anchor, result.Voxels);
-            if (created)
+            var activeLayer = ActiveVoxelLayer;
+            if (activeLayer != null)
             {
+                var activeNode = activeLayer.Node;
+                foreach (var voxel in result.Voxels)
+                {
+                    var worldPos = result.Anchor + voxel.Position;
+                    var localPos = worldPos - activeNode.Position;
+                    activeNode.VoxelShape.AddVoxel(localPos, voxel.Color);
+                }
+                activeNode.VoxelShape.CommitData();
+                activeNode.UpdateTransform();
                 LastCommittedVoxelPosition = result.Anchor;
+                return true;
             }
-
-            return created;
+            else
+            {
+                var created = CreateVoxelLayer(result.Name, result.Name, result.Anchor, result.Voxels);
+                if (created)
+                {
+                    LastCommittedVoxelPosition = result.Anchor;
+                }
+                return created;
+            }
         }
 
         public void SetToolPreview(VoxelToolResult? result)
@@ -268,15 +300,28 @@ namespace ManaVoxel.Code.UI
 
         public void AddVoxelAt(Vector3 position)
         {
-            var voxel = new ManaVoxelData
+            var activeLayer = ActiveVoxelLayer;
+            if (activeLayer != null)
             {
-                Position = Vector3.Zero,
-                Color = PaintVoxelColor
-            };
-
-            if (CreateVoxelLayer("Voxel", "Stroke", position, new[] { voxel }))
-            {
+                var activeNode = activeLayer.Node;
+                var localPos = position - activeNode.Position;
+                activeNode.VoxelShape.AddVoxel(localPos, PaintVoxelColor);
+                activeNode.VoxelShape.CommitData();
+                activeNode.UpdateTransform();
                 LastCommittedVoxelPosition = position;
+            }
+            else
+            {
+                var voxel = new ManaVoxelData
+                {
+                    Position = Vector3.Zero,
+                    Color = PaintVoxelColor
+                };
+
+                if (CreateVoxelLayer("Voxel", "Stroke", position, new[] { voxel }))
+                {
+                    LastCommittedVoxelPosition = position;
+                }
             }
         }
 
@@ -355,7 +400,7 @@ namespace ManaVoxel.Code.UI
 
             node.Source = source;
             _voxelLayers.Add(new VoxelLayerViewModel(node.Name, source, shape, node));
-            ActiveVoxelLayerIndex = _voxelLayers.Count - 1;
+            ActiveVoxelLayerIndex = _voxelLayers.Count;
         }
 
         private string BuildUniqueLayerName(string baseName)

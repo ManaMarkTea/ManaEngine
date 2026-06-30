@@ -1,4 +1,4 @@
-using ImGuiNET;
+﻿using ImGuiNET;
 using Mana.Code.Nodes;
 using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
@@ -396,6 +396,46 @@ namespace Mana.Code.GameModes
             {
                 ImGui.SetWindowFocus("Inspector");
                 _firstFrame = false;
+            }
+
+            // Sync active voxel node outline and apply material highlights
+            var activeNode = _viewModel.VoxelNode;
+            foreach (var scene in Context.World.Scenes)
+            {
+                foreach (var child in scene.Children)
+                {
+                    if (child is ManaVoxelsNode voxelNode)
+                    {
+                        bool isActive = (voxelNode == activeNode);
+                        voxelNode.ShowOutline = isActive;
+
+                        var renderer = voxelNode.Components.OfType<MeshRendererComponent>().FirstOrDefault();
+                        if (renderer != null)
+                        {
+                            if (isActive)
+                            {
+                                // Active node: Make it highly metallic, glossy/shiny, and pulse with white/grey emission
+                                var mat = renderer.DynamicMaterial;
+                                mat.Metallic.Value = 1.0f;
+                                mat.Roughness.Value = 0.05f;
+
+                                double time = System.DateTime.UtcNow.TimeOfDay.TotalSeconds;
+                                float pulse = (float)System.Math.Sin(time * 5.0) * 0.5f + 0.5f;
+                                mat.Emission.Value = new System.Numerics.Vector4(0.4f, 0.4f, 0.4f, 1.0f);
+                                mat.EmissionStrength = 0.15f + pulse * 0.35f;
+                            }
+                            else
+                            {
+                                // Inactive nodes: Reset to default PBR properties (non-metallic, rough, no emission)
+                                var mat = renderer.DynamicMaterial;
+                                mat.Metallic.Value = 0.0f;
+                                mat.Roughness.Value = 1.0f;
+                                mat.Emission.Value = System.Numerics.Vector4.Zero;
+                                mat.EmissionStrength = 0.0;
+                            }
+                        }
+                    }
+                }
             }
 
             SyncLightningBallVisibility();

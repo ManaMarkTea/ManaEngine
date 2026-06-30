@@ -1,4 +1,4 @@
-using Mana.Code;
+﻿using Mana.Code;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -135,10 +135,20 @@ namespace Mana
 
             if (buffersNeed == 0) { return false; }
 
-            gl.GenVertexArrays(1, out vertexArrayObject);
+            if (vertexArrayObject == 0)
+            {
+                gl.GenVertexArrays(1, out vertexArrayObject);
+            }
             gl.BindVertexArray(vertexArrayObject);
-            gl.GenBuffers(1, out vertexData);
-            gl.GenBuffers(1, out indexData);
+
+            if (vertexData == 0)
+            {
+                gl.GenBuffers(1, out vertexData);
+            }
+            if (indexData == 0)
+            {
+                gl.GenBuffers(1, out indexData);
+            }
 
             BufferUsageARB drawType = usageHint;
             gl.BindBuffer(BufferTargetARB.ArrayBuffer, vertexData);
