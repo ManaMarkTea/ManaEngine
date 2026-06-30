@@ -221,6 +221,7 @@ namespace ManaVoxel.Code.UI
             }
 
             var node = new ManaVoxelsNode(_context, Matrix4x4.CreateTranslation(anchor));
+            node.Position = anchor;
             node.Name = BuildUniqueLayerName(name);
             _scene.Children.Add(node);
 

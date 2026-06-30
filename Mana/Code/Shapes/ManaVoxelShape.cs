@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 
 using System.Diagnostics;
 
@@ -55,6 +55,7 @@ namespace Mana
         public int LastNaiveVertexCount { get; private set; }
         public int LastSavedVertexCount { get; private set; }
         public IReadOnlyList<ManaVoxelData> CommittedVoxels => Voxels;
+        public IReadOnlyList<ManaVoxelData> PendingVoxels => AddVoxels;
 
         private static (int X, int Y, int Z) ToVoxelKey(Vector3 position)
         {

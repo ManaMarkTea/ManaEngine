@@ -398,7 +398,7 @@ namespace Mana.Code.GameModes
                 _firstFrame = false;
             }
 
-            // Sync active voxel node outline and apply material highlights
+            // Sync active voxel node outline child node and apply emissive pulse for bloom
             var activeNode = _viewModel.VoxelNode;
             foreach (var scene in Context.World.Scenes)
             {
@@ -408,30 +408,100 @@ namespace Mana.Code.GameModes
                     {
                         bool isActive = (voxelNode == activeNode);
                         voxelNode.ShowOutline = isActive;
-
-                        var renderer = voxelNode.Components.OfType<MeshRendererComponent>().FirstOrDefault();
-                        if (renderer != null)
+                        
+                        var existingOutline = voxelNode.Children.FirstOrDefault(c => c.Name == "VoxelSelectionOutline");
+                        
+                        if (!isActive)
                         {
-                            if (isActive)
+                            if (existingOutline != null)
                             {
-                                // Active node: Make it highly metallic, glossy/shiny, and pulse with white/grey emission
-                                var mat = renderer.DynamicMaterial;
-                                mat.Metallic.Value = 1.0f;
-                                mat.Roughness.Value = 0.05f;
+                                voxelNode.RemoveChild(existingOutline);
+                            }
+                        }
+                        else
+                        {
+                            var shape = voxelNode.VoxelShape;
+                            int totalCount = shape.CommittedVoxels.Count + shape.PendingVoxels.Count;
+                            if (totalCount > 0)
+                            {
+                                float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
+                                float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+                                
+                                void ExpandBounds(System.Collections.Generic.IReadOnlyList<ManaVoxelData> list)
+                                {
+                                    foreach (var voxel in list)
+                                    {
+                                        var pos = voxel.Position;
+                                        if (pos.X < minX) minX = pos.X;
+                                        if (pos.Y < minY) minY = pos.Y;
+                                        if (pos.Z < minZ) minZ = pos.Z;
+                                        if (pos.X > maxX) maxX = pos.X;
+                                        if (pos.Y > maxY) maxY = pos.Y;
+                                        if (pos.Z > maxZ) maxZ = pos.Z;
+                                    }
+                                }
 
-                                double time = System.DateTime.UtcNow.TimeOfDay.TotalSeconds;
-                                float pulse = (float)System.Math.Sin(time * 5.0) * 0.5f + 0.5f;
-                                mat.Emission.Value = new System.Numerics.Vector4(0.4f, 0.4f, 0.4f, 1.0f);
-                                mat.EmissionStrength = 0.15f + pulse * 0.35f;
+                                ExpandBounds(shape.CommittedVoxels);
+                                ExpandBounds(shape.PendingVoxels);
+
+                                var localMin = new System.Numerics.Vector3(minX - 0.51f, minY - 0.51f, minZ - 0.51f);
+                                var localMax = new System.Numerics.Vector3(maxX + 0.51f, maxY + 0.51f, maxZ + 0.51f);
+                                
+                                var center = (localMin + localMax) * 0.5f;
+                                var size = localMax - localMin;
+
+                                var localBoxTransform = System.Numerics.Matrix4x4.CreateScale(size) * 
+                                                        System.Numerics.Matrix4x4.CreateTranslation(center);
+
+                                var pastelYellow = new System.Numerics.Vector4(0.96f, 0.96f, 0.72f, 1.0f);
+
+                                if (existingOutline == null)
+                                {
+                                    existingOutline = new ManaSceneNode(Context, System.Numerics.Matrix4x4.Identity)
+                                    {
+                                        Name = "VoxelSelectionOutline"
+                                    };
+                                    voxelNode.AddChild(existingOutline);
+
+                                    existingOutline.Position = center;
+                                    existingOutline.Scale = System.Numerics.Vector3.One;
+                                    existingOutline.UpdateTransform();
+
+                                    var cageMesh = new ManaWireframeCage(Context, pastelYellow, size * 0.5f, 0.25f);
+                                    var outlineComp = new MeshRendererComponent(existingOutline, cageMesh);
+                                    
+                                    outlineComp.Material.Emission.Value = pastelYellow;
+                                    outlineComp.Material.EmissionStrength = 6.0f;
+                                    
+                                    existingOutline.Components.Add(outlineComp);
+                                }
+                                else
+                                {
+                                    existingOutline.Position = center;
+                                    existingOutline.Scale = System.Numerics.Vector3.One;
+                                    existingOutline.UpdateTransform();
+                                    
+                                    var outlineComp = existingOutline.Components.OfType<MeshRendererComponent>().FirstOrDefault();
+                                    if (outlineComp != null && outlineComp.Mesh is ManaWireframeCage cageMesh)
+                                    {
+                                        if (cageMesh.BoxSize != size * 0.5f)
+                                        {
+                                            cageMesh.BoxSize = size * 0.5f;
+                                            cageMesh.RebuildGeometry();
+                                        }
+
+                                        double time = System.DateTime.UtcNow.TimeOfDay.TotalSeconds;
+                                        float pulse = (float)System.Math.Sin(time * 5.0) * 0.5f + 0.5f;
+                                        outlineComp.Material.EmissionStrength = 4.0f + pulse * 4.0f;
+                                    }
+                                }
                             }
                             else
                             {
-                                // Inactive nodes: Reset to default PBR properties (non-metallic, rough, no emission)
-                                var mat = renderer.DynamicMaterial;
-                                mat.Metallic.Value = 0.0f;
-                                mat.Roughness.Value = 1.0f;
-                                mat.Emission.Value = System.Numerics.Vector4.Zero;
-                                mat.EmissionStrength = 0.0;
+                                if (existingOutline != null)
+                                {
+                                    voxelNode.RemoveChild(existingOutline);
+                                }
                             }
                         }
                     }
