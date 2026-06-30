@@ -73,19 +73,39 @@ namespace ManaVoxel.Code.UI
             ImGui.TextWrapped("These settings apply to models imported when dropping file assets (.vox or .gltf) onto the editor window.");
             ImGui.Spacing();
 
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Import Pos Offset");
-            ImGuiExt.DrawVector3Value(ref viewModel.ImportPositionOffset);
-            ImGui.Spacing();
+            const ImGuiTableFlags flags =
+                ImGuiTableFlags.BordersInner |
+                ImGuiTableFlags.RowBg |
+                ImGuiTableFlags.SizingStretchProp;
 
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Import Rot (deg)");
-            ImGuiExt.DrawVector3Value(ref viewModel.ImportRotationDegrees);
-            ImGui.Spacing();
+            if (ImGui.BeginTable("ImportSettingsTable", 2, flags))
+            {
+                ImGui.TableSetupColumn("Property", ImGuiTableColumnFlags.WidthFixed, 112.0f);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
 
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Import Scale");
-            ImGuiExt.DrawVector3Value(ref viewModel.ImportScale);
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted("Pos Offset");
+                ImGui.TableNextColumn();
+                ImGuiExt.DrawVector3Value(ref viewModel.ImportPositionOffset);
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted("Rot (deg)");
+                ImGui.TableNextColumn();
+                ImGuiExt.DrawVector3Value(ref viewModel.ImportRotationDegrees);
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted("Scale");
+                ImGui.TableNextColumn();
+                ImGuiExt.DrawVector3Value(ref viewModel.ImportScale);
+
+                ImGui.EndTable();
+            }
 
             ImGui.EndTabItem();
         }
@@ -144,26 +164,59 @@ namespace ManaVoxel.Code.UI
                 return;
             }
 
-            var cell = VoxelRasterizer.ToCell(viewModel.HoverVoxelPosition);
-            var cellVec = new Vector3(cell.X, cell.Y, cell.Z);
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Cell");
-            ImGuiExt.DrawVector3Value(ref cellVec, 0.0f, readOnly: true);
+            const ImGuiTableFlags flags =
+                ImGuiTableFlags.BordersInner |
+                ImGuiTableFlags.RowBg |
+                ImGuiTableFlags.SizingStretchProp;
 
-            var centerVec = viewModel.HoverVoxelPosition;
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Center");
-            ImGuiExt.DrawVector3Value(ref centerVec, 0.0f, readOnly: true);
-
-            ImGui.AlignTextToFramePadding();
-            ImGui.Text($"Camera Distance: {viewModel.HoverCameraDistance:0.0}");
-
-            if (viewModel.HasHoverDelta)
+            if (ImGui.BeginTable("PlacementTable", 2, flags))
             {
-                var deltaVec = viewModel.HoverDeltaFromLast;
+                ImGui.TableSetupColumn("Property", ImGuiTableColumnFlags.WidthFixed, 112.0f);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+                // Row 1: Cell
+                var cell = VoxelRasterizer.ToCell(viewModel.HoverVoxelPosition);
+                var cellVec = new Vector3(cell.X, cell.Y, cell.Z);
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Delta From Last");
-                ImGuiExt.DrawVector3Value(ref deltaVec, 0.0f, readOnly: true);
+                ImGui.TextUnformatted("Cell");
+                ImGui.TableNextColumn();
+                ImGuiExt.DrawVector3Value(ref cellVec, 0.0f, readOnly: true);
+
+                // Row 2: Center
+                var centerVec = viewModel.HoverVoxelPosition;
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted("Center");
+                ImGui.TableNextColumn();
+                ImGuiExt.DrawVector3Value(ref centerVec, 0.0f, readOnly: true);
+
+                // Row 3: Delta From Last
+                if (viewModel.HasHoverDelta)
+                {
+                    var deltaVec = viewModel.HoverDeltaFromLast;
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.TextUnformatted("Delta From Last");
+                    ImGui.TableNextColumn();
+                    ImGuiExt.DrawVector3Value(ref deltaVec, 0.0f, readOnly: true);
+                }
+
+                // Row 4: Camera Distance
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted("Cam Distance");
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.Text($"{viewModel.HoverCameraDistance:0.0}");
+
+                
+
+                ImGui.EndTable();
             }
         }
 

@@ -1,5 +1,6 @@
 using ImGuiNET;
 using ManaVoxel.Code.Tools;
+using Mana;
 
 namespace ManaVoxel.Code.UI
 {
@@ -19,7 +20,9 @@ namespace ManaVoxel.Code.UI
             DrawPlaneButtons(viewModel);
 
             ImGui.Separator();
-            ImGui.ColorEdit4("Paint", ref viewModel.PaintVoxelColor);
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Paint Color");
+            ImGuiExt.DrawColorValue(ref viewModel.PaintVoxelColor);
 
             var selectedTool = VoxelToolCatalog.GetToolKind(viewModel.SelectedToolIndex);
             if (selectedTool is VoxelToolKind.Stroke or VoxelToolKind.Line or VoxelToolKind.Spline)
