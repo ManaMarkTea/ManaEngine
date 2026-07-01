@@ -175,7 +175,10 @@ namespace Mana.Code.Nodes
                         PbrDebugMode = GetPbrDebugMode(renderer.Material),
                         IncludeInEnvironmentCapture = includeInEnvironmentCapture,
                         IsTransparent = renderer.Material.Shader?.IsTransparent ?? false,
-                        DisableDepthWrite = renderer.Material.Shader?.DisableDepthWrite ?? false
+                        DisableDepthWrite = renderer.Material.Shader?.DisableDepthWrite ?? false,
+                        OutlineEnabled = renderer.OutlineEnabled,
+                        OutlineColor = renderer.OutlineColor,
+                        OutlineWidth = renderer.OutlineWidth
                     });
                 }
                 catch (InvalidOperationException)

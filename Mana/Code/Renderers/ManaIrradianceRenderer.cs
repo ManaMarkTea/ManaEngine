@@ -160,7 +160,42 @@ namespace Mana.Code.Renderers
             SyncGridLightRig();
             drawScenes();
 
+            PostProcessor.RenderOutlineMask(EnumerateOutlinedMeshRenderers());
             PostProcessor.End();
+        }
+
+        private IEnumerable<(ManaSceneNode Node, MeshRendererComponent Renderer)> EnumerateOutlinedMeshRenderers()
+        {
+            foreach (var scene in Context.World.Scenes)
+            {
+                foreach (var rootNode in scene.Children)
+                {
+                    foreach (var outlinedMesh in EnumerateOutlinedMeshRenderers(rootNode))
+                    {
+                        yield return outlinedMesh;
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<(ManaSceneNode Node, MeshRendererComponent Renderer)> EnumerateOutlinedMeshRenderers(
+            ManaSceneNode node)
+        {
+            foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+            {
+                if (renderer.OutlineEnabled)
+                {
+                    yield return (node, renderer);
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                foreach (var outlinedMesh in EnumerateOutlinedMeshRenderers(child))
+                {
+                    yield return outlinedMesh;
+                }
+            }
         }
 
         private const float DebugGridSize = 256.0f;

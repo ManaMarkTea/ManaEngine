@@ -178,6 +178,61 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
+        private void DrawOutlineMask(CommandEncoder* commandEncoder)
+        {
+            var outlineMaskView = _hdrPostProcessor?.OutlineMaskView;
+            if (commandEncoder == null || outlineMaskView == null || _depthTextureView == null)
+            {
+                return;
+            }
+
+            var colorAttachment = new RenderPassColorAttachment
+            {
+                View = outlineMaskView,
+                LoadOp = LoadOp.Clear,
+                StoreOp = StoreOp.Store,
+                ClearValue = new Color { R = 0.0, G = 0.0, B = 0.0, A = 0.0 }
+            };
+
+            var depthAttachment = new RenderPassDepthStencilAttachment
+            {
+                View = _depthTextureView,
+                DepthLoadOp = LoadOp.Undefined,
+                DepthStoreOp = StoreOp.Undefined,
+                DepthClearValue = 0.0f,
+                DepthReadOnly = true,
+                StencilLoadOp = LoadOp.Undefined,
+                StencilStoreOp = StoreOp.Undefined,
+                StencilReadOnly = true
+            };
+
+            var descriptor = new RenderPassDescriptor
+            {
+                ColorAttachmentCount = 1,
+                ColorAttachments = &colorAttachment,
+                DepthStencilAttachment = &depthAttachment
+            };
+
+            var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
+            var pipeline = GetOrCreateOutlineMaskPipeline();
+            _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+
+            foreach (var sceneMesh in _sceneMeshes)
+            {
+                if (!sceneMesh.Instance.OutlineEnabled)
+                {
+                    continue;
+                }
+
+                UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+                sceneMesh.Mesh.Draw(renderPass);
+            }
+
+            _api.RenderPassEncoderEnd(renderPass);
+            _api.RenderPassEncoderRelease(renderPass);
+        }
+
         private void CreateHdrPostProcessor()
         {
             if (_hdrPostProcessor != null)

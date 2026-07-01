@@ -51,6 +51,7 @@ namespace ManaGraphics.Code.Graphics
         private BindGroupLayout* _sceneCaptureBindGroupLayout;
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;
+        private RenderPipeline* _outlineMaskPipeline;
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private Texture* _sceneCaptureDepthTexture;
@@ -168,6 +169,11 @@ namespace ManaGraphics.Code.Graphics
             _api.SurfaceGetCurrentTexture(_surface, &surfaceTexture);
             if (surfaceTexture.Status != SurfaceGetCurrentTextureStatus.Success || surfaceTexture.Texture == null)
             {
+                if (surfaceTexture.Texture != null)
+                {
+                    _api.TextureRelease(surfaceTexture.Texture);
+                }
+
                 return;
             }
 
@@ -188,6 +194,8 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _api.TextureViewRelease(textureView);
                 }
+
+                _api.TextureRelease(surfaceTexture.Texture);
 
                 return;
             }
@@ -230,6 +238,7 @@ namespace ManaGraphics.Code.Graphics
             DrawDemoMesh(sceneRenderPass);
             _api.RenderPassEncoderEnd(sceneRenderPass);
 
+            DrawOutlineMask(commandEncoder);
             _hdrPostProcessor?.Process(commandEncoder);
 
             var surfaceColorAttachment = new RenderPassColorAttachment
@@ -261,6 +270,7 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderRelease(sceneRenderPass);
             _api.RenderPassEncoderRelease(toneMapRenderPass);
             _api.TextureViewRelease(textureView);
+            _api.TextureRelease(surfaceTexture.Texture);
         }
 
         public void Dispose()

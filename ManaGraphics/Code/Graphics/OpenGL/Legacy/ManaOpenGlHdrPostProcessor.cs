@@ -1,5 +1,6 @@
 using Silk.NET.OpenGL;
 using System;
+using Mana.Code.Nodes;
 
 namespace Mana.Code.Graphics
 {
@@ -8,10 +9,12 @@ namespace Mana.Code.Graphics
         public ManaRenderTarget HdrSceneTarget { get; private set; } = null!;
         private ManaRenderTarget _bloomTargetA = null!;
         private ManaRenderTarget _bloomTargetB = null!;
+        private ManaRenderTarget _outlineMaskTarget = null!;
 
         private ManaShader _brightShader = null!;
         private ManaShader _blurShader = null!;
         private ManaShader _combineShader = null!;
+        private ManaShader _outlineMaskShader = null!;
 
         private uint _dummyVao;
 
@@ -29,6 +32,9 @@ namespace Mana.Code.Graphics
 
             _combineShader = new ManaShader(Context);
             _combineShader.LoadShader("Assets/Shaders/LearnSpecularTextured/post_quad.vert", "Assets/Shaders/LearnSpecularTextured/bloom_combine.frag");
+
+            _outlineMaskShader = new ManaShader(Context);
+            _outlineMaskShader.LoadShader("Assets/Shaders/LearnSpecularTextured/outline_mask.vert", "Assets/Shaders/LearnSpecularTextured/outline_mask.frag");
 
             // Initialize targets
             RecreateTargets(width, height);
@@ -59,6 +65,12 @@ namespace Mana.Code.Graphics
             _bloomTargetB.AddFloatBuffer("BloomB");
             _bloomTargetB.Build();
             _bloomTargetB.UnBind();
+
+            _outlineMaskTarget = new ManaRenderTarget(Context, width, height);
+            _outlineMaskTarget.AddRgbaBuffer("OutlineMask");
+            _outlineMaskTarget.AddDepthBuffer("OutlineDepth");
+            _outlineMaskTarget.Build();
+            _outlineMaskTarget.UnBind();
         }
 
         public void Begin()
@@ -127,10 +139,56 @@ namespace Mana.Code.Graphics
             _bloomTargetA.bufferMap["BloomA"].Texture?.Bind(1);
             _combineShader.FindUniform("bloomColor")?.SetValue(1);
 
+            _outlineMaskTarget.bufferMap["OutlineMask"].Texture?.Bind(2);
+            _combineShader.FindUniform("outlineMask")?.SetValue(2);
+
             gl.DrawArrays(PrimitiveType.Triangles, 0, 3);
             _combineShader.UnbindShader();
 
             gl.BindVertexArray(0);
+        }
+
+        public void RenderOutlineMask(IEnumerable<(ManaSceneNode Node, MeshRendererComponent Renderer)> outlinedMeshes)
+        {
+            var gl = Context.RequireOpenGl();
+
+            gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, HdrSceneTarget.FrameBufferID);
+            gl.BindFramebuffer(FramebufferTarget.DrawFramebuffer, _outlineMaskTarget.FrameBufferID);
+            gl.BlitFramebuffer(
+                0,
+                0,
+                (int)HdrSceneTarget.Width,
+                (int)HdrSceneTarget.Height,
+                0,
+                0,
+                (int)_outlineMaskTarget.Width,
+                (int)_outlineMaskTarget.Height,
+                ClearBufferMask.DepthBufferBit,
+                BlitFramebufferFilter.Nearest);
+
+            _outlineMaskTarget.Bind();
+            gl.ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            gl.Clear((uint)ClearBufferMask.ColorBufferBit);
+            gl.Enable(EnableCap.DepthTest);
+            gl.DepthFunc(DepthFunction.Lequal);
+            gl.DepthMask(false);
+
+            foreach (var (node, renderer) in outlinedMeshes)
+            {
+                if (!renderer.OutlineEnabled || renderer.Mesh?.ImmediateGpuMesh == null)
+                {
+                    continue;
+                }
+
+                _outlineMaskShader.BindShader(renderer.Material, node.WorldTransform, Context.World.MainCamera, node);
+                _outlineMaskShader.FindUniform("outlineColor")?.SetValue(renderer.OutlineColor);
+                _outlineMaskShader.FindUniform("outlineWidth")?.SetValue(Math.Clamp(renderer.OutlineWidth, 1.0f, 4.0f));
+                renderer.Mesh.RenderDirectly();
+                _outlineMaskShader.UnbindShader();
+            }
+
+            gl.DepthMask(true);
+            _outlineMaskTarget.UnBind();
         }
     }
 }

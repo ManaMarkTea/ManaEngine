@@ -6,6 +6,7 @@ struct VertexOutput {
 @group(0) @binding(0) var color_sampler : sampler;
 @group(0) @binding(1) var hdr_color : texture_2d<f32>;
 @group(0) @binding(2) var bloom_color : texture_2d<f32>;
+@group(0) @binding(3) var outline_mask : texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index : u32) -> VertexOutput {
@@ -94,7 +95,38 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let c = 2.43;
     let d = 0.59;
     let e = 0.14;
-    let mapped = clamp((color * (a * color + b)) / (color * (c * color + d) + e), vec3<f32>(0.0), vec3<f32>(1.0));
-    
+    var mapped = clamp((color * (a * color + b)) / (color * (c * color + d) + e), vec3<f32>(0.0), vec3<f32>(1.0));
+
+    let dimensions = vec2<i32>(textureDimensions(outline_mask, 0u));
+    let maximum_pixel = dimensions - vec2<i32>(1);
+    let pixel = clamp(vec2<i32>(input.uv * vec2<f32>(dimensions)), vec2<i32>(0), maximum_pixel);
+    let center_mask = textureLoad(outline_mask, pixel, 0);
+    var outline_color = vec3<f32>(0.0);
+    var best_coverage = 0.0;
+
+    if (center_mask.a <= 0.001) {
+        for (var y = -4; y <= 4; y = y + 1) {
+            for (var x = -4; x <= 4; x = x + 1) {
+                let distance = length(vec2<f32>(f32(x), f32(y)));
+                if (distance <= 0.0 || distance > 4.0) {
+                    continue;
+                }
+
+                let sample_pixel = clamp(pixel + vec2<i32>(x, y), vec2<i32>(0), maximum_pixel);
+                let mask = textureLoad(outline_mask, sample_pixel, 0);
+                let packed_outline = round(mask.a * 255.0);
+                let width_code = floor(packed_outline / 64.0);
+                let opacity = (packed_outline - width_code * 64.0) / 63.0;
+                let width_pixels = width_code + 1.0;
+                let coverage = clamp(width_pixels - distance + 1.0, 0.0, 1.0) * opacity;
+                if (coverage > best_coverage) {
+                    best_coverage = coverage;
+                    outline_color = mask.rgb;
+                }
+            }
+        }
+    }
+
+    mapped = mix(mapped, outline_color, best_coverage);
     return vec4<f32>(mapped, 1.0);
 }

@@ -42,6 +42,12 @@ namespace ManaGraphics.Code.Graphics
                 _sceneCapturePipeline = null;
             }
 
+            if (_outlineMaskPipeline != null)
+            {
+                _api.RenderPipelineRelease(_outlineMaskPipeline);
+                _outlineMaskPipeline = null;
+            }
+
             _hdrPostProcessor?.Dispose();
             _hdrPostProcessor = null;
 

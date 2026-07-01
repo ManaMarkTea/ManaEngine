@@ -82,7 +82,13 @@ namespace ManaGraphics.Code.Graphics
                 Time = elapsedSeconds,
                 WebGpuDebugMode = meshInstance.PbrDebugMode ?? irradianceSettings.WebGpuDebugMode,
                 _padding1 = 0.0f,
-                _padding2 = 0.0f
+                _padding2 = 0.0f,
+                OutlineColor = meshInstance.OutlineColor,
+                OutlineParameters = new Vector4(
+                    Math.Clamp(meshInstance.OutlineWidth, 1.0f, 4.0f),
+                    meshInstance.OutlineEnabled ? 1.0f : 0.0f,
+                    0.0f,
+                    0.0f)
             };
 
             _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuTransformUniform));
@@ -111,6 +117,8 @@ namespace ManaGraphics.Code.Graphics
             public float WebGpuDebugMode;
             public float _padding1;
             public float _padding2;
+            public Vector4 OutlineColor;
+            public Vector4 OutlineParameters;
         }
     }
 }

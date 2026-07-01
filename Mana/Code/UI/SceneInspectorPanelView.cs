@@ -218,6 +218,25 @@ namespace Mana.Code.UI
             if (BeginPropertyTable("MeshRendererProperties"))
             {
                 DrawReadOnlyProperty("Mesh", meshRenderer.Mesh.GetType().Name);
+
+                var outlineEnabled = meshRenderer.OutlineEnabled;
+                if (DrawCheckboxProperty("Outline", ref outlineEnabled))
+                {
+                    meshRenderer.OutlineEnabled = outlineEnabled;
+                }
+
+                var outlineColor = meshRenderer.OutlineColor;
+                if (DrawColorProperty("Outline Color", ref outlineColor))
+                {
+                    meshRenderer.OutlineColor = outlineColor;
+                }
+
+                var outlineWidth = meshRenderer.OutlineWidth;
+                if (DrawSliderFloatProperty("Outline Width", ref outlineWidth, 1.0f, 4.0f))
+                {
+                    meshRenderer.OutlineWidth = outlineWidth;
+                }
+
                 ImGui.EndTable();
             }
 

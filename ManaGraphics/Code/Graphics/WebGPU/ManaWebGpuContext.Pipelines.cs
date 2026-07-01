@@ -22,7 +22,8 @@ namespace ManaGraphics.Code.Graphics
             PipelineLayout* pipelineLayout,
             string? shaderName = null,
             bool isTransparent = false,
-            bool disableDepthWrite = false)
+            bool disableDepthWrite = false,
+            CompareFunction depthCompare = CompareFunction.Less)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
@@ -109,7 +110,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     Format = _depthFormat,
                     DepthWriteEnabled = !disableDepthWrite,
-                    DepthCompare = CompareFunction.Less,
+                    DepthCompare = depthCompare,
                     StencilFront = new StencilFaceState
                     {
                         Compare = CompareFunction.Always,
@@ -401,6 +402,26 @@ namespace ManaGraphics.Code.Graphics
             _shaderModules["SceneCapture"] = (nint)shaderModule;
             ManaConsole.WriteDiagnostic("WebGPU scene capture pipeline created successfully.");
             return _sceneCapturePipeline;
+        }
+
+        private RenderPipeline* GetOrCreateOutlineMaskPipeline()
+        {
+            if (_outlineMaskPipeline != null)
+            {
+                return _outlineMaskPipeline;
+            }
+
+            var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "outline_mask.wgsl"));
+            _outlineMaskPipeline = CreateDemoRenderPipeline(
+                shaderModule,
+                TextureFormat.Rgba8Unorm,
+                _demoPipelineLayout,
+                "OutlineMask",
+                disableDepthWrite: true,
+                depthCompare: CompareFunction.LessEqual);
+            _shaderModules["OutlineMask"] = (nint)shaderModule;
+            ManaConsole.WriteDiagnostic("WebGPU outline-mask pipeline created successfully.");
+            return _outlineMaskPipeline;
         }
 
         private ShaderModule* CreateShaderModule(string relativePath)

@@ -6,6 +6,9 @@ namespace Mana
     {
         public ManaMesh Mesh { get; set; }
         public bool DrawAfterScene { get; set; }
+        public bool OutlineEnabled { get; set; }
+        public Vector4 OutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
+        public float OutlineWidth { get; set; } = 2.0f;
 
         private ManaMaterial? material;
         public ManaMaterial Material
