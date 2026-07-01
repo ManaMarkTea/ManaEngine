@@ -160,22 +160,41 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            foreach (var sceneMesh in _sceneMeshes)
+            foreach (var sceneMesh in _sceneMeshes.Where(mesh => !mesh.Instance.IsTransparent))
             {
-                UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
-                
-                var pipeline = GetOrCreatePipeline(sceneMesh.Instance.ShaderName, sceneMesh.Instance.IsTransparent, sceneMesh.Instance.DisableDepthWrite);
-                if (pipeline != null)
-                {
-                    _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
-                }
-
-                if (sceneMesh.BindGroup != null)
-                {
-                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
-                }
-                sceneMesh.Mesh.Draw(renderPass);
+                DrawSceneMesh(renderPass, sceneMesh);
             }
+
+            var cameraPosition = _activeRenderScene?.Camera.Position ?? Vector3.Zero;
+            foreach (var sceneMesh in _sceneMeshes
+                .Where(mesh => mesh.Instance.IsTransparent)
+                .OrderByDescending(mesh => Vector3.DistanceSquared(
+                    mesh.Instance.WorldTransform.Translation,
+                    cameraPosition)))
+            {
+                DrawSceneMesh(renderPass, sceneMesh);
+            }
+        }
+
+        private void DrawSceneMesh(RenderPassEncoder* renderPass, ManaWebGpuSceneMesh sceneMesh)
+        {
+            UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
+
+            var pipeline = GetOrCreatePipeline(
+                sceneMesh.Instance.ShaderName,
+                sceneMesh.Instance.IsTransparent,
+                sceneMesh.Instance.DisableDepthWrite);
+            if (pipeline != null)
+            {
+                _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+            }
+
+            if (sceneMesh.BindGroup != null)
+            {
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+            }
+
+            sceneMesh.Mesh.Draw(renderPass);
         }
 
         private void DrawOutlineMask(CommandEncoder* commandEncoder)

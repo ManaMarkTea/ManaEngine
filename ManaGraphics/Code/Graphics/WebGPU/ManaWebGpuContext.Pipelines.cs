@@ -75,19 +75,32 @@ namespace ManaGraphics.Code.Graphics
 
                 // Blending and depth settings are now parameter driven
 
+                var useAdditiveBlend = shaderName == "ManaLightningBallShader";
                 var blendState = new BlendState
                 {
                     Color = new BlendComponent
                     {
                         Operation = BlendOperation.Add,
-                        SrcFactor = isTransparent ? BlendFactor.SrcAlpha : BlendFactor.One,
-                        DstFactor = isTransparent ? BlendFactor.OneMinusSrcAlpha : BlendFactor.Zero
+                        SrcFactor = useAdditiveBlend
+                            ? BlendFactor.One
+                            : isTransparent
+                                ? BlendFactor.SrcAlpha
+                                : BlendFactor.One,
+                        DstFactor = useAdditiveBlend
+                            ? BlendFactor.One
+                            : isTransparent
+                                ? BlendFactor.OneMinusSrcAlpha
+                                : BlendFactor.Zero
                     },
                     Alpha = new BlendComponent
                     {
                         Operation = BlendOperation.Add,
                         SrcFactor = isTransparent ? BlendFactor.One : BlendFactor.One,
-                        DstFactor = isTransparent ? BlendFactor.OneMinusSrcAlpha : BlendFactor.Zero
+                        DstFactor = useAdditiveBlend
+                            ? BlendFactor.One
+                            : isTransparent
+                                ? BlendFactor.OneMinusSrcAlpha
+                                : BlendFactor.Zero
                     }
                 };
 
@@ -141,6 +154,9 @@ namespace ManaGraphics.Code.Graphics
                         Topology = PrimitiveTopology.TriangleList,
                         StripIndexFormat = IndexFormat.Undefined,
                         FrontFace = FrontFace.Ccw,
+                        // Procedural meshes do not currently guarantee a single winding
+                        // convention. The lightning volume must retain both sides so the
+                        // visible entry surface always performs the interior ray march.
                         CullMode = CullMode.None
                     },
                     Multisample = new MultisampleState
