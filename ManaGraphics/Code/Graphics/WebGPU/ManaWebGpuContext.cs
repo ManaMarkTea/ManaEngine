@@ -48,6 +48,8 @@ namespace ManaGraphics.Code.Graphics
         private float _demoMeshScale = 1.0f;
         private BindGroupLayout* _demoBindGroupLayout;
         private PipelineLayout* _demoPipelineLayout;
+        private BindGroupLayout* _customUniformBindGroupLayout;
+        private PipelineLayout* _customUniformPipelineLayout;
         private BindGroupLayout* _sceneCaptureBindGroupLayout;
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;

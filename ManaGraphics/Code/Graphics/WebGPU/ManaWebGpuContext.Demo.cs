@@ -180,6 +180,12 @@ namespace ManaGraphics.Code.Graphics
         {
             UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
 
+            if (sceneMesh.CustomUniformBuffer != null)
+            {
+                var customUniform = BuildCustomMaterialUniform(sceneMesh.Instance);
+                _api.QueueWriteBuffer(_queue, sceneMesh.CustomUniformBuffer, 0, &customUniform, (nuint)sizeof(ManaWebGpuCustomMaterialUniform));
+            }
+
             var pipeline = GetOrCreatePipeline(
                 sceneMesh.Instance.ShaderName,
                 sceneMesh.Instance.IsTransparent,
@@ -192,6 +198,11 @@ namespace ManaGraphics.Code.Graphics
             if (sceneMesh.BindGroup != null)
             {
                 _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+            }
+
+            if (sceneMesh.CustomBindGroup != null)
+            {
+                _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.CustomBindGroup, 0, null);
             }
 
             sceneMesh.Mesh.Draw(renderPass);

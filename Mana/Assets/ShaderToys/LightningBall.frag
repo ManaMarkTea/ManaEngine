@@ -6,8 +6,11 @@ in vec3 ObjectPos;
 in vec3 ObjectCameraPos;
 
 uniform float iTime;
+uniform float sphereRadius = 1.0;
+uniform float intensity = 1.0;
+uniform vec3 coreColorTint = vec3(2.9, 3.0, 3.15);
+uniform vec3 haloColorTint = vec3(0.12, 0.62, 2.25);
 
-const float SphereRadius = 1.0;
 const int StepCount = 60;
 const int BoltCount = 7;
 const int SegmentCount = 6;
@@ -92,7 +95,7 @@ vec3 boltPoint(vec3 dir, vec3 right, vec3 up, float s, float fi, float t)
     float amp = bend * (0.055 + 0.035 * smoothstep(0.15, 0.9, s));
     vec3 wander = (right * crackle + up * fork) * amp;
 
-    return dir * (s * 0.94 * SphereRadius) + wander;
+    return dir * (s * 0.94 * sphereRadius) + wander;
 }
 
 vec3 branchPoint(vec3 start, vec3 dir, vec3 right, vec3 up, float s, float fi, float t)
@@ -100,7 +103,7 @@ vec3 branchPoint(vec3 start, vec3 dir, vec3 right, vec3 up, float s, float fi, f
     float bend = sin(s * 3.14159265);
     float wiggle = t * (4.8 + fi * 0.2) + fi * 9.1;
     vec3 wander = (right * sin(s * 19.0 + wiggle) + up * cos(s * 23.0 - wiggle)) * bend * 0.045;
-    return mix(start, dir * 0.86 * SphereRadius, s) + wander;
+    return mix(start, dir * 0.86 * sphereRadius, s) + wander;
 }
 
 vec3 boltField(vec3 p, float fi, float t)
@@ -147,7 +150,7 @@ vec3 boltField(vec3 p, float fi, float t)
     float branchGlow = exp(-pow(dBranch / 0.052, 2.0));
 
     vec3 tip = boltPoint(dir, right, up, 1.0, fi, t);
-    float contact = exp(-length(p - tip) * 17.0) * smoothstep(0.72, 1.0, length(p) / SphereRadius);
+    float contact = exp(-length(p - tip) * 17.0) * smoothstep(0.72, 1.0, length(p) / sphereRadius);
 
     return vec3(
         (mainCore + branchCore * 0.7) * active * chase,
@@ -179,7 +182,7 @@ void main(void)
     vec3 marchDir = normalize(-viewDir);
     vec3 startPos = ObjectPos - normal * 0.002;
 
-    float maxDistance = SphereRadius * 2.05;
+    float maxDistance = sphereRadius * 2.05;
     float stepSize = maxDistance / float(StepCount);
 
     vec3 accum = vec3(0.0);
@@ -191,21 +194,21 @@ void main(void)
         vec3 p = startPos + marchDir * travel;
         float radius = length(p);
 
-        if (radius > SphereRadius)
+        if (radius > sphereRadius)
         {
             break;
         }
 
-        float radius01 = radius / SphereRadius;
+        float radius01 = radius / sphereRadius;
         float insideFade = 1.0 - smoothstep(0.97, 1.0, radius01);
         float centerGlow = exp(-radius * 6.0) * (0.75 + 0.25 * sin(iTime * 16.0));
         float haze = fbm(p * 3.2 + vec3(iTime * 0.23, -iTime * 0.31, iTime * 0.17));
         haze = smoothstep(0.25, 0.95, haze) * pow(1.0 - radius01, 0.55);
 
-        vec3 field = lightningField(p, iTime);
+        vec3 field = lightningField(p, iTime) * intensity;
 
-        vec3 coreColor = vec3(2.9, 3.0, 3.15) * field.x;
-        vec3 haloColor = vec3(0.12, 0.62, 2.25) * field.y;
+        vec3 coreColor = coreColorTint * field.x;
+        vec3 haloColor = haloColorTint * field.y;
         vec3 tipColor = vec3(1.0, 0.38, 1.85) * field.z;
         vec3 hazeColor = vec3(0.025, 0.09, 0.26) * haze;
         vec3 centerColor = vec3(0.25, 0.62, 1.4) * centerGlow;
@@ -224,7 +227,7 @@ void main(void)
 
     float facing = max(dot(normal, viewDir), 0.0);
     float fresnel = pow(1.0 - facing, 3.1);
-    float rimMask = smoothstep(0.48, 1.0, length(ObjectPos) / SphereRadius);
+    float rimMask = smoothstep(0.48, 1.0, length(ObjectPos) / sphereRadius);
     vec3 rim = vec3(0.22, 0.72, 1.85) * fresnel * rimMask * 2.8;
     vec3 glass = vec3(0.018, 0.055, 0.13) + vec3(0.045, 0.13, 0.32) * fresnel;
 

@@ -28,6 +28,21 @@ struct VertexOutput {
 @group(0) @binding(1) var color_sampler : sampler;
 @group(0) @binding(2) var color_texture : texture_2d<f32>;
 
+// Custom per-material uniforms (group 1). Field names match ManaMaterial.SetShaderUniform(name,
+// value) exactly; ManaWebGpuContext parses this struct directly out of this file (by declaration
+// order) to build the name->slot mapping, so adding a new tunable parameter here needs no C#
+// renderer changes — just add a field and a matching SetShaderUniform call in
+// VoxelEditorGameMode.cs. The "slot N" comments are just human-readable byte-offset annotations;
+// declaration order is what actually determines the slot. Scalars live in .x; colors use .xyz.
+struct CustomMaterialUniform {
+    sphereRadius : vec4<f32>, // slot 0
+    intensity : vec4<f32>, // slot 1
+    coreColorTint : vec4<f32>, // slot 2
+    haloColorTint : vec4<f32>, // slot 3
+};
+
+@group(1) @binding(0) var<uniform> custom : CustomMaterialUniform;
+
 const VOLUME_STEPS : u32 = 24u;
 
 @vertex
@@ -83,8 +98,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let rim = pow(1.0 - facing, 1.7);
     let temporal_glow = 0.85 + 0.15 * sin(transform.time * 2.0);
 
-    let base_color = vec3<f32>(0.06, 0.30, 0.95);
-    let lightning_color = vec3<f32>(0.78, 0.94, 1.0);
+    let base_color = custom.haloColorTint.xyz;
+    let lightning_color = custom.coreColorTint.xyz;
     let shell_color = mix(base_color, lightning_color, bolt);
 
     // Transform the world-space view ray as a direction. Using w = 0 keeps
@@ -92,7 +107,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // only the inverse model's linear transform.
     let world_ray = input.world_pos - transform.camera_position.xyz;
     let ray_direction = normalize((transpose(transform.normal_matrix) * vec4<f32>(world_ray, 0.0)).xyz);
-    let sphere_radius = 1.0;
+    let sphere_radius = custom.sphereRadius.x;
     let entry = input.local_pos;
     let b = dot(entry, ray_direction);
     let c = dot(entry, entry) - sphere_radius * sphere_radius;
@@ -111,7 +126,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let shell_radiance = shell_color * temporal_glow * (0.12 + rim * 0.35 + bolt * 0.45);
-    let radiance = shell_radiance + volume_radiance * 3.2;
+    let radiance = (shell_radiance + volume_radiance * 3.2) * custom.intensity.x;
 
     // A faint glassy shell with brighter lightning filaments and rim, while
     // preserving visibility of geometry behind the sphere.

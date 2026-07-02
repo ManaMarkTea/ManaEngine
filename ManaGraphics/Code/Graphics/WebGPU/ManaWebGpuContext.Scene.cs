@@ -215,7 +215,60 @@ namespace ManaGraphics.Code.Graphics
                 sceneCaptureBindGroups[face] = (nint)sceneCaptureBindGroup;
             }
 
-            var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, textureResource, ReleaseMeshTexture, bindGroup, sceneCaptureUniformBuffers, sceneCaptureBindGroups);
+            // Group 1: generic per-material custom uniform buffer, built for every mesh regardless of
+            // shader (unused shaders simply never declare @group(1) in their .wgsl source).
+            var customBufferDescriptor = new BufferDescriptor
+            {
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                Size = (ulong)sizeof(ManaWebGpuCustomMaterialUniform)
+            };
+            var customUniformBuffer = _api.DeviceCreateBuffer(_device, &customBufferDescriptor);
+            if (customUniformBuffer == null)
+            {
+                ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
+                _api.BindGroupRelease(bindGroup);
+                ReleaseMeshTexture(textureResource);
+                _api.BufferRelease(uniformBuffer);
+                mesh.Dispose();
+                throw new InvalidOperationException($"Failed to create WebGPU custom uniform buffer for mesh '{instance.Name}'.");
+            }
+
+            var customBindGroupEntries = new BindGroupEntry[1];
+            customBindGroupEntries[0] = new BindGroupEntry
+            {
+                Binding = 0,
+                Buffer = customUniformBuffer,
+                Offset = 0,
+                Size = (ulong)sizeof(ManaWebGpuCustomMaterialUniform)
+            };
+
+            BindGroup* customBindGroup = null;
+            fixed (BindGroupEntry* customBindGroupEntriesPointer = customBindGroupEntries)
+            {
+                var customBindGroupDescriptor = new BindGroupDescriptor
+                {
+                    Layout = _customUniformBindGroupLayout,
+                    EntryCount = 1,
+                    Entries = customBindGroupEntriesPointer
+                };
+                customBindGroup = _api.DeviceCreateBindGroup(_device, &customBindGroupDescriptor);
+            }
+
+            if (customBindGroup == null)
+            {
+                ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
+                _api.BindGroupRelease(bindGroup);
+                ReleaseMeshTexture(textureResource);
+                _api.BufferRelease(uniformBuffer);
+                _api.BufferRelease(customUniformBuffer);
+                mesh.Dispose();
+                throw new InvalidOperationException($"Failed to create WebGPU custom uniform bind group for mesh '{instance.Name}'.");
+            }
+
+            var customUniform = BuildCustomMaterialUniform(instance);
+            _api.QueueWriteBuffer(_queue, customUniformBuffer, 0, &customUniform, (nuint)sizeof(ManaWebGpuCustomMaterialUniform));
+
+            var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, textureResource, ReleaseMeshTexture, bindGroup, sceneCaptureUniformBuffers, sceneCaptureBindGroups, customUniformBuffer, customBindGroup);
             UpdateDemoUniforms(instance, uniformBuffer);
             return sceneMesh;
         }
@@ -436,7 +489,9 @@ namespace ManaGraphics.Code.Graphics
                 Action<ManaWebGpuMeshTexture> releaseTexture,
                 BindGroup* bindGroup,
                 nint[] sceneCaptureUniformBuffers,
-                nint[] sceneCaptureBindGroups)
+                nint[] sceneCaptureBindGroups,
+                WebGpuBuffer* customUniformBuffer = null,
+                BindGroup* customBindGroup = null)
             {
                 _api = api;
                 _releaseTexture = releaseTexture;
@@ -447,6 +502,8 @@ namespace ManaGraphics.Code.Graphics
                 BindGroup = bindGroup;
                 SceneCaptureUniformBuffers = sceneCaptureUniformBuffers;
                 SceneCaptureBindGroups = sceneCaptureBindGroups;
+                CustomUniformBuffer = customUniformBuffer;
+                CustomBindGroup = customBindGroup;
             }
 
             public ManaRenderMeshInstance Instance { get; set; }
@@ -456,6 +513,8 @@ namespace ManaGraphics.Code.Graphics
             public BindGroup* BindGroup { get; }
             public nint[] SceneCaptureUniformBuffers { get; private set; }
             public nint[] SceneCaptureBindGroups { get; private set; }
+            public WebGpuBuffer* CustomUniformBuffer { get; }
+            public BindGroup* CustomBindGroup { get; }
 
             public WebGpuBuffer* GetSceneCaptureUniformBuffer(int face)
             {
@@ -493,10 +552,18 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _api.BindGroupRelease(BindGroup);
                 }
+                if (CustomBindGroup != null)
+                {
+                    _api.BindGroupRelease(CustomBindGroup);
+                }
                 _releaseTexture(Texture);
                 if (UniformBuffer != null)
                 {
                     _api.BufferRelease(UniformBuffer);
+                }
+                if (CustomUniformBuffer != null)
+                {
+                    _api.BufferRelease(CustomUniformBuffer);
                 }
             }
         }

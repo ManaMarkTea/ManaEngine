@@ -74,6 +74,18 @@ namespace ManaGraphics.Code.Graphics
                 _demoPipelineLayout = null;
             }
 
+            if (_customUniformPipelineLayout != null)
+            {
+                _api.PipelineLayoutRelease(_customUniformPipelineLayout);
+                _customUniformPipelineLayout = null;
+            }
+
+            if (_customUniformBindGroupLayout != null)
+            {
+                _api.BindGroupLayoutRelease(_customUniformBindGroupLayout);
+                _customUniformBindGroupLayout = null;
+            }
+
             if (_demoSampler != null)
             {
                 _api.SamplerRelease(_demoSampler);

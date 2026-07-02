@@ -13,6 +13,8 @@ uniform float liquidSurfaceStrength = 1.0;
 uniform float liquidPoolContourStrength = 1.0;
 uniform float glassEdgeStrength = 1.0;
 uniform float glassAirAlpha = 1.0;
+uniform vec3 shallowColorTint = vec3(0.05, 0.72, 0.95);
+uniform vec3 deepColorTint = vec3(0.00, 0.22, 0.62);
 
 const float SphereRadius = 1.0;
 const int StepCount = 64;
@@ -162,9 +164,7 @@ void main(void)
         float bubbles = bubbleField(p) * liquidMask * smoothstep(0.0, 0.32, signedLiquidDepth);
         float caustic = 0.55 + 0.45 * sin((p.x + p.z) * 16.0 + iTime * 5.0 + fbm(p * 5.0) * 5.0);
 
-        vec3 shallowColor = vec3(0.05, 0.72, 0.95);
-        vec3 deepColor = vec3(0.00, 0.22, 0.62);
-        vec3 liquidColor = mix(shallowColor, deepColor, depthTint);
+        vec3 liquidColor = mix(shallowColorTint, deepColorTint, depthTint);
         vec3 surfaceColor = vec3(0.78, 1.0, 0.98);
         vec3 bubbleColor = vec3(0.88, 1.0, 1.0);
 

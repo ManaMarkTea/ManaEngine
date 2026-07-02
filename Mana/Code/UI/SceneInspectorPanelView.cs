@@ -5,6 +5,7 @@ using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Silk.NET.OpenGL;
 using Mana;
+using Mana.Code;
 
 namespace Mana.Code.UI
 {
@@ -450,6 +451,11 @@ namespace Mana.Code.UI
             }
 
             var materialName = material.Name;
+
+            // Albedo/Emission/Metallic/Roughness/Ambient/NormalSelector/EmissionStrength are only ever
+            // read by ManaPbrShader.BindShader — "shader toy" style shaders (lightning ball, liquid ball,
+            // etc.) ignore them entirely, so showing them there is misleading.
+            var usesPbrChannels = material.Shader is ManaPbrShader;
             if (BeginPropertyTable("MaterialProperties"))
             {
                 if (DrawInputTextProperty("Name", ref materialName, 160))
@@ -458,25 +464,34 @@ namespace Mana.Code.UI
                 }
 
                 DrawReadOnlyProperty("Shader", material.Shader?.GetType().Name ?? "None");
-                DrawColorEditor("Albedo", material.Albedo);
-                DrawColorEditor("Emission", material.Emission);
-                DrawScalarEditor("Metallic", material.Metallic, 0.0f, 1.0f);
-                DrawScalarEditor("Roughness", material.Roughness, 0.0f, 1.0f);
-                DrawScalarEditor("Ambient", material.Ambient, 0.0f, 1.0f);
 
-                var normalSelector = (float)material.NormalSelector;
-                if (DrawSliderFloatProperty("Normal Texture Mix", ref normalSelector, 0.0f, 1.0f))
+                if (usesPbrChannels)
                 {
-                    material.NormalSelector = normalSelector;
-                }
+                    DrawColorEditor("Albedo", material.Albedo);
+                    DrawColorEditor("Emission", material.Emission);
+                    DrawScalarEditor("Metallic", material.Metallic, 0.0f, 1.0f);
+                    DrawScalarEditor("Roughness", material.Roughness, 0.0f, 1.0f);
+                    DrawScalarEditor("Ambient", material.Ambient, 0.0f, 1.0f);
 
-                var emissionStrength = (float)material.EmissionStrength;
-                if (DrawSliderFloatProperty("Emission Strength", ref emissionStrength, 0.0f, 25.0f))
-                {
-                    material.EmissionStrength = emissionStrength;
+                    var normalSelector = (float)material.NormalSelector;
+                    if (DrawSliderFloatProperty("Normal Texture Mix", ref normalSelector, 0.0f, 1.0f))
+                    {
+                        material.NormalSelector = normalSelector;
+                    }
+
+                    var emissionStrength = (float)material.EmissionStrength;
+                    if (DrawSliderFloatProperty("Emission Strength", ref emissionStrength, 0.0f, 25.0f))
+                    {
+                        material.EmissionStrength = emissionStrength;
+                    }
                 }
 
                 ImGui.EndTable();
+            }
+
+            if (!usesPbrChannels)
+            {
+                ImGui.TextDisabled("This shader ignores the standard PBR channels; see Shader Uniforms below.");
             }
 
             DrawShaderUniformInspector(material);
@@ -486,35 +501,27 @@ namespace Mana.Code.UI
 
         private static void DrawShaderUniformInspector(ManaMaterial material)
         {
-            var uniforms = material.Shader?.CompiledShader?.UniformNames;
-            if (uniforms == null || uniforms.Count == 0)
+            // Editable overrides come straight from ManaMaterial.ShaderUniforms — backend-agnostic,
+            // since it's populated by SetShaderUniform(...) regardless of whether a GLSL shader ever
+            // compiled for this material (e.g. running the WebGPU backend, where CompiledShader below
+            // stays empty since GL compilation is skipped entirely).
+            var editableUniforms = material.ShaderUniforms
+                .Where(entry => !IsAutomaticUniformName(entry.Key) && CanEditUniform(entry.Value.Type))
+                .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+                .ToList();
+
+            if (!ImGui.TreeNodeEx("Shader Uniforms", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 return;
             }
-
-            if (!ImGui.TreeNodeEx($"Shader Uniforms ({uniforms.Count})", ImGuiTreeNodeFlags.DefaultOpen))
-            {
-                return;
-            }
-
-            var sortedUniforms = uniforms.OrderBy(uniform => uniform.name).ToList();
-            var editableUniforms = sortedUniforms
-                .Where(uniform => !IsAutomaticUniform(uniform) && CanEditUniform(uniform.type))
-                .ToList();
-            var automaticUniforms = sortedUniforms
-                .Where(IsAutomaticUniform)
-                .ToList();
-            var unsupportedUniforms = sortedUniforms
-                .Where(uniform => !IsAutomaticUniform(uniform) && !CanEditUniform(uniform.type))
-                .ToList();
 
             var propertyTableOpen = editableUniforms.Count > 0 && BeginPropertyTable("ShaderUniformProperties");
             if (propertyTableOpen)
             {
-                foreach (var uniform in editableUniforms)
+                foreach (var entry in editableUniforms)
                 {
-                    ImGui.PushID($"uniform_{uniform.name}");
-                    DrawEditableUniform(material, uniform);
+                    ImGui.PushID($"uniform_{entry.Key}");
+                    DrawEditableUniform(material, entry.Key, entry.Value.Type);
                     ImGui.PopID();
                 }
 
@@ -526,51 +533,70 @@ namespace Mana.Code.UI
                 ImGui.TextDisabled("No editable material uniforms");
             }
 
-            if (automaticUniforms.Count > 0 && ImGui.TreeNode($"Automatic / Engine ({automaticUniforms.Count})"))
+            // GLSL-reflected uniform list, only available when a GLSL shader actually compiled for
+            // this material (OpenGL backend). Shows the automatic/engine uniforms (transforms, iTime,
+            // etc.) that were never set via SetShaderUniform, for reference.
+            var compiledUniforms = material.Shader?.CompiledShader?.UniformNames;
+            if (compiledUniforms is { Count: > 0 })
             {
-                foreach (var uniform in automaticUniforms)
+                var sortedUniforms = compiledUniforms.OrderBy(uniform => uniform.name).ToList();
+                var automaticUniforms = sortedUniforms.Where(IsAutomaticUniform).ToList();
+                var unsupportedUniforms = sortedUniforms
+                    .Where(uniform => !IsAutomaticUniform(uniform) && !CanEditUniform(uniform.type))
+                    .ToList();
+
+                if (automaticUniforms.Count > 0 && ImGui.TreeNodeEx($"Automatic / Engine ({automaticUniforms.Count})", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.BulletText($"{uniform.name}: {uniform.type}");
+                    foreach (var uniform in automaticUniforms)
+                    {
+                        ImGui.BulletText($"{uniform.name}: {uniform.type}");
+                    }
+
+                    ImGui.TreePop();
                 }
 
-                ImGui.TreePop();
-            }
-
-            if (unsupportedUniforms.Count > 0 && ImGui.TreeNode($"Unsupported ({unsupportedUniforms.Count})"))
-            {
-                foreach (var uniform in unsupportedUniforms)
+                if (unsupportedUniforms.Count > 0 && ImGui.TreeNodeEx($"Unsupported ({unsupportedUniforms.Count})", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.BulletText($"{uniform.name}: {uniform.type}");
-                }
+                    foreach (var uniform in unsupportedUniforms)
+                    {
+                        ImGui.BulletText($"{uniform.name}: {uniform.type}");
+                    }
 
-                ImGui.TreePop();
+                    ImGui.TreePop();
+                }
             }
 
-            if (material.ShaderUniforms.Count > 0)
+            if (material.DefaultShaderUniforms.Count > 0)
             {
                 ImGui.Spacing();
-                if (ImGui.SmallButton("Clear Uniform Overrides"))
+                if (ImGui.SmallButton("Reset All to Defaults"))
                 {
-                    material.ShaderUniforms.Clear();
+                    foreach (var entry in material.DefaultShaderUniforms)
+                    {
+                        material.ShaderUniforms[entry.Key] = entry.Value.Clone();
+                    }
                 }
             }
 
             ImGui.TreePop();
         }
 
-        private static void DrawEditableUniform(ManaMaterial material, ManaShaderUniform uniform)
+        private static void DrawEditableUniform(ManaMaterial material, string name, UniformType type)
         {
-            var hasOverride = material.ShaderUniforms.TryGetValue(uniform.name, out var value);
-            value ??= CreateDefaultUniformValue(uniform.type);
+            var value = material.ShaderUniforms.TryGetValue(name, out var existing)
+                ? existing
+                : CreateDefaultUniformValue(type);
             var changed = false;
-            var showReset = hasOverride || material.ShaderUniforms.ContainsKey(uniform.name);
+            var hasDefault = material.DefaultShaderUniforms.TryGetValue(name, out var defaultValue);
+            var showReset = hasDefault && !UniformValuesEqual(type, value, defaultValue!);
             var resetWidth = showReset
                 ? ImGui.CalcTextSize("Reset").X + ImGui.GetStyle().FramePadding.X * 2.0f + ImGui.GetStyle().ItemSpacing.X
                 : 0.0f;
-            BeginPropertyRow(uniform.name);
+            var isColor = LooksLikeColorUniformName(name);
+            BeginPropertyRow(name);
             ImGui.SetNextItemWidth(showReset ? -resetWidth : -1.0f);
 
-            switch (uniform.type)
+            switch (type)
             {
                 case UniformType.Float:
                     var floatValue = value.FloatValue;
@@ -583,14 +609,32 @@ namespace Mana.Code.UI
                     value.Vector2Value = vector2Value;
                     break;
                 case UniformType.FloatVec3:
-                    var vector3Value = value.Vector3Value;
-                    changed = ImGuiExt.DrawVector3Value(ref vector3Value, resetWidth);
-                    value.Vector3Value = vector3Value;
+                    if (isColor)
+                    {
+                        var colorValue = new Vector4(value.Vector3Value, 1.0f);
+                        changed = ImGuiExt.DrawColorValue(ref colorValue);
+                        value.Vector3Value = new Vector3(colorValue.X, colorValue.Y, colorValue.Z);
+                    }
+                    else
+                    {
+                        var vector3Value = value.Vector3Value;
+                        changed = ImGuiExt.DrawVector3Value(ref vector3Value, resetWidth);
+                        value.Vector3Value = vector3Value;
+                    }
                     break;
                 case UniformType.FloatVec4:
-                    var vector4Value = value.Vector4Value;
-                    changed = ImGui.InputFloat4("##Value", ref vector4Value);
-                    value.Vector4Value = vector4Value;
+                    if (isColor)
+                    {
+                        var colorValue = value.Vector4Value;
+                        changed = ImGuiExt.DrawColorValue(ref colorValue);
+                        value.Vector4Value = colorValue;
+                    }
+                    else
+                    {
+                        var vector4Value = value.Vector4Value;
+                        changed = ImGui.InputFloat4("##Value", ref vector4Value);
+                        value.Vector4Value = vector4Value;
+                    }
                     break;
                 case UniformType.Int:
                     var intValue = value.IntValue;
@@ -606,18 +650,38 @@ namespace Mana.Code.UI
 
             if (changed)
             {
-                value.Type = uniform.type;
-                material.ShaderUniforms[uniform.name] = value;
+                value.Type = type;
+                material.ShaderUniforms[name] = value;
             }
 
-            if (showReset || material.ShaderUniforms.ContainsKey(uniform.name))
+            if (showReset)
             {
                 ImGui.SameLine();
                 if (ImGui.SmallButton("Reset"))
                 {
-                    material.ShaderUniforms.Remove(uniform.name);
+                    material.ShaderUniforms[name] = defaultValue!.Clone();
                 }
             }
+        }
+
+        private static bool LooksLikeColorUniformName(string name)
+        {
+            return name.Contains("color", StringComparison.OrdinalIgnoreCase) ||
+                   name.Contains("tint", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool UniformValuesEqual(UniformType type, ManaMaterialUniformValue a, ManaMaterialUniformValue b)
+        {
+            return type switch
+            {
+                UniformType.Float => a.FloatValue.Equals(b.FloatValue),
+                UniformType.FloatVec2 => a.Vector2Value.Equals(b.Vector2Value),
+                UniformType.FloatVec3 => a.Vector3Value.Equals(b.Vector3Value),
+                UniformType.FloatVec4 => a.Vector4Value.Equals(b.Vector4Value),
+                UniformType.Int => a.IntValue == b.IntValue,
+                UniformType.Bool => a.BoolValue == b.BoolValue,
+                _ => true
+            };
         }
 
         private static ManaMaterialUniformValue CreateDefaultUniformValue(UniformType type)
@@ -645,7 +709,12 @@ namespace Mana.Code.UI
 
         private static bool IsAutomaticUniform(ManaShaderUniform uniform)
         {
-            return AutomaticUniformNames.Contains(GetUniformBaseName(uniform.name));
+            return IsAutomaticUniformName(uniform.name);
+        }
+
+        private static bool IsAutomaticUniformName(string name)
+        {
+            return AutomaticUniformNames.Contains(GetUniformBaseName(name));
         }
 
         private static string GetUniformBaseName(string uniformName)

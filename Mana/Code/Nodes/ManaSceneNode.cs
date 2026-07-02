@@ -178,7 +178,8 @@ namespace Mana.Code.Nodes
                         DisableDepthWrite = renderer.Material.Shader?.DisableDepthWrite ?? false,
                         OutlineEnabled = renderer.OutlineEnabled,
                         OutlineColor = renderer.OutlineColor,
-                        OutlineWidth = renderer.OutlineWidth
+                        OutlineWidth = renderer.OutlineWidth,
+                        CustomShaderUniforms = BuildCustomShaderUniforms(renderer.Material)
                     });
                 }
                 catch (InvalidOperationException)
@@ -198,6 +199,40 @@ namespace Mana.Code.Nodes
             return material.ShaderUniforms.TryGetValue("pbrDebugMode", out var value)
                 ? value.FloatValue
                 : null;
+        }
+
+        // Normalizes ManaMaterial.ShaderUniforms (GL-typed) into a backend-agnostic Vector4 map so
+        // WebGPU custom-uniform shaders (see ManaWebGpuContext.Uniforms.cs) can read the same
+        // material.SetShaderUniform(...) values the GLSL path already consumes.
+        private static IReadOnlyDictionary<string, Vector4>? BuildCustomShaderUniforms(Materials.ManaMaterial material)
+        {
+            if (material.ShaderUniforms.Count == 0)
+            {
+                return null;
+            }
+
+            Dictionary<string, Vector4>? result = null;
+            foreach (var entry in material.ShaderUniforms)
+            {
+                Vector4? packed = entry.Value.Type switch
+                {
+                    Silk.NET.OpenGL.UniformType.Float => new Vector4(entry.Value.FloatValue, 0.0f, 0.0f, 0.0f),
+                    Silk.NET.OpenGL.UniformType.FloatVec2 => new Vector4(entry.Value.Vector2Value, 0.0f, 0.0f),
+                    Silk.NET.OpenGL.UniformType.FloatVec3 => new Vector4(entry.Value.Vector3Value, 0.0f),
+                    Silk.NET.OpenGL.UniformType.FloatVec4 => entry.Value.Vector4Value,
+                    Silk.NET.OpenGL.UniformType.Int => new Vector4(entry.Value.IntValue, 0.0f, 0.0f, 0.0f),
+                    Silk.NET.OpenGL.UniformType.Bool => new Vector4(entry.Value.BoolValue ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f),
+                    _ => null
+                };
+
+                if (packed.HasValue)
+                {
+                    result ??= new Dictionary<string, Vector4>(material.ShaderUniforms.Count);
+                    result[entry.Key] = packed.Value;
+                }
+            }
+
+            return result;
         }
 
         public void RotateX(float degrees)

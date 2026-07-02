@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace ManaCore.Graphics
@@ -24,5 +25,10 @@ namespace ManaCore.Graphics
         public bool OutlineEnabled { get; init; }
         public Vector4 OutlineColor { get; init; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; init; } = 2.0f;
+
+        // Per-material named uniform overrides (from ManaMaterial.ShaderUniforms), normalized to
+        // Vector4 (float in .X, vec3 in .XYZ) so this stays backend-agnostic. Consumed by shaders
+        // that declare a matching custom uniform block (see ManaWebGpuContext.Uniforms.cs).
+        public IReadOnlyDictionary<string, Vector4>? CustomShaderUniforms { get; init; }
     }
 }

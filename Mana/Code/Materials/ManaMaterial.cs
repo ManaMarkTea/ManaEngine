@@ -30,6 +30,12 @@ namespace Mana.Code.Materials
         public ManaTextureSingle Ambient;
         public Dictionary<string, ManaMaterialUniformValue> ShaderUniforms { get; set; }
 
+        // Snapshot of the value each named uniform had the first time it was set. "Reset" in the
+        // Inspector restores from here rather than removing the key outright — some render paths
+        // (e.g. WebGPU's generic per-material uniform packing) assign buffer slots by sorting
+        // ShaderUniforms' key set, so removing a key would silently shift every other uniform's slot.
+        public Dictionary<string, ManaMaterialUniformValue> DefaultShaderUniforms { get; private set; }
+
         public double NormalSelector = 1.0;
         public double EmissionStrength = 0.0;
 
@@ -38,6 +44,7 @@ namespace Mana.Code.Materials
             Name = "PBR Material";
             Channels = new Dictionary<string, ManaMaterialChannel>();
             ShaderUniforms = new Dictionary<string, ManaMaterialUniformValue>();
+            DefaultShaderUniforms = new Dictionary<string, ManaMaterialUniformValue>();
             if (context.OpenGl != null && !context.DeferGpuUploads)
             {
                 var shader = new ManaPbrShader(context);
@@ -58,56 +65,67 @@ namespace Mana.Code.Materials
 
         public void SetShaderUniform(string name, float value)
         {
-            ShaderUniforms[name] = new ManaMaterialUniformValue
+            SetShaderUniformValue(name, new ManaMaterialUniformValue
             {
                 Type = UniformType.Float,
                 FloatValue = value
-            };
+            });
         }
 
         public void SetShaderUniform(string name, int value)
         {
-            ShaderUniforms[name] = new ManaMaterialUniformValue
+            SetShaderUniformValue(name, new ManaMaterialUniformValue
             {
                 Type = UniformType.Int,
                 IntValue = value
-            };
+            });
         }
 
         public void SetShaderUniform(string name, bool value)
         {
-            ShaderUniforms[name] = new ManaMaterialUniformValue
+            SetShaderUniformValue(name, new ManaMaterialUniformValue
             {
                 Type = UniformType.Bool,
                 BoolValue = value
-            };
+            });
         }
 
         public void SetShaderUniform(string name, Vector2 value)
         {
-            ShaderUniforms[name] = new ManaMaterialUniformValue
+            SetShaderUniformValue(name, new ManaMaterialUniformValue
             {
                 Type = UniformType.FloatVec2,
                 Vector2Value = value
-            };
+            });
         }
 
         public void SetShaderUniform(string name, Vector3 value)
         {
-            ShaderUniforms[name] = new ManaMaterialUniformValue
+            SetShaderUniformValue(name, new ManaMaterialUniformValue
             {
                 Type = UniformType.FloatVec3,
                 Vector3Value = value
-            };
+            });
         }
 
         public void SetShaderUniform(string name, Vector4 value)
         {
-            ShaderUniforms[name] = new ManaMaterialUniformValue
+            SetShaderUniformValue(name, new ManaMaterialUniformValue
             {
                 Type = UniformType.FloatVec4,
                 Vector4Value = value
-            };
+            });
+        }
+
+        // The first call for a given name establishes its "default" (what Inspector resets restore).
+        // Later calls (e.g. re-loading, or the Inspector editor itself) only update the live value.
+        private void SetShaderUniformValue(string name, ManaMaterialUniformValue value)
+        {
+            ShaderUniforms[name] = value;
+            if (!DefaultShaderUniforms.ContainsKey(name))
+            {
+                DefaultShaderUniforms[name] = value.Clone();
+            }
         }
 
 
@@ -155,6 +173,9 @@ namespace Mana.Code.Materials
             copy.Roughness = (ManaTextureSingle)copy.Roughness.Clone();
             copy.Ambient = (ManaTextureSingle)copy.Ambient.Clone();
             copy.ShaderUniforms = copy.ShaderUniforms.ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value.Clone());
+            copy.DefaultShaderUniforms = copy.DefaultShaderUniforms.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value.Clone());
 

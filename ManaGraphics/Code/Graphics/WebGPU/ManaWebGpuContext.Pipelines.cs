@@ -360,6 +360,63 @@ namespace ManaGraphics.Code.Graphics
             {
                 throw new InvalidOperationException("Failed to create WebGPU scene capture pipeline layout.");
             }
+
+            // Second bind group, used only by shaders that opt into per-material custom uniforms
+            // (lightning_ball.wgsl, liquid_ball.wgsl today). Additive to group 0, so every other
+            // WGSL shader/pipeline is untouched.
+            var customUniformBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 0,
+                Visibility = ShaderStage.Fragment,
+                Buffer = new BufferBindingLayout
+                {
+                    Type = BufferBindingType.Uniform,
+                    HasDynamicOffset = false,
+                    MinBindingSize = (ulong)sizeof(ManaWebGpuCustomMaterialUniform)
+                }
+            };
+
+            var customUniformBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
+            {
+                EntryCount = 1,
+                Entries = &customUniformBindGroupLayoutEntry
+            };
+            _customUniformBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &customUniformBindGroupLayoutDescriptor);
+            if (_customUniformBindGroupLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU custom material uniform bind group layout.");
+            }
+
+            var customUniformBindGroupLayouts = stackalloc BindGroupLayout*[2];
+            customUniformBindGroupLayouts[0] = _demoBindGroupLayout;
+            customUniformBindGroupLayouts[1] = _customUniformBindGroupLayout;
+            var customUniformPipelineLayoutDescriptor = new PipelineLayoutDescriptor
+            {
+                BindGroupLayoutCount = 2,
+                BindGroupLayouts = customUniformBindGroupLayouts
+            };
+            _customUniformPipelineLayout = _api.DeviceCreatePipelineLayout(_device, &customUniformPipelineLayoutDescriptor);
+            if (_customUniformPipelineLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU custom-uniform pipeline layout.");
+            }
+        }
+
+        // Shared by GetOrCreatePipeline (which pipeline/shader file to compile) and
+        // GetCustomUniformSlotNames in ManaWebGpuContext.Uniforms.cs (which file to parse for slot
+        // names) so the two never drift apart.
+        private static string ResolveShaderFileName(string shaderName)
+        {
+            return shaderName switch
+            {
+                "ManaLightningBallShader" => "lightning_ball.wgsl",
+                "ManaLiquidBallShader" => "liquid_ball.wgsl",
+                "ManaLiquidShader" => "liquid.wgsl",
+                "ManaGridShader" => "grid.wgsl",
+                "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
+                "ManaPbrShader" => "pbr_irradiance.wgsl",
+                _ => "pbr_irradiance.wgsl"
+            };
         }
 
         private RenderPipeline* GetOrCreatePipeline(string? shaderName, bool isTransparent = false, bool disableDepthWrite = false)
@@ -372,16 +429,7 @@ namespace ManaGraphics.Code.Graphics
                 return (RenderPipeline*)cachedPipeline;
             }
 
-            string shaderFile = shaderName switch
-            {
-                "ManaLightningBallShader" => "lightning_ball.wgsl",
-                "ManaLiquidBallShader" => "liquid_ball.wgsl",
-                "ManaLiquidShader" => "liquid.wgsl",
-                "ManaGridShader" => "grid.wgsl",
-                "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
-                "ManaPbrShader" => "pbr_irradiance.wgsl",
-                _ => "pbr_irradiance.wgsl"
-            };
+            string shaderFile = ResolveShaderFileName(shaderName);
 
             var shaderPath = Path.Combine("Assets", "Shaders", "WebGpu", shaderFile);
             
@@ -399,7 +447,10 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _shaderModules[shaderName] = (nint)shaderModule;
-            var pipeline = CreateDemoRenderPipeline(shaderModule, GetSceneColorFormat(), _demoPipelineLayout, shaderName, isTransparent, disableDepthWrite);
+            // Every material pipeline gets group 1 (per-material custom uniforms) available, whether
+            // or not a given .wgsl file actually declares it — same "declare only what you use"
+            // precedent already relied on for group 0's TransformUniform.
+            var pipeline = CreateDemoRenderPipeline(shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent, disableDepthWrite);
             _pipelines[pipelineKey] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
