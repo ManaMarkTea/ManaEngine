@@ -28,24 +28,39 @@ struct VertexOutput {
 
 // Custom per-material uniforms (group 1). Field names match ManaMaterial.SetShaderUniform(name,
 // value) exactly; ManaWebGpuContext parses this struct directly out of this file (by declaration
-// order) to build the name->slot mapping, so adding a new tunable parameter here needs no C#
-// renderer changes — just add a field and a matching SetShaderUniform call in
-// VoxelEditorGameMode.cs. The "slot N" comments are just human-readable byte-offset annotations;
-// declaration order is what actually determines the slot. Scalars live in .x; colors use .xyz.
+// order), so adding a new tunable parameter here needs no C# renderer changes — just add a field
+// and a matching SetShaderUniform call in VoxelEditorGameMode.cs.
 // This simpler WGSL version of the liquid effect doesn't have a natural use for every knob the
 // GLSL raymarched version has yet (surfaceStrength/poolContourStrength/glassEdgeStrength/
 // shallowColorTint) — they're still declared here so the values are ready to wire in without
 // touching C#, they're just not read in fs_main below yet.
 struct CustomMaterialUniform {
-    liquidFillLevel : vec4<f32>, // slot 0
-    liquidWaveStrength : vec4<f32>, // slot 1
-    liquidWaterOpacity : vec4<f32>, // slot 2
-    liquidSurfaceStrength : vec4<f32>, // slot 3
-    liquidPoolContourStrength : vec4<f32>, // slot 4
-    glassEdgeStrength : vec4<f32>, // slot 5
-    glassAirAlphaz : vec4<f32>, // slot 6
-    deepColorTint : vec4<f32>, // slot 7
-    shallowColorTint : vec4<f32>, // slot 8
+    //PROPERTY(default=-0.14, min=-1.0, max=1.0)
+    liquidFillLevel : f32,
+
+    //PROPERTY(default=1.0, min=0.0, max=4.0)
+    liquidWaveStrength : f32,
+
+    //PROPERTY(default=1.0, min=0.0, max=1.0)
+    liquidWaterOpacity : f32,
+
+    //PROPERTY(default=1.0, min=0.0, max=4.0)
+    liquidSurfaceStrength : f32,
+
+    //PROPERTY(default=1.0, min=0.0, max=4.0)
+    liquidPoolContourStrength : f32,
+
+    //PROPERTY(default=1.0, min=0.0, max=4.0)
+    glassEdgeStrength : f32,
+
+    //PROPERTY(default=0.2, min=0.0, max=1.0)
+    glassAirAlpha : f32,
+
+    //PROPERTY(default=[0.0,0.22,0.62], min=[0.0,0.0,0.0], max=[2.0,2.0,2.0])
+    deepColorTint : vec3<f32>,
+    
+    //PROPERTY(default=[0.05,0.72,0.95], min=[0.0,0.0,0.0], max=[2.0,2.0,2.0])
+    shallowColorTint : vec3<f32>,
 };
 
 @group(1) @binding(0) var<uniform> custom : CustomMaterialUniform;
@@ -63,13 +78,13 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let height = input.local_pos.y;
-    let wave = sin(input.local_pos.x * 5.0 + transform.time * 3.0) * 0.05 * custom.liquidWaveStrength.x;
+    let wave = sin(input.local_pos.x * 5.0 + transform.time * 3.0) * 0.05 * custom.liquidWaveStrength;
 
     let glass_fresnel = 1.0 - max(0.0, dot(normalize(input.local_pos), vec3<f32>(0.0, 0.0, 1.0)));
 
-    if (height < custom.liquidFillLevel.x + wave) {
-        return vec4<f32>(custom.deepColorTint.xyz, 0.7 * custom.liquidWaterOpacity.x);
+    if (height < custom.liquidFillLevel + wave) {
+        return vec4<f32>(custom.deepColorTint, 0.7 * custom.liquidWaterOpacity);
     } else {
-        return vec4<f32>(0.9, 0.95, 1.0, (0.1 + glass_fresnel * 0.3) * custom.glassAirAlphaz.x);
+        return vec4<f32>(0.9, 0.95, 1.0, (0.1 + glass_fresnel * 0.3) * custom.glassAirAlpha);
     }
 }

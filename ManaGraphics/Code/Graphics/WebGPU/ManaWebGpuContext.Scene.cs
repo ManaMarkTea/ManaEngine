@@ -217,10 +217,14 @@ namespace ManaGraphics.Code.Graphics
 
             // Group 1: generic per-material custom uniform buffer, built for every mesh regardless of
             // shader (unused shaders simply never declare @group(1) in their .wgsl source).
+            var customUniformLayout = GetCustomUniformLayout(instance.ShaderName);
+            var customUniformData = new byte[customUniformLayout.BufferSize];
+            BuildCustomMaterialUniformData(instance, customUniformLayout, customUniformData);
+
             var customBufferDescriptor = new BufferDescriptor
             {
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-                Size = (ulong)sizeof(ManaWebGpuCustomMaterialUniform)
+                Size = (ulong)customUniformData.Length
             };
             var customUniformBuffer = _api.DeviceCreateBuffer(_device, &customBufferDescriptor);
             if (customUniformBuffer == null)
@@ -239,7 +243,7 @@ namespace ManaGraphics.Code.Graphics
                 Binding = 0,
                 Buffer = customUniformBuffer,
                 Offset = 0,
-                Size = (ulong)sizeof(ManaWebGpuCustomMaterialUniform)
+                Size = (ulong)customUniformData.Length
             };
 
             BindGroup* customBindGroup = null;
@@ -265,10 +269,25 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to create WebGPU custom uniform bind group for mesh '{instance.Name}'.");
             }
 
-            var customUniform = BuildCustomMaterialUniform(instance);
-            _api.QueueWriteBuffer(_queue, customUniformBuffer, 0, &customUniform, (nuint)sizeof(ManaWebGpuCustomMaterialUniform));
+            fixed (byte* customUniformDataPointer = customUniformData)
+            {
+                _api.QueueWriteBuffer(_queue, customUniformBuffer, 0, customUniformDataPointer, (nuint)customUniformData.Length);
+            }
 
-            var sceneMesh = new ManaWebGpuSceneMesh(_api, instance, mesh, uniformBuffer, textureResource, ReleaseMeshTexture, bindGroup, sceneCaptureUniformBuffers, sceneCaptureBindGroups, customUniformBuffer, customBindGroup);
+            var sceneMesh = new ManaWebGpuSceneMesh(
+                _api,
+                instance,
+                mesh,
+                uniformBuffer,
+                textureResource,
+                ReleaseMeshTexture,
+                bindGroup,
+                sceneCaptureUniformBuffers,
+                sceneCaptureBindGroups,
+                customUniformBuffer,
+                customBindGroup,
+                customUniformLayout,
+                customUniformData);
             UpdateDemoUniforms(instance, uniformBuffer);
             return sceneMesh;
         }
@@ -491,7 +510,9 @@ namespace ManaGraphics.Code.Graphics
                 nint[] sceneCaptureUniformBuffers,
                 nint[] sceneCaptureBindGroups,
                 WebGpuBuffer* customUniformBuffer = null,
-                BindGroup* customBindGroup = null)
+                BindGroup* customBindGroup = null,
+                ManaWebGpuCustomUniformSchema? customUniformLayout = null,
+                byte[]? customUniformData = null)
             {
                 _api = api;
                 _releaseTexture = releaseTexture;
@@ -504,6 +525,8 @@ namespace ManaGraphics.Code.Graphics
                 SceneCaptureBindGroups = sceneCaptureBindGroups;
                 CustomUniformBuffer = customUniformBuffer;
                 CustomBindGroup = customBindGroup;
+                CustomUniformLayout = customUniformLayout ?? ManaWebGpuCustomUniformSchema.Empty;
+                CustomUniformData = customUniformData ?? new byte[CustomUniformLayout.BufferSize];
             }
 
             public ManaRenderMeshInstance Instance { get; set; }
@@ -515,6 +538,8 @@ namespace ManaGraphics.Code.Graphics
             public nint[] SceneCaptureBindGroups { get; private set; }
             public WebGpuBuffer* CustomUniformBuffer { get; }
             public BindGroup* CustomBindGroup { get; }
+            public ManaWebGpuCustomUniformSchema CustomUniformLayout { get; }
+            public byte[] CustomUniformData { get; }
 
             public WebGpuBuffer* GetSceneCaptureUniformBuffer(int face)
             {

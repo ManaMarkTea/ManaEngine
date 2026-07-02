@@ -206,6 +206,8 @@ namespace Mana.Code.Nodes
         // material.SetShaderUniform(...) values the GLSL path already consumes.
         private static IReadOnlyDictionary<string, Vector4>? BuildCustomShaderUniforms(Materials.ManaMaterial material)
         {
+            material.EnsureShaderMetadataDefaults();
+
             if (material.ShaderUniforms.Count == 0)
             {
                 return null;

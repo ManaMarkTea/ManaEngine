@@ -153,13 +153,6 @@ namespace Mana.Code
             var liquidMaterial = _liquidBall.MeshRenderer.DynamicMaterial;
             liquidMaterial.Name = "Liquid Ball Material";
             liquidMaterial.Shader = new ManaLiquidBallShader(Context);
-            liquidMaterial.SetShaderUniform("liquidFillLevel", -0.14f);
-            liquidMaterial.SetShaderUniform("liquidWaveStrength", 1.0f);
-            liquidMaterial.SetShaderUniform("liquidWaterOpacity", 1.0f);
-            liquidMaterial.SetShaderUniform("liquidSurfaceStrength", 1.0f);
-            liquidMaterial.SetShaderUniform("liquidPoolContourStrength", 1.0f);
-            liquidMaterial.SetShaderUniform("glassEdgeStrength", 1.0f);
-            liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
 
             Context.World.MainCamera.AddDebugCameraRayTest(_shapes);
             Context.World.Update();

@@ -206,14 +206,6 @@ namespace Mana.Code.GameModes
                 var lightningMaterial = lightningRenderer.DynamicMaterial;
                 lightningMaterial.Name = "Lightning Ball Material";
                 lightningMaterial.Shader = new ManaLightningBallShader(Context);
-                // Read directly in LightningBall.frag (GLSL) and in lightning_ball.wgsl's
-                // CustomMaterialUniform struct (WebGPU) — see that struct's field comments for the
-                // name->slot mapping. Adding a new named uniform here needs no C# renderer changes,
-                // just a matching named slot in the .wgsl file.
-                lightningMaterial.SetShaderUniform("sphereRadius", 1.0f);
-                lightningMaterial.SetShaderUniform("intensity", 1.0f);
-                lightningMaterial.SetShaderUniform("coreColorTint", new Vector3(2.9f, 3.0f, 3.15f));
-                lightningMaterial.SetShaderUniform("haloColorTint", new Vector3(0.12f, 0.62f, 2.25f));
                 lightningRenderer.DrawAfterScene = true;
             }
 
@@ -222,20 +214,6 @@ namespace Mana.Code.GameModes
                 var liquidMaterial = liquidRenderer.DynamicMaterial;
                 liquidMaterial.Name = "Liquid Ball Material";
                 liquidMaterial.Shader = new ManaLiquidBallShader(Context);
-                // Read directly in LiquidBall.frag (GLSL) and in liquid_ball.wgsl's
-                // CustomMaterialUniform struct (WebGPU) — see that struct's field comments for the
-                // name->slot mapping (the simpler WGSL version of this effect only reads a subset of
-                // these so far). Adding a new named uniform here needs no C# renderer changes, just a
-                // matching named slot in the .wgsl file.
-                liquidMaterial.SetShaderUniform("liquidFillLevel", -0.14f);
-                liquidMaterial.SetShaderUniform("liquidWaveStrength", 1.0f);
-                liquidMaterial.SetShaderUniform("liquidWaterOpacity", 1.0f);
-                liquidMaterial.SetShaderUniform("liquidSurfaceStrength", 1.0f);
-                liquidMaterial.SetShaderUniform("liquidPoolContourStrength", 1.0f);
-                liquidMaterial.SetShaderUniform("glassEdgeStrength", 1.0f);
-                liquidMaterial.SetShaderUniform("glassAirAlpha", 1.0f);
-                liquidMaterial.SetShaderUniform("shallowColorTint", new Vector3(0.05f, 0.72f, 0.95f));
-                liquidMaterial.SetShaderUniform("deepColorTint", new Vector3(0.00f, 0.22f, 0.62f));
                 liquidRenderer.DrawAfterScene = true;
             }
         }
@@ -519,11 +497,6 @@ namespace Mana.Code.GameModes
 
             bool gizmoCapturesMouse = _cameraGizmoView.Draw(Context.World.MainCamera, sceneMin, sceneMax);
             bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse || gizmoCapturesMouse;
-
-            if (_viewModel.IsSelectToolActive)
-            {
-                ImGui.SetMouseCursor(ImGuiMouseCursor.Arrow);
-            }
 
             UpdateVoxelPointerInteraction(imguiCapturesMouse);
 

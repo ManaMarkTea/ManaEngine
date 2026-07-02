@@ -1,4 +1,5 @@
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using Silk.NET.OpenGL;
 
 namespace Mana.Code.Materials
@@ -126,6 +127,129 @@ namespace Mana.Code.Materials
             {
                 DefaultShaderUniforms[name] = value.Clone();
             }
+        }
+
+        public void EnsureShaderMetadataDefaults()
+        {
+            var shaderName = Shader?.GetType().Name;
+            if (string.IsNullOrWhiteSpace(shaderName))
+            {
+                return;
+            }
+
+            var schema = ManaWebGpuCustomUniformSchemaCache.GetSchema(shaderName);
+            if (schema.Fields.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var field in schema.Fields)
+            {
+                if (!TryMapFieldToUniformType(field, out var uniformType))
+                {
+                    continue;
+                }
+
+                if (!ShaderUniforms.ContainsKey(field.Name))
+                {
+                    ShaderUniforms[field.Name] = CreateDefaultUniformValue(uniformType, field);
+                }
+
+                if (!DefaultShaderUniforms.ContainsKey(field.Name))
+                {
+                    DefaultShaderUniforms[field.Name] = CreateDefaultUniformValue(uniformType, field);
+                }
+            }
+        }
+
+        private static bool TryMapFieldToUniformType(ManaCustomUniformFieldDefinition field, out UniformType type)
+        {
+            if (field.ElementKind == ManaCustomUniformElementKind.Bool)
+            {
+                type = UniformType.Bool;
+                return true;
+            }
+
+            switch (field.ComponentCount)
+            {
+                case 1:
+                    type = field.ElementKind == ManaCustomUniformElementKind.Float
+                        ? UniformType.Float
+                        : UniformType.Int;
+                    return true;
+                case 2:
+                    if (field.ElementKind == ManaCustomUniformElementKind.Float)
+                    {
+                        type = UniformType.FloatVec2;
+                        return true;
+                    }
+                    break;
+                case 3:
+                    if (field.ElementKind == ManaCustomUniformElementKind.Float)
+                    {
+                        type = UniformType.FloatVec3;
+                        return true;
+                    }
+                    break;
+                case 4:
+                    if (field.ElementKind == ManaCustomUniformElementKind.Float)
+                    {
+                        type = UniformType.FloatVec4;
+                        return true;
+                    }
+                    break;
+            }
+
+            type = UniformType.Float;
+            return false;
+        }
+
+        private static ManaMaterialUniformValue CreateDefaultUniformValue(UniformType type, ManaCustomUniformFieldDefinition field)
+        {
+            var value = new ManaMaterialUniformValue
+            {
+                Type = type,
+                BoolValue = true,
+                FloatValue = 1.0f,
+                Vector2Value = Vector2.One,
+                Vector3Value = Vector3.One,
+                Vector4Value = Vector4.One
+            };
+
+            if (field.DefaultScalar.HasValue)
+            {
+                switch (type)
+                {
+                    case UniformType.Float:
+                        value.FloatValue = field.DefaultScalar.Value;
+                        break;
+                    case UniformType.Int:
+                        value.IntValue = (int)MathF.Round(field.DefaultScalar.Value);
+                        break;
+                    case UniformType.Bool:
+                        value.BoolValue = field.DefaultScalar.Value > 0.5f;
+                        break;
+                }
+            }
+
+            if (field.DefaultVector.HasValue)
+            {
+                var vector = field.DefaultVector.Value;
+                switch (type)
+                {
+                    case UniformType.FloatVec2:
+                        value.Vector2Value = new Vector2(vector.X, vector.Y);
+                        break;
+                    case UniformType.FloatVec3:
+                        value.Vector3Value = new Vector3(vector.X, vector.Y, vector.Z);
+                        break;
+                    case UniformType.FloatVec4:
+                        value.Vector4Value = vector;
+                        break;
+                }
+            }
+
+            return value;
         }
 
 

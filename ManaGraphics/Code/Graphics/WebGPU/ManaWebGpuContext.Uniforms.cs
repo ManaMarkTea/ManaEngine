@@ -1,8 +1,8 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Numerics;
+using System.Buffers.Binary;
 using System.Text;
-using System.Text.RegularExpressions;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
@@ -107,61 +107,72 @@ namespace ManaGraphics.Code.Graphics
         // annotation — the real slot index is the field's declaration order, parsed straight out of
         // the .wgsl source by ParseCustomUniformSlotNames). So the mapping lives in exactly one
         // place — the shader file itself — instead of being hand-mirrored between C# and WGSL.
-        private const int CustomUniformSlotCount = 12;
-
-        private static readonly Regex CustomUniformStructRegex = new(
-            @"struct\s+CustomMaterialUniform\s*\{(?<body>.*?)\}\s*;",
-            RegexOptions.Singleline | RegexOptions.Compiled);
-
-        private static readonly Regex CustomUniformFieldRegex = new(
-            @"^\s*(?<name>\w+)\s*:\s*vec4<f32>\s*,?\s*(?://\s*slot\s*(?<slot>\d+))?",
-            RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        private readonly Dictionary<string, IReadOnlyList<string?>> _customUniformSlotNames = new();
+        private readonly Dictionary<string, ManaWebGpuCustomUniformSchema> _customUniformLayouts = new();
         private static readonly HashSet<string> _warnedUnmappedCustomUniforms = new();
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct ManaWebGpuCustomMaterialUniform
+        private void BuildCustomMaterialUniformData(
+            ManaRenderMeshInstance instance,
+            ManaWebGpuCustomUniformSchema layout,
+            Span<byte> destination)
         {
-            public Vector4 Slot0;
-            public Vector4 Slot1;
-            public Vector4 Slot2;
-            public Vector4 Slot3;
-            public Vector4 Slot4;
-            public Vector4 Slot5;
-            public Vector4 Slot6;
-            public Vector4 Slot7;
-            public Vector4 Slot8;
-            public Vector4 Slot9;
-            public Vector4 Slot10;
-            public Vector4 Slot11;
-        }
-
-        private ManaWebGpuCustomMaterialUniform BuildCustomMaterialUniform(ManaRenderMeshInstance instance)
-        {
-            var uniform = new ManaWebGpuCustomMaterialUniform();
+            destination.Clear();
             if (instance.CustomShaderUniforms == null || instance.CustomShaderUniforms.Count == 0)
             {
-                return uniform;
+                return;
             }
 
-            var slotNames = GetCustomUniformSlotNames(instance.ShaderName);
-            for (var slotIndex = 0; slotIndex < slotNames.Count && slotIndex < CustomUniformSlotCount; slotIndex++)
+            foreach (var field in layout.Fields)
             {
-                var slotName = slotNames[slotIndex];
-                if (slotName == null || !instance.CustomShaderUniforms.TryGetValue(slotName, out var value))
+                if (!instance.CustomShaderUniforms.TryGetValue(field.Name, out var value))
                 {
                     continue;
                 }
 
-                SetCustomUniformSlot(ref uniform, slotIndex, value);
+                WriteCustomUniformField(destination, field, value);
             }
 
-            WarnAboutUnmappedCustomUniforms(instance, slotNames);
-            return uniform;
+            WarnAboutUnmappedCustomUniforms(instance, layout);
         }
 
-        private static void WarnAboutUnmappedCustomUniforms(ManaRenderMeshInstance instance, IReadOnlyList<string?> slotNames)
+        private static void WriteCustomUniformField(Span<byte> destination, ManaCustomUniformFieldDefinition field, Vector4 value)
+        {
+            for (var i = 0; i < field.ComponentCount; i++)
+            {
+                var componentOffset = field.Offset + (i * sizeof(float));
+                var componentValue = GetVector4Component(value, i);
+                var componentSpan = destination.Slice(componentOffset, sizeof(float));
+
+                switch (field.ElementKind)
+                {
+                    case ManaCustomUniformElementKind.Float:
+                        BinaryPrimitives.WriteSingleLittleEndian(componentSpan, componentValue);
+                        break;
+                    case ManaCustomUniformElementKind.SignedInt:
+                        BinaryPrimitives.WriteInt32LittleEndian(componentSpan, (int)MathF.Round(componentValue));
+                        break;
+                    case ManaCustomUniformElementKind.UnsignedInt:
+                        BinaryPrimitives.WriteUInt32LittleEndian(componentSpan, componentValue <= 0.0f ? 0u : (uint)MathF.Round(componentValue));
+                        break;
+                    case ManaCustomUniformElementKind.Bool:
+                        BinaryPrimitives.WriteUInt32LittleEndian(componentSpan, componentValue > 0.5f ? 1u : 0u);
+                        break;
+                }
+            }
+        }
+
+        private static float GetVector4Component(Vector4 value, int index)
+        {
+            return index switch
+            {
+                0 => value.X,
+                1 => value.Y,
+                2 => value.Z,
+                3 => value.W,
+                _ => 0.0f
+            };
+        }
+
+        private static void WarnAboutUnmappedCustomUniforms(ManaRenderMeshInstance instance, ManaWebGpuCustomUniformSchema layout)
         {
             if (instance.CustomShaderUniforms == null)
             {
@@ -170,7 +181,7 @@ namespace ManaGraphics.Code.Graphics
 
             foreach (var name in instance.CustomShaderUniforms.Keys)
             {
-                if (slotNames.Contains(name))
+                if (layout.FieldNames.Contains(name))
                 {
                     continue;
                 }
@@ -185,83 +196,18 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // Reads the .wgsl file for shaderName and extracts its CustomMaterialUniform field names, in
-        // declaration order, from trailing "// name" comments. Cached per shader name; a shader with
-        // no such struct (or that fails to load) just gets an empty list.
-        private IReadOnlyList<string?> GetCustomUniformSlotNames(string? shaderName)
+        private ManaWebGpuCustomUniformSchema GetCustomUniformLayout(string? shaderName)
         {
             shaderName ??= "ManaPbrShader";
-            if (_customUniformSlotNames.TryGetValue(shaderName, out var cached))
+            if (_customUniformLayouts.TryGetValue(shaderName, out var cached))
             {
                 return cached;
             }
 
-            IReadOnlyList<string?> slotNames = Array.Empty<string?>();
-            try
-            {
-                var shaderFile = ResolveShaderFileName(shaderName);
-                var path = ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", shaderFile));
-                var source = File.ReadAllText(path);
-                slotNames = ParseCustomUniformSlotNames(shaderName, source);
-            }
-            catch (Exception ex)
-            {
-                ManaConsole.WriteDiagnostic($"[WebGPU] Failed to parse custom uniform slots for '{shaderName}': {ex.Message}");
-            }
+            var layout = ManaWebGpuCustomUniformSchemaCache.GetSchema(shaderName);
 
-            _customUniformSlotNames[shaderName] = slotNames;
-            return slotNames;
-        }
-
-        private static IReadOnlyList<string?> ParseCustomUniformSlotNames(string shaderName, string wgslSource)
-        {
-            var structMatch = CustomUniformStructRegex.Match(wgslSource);
-            if (!structMatch.Success)
-            {
-                return Array.Empty<string?>();
-            }
-
-            var slotNames = new List<string?>();
-            var index = 0;
-            foreach (Match fieldMatch in CustomUniformFieldRegex.Matches(structMatch.Groups["body"].Value))
-            {
-                var name = fieldMatch.Groups["name"].Value;
-                slotNames.Add(name);
-
-                // The "// slot N" comment is just a human-readable annotation — declaration order is
-                // the real, authoritative slot index. Flag it if someone lets the two drift apart.
-                if (fieldMatch.Groups["slot"].Success &&
-                    int.TryParse(fieldMatch.Groups["slot"].Value, out var declaredSlot) &&
-                    declaredSlot != index)
-                {
-                    ManaConsole.WriteDiagnostic(
-                        $"[WebGPU] '{shaderName}' CustomMaterialUniform field '{name}' is commented as " +
-                        $"slot {declaredSlot} but is actually declaration position {index} — using {index}.");
-                }
-
-                index++;
-            }
-
-            return slotNames;
-        }
-
-        private static void SetCustomUniformSlot(ref ManaWebGpuCustomMaterialUniform uniform, int slotIndex, Vector4 value)
-        {
-            switch (slotIndex)
-            {
-                case 0: uniform.Slot0 = value; break;
-                case 1: uniform.Slot1 = value; break;
-                case 2: uniform.Slot2 = value; break;
-                case 3: uniform.Slot3 = value; break;
-                case 4: uniform.Slot4 = value; break;
-                case 5: uniform.Slot5 = value; break;
-                case 6: uniform.Slot6 = value; break;
-                case 7: uniform.Slot7 = value; break;
-                case 8: uniform.Slot8 = value; break;
-                case 9: uniform.Slot9 = value; break;
-                case 10: uniform.Slot10 = value; break;
-                case 11: uniform.Slot11 = value; break;
-            }
+            _customUniformLayouts[shaderName] = layout;
+            return layout;
         }
 
         [StructLayout(LayoutKind.Sequential)]

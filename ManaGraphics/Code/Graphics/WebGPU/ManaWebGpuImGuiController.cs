@@ -39,6 +39,7 @@ namespace ManaGraphics.Code.Graphics
         private Buffer* _indexBuffer;
         private ulong _indexBufferSize = 0;
         private nint _iniFilename;
+        private bool _frameFinalized;
 
         public ManaWebGpuImGuiController(WebGPU api, Device* device, Queue* queue, TextureFormat surfaceFormat, IWindow window, IInputContext input)
         {
@@ -65,6 +66,8 @@ namespace ManaGraphics.Code.Graphics
             io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset |
                 ImGuiBackendFlags.HasMouseCursors;
             io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+            io.ConfigFlags &= ~ImGuiConfigFlags.NoMouseCursorChange;
+            io.ConfigWindowsResizeFromEdges = true;
             io.DisplaySize = new Vector2(_window.Size.X, _window.Size.Y);
             if (File.Exists(iniPath))
             {
@@ -489,7 +492,6 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             var mouse = _input.Mice.FirstOrDefault();
             if (mouse != null)
             {
-                UpdateMouseCursor(mouse, io);
                 io.MousePos = new Vector2(mouse.Position.X, mouse.Position.Y);
                 io.MouseDown[0] = mouse.IsButtonPressed(MouseButton.Left);
                 io.MouseDown[1] = mouse.IsButtonPressed(MouseButton.Right);
@@ -497,15 +499,11 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             }
 
             ImGui.NewFrame();
+            _frameFinalized = false;
         }
 
         private static void UpdateMouseCursor(IMouse mouse, ImGuiIOPtr io)
         {
-            if ((io.ConfigFlags & ImGuiConfigFlags.NoMouseCursorChange) != 0)
-            {
-                return;
-            }
-
             try
             {
                 var imguiCursor = ImGui.GetMouseCursor();
@@ -524,7 +522,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                     mouse.Cursor.CursorMode = CursorMode.Normal;
                 }
 
-                var standardCursor = imguiCursor switch
+                var requestedCursor = imguiCursor switch
                 {
                     ImGuiMouseCursor.TextInput => StandardCursor.IBeam,
                     ImGuiMouseCursor.ResizeAll => StandardCursor.ResizeAll,
@@ -537,13 +535,15 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                     _ => StandardCursor.Arrow
                 };
 
-                if (!mouse.Cursor.IsSupported(standardCursor))
-                {
-                    standardCursor = StandardCursor.Arrow;
-                }
-
                 mouse.Cursor.Type = CursorType.Standard;
-                mouse.Cursor.StandardCursor = standardCursor;
+                try
+                {
+                    mouse.Cursor.StandardCursor = ResolveCursor(mouse, requestedCursor);
+                }
+                catch
+                {
+                    mouse.Cursor.StandardCursor = StandardCursor.Arrow;
+                }
             }
             catch
             {
@@ -551,15 +551,42 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             }
         }
 
+        private static StandardCursor ResolveCursor(IMouse mouse, StandardCursor requested)
+        {
+            if (mouse.Cursor.IsSupported(requested))
+            {
+                return requested;
+            }
+
+            if (requested is StandardCursor.HResize or StandardCursor.VResize or StandardCursor.NeswResize or StandardCursor.NwseResize)
+            {
+                if (mouse.Cursor.IsSupported(StandardCursor.ResizeAll))
+                {
+                    return StandardCursor.ResizeAll;
+                }
+
+                if (mouse.Cursor.IsSupported(StandardCursor.HResize))
+                {
+                    return StandardCursor.HResize;
+                }
+
+                if (mouse.Cursor.IsSupported(StandardCursor.VResize))
+                {
+                    return StandardCursor.VResize;
+                }
+            }
+
+            return StandardCursor.Arrow;
+        }
+
         public void Render()
         {
-            // Game logic calls ImGui.Render() on the game side, then we pick it up in WebGPU rendering pass
+            FinalizeFrame();
         }
 
         public void Render(RenderPassEncoder* renderPass)
         {
-            ImGui.Render();
-            SavePendingIniSettings();
+            FinalizeFrame();
             var drawData = ImGui.GetDrawData();
             if (drawData.CmdListsCount == 0) return;
 
@@ -659,6 +686,28 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                 globalVtxOffset += cmdList.VtxBuffer.Size;
                 globalIdxOffset += cmdList.IdxBuffer.Size;
             }
+        }
+
+        private void FinalizeFrame()
+        {
+            if (_frameFinalized)
+            {
+                return;
+            }
+
+            var io = ImGui.GetIO();
+            ImGui.Render();
+
+            var mouse = _input.Mice.FirstOrDefault();
+            if (mouse != null)
+            {
+                // Apply cursor shape after frame finalization (Render/EndFrame), so docking splitters
+                // can request resize cursors reliably.
+                UpdateMouseCursor(mouse, io);
+            }
+
+            SavePendingIniSettings();
+            _frameFinalized = true;
         }
 
         private void UpdateBuffers(ulong vertexNeededSize, ulong indexNeededSize)
@@ -790,6 +839,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                 Key.Backspace => ImGuiKey.Backspace,
                 Key.Space => ImGuiKey.Space,
                 Key.Enter => ImGuiKey.Enter,
+                Key.KeypadEnter => ImGuiKey.KeypadEnter,
                 Key.Escape => ImGuiKey.Escape,
                 Key.ControlLeft => ImGuiKey.LeftCtrl,
                 Key.ControlRight => ImGuiKey.RightCtrl,

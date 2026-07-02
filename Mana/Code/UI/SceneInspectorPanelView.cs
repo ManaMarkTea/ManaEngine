@@ -6,6 +6,7 @@ using Mana.Code.Shapes;
 using Silk.NET.OpenGL;
 using Mana;
 using Mana.Code;
+using ManaCore.Graphics;
 
 namespace Mana.Code.UI
 {
@@ -211,7 +212,7 @@ namespace Mana.Code.UI
 
         private void DrawMeshRendererInspector(MeshRendererComponent meshRenderer)
         {
-            if (!ImGui.TreeNodeEx(GetComponentLabel(meshRenderer), ImGuiTreeNodeFlags.DefaultOpen))
+            if (!ImGui.CollapsingHeader(GetComponentLabel(meshRenderer), ImGuiTreeNodeFlags.DefaultOpen))
             {
                 return;
             }
@@ -243,7 +244,6 @@ namespace Mana.Code.UI
 
             DrawPrimitiveMeshInspector(meshRenderer.Mesh);
             DrawMaterialInspector(meshRenderer.Material);
-            ImGui.TreePop();
         }
 
         private void DrawPrimitiveMeshInspector(ManaMesh mesh)
@@ -253,7 +253,7 @@ namespace Mana.Code.UI
                 return;
             }
 
-            if (!ImGui.TreeNodeEx("Primitive", ImGuiTreeNodeFlags.DefaultOpen))
+            if (!ImGui.CollapsingHeader("Primitive", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 return;
             }
@@ -290,8 +290,6 @@ namespace Mana.Code.UI
             {
                 proceduralMesh.RebuildGeometry();
             }
-
-            ImGui.TreePop();
         }
 
         private static bool DrawTorusInspector(ManaTorus torus)
@@ -445,7 +443,7 @@ namespace Mana.Code.UI
 
         private void DrawMaterialInspector(ManaMaterial material)
         {
-            if (!ImGui.TreeNodeEx("Material", ImGuiTreeNodeFlags.DefaultOpen))
+            if (!ImGui.CollapsingHeader("Material", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 return;
             }
@@ -495,12 +493,16 @@ namespace Mana.Code.UI
             }
 
             DrawShaderUniformInspector(material);
-
-            ImGui.TreePop();
         }
 
         private static void DrawShaderUniformInspector(ManaMaterial material)
         {
+            EnsureKnownCustomUniforms(material);
+            var shaderName = material.Shader?.GetType().Name;
+            var schema = string.IsNullOrWhiteSpace(shaderName)
+                ? ManaWebGpuCustomUniformSchema.Empty
+                : ManaWebGpuCustomUniformSchemaCache.GetSchema(shaderName);
+
             // Editable overrides come straight from ManaMaterial.ShaderUniforms — backend-agnostic,
             // since it's populated by SetShaderUniform(...) regardless of whether a GLSL shader ever
             // compiled for this material (e.g. running the WebGPU backend, where CompiledShader below
@@ -510,7 +512,7 @@ namespace Mana.Code.UI
                 .OrderBy(entry => entry.Key, StringComparer.Ordinal)
                 .ToList();
 
-            if (!ImGui.TreeNodeEx("Shader Uniforms", ImGuiTreeNodeFlags.DefaultOpen))
+            if (!ImGui.CollapsingHeader("Shader Uniforms", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 return;
             }
@@ -521,7 +523,8 @@ namespace Mana.Code.UI
                 foreach (var entry in editableUniforms)
                 {
                     ImGui.PushID($"uniform_{entry.Key}");
-                    DrawEditableUniform(material, entry.Key, entry.Value.Type);
+                    schema.FieldMap.TryGetValue(entry.Key, out var schemaField);
+                    DrawEditableUniform(material, entry.Key, entry.Value.Type, schemaField);
                     ImGui.PopID();
                 }
 
@@ -545,24 +548,22 @@ namespace Mana.Code.UI
                     .Where(uniform => !IsAutomaticUniform(uniform) && !CanEditUniform(uniform.type))
                     .ToList();
 
-                if (automaticUniforms.Count > 0 && ImGui.TreeNodeEx($"Automatic / Engine ({automaticUniforms.Count})", ImGuiTreeNodeFlags.DefaultOpen))
+                if (automaticUniforms.Count > 0)
                 {
+                    ImGui.SeparatorText($"Automatic / Engine ({automaticUniforms.Count})");
                     foreach (var uniform in automaticUniforms)
                     {
                         ImGui.BulletText($"{uniform.name}: {uniform.type}");
                     }
-
-                    ImGui.TreePop();
                 }
 
-                if (unsupportedUniforms.Count > 0 && ImGui.TreeNodeEx($"Unsupported ({unsupportedUniforms.Count})", ImGuiTreeNodeFlags.DefaultOpen))
+                if (unsupportedUniforms.Count > 0)
                 {
+                    ImGui.SeparatorText($"Unsupported ({unsupportedUniforms.Count})");
                     foreach (var uniform in unsupportedUniforms)
                     {
                         ImGui.BulletText($"{uniform.name}: {uniform.type}");
                     }
-
-                    ImGui.TreePop();
                 }
             }
 
@@ -577,11 +578,18 @@ namespace Mana.Code.UI
                     }
                 }
             }
-
-            ImGui.TreePop();
         }
 
-        private static void DrawEditableUniform(ManaMaterial material, string name, UniformType type)
+        private static void EnsureKnownCustomUniforms(ManaMaterial material)
+        {
+            material.EnsureShaderMetadataDefaults();
+        }
+
+        private static void DrawEditableUniform(
+            ManaMaterial material,
+            string name,
+            UniformType type,
+            ManaCustomUniformFieldDefinition? schemaField)
         {
             var value = material.ShaderUniforms.TryGetValue(name, out var existing)
                 ? existing
@@ -593,6 +601,7 @@ namespace Mana.Code.UI
                 ? ImGui.CalcTextSize("Reset").X + ImGui.GetStyle().FramePadding.X * 2.0f + ImGui.GetStyle().ItemSpacing.X
                 : 0.0f;
             var isColor = LooksLikeColorUniformName(name);
+            var hasSoftRange = TryGetSoftRange(schemaField, out var softMin, out var softMax);
             BeginPropertyRow(name);
             ImGui.SetNextItemWidth(showReset ? -resetWidth : -1.0f);
 
@@ -600,7 +609,14 @@ namespace Mana.Code.UI
             {
                 case UniformType.Float:
                     var floatValue = value.FloatValue;
-                    changed = ImGui.DragFloat("##Value", ref floatValue, 0.01f);
+                    if (hasSoftRange)
+                    {
+                        changed = ImGui.DragFloat("##Value", ref floatValue, 0.01f, softMin, softMax);
+                    }
+                    else
+                    {
+                        changed = ImGui.DragFloat("##Value", ref floatValue, 0.01f);
+                    }
                     value.FloatValue = floatValue;
                     break;
                 case UniformType.FloatVec2:
@@ -638,7 +654,14 @@ namespace Mana.Code.UI
                     break;
                 case UniformType.Int:
                     var intValue = value.IntValue;
-                    changed = ImGui.InputInt("##Value", ref intValue);
+                    if (hasSoftRange)
+                    {
+                        changed = ImGui.DragInt("##Value", ref intValue, 1.0f, (int)softMin, (int)softMax);
+                    }
+                    else
+                    {
+                        changed = ImGui.InputInt("##Value", ref intValue);
+                    }
                     value.IntValue = intValue;
                     break;
                 case UniformType.Bool:
@@ -662,6 +685,28 @@ namespace Mana.Code.UI
                     material.ShaderUniforms[name] = defaultValue!.Clone();
                 }
             }
+        }
+
+        private static bool TryGetSoftRange(
+            ManaCustomUniformFieldDefinition? schemaField,
+            out float min,
+            out float max)
+        {
+            min = 0.0f;
+            max = 0.0f;
+            if (!schemaField.HasValue)
+            {
+                return false;
+            }
+
+            if (!schemaField.Value.SoftMin.HasValue || !schemaField.Value.SoftMax.HasValue)
+            {
+                return false;
+            }
+
+            min = schemaField.Value.SoftMin.Value;
+            max = schemaField.Value.SoftMax.Value;
+            return max > min;
         }
 
         private static bool LooksLikeColorUniformName(string name)
@@ -743,7 +788,7 @@ namespace Mana.Code.UI
 
         private void DrawLightSourceInspector(ManaLightSourceComponent light)
         {
-            if (!ImGui.TreeNodeEx(GetComponentLabel(light), ImGuiTreeNodeFlags.DefaultOpen))
+            if (!ImGui.CollapsingHeader(GetComponentLabel(light), ImGuiTreeNodeFlags.DefaultOpen))
             {
                 return;
             }
@@ -776,8 +821,6 @@ namespace Mana.Code.UI
 
                 ImGui.EndTable();
             }
-
-            ImGui.TreePop();
         }
 
         private static bool BeginPropertyTable(string id)

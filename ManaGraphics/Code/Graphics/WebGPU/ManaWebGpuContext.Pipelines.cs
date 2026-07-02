@@ -372,7 +372,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     Type = BufferBindingType.Uniform,
                     HasDynamicOffset = false,
-                    MinBindingSize = (ulong)sizeof(ManaWebGpuCustomMaterialUniform)
+                    MinBindingSize = 0
                 }
             };
 

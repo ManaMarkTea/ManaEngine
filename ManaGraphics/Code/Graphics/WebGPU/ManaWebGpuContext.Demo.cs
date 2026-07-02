@@ -182,8 +182,16 @@ namespace ManaGraphics.Code.Graphics
 
             if (sceneMesh.CustomUniformBuffer != null)
             {
-                var customUniform = BuildCustomMaterialUniform(sceneMesh.Instance);
-                _api.QueueWriteBuffer(_queue, sceneMesh.CustomUniformBuffer, 0, &customUniform, (nuint)sizeof(ManaWebGpuCustomMaterialUniform));
+                BuildCustomMaterialUniformData(sceneMesh.Instance, sceneMesh.CustomUniformLayout, sceneMesh.CustomUniformData);
+                fixed (byte* customUniformDataPointer = sceneMesh.CustomUniformData)
+                {
+                    _api.QueueWriteBuffer(
+                        _queue,
+                        sceneMesh.CustomUniformBuffer,
+                        0,
+                        customUniformDataPointer,
+                        (nuint)sceneMesh.CustomUniformData.Length);
+                }
             }
 
             var pipeline = GetOrCreatePipeline(
