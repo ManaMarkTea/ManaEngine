@@ -21,6 +21,8 @@ namespace Mana
         {
             try
             {
+                ManaUiDensity.RestorePreset();
+
                 var launchOptions = ManaLaunchOptions.Parse(args);
                 var backendKind = launchOptions.GraphicsBackend;
                 var game = new VoxelEditorGameMode(backendKind);

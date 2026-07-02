@@ -22,6 +22,20 @@ namespace Mana
                 color.W);
         }
 
+        private static void PushCompactEditorStyle()
+        {
+            var style = ImGui.GetStyle();
+            var compactFramePaddingY = ManaUiDensity.CompactEditorFramePaddingY;
+            var compactItemSpacingY = ManaUiDensity.CompactEditorItemSpacingY;
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(style.FramePadding.X, compactFramePaddingY));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(style.ItemSpacing.X, compactItemSpacingY));
+        }
+
+        private static void PopCompactEditorStyle()
+        {
+            ImGui.PopStyleVar(2);
+        }
+
         public static bool DrawAxisValue(
             string axis,
             ref float value,
@@ -80,6 +94,8 @@ namespace Mana
 
         public static bool DrawVector3Value(ref Vector3 value, float reservedWidth = 0.0f, bool readOnly = false)
         {
+            PushCompactEditorStyle();
+
             var availableWidth = Math.Max(90.0f, ImGui.GetContentRegionAvail().X - reservedWidth);
             var style = ImGui.GetStyle();
             const float labelFieldSpacing = 0.0f;
@@ -94,17 +110,111 @@ namespace Mana
             changed |= DrawAxisValue("Y", ref value.Y, GreenPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
             ImGui.SameLine(0.0f, groupSpacing);
             changed |= DrawAxisValue("Z", ref value.Z, BluePastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+
+            PopCompactEditorStyle();
+            return changed;
+        }
+
+        public static bool DrawVector2Value(ref Vector2 value, float reservedWidth = 0.0f, bool readOnly = false)
+        {
+            PushCompactEditorStyle();
+
+            var availableWidth = Math.Max(90.0f, ImGui.GetContentRegionAvail().X - reservedWidth);
+            var style = ImGui.GetStyle();
+            const float labelFieldSpacing = 0.0f;
+            var groupSpacing = style.ItemSpacing.X;
+            var axisWidth = Math.Max(18.0f, ImGui.GetFrameHeight() - 4.0f);
+            var fieldWidth = Math.Max(
+                30.0f,
+                (availableWidth - axisWidth * 2.0f - labelFieldSpacing * 2.0f - groupSpacing) / 2.0f);
+
+            var changed = DrawAxisValue("X", ref value.X, RedPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+            ImGui.SameLine(0.0f, groupSpacing);
+            changed |= DrawAxisValue("Y", ref value.Y, GreenPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+
+            PopCompactEditorStyle();
+            return changed;
+        }
+
+        public static bool DrawVector4Value(ref Vector4 value, float reservedWidth = 0.0f, bool readOnly = false)
+        {
+            PushCompactEditorStyle();
+
+            var availableWidth = Math.Max(110.0f, ImGui.GetContentRegionAvail().X - reservedWidth);
+            var style = ImGui.GetStyle();
+            const float labelFieldSpacing = 0.0f;
+            var groupSpacing = style.ItemSpacing.X;
+            var axisWidth = Math.Max(18.0f, ImGui.GetFrameHeight() - 4.0f);
+            var fieldWidth = Math.Max(
+                18.0f,
+                (availableWidth - axisWidth * 4.0f - labelFieldSpacing * 4.0f - groupSpacing * 3.0f) / 4.0f);
+
+            var changed = DrawAxisValue("X", ref value.X, RedPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+            ImGui.SameLine(0.0f, groupSpacing);
+            changed |= DrawAxisValue("Y", ref value.Y, GreenPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+            ImGui.SameLine(0.0f, groupSpacing);
+            changed |= DrawAxisValue("Z", ref value.Z, BluePastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+            ImGui.SameLine(0.0f, groupSpacing);
+            changed |= DrawAxisValue("W", ref value.W, GrayPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.05f, 0.0f, 0.0f, readOnly);
+
+            PopCompactEditorStyle();
             return changed;
         }
 
         public static bool DrawColorValue(ref Vector4 color)
         {
+            PushCompactEditorStyle();
+
             var style = ImGui.GetStyle();
             var frameHeight = ImGui.GetFrameHeight();
             var pickerWidth = frameHeight;
             var groupSpacing = Math.Min(4.0f, style.ItemSpacing.X);
 
             var availableWidth = Math.Max(150.0f, ImGui.GetContentRegionAvail().X) - pickerWidth - groupSpacing;
+            var changed = DrawCompactColorChannels(ref color, availableWidth, groupSpacing, frameHeight);
+
+            ImGui.SameLine(0.0f, groupSpacing);
+            var buttonSize = new Vector2(pickerWidth, pickerWidth);
+            var pickerButtonFlags = ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.NoTooltip;
+            if (ImGui.ColorButton("##PickerButton", color, pickerButtonFlags, buttonSize))
+            {
+                ImGui.OpenPopup("##PickerPopup");
+            }
+
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 2.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 10.0f));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.30f, 0.45f, 0.62f, 0.95f));
+            if (ImGui.BeginPopup("##PickerPopup"))
+            {
+                var popupColor = color;
+                var popupStyle = ImGui.GetStyle();
+                ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(popupStyle.FramePadding.X, popupStyle.FramePadding.Y + 3.0f));
+
+                var pickerFlags = ImGuiColorEditFlags.AlphaBar |
+                    ImGuiColorEditFlags.PickerHueBar |
+                    ImGuiColorEditFlags.AlphaPreviewHalf |
+                    ImGuiColorEditFlags.NoSidePreview |
+                    ImGuiColorEditFlags.NoSmallPreview |
+                    ImGuiColorEditFlags.NoInputs;
+                changed |= ImGui.ColorPicker4("##Picker", ref popupColor, pickerFlags);
+                ImGui.PopStyleVar();
+
+                ImGui.Spacing();
+                var popupWidth = Math.Max(180.0f, ImGui.GetContentRegionAvail().X);
+                changed |= DrawCompactColorChannels(ref popupColor, popupWidth, groupSpacing, ImGui.GetFrameHeight());
+
+                color = popupColor;
+                ImGui.EndPopup();
+            }
+            ImGui.PopStyleColor();
+            ImGui.PopStyleVar(2);
+
+            PopCompactEditorStyle();
+            return changed;
+        }
+
+        private static bool DrawCompactColorChannels(ref Vector4 color, float availableWidth, float groupSpacing, float frameHeight)
+        {
             const float labelFieldSpacing = 0.0f;
             var axisWidth = Math.Max(18.0f, frameHeight - 4.0f);
             var fieldWidth = Math.Max(
@@ -119,11 +229,14 @@ namespace Mana
             ImGui.SameLine(0.0f, groupSpacing);
             changed |= DrawAxisValue("A", ref color.W, GrayPastelColor, axisWidth, fieldWidth, labelFieldSpacing, 0.01f, 0.0f, 1.0f);
 
-            ImGui.SameLine(0.0f, groupSpacing);
-            ImGui.SetNextItemWidth(pickerWidth);
-            var pickerFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf;
-            changed |= ImGui.ColorEdit4("##Picker", ref color, pickerFlags);
+            return changed;
+        }
 
+        public static bool DrawCompactColorEdit4(string label, ref Vector4 color, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
+        {
+            PushCompactEditorStyle();
+            var changed = ImGui.ColorEdit4(label, ref color, flags);
+            PopCompactEditorStyle();
             return changed;
         }
 

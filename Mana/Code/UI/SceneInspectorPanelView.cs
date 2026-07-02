@@ -604,6 +604,7 @@ namespace Mana.Code.UI
             var hasSoftRange = TryGetSoftRange(schemaField, out var softMin, out var softMax);
             BeginPropertyRow(name);
             ImGui.SetNextItemWidth(showReset ? -resetWidth : -1.0f);
+            PushCompactValueStyle();
 
             switch (type)
             {
@@ -621,7 +622,7 @@ namespace Mana.Code.UI
                     break;
                 case UniformType.FloatVec2:
                     var vector2Value = value.Vector2Value;
-                    changed = ImGui.InputFloat2("##Value", ref vector2Value);
+                    changed = ImGuiExt.DrawVector2Value(ref vector2Value, resetWidth);
                     value.Vector2Value = vector2Value;
                     break;
                 case UniformType.FloatVec3:
@@ -648,7 +649,7 @@ namespace Mana.Code.UI
                     else
                     {
                         var vector4Value = value.Vector4Value;
-                        changed = ImGui.InputFloat4("##Value", ref vector4Value);
+                        changed = ImGuiExt.DrawVector4Value(ref vector4Value, resetWidth);
                         value.Vector4Value = vector4Value;
                     }
                     break;
@@ -670,6 +671,8 @@ namespace Mana.Code.UI
                     value.BoolValue = boolValue;
                     break;
             }
+
+                    PopCompactValueStyle();
 
             if (changed)
             {
@@ -830,10 +833,19 @@ namespace Mana.Code.UI
                 ImGuiTableFlags.PadOuterX |
                 ImGuiTableFlags.NoSavedSettings;
 
+            var style = ImGui.GetStyle();
+            var compactCellPadding = new Vector2(
+                style.CellPadding.X,
+                ManaUiDensity.PropertyTableCellPaddingY);
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, compactCellPadding);
+
             if (!ImGui.BeginTable(id, 2, flags))
             {
+                ImGui.PopStyleVar();
                 return false;
             }
+
+            ImGui.PopStyleVar();
 
             ImGui.TableSetupColumn("Property", ImGuiTableColumnFlags.WidthFixed, 112.0f);
             ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
@@ -844,7 +856,6 @@ namespace Mana.Code.UI
         {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
-            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(label);
             ImGui.TableNextColumn();
         }
@@ -852,7 +863,6 @@ namespace Mana.Code.UI
         private static void DrawReadOnlyProperty(string label, string value)
         {
             BeginPropertyRow(label);
-            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(value);
         }
 
@@ -861,7 +871,9 @@ namespace Mana.Code.UI
             ImGui.PushID(label);
             BeginPropertyRow(label);
             ImGui.SetNextItemWidth(-1.0f);
+            PushCompactValueStyle();
             var changed = ImGui.InputText("##Value", ref value, maxLength);
+            PopCompactValueStyle();
             ImGui.PopID();
             return changed;
         }
@@ -870,7 +882,9 @@ namespace Mana.Code.UI
         {
             ImGui.PushID(label);
             BeginPropertyRow(label);
+            PushCompactValueStyle();
             var changed = ImGui.Checkbox("##Value", ref value);
+            PopCompactValueStyle();
             ImGui.PopID();
             return changed;
         }
@@ -880,7 +894,9 @@ namespace Mana.Code.UI
             ImGui.PushID(label);
             BeginPropertyRow(label);
             ImGui.SetNextItemWidth(-1.0f);
+            PushCompactValueStyle();
             var changed = ImGui.SliderFloat("##Value", ref value, min, max);
+            PopCompactValueStyle();
             ImGui.PopID();
             return changed;
         }
@@ -890,7 +906,9 @@ namespace Mana.Code.UI
             ImGui.PushID(label);
             BeginPropertyRow(label);
             ImGui.SetNextItemWidth(-1.0f);
+            PushCompactValueStyle();
             var changed = ImGui.SliderInt("##Value", ref value, min, max);
+            PopCompactValueStyle();
             ImGui.PopID();
             return changed;
         }
@@ -900,9 +918,23 @@ namespace Mana.Code.UI
             ImGui.PushID(label);
             BeginPropertyRow(label);
             ImGui.SetNextItemWidth(-1.0f);
+            PushCompactValueStyle();
             var changed = ImGui.DragFloat("##Value", ref value, speed);
+            PopCompactValueStyle();
             ImGui.PopID();
             return changed;
+        }
+
+        private static void PushCompactValueStyle()
+        {
+            var style = ImGui.GetStyle();
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(style.FramePadding.X, ManaUiDensity.CompactValueFramePaddingY));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(style.ItemSpacing.X, ManaUiDensity.CompactValueItemSpacingY));
+        }
+
+        private static void PopCompactValueStyle()
+        {
+            ImGui.PopStyleVar(2);
         }
 
         private void DrawVoxelsNodeInspector(ManaVoxelsNode voxelsNode)

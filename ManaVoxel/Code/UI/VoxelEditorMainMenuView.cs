@@ -1,4 +1,5 @@
 using ImGuiNET;
+using Mana;
 using Mana.Code.GameModes;
 
 namespace ManaVoxel.Code.UI
@@ -57,6 +58,21 @@ namespace ManaVoxel.Code.UI
                 {
                     viewModel.UseLightTheme = false;
                     uiHost.ApplyDarkImGuiTheme();
+                }
+
+                if (ImGui.BeginMenu("UI Density"))
+                {
+                    if (ImGui.MenuItem("Comfortable", string.Empty, ManaUiDensity.CurrentPreset == ManaUiDensityPreset.Comfortable))
+                    {
+                        ManaUiDensity.SetPreset(ManaUiDensityPreset.Comfortable);
+                    }
+
+                    if (ImGui.MenuItem("Compact", string.Empty, ManaUiDensity.CurrentPreset == ManaUiDensityPreset.Compact))
+                    {
+                        ManaUiDensity.SetPreset(ManaUiDensityPreset.Compact);
+                    }
+
+                    ImGui.EndMenu();
                 }
 
                 if (ImGui.MenuItem("Emoji Fallback (Experimental)", string.Empty, uiHost.EmojiFallbackEnabled))

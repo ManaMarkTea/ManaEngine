@@ -176,6 +176,10 @@ namespace ManaGraphics.Code.Graphics
                     _api.TextureRelease(surfaceTexture.Texture);
                 }
 
+                // Acquire can transiently fail during startup/resize; reconfigure and
+                // retry on the next frame instead of getting stuck on a blank surface.
+                ConfigureSurface(_window.FramebufferSize);
+
                 return;
             }
 
@@ -190,7 +194,7 @@ namespace ManaGraphics.Code.Graphics
 
             var textureView = _api.TextureCreateView(surfaceTexture.Texture, &viewDescriptor);
             var hdrSceneTextureView = _hdrPostProcessor?.SceneTextureView;
-            if (textureView == null || hdrSceneTextureView == null)
+            if (textureView == null)
             {
                 if (textureView != null)
                 {
@@ -202,9 +206,12 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
+            var sceneTargetView = hdrSceneTextureView != null ? hdrSceneTextureView : textureView;
+            var useHdrPost = _hdrPostProcessor != null && hdrSceneTextureView != null;
+
             var sceneColorAttachment = new RenderPassColorAttachment
             {
-                View = hdrSceneTextureView,
+                View = sceneTargetView,
                 LoadOp = LoadOp.Clear,
                 StoreOp = StoreOp.Store,
                 ClearValue = clearColor
@@ -240,13 +247,16 @@ namespace ManaGraphics.Code.Graphics
             DrawDemoMesh(sceneRenderPass);
             _api.RenderPassEncoderEnd(sceneRenderPass);
 
-            DrawOutlineMask(commandEncoder);
-            _hdrPostProcessor?.Process(commandEncoder);
+            if (useHdrPost)
+            {
+                DrawOutlineMask(commandEncoder);
+                _hdrPostProcessor?.Process(commandEncoder);
+            }
 
             var surfaceColorAttachment = new RenderPassColorAttachment
             {
                 View = textureView,
-                LoadOp = LoadOp.Clear,
+                LoadOp = useHdrPost ? LoadOp.Clear : LoadOp.Load,
                 StoreOp = StoreOp.Store,
                 ClearValue = clearColor
             };
