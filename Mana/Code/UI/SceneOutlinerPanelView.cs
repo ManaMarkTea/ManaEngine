@@ -6,6 +6,8 @@ namespace Mana.Code.UI
     public class SceneOutlinerPanelView
     {
         private readonly SceneSelectionState selectionState;
+        private ManaSceneNode? _lastRevealedSelection;
+        private HashSet<ManaSceneNode>? _pendingRevealAncestors;
 
         public SceneOutlinerPanelView(SceneSelectionState selectionState)
         {
@@ -36,6 +38,16 @@ namespace Mana.Code.UI
                 if (!visible)
                 {
                     return;
+                }
+
+                if (selectionState.SelectedNode != _lastRevealedSelection)
+                {
+                    _pendingRevealAncestors = BuildAncestorSet(selectionState.SelectedNode);
+                    _lastRevealedSelection = selectionState.SelectedNode;
+                }
+                else
+                {
+                    _pendingRevealAncestors = null;
                 }
 
                 ImGui.Text($"Scenes: {world.Scenes.Count}");
@@ -88,7 +100,8 @@ namespace Mana.Code.UI
             var hasContents = node.Components.Count > 0 || node.Children.Count > 0;
             var label = GetDisplayName(node, node.GetType().Name);
             var flags = ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (selectionState.SelectedNode == node)
+            var isSelected = selectionState.SelectedNode == node;
+            if (isSelected)
             {
                 flags |= ImGuiTreeNodeFlags.Selected;
             }
@@ -97,11 +110,20 @@ namespace Mana.Code.UI
             {
                 flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
             }
+            else if (_pendingRevealAncestors != null && _pendingRevealAncestors.Contains(node))
+            {
+                ImGui.SetNextItemOpen(true, ImGuiCond.Always);
+            }
 
             var open = ImGui.TreeNodeEx(label, flags);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
                 selectionState.SelectedNode = node;
+            }
+
+            if (isSelected && _pendingRevealAncestors != null)
+            {
+                ImGui.SetScrollHereY();
             }
 
             DrawNodeTooltip(node);
@@ -215,6 +237,19 @@ namespace Mana.Code.UI
             ImGui.Text($"Children {node.Children.Count}");
             ImGui.Text($"Components {node.Components.Count}");
             ImGui.EndTooltip();
+        }
+
+        private static HashSet<ManaSceneNode> BuildAncestorSet(ManaSceneNode? node)
+        {
+            var ancestors = new HashSet<ManaSceneNode>();
+            var current = node?.Parent;
+            while (current != null)
+            {
+                ancestors.Add(current);
+                current = current.Parent;
+            }
+
+            return ancestors;
         }
 
         private static string GetDisplayName(ManaObject manaObject, string fallback)

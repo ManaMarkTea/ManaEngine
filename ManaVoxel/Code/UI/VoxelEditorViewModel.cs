@@ -50,6 +50,7 @@ namespace ManaVoxel.Code.UI
         public Vector3? LastCommittedVoxelPosition { get; private set; }
 
         public int SelectedToolIndex;
+        public bool IsSelectToolActive;
         public int SelectedWorkPlaneIndex;
         public int StrokeRadiusVoxels;
         public int TextScale = 1;

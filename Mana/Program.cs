@@ -13,6 +13,7 @@ namespace Mana
         static void Main(string[] args)
         {
             SceneViewerMode game = new SceneViewerMode();
+            game.PurgeStaleDockLayout();
             game.Run();
         }
     }

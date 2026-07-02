@@ -23,6 +23,8 @@ namespace ManaCore.Graphics
             }
         }
 
+        public static string LayoutVersionFilePath => Path.ChangeExtension(IniFilePath, ".layoutversion");
+
         public static void DeleteIniFile()
         {
             var path = IniFilePath;
@@ -30,6 +32,22 @@ namespace ManaCore.Graphics
             {
                 File.Delete(path);
             }
+        }
+
+        public static int? ReadLayoutVersion()
+        {
+            var path = LayoutVersionFilePath;
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            return int.TryParse(File.ReadAllText(path).Trim(), out var version) ? version : null;
+        }
+
+        public static void WriteLayoutVersion(int version)
+        {
+            File.WriteAllText(LayoutVersionFilePath, version.ToString());
         }
     }
 }

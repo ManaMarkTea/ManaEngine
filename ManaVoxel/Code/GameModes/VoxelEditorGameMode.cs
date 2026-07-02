@@ -28,6 +28,10 @@ namespace Mana.Code.GameModes
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
         private bool _firstFrame = true;
+        private bool _selectPointerWasDown;
+        private ManaSceneNode? _lastOutlinedSelectionNode;
+        private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
+        private static readonly Vector4 SelectionOutlineColor = new(0.30f, 0.72f, 1.0f, 1.0f);
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
@@ -35,6 +39,10 @@ namespace Mana.Code.GameModes
         private ManaWebGpuContext? _webGpuContext;
 
         public override bool DeferGpuUploadsOnStartup => true;
+
+        // v3: Inspector now drawn first each frame so it lands as the first utility tab
+        // (dock order follows Begin() submission order on a fresh layout, not DockBuilder call order).
+        protected override int DockLayoutVersion => 3;
 
         public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
@@ -125,8 +133,14 @@ namespace Mana.Code.GameModes
                     Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
                     Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
 
+                    // Ground planes are raycast helpers for voxel placement, not meaningful selection targets.
+                    _pickingExclusions.Add(xzPlane);
+                    _pickingExclusions.Add(yxPlane);
+                    _pickingExclusions.Add(zyPlane);
+
                     Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                     Cursor.Name = "CursorBall";
+                    _pickingExclusions.Add(Cursor);
 
                     _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
                     _lightningBall.Name = "Lightning Ball";
@@ -387,7 +401,6 @@ namespace Mana.Code.GameModes
 
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
-            Context.World.PostUpdateFutures.Add(() => UpdateVoxelPointerInteraction(inputCaptured: false));
         }
 
         protected override void DrawImGui(double deltaTime)
@@ -426,6 +439,29 @@ namespace Mana.Code.GameModes
                     }
                 }
             }
+
+            // Highlight whatever the Outliner or viewport select tool currently has selected, distinct from
+            // the active-voxel-layer highlight above (skipped when they're the same node, to avoid flicker).
+            var selectedNode = Context.World.Selection.SelectedNode;
+            if (_lastOutlinedSelectionNode != null && _lastOutlinedSelectionNode != selectedNode && _lastOutlinedSelectionNode != activeNode)
+            {
+                foreach (var meshRenderer in _lastOutlinedSelectionNode.Components.OfType<MeshRendererComponent>())
+                {
+                    meshRenderer.OutlineEnabled = false;
+                }
+            }
+
+            if (selectedNode != null && selectedNode != activeNode)
+            {
+                foreach (var meshRenderer in selectedNode.Components.OfType<MeshRendererComponent>())
+                {
+                    meshRenderer.OutlineEnabled = true;
+                    meshRenderer.OutlineColor = SelectionOutlineColor;
+                    meshRenderer.OutlineWidth = 4.0f;
+                }
+            }
+
+            _lastOutlinedSelectionNode = selectedNode;
 
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
@@ -468,6 +504,12 @@ namespace Mana.Code.GameModes
 
             bool gizmoCapturesMouse = _cameraGizmoView.Draw(Context.World.MainCamera, sceneMin, sceneMax);
             bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse || gizmoCapturesMouse;
+
+            if (_viewModel.IsSelectToolActive)
+            {
+                ImGui.SetMouseCursor(ImGuiMouseCursor.Arrow);
+            }
+
             UpdateVoxelPointerInteraction(imguiCapturesMouse);
 
             _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
@@ -492,6 +534,15 @@ namespace Mana.Code.GameModes
             var MouseState = Context.Input.Mice.FirstOrDefault();
             if (MouseState == null)
             {
+                return;
+            }
+
+            if (_viewModel.IsSelectToolActive)
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                _viewModel.ClearHoveredVoxel();
+                UpdateSelectionPointerInteraction(inputCaptured, MouseState);
                 return;
             }
 
@@ -545,6 +596,24 @@ namespace Mana.Code.GameModes
             {
                 _viewModel.SetToolPreview(_toolController.BuildPreview(toolSettings));
             }
+        }
+
+        private void UpdateSelectionPointerInteraction(bool inputCaptured, IMouse mouseState)
+        {
+            bool leftMouseDown = !inputCaptured && mouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
+            bool clicked = leftMouseDown && !_selectPointerWasDown;
+            _selectPointerWasDown = leftMouseDown;
+
+            if (!clicked)
+            {
+                return;
+            }
+
+            var mouseStart = new Vector3(mouseState.Position, 0.0f);
+            var mouseEnd = new Vector3(mouseState.Position, 1.0f);
+            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+
+            Context.World.Selection.SelectedNode = ManaScenePicker.Pick(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
         }
 
         private bool ShouldCaptureEditorMouseInput()

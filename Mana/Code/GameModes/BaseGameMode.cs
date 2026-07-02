@@ -92,6 +92,9 @@ namespace Mana.Code
         {
         }
 
+        // Bump when InitializeDockLayout changes so saved layouts on disk get discarded and rebuilt.
+        protected virtual int DockLayoutVersion => 1;
+
         public virtual void Render(double deltaTime)
         {
             RenderFrame++;

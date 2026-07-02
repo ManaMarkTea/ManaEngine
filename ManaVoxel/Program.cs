@@ -24,6 +24,7 @@ namespace Mana
                 var launchOptions = ManaLaunchOptions.Parse(args);
                 var backendKind = launchOptions.GraphicsBackend;
                 var game = new VoxelEditorGameMode(backendKind);
+                game.PurgeStaleDockLayout();
 
                 if (backendKind == ManaGraphicsBackendKind.WebGpu)
                 {

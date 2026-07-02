@@ -14,6 +14,8 @@ namespace ManaVoxel.Code.UI
         {
             ImGui.Begin(WindowTitle, ImGuiWindowFlags.NoCollapse);
 
+            DrawSelectToolButton(viewModel);
+            ImGui.Separator();
             DrawToolButtons(viewModel);
 
             ImGui.Separator();
@@ -40,6 +42,51 @@ namespace ManaVoxel.Code.UI
             ImGui.End();
         }
 
+        private static void DrawSelectToolButton(VoxelEditorViewModel viewModel)
+        {
+            var selected = viewModel.IsSelectToolActive;
+
+            if (ImGui.InvisibleButton("##voxel-tool-select", new Vector2(ToolButtonSize, ToolButtonSize)))
+            {
+                viewModel.IsSelectToolActive = true;
+            }
+
+            var hovered = ImGui.IsItemHovered();
+            var active = ImGui.IsItemActive();
+            var min = ImGui.GetItemRectMin();
+            var max = ImGui.GetItemRectMax();
+            DrawToolButtonFrame(ImGui.GetWindowDrawList(), min, max, selected, hovered, active);
+            DrawSelectIcon(ImGui.GetWindowDrawList(), (min + max) * 0.5f, selected);
+
+            if (hovered)
+            {
+                ImGui.SetTooltip("Select (click objects in the viewport instead of placing voxels)");
+            }
+        }
+
+        private static void DrawSelectIcon(ImDrawListPtr drawList, Vector2 center, bool selected)
+        {
+            var iconColor = selected
+                ? Color(0.96f, 0.99f, 1.0f, 1.0f)
+                : Color(0.14f, 0.26f, 0.38f, 1.0f);
+            var accentColor = selected
+                ? Color(0.85f, 0.94f, 1.0f, 0.82f)
+                : Color(0.24f, 0.53f, 0.84f, 0.88f);
+
+            var origin = center + new Vector2(-8.0f, -10.0f);
+            var tip = origin;
+            var baseA = origin + new Vector2(0.0f, 17.0f);
+            var baseB = origin + new Vector2(7.0f, 10.0f);
+            var tailA = origin + new Vector2(4.5f, 9.5f);
+            var tailTip = origin + new Vector2(11.0f, 19.0f);
+            var tailB = origin + new Vector2(8.5f, 13.0f);
+
+            drawList.AddTriangleFilled(tip, baseA, baseB, WithAlpha(accentColor, 0.28f));
+            drawList.AddTriangle(tip, baseA, baseB, iconColor, 1.4f);
+            drawList.AddTriangleFilled(tailA, tailTip, tailB, WithAlpha(accentColor, 0.28f));
+            drawList.AddTriangle(tailA, tailTip, tailB, iconColor, 1.4f);
+        }
+
         private static void DrawToolButtons(VoxelEditorViewModel viewModel)
         {
             for (var i = 0; i < VoxelToolCatalog.ToolKinds.Length; i++)
@@ -60,11 +107,12 @@ namespace ManaVoxel.Code.UI
             string tooltip)
         {
             var toolIndex = VoxelToolCatalog.GetToolIndex(toolKind);
-            var selected = viewModel.SelectedToolIndex == toolIndex;
+            var selected = !viewModel.IsSelectToolActive && viewModel.SelectedToolIndex == toolIndex;
 
             if (ImGui.InvisibleButton($"##voxel-tool-{toolKind}", new Vector2(ToolButtonSize, ToolButtonSize)))
             {
                 viewModel.SelectedToolIndex = toolIndex;
+                viewModel.IsSelectToolActive = false;
             }
 
             var hovered = ImGui.IsItemHovered();

@@ -26,6 +26,7 @@ namespace Mana
 
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
+        public SceneSelectionState Selection => sceneSelectionState;
         private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
         private readonly SceneInspectorPanelView sceneInspectorPanelView;
         private readonly IrradianceSettingsPanelView irradianceSettingsPanelView = new IrradianceSettingsPanelView();
@@ -201,6 +202,9 @@ namespace Mana
 
         public void DrawImGui()
         {
+            // Tab order within a dock node follows Begin() submission order, so Inspector
+            // is drawn first here to keep it as the leftmost/default-selected utility tab.
+            sceneInspectorPanelView.Draw(Context.GameMode.BarlowCondensedImGuiFont);
             MainCamera.DrawImGui();
             Renderer?.DrawImGui();
             var irradiancePanelResult = irradianceSettingsPanelView.Draw(IrradianceSettings);
@@ -221,7 +225,6 @@ namespace Mana
 
             RunFutures(ImGuiFutures, activeImGuiFutures);
             sceneOutlinerPanelView.Draw(this);
-            sceneInspectorPanelView.Draw(Context.GameMode.BarlowCondensedImGuiFont);
 
             if (BaseGameMode.UtilityDockId != 0)
             {

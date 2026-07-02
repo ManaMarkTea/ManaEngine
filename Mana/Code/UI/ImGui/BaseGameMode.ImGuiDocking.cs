@@ -20,6 +20,18 @@ namespace Mana.Code
             OutlinerDockId = 0;
         }
 
+        // Call before the ImGui controller is created (i.e. before anything loads the saved
+        // ini from disk), so a version bump falls through to the same untouched "no ini file"
+        // codepath as a brand new install, instead of tearing down a dock tree ImGui already
+        // built this frame (which was corrupting the central/viewport node).
+        public void PurgeStaleDockLayout()
+        {
+            if (IsSavedDockLayoutStale())
+            {
+                ManaImGuiSettingsStorage.DeleteIniFile();
+            }
+        }
+
         protected void DrawDockSpace()
         {
             var viewport = ImGui.GetMainViewport();
@@ -60,6 +72,7 @@ namespace Mana.Code
 
                     InitializeDockLayout(dockspaceId, viewport.WorkSize);
                     ImGui.SaveIniSettingsToDisk(ManaImGuiSettingsStorage.IniFilePath);
+                    ManaImGuiSettingsStorage.WriteLayoutVersion(DockLayoutVersion);
                 }
 
                 _dockLayoutResetRequested = false;
@@ -69,6 +82,15 @@ namespace Mana.Code
             ImGui.End();
         }
 
+        private bool IsSavedDockLayoutStale()
+        {
+            if (!File.Exists(ManaImGuiSettingsStorage.IniFilePath))
+            {
+                return false;
+            }
+
+            return ManaImGuiSettingsStorage.ReadLayoutVersion() is not int savedVersion || savedVersion < DockLayoutVersion;
+        }
     }
 }
 
