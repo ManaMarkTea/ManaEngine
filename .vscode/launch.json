@@ -1,30 +1,29 @@
 {
   "version": "0.2.0",
   "configurations": [
-    
     {
       "name": "Launch Mana",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build Mana (debug launch)",
       "program": "${workspaceFolder}/Mana/bin/Debug/net10.0/Mana.dll",
+      "args": [
+        "--webgpu"
+      ],
       "cwd": "${workspaceFolder}/Mana",
       "console": "integratedTerminal",
       "stopAtEntry": false
     },
     {
-      "name": "Launch Mana WebGPU",
+      "name": "Launch Mana OpenGL",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build ManaVoxel (debug launch)",
-      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
+      "preLaunchTask": "build Mana (debug launch)",
+      "program": "${workspaceFolder}/Mana/bin/Debug/net10.0/Mana.dll",
       "args": [
-        "--webgpu"
+        "--graphics", "opengl"
       ],
-      "env": {
-        "MANA_WEBGPU_DEMO_MESH": "1"
-      },
-      "cwd": "${workspaceFolder}/ManaVoxel",
+      "cwd": "${workspaceFolder}/Mana",
       "console": "integratedTerminal",
       "stopAtEntry": false
     },
@@ -34,16 +33,6 @@
       "request": "launch",
       "preLaunchTask": "build ManaVoxel (debug launch)",
       "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
-      "cwd": "${workspaceFolder}/ManaVoxel",
-      "console": "integratedTerminal",
-      "stopAtEntry": false
-    },
-    {
-      "name": "Launch ManaVoxel WebGPU",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build ManaVoxel (debug launch)",
-      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
       "args": [
         "--webgpu"
       ],
@@ -55,38 +44,17 @@
       "stopAtEntry": false
     },
     {
-      "name": "Launch ManaVoxel (no build)",
+      "name": "Launch ManaVoxel OpenGL",
       "type": "coreclr",
       "request": "launch",
-      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
-      "cwd": "${workspaceFolder}/ManaVoxel",
-      "console": "integratedTerminal",
-      "stopAtEntry": false
-    },
-    {
-      "name": "Launch ManaVoxel WebGPU (no build)",
-      "type": "coreclr",
-      "request": "launch",
+      "preLaunchTask": "build ManaVoxel (debug launch)",
       "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
       "args": [
-        "--webgpu"
+        "--graphics", "opengl"
       ],
-      "env": {
-        "MANA_WEBGPU_DEMO_MESH": "1"
-      },
       "cwd": "${workspaceFolder}/ManaVoxel",
       "console": "integratedTerminal",
       "stopAtEntry": false
-    }
-  ],
-  "compounds": [
-    {
-      "name": "Launch Both",
-      "preLaunchTask": "build ManaVoxel (debug launch)",
-      "configurations": [
-        "Launch ManaVoxel (no build)",
-        "Launch ManaVoxel WebGPU (no build)"
-      ]
     }
   ]
 }

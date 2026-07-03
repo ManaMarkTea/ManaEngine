@@ -2,7 +2,7 @@ namespace ManaCore.Graphics
 {
     public sealed class ManaLaunchOptions
     {
-        public ManaGraphicsBackendKind GraphicsBackend { get; private init; } = ManaGraphicsBackendKind.OpenGL;
+        public ManaGraphicsBackendKind GraphicsBackend { get; private init; } = ManaGraphicsBackendKind.WebGpu;
         public string? WebGpuBackend { get; private init; }
 
         public static ManaLaunchOptions Parse(string[] args)
@@ -44,14 +44,14 @@ namespace ManaCore.Graphics
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                return ManaGraphicsBackendKind.OpenGL;
+                return ManaGraphicsBackendKind.WebGpu;
             }
 
             return value.Trim().ToLowerInvariant() switch
             {
                 "webgpu" or "wgpu" => ManaGraphicsBackendKind.WebGpu,
                 "opengl" or "gl" => ManaGraphicsBackendKind.OpenGL,
-                _ => ManaGraphicsBackendKind.OpenGL
+                _ => ManaGraphicsBackendKind.WebGpu
             };
         }
 
