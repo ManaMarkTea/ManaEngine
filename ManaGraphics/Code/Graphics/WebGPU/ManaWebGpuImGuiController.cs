@@ -69,6 +69,9 @@ namespace ManaGraphics.Code.Graphics
             io.ConfigFlags &= ~ImGuiConfigFlags.NoMouseCursorChange;
             io.ConfigWindowsResizeFromEdges = true;
             io.DisplaySize = new Vector2(_window.Size.X, _window.Size.Y);
+            io.DisplayFramebufferScale = new Vector2(
+                _window.Size.X > 0 ? (float)_window.FramebufferSize.X / _window.Size.X : 1f,
+                _window.Size.Y > 0 ? (float)_window.FramebufferSize.Y / _window.Size.Y : 1f);
             if (File.Exists(iniPath))
             {
                 ImGui.LoadIniSettingsFromDisk(iniPath);
@@ -487,6 +490,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         {
             var io = ImGui.GetIO();
             io.DisplaySize = new Vector2(_window.Size.X, _window.Size.Y);
+            io.DisplayFramebufferScale = new Vector2(
+                _window.Size.X > 0 ? (float)_window.FramebufferSize.X / _window.Size.X : 1f,
+                _window.Size.Y > 0 ? (float)_window.FramebufferSize.Y / _window.Size.Y : 1f);
             io.DeltaTime = deltaTime;
 
             var mouse = _input.Mice.FirstOrDefault();
@@ -664,11 +670,12 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                     }
                     else
                     {
-                        // Calculate clip rect in viewport space
-                        float clipMinX = Math.Max(0.0f, cmd.ClipRect.X - drawData.DisplayPos.X);
-                        float clipMinY = Math.Max(0.0f, cmd.ClipRect.Y - drawData.DisplayPos.Y);
-                        float clipMaxX = Math.Min(drawData.DisplaySize.X, cmd.ClipRect.Z - drawData.DisplayPos.X);
-                        float clipMaxY = Math.Min(drawData.DisplaySize.Y, cmd.ClipRect.W - drawData.DisplayPos.Y);
+                        // Scale clip rect from logical points to physical framebuffer pixels (needed for HiDPI/Retina)
+                        var fbScale = drawData.FramebufferScale;
+                        float clipMinX = Math.Max(0.0f, (cmd.ClipRect.X - drawData.DisplayPos.X) * fbScale.X);
+                        float clipMinY = Math.Max(0.0f, (cmd.ClipRect.Y - drawData.DisplayPos.Y) * fbScale.Y);
+                        float clipMaxX = Math.Min(drawData.DisplaySize.X * fbScale.X, (cmd.ClipRect.Z - drawData.DisplayPos.X) * fbScale.X);
+                        float clipMaxY = Math.Min(drawData.DisplaySize.Y * fbScale.Y, (cmd.ClipRect.W - drawData.DisplayPos.Y) * fbScale.Y);
 
                         if (clipMaxX > clipMinX && clipMaxY > clipMinY)
                         {
