@@ -147,13 +147,17 @@ namespace Mana.Code.Nodes
 
         private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
         {
+            var renderers = new List<MeshRendererComponent>();
             foreach (var component in Components)
             {
-                if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
+                if (component is MeshRendererComponent renderer && renderer.Mesh != null)
                 {
-                    continue;
+                    renderers.Add(renderer);
                 }
+            }
 
+            foreach (var renderer in renderers)
+            {
                 try
                 {
                     var meshData = renderer.Mesh.GetOrCreateCpuData();

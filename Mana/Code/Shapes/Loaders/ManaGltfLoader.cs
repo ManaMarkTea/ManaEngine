@@ -1,5 +1,6 @@
 using Mana.Code.Nodes;
 using Mana.Code.Graphics;
+using Mana.Code.ManaShaders;
 using ManaCore.Graphics;
 using Silk.NET.Assimp;
 using System;
@@ -254,6 +255,7 @@ namespace Mana.Code.Shapes.Loaders
         public unsafe ManaMaterial LoadMaterial(ManaContext context, Material* material)
         {
             ManaMaterial outputMaterial = new ManaMaterial(context);
+            outputMaterial.Shader = new ManaPbrShader(context);
 
             List<string> textureNames = new List<string>();
 

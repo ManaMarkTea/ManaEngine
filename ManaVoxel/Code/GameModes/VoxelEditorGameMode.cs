@@ -120,14 +120,31 @@ namespace Mana.Code.GameModes
                     _viewModel.AttachScene(Context, Context.World.DefaultScene);
                     Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
 
-                    ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
-
                     float gridSize = 256.0f;
                     float halfGridSize = gridSize * 0.5f;
+                    ManaSceneNode xzPlane, yxPlane, zyPlane, voxelsNode;
 
-                    var xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize);
-                    var yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize);
-                    var zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize);
+                    ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
+
+                    lock (world.SceneLock)
+                    {
+                        xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize);
+                        yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize);
+                        zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize);
+
+                        Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
+                        Cursor.Name = "CursorBall";
+
+                        _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
+                        _lightningBall.Name = "Lightning Ball";
+                        _lightningBall.Scale = new Vector3(20, 20, 20);
+
+                        _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
+                        _liquidBall.Name = "Liquid Ball";
+                        _liquidBall.Scale = new Vector3(20, 20, 20);
+
+                        voxelsNode = shapes.AddVoxels(Vector3.Zero);
+                    }
 
                     Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
                     Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
@@ -137,25 +154,12 @@ namespace Mana.Code.GameModes
                     _pickingExclusions.Add(xzPlane);
                     _pickingExclusions.Add(yxPlane);
                     _pickingExclusions.Add(zyPlane);
-
-                    Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
-                    Cursor.Name = "CursorBall";
                     _pickingExclusions.Add(Cursor);
-
-                    _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
-                    _lightningBall.Name = "Lightning Ball";
-                    _lightningBall.Scale = new Vector3(20, 20, 20);
-
-                    _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
-                    _liquidBall.Name = "Liquid Ball";
-                    _liquidBall.Scale = new Vector3(20, 20, 20);
 
                     // 2. Load voxel model
                     Loading.Report(new ManaLoadingProgress("Loading MagicaVox model", 0.5f));
                     MagicaVoxLoader vox = new MagicaVoxLoader();
                     vox.Load();
-
-                    var voxelsNode = shapes.AddVoxels(Vector3.Zero);
                     var voxelNode = (ManaVoxelsNode)voxelsNode;
                     voxelNode.Name = "Startup Voxels";
                     var voxelShapes = voxelsNode.FindShapes<ManaVoxelShape>();
@@ -180,7 +184,10 @@ namespace Mana.Code.GameModes
 
                     // 3. Load Flight Helmet scene model
                     Loading.Report(new ManaLoadingProgress("Loading FlightHelmet GLTF model", 0.8f));
-                    AddFlightHelmetReferenceModel();
+                    lock (world.SceneLock)
+                    {
+                        AddFlightHelmetReferenceModel();
+                    }
 
                     LoadingCoordinator.CompleteBackgroundWork();
                 }
@@ -256,9 +263,9 @@ namespace Mana.Code.GameModes
             {
                 var helmetRoot = Context.World.LoadFromGltf(helmetPath);
                 helmetRoot.Name = "Flight Helmet";
-                helmetRoot.Position = new Vector3(96.0f, 6.0f, 32.0f);
+                helmetRoot.Position = new Vector3(96.0f, 32.0f, 32.0f);
                 helmetRoot.Rotation = new Vector3(0.0f, 35.0f.ToRadians(), 0.0f);
-                helmetRoot.Scale = Vector3.One * 8.0f;
+                helmetRoot.Scale = Vector3.One * 80.0f;
                 helmetRoot.UpdateTransform();
 
                 if (Context.World.Scenes.Count > 0)
