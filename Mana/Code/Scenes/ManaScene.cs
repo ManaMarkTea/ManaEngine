@@ -16,25 +16,25 @@ namespace Mana
 
         public void Update()
         {
-            for (int i = 0, count = Children.Count; i < count; i++)
+            foreach (var node in Children)
             {
-                Children[i].UpdateTransform();
+                node.UpdateTransform();
             }
         }
 
         public void Draw()
         {
-            for (int i = 0, count = Children.Count; i < count; i++)
+            foreach (var node in Children)
             {
-                Children[i].Draw();
+                node.Draw();
             }
         }
 
         public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
         {
-            for (int i = 0, count = Children.Count; i < count; i++)
+            foreach (var node in Children)
             {
-                Children[i].CollectRenderMeshInstances(output);
+                node.CollectRenderMeshInstances(output);
             }
         }
 

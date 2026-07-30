@@ -48,7 +48,10 @@ namespace Mana.Code
             collisionComponent.ShapeIndex = boxIndex;
             collisionComponent.Body = handle;
             PhysicsMap[handle] = collisionComponent;
-            node.Components.Add(collisionComponent);
+            lock (Context.World.SceneLock)
+            {
+                node.Components.Add(collisionComponent);
+            }
         }
 
         public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f, Vector3? initialLinearVelocity = null)
@@ -84,14 +87,20 @@ namespace Mana.Code
             collisionComponent.Body = handle;
             collisionComponent.SyncNodeToPhysics = false;
             PhysicsMap[handle] = collisionComponent;
-            node.Components.Add(collisionComponent);
+            lock (Context.World.SceneLock)
+            {
+                node.Components.Add(collisionComponent);
+            }
         }
 
         public void RemoveBody(BodyHandle handle)
         {
             if (PhysicsMap.Remove(handle, out var collisionComponent))
             {
-                collisionComponent.Owner.Components.Remove(collisionComponent);
+                lock (Context.World.SceneLock)
+                {
+                    collisionComponent.Owner.Components.Remove(collisionComponent);
+                }
             }
 
             DirectBodies.Remove(handle);

@@ -32,6 +32,8 @@ namespace Mana
         private readonly IrradianceSettingsPanelView irradianceSettingsPanelView = new IrradianceSettingsPanelView();
         private ManaIrradianceDebugScene? irradianceDebugScene;
 
+        public readonly object SceneLock = new();
+
         public List<Action> PostDrawFutures { get; set; }
         public List<Action> ImGuiFutures { get; set; }
         public List<Action> PreDrawFutures { get; set; }
@@ -168,9 +170,12 @@ namespace Mana
 
             RunFutures(PreUpdateFutures, activePreUpdateFutures);
 
-            foreach (var scene in Scenes)
+            lock (SceneLock)
             {
-                scene.Update();
+                foreach (var scene in Scenes)
+                {
+                    scene.Update();
+                }
             }
 
             RunFutures(PostUpdateFutures, activePostUpdateFutures);
@@ -255,7 +260,9 @@ namespace Mana
                     output.Add((node.WorldTransform.Translation, lightColor));
                 }
             }
-            foreach (var child in node.Children.ToArray())
+
+            lock (SceneLock)
+            {
             {
                 CollectLightsFromNode(child, output);
             }
@@ -264,11 +271,23 @@ namespace Mana
         public ManaRenderScene CreateRenderScene()
         {
             var meshes = new List<ManaRenderMeshInstance>();
-            // Snapshotted: Scenes can still be mutated by the background asset-loading thread
-            // (new scenes/nodes) while this render-thread pass is enumerating it.
-            foreach (var scene in Scenes.ToArray())
+            var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
+
+            lock (SceneLock)
             {
-                scene.CollectRenderMeshInstances(meshes);
+            {
+                foreach (var scene in Scenes)
+                {
+                    scene.CollectRenderMeshInstances(meshes);
+                }
+
+                foreach (var scene in Scenes)
+                {
+                    foreach (var child in scene.Children)
+                    {
+                        CollectLightsFromNode(child, collectedLights);
+                    }
+                }
             }
 
             var lightPositions = new Vector4[4];
@@ -285,15 +304,6 @@ namespace Mana
             };
             var defaultWeights = new float[] { 1.0f, 0.8f, 0.5f, 0.3f };
             const float gridLightPowerScale = debugGridSize * debugGridSize;
-
-            var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
-            foreach (var scene in Scenes.ToArray())
-            {
-                foreach (var child in scene.Children.ToArray())
-                {
-                    CollectLightsFromNode(child, collectedLights);
-                }
-            }
 
             for (int i = 0; i < 4; i++)
             {

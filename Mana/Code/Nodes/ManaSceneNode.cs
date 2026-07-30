@@ -151,11 +151,14 @@ namespace Mana.Code.Nodes
             // components/children to the scene graph while this render-thread pass walks it.
             foreach (var component in Components.ToArray())
             {
-                if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
+                if (component is MeshRendererComponent renderer && renderer.Mesh != null)
                 {
-                    continue;
+                    renderers.Add(renderer);
                 }
+            }
 
+            foreach (var renderer in renderers)
+            {
                 try
                 {
                     var meshData = renderer.Mesh.GetOrCreateCpuData();
