@@ -249,9 +249,7 @@ namespace Mana
         private void CollectLightsFromNode(ManaSceneNode node, List<(Vector3 Position, Vector3 Color)> output)
         {
             if (node == null) return;
-            // Snapshotted: the background asset-loading thread can still be adding components/
-            // children to the scene graph while this (render-thread) pass walks it.
-            foreach (var component in node.Components.ToArray())
+            foreach (var component in node.Components)
             {
                 if (component is ManaLightSourceComponent light && light.Enabled)
                 {
@@ -261,8 +259,7 @@ namespace Mana
                 }
             }
 
-            lock (SceneLock)
-            {
+            foreach (var child in node.Children)
             {
                 CollectLightsFromNode(child, output);
             }
@@ -274,7 +271,6 @@ namespace Mana
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
 
             lock (SceneLock)
-            {
             {
                 foreach (var scene in Scenes)
                 {
