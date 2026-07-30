@@ -84,6 +84,7 @@ namespace ManaVoxel.Code.UI
         public bool UseLightTheme = true;
         public bool ShowLightningBall = true;
         public bool ShowLiquidBall = true;
+        public bool ShowWater = true;
 
         public int LockOverlapPolicyIndex;
         public string[] LockOverlapPolicyOptions => LockOverlapPolicies;

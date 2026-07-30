@@ -362,12 +362,14 @@ namespace ManaGraphics.Code.Graphics
             }
 
             // Second bind group, used only by shaders that opt into per-material custom uniforms
-            // (lightning_ball.wgsl, liquid_ball.wgsl today). Additive to group 0, so every other
-            // WGSL shader/pipeline is untouched.
+            // (lightning_ball.wgsl, liquid_ball.wgsl, water.wgsl today). Additive to group 0, so
+            // every other WGSL shader/pipeline is untouched. Visible to both stages because
+            // water.wgsl reads custom uniforms in its vertex shader (wave/ripple displacement),
+            // not just the fragment shader like the earlier shaders that only needed this for color.
             var customUniformBindGroupLayoutEntry = new BindGroupLayoutEntry
             {
                 Binding = 0,
-                Visibility = ShaderStage.Fragment,
+                Visibility = ShaderStage.Vertex | ShaderStage.Fragment,
                 Buffer = new BufferBindingLayout
                 {
                     Type = BufferBindingType.Uniform,
@@ -415,6 +417,7 @@ namespace ManaGraphics.Code.Graphics
                 "ManaGridShader" => "grid.wgsl",
                 "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
                 "ManaPbrShader" => "pbr_irradiance.wgsl",
+                "ManaWaterShader" => "water.wgsl",
                 _ => "pbr_irradiance.wgsl"
             };
         }

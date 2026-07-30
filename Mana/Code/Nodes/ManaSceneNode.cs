@@ -147,7 +147,9 @@ namespace Mana.Code.Nodes
 
         private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
         {
-            foreach (var component in Components)
+            // Snapshotted: the background asset-loading thread can still be adding
+            // components/children to the scene graph while this render-thread pass walks it.
+            foreach (var component in Components.ToArray())
             {
                 if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
                 {
@@ -188,7 +190,7 @@ namespace Mana.Code.Nodes
                 }
             }
 
-            foreach (var child in Children)
+            foreach (var child in Children.ToArray())
             {
                 child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture);
             }

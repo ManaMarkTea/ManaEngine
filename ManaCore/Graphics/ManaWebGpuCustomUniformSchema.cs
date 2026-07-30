@@ -349,6 +349,7 @@ namespace ManaCore.Graphics
                 "ManaGridShader" => "grid.wgsl",
                 "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
                 "ManaPbrShader" => "pbr_irradiance.wgsl",
+                "ManaWaterShader" => "water.wgsl",
                 _ => string.Empty
             };
 

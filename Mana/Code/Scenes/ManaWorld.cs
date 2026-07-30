@@ -244,7 +244,9 @@ namespace Mana
         private void CollectLightsFromNode(ManaSceneNode node, List<(Vector3 Position, Vector3 Color)> output)
         {
             if (node == null) return;
-            foreach (var component in node.Components)
+            // Snapshotted: the background asset-loading thread can still be adding components/
+            // children to the scene graph while this (render-thread) pass walks it.
+            foreach (var component in node.Components.ToArray())
             {
                 if (component is ManaLightSourceComponent light && light.Enabled)
                 {
@@ -253,7 +255,7 @@ namespace Mana
                     output.Add((node.WorldTransform.Translation, lightColor));
                 }
             }
-            foreach (var child in node.Children)
+            foreach (var child in node.Children.ToArray())
             {
                 CollectLightsFromNode(child, output);
             }
@@ -262,7 +264,9 @@ namespace Mana
         public ManaRenderScene CreateRenderScene()
         {
             var meshes = new List<ManaRenderMeshInstance>();
-            foreach (var scene in Scenes)
+            // Snapshotted: Scenes can still be mutated by the background asset-loading thread
+            // (new scenes/nodes) while this render-thread pass is enumerating it.
+            foreach (var scene in Scenes.ToArray())
             {
                 scene.CollectRenderMeshInstances(meshes);
             }
@@ -283,9 +287,9 @@ namespace Mana
             const float gridLightPowerScale = debugGridSize * debugGridSize;
 
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
-            foreach (var scene in Scenes)
+            foreach (var scene in Scenes.ToArray())
             {
-                foreach (var child in scene.Children)
+                foreach (var child in scene.Children.ToArray())
                 {
                     CollectLightsFromNode(child, collectedLights);
                 }

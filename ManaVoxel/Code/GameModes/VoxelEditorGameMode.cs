@@ -36,6 +36,8 @@ namespace Mana.Code.GameModes
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
         private ManaSceneNode? _liquidBall;
+        private ManaWaterNode? _water;
+        private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
 
         public override bool DeferGpuUploadsOnStartup => true;
@@ -216,6 +218,13 @@ namespace Mana.Code.GameModes
                 liquidMaterial.Shader = new ManaLiquidBallShader(Context);
                 liquidRenderer.DrawAfterScene = true;
             }
+
+            // Built here (not in the background asset-loading task like the demo spheres above)
+            // because ManaWaterPlane.GenerateMaterial() constructs its ManaWaterShader eagerly,
+            // which needs a live graphics context rather than the deferred-upload path.
+            _water = new ManaWaterNode(Context, new Vector2(48, 48), 128);
+            _water.Position = new Vector3(64, 16, 64);
+            _water.UpdateTransform();
         }
 
         protected override bool CanCompleteLoading()
@@ -394,6 +403,8 @@ namespace Mana.Code.GameModes
 
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
+            SyncWaterVisibility();
+            UpdateWaterRippleInteraction();
         }
 
         protected override void DrawImGui(double deltaTime)
@@ -458,6 +469,7 @@ namespace Mana.Code.GameModes
 
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
+            SyncWaterVisibility();
 
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
@@ -719,6 +731,81 @@ namespace Mana.Code.GameModes
             {
                 sceneChildren.Remove(_liquidBall);
             }
+        }
+
+        private void SyncWaterVisibility()
+        {
+            if (_water == null)
+            {
+                return;
+            }
+
+            var sceneChildren = Context.World.DefaultScene.Children;
+            if (_viewModel.ShowWater)
+            {
+                if (!sceneChildren.Contains(_water))
+                {
+                    sceneChildren.Add(_water);
+                }
+            }
+            else
+            {
+                sceneChildren.Remove(_water);
+            }
+        }
+
+        // Demo hook for testing ripples: left-click over the water plane's footprint. Water has no
+        // physics collider, so this is a plain ray/plane test against water.Position.Y rather than
+        // going through GetProjectedMouseHit() - the ground plane's physics collider sits at the
+        // same height as the water, so gating on "physics raycast missed" would almost always skip.
+        private void UpdateWaterRippleInteraction()
+        {
+            var water = _water;
+            if (water == null || !_viewModel.ShowWater)
+            {
+                return;
+            }
+
+            var mouse = Context.Input.Mice.FirstOrDefault();
+            if (mouse == null)
+            {
+                return;
+            }
+
+            bool leftMouseDown = mouse.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
+            bool clicked = leftMouseDown && !_waterRipplePointerWasDown;
+            _waterRipplePointerWasDown = leftMouseDown;
+
+            if (!clicked)
+            {
+                return;
+            }
+
+            var mouseStart = new Vector3(mouse.Position, 0.0f);
+            var mouseEnd = new Vector3(mouse.Position, 1.0f);
+            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+
+            var waterY = water.Position.Y;
+            if (MathF.Abs(ray.Direction.Y) < 0.0001f)
+            {
+                return;
+            }
+
+            var travel = (waterY - ray.Origin.Y) / ray.Direction.Y;
+            if (travel <= 0.0f)
+            {
+                return;
+            }
+
+            var worldHit = ray.Origin + ray.Direction * travel;
+            var localHit = worldHit - water.Position;
+            var halfSize = water.Mesh.Size * 0.5f;
+            if (MathF.Abs(localHit.X) > halfSize.X || MathF.Abs(localHit.Z) > halfSize.Y)
+            {
+                return;
+            }
+
+            water.SpawnRipple(worldHit);
         }
 
     }
