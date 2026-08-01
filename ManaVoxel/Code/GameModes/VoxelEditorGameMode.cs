@@ -137,6 +137,7 @@ namespace Mana.Code.GameModes
                         Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                         Cursor.Name = "CursorBall";
 
+/*
                         _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
                         _lightningBall.Name = "Lightning Ball";
                         _lightningBall.Scale = new Vector3(20, 20, 20);
@@ -144,7 +145,7 @@ namespace Mana.Code.GameModes
                         _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
                         _liquidBall.Name = "Liquid Ball";
                         _liquidBall.Scale = new Vector3(20, 20, 20);
-
+*/
                         voxelsNode = shapes.AddVoxels(Vector3.Zero);
                     }
 
