@@ -8,6 +8,8 @@ using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
+using ManaGeoTools.Code.GeoTiff;
+using ManaGeoTools.Code.Planet;
 using System.Diagnostics;
 
 namespace Mana.Code.GameModes
@@ -36,6 +38,7 @@ namespace Mana.Code.GameModes
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
         private ManaSceneNode? _liquidBall;
+        private PlanetNode? _planet;
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
@@ -99,6 +102,7 @@ namespace Mana.Code.GameModes
         public override void Load()
         {
             LoadingCoordinator.Begin();
+            InitPlanetInspectorHook();
 
             var world = Context.World;
 
@@ -190,6 +194,13 @@ namespace Mana.Code.GameModes
                     lock (world.SceneLock)
                     {
                         AddFlightHelmetReferenceModel();
+                    }
+
+                    // 4. Add a demo planet node
+                    Loading.Report(new ManaLoadingProgress("Generating planet", 0.9f));
+                    lock (world.SceneLock)
+                    {
+                        AddPlanetDemo();
                     }
 
                     LoadingCoordinator.CompleteBackgroundWork();
@@ -287,6 +298,83 @@ namespace Mana.Code.GameModes
             {
                 Trace.TraceWarning($"Failed to load Flight Helmet reference model: {ex}");
                 ManaConsole.WriteDiagnostic($"Failed to load Flight Helmet reference model: {ex}");
+            }
+        }
+
+        // Bundled baseline: NOAA ETOPO 2022 at 60 arc-second resolution, one global GeoTIFF
+        // (~444MB, tracked via Git LFS — see .gitattributes), ships with the project under
+        // Mana/Assets/Planet/ and is what the whole-globe patch grid loads by default.
+        //
+        // A separate, much finer 15 arc-second regional set (288 tiles, ~4.9GB, covering lat
+        // 15N-45N/lon 90W-135W) already lives locally at PlanetDetailCacheFolder — that's *not* a
+        // repo asset, it's the future on-demand streaming cache: once camera-distance patch
+        // streaming exists, approaching that region should swap in those tiles for real detail
+        // instead of the coarse global baseline. Not wired up yet — this method only reads the
+        // bundled baseline for now.
+        private const string PlanetBaselineAssetRelativePath = @"Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif";
+        private const string PlanetDetailCacheFolder = @"C:\Users\night\Code\ManaAirSpace\Textures\HeightMaps\ETOPO2022";
+        private const float PlanetPatchSizeDegrees = 15.0f;
+
+        // SceneInspectorPanelView (Mana) can't reference PlanetNode (ManaGeoTools) directly — wrong
+        // dependency direction — so it exposes a hook that ManaVoxel (which references both) fills in.
+        private static void InitPlanetInspectorHook()
+        {
+            SceneInspectorPanelView.CustomNodeInspectorHook = node =>
+            {
+                if (node is not PlanetNode planet)
+                {
+                    return;
+                }
+
+                ImGui.SeparatorText("Planet");
+                var exaggeration = planet.HeightExaggeration;
+                if (ImGui.DragFloat("Height Exaggeration", ref exaggeration, 1.0f, 0.0f, 2000.0f))
+                {
+                    planet.HeightExaggeration = exaggeration;
+                }
+            };
+        }
+
+        private void AddPlanetDemo()
+        {
+            try
+            {
+                // Radius/position sized for this scene (256-unit grid), not the ManaGeoTools default
+                // of 100 — placed in a clear corner, elevated well above the ground plane.
+                // heightExaggeration=300 makes real terrain/bathymetry read as a visible bump at this
+                // radius; true-scale relief (exaggeration=1) is nearly flat at planet scale, same as
+                // it looks on the real Earth from orbit.
+                // resolution=24 keeps total vertex/draw-call count reasonable across all 288 patches
+                // the 15-degree grid divides the globe into — still no camera-distance LOD/streaming,
+                // so the whole globe builds and stays resident up front.
+                //
+                // Construction itself is instant (a smooth placeholder sphere, no GeoTIFF decode);
+                // LoadHeightDataAsync below kicks off the real ~9s decode in the background and swaps
+                // in real terrain/color as it completes, without blocking this load task or the
+                // loading screen.
+                _planet = new PlanetNode(
+                    Context,
+                    minLatitudeDegrees: -90.0f, maxLatitudeDegrees: 90.0f,
+                    minLongitudeDegrees: -180.0f, maxLongitudeDegrees: 180.0f,
+                    patchSizeDegrees: PlanetPatchSizeDegrees,
+                    radius: 40.0f, resolution: 24,
+                    heightExaggeration: 20.0f);
+                _planet.Position = new Vector3(200.0f, 60.0f, 200.0f);
+                _planet.UpdateTransform();
+
+                Context.World.DefaultScene.Children.Add(_planet);
+
+                var baselinePath = ResolveManaAssetPath(PlanetBaselineAssetRelativePath);
+                if (File.Exists(baselinePath))
+                {
+                    var heightLibrary = new GeoTiffLibrary(Path.GetDirectoryName(baselinePath)!);
+                    _planet.LoadHeightDataAsync(heightLibrary);
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to build demo planet: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to build demo planet: {ex}");
             }
         }
 

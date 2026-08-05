@@ -372,7 +372,7 @@ namespace ManaGraphics.Code.Graphics
                 uploadedCount++;
                 uploadedIndexes += created.Mesh.IndexCount;
                 changedMeshSummaries ??= new List<string>();
-                changedMeshSummaries.Add(FormatSceneMeshDelta(instance, key, existing?.Mesh.IndexCount, created.Mesh.IndexCount));
+                //changedMeshSummaries.Add(FormatSceneMeshDelta(instance, key, existing?.Mesh.IndexCount, created.Mesh.IndexCount));
             }
 
             var staleKeys = _sceneMeshMap.Keys
@@ -386,7 +386,7 @@ namespace ManaGraphics.Code.Graphics
                     removedCount++;
                     removedIndexes += staleMesh.Mesh.IndexCount;
                     changedMeshSummaries ??= new List<string>();
-                    changedMeshSummaries.Add(FormatSceneMeshDelta(staleMesh.Instance, staleKey, staleMesh.Mesh.IndexCount, null));
+                    //changedMeshSummaries.Add(FormatSceneMeshDelta(staleMesh.Instance, staleKey, staleMesh.Mesh.IndexCount, null));
                 }
             }
 

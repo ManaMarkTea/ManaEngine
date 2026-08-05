@@ -12,6 +12,11 @@ namespace Mana.Code.UI
 {
     public sealed class SceneInspectorPanelView
     {
+        // Extensibility seam for node types that can't be special-cased here directly (e.g. types
+        // defined in a downstream project like ManaGeoTools, which Mana can't reference without a
+        // circular dependency). A consuming app assigns this once at startup; called with whatever
+        // node is currently selected, so the hook itself decides what (if anything) to draw.
+        public static Action<ManaSceneNode>? CustomNodeInspectorHook { get; set; }
 
         private static readonly HashSet<string> AutomaticUniformNames = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -137,6 +142,8 @@ namespace Mana.Code.UI
             {
                 DrawVoxelsNodeInspector(voxelsNode);
             }
+
+            CustomNodeInspectorHook?.Invoke(node);
 
             if (node.Components.Count == 0)
             {

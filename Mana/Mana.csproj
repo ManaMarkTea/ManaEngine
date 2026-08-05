@@ -410,6 +410,9 @@
     <None Update="Assets\Models\Vox\Ship_Pirate_01.vox">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\Shaders\BardPbr.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

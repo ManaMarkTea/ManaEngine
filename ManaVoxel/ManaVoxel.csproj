@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" />
     <ProjectReference Include="..\Mana\Mana.csproj" />
+    <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" />
   </ItemGroup>
 
 </Project>

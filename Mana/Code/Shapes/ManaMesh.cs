@@ -132,7 +132,11 @@ namespace Mana.Code.Shapes
             throw new InvalidOperationException($"Mesh '{Name}' does not have CPU geometry data available.");
         }
 
-        internal void SetCpuData(ManaMeshCpuData cpuData)
+        // Public so procedural mesh types defined outside this assembly (e.g. ManaGeoTools) can
+        // rebuild themselves after their first render — GetOrCreateCpuData() below only ever builds
+        // CpuData lazily once (it returns the cached value immediately if non-null), so a mesh type
+        // that can't call this directly has no way to make a second GenerateData() pass take effect.
+        public void SetCpuData(ManaMeshCpuData cpuData)
         {
             CpuData = cpuData;
             CpuDataVersion++;
