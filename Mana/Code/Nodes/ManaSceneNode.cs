@@ -5,27 +5,79 @@ namespace Mana.Code.Nodes
     public class ManaSceneNode : ManaObject
     {
         private Vector3 _position;
+        private Vector3 _rotation;
+        private Vector3 _scale;
+
+        // UpdateTransform() used to unconditionally rebuild every node's matrices every frame --
+        // measured as a top-3 per-frame CPU cost (ManaWebGpuContext trace: ~28% of frame time) on a
+        // scene with ~2000 mostly-static meshes (planet terrain, KML placemarks). These flags let it
+        // skip the matrix math for nodes that haven't actually changed, while still visiting every
+        // node every frame (components still need their per-frame UpdateComponent() tick regardless).
+        //
+        // _needsLocalTransformRebuild: true when Position/Rotation/Scale changed since LocalTransform
+        // was last derived from them. Two call sites bypass Position/Rotation/Scale and write
+        // LocalTransform/WorldTransform directly -- CameraComponent's mouse-look (LocalTransform) and
+        // ManaCollisionComponent's physics sync (both, using the physics engine's own quaternion, not
+        // Owner.Rotation). The LocalTransform setter below clears _needsLocalTransformRebuild on every
+        // write for exactly this reason: if it didn't, the next UpdateTransform() call would see a
+        // stale "true" value and "correct" the physics-driven LocalTransform back using the stale
+        // Euler Owner.Rotation, silently discarding the physics simulation's actual orientation. Both
+        // known direct-write call sites are also careful to immediately reset Position/Rotation to
+        // match (or, for physics, update Position via its normal setter right before), so the next
+        // real P/R/S change still triggers a correct regen.
+        private bool _needsLocalTransformRebuild = true;
+        private Matrix4x4 _localTransform;
+        private Matrix4x4 _worldTransform;
+        private int _localVersion;
+        private int _worldVersion;
+        private int _worldComputedForLocalVersion = -1;
+        private int _worldComputedForParentVersion = -1;
 
         public ManaSceneNode? Parent { get; set; }
         public List<ManaSceneNode> Children { get; set; }
 
         public List<ManaComponent> Components { get; set; }
 
-        public Vector3 Position 
-        { 
-            get => _position; 
+        public Vector3 Position
+        {
+            get => _position;
             set
             {
                 if (!_position.Equals(value))
                 {
-                    _position = value;                 
+                    _position = value;
+                    _needsLocalTransformRebuild = true;
                 }
             }
         }
 
-        public Vector3 Rotation { get; set; }
+        public Vector3 Rotation
+        {
+            get => _rotation;
+            set
+            {
+                if (!_rotation.Equals(value))
+                {
+                    _rotation = value;
+                    _needsLocalTransformRebuild = true;
+                }
+            }
+        }
         public Vector3 RotationDegrees { get { return Rotation.ToEulerDegrees(); } }
-        public Vector3 Scale { get; set; }
+
+        public Vector3 Scale
+        {
+            get => _scale;
+            set
+            {
+                if (!_scale.Equals(value))
+                {
+                    _scale = value;
+                    _needsLocalTransformRebuild = true;
+                }
+            }
+        }
+
         public bool IncludeInEnvironmentCapture { get; set; } = true;
 
         public override string ToString()
@@ -65,8 +117,29 @@ namespace Mana.Code.Nodes
             }
         }
 
-        public Matrix4x4 LocalTransform { get; set; }
-        public Matrix4x4 WorldTransform { get; set; }
+        public Matrix4x4 LocalTransform
+        {
+            get => _localTransform;
+            set
+            {
+                _localTransform = value;
+                _localVersion++;
+                // See the big comment above _needsLocalTransformRebuild: any direct LocalTransform
+                // write (camera, physics) is authoritative and must not be clobbered by a
+                // P/R/S-driven regen on the next UpdateTransform() call.
+                _needsLocalTransformRebuild = false;
+            }
+        }
+
+        public Matrix4x4 WorldTransform
+        {
+            get => _worldTransform;
+            set
+            {
+                _worldTransform = value;
+                _worldVersion++;
+            }
+        }
 
 
         public ManaSceneNode(ManaContext context, Matrix4x4 localTransform) : base(context)
@@ -101,20 +174,29 @@ namespace Mana.Code.Nodes
 
         public void UpdateTransform()
         {
-            LocalTransform = Matrix4x4.Identity;
-            LocalTransform *= Matrix4x4.CreateScale(Scale);
-            LocalTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
-            LocalTransform *= Matrix4x4.CreateTranslation(Position);
+            if (_needsLocalTransformRebuild)
+            {
+                var localTransform = Matrix4x4.Identity;
+                localTransform *= Matrix4x4.CreateScale(Scale);
+                localTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
+                localTransform *= Matrix4x4.CreateTranslation(Position);
+                LocalTransform = localTransform; // setter bumps _localVersion, clears _needsLocalTransformRebuild
+            }
 
-            if (Parent != null)
+            // Recompute WorldTransform only if our own LocalTransform changed (_localVersion) or the
+            // parent's WorldTransform changed (_worldVersion) since we last derived ours from it --
+            // otherwise it's already correct and re-deriving it would just reproduce the same value.
+            var parentWorldVersion = Parent?._worldVersion ?? 0;
+            if (_localVersion != _worldComputedForLocalVersion || parentWorldVersion != _worldComputedForParentVersion)
             {
-                //WorldTransform = Parent.WorldTransform * LocalTransform;
-                WorldTransform = LocalTransform * Parent.WorldTransform;
+                WorldTransform = Parent != null ? LocalTransform * Parent.WorldTransform : LocalTransform;
+                _worldComputedForLocalVersion = _localVersion;
+                _worldComputedForParentVersion = parentWorldVersion;
             }
-            else
-            {
-                WorldTransform = LocalTransform;
-            }
+
+            // Still visited unconditionally: components (physics, cameras, animations) need their
+            // per-frame tick regardless of whether this node's own transform changed, and a child
+            // further down the tree may have its own independent reason to be dirty this frame.
             foreach (ManaSceneNode child in Children)
             {
                 child.UpdateTransform();
