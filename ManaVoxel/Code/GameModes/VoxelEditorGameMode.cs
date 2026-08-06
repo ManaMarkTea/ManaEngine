@@ -322,7 +322,12 @@ namespace Mana.Code.GameModes
         // bundled baseline for now.
         private const string PlanetBaselineAssetRelativePath = @"Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif";
         private const string PlanetDetailCacheFolder = @"C:\Users\night\Code\ManaAirSpace\Textures\HeightMaps\ETOPO2022";
-        private const float PlanetPatchSizeDegrees = 15.0f;
+
+        // Planet patches are cube-sphere tiles (6 faces x this many x this many), not lat/long-degree
+        // tiles — see PlanetNode's doc comment for why (uniform patch size everywhere, no polar
+        // wedge degeneration). 6 gives 216 total patches, comparable to (actually fewer than) the
+        // 288 the old 15-degree lat/long grid produced.
+        private const int PlanetPatchesPerFaceEdge = 6;
 
         // SceneInspectorPanelView (Mana) can't reference PlanetNode (ManaGeoTools) directly — wrong
         // dependency direction — so it exposes a hook that ManaVoxel (which references both) fills in.
@@ -372,9 +377,9 @@ namespace Mana.Code.GameModes
                 // heightExaggeration=300 makes real terrain/bathymetry read as a visible bump at this
                 // radius; true-scale relief (exaggeration=1) is nearly flat at planet scale, same as
                 // it looks on the real Earth from orbit.
-                // resolution=24 keeps total vertex/draw-call count reasonable across all 288 patches
-                // the 15-degree grid divides the globe into — still no camera-distance LOD/streaming,
-                // so the whole globe builds and stays resident up front.
+                // resolution=24 keeps total vertex/draw-call count reasonable across all 216 patches
+                // the cube-sphere grid divides the globe into — still no camera-distance LOD/
+                // streaming, so the whole globe builds and stays resident up front.
                 //
                 // Construction itself is instant (a smooth placeholder sphere, no GeoTIFF decode);
                 // LoadHeightDataAsync below kicks off the real ~9s decode in the background and swaps
@@ -382,9 +387,7 @@ namespace Mana.Code.GameModes
                 // loading screen.
                 _planet = new PlanetNode(
                     Context,
-                    minLatitudeDegrees: -90.0f, maxLatitudeDegrees: 90.0f,
-                    minLongitudeDegrees: -180.0f, maxLongitudeDegrees: 180.0f,
-                    patchSizeDegrees: PlanetPatchSizeDegrees,
+                    patchesPerFaceEdge: PlanetPatchesPerFaceEdge,
                     radius: 40.0f, resolution: 24,
                     heightExaggeration: 20.0f);
                 _planet.Position = new Vector3(200.0f, 60.0f, 200.0f);

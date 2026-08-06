@@ -481,22 +481,11 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // Shared by GetOrCreatePipeline (which pipeline/shader file to compile) and
-        // GetCustomUniformSlotNames in ManaWebGpuContext.Uniforms.cs (which file to parse for slot
-        // names) so the two never drift apart.
+        // Shared with the inspector/schema cache so the .wgsl file used for rendering and the .wgsl
+        // file parsed for CustomMaterialUniform metadata never drift apart.
         private static string ResolveShaderFileName(string shaderName)
         {
-            return shaderName switch
-            {
-                "ManaLightningBallShader" => "lightning_ball.wgsl",
-                "ManaLiquidBallShader" => "liquid_ball.wgsl",
-                "ManaLiquidShader" => "liquid.wgsl",
-                "ManaGridShader" => "grid.wgsl",
-                "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
-                "ManaPbrShader" => "pbr_irradiance.wgsl",
-                "ManaWaterShader" => "water.wgsl",
-                _ => "pbr_irradiance.wgsl"
-            };
+            return ManaWebGpuCustomUniformSchemaCache.ResolveShaderFileNameOrDefault(shaderName);
         }
 
         private RenderPipeline* GetOrCreatePipeline(string? shaderName, bool isTransparent = false, bool disableDepthWrite = false)

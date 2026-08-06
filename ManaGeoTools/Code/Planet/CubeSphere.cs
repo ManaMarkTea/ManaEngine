@@ -2,6 +2,13 @@ namespace ManaGeoTools.Code.Planet
 {
     public static class CubeSphere
     {
+        public static readonly Vector3[] FaceNormals =
+        {
+            Vector3.UnitY, -Vector3.UnitY,
+            Vector3.UnitX, -Vector3.UnitX,
+            Vector3.UnitZ, -Vector3.UnitZ,
+        };
+
         // From http://mathproofs.blogspot.com/2005/07/mapping-cube-to-sphere.html
         public static Vector3 WarpCubeToSphere(Vector3 pointOnUnitCube)
         {

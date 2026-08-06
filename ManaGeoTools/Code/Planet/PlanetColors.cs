@@ -1,7 +1,7 @@
 namespace ManaGeoTools.Code.Planet
 {
     /// <summary>
-    /// Per-vertex "biome" color ramp for PlanetMesh. There's no global equirectangular color texture
+    /// Per-vertex "biome" color ramp for PlanetPatchMesh. There's no global equirectangular color texture
     /// wired up (no Image/texture-loading pipeline in ManaGeoTools — see the GeoTIFF port notes), so
     /// this fakes a planet-like look with vertex color instead: real elevation (where a GeoTiffLibrary
     /// tile covers a vertex) gets a classic ocean/beach/grass/rock/snow hypsometric tint; everywhere

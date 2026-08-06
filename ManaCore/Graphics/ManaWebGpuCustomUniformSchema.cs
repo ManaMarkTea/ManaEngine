@@ -1,5 +1,6 @@
-using System.Text.RegularExpressions;
 using System.Numerics;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ManaCore.Graphics
 {
@@ -48,6 +49,8 @@ namespace ManaCore.Graphics
 
     public static class ManaWebGpuCustomUniformSchemaCache
     {
+        private const string DefaultShaderFileName = "pbr_irradiance.wgsl";
+
         private static readonly Regex CustomUniformStructRegex = new(
             @"struct\s+CustomMaterialUniform\s*\{(?<body>.*?)\}\s*;",
             RegexOptions.Singleline | RegexOptions.Compiled);
@@ -75,6 +78,14 @@ namespace ManaCore.Graphics
         private static readonly Regex PropertyDefaultArrayRegex = new(
             @"\bdefault\s*=\s*\[(?<values>[^\]]+)\]",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly IReadOnlyDictionary<string, string> ExplicitShaderFileNames =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["ManaLightningBallShader"] = "lightning_ball.wgsl",
+                ["ManaLiquidBallShader"] = "liquid_ball.wgsl",
+                ["ManaPbrShader"] = DefaultShaderFileName
+            };
 
         private static readonly Dictionary<string, ManaWebGpuCustomUniformSchema> Schemas = new(StringComparer.Ordinal);
 
@@ -339,21 +350,89 @@ namespace ManaCore.Graphics
             defaultVector = new Vector4(values[0], values[1], values[2], values[3]);
         }
 
-        private static bool TryResolveShaderFileName(string shaderName, out string shaderFileName)
+        public static string ResolveShaderFileNameOrDefault(string? shaderName)
         {
-            shaderFileName = shaderName switch
-            {
-                "ManaLightningBallShader" => "lightning_ball.wgsl",
-                "ManaLiquidBallShader" => "liquid_ball.wgsl",
-                "ManaLiquidShader" => "liquid.wgsl",
-                "ManaGridShader" => "grid.wgsl",
-                "ManaEnvironmentIrradianceShader" => "environment_irradiance.wgsl",
-                "ManaPbrShader" => "pbr_irradiance.wgsl",
-                "ManaWaterShader" => "water.wgsl",
-                _ => string.Empty
-            };
+            return TryResolveShaderFileName(shaderName, out var shaderFileName)
+                ? shaderFileName
+                : DefaultShaderFileName;
+        }
 
-            return !string.IsNullOrWhiteSpace(shaderFileName);
+        public static bool TryResolveShaderFileName(string? shaderName, out string shaderFileName)
+        {
+            shaderFileName = string.Empty;
+            if (string.IsNullOrWhiteSpace(shaderName))
+            {
+                return false;
+            }
+
+            if (ExplicitShaderFileNames.TryGetValue(shaderName, out var explicitShaderFileName) &&
+                !string.IsNullOrWhiteSpace(explicitShaderFileName))
+            {
+                shaderFileName = explicitShaderFileName;
+                return true;
+            }
+
+            var inferredFileName = InferShaderFileName(shaderName);
+            if (string.IsNullOrWhiteSpace(inferredFileName) ||
+                ResolveWebGpuShaderPath(inferredFileName) == null)
+            {
+                return false;
+            }
+
+            shaderFileName = inferredFileName;
+            return true;
+        }
+
+        private static string InferShaderFileName(string shaderName)
+        {
+            var name = shaderName.Trim();
+            if (name.StartsWith("Mana", StringComparison.Ordinal))
+            {
+                name = name["Mana".Length..];
+            }
+
+            if (name.EndsWith("Shader", StringComparison.Ordinal))
+            {
+                name = name[..^"Shader".Length];
+            }
+
+            return name.Length == 0 ? string.Empty : $"{ToSnakeCase(name)}.wgsl";
+        }
+
+        private static string ToSnakeCase(string value)
+        {
+            var builder = new StringBuilder(value.Length + 4);
+            for (var i = 0; i < value.Length; i++)
+            {
+                var current = value[i];
+                if (current == '_' || current == '-' || char.IsWhiteSpace(current))
+                {
+                    AppendSeparator(builder);
+                    continue;
+                }
+
+                if (char.IsUpper(current) && i > 0)
+                {
+                    var previous = value[i - 1];
+                    var nextIsLower = i + 1 < value.Length && char.IsLower(value[i + 1]);
+                    if (char.IsLower(previous) || char.IsDigit(previous) || nextIsLower)
+                    {
+                        AppendSeparator(builder);
+                    }
+                }
+
+                builder.Append(char.ToLowerInvariant(current));
+            }
+
+            return builder.ToString();
+        }
+
+        private static void AppendSeparator(StringBuilder builder)
+        {
+            if (builder.Length > 0 && builder[^1] != '_')
+            {
+                builder.Append('_');
+            }
         }
 
         private static string? ResolveWebGpuShaderPath(string shaderFileName)
@@ -361,9 +440,12 @@ namespace ManaCore.Graphics
             string[] candidates =
             {
                 Path.Combine(Environment.CurrentDirectory, "Assets", "Shaders", "WebGpu", shaderFileName),
+                Path.Combine(Environment.CurrentDirectory, "ManaGraphics", "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(Environment.CurrentDirectory, "Mana", "Assets", "Shaders", "WebGpu", shaderFileName),
+                Path.Combine(Environment.CurrentDirectory, "..", "ManaGraphics", "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(Environment.CurrentDirectory, "..", "Mana", "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", shaderFileName),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ManaGraphics", "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", "Assets", "Shaders", "WebGpu", shaderFileName)
             };
 
