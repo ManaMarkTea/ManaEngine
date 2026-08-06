@@ -9,6 +9,7 @@ using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code.GeoTiff;
+using ManaGeoTools.Code.Kml;
 using ManaGeoTools.Code.Planet;
 using System.Diagnostics;
 
@@ -39,6 +40,7 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _lightningBall;
         private ManaSceneNode? _liquidBall;
         private PlanetNode? _planet;
+        private ManaSceneNode? _kmlDemo;
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
@@ -201,6 +203,13 @@ namespace Mana.Code.GameModes
                     lock (world.SceneLock)
                     {
                         AddPlanetDemo();
+                    }
+
+                    // 5. Add demo KML placemarks (real-world airspace boundaries)
+                    Loading.Report(new ManaLoadingProgress("Loading KML placemarks", 0.95f));
+                    lock (world.SceneLock)
+                    {
+                        AddKmlDemo();
                     }
 
                     LoadingCoordinator.CompleteBackgroundWork();
@@ -375,6 +384,65 @@ namespace Mana.Code.GameModes
             {
                 Trace.TraceWarning($"Failed to build demo planet: {ex}");
                 ManaConsole.WriteDiagnostic($"Failed to build demo planet: {ex}");
+            }
+        }
+
+        // Local convenience path to real-world KML airspace data (AirspaceConverter output, sourced
+        // externally, ~10.5MB) — not a repo asset, degrades to a no-op via the File.Exists guard on
+        // any machine without it. About 89% of its LinearRings are degenerate — two distinct points
+        // repeated to look like a closed 5-point ring, a data-quality artifact in the source file
+        // itself (the header even carries an "output may contain errors" disclaimer), not a
+        // triangulator bug: there's no triangle to make from a zero-area line. Those are silently
+        // skipped by KmlLinearRingMesh/PolygonTriangulator, same as any other degenerate ring; the
+        // remaining ~1,850 real polygons plus ~1,287 point placemarks still load and render fine.
+        private const string KmlDemoFilePath = @"C:\Users\night\Code\ManaAirSpace\AirSpaceModels\UnitedStates.xml";
+
+        private void AddKmlDemo()
+        {
+            try
+            {
+                if (!File.Exists(KmlDemoFilePath))
+                {
+                    return;
+                }
+
+                // Same "shrink ratio" reasoning as the planet, and the same radius, so the two read
+                // as the same-scale world: real Earth radius/altitude scaled down to fit this scene.
+                const float radius = 40.0f;
+                var altitudeScale = radius / PlanetLoader.EarthRadiusMeters;
+                var kml = new Kml(KmlDemoFilePath, radius, altitudeScale);
+
+                // The full file has 2,574 placemarks, but ~89% of its rings are degenerate (two
+                // distinct points repeated to look like a closed ring — see KmlLinearRing.BuildMesh)
+                // and no longer produce a mesh node at all, so this is really ~1,848 real polygons —
+                // no cap needed. Builds in well under a second; still one draw call per mesh with no
+                // culling/LOD/batching, so revisit if that many draw calls ever becomes the
+                // bottleneck (the planet got a background-build treatment for its own scale problem;
+                // this hasn't needed it yet).
+                _kmlDemo = KmlSceneBuilder.BuildPlacemarks(Context, kml);
+                _kmlDemo.Name = "US Airspace (KML)";
+
+                // Parented under the planet (not the scene root) so it moves with it — its geometry
+                // is already built on the same radius/origin convention as the planet (Kml.EarthRadius
+                // == the planet's own radius above), so it needs to sit at the planet's local origin,
+                // not an arbitrary world-space offset.
+                if (_planet != null)
+                {
+                    _planet.AddChild(_kmlDemo);
+                    _kmlDemo.Position = Vector3.Zero;
+                    _kmlDemo.UpdateTransform();
+                }
+                else
+                {
+                    _kmlDemo.Position = new Vector3(280.0f, 60.0f, 200.0f);
+                    _kmlDemo.UpdateTransform();
+                    Context.World.DefaultScene.Children.Add(_kmlDemo);
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to load demo KML: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to load demo KML: {ex}");
             }
         }
 

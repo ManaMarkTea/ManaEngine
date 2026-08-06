@@ -21,7 +21,7 @@ namespace ManaGeoTools.Code.Kml
 
             if (element.HasLocalAttribute("name"))
             {
-                Name = element.LocalAttribute("name");
+                Name = element.LocalAttribute("name").Trim();
             }
 
             foreach (var childElement in element.Elements())
@@ -33,7 +33,10 @@ namespace ManaGeoTools.Code.Kml
 
                 if (childElement.Name.LocalName == "name")
                 {
-                    Name = childElement.Value;
+                    // Real-world KML is typically pretty-printed, so a <name> element's text content
+                    // routinely carries the surrounding indentation/newlines (e.g.
+                    // "\n\t\t\t\tATLANTA CLASS B AREA A\n\t\t\t") — trim it for a clean display name.
+                    Name = childElement.Value.Trim();
                 }
             }
         }

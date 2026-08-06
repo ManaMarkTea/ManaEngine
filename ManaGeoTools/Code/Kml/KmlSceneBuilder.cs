@@ -11,19 +11,37 @@ namespace ManaGeoTools.Code.Kml
     /// </summary>
     public static class KmlSceneBuilder
     {
-        public static ManaSceneNode BuildPlacemarks(ManaContext context, Kml kml)
+        /// <summary>
+        /// maxPlacemarks, if given, stops after that many placemarks total across all folders — each
+        /// mesh node is a separate draw call with no culling/LOD/batching yet, so an unbounded KML
+        /// (real-world airspace/OSM-derived files routinely have thousands of placemarks) can produce
+        /// enough scene nodes to make the per-frame scene walk and draw call count the bottleneck.
+        /// </summary>
+        public static ManaSceneNode BuildPlacemarks(ManaContext context, Kml kml, int? maxPlacemarks = null)
         {
             var root = new ManaSceneNode(context, Matrix4x4.Identity)
             {
                 Name = Path.GetFileNameWithoutExtension(kml.FilePath),
             };
 
+            var placemarksAdded = 0;
             foreach (var folder in kml.Folders)
             {
+                if (maxPlacemarks.HasValue && placemarksAdded >= maxPlacemarks.Value)
+                {
+                    break;
+                }
+
                 var folderNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = folder.Name };
                 foreach (var placemark in folder.PlaceMarks)
                 {
+                    if (maxPlacemarks.HasValue && placemarksAdded >= maxPlacemarks.Value)
+                    {
+                        break;
+                    }
+
                     AddPlacemark(context, folderNode, placemark);
+                    placemarksAdded++;
                 }
                 root.AddChild(folderNode);
             }

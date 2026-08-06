@@ -199,17 +199,19 @@ namespace ManaGraphics.Code.Graphics
             var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene?.EnvironmentReflectionSource);
             var environmentPath = ResolveAssetPath(source.SourcePath);
 
-            if (_pendingEnvironmentMap != null)
-            {
-                ReleaseEnvironmentReflectionMap();
-                _environmentReflectionMap = _pendingEnvironmentMap;
-                _pendingEnvironmentMap = null;
-                _isEnvironmentLoading = false;
-                EnvironmentLoading.Complete("WebGPU environment maps ready");
-
-                ReleaseSceneMeshes();
-                ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets swapped: {environmentPath}");
-            }
+            // The pending-map swap + ReleaseSceneMeshes() used to be duplicated here as well as in
+            // CheckPendingEnvironmentMap() (called once per frame, before RefreshRenderScene(), in
+            // ClearFrame()). This method is called per-mesh from CreateSceneMesh() during
+            // ReconcileSceneMeshes()'s reconciliation loop — if the background environment-map load
+            // finished while a large batch of meshes was still being reconciled, this second copy
+            // fired mid-loop and disposed every ManaWebGpuSceneMesh in _sceneMeshes (including ones
+            // already re-added by reference into that same loop's nextSceneMeshes list via the reuse
+            // path), which then got committed back into _sceneMeshes at the end of the loop as
+            // disposed-but-still-resident meshes — drawn next frame with destroyed WebGPU buffer/bind
+            // group handles, crashing the native wgpu backend with "Buffer ... does not exist"
+            // ("wgpu_render_pass_execute_bundles" panic). Only CheckPendingEnvironmentMap() should
+            // ever perform this swap now, so it can only happen once per frame, before reconciliation
+            // starts, never reentrantly mid-loop.
 
             if (_environmentReflectionMap != null &&
                 HasSameEnvironmentSource(_environmentReflectionMap.Source, source))

@@ -19,7 +19,17 @@ namespace ManaGeoTools.Code.Kml.Geometry
 
         public override ManaMesh? BuildMesh(ManaContext context)
         {
-            return new KmlLinearRingMesh(context, this);
+            var mesh = new KmlLinearRingMesh(context, this);
+
+            // Degenerate rings (most commonly a "ring" with only 2 distinct points, repeated to look
+            // closed — see PolygonTriangulator/KmlLinearRingMesh) triangulate to zero triangles and
+            // leave the mesh with no vertices at all. Returning it anyway would add a MeshRendererComponent
+            // whose ManaMesh.GetOrCreateCpuData() throws InvalidOperationException every single frame
+            // (CollectRenderMeshInstances catches it, but throwing+catching per node per frame is very
+            // expensive, especially under an attached debugger) — return null instead, exactly like
+            // KmlPoint/KmlLineString already do for "no renderable geometry", so KmlSceneBuilder falls
+            // back to its existing plain mesh-less node path.
+            return mesh.DynamicGeometryContainer.Verts.Count > 0 ? mesh : null;
         }
 
         public override LatLong GetCenterPoint()
