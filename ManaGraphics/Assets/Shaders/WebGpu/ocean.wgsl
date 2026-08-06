@@ -205,7 +205,15 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     let fresnel = pow(1.0 - ndotv, 3.0) * custom.fresnelStrength;
 
-    let base_color = mix(custom.deepColor, custom.shallowColor, diffuse) * input.color.rgb;
+    // input.color.a carries a per-vertex depth factor baked in at mesh-build time (0 = shoreline/no
+    // data, 1 = deep water -- see PlanetOceanMesh.BuildFace), used here to pick the deep/shallow color
+    // instead of `diffuse`. Real bathymetry is smooth, continuous data; `diffuse` is driven by the
+    // wave-displaced normal, which is inherently noisy per-vertex -- mixing color choice off of it (the
+    // old behavior) baked that per-vertex noise directly into which color showed up where, which read
+    // as blotchy "camouflage" patches. Keeping diffuse as a separate brightness multiplier still lets
+    // waves catch/lose light without tying color identity to it.
+    let depth_factor = input.color.a;
+    let base_color = mix(custom.shallowColor, custom.deepColor, depth_factor) * diffuse;
     let color = base_color + vec3<f32>(fresnel * 0.3);
     let alpha = saturate(custom.opacity + fresnel * 0.25);
 

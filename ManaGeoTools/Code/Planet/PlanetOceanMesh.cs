@@ -23,6 +23,18 @@ namespace ManaGeoTools.Code.Planet
         // tunable, since "ocean" and "sea level" are the same thing here.
         private const float SeaLevelMeters = 0f;
 
+        // Assumed depth for open-ocean points with no height-data coverage at all (distinct from a
+        // point whose tile says it's below sea level) -- roughly Earth's actual mean ocean depth, so
+        // uncovered deep ocean reads as deep rather than defaulting to a bright shoreline color.
+        private const float DefaultOceanDepthMeters = 4000f;
+
+        // How quickly depthFactor (fed to the shader as the deep/shallow color mix amount) approaches
+        // 1.0 as depth increases -- an exponential falloff rather than a hard linear clamp so the
+        // shoreline-to-open-ocean transition looks like a gradient, not a band. At this scale, ~200m
+        // (shelf depth) is already visibly past the shallow end and ~4-5x this value is essentially
+        // fully "deep".
+        private const float DepthFalloffMeters = 1200f;
+
         public float Radius { get; }
         public int Resolution { get; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
@@ -82,6 +94,7 @@ namespace ManaGeoTools.Code.Planet
             var axisB = Vector3.Cross(normal, axisA);
 
             var verts = new ManaGeometryVertex[Resolution, Resolution];
+            var isOcean = new bool[Resolution, Resolution];
             for (var y = 0; y < Resolution; y++)
             {
                 var ty = (float)y / (Resolution - 1);
@@ -92,10 +105,23 @@ namespace ManaGeoTools.Code.Planet
                     var pointOnUnitCube = normal + ((tx - 0.5f) * 2f * axisA) + ((ty - 0.5f) * 2f * axisB);
                     var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
 
+                    var rawHeightMeters = SampleHeightMeters(pointOnUnitSphere);
+                    isOcean[x, y] = !rawHeightMeters.HasValue || rawHeightMeters.Value < SeaLevelMeters;
+
+                    var depthMeters = rawHeightMeters.HasValue
+                        ? MathF.Max(0f, -rawHeightMeters.Value)
+                        : DefaultOceanDepthMeters;
+                    var depthFactor = 1f - MathF.Exp(-depthMeters / DepthFalloffMeters);
+
                     var position = pointOnUnitSphere * Radius;
                     var vert = DynamicGeometryContainer.AddPoint(position, pointOnUnitSphere);
                     vert.TexCoord0 = new Vector2(tx, ty);
-                    vert.Color = DefaultVertexColor;
+                    // RGB stays white (the shader multiplies it in as a no-op tint); alpha carries the
+                    // depth factor through to ocean.wgsl's fragment shader, which uses it to pick
+                    // between deepColor/shallowColor instead of the old lighting-driven mix -- see
+                    // ocean.wgsl's fs_main for why that swap also helps with visual noise, not just
+                    // depth accuracy.
+                    vert.Color = new Vector4(DefaultVertexColor.X, DefaultVertexColor.Y, DefaultVertexColor.Z, depthFactor);
                     verts[x, y] = vert;
                 }
             }
@@ -111,41 +137,27 @@ namespace ManaGeoTools.Code.Planet
             {
                 for (var x = 0; x < Resolution - 1; x++)
                 {
-                    var a = verts[x, y];
-                    var b = verts[x + 1, y];
-                    var c = verts[x + 1, y + 1];
-                    var d = verts[x, y + 1];
-
-                    if (IsOceanAt(a.Normal) || IsOceanAt(b.Normal) || IsOceanAt(c.Normal) || IsOceanAt(d.Normal))
+                    if (isOcean[x, y] || isOcean[x + 1, y] || isOcean[x + 1, y + 1] || isOcean[x, y + 1])
                     {
-                        DynamicGeometryContainer.CreateFacesFromQuad(a, b, c, d);
+                        DynamicGeometryContainer.CreateFacesFromQuad(verts[x, y], verts[x + 1, y], verts[x + 1, y + 1], verts[x, y + 1]);
                     }
                 }
             }
         }
 
-        // `pointOnUnitSphere` -- for this mesh the vertex normal IS the point's direction on the unit
-        // sphere (see BuildFace's AddPoint call), so callers can pass a vertex's own .Normal straight
-        // through without needing to separately track position/Radius.
-        private bool IsOceanAt(Vector3 pointOnUnitSphere)
+        // Null means "no data at all" (as opposed to real data that happens to be at/above sea level),
+        // so callers can tell the two cases apart -- e.g. DefaultOceanDepthMeters only applies to the
+        // former.
+        private float? SampleHeightMeters(Vector3 pointOnUnitSphere)
         {
             if (HeightLibrary == null)
             {
-                // No height data loaded yet -- default to full ocean coverage, matching the smooth
-                // placeholder sphere every patch shows before its own tile finishes decoding.
-                return true;
+                return null;
             }
 
             var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
             var tile = HeightLibrary.FindCurrentTile(latLong);
-            if (tile == null)
-            {
-                // No tile covers this point -- same "no data" fallback PlanetColors itself uses,
-                // treated as ocean.
-                return true;
-            }
-
-            return tile.GetHeightAtLatLong(latLong) < SeaLevelMeters;
+            return tile?.GetHeightAtLatLong(latLong);
         }
     }
 }
