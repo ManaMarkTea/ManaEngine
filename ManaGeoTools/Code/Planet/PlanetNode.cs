@@ -22,10 +22,11 @@ namespace ManaGeoTools.Code.Planet
         public int PatchesPerFaceEdge { get; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
 
-        // Serializes patch rebuilds: a background tile finishing and a main-thread HeightExaggeration
-        // edit could otherwise race on the same patch's DynamicGeometryContainer/CpuData.
+        // Serializes patch/ocean rebuilds: a background tile finishing and a main-thread
+        // HeightExaggeration edit could otherwise race on the same mesh's DynamicGeometryContainer/CpuData.
         private readonly object _rebuildLock = new();
         private readonly Dictionary<(int Face, int Row, int Col), PlanetPatchMesh> _patches = new();
+        private readonly PlanetOceanMesh _oceanMesh;
 
         private float _heightExaggeration;
 
@@ -44,7 +45,8 @@ namespace ManaGeoTools.Code.Planet
             int patchesPerFaceEdge,
             float radius,
             int resolution,
-            float heightExaggeration)
+            float heightExaggeration,
+            int oceanResolution)
             : base(context, Matrix4x4.Identity)
         {
             Radius = radius;
@@ -75,11 +77,15 @@ namespace ManaGeoTools.Code.Planet
 
             // Always present, the same way a real planet just has oceans -- not a separate opt-in
             // layer like the KML overlay or the flat demo water pond. A single un-tiled shell (not
-            // one per terrain patch) since it only needs to carry gentle wave detail, not real
-            // elevation streaming -- see PlanetOceanMesh's doc comment for how it avoids needing any
-            // per-vertex "is this ocean" classification at all.
-            var oceanMesh = new PlanetOceanMesh(context, radius, resolution);
-            var oceanNode = new ManaMeshSceneNode(context, oceanMesh) { Name = "Ocean" };
+            // one per terrain patch), masked to real ocean coverage once height data arrives -- see
+            // PlanetOceanMesh's doc comment. Its own resolution is independent of (and typically
+            // higher than) the terrain patches': waves need enough vertex density to actually resolve
+            // whatever wave frequency the shader is asked for without aliasing, which the terrain's
+            // patch resolution was never tuned for (that's sized for elevation detail, not wave
+            // detail, and terrain patches are also much smaller than the whole-globe ocean shell to
+            // begin with).
+            _oceanMesh = new PlanetOceanMesh(context, radius, oceanResolution, heightLibrary: null);
+            var oceanNode = new ManaMeshSceneNode(context, _oceanMesh) { Name = "Ocean" };
             AddChild(oceanNode);
         }
 
@@ -105,6 +111,11 @@ namespace ManaGeoTools.Code.Planet
                         patch.ApplyHeightData(HeightLibrary!);
                     }
                 }
+
+                // Unlike a patch, the ocean shell spans the whole globe, so every tile is potentially
+                // relevant to it -- no overlap test, just re-mask against whatever height data is
+                // loaded so far every time any tile finishes.
+                _oceanMesh.ApplyHeightData(HeightLibrary!);
             }
         }
 

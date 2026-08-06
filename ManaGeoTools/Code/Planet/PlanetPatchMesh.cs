@@ -115,10 +115,46 @@ namespace ManaGeoTools.Code.Planet
 
                     var displacement = (rawHeightMeters ?? 0f) * HeightScale;
                     var position = pointOnUnitSphere * (Radius + displacement);
+                    // Placeholder normal -- overwritten below once every vertex's displaced position
+                    // is known, from the actual built geometry rather than the undisplaced sphere.
                     var vert = DynamicGeometryContainer.AddPoint(position, pointOnUnitSphere);
                     vert.TexCoord0 = latLong.ToUv();
                     vert.Color = PlanetColors.GetBiomeColor(rawHeightMeters, latLong.Latitude);
                     verts[x, y] = vert;
+                }
+            }
+
+            // Real elevation displacement can be substantial (HeightExaggeration commonly pushes it
+            // well past what's visually negligible), so lighting the surface with the raw undisplaced
+            // sphere-radial direction (the old behavior) noticeably mismatches the actual geometry --
+            // it reads as faceted/triangulated because the shading doesn't track the true local slope.
+            // Fix: replace each vertex's normal with the average of the face normals of every quad
+            // that touches it, computed directly from the already-displaced positions above -- this
+            // guarantees the lighting normal can never disagree with what's actually rendered (unlike
+            // a separate finite-difference estimate against the height function, which would introduce
+            // its own subtly different notion of the surface).
+            for (var y = 0; y < Resolution; y++)
+            {
+                for (var x = 0; x < Resolution; x++)
+                {
+                    var normalSum = Vector3.Zero;
+                    if (x > 0 && y > 0)
+                    {
+                        normalSum += QuadNormal(verts[x - 1, y - 1], verts[x, y - 1], verts[x - 1, y]);
+                    }
+                    if (x < Resolution - 1 && y > 0)
+                    {
+                        normalSum += QuadNormal(verts[x, y - 1], verts[x + 1, y - 1], verts[x, y]);
+                    }
+                    if (x > 0 && y < Resolution - 1)
+                    {
+                        normalSum += QuadNormal(verts[x - 1, y], verts[x, y], verts[x - 1, y + 1]);
+                    }
+                    if (x < Resolution - 1 && y < Resolution - 1)
+                    {
+                        normalSum += QuadNormal(verts[x, y], verts[x + 1, y], verts[x, y + 1]);
+                    }
+                    verts[x, y].Normal = Vector3.Normalize(normalSum);
                 }
             }
 
@@ -144,6 +180,15 @@ namespace ManaGeoTools.Code.Planet
             // again after the mesh has already rendered once actually takes effect — see
             // GeoTiffTerrainMesh for the fuller explanation of why this matters.
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
+        }
+
+        // Outward-facing flat normal of quad (a,b,c,d) in the same CCW-as-seen-from-outside vertex
+        // order used everywhere else in this file -- cross(b-a, d-a) is the right-hand-rule normal for
+        // that winding (verified against the axis-aligned case: a=(0,0,0), b=(1,0,0), d=(0,1,0) gives
+        // cross((1,0,0),(0,1,0)) = (0,0,1), the correct outward +Z for a CCW square viewed from +Z).
+        private static Vector3 QuadNormal(ManaGeometryVertex a, ManaGeometryVertex b, ManaGeometryVertex d)
+        {
+            return Vector3.Cross(b.Position - a.Position, d.Position - a.Position);
         }
     }
 }

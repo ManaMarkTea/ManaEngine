@@ -47,7 +47,22 @@ struct CustomMaterialUniform {
     //PROPERTY(default=1.0, min=0.0, max=4.0)
     waveSpeed : f32,
 
-    //PROPERTY(default=0.55, min=0.05, max=4.0)
+    // Unlike water.wgsl's flat-plane version (frequency against literal world-unit X/Z), this is
+    // sampled against a point on the *unit* sphere -- the whole globe only spans a coordinate range
+    // of roughly [-1,1], so getting more than a fraction of one wave across the entire planet needs a
+    // higher frequency than a flat plane would.
+    //
+    // This is capped much lower than you'd naively want (a bare "more waves" slider would suggest
+    // pushing well past 40) because of how wave_noise3's FBM compounds it: each of its 3 octaves
+    // multiplies frequency by ~2.03 on top of the 0.55 factor ambient_wave3 applies before calling it,
+    // so the finest octave's *effective* spatial frequency is roughly waveFrequency * 2.3, not
+    // waveFrequency itself. PlanetOceanMesh's shell mesh has a fixed vertex density -- once that
+    // effective frequency's wavelength gets close to the mesh's own vertex spacing, the wave stops
+    // being geometry the mesh can represent and starts being effectively-random per-vertex noise,
+    // which is what read as the blotchy/jaggy "camouflage" pattern. This max keeps the finest octave's
+    // wavelength comfortably above that spacing at the mesh's current resolution; raising it further
+    // needs a proportionally higher PlanetOceanMesh resolution to match.
+    //PROPERTY(default=6.0, min=0.05, max=20.0)
     waveFrequency : f32,
 
     //PROPERTY(default=0.85, min=0.0, max=1.0)
@@ -103,13 +118,16 @@ fn value_noise3(p : vec3<f32>) -> f32 {
     return mix(y0, y1, u.z) * 2.0 - 1.0;
 }
 
-// 4-octave fractal Brownian motion, drifting slowly over time so the noise itself isn't static.
+// 3-octave fractal Brownian motion, drifting slowly over time so the noise itself isn't static.
+// Was 4 octaves; dropping the finest one halves the peak effective frequency reaching the mesh (see
+// waveFrequency's PROPERTY comment above) for a similar amount of visible layering, buying headroom
+// against geometric aliasing without needing to gut waveFrequency's usable range as much.
 fn wave_noise3(p : vec3<f32>, t : f32) -> f32 {
     let drift = p + vec3<f32>(t * 0.17, -t * 0.11, t * 0.07);
     var value = 0.0;
     var amplitude = 0.5;
     var freq = 1.0;
-    for (var i = 0u; i < 4u; i = i + 1u) {
+    for (var i = 0u; i < 3u; i = i + 1u) {
         value = value + value_noise3(drift * freq) * amplitude;
         freq = freq * 2.03;
         amplitude = amplitude * 0.5;
@@ -135,7 +153,15 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     // direction on the unit sphere (== position / radius) -- used directly as the noise input.
     // There's no single global tangent-plane axis pair the way a flat plane has X/Z, so build one
     // per-vertex (same axisA/axisB-style construction PlanetPatchMesh/CubeSphere use elsewhere).
-    let epsilon = 0.02;
+    //
+    // epsilon (the finite-difference step used below to estimate the surface normal from
+    // ambient_wave3) has to stay a small fraction of wave_noise3's finest actual oscillation, or it
+    // starts sampling across more than one full cycle -- at that point the "derivative" it estimates
+    // is essentially noise instead of a real slope, reading as flickering/spiky normals. The finest
+    // octave's effective frequency is ~waveFrequency * 2.3 (see waveFrequency's PROPERTY comment), so
+    // epsilon needs to shrink faster than a plain 1/waveFrequency to keep pace -- this used to be
+    // 0.5/waveFrequency, which was still roughly 10x too loose to safely resolve that finest octave.
+    let epsilon = 0.04 / max(custom.waveFrequency, 1.0);
     let helper = select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), abs(normal.x) > 0.9);
     let tangentA = normalize(cross(normal, helper));
     let tangentB = cross(normal, tangentA);

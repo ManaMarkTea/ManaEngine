@@ -427,7 +427,12 @@ namespace Mana.Code.GameModes
                     Context,
                     patchesPerFaceEdge: PlanetPatchesPerFaceEdge,
                     radius: 40.0f, resolution: 24,
-                    heightExaggeration: 20.0f);
+                    heightExaggeration: 20.0f,
+                    // Higher than the terrain patch resolution -- waves need enough vertex density to
+                    // resolve whatever wave frequency is dialed in without aliasing, and the ocean is
+                    // one un-tiled shell covering the whole globe rather than one of many small
+                    // patches, so it needs more vertices to match even a similar visual density.
+                    oceanResolution: 96);
                 _planet.Position = new Vector3(200.0f, 60.0f, 200.0f);
                 _planet.UpdateTransform();
 
