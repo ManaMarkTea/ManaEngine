@@ -11,7 +11,9 @@ using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code.GeoTiff;
 using ManaGeoTools.Code.Kml;
 using ManaGeoTools.Code.Planet;
+using ManaGeoTools.Code.Shapefile;
 using System.Diagnostics;
+using System.IO.Compression;
 
 namespace Mana.Code.GameModes
 {
@@ -41,6 +43,7 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _liquidBall;
         private PlanetNode? _planet;
         private ManaSceneNode? _kmlDemo;
+        private ManaSceneNode? _countryBorders;
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
@@ -210,6 +213,13 @@ namespace Mana.Code.GameModes
                     lock (world.SceneLock)
                     {
                         AddKmlDemo();
+                    }
+
+                    // 6. Add country border lines (Natural Earth admin-0 country boundaries)
+                    Loading.Report(new ManaLoadingProgress("Loading country borders", 0.98f));
+                    lock (world.SceneLock)
+                    {
+                        AddCountryBordersDemo();
                     }
 
                     LoadingCoordinator.CompleteBackgroundWork();
@@ -465,6 +475,58 @@ namespace Mana.Code.GameModes
             {
                 Trace.TraceWarning($"Failed to load demo KML: {ex}");
                 ManaConsole.WriteDiagnostic($"Failed to load demo KML: {ex}");
+            }
+        }
+
+        // Natural Earth's admin-0 country boundaries, 50m resolution (~100K raw points across 242
+        // countries/territories before decimation -- see CountryBorderMesh). A 10m version sits
+        // alongside it in the same folder for a future zoom-dependent LOD pass; not wired up yet.
+        // Not a repo asset (sourced externally, ~800KB), same treatment as KmlDemoFilePath -- degrades
+        // to a no-op via the File.Exists guard on any machine without it.
+        private const string CountryBordersZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_50m_admin_0_countries.zip";
+        private const string CountryBordersShpEntryName = "ne_50m_admin_0_countries.shp";
+
+        private void AddCountryBordersDemo()
+        {
+            try
+            {
+                if (_planet == null || !File.Exists(CountryBordersZipPath))
+                {
+                    return;
+                }
+
+                var rings = new List<IReadOnlyList<(double Longitude, double Latitude)>>();
+                using (var archive = ZipFile.OpenRead(CountryBordersZipPath))
+                {
+                    var shpEntry = archive.GetEntry(CountryBordersShpEntryName)
+                        ?? throw new InvalidOperationException($"'{CountryBordersShpEntryName}' not found in {CountryBordersZipPath}.");
+                    using var shpStream = shpEntry.Open();
+                    foreach (var ring in ShapefilePolygonReader.ReadRings(shpStream))
+                    {
+                        rings.Add(ring);
+                    }
+                }
+
+                // Thin square-cross-section lines sitting just above the terrain radius (avoids
+                // z-fighting) and a moderate decimation threshold -- see CountryBorderMesh's own doc
+                // comment for why square cross-sections specifically. All tunable if the look needs
+                // adjusting once visible.
+                const float thickness = 0.15f;
+                const float radiusOffset = 0.3f;
+                const float minSegmentDegrees = 0.15f;
+                var mesh = new CountryBorderMesh(Context, rings, _planet.Radius + radiusOffset, thickness, minSegmentDegrees);
+                _countryBorders = new ManaMeshSceneNode(Context, mesh) { Name = "Country Borders" };
+
+                // Parented under the planet so it moves/rotates with it, same reasoning as the KML
+                // overlay above.
+                _planet.AddChild(_countryBorders);
+                _countryBorders.Position = Vector3.Zero;
+                _countryBorders.UpdateTransform();
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to load country borders: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to load country borders: {ex}");
             }
         }
 
