@@ -124,7 +124,7 @@ namespace ManaGraphics.Code.Graphics
 
                 var captureUniformBuffer = sceneMesh.GetSceneCaptureUniformBuffer(face);
                 var captureBindGroup = sceneMesh.GetSceneCaptureBindGroup(face);
-                UpdateDemoUniforms(sceneMesh.Instance, captureUniformBuffer, captureCamera);
+                UpdateSceneCaptureUniform(sceneMesh.Instance, captureUniformBuffer, captureCamera);
                 _api.RenderPassEncoderSetBindGroup(renderPass, 0, captureBindGroup, 0, null);
                 sceneMesh.Mesh.Draw(renderPass);
             }

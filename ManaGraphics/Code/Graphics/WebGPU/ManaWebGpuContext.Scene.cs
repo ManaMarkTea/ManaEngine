@@ -74,7 +74,7 @@ namespace ManaGraphics.Code.Graphics
             var bufferDescriptor = new BufferDescriptor
             {
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-                Size = (ulong)sizeof(ManaWebGpuTransformUniform)
+                Size = (ulong)sizeof(ManaWebGpuObjectUniform)
             };
             var uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
             if (uniformBuffer == null)
@@ -91,7 +91,7 @@ namespace ManaGraphics.Code.Graphics
                 Binding = 0,
                 Buffer = uniformBuffer,
                 Offset = 0,
-                Size = (ulong)sizeof(ManaWebGpuTransformUniform)
+                Size = (ulong)sizeof(ManaWebGpuObjectUniform)
             };
 
             var samplerBindGroupEntry = new BindGroupEntry
@@ -151,7 +151,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 var bindGroupDescriptor = new BindGroupDescriptor
                 {
-                    Layout = _demoBindGroupLayout,
+                    Layout = _objectBindGroupLayout,
                     EntryCount = 8,
                     Entries = bindGroupEntriesPointer
                 };
@@ -166,11 +166,20 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
             }
 
+            // Scene capture keeps its own, larger, unsplit uniform layout (see
+            // ManaWebGpuSceneCaptureUniform in ManaWebGpuContext.Uniforms.cs), so it needs its own
+            // buffer size distinct from the (now much smaller) per-object bufferDescriptor above.
+            var sceneCaptureBufferDescriptor = new BufferDescriptor
+            {
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
+            };
+
             var sceneCaptureUniformBuffers = new nint[6];
             var sceneCaptureBindGroups = new nint[6];
             for (var face = 0; face < 6; face++)
             {
-                var sceneCaptureUniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
+                var sceneCaptureUniformBuffer = _api.DeviceCreateBuffer(_device, &sceneCaptureBufferDescriptor);
                 if (sceneCaptureUniformBuffer == null)
                 {
                     ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
@@ -182,8 +191,13 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 sceneCaptureUniformBuffers[face] = (nint)sceneCaptureUniformBuffer;
-                var sceneCaptureBufferBindGroupEntry = bindGroupEntry;
-                sceneCaptureBufferBindGroupEntry.Buffer = sceneCaptureUniformBuffer;
+                var sceneCaptureBufferBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 0,
+                    Buffer = sceneCaptureUniformBuffer,
+                    Offset = 0,
+                    Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
+                };
 
                 var sceneCaptureBindGroupEntries = new BindGroupEntry[3];
                 sceneCaptureBindGroupEntries[0] = sceneCaptureBufferBindGroupEntry;
@@ -288,7 +302,6 @@ namespace ManaGraphics.Code.Graphics
                 customBindGroup,
                 customUniformLayout,
                 customUniformData);
-            UpdateDemoUniforms(instance, uniformBuffer);
             return sceneMesh;
         }
 
@@ -520,7 +533,7 @@ namespace ManaGraphics.Code.Graphics
                 Mesh = mesh;
                 UniformBuffer = uniformBuffer;
                 Texture = texture;
-                BindGroup = bindGroup;
+                ObjectBindGroup = bindGroup;
                 SceneCaptureUniformBuffers = sceneCaptureUniformBuffers;
                 SceneCaptureBindGroups = sceneCaptureBindGroups;
                 CustomUniformBuffer = customUniformBuffer;
@@ -533,13 +546,52 @@ namespace ManaGraphics.Code.Graphics
             public ManaWebGpuMesh Mesh { get; }
             public WebGpuBuffer* UniformBuffer { get; }
             public ManaWebGpuMeshTexture Texture { get; }
-            public BindGroup* BindGroup { get; }
+            public BindGroup* ObjectBindGroup { get; }
             public nint[] SceneCaptureUniformBuffers { get; private set; }
             public nint[] SceneCaptureBindGroups { get; private set; }
             public WebGpuBuffer* CustomUniformBuffer { get; }
             public BindGroup* CustomBindGroup { get; }
             public ManaWebGpuCustomUniformSchema CustomUniformLayout { get; }
             public byte[] CustomUniformData { get; }
+
+            // Dirty-check caches: the object/custom uniform buffers are only rewritten when the
+            // freshly-built payload differs from what's already resident on the GPU, instead of every
+            // frame regardless. null on first use, so the first real draw always uploads once.
+            private ManaWebGpuObjectUniform? _lastUploadedObjectUniform;
+            private byte[]? _lastUploadedCustomUniformData;
+
+            public bool TryUpdateObjectUniform(WebGPU api, Queue* queue, in ManaWebGpuObjectUniform next)
+            {
+                if (_lastUploadedObjectUniform is { } last)
+                {
+                    var lastBytes = MemoryMarshal.AsBytes(new ReadOnlySpan<ManaWebGpuObjectUniform>(in last));
+                    var nextBytes = MemoryMarshal.AsBytes(new ReadOnlySpan<ManaWebGpuObjectUniform>(in next));
+                    if (lastBytes.SequenceEqual(nextBytes))
+                    {
+                        return false;
+                    }
+                }
+
+                var value = next;
+                api.QueueWriteBuffer(queue, UniformBuffer, 0, &value, (nuint)sizeof(ManaWebGpuObjectUniform));
+                _lastUploadedObjectUniform = next;
+                return true;
+            }
+
+            public bool TryUpdateCustomUniform(WebGPU api, Queue* queue, byte[] next)
+            {
+                if (_lastUploadedCustomUniformData != null && _lastUploadedCustomUniformData.AsSpan().SequenceEqual(next))
+                {
+                    return false;
+                }
+
+                fixed (byte* nextPointer = next)
+                {
+                    api.QueueWriteBuffer(queue, CustomUniformBuffer, 0, nextPointer, (nuint)next.Length);
+                }
+                _lastUploadedCustomUniformData = (byte[])next.Clone();
+                return true;
+            }
 
             public WebGpuBuffer* GetSceneCaptureUniformBuffer(int face)
             {
@@ -573,9 +625,9 @@ namespace ManaGraphics.Code.Graphics
                 }
                 SceneCaptureUniformBuffers = Array.Empty<nint>();
 
-                if (BindGroup != null)
+                if (ObjectBindGroup != null)
                 {
-                    _api.BindGroupRelease(BindGroup);
+                    _api.BindGroupRelease(ObjectBindGroup);
                 }
                 if (CustomBindGroup != null)
                 {

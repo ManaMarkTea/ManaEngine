@@ -128,6 +128,22 @@ function Write-Report {
     $lines.Add("Thread: $($renderProfile.name)")
     $lines.Add(("Capture window: {0:N1} ms ({1} frames, ~{2} fps)" -f $captureMs, $frameCount, $fps))
     $lines.Add("")
+    $lines.Add("> The sample profiler only resolves managed frames. Time spent inside native/P-Invoke code")
+    $lines.Add("> (e.g. wgpu_native.dll) collapses into the generic `CPU_TIME`/`UNMANAGED_CODE_TIME` buckets")
+    $lines.Add("> below regardless of which C# method triggered it -- so **self time by name is not a useful")
+    $lines.Add("> ranking on this codebase's native-heavy render path.** Use the TOTAL/inclusive table: it")
+    $lines.Add("> correctly attributes native execution time to whichever managed method was on the stack.")
+    $lines.Add("")
+    $lines.Add("## Top 25 by total/inclusive time (ms, and ms/frame) -- start here")
+    $lines.Add("")
+    $lines.Add("| Total ms | ms/frame | % of capture | Function |")
+    $lines.Add("|---:|---:|---:|---|")
+    foreach ($row in $topTotal) {
+        $perFrame = if ($frameCount -gt 0) { $row.Value / $frameCount } else { 0 }
+        $pct = ($row.Value / $captureMs) * 100
+        $lines.Add(("| {0:N2} | {1:N3} | {2:N1}% | {3} |" -f $row.Value, $perFrame, $pct, $row.Key))
+    }
+    $lines.Add("")
     $lines.Add("## Top 25 by self time (ms, and ms/frame)")
     $lines.Add("")
     $lines.Add("| Self ms | ms/frame | % of capture | Function |")
@@ -137,29 +153,28 @@ function Write-Report {
         $pct = ($row.Value / $captureMs) * 100
         $lines.Add(("| {0:N2} | {1:N3} | {2:N1}% | {3} |" -f $row.Value, $perFrame, $pct, $row.Key))
     }
-    $lines.Add("")
-    $lines.Add("## Top 25 by total/inclusive time (ms, and ms/frame)")
-    $lines.Add("")
-    $lines.Add("| Total ms | ms/frame | % of capture | Function |")
-    $lines.Add("|---:|---:|---:|---|")
-    foreach ($row in $topTotal) {
-        $perFrame = if ($frameCount -gt 0) { $row.Value / $frameCount } else { 0 }
-        $pct = ($row.Value / $captureMs) * 100
-        $lines.Add(("| {0:N2} | {1:N3} | {2:N1}% | {3} |" -f $row.Value, $perFrame, $pct, $row.Key))
-    }
 
     $lines | Set-Content -Path $reportPath -Encoding utf8
 
+    $managedSelf = 0.0
+    $nativeSelf = 0.0
+    foreach ($k in $selfTime.Keys) {
+        if ($k -eq 'CPU_TIME') { $managedSelf += $selfTime[$k] }
+        elseif ($k -eq 'UNMANAGED_CODE_TIME') { $nativeSelf += $selfTime[$k] }
+    }
+    $nativePct = if ($captureMs -gt 0) { ($nativeSelf / $captureMs) * 100 } else { 0 }
+
     Write-Host ""
     Write-Host "=== $($fps) fps over $frameCount frames ($('{0:N1}' -f $captureMs) ms capture) ===" -ForegroundColor Cyan
+    Write-Host ("~{0:N0}% of sampled time was inside native/unmanaged code (P/Invoke calls the profiler can't see past). Self-time-by-name is NOT useful here -- total/inclusive time below correctly attributes that native time to whichever C# method triggered it." -f $nativePct) -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "Top 10 by self time:" -ForegroundColor Cyan
-    foreach ($row in ($topSelf | Select-Object -First 10)) {
+    Write-Host "Top 10 by TOTAL (inclusive) time -- this is the actionable ranking:" -ForegroundColor Cyan
+    foreach ($row in ($topTotal | Select-Object -First 10)) {
         $perFrame = if ($frameCount -gt 0) { $row.Value / $frameCount } else { 0 }
         "{0,8:N2} ms  ({1,6:N3} ms/frame)  {2}" -f $row.Value, $perFrame, $row.Key
     }
     Write-Host ""
-    Write-Host "Full report written to $reportPath"
+    Write-Host "Full report (self + total tables) written to $reportPath"
 }
 
 if ($TraceFile -ne "") {

@@ -1,16 +1,25 @@
-struct TransformUniform {
-    model_projection : mat4x4<f32>,
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
+struct FrameUniform {
+    view_projection : mat4x4<f32>,
     camera_position : vec4<f32>,
-    material_albedo : vec4<f32>,
-    material_factors : vec4<f32>,
-    material_emission : vec4<f32>,
     irradiance_factors : vec4<f32>,
     light_positions : array<vec4<f32>, 4>,
     light_colors : array<vec4<f32>, 4>,
     time : f32,
     webgpu_debug_mode : f32,
+    _padding1 : f32,
+    _padding2 : f32,
+};
+
+struct ObjectUniform {
+    model : mat4x4<f32>,
+    normal_matrix : mat4x4<f32>,
+    material_albedo : vec4<f32>,
+    material_factors : vec4<f32>,
+    material_emission : vec4<f32>,
+    outline_color : vec4<f32>,
+    outline_parameters : vec4<f32>,
+    debug_mode_override : f32,
+    _padding0 : f32,
     _padding1 : f32,
     _padding2 : f32,
 };
@@ -23,14 +32,15 @@ struct VertexOutput {
     @location(3) world_normal : vec3<f32>,
 };
 
-@group(0) @binding(0) var<uniform> transform : TransformUniform;
-@group(0) @binding(1) var color_sampler : sampler;
-@group(0) @binding(2) var color_texture : texture_2d<f32>;
-@group(0) @binding(3) var environment_map : texture_cube<f32>;
-@group(0) @binding(4) var irradiance_map : texture_cube<f32>;
-@group(0) @binding(5) var prefiltered_reflection_map : texture_cube<f32>;
-@group(0) @binding(6) var brdf_lut : texture_2d<f32>;
-@group(0) @binding(7) var clamp_sampler : sampler;
+@group(0) @binding(0) var<uniform> frame : FrameUniform;
+@group(1) @binding(0) var<uniform> object : ObjectUniform;
+@group(1) @binding(1) var color_sampler : sampler;
+@group(1) @binding(2) var color_texture : texture_2d<f32>;
+@group(1) @binding(3) var environment_map : texture_cube<f32>;
+@group(1) @binding(4) var irradiance_map : texture_cube<f32>;
+@group(1) @binding(5) var prefiltered_reflection_map : texture_cube<f32>;
+@group(1) @binding(6) var brdf_lut : texture_2d<f32>;
+@group(1) @binding(7) var clamp_sampler : sampler;
 
 const PI : f32 = 3.14159265359;
 
@@ -42,12 +52,12 @@ fn vs_main(
     @location(3) uv0 : vec2<f32>
 ) -> VertexOutput {
     var output : VertexOutput;
-    let world = transform.model * vec4<f32>(position, 1.0);
-    output.clip_position = transform.model_projection * vec4<f32>(position, 1.0);
+    let world = object.model * vec4<f32>(position, 1.0);
+    output.clip_position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;
-    output.world_normal = normalize((transform.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
+    output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     return output;
 }
 
@@ -111,26 +121,26 @@ fn debug_color_to_surface(value : vec3<f32>) -> vec3<f32> {
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let sampled = textureSample(color_texture, color_sampler, input.uv0);
     let vertex_color_linear = pow(max(input.color.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
-    let material_albedo_linear = pow(max(transform.material_albedo.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
+    let material_albedo_linear = pow(max(object.material_albedo.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
     let vertex_albedo = vertex_color_linear * sampled.rgb * material_albedo_linear;
-    let alpha = input.color.a * sampled.a * transform.material_albedo.a;
+    let alpha = input.color.a * sampled.a * object.material_albedo.a;
 
     let n = normalize(input.world_normal);
-    let v = normalize(transform.camera_position.xyz - input.world_position);
+    let v = normalize(frame.camera_position.xyz - input.world_position);
 
-    let metallic = saturate(transform.material_factors.x);
-    let roughness = saturate(transform.material_factors.y);
+    let metallic = saturate(object.material_factors.x);
+    let roughness = saturate(object.material_factors.y);
     let specular_roughness = roughness;
-    let ao = saturate(transform.material_factors.z);
+    let ao = saturate(object.material_factors.z);
 
     let f0 = mix(vec3<f32>(0.04), vertex_albedo, metallic);
-    let exposure = transform.irradiance_factors.x;
-    let ibl_intensity = transform.irradiance_factors.y;
+    let exposure = frame.irradiance_factors.x;
+    let ibl_intensity = frame.irradiance_factors.y;
 
     var direct = vec3<f32>(0.0);
     for (var i = 0u; i < 4u; i = i + 1u) {
-        let light_pos = transform.light_positions[i].xyz;
-        let light_color = transform.light_colors[i].xyz;
+        let light_pos = frame.light_positions[i].xyz;
+        let light_color = frame.light_colors[i].xyz;
 
         let l = normalize(light_pos - input.world_position);
         let h = normalize(v + l);
@@ -160,14 +170,16 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(ndotv, roughness)).rg;
     let specular_ibl = reflection_radiance * (F * brdf.x + brdf.y) * ibl_intensity;
     let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao;
-    let emissive_color = pow(max(transform.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
-    let emissive_strength = transform.material_emission.a;
+    let emissive_color = pow(max(object.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
+    let emissive_strength = object.material_emission.a;
     let emissive = emissive_color * emissive_strength;
 
     var color = ambient + direct + emissive;
     var output_alpha = alpha;
 
-    let debug_mode = u32(transform.webgpu_debug_mode + 0.5);
+    // object.debug_mode_override < 0 means "no per-object override, use the frame's global mode".
+    let effective_debug_mode = select(frame.webgpu_debug_mode, object.debug_mode_override, object.debug_mode_override >= 0.0);
+    let debug_mode = u32(effective_debug_mode + 0.5);
     if (debug_mode == 1u) {
         // Mode 1: View Vector (V)
         color = v * 0.5 + vec3<f32>(0.5);

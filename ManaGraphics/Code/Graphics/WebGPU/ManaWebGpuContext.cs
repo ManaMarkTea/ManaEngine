@@ -12,6 +12,7 @@ using Silk.NET.WebGPU.Extensions.WGPU;
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
+using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -47,8 +48,14 @@ namespace ManaGraphics.Code.Graphics
         private ManaRenderScene? _activeRenderScene;
         private Vector3 _demoMeshCenter;
         private float _demoMeshScale = 1.0f;
-        private BindGroupLayout* _demoBindGroupLayout;
+        // group 0 -- per-frame globals (camera/time/lights), written+bound once per frame, not per mesh.
+        private BindGroupLayout* _frameBindGroupLayout;
+        private WebGpuBuffer* _frameUniformBuffer;
+        private BindGroup* _frameBindGroup;
+        // group 1 -- per-object data (model/material) + per-mesh textures.
+        private BindGroupLayout* _objectBindGroupLayout;
         private PipelineLayout* _demoPipelineLayout;
+        // group 2 -- per-material custom uniforms (opt-in, e.g. water ripples).
         private BindGroupLayout* _customUniformBindGroupLayout;
         private PipelineLayout* _customUniformPipelineLayout;
         private BindGroupLayout* _sceneCaptureBindGroupLayout;
@@ -253,6 +260,7 @@ namespace ManaGraphics.Code.Graphics
             var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
             var collectStopwatch = Stopwatch.StartNew();
             RefreshRenderScene();
+            UpdateFrameUniform();
             LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
             EnsureEnvironmentInitializationStarted();
             CaptureSceneEnvironmentIfNeeded(commandEncoder);

@@ -1,16 +1,25 @@
-struct TransformUniform {
-    model_projection : mat4x4<f32>,
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
+struct FrameUniform {
+    view_projection : mat4x4<f32>,
     camera_position : vec4<f32>,
-    material_albedo : vec4<f32>,
-    material_factors : vec4<f32>,
-    material_emission : vec4<f32>,
     irradiance_factors : vec4<f32>,
     light_positions : array<vec4<f32>, 4>,
     light_colors : array<vec4<f32>, 4>,
     time : f32,
     webgpu_debug_mode : f32,
+    _padding1 : f32,
+    _padding2 : f32,
+};
+
+struct ObjectUniform {
+    model : mat4x4<f32>,
+    normal_matrix : mat4x4<f32>,
+    material_albedo : vec4<f32>,
+    material_factors : vec4<f32>,
+    material_emission : vec4<f32>,
+    outline_color : vec4<f32>,
+    outline_parameters : vec4<f32>,
+    debug_mode_override : f32,
+    _padding0 : f32,
     _padding1 : f32,
     _padding2 : f32,
 };
@@ -24,11 +33,12 @@ struct VertexOutput {
     @location(4) world_normal : vec3<f32>,
 }
 
-@group(0) @binding(0) var<uniform> transform : TransformUniform;
-@group(0) @binding(1) var color_sampler : sampler;
-@group(0) @binding(2) var color_texture : texture_2d<f32>;
+@group(0) @binding(0) var<uniform> frame : FrameUniform;
+@group(1) @binding(0) var<uniform> object : ObjectUniform;
+@group(1) @binding(1) var color_sampler : sampler;
+@group(1) @binding(2) var color_texture : texture_2d<f32>;
 
-// Custom per-material uniforms (group 1). Field names match ManaMaterial.SetShaderUniform(name,
+// Custom per-material uniforms (group 2). Field names match ManaMaterial.SetShaderUniform(name,
 // value) exactly; ManaWebGpuContext parses this struct directly out of this file (by declaration
 // order), so adding a new tunable parameter here needs no C# renderer changes — just add a field
 // and a matching SetShaderUniform call in VoxelEditorGameMode.cs.
@@ -43,19 +53,19 @@ struct CustomMaterialUniform {
     haloColorTint : vec3<f32>,
 };
 
-@group(1) @binding(0) var<uniform> custom : CustomMaterialUniform;
+@group(2) @binding(0) var<uniform> custom : CustomMaterialUniform;
 
 const VOLUME_STEPS : u32 = 24u;
 
 @vertex
 fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @location(2) color : vec4<f32>, @location(3) uv0 : vec2<f32>) -> VertexOutput {
     var output : VertexOutput;
-    output.position = transform.model_projection * vec4<f32>(position, 1.0);
+    output.position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
     output.color = color;
     output.uv0 = uv0;
     output.local_pos = position;
-    output.world_pos = (transform.model * vec4<f32>(position, 1.0)).xyz;
-    output.world_normal = normalize((transform.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
+    output.world_pos = (object.model * vec4<f32>(position, 1.0)).xyz;
+    output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     return output;
 }
 
@@ -91,14 +101,14 @@ fn lightning_density(position : vec3<f32>, time : f32) -> f32 {
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let p = input.local_pos;
-    let t = transform.time * 5.0;
+    let t = frame.time * 5.0;
     let pulse = sin(t + p.x * 10.0) * cos(t + p.y * 10.0) * sin(t + p.z * 10.0);
     let pulse_val = pulse * 0.5 + 0.5;
     let bolt = smoothstep(0.72, 0.98, pulse_val);
-    let view_direction = normalize(transform.camera_position.xyz - input.world_pos);
+    let view_direction = normalize(frame.camera_position.xyz - input.world_pos);
     let facing = clamp(abs(dot(normalize(input.world_normal), view_direction)), 0.0, 1.0);
     let rim = pow(1.0 - facing, 1.7);
-    let temporal_glow = 0.85 + 0.15 * sin(transform.time * 2.0);
+    let temporal_glow = 0.85 + 0.15 * sin(frame.time * 2.0);
 
     let base_color = custom.haloColorTint;
     let lightning_color = custom.coreColorTint;
@@ -107,8 +117,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // Transform the world-space view ray as a direction. Using w = 0 keeps
     // this correct for translated objects even though normal_matrix carries
     // only the inverse model's linear transform.
-    let world_ray = input.world_pos - transform.camera_position.xyz;
-    let ray_direction = normalize((transpose(transform.normal_matrix) * vec4<f32>(world_ray, 0.0)).xyz);
+    let world_ray = input.world_pos - frame.camera_position.xyz;
+    let ray_direction = normalize((transpose(object.normal_matrix) * vec4<f32>(world_ray, 0.0)).xyz);
     let sphere_radius = custom.sphereRadius;
     let entry = input.local_pos;
     let b = dot(entry, ray_direction);
@@ -132,7 +142,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     // A faint glassy shell with brighter lightning filaments and rim, while
     // preserving visibility of geometry behind the sphere.
-    let material_opacity = clamp(transform.material_albedo.a, 0.0, 1.0);
+    let material_opacity = clamp(object.material_albedo.a, 0.0, 1.0);
     let volume_energy = clamp(dot(volume_radiance, vec3<f32>(0.2126, 0.7152, 0.0722)), 0.0, 1.0);
     let alpha = clamp((0.004 + rim * 0.025 + bolt * 0.035 + volume_energy * 0.11) * material_opacity, 0.0, 0.16);
     return vec4<f32>(radiance, alpha);

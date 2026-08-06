@@ -1,6 +1,9 @@
-struct TransformUniform {
-    model_projection : mat4x4<f32>,
-    time : f32,
+struct FrameUniform {
+    view_projection : mat4x4<f32>,
+};
+
+struct ObjectUniform {
+    model : mat4x4<f32>,
 };
 
 struct VertexOutput {
@@ -11,20 +14,24 @@ struct VertexOutput {
 
 @group(0)
 @binding(0)
-var<uniform> transform : TransformUniform;
+var<uniform> frame : FrameUniform;
 
-@group(0)
+@group(1)
+@binding(0)
+var<uniform> object : ObjectUniform;
+
+@group(1)
 @binding(1)
 var color_sampler : sampler;
 
-@group(0)
+@group(1)
 @binding(2)
 var color_texture : texture_2d<f32>;
 
 @vertex
 fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @location(2) color : vec4<f32>, @location(3) uv0 : vec2<f32>) -> VertexOutput {
     var output : VertexOutput;
-    output.position = transform.model_projection * vec4<f32>(position, 1.0);
+    output.position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
     output.color = color;
     output.uv0 = uv0;
     return output;

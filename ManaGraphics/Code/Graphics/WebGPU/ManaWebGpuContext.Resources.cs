@@ -98,10 +98,28 @@ namespace ManaGraphics.Code.Graphics
                 _clampSampler = null;
             }
 
-            if (_demoBindGroupLayout != null)
+            if (_objectBindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_demoBindGroupLayout);
-                _demoBindGroupLayout = null;
+                _api.BindGroupLayoutRelease(_objectBindGroupLayout);
+                _objectBindGroupLayout = null;
+            }
+
+            if (_frameBindGroup != null)
+            {
+                _api.BindGroupRelease(_frameBindGroup);
+                _frameBindGroup = null;
+            }
+
+            if (_frameUniformBuffer != null)
+            {
+                _api.BufferRelease(_frameUniformBuffer);
+                _frameUniformBuffer = null;
+            }
+
+            if (_frameBindGroupLayout != null)
+            {
+                _api.BindGroupLayoutRelease(_frameBindGroupLayout);
+                _frameBindGroupLayout = null;
             }
 
             ReleaseSceneMeshes();

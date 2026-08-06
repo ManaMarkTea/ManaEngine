@@ -226,6 +226,64 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU clamp sampler.");
             }
 
+            // Group 0: per-frame globals (camera/time/lights) -- one persistent buffer+bind group,
+            // written once per frame, bound once per frame, shared by every mesh's draw call. See
+            // UpdateFrameUniform (ManaWebGpuContext.Uniforms.cs) and DrawDemoMesh.
+            var frameBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 0,
+                Visibility = ShaderStage.Vertex | ShaderStage.Fragment,
+                Buffer = new BufferBindingLayout
+                {
+                    Type = BufferBindingType.Uniform,
+                    HasDynamicOffset = false,
+                    MinBindingSize = (ulong)sizeof(ManaWebGpuFrameUniform)
+                }
+            };
+
+            var frameBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
+            {
+                EntryCount = 1,
+                Entries = &frameBindGroupLayoutEntry
+            };
+            _frameBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &frameBindGroupLayoutDescriptor);
+            if (_frameBindGroupLayout == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU frame bind group layout.");
+            }
+
+            var frameBufferDescriptor = new BufferDescriptor
+            {
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                Size = (ulong)sizeof(ManaWebGpuFrameUniform)
+            };
+            _frameUniformBuffer = _api.DeviceCreateBuffer(_device, &frameBufferDescriptor);
+            if (_frameUniformBuffer == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU frame uniform buffer.");
+            }
+
+            var frameBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 0,
+                Buffer = _frameUniformBuffer,
+                Offset = 0,
+                Size = (ulong)sizeof(ManaWebGpuFrameUniform)
+            };
+            var frameBindGroupDescriptor = new BindGroupDescriptor
+            {
+                Layout = _frameBindGroupLayout,
+                EntryCount = 1,
+                Entries = &frameBindGroupEntry
+            };
+            _frameBindGroup = _api.DeviceCreateBindGroup(_device, &frameBindGroupDescriptor);
+            if (_frameBindGroup == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU frame bind group.");
+            }
+
+            // Group 1: per-object data (model/material) -- sized for the much smaller per-object
+            // struct now that per-frame globals live separately above.
             var bindGroupLayoutEntry = new BindGroupLayoutEntry
             {
                 Binding = 0,
@@ -234,7 +292,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     Type = BufferBindingType.Uniform,
                     HasDynamicOffset = false,
-                    MinBindingSize = (ulong)sizeof(ManaWebGpuTransformUniform)
+                    MinBindingSize = (ulong)sizeof(ManaWebGpuObjectUniform)
                 }
             };
 
@@ -315,14 +373,29 @@ namespace ManaGraphics.Code.Graphics
                 EntryCount = 8,
                 Entries = bindGroupLayoutEntries
             };
-            _demoBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
-            if (_demoBindGroupLayout == null)
+            _objectBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
+            if (_objectBindGroupLayout == null)
             {
-                throw new InvalidOperationException("Failed to create WebGPU demo bind group layout.");
+                throw new InvalidOperationException("Failed to create WebGPU object bind group layout.");
             }
 
+            // Scene capture (cubemap probe refresh) intentionally keeps its own, larger, unsplit
+            // uniform layout -- see UpdateSceneCaptureUniform/ManaWebGpuSceneCaptureUniform in
+            // ManaWebGpuContext.Uniforms.cs for why.
+            var sceneCaptureBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 0,
+                Visibility = ShaderStage.Vertex | ShaderStage.Fragment,
+                Buffer = new BufferBindingLayout
+                {
+                    Type = BufferBindingType.Uniform,
+                    HasDynamicOffset = false,
+                    MinBindingSize = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
+                }
+            };
+
             var sceneCaptureBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[3];
-            sceneCaptureBindGroupLayoutEntries[0] = bindGroupLayoutEntry;
+            sceneCaptureBindGroupLayoutEntries[0] = sceneCaptureBindGroupLayoutEntry;
             sceneCaptureBindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
             sceneCaptureBindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
 
@@ -337,11 +410,14 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU scene capture bind group layout.");
             }
 
-            var bindGroupLayoutPointer = _demoBindGroupLayout;
+            // Outline mask pass: group 0 (frame) + group 1 (object) -- no custom-material group needed.
+            var demoBindGroupLayouts = stackalloc BindGroupLayout*[2];
+            demoBindGroupLayouts[0] = _frameBindGroupLayout;
+            demoBindGroupLayouts[1] = _objectBindGroupLayout;
             var pipelineLayoutDescriptor = new PipelineLayoutDescriptor
             {
-                BindGroupLayoutCount = 1,
-                BindGroupLayouts = &bindGroupLayoutPointer
+                BindGroupLayoutCount = 2,
+                BindGroupLayouts = demoBindGroupLayouts
             };
             _demoPipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
             if (_demoPipelineLayout == null)
@@ -361,8 +437,8 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU scene capture pipeline layout.");
             }
 
-            // Second bind group, used only by shaders that opt into per-material custom uniforms
-            // (lightning_ball.wgsl, liquid_ball.wgsl, water.wgsl today). Additive to group 0, so
+            // Third bind group, used only by shaders that opt into per-material custom uniforms
+            // (lightning_ball.wgsl, liquid_ball.wgsl, water.wgsl today). Additive to groups 0/1, so
             // every other WGSL shader/pipeline is untouched. Visible to both stages because
             // water.wgsl reads custom uniforms in its vertex shader (wave/ripple displacement),
             // not just the fragment shader like the earlier shaders that only needed this for color.
@@ -389,12 +465,13 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU custom material uniform bind group layout.");
             }
 
-            var customUniformBindGroupLayouts = stackalloc BindGroupLayout*[2];
-            customUniformBindGroupLayouts[0] = _demoBindGroupLayout;
-            customUniformBindGroupLayouts[1] = _customUniformBindGroupLayout;
+            var customUniformBindGroupLayouts = stackalloc BindGroupLayout*[3];
+            customUniformBindGroupLayouts[0] = _frameBindGroupLayout;
+            customUniformBindGroupLayouts[1] = _objectBindGroupLayout;
+            customUniformBindGroupLayouts[2] = _customUniformBindGroupLayout;
             var customUniformPipelineLayoutDescriptor = new PipelineLayoutDescriptor
             {
-                BindGroupLayoutCount = 2,
+                BindGroupLayoutCount = 3,
                 BindGroupLayouts = customUniformBindGroupLayouts
             };
             _customUniformPipelineLayout = _api.DeviceCreatePipelineLayout(_device, &customUniformPipelineLayoutDescriptor);

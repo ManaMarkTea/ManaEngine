@@ -1,17 +1,17 @@
-struct TransformUniform {
-    model_projection : mat4x4<f32>,
-    time : f32,
-    _padding0 : f32,
-    _padding1 : f32,
-    _padding2 : f32,
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
+// Prefix-only subsets of the canonical FrameUniform/ObjectUniform layout (see
+// ManaWebGpuContext.Uniforms.cs) -- WGSL derives uniform-buffer offsets purely from declaration
+// order, so a subset is only offset-correct if it's a genuine leading prefix of the real struct
+// (no skipped fields). This shader previously declared its own hand-rolled field order that did NOT
+// match the C# struct's actual byte layout (time/model were at the wrong offsets) -- fixed here by
+// using real prefixes instead.
+struct FrameUniform {
+    view_projection : mat4x4<f32>,
     camera_position : vec4<f32>,
-    material_albedo : vec4<f32>,
-    material_factors : vec4<f32>,
     irradiance_factors : vec4<f32>,
-    irradiance_light_color : vec4<f32>,
-    irradiance_light_direction : vec4<f32>,
+};
+
+struct ObjectUniform {
+    model : mat4x4<f32>,
 };
 
 struct VertexOutput {
@@ -19,9 +19,10 @@ struct VertexOutput {
     @location(0) direction : vec3<f32>,
 };
 
-@group(0) @binding(0) var<uniform> transform : TransformUniform;
-@group(0) @binding(1) var color_sampler : sampler;
-@group(0) @binding(2) var color_texture : texture_2d<f32>;
+@group(0) @binding(0) var<uniform> frame : FrameUniform;
+@group(1) @binding(0) var<uniform> object : ObjectUniform;
+@group(1) @binding(1) var color_sampler : sampler;
+@group(1) @binding(2) var color_texture : texture_2d<f32>;
 
 @vertex
 fn vs_main(
@@ -31,7 +32,7 @@ fn vs_main(
     @location(3) uv0 : vec2<f32>
 ) -> VertexOutput {
     var output : VertexOutput;
-    output.clip_position = transform.model_projection * vec4<f32>(position, 1.0);
+    output.clip_position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
     output.direction = normalize(position);
     return output;
 }
@@ -62,7 +63,7 @@ fn irradiance(direction : vec3<f32>) -> vec3<f32> {
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let color = irradiance(input.direction);
-    let mappedColor = color * transform.irradiance_factors.x * transform.irradiance_factors.y;
+    let mappedColor = color * frame.irradiance_factors.x * frame.irradiance_factors.y;
     let mapped = mappedColor / (mappedColor + vec3<f32>(1.0));
     return vec4<f32>(mapped, 1.0);
 }

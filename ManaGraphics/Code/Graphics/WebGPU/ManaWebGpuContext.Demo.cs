@@ -160,6 +160,13 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
+            // Group 0 (frame globals) is identical for every mesh this frame -- bind it once here
+            // rather than once per mesh inside DrawSceneMesh.
+            if (_frameBindGroup != null)
+            {
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+            }
+
             foreach (var sceneMesh in _sceneMeshes.Where(mesh => !mesh.Instance.IsTransparent))
             {
                 DrawSceneMesh(renderPass, sceneMesh);
@@ -178,20 +185,14 @@ namespace ManaGraphics.Code.Graphics
 
         private void DrawSceneMesh(RenderPassEncoder* renderPass, ManaWebGpuSceneMesh sceneMesh)
         {
-            UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
+            // Only actually hits the GPU when the mesh's transform/material changed since last frame
+            // -- see ManaWebGpuSceneMesh.TryUpdateObjectUniform.
+            sceneMesh.TryUpdateObjectUniform(_api, _queue, BuildObjectUniform(sceneMesh.Instance));
 
             if (sceneMesh.CustomUniformBuffer != null)
             {
                 BuildCustomMaterialUniformData(sceneMesh.Instance, sceneMesh.CustomUniformLayout, sceneMesh.CustomUniformData);
-                fixed (byte* customUniformDataPointer = sceneMesh.CustomUniformData)
-                {
-                    _api.QueueWriteBuffer(
-                        _queue,
-                        sceneMesh.CustomUniformBuffer,
-                        0,
-                        customUniformDataPointer,
-                        (nuint)sceneMesh.CustomUniformData.Length);
-                }
+                sceneMesh.TryUpdateCustomUniform(_api, _queue, sceneMesh.CustomUniformData);
             }
 
             var pipeline = GetOrCreatePipeline(
@@ -203,14 +204,14 @@ namespace ManaGraphics.Code.Graphics
                 _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
             }
 
-            if (sceneMesh.BindGroup != null)
+            if (sceneMesh.ObjectBindGroup != null)
             {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+                _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
             }
 
             if (sceneMesh.CustomBindGroup != null)
             {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.CustomBindGroup, 0, null);
+                _api.RenderPassEncoderSetBindGroup(renderPass, 2, sceneMesh.CustomBindGroup, 0, null);
             }
 
             sceneMesh.Mesh.Draw(renderPass);
@@ -255,6 +256,14 @@ namespace ManaGraphics.Code.Graphics
             var pipeline = GetOrCreateOutlineMaskPipeline();
             _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
 
+            // Reuses the frame (group 0) and object (group 1) bind groups already made current by
+            // DrawDemoMesh's main pass this frame -- no uniform rewrite needed here at all, since the
+            // main pass already dirty-checked/uploaded whatever changed.
+            if (_frameBindGroup != null)
+            {
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+            }
+
             foreach (var sceneMesh in _sceneMeshes)
             {
                 if (!sceneMesh.Instance.OutlineEnabled)
@@ -262,8 +271,7 @@ namespace ManaGraphics.Code.Graphics
                     continue;
                 }
 
-                UpdateDemoUniforms(sceneMesh.Instance, sceneMesh.UniformBuffer);
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.BindGroup, 0, null);
+                _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
                 sceneMesh.Mesh.Draw(renderPass);
             }
 

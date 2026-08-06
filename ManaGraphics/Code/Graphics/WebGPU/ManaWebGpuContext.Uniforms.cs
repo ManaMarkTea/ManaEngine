@@ -19,17 +19,99 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
-        private void UpdateDemoUniforms(ManaRenderMeshInstance meshInstance, WebGpuBuffer* uniformBuffer)
+        // Writes the per-frame global uniform buffer ONCE (not per mesh) -- camera, time, lights,
+        // irradiance settings are identical for every mesh drawn this frame, so baking them into
+        // every mesh's own buffer (the old ManaWebGpuTransformUniform monolith) meant a moving camera
+        // -- or the constantly-changing Time field alone -- invalidated all ~2000 resident meshes'
+        // uniforms every single frame, defeating any per-object dirty-check. See
+        // ManaWebGpuObjectUniform below for the per-object half.
+        private void UpdateFrameUniform()
         {
-            if (_activeRenderScene == null)
+            if (_activeRenderScene == null || _frameUniformBuffer == null)
             {
                 return;
             }
 
-            UpdateDemoUniforms(meshInstance, uniformBuffer, _activeRenderScene.Camera);
+            var camera = _activeRenderScene.Camera;
+            var irradianceSettings = _activeRenderScene.IrradianceSettings;
+            var viewProjection = camera.View * GetAspectCorrectedProjection(camera);
+            var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+
+            var uniform = new ManaWebGpuFrameUniform
+            {
+                ViewProjection = viewProjection,
+                CameraPosition = new Vector4(camera.Position, 1.0f),
+                IrradianceFactors = new Vector4(
+                    Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
+                    1.0f),
+                LightPositions0 = _activeRenderScene.LightPositions[0],
+                LightPositions1 = _activeRenderScene.LightPositions[1],
+                LightPositions2 = _activeRenderScene.LightPositions[2],
+                LightPositions3 = _activeRenderScene.LightPositions[3],
+                LightColors0 = _activeRenderScene.LightColors[0],
+                LightColors1 = _activeRenderScene.LightColors[1],
+                LightColors2 = _activeRenderScene.LightColors[2],
+                LightColors3 = _activeRenderScene.LightColors[3],
+                Time = elapsedSeconds,
+                WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
+                _padding1 = 0.0f,
+                _padding2 = 0.0f
+            };
+
+            _api.QueueWriteBuffer(_queue, _frameUniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuFrameUniform));
         }
 
-        private void UpdateDemoUniforms(ManaRenderMeshInstance meshInstance, WebGpuBuffer* uniformBuffer, ManaCameraData camera)
+        // Pure function, no GPU call -- lets callers dirty-check the result against the mesh's last
+        // uploaded value before spending a QueueWriteBuffer on it (see
+        // ManaWebGpuSceneMesh.TryUpdateObjectUniform in ManaWebGpuContext.Scene.cs).
+        private static ManaWebGpuObjectUniform BuildObjectUniform(ManaRenderMeshInstance meshInstance)
+        {
+            var model = meshInstance.WorldTransform;
+            if (!Matrix4x4.Invert(model, out var inverseModel))
+            {
+                inverseModel = Matrix4x4.Identity;
+            }
+            var normalMatrix = Matrix4x4.Transpose(inverseModel);
+
+            return new ManaWebGpuObjectUniform
+            {
+                Model = model,
+                NormalMatrix = normalMatrix,
+                MaterialAlbedo = meshInstance.Albedo,
+                MaterialFactors = new Vector4(
+                    Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
+                    Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
+                    Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
+                    1.0f),
+                MaterialEmission = new Vector4(
+                    meshInstance.Emission.X,
+                    meshInstance.Emission.Y,
+                    meshInstance.Emission.Z,
+                    meshInstance.EmissionStrength),
+                OutlineColor = meshInstance.OutlineColor,
+                OutlineParameters = new Vector4(
+                    Math.Clamp(meshInstance.OutlineWidth, 1.0f, 4.0f),
+                    meshInstance.OutlineEnabled ? 1.0f : 0.0f,
+                    0.0f,
+                    0.0f),
+                // -1 means "no per-object override, use the frame's global debug mode" -- valid debug
+                // mode indexes are >= 0 (see ManaIrradianceSettings.WebGpuDebugMode).
+                DebugModeOverride = meshInstance.PbrDebugMode ?? -1.0f,
+                _padding0 = 0.0f,
+                _padding1 = 0.0f,
+                _padding2 = 0.0f
+            };
+        }
+
+        // Scene-capture (cubemap probe refresh, ManaWebGpuContext.Environment.cs) intentionally keeps
+        // the OLD combined per-mesh-per-face layout instead of adopting the frame/object split above:
+        // captures are infrequent (not every frame) so the redundant per-face rewrite isn't worth the
+        // extra complexity of threading a second per-face "frame" buffer through the split, and
+        // scene_capture.wgsl's struct is left untouched to match -- this is a verbatim copy of the
+        // pre-split UpdateDemoUniforms(instance, buffer, camera) logic, just under its own name/struct.
+        private void UpdateSceneCaptureUniform(ManaRenderMeshInstance meshInstance, WebGpuBuffer* uniformBuffer, ManaCameraData camera)
         {
             if (uniformBuffer == null || _activeRenderScene == null)
             {
@@ -37,9 +119,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var model = meshInstance.WorldTransform;
-            var view = camera.View;
-            var projection = GetAspectCorrectedProjection(camera);
-            var modelProjection = model * view * projection;
+            var modelProjection = model * camera.View * GetAspectCorrectedProjection(camera);
             if (!Matrix4x4.Invert(model, out var inverseModel))
             {
                 inverseModel = Matrix4x4.Identity;
@@ -47,11 +127,8 @@ namespace ManaGraphics.Code.Graphics
             var normalMatrix = Matrix4x4.Transpose(inverseModel);
             var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
             var irradianceSettings = _activeRenderScene.IrradianceSettings;
-            var lightDirection = irradianceSettings.LightDirection.LengthSquared() > 0.0001f
-                ? Vector3.Normalize(irradianceSettings.LightDirection)
-                : Vector3.Normalize(new Vector3(0.35f, 0.82f, 0.45f));
-            
-            var uniform = new ManaWebGpuTransformUniform
+
+            var uniform = new ManaWebGpuSceneCaptureUniform
             {
                 ModelProjection = modelProjection,
                 Model = model,
@@ -84,16 +161,10 @@ namespace ManaGraphics.Code.Graphics
                 Time = elapsedSeconds,
                 WebGpuDebugMode = meshInstance.PbrDebugMode ?? irradianceSettings.WebGpuDebugMode,
                 _padding1 = 0.0f,
-                _padding2 = 0.0f,
-                OutlineColor = meshInstance.OutlineColor,
-                OutlineParameters = new Vector4(
-                    Math.Clamp(meshInstance.OutlineWidth, 1.0f, 4.0f),
-                    meshInstance.OutlineEnabled ? 1.0f : 0.0f,
-                    0.0f,
-                    0.0f)
+                _padding2 = 0.0f
             };
 
-            _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuTransformUniform));
+            _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
         }
 
         // Generic per-material uniform block, shared by every WGSL material shader (group 1). Any
@@ -210,8 +281,49 @@ namespace ManaGraphics.Code.Graphics
             return layout;
         }
 
+        // Written once per frame -- group 0, binding 0. Identical for every mesh drawn this frame.
         [StructLayout(LayoutKind.Sequential)]
-        private struct ManaWebGpuTransformUniform
+        private struct ManaWebGpuFrameUniform
+        {
+            public Matrix4x4 ViewProjection;
+            public Vector4 CameraPosition;
+            public Vector4 IrradianceFactors;
+            public Vector4 LightPositions0;
+            public Vector4 LightPositions1;
+            public Vector4 LightPositions2;
+            public Vector4 LightPositions3;
+            public Vector4 LightColors0;
+            public Vector4 LightColors1;
+            public Vector4 LightColors2;
+            public Vector4 LightColors3;
+            public float Time;
+            public float WebGpuDebugMode;
+            public float _padding1;
+            public float _padding2;
+        }
+
+        // Written per mesh, only when the mesh's transform/material actually changed since last
+        // frame (see ManaWebGpuSceneMesh.TryUpdateObjectUniform) -- group 1, binding 0.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ManaWebGpuObjectUniform
+        {
+            public Matrix4x4 Model;
+            public Matrix4x4 NormalMatrix;
+            public Vector4 MaterialAlbedo;
+            public Vector4 MaterialFactors;
+            public Vector4 MaterialEmission;
+            public Vector4 OutlineColor;
+            public Vector4 OutlineParameters;
+            public float DebugModeOverride;
+            public float _padding0;
+            public float _padding1;
+            public float _padding2;
+        }
+
+        // Scene-capture-only, matches scene_capture.wgsl's unchanged (pre-split) TransformUniform
+        // layout exactly. Not used by the main draw path -- see UpdateSceneCaptureUniform above.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ManaWebGpuSceneCaptureUniform
         {
             public Matrix4x4 ModelProjection;
             public Matrix4x4 Model;
@@ -233,8 +345,6 @@ namespace ManaGraphics.Code.Graphics
             public float WebGpuDebugMode;
             public float _padding1;
             public float _padding2;
-            public Vector4 OutlineColor;
-            public Vector4 OutlineParameters;
         }
     }
 }

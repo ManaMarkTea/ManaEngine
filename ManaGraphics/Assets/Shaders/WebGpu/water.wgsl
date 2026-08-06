@@ -1,16 +1,25 @@
-struct TransformUniform {
-    model_projection : mat4x4<f32>,
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
+struct FrameUniform {
+    view_projection : mat4x4<f32>,
     camera_position : vec4<f32>,
-    material_albedo : vec4<f32>,
-    material_factors : vec4<f32>,
-    material_emission : vec4<f32>,
     irradiance_factors : vec4<f32>,
     light_positions : array<vec4<f32>, 4>,
     light_colors : array<vec4<f32>, 4>,
     time : f32,
     webgpu_debug_mode : f32,
+    _padding1 : f32,
+    _padding2 : f32,
+};
+
+struct ObjectUniform {
+    model : mat4x4<f32>,
+    normal_matrix : mat4x4<f32>,
+    material_albedo : vec4<f32>,
+    material_factors : vec4<f32>,
+    material_emission : vec4<f32>,
+    outline_color : vec4<f32>,
+    outline_parameters : vec4<f32>,
+    debug_mode_override : f32,
+    _padding0 : f32,
     _padding1 : f32,
     _padding2 : f32,
 };
@@ -26,11 +35,12 @@ struct VertexOutput {
     @location(4) local_xz : vec2<f32>,
 };
 
-@group(0) @binding(0) var<uniform> transform : TransformUniform;
-@group(0) @binding(1) var color_sampler : sampler;
-@group(0) @binding(2) var color_texture : texture_2d<f32>;
+@group(0) @binding(0) var<uniform> frame : FrameUniform;
+@group(1) @binding(0) var<uniform> object : ObjectUniform;
+@group(1) @binding(1) var color_sampler : sampler;
+@group(1) @binding(2) var color_texture : texture_2d<f32>;
 
-// Custom per-material uniforms (group 1), parsed by declaration order from this struct - see
+// Custom per-material uniforms (group 2), parsed by declaration order from this struct - see
 // ManaWebGpuCustomUniformSchema.cs. rippleDataN slots are impact-triggered ripples spawned via
 // ManaWaterNode.SpawnRipple; they are plain vec4 fields (not a WGSL array) because the schema
 // parser doesn't understand array<...> field types.
@@ -102,7 +112,7 @@ struct CustomMaterialUniform {
     rippleData11 : vec4<f32>,
 };
 
-@group(1) @binding(0) var<uniform> custom : CustomMaterialUniform;
+@group(2) @binding(0) var<uniform> custom : CustomMaterialUniform;
 
 fn saturate(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
@@ -144,7 +154,7 @@ fn wave_noise(p : vec2<f32>, t : f32) -> f32 {
 // up into an obvious repeating diamond lattice) for overall directional motion, plus layered FBM
 // noise on top to break up the periodicity that pure stacked sines always show at a glance.
 fn ambient_wave(x : f32, z : f32) -> f32 {
-    let t = transform.time * custom.waveSpeed;
+    let t = frame.time * custom.waveSpeed;
     let p = vec2<f32>(x, z);
     var h = sin(dot(p, vec2<f32>(0.80, 0.60)) * custom.waveFrequency + t) * 0.4;
     h = h + sin(dot(p, vec2<f32>(-0.53, 0.85)) * custom.waveFrequency * 0.58 - t * 1.15) * 0.26;
@@ -160,7 +170,7 @@ fn ripple_contribution(x : f32, z : f32, ripple : vec4<f32>) -> f32 {
         return 0.0;
     }
 
-    let age = transform.time - ripple.z;
+    let age = frame.time - ripple.z;
     if (age < 0.0) {
         return 0.0;
     }
@@ -214,12 +224,12 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     let tangent_z = vec3<f32>(0.0, height_z - height, epsilon);
     let local_normal = normalize(cross(tangent_z, tangent_x));
 
-    let world = transform.model * vec4<f32>(displaced, 1.0);
-    output.position = transform.model_projection * vec4<f32>(displaced, 1.0);
+    let world = object.model * vec4<f32>(displaced, 1.0);
+    output.position = frame.view_projection * object.model * vec4<f32>(displaced, 1.0);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;
-    output.world_normal = normalize((transform.normal_matrix * vec4<f32>(local_normal, 0.0)).xyz);
+    output.world_normal = normalize((object.normal_matrix * vec4<f32>(local_normal, 0.0)).xyz);
     output.local_xz = vec2<f32>(position.x, position.z);
     return output;
 }
@@ -227,13 +237,13 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let n = normalize(input.world_normal);
-    let v = normalize(transform.camera_position.xyz - input.world_position);
+    let v = normalize(frame.camera_position.xyz - input.world_position);
     let ndotv = saturate(dot(n, v));
 
     var diffuse = 0.35;
     for (var i = 0u; i < 4u; i = i + 1u) {
-        let light_pos = transform.light_positions[i].xyz;
-        let light_color = transform.light_colors[i].xyz;
+        let light_pos = frame.light_positions[i].xyz;
+        let light_color = frame.light_colors[i].xyz;
         let l = normalize(light_pos - input.world_position);
         diffuse = diffuse + max(dot(n, l), 0.0) * saturate(light_color.r + light_color.g + light_color.b) * 0.05;
     }
