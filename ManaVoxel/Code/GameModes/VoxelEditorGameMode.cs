@@ -479,7 +479,7 @@ namespace Mana.Code.GameModes
         }
 
         // Natural Earth's admin-0 country boundaries, 50m resolution (~100K raw points across 242
-        // countries/territories before decimation -- see CountryBorderMesh). A 10m version sits
+        // countries/territories before decimation -- see CountryBorderLines). A 10m version sits
         // alongside it in the same folder for a future zoom-dependent LOD pass; not wired up yet.
         // Not a repo asset (sourced externally, ~800KB), same treatment as KmlDemoFilePath -- degrades
         // to a no-op via the File.Exists guard on any machine without it.
@@ -507,14 +507,16 @@ namespace Mana.Code.GameModes
                     }
                 }
 
-                // Thin square-cross-section lines sitting just above the terrain radius (avoids
-                // z-fighting) and a moderate decimation threshold -- see CountryBorderMesh's own doc
-                // comment for why square cross-sections specifically. All tunable if the look needs
-                // adjusting once visible.
+                // Thin square-cross-section lines (see ManaLineMesh's doc comment for why square
+                // cross-sections specifically) sitting just above the terrain radius (avoids
+                // z-fighting), warm amber and emissive so they read on the planet's night side too.
+                // All tunable if the look needs adjusting once visible.
                 const float thickness = 0.15f;
                 const float radiusOffset = 0.3f;
                 const float minSegmentDegrees = 0.15f;
-                var mesh = new CountryBorderMesh(Context, rings, _planet.Radius + radiusOffset, thickness, minSegmentDegrees);
+                var color = new Vector4(1.0f, 0.75f, 0.3f, 1.0f);
+                const float emissionStrength = 2.5f;
+                var mesh = CountryBorderLines.Build(Context, rings, _planet.Radius + radiusOffset, thickness, minSegmentDegrees, color, emissionStrength);
                 _countryBorders = new ManaMeshSceneNode(Context, mesh) { Name = "Country Borders" };
 
                 // Parented under the planet so it moves/rotates with it, same reasoning as the KML
