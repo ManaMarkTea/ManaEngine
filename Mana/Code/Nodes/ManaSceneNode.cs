@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using ManaCore.Graphics;
 
 namespace Mana.Code.Nodes
@@ -147,23 +146,19 @@ namespace Mana.Code.Nodes
 
         private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
         {
-            var renderers = new List<MeshRendererComponent>();
             foreach (var component in Components)
             {
-                if (component is MeshRendererComponent renderer && renderer.Mesh != null)
+                if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
                 {
-                    renderers.Add(renderer);
+                    continue;
                 }
-            }
 
-            foreach (var renderer in renderers)
-            {
                 try
                 {
                     var meshData = renderer.Mesh.GetOrCreateCpuData();
                     output.Add(new ManaRenderMeshInstance
                     {
-                        InstanceKey = $"{RuntimeHelpers.GetHashCode(this):x8}:{RuntimeHelpers.GetHashCode(renderer):x8}",
+                        InstanceKey = renderer.InstanceKey,
                         MeshKey = renderer.Mesh.RenderKey,
                         MeshVersion = renderer.Mesh.CpuDataVersion,
                         Name = string.IsNullOrWhiteSpace(Name) ? renderer.Mesh.Name : Name,
