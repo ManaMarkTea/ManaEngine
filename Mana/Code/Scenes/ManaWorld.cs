@@ -25,6 +25,17 @@ namespace Mana
         public new ManaContext Context = null!;
 
         private List<ManaPerformanceLog> manaPerformanceLogs = new List<ManaPerformanceLog>();
+
+        // Live, per-frame timings (overwritten every frame, unlike manaPerformanceLogs above which is
+        // a one-time load history) — keyed so repeated calls update in place instead of growing forever.
+        private readonly Dictionary<string, TimeSpan> liveFrameStats = new();
+
+        public void RecordFrameStat(string name, TimeSpan duration)
+        {
+            liveFrameStats[name] = duration;
+        }
+
+        public int LastMeshCount { get; private set; }
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
         public SceneSelectionState Selection => sceneSelectionState;
         private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
@@ -238,6 +249,14 @@ namespace Mana
 
             ImGui.Begin("World Perf");
 
+            ImGui.SeparatorText("Live (this frame)");
+            ImGui.Text($"Meshes rendered: {LastMeshCount}");
+            foreach (var (name, duration) in liveFrameStats)
+            {
+                ImGui.Text($"{duration.TotalMilliseconds,7:F2}ms - {name}");
+            }
+
+            ImGui.SeparatorText("Load times");
             foreach (var perf in manaPerformanceLogs)
             {
                 ImGui.Text($"{ perf.Duration.Milliseconds}ms - {perf.Name}");
@@ -270,6 +289,7 @@ namespace Mana
             var meshes = new List<ManaRenderMeshInstance>();
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
 
+            var collectStopwatch = Stopwatch.StartNew();
             lock (SceneLock)
             {
                 foreach (var scene in Scenes)
@@ -285,6 +305,8 @@ namespace Mana
                     }
                 }
             }
+            RecordFrameStat("Scene Graph Collect", collectStopwatch.Elapsed);
+            LastMeshCount = meshes.Count;
 
             var lightPositions = new Vector4[4];
             var lightColors = new Vector4[4];

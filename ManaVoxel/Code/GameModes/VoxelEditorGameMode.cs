@@ -344,6 +344,25 @@ namespace Mana.Code.GameModes
             };
         }
 
+        // ManaWebGpuContext (ManaGraphics) can't push into ManaWorld (Mana) directly — same
+        // wrong-dependency-direction reason as above — so it just exposes last-frame timings as
+        // properties and ManaVoxel (which references both) copies them into the World Perf panel's
+        // live stats each frame. One frame of latency (this frame's ClearFrame hasn't run yet when
+        // DrawImGui executes) is expected and fine for a live HUD.
+        private void PushWebGpuFrameStats()
+        {
+            if (_webGpuContext == null)
+            {
+                return;
+            }
+
+            var world = Context.World;
+            world.RecordFrameStat("GPU: Scene Collect (RefreshRenderScene)", TimeSpan.FromMilliseconds(_webGpuContext.LastCollectMs));
+            world.RecordFrameStat("GPU: Draw Meshes", TimeSpan.FromMilliseconds(_webGpuContext.LastDrawMs));
+            world.RecordFrameStat("GPU: Submit + Present", TimeSpan.FromMilliseconds(_webGpuContext.LastSubmitMs));
+            world.RecordFrameStat("GPU: ClearFrame Total", TimeSpan.FromMilliseconds(_webGpuContext.LastFrameTotalMs));
+        }
+
         private void AddPlanetDemo()
         {
             try
@@ -573,6 +592,8 @@ namespace Mana.Code.GameModes
 
         protected override void DrawImGui(double deltaTime)
         {
+            PushWebGpuFrameStats();
+
             if (_firstFrame)
             {
                 ImGui.SetWindowFocus("Inspector");

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Numerics;
 using System.Text;
@@ -66,6 +67,15 @@ namespace ManaGraphics.Code.Graphics
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
+
+        // Per-frame CPU-side timing for the last completed ClearFrame call, in milliseconds.
+        // Read by the app layer (which owns Mana/ManaWorld) once per frame to feed a live perf HUD —
+        // ManaGraphics can't call into Mana directly (wrong dependency direction), so it's exposed
+        // here instead of pushed.
+        public double LastCollectMs { get; private set; }
+        public double LastDrawMs { get; private set; }
+        public double LastSubmitMs { get; private set; }
+        public double LastFrameTotalMs { get; private set; }
 
         public ManaWebGpuContext(IWindow window, IInputContext? input, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
         {
@@ -237,15 +247,21 @@ namespace ManaGraphics.Code.Graphics
                 DepthStencilAttachment = &depthStencilAttachment
             };
 
+            var frameStopwatch = Stopwatch.StartNew();
+
             var commandEncoderDescriptor = new CommandEncoderDescriptor();
             var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+            var collectStopwatch = Stopwatch.StartNew();
             RefreshRenderScene();
+            LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
             EnsureEnvironmentInitializationStarted();
             CaptureSceneEnvironmentIfNeeded(commandEncoder);
 
             var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
+            var drawStopwatch = Stopwatch.StartNew();
             DrawDemoMesh(sceneRenderPass);
             _api.RenderPassEncoderEnd(sceneRenderPass);
+            LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
             if (useHdrPost)
             {
@@ -273,9 +289,11 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderEnd(toneMapRenderPass);
 
             var commandBufferDescriptor = new CommandBufferDescriptor();
+            var submitStopwatch = Stopwatch.StartNew();
             var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
             _api.QueueSubmit(_queue, 1, &commandBuffer);
             _api.SurfacePresent(_surface);
+            LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
 
             _api.CommandBufferRelease(commandBuffer);
             _api.CommandEncoderRelease(commandEncoder);
@@ -283,6 +301,8 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderRelease(toneMapRenderPass);
             _api.TextureViewRelease(textureView);
             _api.TextureRelease(surfaceTexture.Texture);
+
+            LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
         }
 
         public void Dispose()

@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# dotnet-trace captures from tools/Profiling/Run-PerfTrace.ps1
+/PerfTraces/
