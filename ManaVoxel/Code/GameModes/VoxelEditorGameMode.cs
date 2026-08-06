@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Tools;
@@ -107,7 +108,7 @@ namespace Mana.Code.GameModes
         public override void Load()
         {
             LoadingCoordinator.Begin();
-            InitPlanetInspectorHook();
+            InitCustomNodeInspectorHooks();
 
             var world = Context.World;
 
@@ -339,22 +340,49 @@ namespace Mana.Code.GameModes
         // 288 the old 15-degree lat/long grid produced.
         private const int PlanetPatchesPerFaceEdge = 6;
 
-        // SceneInspectorPanelView (Mana) can't reference PlanetNode (ManaGeoTools) directly — wrong
-        // dependency direction — so it exposes a hook that ManaVoxel (which references both) fills in.
-        private static void InitPlanetInspectorHook()
+        // SceneInspectorPanelView (Mana) can't reference PlanetNode/ManaLineMesh-using nodes
+        // (ManaGeoTools) directly — wrong dependency direction — so it exposes a hook that ManaVoxel
+        // (which references both) fills in. One hook body, not one registration per node type, since
+        // CustomNodeInspectorHook is a single delegate slot.
+        private static void InitCustomNodeInspectorHooks()
         {
             SceneInspectorPanelView.CustomNodeInspectorHook = node =>
             {
-                if (node is not PlanetNode planet)
+                if (node is PlanetNode planet)
                 {
-                    return;
+                    ImGui.SeparatorText("Planet");
+                    var exaggeration = planet.HeightExaggeration;
+                    if (ImGui.DragFloat("Height Exaggeration", ref exaggeration, 1.0f, 0.0f, 2000.0f))
+                    {
+                        planet.HeightExaggeration = exaggeration;
+                    }
                 }
 
-                ImGui.SeparatorText("Planet");
-                var exaggeration = planet.HeightExaggeration;
-                if (ImGui.DragFloat("Height Exaggeration", ref exaggeration, 1.0f, 0.0f, 2000.0f))
+                if (node is ManaMeshSceneNode { Mesh: ManaLineMesh lineMesh } lineNode)
                 {
-                    planet.HeightExaggeration = exaggeration;
+                    ImGui.SeparatorText("Line");
+                    var thickness = lineMesh.Thickness;
+                    if (ImGui.DragFloat("Thickness", ref thickness, 0.01f, 0.01f, 5.0f))
+                    {
+                        lineMesh.SetThickness(thickness);
+                    }
+
+                    // Color/emission are live material properties, not baked into the mesh's geometry
+                    // (see ManaLineMesh.SetThickness's doc comment) -- mutated directly here, no
+                    // rebuild needed.
+                    var material = lineNode.MeshRenderer.Material;
+                    var color = material.Albedo.Value;
+                    if (ImGui.ColorEdit4("Color", ref color))
+                    {
+                        material.Albedo.Value = color;
+                        material.Emission.Value = color;
+                    }
+
+                    var emissionStrength = (float)material.EmissionStrength;
+                    if (ImGui.DragFloat("Emission Strength", ref emissionStrength, 0.05f, 0.0f, 10.0f))
+                    {
+                        material.EmissionStrength = emissionStrength;
+                    }
                 }
             };
         }
