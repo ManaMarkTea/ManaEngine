@@ -48,7 +48,7 @@ namespace ManaGeoTools.Code.Kml
                         break;
                     }
 
-                    AddPlacemark(kml, placemark, lineBatches);
+                    AddPlacemark(context, kml, placemark, folderNode, lineBatches);
                     placemarksAdded++;
                 }
 
@@ -62,10 +62,20 @@ namespace ManaGeoTools.Code.Kml
             return root;
         }
 
-        private static void AddPlacemark(Kml kml, KmlPlacemark placemark, List<KmlLineBatch> lineBatches)
+        private static void AddPlacemark(ManaContext context, Kml kml, KmlPlacemark placemark, ManaSceneNode folderNode, List<KmlLineBatch> lineBatches)
         {
             var style = ResolveStyle(kml, placemark);
-            CollectLines(placemark.Geometry, style, lineBatches);
+            var addedAny = CollectLines(placemark.Geometry, style, lineBatches);
+            if (!addedAny)
+            {
+                // Point / LineString-that-failed-to-build / empty MultiGeometry placemarks still get a
+                // plain, mesh-less node so the scene tree carries their Name/Coordinates/ExtendedData
+                // for inspection -- same convention this builder used before line rendering moved to
+                // batched ManaLineMesh output; that batching only covers geometry that produces an
+                // actual line, so it silently dropped everything else without this fallback.
+                var emptyNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = placemark.Name };
+                folderNode.AddChild(emptyNode);
+            }
         }
 
         private static bool CollectLines(KmlGeometry? geometry, KmlStyle? style, List<KmlLineBatch> lineBatches)
