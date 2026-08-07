@@ -51,6 +51,11 @@ namespace ManaVoxel.Code.UI
                     viewModel.ShowWater = !viewModel.ShowWater;
                 }
 
+                if (ImGui.MenuItem("Show Wireframe", string.Empty, viewModel.ShowWireframe))
+                {
+                    viewModel.ShowWireframe = !viewModel.ShowWireframe;
+                }
+
                 ImGui.Separator();
 
                 if (ImGui.MenuItem("Light Theme", string.Empty, viewModel.UseLightTheme))

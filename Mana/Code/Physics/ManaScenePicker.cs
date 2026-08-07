@@ -82,12 +82,30 @@ namespace Mana.Code
                 }
 
                 GetLocalBounds(cpuData, out var localMin, out var localMax);
-                if (!RayIntersectsAabb(localOrigin, localDirection, localMin, localMax))
+
+                // Recenter the ray AND every triangle vertex around this mesh's own local bounding-box
+                // center before doing any of the actual intersection math, instead of testing directly
+                // against coordinates whose absolute magnitude can be much larger than the mesh itself
+                // (e.g. a planet-patch mesh sits at radial distance ~40 world units regardless of how
+                // small the patch's own triangles are). Everything below uses single-precision float;
+                // subtracting two nearly-equal ~40-magnitude numbers to get a tiny edge vector loses
+                // most of its significant digits (catastrophic cancellation), which is exactly what a
+                // deeply split (and therefore tiny) PlanetPatchMesh triggers -- its ray/triangle tests
+                // start spuriously failing, so the ray falls through to whatever's behind it. `t` is a
+                // scalar distance along the ray, unaffected by translating the whole local coordinate
+                // system by a constant offset, so this doesn't change the result -- only its numerical
+                // stability.
+                var center = (localMin + localMax) * 0.5f;
+                var recenteredOrigin = localOrigin - center;
+                var recenteredMin = localMin - center;
+                var recenteredMax = localMax - center;
+
+                if (!RayIntersectsAabb(recenteredOrigin, localDirection, recenteredMin, recenteredMax))
                 {
                     continue;
                 }
 
-                if (TryIntersectTriangles(localOrigin, localDirection, cpuData, out var meshLocalT) && meshLocalT < bestLocalT)
+                if (TryIntersectTriangles(recenteredOrigin, localDirection, cpuData, center, out var meshLocalT) && meshLocalT < bestLocalT)
                 {
                     bestLocalT = meshLocalT;
                     hitAny = true;
@@ -105,7 +123,7 @@ namespace Mana.Code
             return true;
         }
 
-        private static bool TryIntersectTriangles(Vector3 origin, Vector3 direction, ManaMeshCpuData cpuData, out float t)
+        private static bool TryIntersectTriangles(Vector3 origin, Vector3 direction, ManaMeshCpuData cpuData, Vector3 center, out float t)
         {
             t = float.PositiveInfinity;
             var hitAny = false;
@@ -114,9 +132,9 @@ namespace Mana.Code
 
             for (var i = 0; i + 2 < indexes.Length; i += 3)
             {
-                var v0 = positions[indexes[i]];
-                var v1 = positions[indexes[i + 1]];
-                var v2 = positions[indexes[i + 2]];
+                var v0 = positions[indexes[i]] - center;
+                var v1 = positions[indexes[i + 1]] - center;
+                var v2 = positions[indexes[i + 2]] - center;
 
                 if (RayIntersectsTriangle(origin, direction, v0, v1, v2, out var triangleT) && triangleT < t)
                 {
@@ -137,7 +155,19 @@ namespace Mana.Code
             var edge2 = v2 - v0;
             var h = Vector3.Cross(direction, edge2);
             var a = Vector3.Dot(edge1, h);
-            if (System.MathF.Abs(a) < epsilon)
+
+            // The determinant `a` is the "is the ray parallel to this triangle's plane" check, and its
+            // magnitude scales with the triangle's OWN size (roughly |edge1|*|edge2|) -- a fixed
+            // epsilon tuned for "normal" scene-scale triangles spuriously rejects small-but-perfectly-
+            // valid ones, since their determinant shrinks well below any fixed absolute threshold even
+            // for a dead-on hit. Confirmed empirically: for a ~5e-5-unit triangle (roughly what an
+            // 8-times-split PlanetPatchMesh triangle looks like), `a` comes out around 2.5e-9, already
+            // below the original fixed 1e-7 epsilon -- the ray silently "missed" perfectly good
+            // geometry and fell through to whatever was behind it. Scaling the threshold by the
+            // triangle's own edge lengths keeps the SAME effective epsilon for normal-sized triangles
+            // (edges ~1) while correctly staying permissive for tiny ones.
+            var threshold = epsilon * edge1.Length() * edge2.Length();
+            if (System.MathF.Abs(a) < threshold)
             {
                 return false;
             }

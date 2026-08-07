@@ -16,6 +16,7 @@ namespace ManaCore.Graphics
         public Vector4 DebugAlbedo { get; set; } = Vector4.One;
         public float DebugSceneScale { get; set; } = 1.0f;
         public float WebGpuDebugMode { get; set; } = 0.0f;
+        public bool WireframeEnabled { get; set; }
 
         public ManaIrradianceSettings Clone()
         {
@@ -32,7 +33,8 @@ namespace ManaCore.Graphics
                 DebugRoughness = DebugRoughness,
                 DebugAlbedo = DebugAlbedo,
                 DebugSceneScale = DebugSceneScale,
-                WebGpuDebugMode = WebGpuDebugMode
+                WebGpuDebugMode = WebGpuDebugMode,
+                WireframeEnabled = WireframeEnabled
             };
         }
     }

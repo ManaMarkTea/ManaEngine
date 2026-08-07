@@ -62,6 +62,7 @@ namespace ManaGraphics.Code.Graphics
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;
         private RenderPipeline* _outlineMaskPipeline;
+        private RenderPipeline* _wireframePipeline;
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private Texture* _sceneCaptureDepthTexture;
@@ -268,6 +269,7 @@ namespace ManaGraphics.Code.Graphics
             var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
             var drawStopwatch = Stopwatch.StartNew();
             DrawDemoMesh(sceneRenderPass);
+            DrawWireframeOverlay(sceneRenderPass);
             _api.RenderPassEncoderEnd(sceneRenderPass);
             LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 

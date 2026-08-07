@@ -1,6 +1,6 @@
 namespace ManaGeoTools.Code.GeoTiff
 {
-    public sealed class GeoTiff
+    public sealed class GeoTiff : IHeightTile
     {
         public enum GeoTiffCompression
         {

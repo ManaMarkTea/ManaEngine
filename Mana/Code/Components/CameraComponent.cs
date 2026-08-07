@@ -311,6 +311,21 @@ namespace Mana
                 UpdateProjection();
             }
 
+            // Near defaults to 0.1, which clips right through anything closer than that -- a real
+            // problem when zooming in on a deeply-split PlanetPatchMesh, whose triangles can be a tiny
+            // fraction of a world unit across, needing the camera to get far closer than 0.1 to see
+            // them properly. "%.5f" so small values are actually readable/enterable (ctrl+click to
+            // type an exact value directly, since a linear drag speed can't cover 0.0001..1000 well).
+            if (ImGui.DragFloat("Near Clip", ref NearClipPlane, 0.001f, 0.0001f, 1000.0f, "%.5f"))
+            {
+                UpdateProjection();
+            }
+
+            if (ImGui.DragFloat("Far Clip", ref FarClipPlane, 10.0f, 1.0f, 1000000.0f))
+            {
+                UpdateProjection();
+            }
+
             if (ImGui.DragFloat("Ortho Height", ref OrthographicHeight, 1.0f, 1.0f, 1000.0f))
             {
                 UpdateProjection();

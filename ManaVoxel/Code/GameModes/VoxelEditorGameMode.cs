@@ -10,6 +10,7 @@ using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code.GeoTiff;
+using ManaGeoTools.Code.GeoTiff.Terrarium;
 using ManaGeoTools.Code.Kml;
 using ManaGeoTools.Code.Planet;
 using ManaGeoTools.Code.Shapefile;
@@ -36,8 +37,12 @@ namespace Mana.Code.GameModes
         private bool _firstFrame = true;
         private bool _selectPointerWasDown;
         private ManaSceneNode? _lastOutlinedSelectionNode;
+        private ManaSceneNode? _lastUpresCheckedNode;
         private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
         private static readonly Vector4 SelectionOutlineColor = new(0.30f, 0.72f, 1.0f, 1.0f);
+        private static readonly Vector4 PatchUpresInProgressOutlineColor = new(1.0f, 0.55f, 0.0f, 1.0f);
+        private static readonly Vector4 PatchUpresDoneOutlineColor = new(0.25f, 0.85f, 0.25f, 1.0f);
+        private static readonly Vector4 PatchUpresFailedOutlineColor = new(0.9f, 0.2f, 0.2f, 1.0f);
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall;
@@ -356,6 +361,43 @@ namespace Mana.Code.GameModes
                     {
                         planet.HeightExaggeration = exaggeration;
                     }
+
+                    ImGui.SeparatorText("Terrain Cache");
+                    ImGui.Text($"Cache size: {FormatByteCount(TerrariumTileFetcher.GetCacheSizeBytes())}");
+                    ImGui.TextWrapped(TerrariumTileFetcher.CacheRoot);
+                    if (ImGui.Button("Open Cache Folder"))
+                    {
+                        OpenFolderInFileExplorer(TerrariumTileFetcher.CacheRoot);
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button("Clear Cache"))
+                    {
+                        TerrariumTileFetcher.ClearCache();
+                    }
+                }
+
+                if (node is ManaMeshSceneNode { Mesh: PlanetPatchMesh } patchNode && patchNode.Parent is PlanetNode owningPlanet
+                    && owningPlanet.TryGetPatchKey(patchNode, out var patchKey))
+                {
+                    ImGui.SeparatorText("Terrain Patch");
+                    var status = owningPlanet.GetPatchUpresStatus(patchKey);
+                    ImGui.Text($"Up-res status: {status}");
+
+                    // Deliberately gated on Done + an explicit button press -- NOT reachable by plain
+                    // reselection, since that's exactly what earlier caused a couple of casual re-clicks
+                    // near the same spot to cascade several split levels deep before it was noticed (see
+                    // PlanetNode.TrySplitPatch's doc comment).
+                    if (status == PatchUpresStatus.Done)
+                    {
+                        if (owningPlanet.IsSplitPending(patchKey))
+                        {
+                            ImGui.TextDisabled("Splitting... (fetching 4 children)");
+                        }
+                        else if (ImGui.Button("Split for finer detail"))
+                        {
+                            owningPlanet.TrySplitPatch(patchKey);
+                        }
+                    }
                 }
 
                 if (node is ManaMeshSceneNode { Mesh: ManaLineMesh lineMesh } lineNode)
@@ -385,6 +427,41 @@ namespace Mana.Code.GameModes
                     }
                 }
             };
+        }
+
+        private static string FormatByteCount(long bytes)
+        {
+            const double kibibyte = 1024.0;
+            const double mebibyte = kibibyte * 1024.0;
+            const double gibibyte = mebibyte * 1024.0;
+
+            return bytes switch
+            {
+                >= (long)gibibyte => $"{bytes / gibibyte:N2} GiB",
+                >= (long)mebibyte => $"{bytes / mebibyte:N2} MiB",
+                >= (long)kibibyte => $"{bytes / kibibyte:N2} KiB",
+                _ => $"{bytes} B",
+            };
+        }
+
+        private static void OpenFolderInFileExplorer(string path)
+        {
+            Directory.CreateDirectory(path);
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    Process.Start(new ProcessStartInfo("open", $"\"{path}\"") { UseShellExecute = true });
+                }
+            }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+            {
+                ManaConsole.WriteDiagnostic($"Failed to open folder '{path}': {ex.Message}");
+            }
         }
 
         // ManaWebGpuContext (ManaGraphics) can't push into ManaWorld (Mana) directly — same
@@ -427,7 +504,7 @@ namespace Mana.Code.GameModes
                     Context,
                     patchesPerFaceEdge: PlanetPatchesPerFaceEdge,
                     radius: 40.0f, resolution: 24,
-                    heightExaggeration: 20.0f,
+                    heightExaggeration: 1.0f,
                     // Higher than the terrain patch resolution -- waves need enough vertex density to
                     // resolve whatever wave frequency is dialed in without aliasing, and the ocean is
                     // one un-tiled shell covering the whole globe rather than one of many small
@@ -687,6 +764,12 @@ namespace Mana.Code.GameModes
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
+            SyncWireframeViewOption();
+
+            // Must run on the main thread -- finalizing a completed patch split touches the scene
+            // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
+            // that detects a split is ready (see PlanetNode.UpresPendingChildAsync's comment).
+            _planet?.ProcessPendingSplits();
             UpdateWaterRippleInteraction();
         }
 
@@ -742,19 +825,40 @@ namespace Mana.Code.GameModes
 
             if (selectedNode != null && selectedNode != activeNode)
             {
+                var outlineColor = GetSelectionOutlineColor(selectedNode);
                 foreach (var meshRenderer in selectedNode.Components.OfType<MeshRendererComponent>())
                 {
                     meshRenderer.OutlineEnabled = true;
-                    meshRenderer.OutlineColor = SelectionOutlineColor;
+                    meshRenderer.OutlineColor = outlineColor;
                     meshRenderer.OutlineWidth = 4.0f;
                 }
             }
 
             _lastOutlinedSelectionNode = selectedNode;
 
+            // Kept as its own tracked node rather than reusing _lastOutlinedSelectionNode above --
+            // different concern (triggering a one-shot background fetch vs. an outline highlight) that
+            // just happens to usually move together. Covers both the Outliner tree AND clicking a
+            // patch directly in the 3D view, since both already write to the same SelectedNode via
+            // UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
+            if (selectedNode != _lastUpresCheckedNode)
+            {
+                _lastUpresCheckedNode = selectedNode;
+                if (selectedNode != null && _planet != null && _planet.TryGetPatchKey(selectedNode, out var patchKey))
+                {
+                    _planet.TryBeginPatchUpres(patchKey);
+                }
+            }
+
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
+            SyncWireframeViewOption();
+
+            // Must run on the main thread -- finalizing a completed patch split touches the scene
+            // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
+            // that detects a split is ready (see PlanetNode.UpresPendingChildAsync's comment).
+            _planet?.ProcessPendingSplits();
 
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
@@ -883,6 +987,13 @@ namespace Mana.Code.GameModes
             }
         }
 
+        // A second click on the SAME already-picked patch within this window counts as a double-click.
+        // No pixel-distance check -- re-picking already implicitly requires the ray to still land on
+        // the same node, which is a stronger check than cursor position alone.
+        private const long DoubleClickThresholdMs = 400;
+        private long _lastSelectClickTimeMs = long.MinValue;
+        private ManaSceneNode? _lastSelectClickedNode;
+
         private void UpdateSelectionPointerInteraction(bool inputCaptured, IMouse mouseState)
         {
             bool leftMouseDown = !inputCaptured && mouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
@@ -897,8 +1008,45 @@ namespace Mana.Code.GameModes
             var mouseStart = new Vector3(mouseState.Position, 0.0f);
             var mouseEnd = new Vector3(mouseState.Position, 1.0f);
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+            var pickedNode = ManaScenePicker.Pick(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
+            Context.World.Selection.SelectedNode = pickedNode;
 
-            Context.World.Selection.SelectedNode = ManaScenePicker.Pick(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
+            var now = Environment.TickCount64;
+            var isDoubleClick = pickedNode != null
+                && ReferenceEquals(pickedNode, _lastSelectClickedNode)
+                && now - _lastSelectClickTimeMs <= DoubleClickThresholdMs;
+            _lastSelectClickTimeMs = now;
+            _lastSelectClickedNode = pickedNode;
+
+            // Double-click is the deliberate-but-quick alternative to the Inspector's "Split for finer
+            // detail" button -- still only ever an EXPLICIT gesture, never triggered by plain
+            // reselection, so it doesn't reintroduce the accidental-cascade problem a single reselect
+            // used to cause (see PlanetNode.TrySplitPatch's doc comment). No-ops via TrySplitPatch's own
+            // guard if the patch isn't currently Done.
+            if (isDoubleClick && _planet != null && pickedNode != null && _planet.TryGetPatchKey(pickedNode, out var patchKey))
+            {
+                _planet.TrySplitPatch(patchKey);
+            }
+        }
+
+        // A selected planet patch reflects its on-demand Terrarium up-res status (see
+        // PlanetNode.TryBeginPatchUpres) instead of the plain default selection color -- otherwise
+        // there's no way to tell from the 3D view whether selecting a patch actually did anything.
+        // Everything else selectable keeps the default color unchanged.
+        private Vector4 GetSelectionOutlineColor(ManaSceneNode node)
+        {
+            if (_planet == null || !_planet.TryGetPatchKey(node, out var patchKey))
+            {
+                return SelectionOutlineColor;
+            }
+
+            return _planet.GetPatchUpresStatus(patchKey) switch
+            {
+                PatchUpresStatus.InProgress => PatchUpresInProgressOutlineColor,
+                PatchUpresStatus.Done => PatchUpresDoneOutlineColor,
+                PatchUpresStatus.Failed => PatchUpresFailedOutlineColor,
+                _ => SelectionOutlineColor,
+            };
         }
 
         private bool ShouldCaptureEditorMouseInput()
@@ -1037,6 +1185,16 @@ namespace Mana.Code.GameModes
             {
                 sceneChildren.Remove(_water);
             }
+        }
+
+        // Bridges the View menu's plain bool (VoxelEditorViewModel, ManaVoxel layer) into the renderer-
+        // facing settings object (ManaCore layer) that ManaWebGpuContext.Demo.cs's DrawWireframeOverlay
+        // actually reads -- same cross-layer path already used for WebGpuDebugMode, just driven from a
+        // View menu item instead of the Irradiance panel since that's where every other "Show X" view
+        // toggle in this app already lives.
+        private void SyncWireframeViewOption()
+        {
+            Context.World.IrradianceSettings.WireframeEnabled = _viewModel.ShowWireframe;
         }
 
         // Demo hook for testing ripples: left-click over the water plane's footprint. Water has no

@@ -24,9 +24,17 @@ namespace ManaGeoTools.Code.Planet
         public float MinV { get; }
         public float MaxV { get; }
         public float Radius { get; }
-        public int Resolution { get; }
+        public int Resolution { get; private set; }
         public float HeightScale { get; private set; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
+
+        // How far (in real-world meters, scaled through HeightScale the same as actual elevation) the
+        // skirt geometry around this patch's 4 edges hangs inward toward the planet's center -- see the
+        // skirt-building block in GenerateData for why this exists. 500m comfortably covers the height
+        // differences that show up at a boundary between two patches sampling at different resolutions
+        // or from different data sources, without being large enough to visibly show through anywhere
+        // reasonable terrain would actually be viewed from.
+        private const float SkirtDepthMeters = 500f;
 
         public PlanetPatchMesh(
             ManaContext context,
@@ -62,6 +70,23 @@ namespace ManaGeoTools.Code.Planet
         public void ApplyHeightData(GeoTiffLibrary heightLibrary)
         {
             HeightLibrary = heightLibrary;
+            GenerateData();
+        }
+
+        /// <summary>
+        /// Same as ApplyHeightData, but also raises the patch's own vertex grid resolution (never
+        /// lowers it -- a no-op if resolution is already at least this high). Plain ApplyHeightData
+        /// re-samples the SAME fixed-size grid with new data, which only improves per-vertex accuracy;
+        /// it can't add visible density since the vertex count never changes. That's the right behavior
+        /// for the initial whole-globe ETOPO load (every patch shares one resolution, chosen up front
+        /// for the whole planet's budget), but a one-off on-demand up-res of a single patch (see
+        /// PlanetNode.TryBeginPatchUpres) is pointless without this -- fetching far higher-resolution
+        /// source data into a grid too coarse to represent it wastes almost all of that detail.
+        /// </summary>
+        public void ApplyHeightDataWithResolution(GeoTiffLibrary heightLibrary, int resolution)
+        {
+            HeightLibrary = heightLibrary;
+            Resolution = Math.Max(Resolution, Math.Max(2, resolution));
             GenerateData();
         }
 
@@ -173,6 +198,24 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
+            // Skirts: a thin wall of extra geometry hanging inward (toward the planet center) from
+            // each of the patch's 4 edges. Adjacent patches' shared boundary vertices land on
+            // identical world positions when both sides compute them from the same cube-space input at
+            // the same resolution (see this class's doc comment) -- but that guarantee breaks the
+            // moment two neighbors have DIFFERENT resolution along their shared edge (e.g. one has been
+            // on-demand up-res'd via ApplyHeightDataWithResolution and the other hasn't), since the
+            // finer side's in-between edge vertices then have no partner on the coarser side, leaving a
+            // visible crack. Skirts don't fix the underlying mismatch, they just fill the gap with
+            // geometry so it isn't visible -- always added, on every patch, since any patch could end
+            // up neighboring a differently-resolved one at any time. CullMode.None is used for every
+            // procedural mesh pipeline in this engine (confirmed in ManaWebGpuContext.Pipelines.cs), so
+            // the skirt quads' winding direction doesn't need to be carefully oriented.
+            var skirtDepth = HeightScale * SkirtDepthMeters;
+            AddSkirtStrip(GetColumn(verts, row: 0), skirtDepth);
+            AddSkirtStrip(GetColumn(verts, row: Resolution - 1), skirtDepth);
+            AddSkirtStrip(GetRow(verts, col: 0), skirtDepth);
+            AddSkirtStrip(GetRow(verts, col: Resolution - 1), skirtDepth);
+
             MinSize = new Vector3(-Radius, -Radius, -Radius);
             MaxSize = new Vector3(Radius, Radius, Radius);
 
@@ -180,6 +223,52 @@ namespace ManaGeoTools.Code.Planet
             // again after the mesh has already rendered once actually takes effect — see
             // GeoTiffTerrainMesh for the fuller explanation of why this matters.
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
+        }
+
+        private static ManaGeometryVertex[] GetColumn(ManaGeometryVertex[,] verts, int row)
+        {
+            var result = new ManaGeometryVertex[verts.GetLength(0)];
+            for (var x = 0; x < result.Length; x++)
+            {
+                result[x] = verts[x, row];
+            }
+            return result;
+        }
+
+        private static ManaGeometryVertex[] GetRow(ManaGeometryVertex[,] verts, int col)
+        {
+            var result = new ManaGeometryVertex[verts.GetLength(1)];
+            for (var y = 0; y < result.Length; y++)
+            {
+                result[y] = verts[col, y];
+            }
+            return result;
+        }
+
+        private void AddSkirtStrip(ManaGeometryVertex[] edgeVerts, float skirtDepth)
+        {
+            for (var i = 0; i < edgeVerts.Length - 1; i++)
+            {
+                var a = edgeVerts[i];
+                var b = edgeVerts[i + 1];
+                var skirtA = AddSkirtVertex(a, skirtDepth);
+                var skirtB = AddSkirtVertex(b, skirtDepth);
+                DynamicGeometryContainer.CreateFacesFromQuad(a, b, skirtB, skirtA);
+            }
+        }
+
+        // Position is pointOnUnitSphere scaled by a positive factor (Radius + displacement), so
+        // normalizing it recovers that original outward radial direction exactly -- pushing inward
+        // along it (rather than along the vertex's own shaded/averaged Normal) keeps the skirt going
+        // straight toward the planet's center regardless of local terrain slope.
+        private ManaGeometryVertex AddSkirtVertex(ManaGeometryVertex source, float skirtDepth)
+        {
+            var radialDirection = Vector3.Normalize(source.Position);
+            var skirtPosition = source.Position - (radialDirection * skirtDepth);
+            var skirtVert = DynamicGeometryContainer.AddPoint(skirtPosition, source.Normal);
+            skirtVert.TexCoord0 = source.TexCoord0;
+            skirtVert.Color = source.Color;
+            return skirtVert;
         }
 
         // Outward-facing flat normal of quad (a,b,c,d) in the same CCW-as-seen-from-outside vertex

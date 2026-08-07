@@ -28,7 +28,17 @@ namespace Mana.Code
                  Matrix4x4.CreateRotationX(1 * 90.0f.ToRadians(), Vector3.Zero),
         };
 
-        public List<ManaGeometryVertex> DisconnectedPoints = new List<ManaGeometryVertex>();
+        // HashSet, not List: CreateFacesFromQuad (the hot path for any grid-built mesh, e.g.
+        // PlanetPatchMesh -- one call per quad) used to remove consumed vertices via
+        // List.RemoveAll(predicate), an O(N) scan of the WHOLE remaining list on every single call.
+        // For a 160x160 vertex patch (~25600 points, ~25281 quads) that's on the order of hundreds of
+        // millions of comparisons for one mesh rebuild -- easily seconds of wall-clock time, which is
+        // bad enough on its own but became a whole-app freeze once introduced by an on-demand up-res:
+        // GenerateData() runs under PlanetNode._rebuildLock, which the main thread also needs every
+        // frame. ManaGeometryVertex has no custom Equals/GetHashCode (confirmed), so it already used
+        // plain reference equality everywhere this was compared -- a HashSet with default reference
+        // equality behaves identically, just with O(1) average Add/Remove instead of O(N).
+        public HashSet<ManaGeometryVertex> DisconnectedPoints = new HashSet<ManaGeometryVertex>();
         public List<ManaGeometryVertex> Verts = new List<ManaGeometryVertex>();
         public List<ManaGeometryFace> Faces = new List<ManaGeometryFace>();
         public List<ManaGeometryQuad> Quads = new List<ManaGeometryQuad>();
@@ -219,7 +229,7 @@ namespace Mana.Code
 
         public void CreateFaceFromDisconnectedPoints()
         {
-            CreateFacesFromPoints(DisconnectedPoints);
+            CreateFacesFromPoints(DisconnectedPoints.ToList());
         }
 
         public void CreateFacesFromPoints(List<ManaGeometryVertex> verts)
@@ -250,12 +260,15 @@ namespace Mana.Code
             }
 
             verts.RemoveRange(0, consumedPoints.Count);
-            DisconnectedPoints.RemoveAll(consumedPoints.Contains);
+            foreach (var point in consumedPoints)
+            {
+                DisconnectedPoints.Remove(point);
+            }
         }
 
         public void CreateQuadFromDisconnectedPoints(List<ManaGeometryVertex> verts)
         {
-            CreateQuadsFromPoints(DisconnectedPoints);
+            CreateQuadsFromPoints(DisconnectedPoints.ToList());
         }
 
         public ManaGeometryQuad[] CreateQuadsFromPoints(List<ManaGeometryVertex> verts)
@@ -312,7 +325,10 @@ namespace Mana.Code
             }
 
             verts.RemoveRange(0, consumedPoints.Count);
-            DisconnectedPoints.RemoveAll(consumedPoints.Contains);
+            foreach (var point in consumedPoints)
+            {
+                DisconnectedPoints.Remove(point);
+            }
             return outputQuads.ToArray();
         }
 
@@ -339,7 +355,10 @@ namespace Mana.Code
             face2.AssociateNeighbors();
             Faces.Add(face2);
 
-            DisconnectedPoints.RemoveAll((item) => { return item == a || item == b || item == c || item == d; });
+            DisconnectedPoints.Remove(a);
+            DisconnectedPoints.Remove(b);
+            DisconnectedPoints.Remove(c);
+            DisconnectedPoints.Remove(d);
         }
 
         internal void AddFaces(List<uint> indexes)

@@ -560,6 +560,84 @@ namespace ManaGraphics.Code.Graphics
             private ManaWebGpuObjectUniform? _lastUploadedObjectUniform;
             private byte[]? _lastUploadedCustomUniformData;
 
+            // Lazily built the first time the wireframe overlay is actually enabled (see
+            // ManaWebGpuContext.Demo.cs's DrawWireframeOverlay), not eagerly for every mesh -- this is
+            // a rarely-toggled debug view, so the ~2000 resident meshes in a typical scene shouldn't
+            // all pay edge-extraction cost unconditionally. Cached for this object's whole lifetime:
+            // CanReuseSceneMesh only reuses a ManaWebGpuSceneMesh when the incoming mesh is guaranteed
+            // to have identical index data (same MeshVersion, or the same MeshData reference) -- any
+            // real geometry change creates a brand new ManaWebGpuSceneMesh instead, so this cache is
+            // already correctly invalidated by that existing logic with no extra bookkeeping needed.
+            private WebGpuBuffer* _wireframeIndexBuffer;
+            private uint _wireframeIndexCount;
+
+            // Pointer types can't be used as a generic type argument (e.g. a (WebGpuBuffer*, uint)
+            // tuple), hence out-parameters instead of a tuple return here.
+            public bool TryGetOrCreateWireframeIndexBuffer(WebGPU api, Device* device, Queue* queue, out WebGpuBuffer* buffer, out uint indexCount)
+            {
+                if (_wireframeIndexBuffer != null)
+                {
+                    buffer = _wireframeIndexBuffer;
+                    indexCount = _wireframeIndexCount;
+                    return true;
+                }
+
+                buffer = null;
+                indexCount = 0;
+
+                var triangleIndexes = Instance.MeshData.Indexes;
+                var edges = new HashSet<(uint A, uint B)>();
+                for (var i = 0; i + 2 < triangleIndexes.Length; i += 3)
+                {
+                    var a = triangleIndexes[i];
+                    var b = triangleIndexes[i + 1];
+                    var c = triangleIndexes[i + 2];
+                    AddEdge(edges, a, b);
+                    AddEdge(edges, b, c);
+                    AddEdge(edges, c, a);
+                }
+
+                if (edges.Count == 0)
+                {
+                    return false;
+                }
+
+                var lineIndexes = new uint[edges.Count * 2];
+                var write = 0;
+                foreach (var (a, b) in edges)
+                {
+                    lineIndexes[write++] = a;
+                    lineIndexes[write++] = b;
+                }
+
+                var bufferDescriptor = new BufferDescriptor
+                {
+                    Usage = BufferUsage.Index | BufferUsage.CopyDst,
+                    Size = (ulong)lineIndexes.Length * sizeof(uint)
+                };
+                var createdBuffer = api.DeviceCreateBuffer(device, &bufferDescriptor);
+                if (createdBuffer == null)
+                {
+                    return false;
+                }
+
+                fixed (uint* indexPointer = lineIndexes)
+                {
+                    api.QueueWriteBuffer(queue, createdBuffer, 0, indexPointer, (nuint)bufferDescriptor.Size);
+                }
+
+                _wireframeIndexBuffer = createdBuffer;
+                _wireframeIndexCount = (uint)lineIndexes.Length;
+                buffer = _wireframeIndexBuffer;
+                indexCount = _wireframeIndexCount;
+                return true;
+            }
+
+            private static void AddEdge(HashSet<(uint A, uint B)> edges, uint a, uint b)
+            {
+                edges.Add(a < b ? (a, b) : (b, a));
+            }
+
             public bool TryUpdateObjectUniform(WebGPU api, Queue* queue, in ManaWebGpuObjectUniform next)
             {
                 if (_lastUploadedObjectUniform is { } last)
@@ -606,6 +684,12 @@ namespace ManaGraphics.Code.Graphics
             public void Dispose()
             {
                 Mesh.Dispose();
+
+                if (_wireframeIndexBuffer != null)
+                {
+                    _api.BufferRelease(_wireframeIndexBuffer);
+                    _wireframeIndexBuffer = null;
+                }
 
                 foreach (var sceneCaptureBindGroup in SceneCaptureBindGroups)
                 {

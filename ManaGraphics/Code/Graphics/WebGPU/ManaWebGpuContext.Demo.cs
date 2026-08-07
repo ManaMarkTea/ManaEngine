@@ -217,6 +217,47 @@ namespace ManaGraphics.Code.Graphics
             sceneMesh.Mesh.Draw(renderPass);
         }
 
+        // View-option overlay (see ManaIrradianceSettings.WireframeEnabled / IrradianceSettingsPanelView):
+        // draws every resident mesh's edges as thin lines on top of the just-rendered opaque geometry,
+        // in the SAME render pass as DrawDemoMesh (called right after it, before that pass ends) so the
+        // depth buffer the opaque pass just wrote is what these lines depth-test against -- correctly
+        // occluded by anything in front, without needing a separate render target the way the outline
+        // mask pass does.
+        private void DrawWireframeOverlay(RenderPassEncoder* renderPass)
+        {
+            if (_activeRenderScene?.IrradianceSettings.WireframeEnabled != true || _sceneMeshes.Count == 0)
+            {
+                return;
+            }
+
+            var pipeline = GetOrCreateWireframePipeline();
+            if (pipeline == null)
+            {
+                return;
+            }
+            _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+
+            if (_frameBindGroup != null)
+            {
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+            }
+
+            foreach (var sceneMesh in _sceneMeshes)
+            {
+                if (!sceneMesh.TryGetOrCreateWireframeIndexBuffer(_api, _device, _queue, out var wireframeBuffer, out var wireframeIndexCount))
+                {
+                    continue;
+                }
+
+                if (sceneMesh.ObjectBindGroup != null)
+                {
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
+                }
+
+                sceneMesh.Mesh.DrawWithIndexBuffer(renderPass, wireframeBuffer, wireframeIndexCount);
+            }
+        }
+
         private void DrawOutlineMask(CommandEncoder* commandEncoder)
         {
             var outlineMaskView = _hdrPostProcessor?.OutlineMaskView;

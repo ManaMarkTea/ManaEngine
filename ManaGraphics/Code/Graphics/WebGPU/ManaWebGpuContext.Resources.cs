@@ -48,6 +48,12 @@ namespace ManaGraphics.Code.Graphics
                 _outlineMaskPipeline = null;
             }
 
+            if (_wireframePipeline != null)
+            {
+                _api.RenderPipelineRelease(_wireframePipeline);
+                _wireframePipeline = null;
+            }
+
             _hdrPostProcessor?.Dispose();
             _hdrPostProcessor = null;
 

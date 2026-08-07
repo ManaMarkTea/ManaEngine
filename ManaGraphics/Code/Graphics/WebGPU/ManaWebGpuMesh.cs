@@ -94,6 +94,22 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderDrawIndexed(renderPass, IndexCount, 1, 0, 0, 0);
         }
 
+        // Draws this mesh's own vertex buffer against a CALLER-supplied index buffer instead of the
+        // mesh's own -- used for the wireframe overlay pass, which draws the same vertices through a
+        // separate line-topology edge list (see ManaWebGpuSceneMesh.GetOrCreateWireframeIndexBuffer)
+        // rather than the mesh's normal triangle-list index buffer.
+        public void DrawWithIndexBuffer(RenderPassEncoder* renderPass, WebGpuBuffer* indexBuffer, uint indexCount)
+        {
+            if (_vertexBuffer == null || indexBuffer == null || indexCount == 0)
+            {
+                return;
+            }
+
+            _api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _vertexBuffer, 0, ulong.MaxValue);
+            _api.RenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, IndexFormat.Uint32, 0, ulong.MaxValue);
+            _api.RenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
+        }
+
         public void Dispose()
         {
             if (_indexBuffer != null)

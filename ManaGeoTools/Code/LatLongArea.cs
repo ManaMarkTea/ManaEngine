@@ -26,6 +26,19 @@ namespace ManaGeoTools.Code
             LowerRight.Latitude = LowerLeft.Latitude;
         }
 
+        // For areas whose corners aren't derivable from a linear origin + per-pixel step -- e.g. a Web
+        // Mercator tile, where latitude spacing is non-linear (see Terrarium/SlippyMapMath.cs). Leaves
+        // PixelSize at its default; callers that need it (this codebase's existing GeoTiff nearest-
+        // neighbor lookup) must compute pixel position some other way -- see
+        // TerrariumHeightTile.GetHeightAtLatLong, which reprojects instead of using PixelSize.
+        public LatLongArea(LatLong upperLeft, LatLong upperRight, LatLong lowerLeft, LatLong lowerRight)
+        {
+            UpperLeft = upperLeft;
+            UpperRight = upperRight;
+            LowerLeft = lowerLeft;
+            LowerRight = lowerRight;
+        }
+
         public LatLong Lerp(float tLat, float tLong)
         {
             var outLong = float.Lerp(UpperLeft.Longitude, LowerRight.Longitude, tLong);

@@ -23,7 +23,8 @@ namespace ManaGraphics.Code.Graphics
             string? shaderName = null,
             bool isTransparent = false,
             bool disableDepthWrite = false,
-            CompareFunction depthCompare = CompareFunction.Less)
+            CompareFunction depthCompare = CompareFunction.Less,
+            PrimitiveTopology primitiveTopology = PrimitiveTopology.TriangleList)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
@@ -151,7 +152,7 @@ namespace ManaGraphics.Code.Graphics
                     Vertex = vertexState,
                     Primitive = new PrimitiveState
                     {
-                        Topology = PrimitiveTopology.TriangleList,
+                        Topology = primitiveTopology,
                         StripIndexFormat = IndexFormat.Undefined,
                         FrontFace = FrontFace.Ccw,
                         // Procedural meshes do not currently guarantee a single winding
@@ -558,6 +559,27 @@ namespace ManaGraphics.Code.Graphics
             _shaderModules["OutlineMask"] = (nint)shaderModule;
             ManaConsole.WriteDiagnostic("WebGPU outline-mask pipeline created successfully.");
             return _outlineMaskPipeline;
+        }
+
+        private RenderPipeline* GetOrCreateWireframePipeline()
+        {
+            if (_wireframePipeline != null)
+            {
+                return _wireframePipeline;
+            }
+
+            var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "wireframe.wgsl"));
+            _wireframePipeline = CreateDemoRenderPipeline(
+                shaderModule,
+                GetSceneColorFormat(),
+                _demoPipelineLayout,
+                "Wireframe",
+                disableDepthWrite: true,
+                depthCompare: CompareFunction.LessEqual,
+                primitiveTopology: PrimitiveTopology.LineList);
+            _shaderModules["Wireframe"] = (nint)shaderModule;
+            ManaConsole.WriteDiagnostic("WebGPU wireframe pipeline created successfully.");
+            return _wireframePipeline;
         }
 
         private ShaderModule* CreateShaderModule(string relativePath)
