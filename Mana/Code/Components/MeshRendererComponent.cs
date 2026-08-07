@@ -1,5 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-using Mana.Code.Nodes;
+﻿using Mana.Code.Nodes;
+using System.Threading;
 
 namespace Mana
 {
@@ -11,11 +11,14 @@ namespace Mana
         public Vector4 OutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; set; } = 2.0f;
 
-        // Owner/this hash codes are stable for the object's lifetime, so this key -- previously
-        // re-formatted with string interpolation on every ManaRenderMeshInstance built for this
-        // renderer, every frame -- only needs computing once. See ManaSceneNode.CollectRenderMeshInstances.
+        private static long _nextInstanceId;
+        private readonly long _instanceId = Interlocked.Increment(ref _nextInstanceId);
+
+        // Stable per renderer instance. RuntimeHelpers.GetHashCode is stable but not unique; a pair of
+        // KML airport line nodes collided there and fought over one WebGPU scene-mesh map entry every
+        // frame.
         private string? _instanceKey;
-        public string InstanceKey => _instanceKey ??= $"{RuntimeHelpers.GetHashCode(Owner):x8}:{RuntimeHelpers.GetHashCode(this):x8}";
+        public string InstanceKey => _instanceKey ??= $"meshRenderer:{_instanceId:x16}";
 
         private ManaMaterial? material;
         public ManaMaterial Material

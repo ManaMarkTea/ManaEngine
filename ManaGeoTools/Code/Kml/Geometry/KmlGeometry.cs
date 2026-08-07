@@ -37,10 +37,15 @@ namespace ManaGeoTools.Code.Kml.Geometry
         }
 
         // Replaces the source's `AddGeometry(Kml, Array[MeshInstance3D])`, which mutated a Godot
-        // node list. Returns a mesh instead; null means "no renderable geometry" (Point, LineString).
+        // node list. Returns a mesh instead; null means "no renderable geometry" (Point, empty data).
         public virtual ManaMesh? BuildMesh(ManaContext context)
         {
             return null;
+        }
+
+        public virtual ManaMesh? BuildMesh(ManaContext context, KmlStyle? style)
+        {
+            return BuildMesh(context);
         }
     }
 }

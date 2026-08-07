@@ -15,9 +15,15 @@ namespace Mana.Code.Shapes
         }
     }
 
+    public enum ManaLineProfile
+    {
+        Tube,
+        Ribbon
+    }
+
     /// <summary>
-    /// Generic thin-line-in-3D-space mesh: any number of polylines, each swept into a continuous
-    /// square-cross-section ribbon -- a proper connected tube (shared vertices between segments, a
+    /// Generic thin-line-in-3D-space mesh: any number of polylines, each swept into either a flat
+    /// surface ribbon or a continuous square-cross-section tube (shared vertices between segments, a
     /// mitered cross-section at every joint that automatically bisects whatever angle the path turns
     /// through) rather than a chain of independent boxes. An earlier version built each segment as its
     /// own separate oriented box, which left gaps at any turn sharper than dead-straight (each box's
@@ -40,26 +46,29 @@ namespace Mana.Code.Shapes
     /// Originally written specifically for country border lines (see ManaGeoTools' CountryBorderLines,
     /// which decimates + projects lat/long boundary rings onto a sphere and hands the resulting points
     /// here) -- pulled out to engine level since nothing about the line-building itself is
-    /// planet-specific. Any node that wants to draw lines (flight paths, debug gizmos, KmlLineString's
-    /// still-unimplemented case, etc.) can build a list of ManaLinePolylines and use this directly.
+    /// planet-specific. Any node that wants to draw lines (flight paths, debug gizmos, KML geometry,
+    /// etc.) can build a list of ManaLinePolylines and use this directly.
     /// </summary>
     public class ManaLineMesh : ManaProceduralMesh
     {
         public IReadOnlyList<ManaLinePolyline> Lines { get; }
         public float Thickness { get; private set; }
         public float EmissionStrength { get; }
+        public ManaLineProfile Profile { get; }
 
         public ManaLineMesh(
             ManaContext context,
             IReadOnlyList<ManaLinePolyline> lines,
             float thickness,
             Vector4 color,
-            float emissionStrength = 0f)
+            float emissionStrength = 0f,
+            ManaLineProfile profile = ManaLineProfile.Tube)
             : base(context)
         {
             Lines = lines;
             Thickness = thickness;
             EmissionStrength = emissionStrength;
+            Profile = profile;
             DefaultVertexColor = color;
 
             GenerateData();
@@ -109,7 +118,14 @@ namespace Mana.Code.Shapes
                     continue;
                 }
 
-                AddRibbon(points, line.Closed);
+                if (Profile == ManaLineProfile.Ribbon)
+                {
+                    AddFlatRibbon(points, line.Closed);
+                }
+                else
+                {
+                    AddRibbon(points, line.Closed);
+                }
 
                 foreach (var point in points)
                 {
@@ -194,6 +210,51 @@ namespace Mana.Code.Shapes
                 DynamicGeometryContainer.CreateFacesFromQuad(ring[0, 0], ring[0, 1], ring[0, 2], ring[0, 3]);
                 DynamicGeometryContainer.CreateFacesFromQuad(ring[count - 1, 3], ring[count - 1, 2], ring[count - 1, 1], ring[count - 1, 0]);
             }
+        }
+
+        private void AddFlatRibbon(List<Vector3> points, bool closed)
+        {
+            var count = points.Count;
+            if (closed && count < 3)
+            {
+                return;
+            }
+
+            var tangents = ComputeTangents(points, closed);
+            var halfThickness = Thickness * 0.5f;
+            var left = new ManaGeometryVertex[count];
+            var right = new ManaGeometryVertex[count];
+
+            for (var i = 0; i < count; i++)
+            {
+                var center = points[i];
+                var outward = center.LengthSquared() > 0.000001f
+                    ? Vector3.Normalize(center)
+                    : ArbitraryPerpendicular(tangents[i]);
+                var side = Vector3.Cross(outward, tangents[i]);
+                if (side.LengthSquared() <= 0.000001f)
+                {
+                    side = ArbitraryPerpendicular(tangents[i]);
+                }
+                side = Vector3.Normalize(side) * halfThickness;
+
+                left[i] = AddRibbonVertex(center + side, outward);
+                right[i] = AddRibbonVertex(center - side, outward);
+            }
+
+            var connectionCount = closed ? count : count - 1;
+            for (var i = 0; i < connectionCount; i++)
+            {
+                var next = (i + 1) % count;
+                DynamicGeometryContainer.CreateFacesFromQuad(left[i], right[i], right[next], left[next]);
+            }
+        }
+
+        private ManaGeometryVertex AddRibbonVertex(Vector3 position, Vector3 normal)
+        {
+            var vert = DynamicGeometryContainer.AddPoint(position, Vector3.Normalize(normal));
+            vert.Color = Vector4.One;
+            return vert;
         }
 
         private void AddRingVertex(ManaGeometryVertex[,] ring, int i, int side, Vector3 position, Vector3 outward)

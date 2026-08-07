@@ -128,7 +128,7 @@ namespace ManaGraphics.Code.Graphics
                 _frameBindGroupLayout = null;
             }
 
-            ReleaseSceneMeshes();
+            ReleaseSceneMeshes(immediate: true);
             ReleaseEnvironmentReflectionMap();
 
             foreach (var entry in _shaderModules)

@@ -5,7 +5,7 @@ namespace ManaGeoTools.Code.Planet
 {
     /// <summary>
     /// Converts country border rings (lat/long, as read by ShapefilePolygonReader) into a
-    /// ManaLineMesh projected onto a sphere. The line-rendering itself (thin oriented-cube segments)
+    /// ManaLineMesh projected onto a sphere. The line-rendering itself
     /// lives in the generic ManaLineMesh (Mana engine layer) -- this class only does the
     /// planet/geo-specific part: decimating a lat/long ring (a minimum-arc-spacing filter doesn't mean
     /// anything for an arbitrary 3D polyline, only for one parameterized by lat/long) and projecting
@@ -43,7 +43,7 @@ namespace ManaGeoTools.Code.Planet
                 lines.Add(new ManaLinePolyline(points, closed: true));
             }
 
-            return new ManaLineMesh(context, lines, thickness, color, emissionStrength);
+            return new ManaLineMesh(context, lines, thickness, color, emissionStrength, ManaLineProfile.Ribbon);
         }
 
         private static Vector3 ToSpherePosition((double Longitude, double Latitude) point, float radius)

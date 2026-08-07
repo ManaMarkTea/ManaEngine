@@ -324,15 +324,51 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        private void ReleaseSceneMeshes()
+        private const ulong SceneMeshDeferredDisposeFrameDelay = 6;
+
+        private void ReleaseSceneMeshes(bool immediate = false)
         {
             foreach (var sceneMesh in _sceneMeshes)
             {
-                sceneMesh.Dispose();
+                if (immediate)
+                {
+                    sceneMesh.Dispose();
+                }
+                else
+                {
+                    DeferSceneMeshDispose(sceneMesh);
+                }
             }
 
             _sceneMeshes.Clear();
             _sceneMeshMap.Clear();
+
+            if (immediate)
+            {
+                DrainDeferredSceneMeshDisposals(force: true);
+            }
+        }
+
+        private void DeferSceneMeshDispose(ManaWebGpuSceneMesh sceneMesh)
+        {
+            _deferredSceneMeshDisposals.Enqueue(new DeferredSceneMeshDisposal(
+                _frameSerial + SceneMeshDeferredDisposeFrameDelay,
+                sceneMesh));
+        }
+
+        private void DrainDeferredSceneMeshDisposals(bool force = false)
+        {
+            while (_deferredSceneMeshDisposals.Count > 0)
+            {
+                var next = _deferredSceneMeshDisposals.Peek();
+                if (!force && next.DisposeAfterFrame > _frameSerial)
+                {
+                    break;
+                }
+
+                _deferredSceneMeshDisposals.Dequeue();
+                next.SceneMesh.Dispose();
+            }
         }
 
         private void RefreshRenderScene()
@@ -373,10 +409,10 @@ namespace ManaGraphics.Code.Graphics
                         continue;
                     }
 
-                    existing.Dispose();
-                    _sceneMeshMap.Remove(key);
                     removedCount++;
                     removedIndexes += existing.Mesh.IndexCount;
+                    DeferSceneMeshDispose(existing);
+                    _sceneMeshMap.Remove(key);
                 }
 
                 var created = CreateSceneMesh(instance);
@@ -395,9 +431,9 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (_sceneMeshMap.Remove(staleKey, out var staleMesh))
                 {
-                    staleMesh.Dispose();
                     removedCount++;
                     removedIndexes += staleMesh.Mesh.IndexCount;
+                    DeferSceneMeshDispose(staleMesh);
                     changedMeshSummaries ??= new List<string>();
                     //changedMeshSummaries.Add(FormatSceneMeshDelta(staleMesh.Instance, staleKey, staleMesh.Mesh.IndexCount, null));
                 }

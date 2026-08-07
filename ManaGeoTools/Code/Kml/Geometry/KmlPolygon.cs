@@ -36,7 +36,12 @@ namespace ManaGeoTools.Code.Kml.Geometry
 
         public override ManaMesh? BuildMesh(ManaContext context)
         {
-            return OuterBoundary.BuildMesh(context);
+            return BuildMesh(context, style: null);
+        }
+
+        public override ManaMesh? BuildMesh(ManaContext context, KmlStyle? style)
+        {
+            return OuterBoundary.BuildMesh(context, style);
         }
 
         public override LatLong GetCenterPoint()

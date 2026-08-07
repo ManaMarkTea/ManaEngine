@@ -50,6 +50,7 @@ namespace Mana.Code.GameModes
         private PlanetNode? _planet;
         private ManaSceneNode? _kmlDemo;
         private ManaSceneNode? _countryBorders;
+        private ManaSceneNode? _stateBorders;
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
@@ -232,11 +233,12 @@ namespace Mana.Code.GameModes
                         AddKmlDemo();
                     }
 
-                    // 6. Add country border lines (Natural Earth admin-0 country boundaries)
-                    Loading.Report(new ManaLoadingProgress("Loading country borders", 0.98f));
+                    // 6. Add boundary line overlays (Natural Earth admin-0/admin-1 boundaries)
+                    Loading.Report(new ManaLoadingProgress("Loading boundary lines", 0.98f));
                     lock (world.SceneLock)
                     {
                         AddCountryBordersDemo();
+                        AddStateBordersDemo();
                     }
 
                     LoadingCoordinator.CompleteBackgroundWork();
@@ -746,12 +748,9 @@ namespace Mana.Code.GameModes
 
         // Local convenience path to real-world KML airspace data (AirspaceConverter output, sourced
         // externally, ~10.5MB) — not a repo asset, degrades to a no-op via the File.Exists guard on
-        // any machine without it. About 89% of its LinearRings are degenerate — two distinct points
-        // repeated to look like a closed 5-point ring, a data-quality artifact in the source file
-        // itself (the header even carries an "output may contain errors" disclaimer), not a
-        // triangulator bug: there's no triangle to make from a zero-area line. Those are silently
-        // skipped by KmlLinearRingMesh/PolygonTriangulator, same as any other degenerate ring; the
-        // remaining ~1,850 real polygons plus ~1,287 point placemarks still load and render fine.
+        // any machine without it. The KML geometry layer renders LineString/LinearRing/Polygon data
+        // with ManaLineMesh, so line-like airspace boundaries draw directly instead of relying on
+        // polygon triangulation.
         private const string KmlDemoFilePath = @"C:\Users\night\Code\ManaAirSpace\AirSpaceModels\UnitedStates.xml";
 
         private void AddKmlDemo()
@@ -769,13 +768,8 @@ namespace Mana.Code.GameModes
                 var altitudeScale = radius / PlanetLoader.EarthRadiusMeters;
                 var kml = new Kml(KmlDemoFilePath, radius, altitudeScale);
 
-                // The full file has 2,574 placemarks, but ~89% of its rings are degenerate (two
-                // distinct points repeated to look like a closed ring — see KmlLinearRing.BuildMesh)
-                // and no longer produce a mesh node at all, so this is really ~1,848 real polygons —
-                // no cap needed. Builds in well under a second; still one draw call per mesh with no
-                // culling/LOD/batching, so revisit if that many draw calls ever becomes the
-                // bottleneck (the planet got a background-build treatment for its own scale problem;
-                // this hasn't needed it yet).
+                // Still one draw call per rendered KML mesh with no culling/LOD/batching, so revisit
+                // if airspace overlays ever become a frame bottleneck.
                 _kmlDemo = KmlSceneBuilder.BuildPlacemarks(Context, kml);
                 _kmlDemo.Name = "US Airspace (KML)";
 
@@ -810,51 +804,118 @@ namespace Mana.Code.GameModes
         // to a no-op via the File.Exists guard on any machine without it.
         private const string CountryBordersZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_50m_admin_0_countries.zip";
         private const string CountryBordersShpEntryName = "ne_50m_admin_0_countries.shp";
+        private const string StateBordersZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_50m_admin_1_states_provinces.zip";
+        private const string StateBordersShpEntryName = "ne_50m_admin_1_states_provinces.shp";
 
         private void AddCountryBordersDemo()
         {
             try
             {
-                if (_planet == null || !File.Exists(CountryBordersZipPath))
+                var node = BuildBoundaryLineNode(
+                    CountryBordersZipPath,
+                    CountryBordersShpEntryName,
+                    "Country Borders",
+                    thickness: 0.08f,
+                    radiusOffset: 0.32f,
+                    minSegmentDegrees: 0.15f,
+                    color: new Vector4(1.0f, 0.75f, 0.3f, 1.0f),
+                    emissionStrength: 2.0f);
+                if (node == null)
                 {
                     return;
                 }
 
-                var rings = new List<IReadOnlyList<(double Longitude, double Latitude)>>();
-                using (var archive = ZipFile.OpenRead(CountryBordersZipPath))
-                {
-                    var shpEntry = archive.GetEntry(CountryBordersShpEntryName)
-                        ?? throw new InvalidOperationException($"'{CountryBordersShpEntryName}' not found in {CountryBordersZipPath}.");
-                    using var shpStream = shpEntry.Open();
-                    foreach (var ring in ShapefilePolygonReader.ReadRings(shpStream))
-                    {
-                        rings.Add(ring);
-                    }
-                }
-
-                // Thin square-cross-section lines (see ManaLineMesh's doc comment for why square
-                // cross-sections specifically) sitting just above the terrain radius (avoids
-                // z-fighting), warm amber and emissive so they read on the planet's night side too.
-                // All tunable if the look needs adjusting once visible.
-                const float thickness = 0.15f;
-                const float radiusOffset = 0.3f;
-                const float minSegmentDegrees = 0.15f;
-                var color = new Vector4(1.0f, 0.75f, 0.3f, 1.0f);
-                const float emissionStrength = 2.5f;
-                var mesh = CountryBorderLines.Build(Context, rings, _planet.Radius + radiusOffset, thickness, minSegmentDegrees, color, emissionStrength);
-                _countryBorders = new ManaMeshSceneNode(Context, mesh) { Name = "Country Borders" };
-
-                // Parented under the planet so it moves/rotates with it, same reasoning as the KML
-                // overlay above.
-                _planet.AddChild(_countryBorders);
-                _countryBorders.Position = Vector3.Zero;
-                _countryBorders.UpdateTransform();
+                _countryBorders = node;
+                AddPlanetOverlayNode(_countryBorders);
             }
             catch (Exception ex)
             {
                 Trace.TraceWarning($"Failed to load country borders: {ex}");
                 ManaConsole.WriteDiagnostic($"Failed to load country borders: {ex}");
             }
+        }
+
+        private void AddStateBordersDemo()
+        {
+            try
+            {
+                var node = BuildBoundaryLineNode(
+                    StateBordersZipPath,
+                    StateBordersShpEntryName,
+                    "State/Province Borders",
+                    thickness: 0.035f,
+                    radiusOffset: 0.36f,
+                    minSegmentDegrees: 0.20f,
+                    color: new Vector4(0.62f, 0.86f, 1.0f, 1.0f),
+                    emissionStrength: 1.35f);
+                if (node == null)
+                {
+                    return;
+                }
+
+                _stateBorders = node;
+                AddPlanetOverlayNode(_stateBorders);
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to load state/province borders: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to load state/province borders: {ex}");
+            }
+        }
+
+        private ManaSceneNode? BuildBoundaryLineNode(
+            string zipPath,
+            string shpEntryName,
+            string name,
+            float thickness,
+            float radiusOffset,
+            float minSegmentDegrees,
+            Vector4 color,
+            float emissionStrength)
+        {
+            if (_planet == null || !File.Exists(zipPath))
+            {
+                return null;
+            }
+
+            var rings = ReadShapefileRingsFromZip(zipPath, shpEntryName);
+
+            // Thin map ribbons sitting just above the terrain radius to avoid z-fighting.
+            var mesh = CountryBorderLines.Build(Context, rings, _planet.Radius + radiusOffset, thickness, minSegmentDegrees, color, emissionStrength);
+            return new ManaMeshSceneNode(Context, mesh)
+            {
+                Name = name,
+                IncludeInEnvironmentCapture = false,
+            };
+        }
+
+        private static List<IReadOnlyList<(double Longitude, double Latitude)>> ReadShapefileRingsFromZip(string zipPath, string shpEntryName)
+        {
+            var rings = new List<IReadOnlyList<(double Longitude, double Latitude)>>();
+            using var archive = ZipFile.OpenRead(zipPath);
+            var shpEntry = archive.GetEntry(shpEntryName)
+                ?? throw new InvalidOperationException($"'{shpEntryName}' not found in {zipPath}.");
+            using var shpStream = shpEntry.Open();
+            foreach (var ring in ShapefilePolygonReader.ReadRings(shpStream))
+            {
+                rings.Add(ring);
+            }
+
+            return rings;
+        }
+
+        private void AddPlanetOverlayNode(ManaSceneNode node)
+        {
+            if (_planet == null)
+            {
+                return;
+            }
+
+            // Parented under the planet so overlays move/rotate with it, same reasoning as the KML
+            // overlay above.
+            _planet.AddChild(node);
+            node.Position = Vector3.Zero;
+            node.UpdateTransform();
         }
 
         private static string ResolveManaAssetPath(string relativePath)

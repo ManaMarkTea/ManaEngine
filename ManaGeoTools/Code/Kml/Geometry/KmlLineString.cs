@@ -1,11 +1,10 @@
 using System.Xml.Linq;
+using Mana.Code;
+using Mana.Code.Shapes;
 using ManaGeoTools.Code.Xml;
 
 namespace ManaGeoTools.Code.Kml.Geometry
 {
-    // Data-only, matching the source: Kml_LineString.gd never implements a mesh/tube renderer for
-    // it either (BuildMesh stays null, inherited from KmlGeometry). Left as a known gap, not
-    // invented here.
     public sealed class KmlLineString : KmlGeometry
     {
         public KmlCoordinates Coordinates { get; }
@@ -15,6 +14,16 @@ namespace ManaGeoTools.Code.Kml.Geometry
             var coordinatesElement = element.LocalElement("coordinates")
                 ?? throw new InvalidOperationException("KML LineString missing <coordinates>.");
             Coordinates = new KmlCoordinates(coordinatesElement);
+        }
+
+        public override ManaMesh? BuildMesh(ManaContext context)
+        {
+            return BuildMesh(context, style: null);
+        }
+
+        public override ManaMesh? BuildMesh(ManaContext context, KmlStyle? style)
+        {
+            return KmlLineMeshFactory.Build(context, Coordinates.Data, closed: false, style);
         }
     }
 }

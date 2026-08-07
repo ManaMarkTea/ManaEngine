@@ -44,8 +44,10 @@ namespace ManaGraphics.Code.Graphics
         private bool _configured;
         private readonly List<ManaWebGpuSceneMesh> _sceneMeshes = new();
         private readonly Dictionary<string, ManaWebGpuSceneMesh> _sceneMeshMap = new();
+        private readonly Queue<DeferredSceneMeshDisposal> _deferredSceneMeshDisposals = new();
         private readonly Dictionary<string, ManaWebGpuMeshTexture> _meshTextureCache = new(StringComparer.OrdinalIgnoreCase);
         private ManaRenderScene? _activeRenderScene;
+        private ulong _frameSerial;
         private Vector3 _demoMeshCenter;
         private float _demoMeshScale = 1.0f;
         // group 0 -- per-frame globals (camera/time/lights), written+bound once per frame, not per mesh.
@@ -84,6 +86,8 @@ namespace ManaGraphics.Code.Graphics
         public double LastDrawMs { get; private set; }
         public double LastSubmitMs { get; private set; }
         public double LastFrameTotalMs { get; private set; }
+
+        private readonly record struct DeferredSceneMeshDisposal(ulong DisposeAfterFrame, ManaWebGpuSceneMesh SceneMesh);
 
         public ManaWebGpuContext(IWindow window, IInputContext? input, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
         {
@@ -178,6 +182,9 @@ namespace ManaGraphics.Code.Graphics
 
         public void ClearFrame(Color clearColor)
         {
+            _frameSerial++;
+            DrainDeferredSceneMeshDisposals();
+
             if (!_configured)
             {
                 return;
@@ -317,6 +324,7 @@ namespace ManaGraphics.Code.Graphics
 
         public void Dispose()
         {
+            DrainDeferredSceneMeshDisposals(force: true);
             ReleaseDemoResources();
 
             if (_surface != null && _configured)
