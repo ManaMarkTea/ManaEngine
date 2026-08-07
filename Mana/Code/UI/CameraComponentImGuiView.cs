@@ -2,16 +2,9 @@ using ImGuiNET;
 
 namespace Mana.Code.UI
 {
-    public class CameraComponentImGuiView
+    public sealed class CameraComponentImGuiView
     {
-        public void Draw(
-            CameraComponent camera,
-            Vector3 position,
-            Vector3 rotationEuler,
-            ref float pitch,
-            ref float yaw,
-            float[] dxHist,
-            float[] dyHist)
+        public void Draw(CameraComponent camera)
         {
             if (BaseGameMode.UtilityDockId != 0)
             {
@@ -20,8 +13,10 @@ namespace Mana.Code.UI
 
             ImGui.Begin("Camera");
 
-            var numericPos = position;
-            var numericRot = rotationEuler;
+            var numericPos = camera.Owner.Position;
+            var numericRot = camera.Owner.Rotation;
+            var pitch = numericRot.X;
+            var yaw = numericRot.Y;
 
             ImGui.SeparatorText("Transform");
             if (ImGui.InputFloat3("Pos", ref numericPos))
@@ -36,6 +31,9 @@ namespace Mana.Code.UI
 
             ImGui.InputFloat("Pitch", ref pitch);
             ImGui.InputFloat("Yaw", ref yaw);
+
+            var dxHist = camera.GetMouseDeltaHistoryXSnapshot();
+            var dyHist = camera.GetMouseDeltaHistoryYSnapshot();
 
             ImGui.SeparatorText("Mouse");
             if (dxHist.Length > 0)
@@ -57,6 +55,18 @@ namespace Mana.Code.UI
 
             ImGui.SliderFloat("Pan Speed", ref camera.PanSpeed, 0.05f, 5.0f);
 
+            ImGui.Text($"Projection: {(camera.OrthoGraphic ? "Orthographic" : "Perspective")}");
+            if (ImGui.Button("Perspective"))
+            {
+                camera.SetProjectionMode(false);
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Ortho"))
+            {
+                camera.SetProjectionMode(true);
+            }
+
             if (ImGui.DragFloat("FoV", ref camera.FieldOfViewDegrees, 1.0f, 1.0f, 150.0f))
             {
                 camera.UpdateProjection();
@@ -75,18 +85,6 @@ namespace Mana.Code.UI
             if (ImGui.DragFloat("Far Clip", ref camera.FarClipPlane, 10.0f, 1.0f, 1000000.0f))
             {
                 camera.UpdateProjection();
-            }
-
-            ImGui.Text($"Projection: {(camera.OrthoGraphic ? "Orthographic" : "Perspective")}");
-            if (ImGui.Button("Perspective"))
-            {
-                camera.SetProjectionMode(false);
-            }
-
-            ImGui.SameLine();
-            if (ImGui.Button("Ortho"))
-            {
-                camera.SetProjectionMode(true);
             }
 
             if (ImGui.DragFloat("Ortho Height", ref camera.OrthographicHeight, 1.0f, 1.0f, 1000.0f))
@@ -139,8 +137,8 @@ namespace Mana.Code.UI
                 ImGuiExt.InputMatrix4("View", ref camera._ViewMatrix);
             }
 
-            camera.UpdateViewMatrix();
             ImGui.End();
+            camera.UpdateViewMatrix();
         }
     }
 }

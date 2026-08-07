@@ -74,19 +74,16 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>
-        /// Same as ApplyHeightData, but also raises the patch's own vertex grid resolution (never
-        /// lowers it -- a no-op if resolution is already at least this high). Plain ApplyHeightData
-        /// re-samples the SAME fixed-size grid with new data, which only improves per-vertex accuracy;
-        /// it can't add visible density since the vertex count never changes. That's the right behavior
-        /// for the initial whole-globe ETOPO load (every patch shares one resolution, chosen up front
-        /// for the whole planet's budget), but a one-off on-demand up-res of a single patch (see
-        /// PlanetNode.TryBeginPatchUpres) is pointless without this -- fetching far higher-resolution
-        /// source data into a grid too coarse to represent it wastes almost all of that detail.
+        /// Same as ApplyHeightData, but also sets the patch's own vertex grid resolution to match the
+        /// detail level the caller picked for the source data. Plain ApplyHeightData re-samples the
+        /// same fixed-size grid with new data, which only improves per-vertex accuracy; it can't add
+        /// visible density since the vertex count never changes. On-demand up-res uses this path so a
+        /// patch can match the streamed source-data sample span directly.
         /// </summary>
         public void ApplyHeightDataWithResolution(GeoTiffLibrary heightLibrary, int resolution)
         {
             HeightLibrary = heightLibrary;
-            Resolution = Math.Max(Resolution, Math.Max(2, resolution));
+            Resolution = Math.Max(2, resolution);
             GenerateData();
         }
 

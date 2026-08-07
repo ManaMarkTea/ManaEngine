@@ -523,6 +523,8 @@
        subsystem, but still compile into Mana until their ManaContext-era
        dependencies are replaced with ManaCore contracts. -->
   <ItemGroup>
+    <Compile Include="..\ManaGraphics\Code\Graphics\ManaImGuiClipboardBridge.cs"
+             Link="Code\Graphics\ManaImGuiClipboardBridge.cs" />
     <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
              Link="Code\Graphics\OpenGL\Legacy\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

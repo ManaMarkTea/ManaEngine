@@ -540,7 +540,19 @@ namespace Mana.Code.UI
 
             if (editableUniforms.Count == 0)
             {
-                ImGui.TextDisabled("No editable material uniforms");
+                var diagnostic = ManaWebGpuCustomUniformSchemaCache.GetSchemaDiagnostic(shaderName);
+                if (!string.IsNullOrWhiteSpace(diagnostic))
+                {
+                    ImGui.TextDisabled(diagnostic);
+                }
+                else if (schema.Fields.Count > 0)
+                {
+                    ImGui.TextDisabled($"Found {schema.Fields.Count} WGSL properties, but no editable material uniform values are populated.");
+                }
+                else
+                {
+                    ImGui.TextDisabled("No editable material uniforms");
+                }
             }
 
             // GLSL-reflected uniform list, only available when a GLSL shader actually compiled for

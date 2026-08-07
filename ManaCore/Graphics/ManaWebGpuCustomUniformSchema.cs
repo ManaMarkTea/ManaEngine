@@ -84,7 +84,9 @@ namespace ManaCore.Graphics
             {
                 ["ManaLightningBallShader"] = "lightning_ball.wgsl",
                 ["ManaLiquidBallShader"] = "liquid_ball.wgsl",
-                ["ManaPbrShader"] = DefaultShaderFileName
+                ["ManaOceanShader"] = "ocean.wgsl",
+                ["ManaPbrShader"] = DefaultShaderFileName,
+                ["ManaWaterShader"] = "water.wgsl",
             };
 
         private static readonly Dictionary<string, ManaWebGpuCustomUniformSchema> Schemas = new(StringComparer.Ordinal);
@@ -105,6 +107,57 @@ namespace ManaCore.Graphics
                 Schemas[shaderName] = schema;
                 return schema;
             }
+        }
+
+        public static string? GetSchemaDiagnostic(string? shaderName)
+        {
+            if (string.IsNullOrWhiteSpace(shaderName))
+            {
+                return "No shader assigned.";
+            }
+
+            if (!TryResolveShaderFileName(shaderName, out var shaderFileName))
+            {
+                return $"No WGSL shader file resolved for '{shaderName}'.";
+            }
+
+            var shaderPath = ResolveWebGpuShaderPath(shaderFileName);
+            if (shaderPath == null)
+            {
+                return $"Resolved '{shaderName}' to '{shaderFileName}', but the file was not found.";
+            }
+
+            string source;
+            try
+            {
+                source = File.ReadAllText(shaderPath);
+            }
+            catch (Exception ex)
+            {
+                return $"Could not read '{shaderFileName}': {ex.Message}";
+            }
+
+            var hasPropertyAnnotations = PropertyAnnotationRegex.IsMatch(source);
+            var hasCustomUniformStruct = CustomUniformStructRegex.IsMatch(source);
+            if (!hasPropertyAnnotations && !hasCustomUniformStruct)
+            {
+                return null;
+            }
+
+            var schema = ParseSchema(source);
+            if (schema.Fields.Count > 0)
+            {
+                return null;
+            }
+
+            if (!hasCustomUniformStruct)
+            {
+                return $"'{shaderFileName}' has PROPERTY annotations but no CustomMaterialUniform struct.";
+            }
+
+            return hasPropertyAnnotations
+                ? $"'{shaderFileName}' has PROPERTY annotations, but no editable fields were parsed."
+                : $"'{shaderFileName}' declares CustomMaterialUniform, but no editable fields were parsed.";
         }
 
         private static ManaWebGpuCustomUniformSchema LoadSchema(string shaderName)

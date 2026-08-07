@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using ImGuiNET;
+using ManaGraphics.Code.Graphics;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
@@ -14,12 +15,14 @@ namespace Mana.Code.Graphics
     {
         private readonly ImGuiController _controller;
         private readonly IMouse? _mouse;
+        private readonly ManaImGuiClipboardBridge _clipboardBridge;
         private nint _iniFilename;
 
         public ManaOpenGlImGuiController(GL gl, IWindow window, IInputContext input)
         {
             _controller = new ImGuiController(gl, window, input);
             _mouse = input.Mice.FirstOrDefault();
+            _clipboardBridge = new ManaImGuiClipboardBridge(input.Keyboards.FirstOrDefault());
             ImGui.GetIO().BackendFlags |= ImGuiBackendFlags.HasMouseCursors;
             ConfigureIniStorage();
         }
@@ -49,6 +52,7 @@ namespace Mana.Code.Graphics
         public void Dispose()
         {
             SaveIniSettings();
+            _clipboardBridge.Dispose();
             _controller.Dispose();
             if (_iniFilename != 0)
             {

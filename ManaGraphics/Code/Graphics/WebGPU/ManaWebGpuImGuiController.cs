@@ -39,6 +39,7 @@ namespace ManaGraphics.Code.Graphics
         private Buffer* _indexBuffer;
         private ulong _indexBufferSize = 0;
         private nint _iniFilename;
+        private readonly ManaImGuiClipboardBridge _clipboardBridge;
         private bool _frameFinalized;
 
         public ManaWebGpuImGuiController(WebGPU api, Device* device, Queue* queue, TextureFormat surfaceFormat, IWindow window, IInputContext input)
@@ -51,6 +52,7 @@ namespace ManaGraphics.Code.Graphics
             _input = input;
 
             InitImGui();
+            _clipboardBridge = new ManaImGuiClipboardBridge(_input.Keyboards.FirstOrDefault());
             SetupPipeline();
             RecreateFontDeviceTexture();
             SetupInputCallbacks();
@@ -462,6 +464,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             {
                 io.AddKeyEvent(imguiKey, true);
             }
+
+            UpdateModifierKeyEvents(io, keyboard, key, true);
         }
 
         private void OnKeyUp(IKeyboard keyboard, Key key, int keyCode)
@@ -472,6 +476,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             {
                 io.AddKeyEvent(imguiKey, false);
             }
+
+            UpdateModifierKeyEvents(io, keyboard, key, false);
         }
 
         private void OnKeyChar(IKeyboard keyboard, char character)
@@ -794,6 +800,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             if (_pipeline != null) _api.RenderPipelineRelease(_pipeline);
             if (_shaderModule != null) _api.ShaderModuleRelease(_shaderModule);
 
+            _clipboardBridge.Dispose();
             ImGui.DestroyContext();
             if (_iniFilename != 0)
             {
@@ -894,6 +901,34 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
                 Key.Number9 => ImGuiKey._9,
                 _ => ImGuiKey.None
             };
+        }
+
+        private static void UpdateModifierKeyEvents(ImGuiIOPtr io, IKeyboard keyboard, SilkKey eventKey, bool eventDown)
+        {
+            io.AddKeyEvent(ImGuiKey.ModCtrl, IsModifierDown(keyboard, Key.ControlLeft, Key.ControlRight, eventKey, eventDown));
+            io.AddKeyEvent(ImGuiKey.ModShift, IsModifierDown(keyboard, Key.ShiftLeft, Key.ShiftRight, eventKey, eventDown));
+            io.AddKeyEvent(ImGuiKey.ModAlt, IsModifierDown(keyboard, Key.AltLeft, Key.AltRight, eventKey, eventDown));
+            io.AddKeyEvent(ImGuiKey.ModSuper, IsModifierDown(keyboard, Key.SuperLeft, Key.SuperRight, eventKey, eventDown));
+        }
+
+        private static bool IsModifierDown(
+            IKeyboard keyboard,
+            SilkKey leftKey,
+            SilkKey rightKey,
+            SilkKey eventKey,
+            bool eventDown)
+        {
+            if (eventKey == leftKey)
+            {
+                return eventDown || keyboard.IsKeyPressed(rightKey);
+            }
+
+            if (eventKey == rightKey)
+            {
+                return eventDown || keyboard.IsKeyPressed(leftKey);
+            }
+
+            return keyboard.IsKeyPressed(leftKey) || keyboard.IsKeyPressed(rightKey);
         }
     }
 }

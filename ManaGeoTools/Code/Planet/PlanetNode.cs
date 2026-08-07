@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Mana.Code;
 using Mana.Code.Nodes;
 using ManaGeoTools.Code.GeoTiff;
@@ -25,6 +26,12 @@ namespace ManaGeoTools.Code.Planet
         Failed,
     }
 
+    public readonly record struct PatchDetailInfo(
+        int? Zoom,
+        int MeshResolution,
+        int? SourceResolution,
+        double? SourceMetersPerPixel);
+
     public sealed class PlanetNode : ManaSceneNode
     {
         public float Radius { get; }
@@ -39,7 +46,7 @@ namespace ManaGeoTools.Code.Planet
         // A "leaf" is one currently-rendered patch of the planet's quadtree -- either an original grid
         // square, or the result of one or more splits (see SplitPatch). Non-leaf (already-split)
         // patches don't exist as entries here or in the scene graph at all; splitting removes the
-        // parent and adds its 4 children in one step.
+        // parent and adds its refined children in one step.
         private sealed class PatchLeaf
         {
             public required PlanetPatchMesh Mesh { get; init; }
@@ -50,33 +57,69 @@ namespace ManaGeoTools.Code.Planet
             // baked into the Node's display Name (see PatchName) so it's visible directly in the
             // Outliner instead of needing to cross-reference the log.
             public int? Zoom { get; set; }
+
+            // Approximate number of source-data samples across this patch at Zoom. Null for the
+            // whole-globe ETOPO baseline before an on-demand Terrarium up-res.
+            public int? SourceResolution { get; set; }
+
+            // Approximate source-data ground resolution at the patch center latitude. Web Mercator
+            // pixels vary by latitude, so this is intentionally a patch-local estimate.
+            public double? SourceMetersPerPixel { get; set; }
         }
 
         private readonly Dictionary<PatchKey, PatchLeaf> _leaves = new();
         private readonly Dictionary<ManaSceneNode, PatchKey> _nodeToPatchKey = new();
-        // Guarded by _rebuildLock like everything else here -- written from the background upres task,
-        // read every frame from the main thread (see VoxelEditorGameMode's selection-outline logic) to
-        // color a selected patch's outline by how its up-res is going.
-        private readonly Dictionary<PatchKey, PatchUpresStatus> _upresStatus = new();
+        private readonly ConcurrentDictionary<PatchKey, PatchDetailInfo> _patchDetails = new();
+        // Read every frame from the main thread (see VoxelEditorGameMode's selection-outline logic),
+        // so status lookups deliberately stay off _rebuildLock; that lock can be held while rebuilding
+        // large patch meshes after a cached Terrarium fetch completes.
+        private readonly ConcurrentDictionary<PatchKey, PatchUpresStatus> _upresStatus = new();
 
-        // Tracks a split that's fetching its 4 children in the background -- see BeginSplitLocked's doc
-        // comment for why this exists (avoiding a visible "downrez then refill" flash).
+        // Tracks a split/refinement that's fetching its children in the background -- see
+        // BeginSplitLocked's doc comment for why this exists (avoiding a visible "downrez then refill"
+        // flash).
         private sealed class PendingSplit
         {
             public required PatchKey ParentKey { get; init; }
             public required PatchLeaf ParentLeaf { get; init; }
             public required PatchKey[] ChildKeys { get; init; }
             public required PlanetPatchMesh[] ChildMeshes { get; init; }
+            public required PatchUpresPlan[] ChildPlans { get; init; }
             public required bool[] ChildReady { get; init; }
+            public required bool[] ChildSucceeded { get; init; }
             public required int?[] ChildZoom { get; init; }
         }
 
+        private sealed class PatchUpresPlan
+        {
+            public required int Zoom { get; init; }
+            public required int MeshResolution { get; init; }
+            public required int SourceResolution { get; init; }
+            public required double SourceMetersPerPixel { get; init; }
+            public required IReadOnlyList<(int X, int Y)> TileIndices { get; init; }
+        }
+
+        private readonly record struct TerrariumTileKey(int Zoom, int X, int Y);
+
+        private sealed class PatchSplitPlan
+        {
+            public required IReadOnlyList<PlannedPatch> Children { get; init; }
+        }
+
+        private readonly record struct PlannedPatch(
+            PatchKey Key,
+            float MinU,
+            float MaxU,
+            float MinV,
+            float MaxV,
+            PatchUpresPlan Plan);
+
         // Parent keys with a split currently in flight -- guards against double-triggering a second
         // split for the same parent before the first one's children finish (see TrySplitPatch).
-        private readonly HashSet<PatchKey> _splitPending = new();
+        private readonly ConcurrentDictionary<PatchKey, byte> _splitPending = new();
 
-        // Splits whose 4 children have all finished fetching, waiting for ProcessPendingSplits to
-        // actually swap them into the scene graph on the main thread -- see UpresPendingChildAsync.
+        // Splits whose children have all finished fetching, waiting for ProcessPendingSplits to
+        // actually swap them into the scene graph on the main thread -- see UpresPendingChildrenAsync.
         private readonly Queue<PendingSplit> _readyToFinalize = new();
 
         private readonly PlanetOceanMesh _oceanMesh;
@@ -95,11 +138,16 @@ namespace ManaGeoTools.Code.Planet
         private const int UpresMaxZoom = 13;
         private const int UpresMaxConcurrentFetches = 24;
 
-        // Raised to once a patch is up-res'd (see ApplyHeightDataWithResolution's doc comment) -- the
-        // whole-globe default (passed as `resolution` to PlanetNode's constructor, currently 24) is
-        // sized for every patch at once; a single on-demand up-res can afford far more density since
-        // it's the user opting one patch in specifically, not a whole-planet cost.
-        private const int UpresPatchResolution = 160;
+        // SourceResolution records the approximate Terrarium sample span, which can be thousands of
+        // pixels for a high-zoom cached patch. This is a per-leaf mesh ceiling, not a final density
+        // ceiling: the refinement planner subdivides until each leaf's source span fits under it.
+        private const int InitialTerrariumUpresZoom = 7;
+        private const int FallbackPatchResolution = 160;
+        private const int MaxPatchMeshResolution = 1025;
+        private const int MaxDirectSourceMatchDepth = 3;
+        private const int PatchNameSplitPathTailDigits = 4;
+
+        private static readonly SemaphoreSlim UpresFetchThrottle = new(UpresMaxConcurrentFetches);
 
         private float _heightExaggeration;
 
@@ -142,10 +190,11 @@ namespace ManaGeoTools.Code.Planet
                         var mesh = new PlanetPatchMesh(
                             context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null);
                         var key = PatchKey.Root(face, row, col);
-                        var node = new ManaMeshSceneNode(context, mesh) { Name = PatchName(key) };
+                        var node = new ManaMeshSceneNode(context, mesh) { Name = PatchName(key, meshResolution: mesh.Resolution) };
                         AddChild(node);
                         _leaves[key] = new PatchLeaf { Mesh = mesh, Node = node };
                         _nodeToPatchKey[node] = key;
+                        _patchDetails[key] = new PatchDetailInfo(null, mesh.Resolution, null, null);
                     }
                 }
             }
@@ -205,30 +254,47 @@ namespace ManaGeoTools.Code.Planet
         /// resolution once they're in (see UpresPatchAsync). Safe -- and idempotent -- to call
         /// repeatedly for the same key, e.g. every time it's (re)selected: only the very first call per
         /// key does anything; once a patch is Done, InProgress, or Failed, further calls are a no-op.
-        /// Reaching even finer detail than one up-res gives requires the separate, deliberate
-        /// TrySplitPatch -- plain (re)selection alone never cascades into a split, precisely so
-        /// casually re-examining a patch can't accidentally trigger one.
+        /// The source-data resolution is tracked separately from the mesh resolution, which is capped
+        /// to keep an on-demand cache hit from generating an enormous mesh in one rebuild. Reaching
+        /// finer source data requires the separate, deliberate TrySplitPatch path so a smaller region
+        /// can qualify for a higher Terrarium zoom.
         /// </summary>
         public void TryBeginPatchUpres(PatchKey key)
         {
-            lock (_rebuildLock)
+            if (!Monitor.TryEnter(_rebuildLock))
             {
-                if (HeightLibrary == null || !_leaves.TryGetValue(key, out var leaf) || _upresStatus.ContainsKey(key))
+                return;
+            }
+
+            try
+            {
+                if (HeightLibrary == null || !_leaves.TryGetValue(key, out var leaf))
                 {
                     return;
                 }
 
-                BeginPatchUpresLocked(key, leaf.Mesh);
+                if (_upresStatus.TryGetValue(key, out var status)
+                    && status is PatchUpresStatus.InProgress or PatchUpresStatus.Done)
+                {
+                    return;
+                }
+
+                BeginPatchUpresLocked(key, leaf);
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
             }
         }
 
         /// <summary>
         /// Deliberately splits an already up-res'd (Done) patch into 4 smaller patches, each of which
-        /// immediately starts its own up-res fetch -- since each child covers 1/4 the area, it can reach
-        /// a finer zoom within the same tile budget than the whole parent could, without any one
-        /// patch's resolution growing without bound (see BeginSplitLocked). Unlike TryBeginPatchUpres,
+        /// immediately starts its own up-res fetch -- since each child covers 1/4 the area, it may be
+        /// able to use a higher Terrarium zoom while staying inside the tile budget. Splitting is
+        /// rejected when it would only subdivide already-represented source data.
+        /// Unlike TryBeginPatchUpres,
         /// this is intentionally NEVER triggered by plain reselection -- only by an explicit user action
-        /// (the Inspector's "Split for finer detail" button, shown once a patch reaches Done) --
+        /// (the Inspector's "Increase source zoom" button, shown once a patch reaches Done) --
         /// otherwise a couple of casual re-clicks near the same spot as it splits and its children
         /// finish (fast, since each child fetches far less than the original) can cascade several
         /// levels deep before you notice. No-ops if the patch isn't currently Done (already split away,
@@ -237,9 +303,14 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void TrySplitPatch(PatchKey key)
         {
-            lock (_rebuildLock)
+            if (!Monitor.TryEnter(_rebuildLock))
             {
-                if (!_leaves.TryGetValue(key, out var leaf) || _splitPending.Contains(key))
+                return;
+            }
+
+            try
+            {
+                if (!_leaves.TryGetValue(key, out var leaf) || _splitPending.ContainsKey(key))
                 {
                     return;
                 }
@@ -250,256 +321,511 @@ namespace ManaGeoTools.Code.Planet
                     return;
                 }
 
-                _splitPending.Add(key);
-                BeginSplitLocked(key, leaf);
+                if (!TryCreateSplitPlanLocked(key, leaf, includeTileIndices: true, out var splitPlan))
+                {
+                    Console.WriteLine($"[Terrarium] Split {PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel)} skipped: could not increase source zoom by one without undersampling.");
+                    return;
+                }
+
+                if (splitPlan.Children.Count == 1 && splitPlan.Children[0].Key.Equals(key))
+                {
+                    _upresStatus[key] = PatchUpresStatus.InProgress;
+                    Task.Run(() => UpresPatchAsync(key, leaf.Mesh, splitPlan.Children[0].Plan));
+                    return;
+                }
+
+                if (!_splitPending.TryAdd(key, 0))
+                {
+                    return;
+                }
+
+                BeginSplitLocked(key, leaf, splitPlan);
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
             }
         }
 
-        /// <summary>Whether key's split (see TrySplitPatch) is currently fetching its 4 children.</summary>
+        /// <summary>
+        /// True when one explicit action can increase key's Terrarium source zoom by one level without
+        /// undersampling the resulting source data.
+        /// </summary>
+        public bool CanSplitPatch(PatchKey key)
+        {
+            if (!Monitor.TryEnter(_rebuildLock))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (!_leaves.TryGetValue(key, out var leaf) || _splitPending.ContainsKey(key))
+                {
+                    return false;
+                }
+
+                var status = _upresStatus.TryGetValue(key, out var existing) ? existing : PatchUpresStatus.NotRequested;
+                return status == PatchUpresStatus.Done && TryCreateSplitPlanLocked(key, leaf, includeTileIndices: false, out _);
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
+            }
+        }
+
+        /// <summary>Whether key's split/refinement is currently fetching child patches.</summary>
         public bool IsSplitPending(PatchKey key)
         {
-            lock (_rebuildLock)
-            {
-                return _splitPending.Contains(key);
-            }
+            return _splitPending.ContainsKey(key);
+        }
+
+        private static int? GetNextSourceZoom(PatchLeaf leaf)
+        {
+            var currentZoom = leaf.Zoom ?? (InitialTerrariumUpresZoom - 1);
+            return currentZoom >= UpresMaxZoom ? null : currentZoom + 1;
         }
 
         // Caller must already hold _rebuildLock.
-        private void BeginPatchUpresLocked(PatchKey key, PlanetPatchMesh mesh)
+        private void BeginPatchUpresLocked(PatchKey key, PatchLeaf leaf)
         {
+            var targetZoom = GetNextSourceZoom(leaf);
+            if (!targetZoom.HasValue)
+            {
+                _upresStatus[key] = PatchUpresStatus.Done;
+                return;
+            }
+
+            var plannedPatches = CreateSourceMatchedPatchPlan(key, leaf.Mesh, targetZoom.Value, includeTileIndices: true);
+            if (plannedPatches == null)
+            {
+                Console.WriteLine($"[Terrarium] Patch {PatchName(key, meshResolution: leaf.Mesh.Resolution)} could not increase source zoom to z{targetZoom.Value} without undersampling -- skipping up-res.");
+                _upresStatus[key] = PatchUpresStatus.Failed;
+                return;
+            }
+
             _upresStatus[key] = PatchUpresStatus.InProgress;
-            Task.Run(() => UpresPatchAsync(key, mesh));
+            if (plannedPatches.Count == 1 && plannedPatches[0].Key.Equals(key))
+            {
+                Task.Run(() => UpresPatchAsync(key, leaf.Mesh, plannedPatches[0].Plan));
+                return;
+            }
+
+            if (!_splitPending.TryAdd(key, 0))
+            {
+                return;
+            }
+
+            BeginSplitLocked(key, leaf, new PatchSplitPlan { Children = plannedPatches });
         }
 
-        // Caller must already hold _rebuildLock. Builds all 4 child meshes now (quadrant = a quarter of
-        // the parent's U/V range each) and kicks off each one's own up-res fetch, but touches neither
-        // the scene graph nor _leaves yet -- the parent keeps rendering, unchanged, at its current
-        // up-res'd resolution until every child has finished (successfully or not; see
-        // UpresPendingChildAsync/CompletePendingChild), at which point FinalizeSplit swaps the parent
-        // out and all 4 children in together as one step. Building each child fully (construction, then
-        // its own ApplyHeightDataWithResolution once fetched) before it's ever added to the scene means
-        // the very first frame a child is actually part of the scene graph, it's already at its final
-        // resolution -- no visible "downrez then refill" flash where a lower-detail placeholder would
-        // otherwise show up front and get replaced moments later.
+        // Caller must already hold _rebuildLock. Creates cheap, invisible child mesh placeholders
+        // (quadrant = a quarter of the parent's U/V range each) and kicks off each one's own up-res
+        // fetch, but touches neither the scene graph nor _leaves yet -- the parent keeps rendering,
+        // unchanged, until every child has finished. FinalizeSplit swaps the parent out only if all
+        // children fetched usable source data; otherwise the parent remains visible. Each child is
+        // rebuilt from fetched/cached Terrarium data before it is added to the scene, so no placeholder
+        // is ever visible.
         //
         // ComputePatchLonLatBounds/TileOverlapsPatch/PlanetPatchMesh's own skirt geometry all read only
         // a mesh's own FaceNormal/MinU/MaxU/MinV/MaxV, never grid coordinates or how the sub-rectangle
         // was derived, so a split child needs no special-casing anywhere else -- it's indistinguishable
         // from an original grid patch to every other part of this class.
-        private void BeginSplitLocked(PatchKey parentKey, PatchLeaf parentLeaf)
+        private void BeginSplitLocked(PatchKey parentKey, PatchLeaf parentLeaf, PatchSplitPlan splitPlan)
         {
             var parentMesh = parentLeaf.Mesh;
-            var midU = (parentMesh.MinU + parentMesh.MaxU) * 0.5f;
-            var midV = (parentMesh.MinV + parentMesh.MaxV) * 0.5f;
             var heightScale = ComputeHeightScale();
+            var children = splitPlan.Children;
 
             var pending = new PendingSplit
             {
                 ParentKey = parentKey,
                 ParentLeaf = parentLeaf,
-                ChildKeys = new PatchKey[4],
-                ChildMeshes = new PlanetPatchMesh[4],
-                ChildReady = new bool[4],
-                ChildZoom = new int?[4],
+                ChildKeys = new PatchKey[children.Count],
+                ChildMeshes = new PlanetPatchMesh[children.Count],
+                ChildPlans = children.Select(child => child.Plan).ToArray(),
+                ChildReady = new bool[children.Count],
+                ChildSucceeded = new bool[children.Count],
+                ChildZoom = new int?[children.Count],
             };
 
-            Console.WriteLine($"[Terrarium] Splitting {PatchName(parentKey)}: fetching all 4 children before swapping in (parent stays visible until then).");
+            var targetZooms = string.Join("/", children.Select(child => $"z{child.Plan.Zoom}").Distinct().OrderBy(zoom => zoom));
+            Console.WriteLine($"[Terrarium] Increasing {PatchName(parentKey, parentLeaf.Zoom, parentLeaf.Mesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)} to {targetZooms}: building {children.Count} child patch(es) before swapping in (parent stays visible until then).");
 
-            for (var quadrant = 0; quadrant < 4; quadrant++)
+            for (var index = 0; index < children.Count; index++)
             {
-                var quadMinU = (quadrant & 1) == 0 ? parentMesh.MinU : midU;
-                var quadMaxU = (quadrant & 1) == 0 ? midU : parentMesh.MaxU;
-                var quadMinV = (quadrant & 2) == 0 ? parentMesh.MinV : midV;
-                var quadMaxV = (quadrant & 2) == 0 ? midV : parentMesh.MaxV;
-
-                var childKey = parentKey.Child(quadrant);
+                var child = children[index];
                 var childMesh = new PlanetPatchMesh(
-                    Context, parentMesh.FaceNormal, quadMinU, quadMaxU, quadMinV, quadMaxV, Radius, Resolution, heightScale, HeightLibrary);
+                    Context, parentMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius, resolution: 2, heightScale, heightLibrary: null);
 
-                pending.ChildKeys[quadrant] = childKey;
-                pending.ChildMeshes[quadrant] = childMesh;
-
-                var quadrantCaptured = quadrant;
-                Task.Run(() => UpresPendingChildAsync(pending, quadrantCaptured));
+                pending.ChildKeys[index] = child.Key;
+                pending.ChildMeshes[index] = childMesh;
             }
+
+            Task.Run(() => UpresPendingChildrenAsync(pending));
         }
 
-        private async Task UpresPendingChildAsync(PendingSplit pending, int quadrant)
+        private async Task UpresPendingChildrenAsync(PendingSplit pending)
         {
-            var key = pending.ChildKeys[quadrant];
-            var mesh = pending.ChildMeshes[quadrant];
+            var tileKeys = pending.ChildPlans
+                .SelectMany(plan => plan.TileIndices.Select(index => new TerrariumTileKey(plan.Zoom, index.X, index.Y)))
+                .Distinct()
+                .ToList();
+            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: fetching {tileKeys.Count} unique tile(s) for {pending.ChildPlans.Length} child patch(es).");
 
-            var fetched = await FetchTilesForPatchAsync(key, mesh);
-            if (fetched is { Count: > 0 })
-            {
-                lock (_rebuildLock)
-                {
-                    foreach (var tile in fetched)
-                    {
-                        HeightLibrary!.AddTile(tile);
-                    }
-                    mesh.ApplyHeightDataWithResolution(HeightLibrary!, UpresPatchResolution);
-                    pending.ChildZoom[quadrant] = fetched[0].Zoom;
-                }
-                Console.WriteLine($"[Terrarium] Up-res {PatchName(key)}: applied {fetched.Count} tile(s) (pending swap-in).");
-            }
-            else
-            {
-                Console.WriteLine($"[Terrarium] Up-res {PatchName(key)}: no tiles fetched, will swap in at base resolution.");
-            }
+            var fetched = await FetchTilesAsync(tileKeys);
+            var fetchedKeys = fetched
+                .Select(tile => new TerrariumTileKey(tile.Zoom, tile.TileX, tile.TileY))
+                .ToHashSet();
 
-            lock (_rebuildLock)
-            {
-                pending.ChildReady[quadrant] = true;
-                if (Array.TrueForAll(pending.ChildReady, ready => ready))
-                {
-                    // NOT finalized here -- this runs on whichever background thread pool thread
-                    // happens to complete the last of the 4 children's fetches, and FinalizeSplit
-                    // mutates the scene graph (AddChild/RemoveChild on Children, a plain List<T>) --
-                    // doing that from a background thread raced with ManaWorld.CreateRenderScene()'s
-                    // every-frame main-thread traversal of that same list ("Collection was modified;
-                    // enumeration operation may not execute"). Queue it instead; ProcessPendingSplits
-                    // (called once per frame from VoxelEditorGameMode, main thread) drains and finalizes
-                    // it there.
-                    _readyToFinalize.Enqueue(pending);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Finalizes any splits whose 4 children have all finished fetching. MUST be called from the
-        /// main thread once per frame (e.g. alongside other per-frame PlanetNode calls in
-        /// VoxelEditorGameMode) -- see UpresPendingChildAsync's comment for why finalizing can't safely
-        /// happen directly from the background fetch task that detects readiness.
-        /// </summary>
-        public void ProcessPendingSplits()
-        {
-            List<PendingSplit>? ready = null;
-            lock (_rebuildLock)
-            {
-                if (_readyToFinalize.Count > 0)
-                {
-                    ready = new List<PendingSplit>(_readyToFinalize);
-                    _readyToFinalize.Clear();
-                }
-            }
-
-            if (ready == null)
-            {
-                return;
-            }
-
-            lock (_rebuildLock)
-            {
-                foreach (var pending in ready)
-                {
-                    FinalizeSplit(pending);
-                }
-            }
-        }
-
-        // Caller must already hold _rebuildLock.
-        private void FinalizeSplit(PendingSplit pending)
-        {
-            RemoveChild(pending.ParentLeaf.Node);
-            _leaves.Remove(pending.ParentKey);
-            _nodeToPatchKey.Remove(pending.ParentLeaf.Node);
-            _upresStatus.Remove(pending.ParentKey);
-            _splitPending.Remove(pending.ParentKey);
-
-            for (var quadrant = 0; quadrant < 4; quadrant++)
-            {
-                var childKey = pending.ChildKeys[quadrant];
-                var childMesh = pending.ChildMeshes[quadrant];
-                var childZoom = pending.ChildZoom[quadrant];
-                var childNode = new ManaMeshSceneNode(Context, childMesh) { Name = PatchName(childKey, childZoom) };
-                AddChild(childNode);
-
-                _leaves[childKey] = new PatchLeaf { Mesh = childMesh, Node = childNode, Zoom = childZoom };
-                _nodeToPatchKey[childNode] = childKey;
-                _upresStatus[childKey] = PatchUpresStatus.Done;
-            }
-
-            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey)} into 4 child patches (all pre-fetched, swapped in together). Total leaves now: {_leaves.Count}.");
-        }
-
-        public PatchUpresStatus GetPatchUpresStatus(PatchKey key)
-        {
-            lock (_rebuildLock)
-            {
-                return _upresStatus.TryGetValue(key, out var status) ? status : PatchUpresStatus.NotRequested;
-            }
-        }
-
-        private async Task UpresPatchAsync(PatchKey key, PlanetPatchMesh patch)
-        {
-            var fetched = await FetchTilesForPatchAsync(key, patch);
-            if (fetched is not { Count: > 0 })
-            {
-                if (fetched == null)
-                {
-                    Console.WriteLine($"[Terrarium] Patch {PatchName(key)} spans the antimeridian -- skipping up-res (v1 limitation).");
-                }
-                else
-                {
-                    Console.WriteLine($"[Terrarium] Up-res {PatchName(key)}: no tiles fetched successfully, leaving patch as-is.");
-                }
-                lock (_rebuildLock) { _upresStatus[key] = PatchUpresStatus.Failed; }
-                return;
-            }
-
-            var zoom = fetched[0].Zoom;
             lock (_rebuildLock)
             {
                 foreach (var tile in fetched)
                 {
                     HeightLibrary!.AddTile(tile);
                 }
-                patch.ApplyHeightDataWithResolution(HeightLibrary!, UpresPatchResolution);
+
+                for (var childIndex = 0; childIndex < pending.ChildPlans.Length; childIndex++)
+                {
+                    var plan = pending.ChildPlans[childIndex];
+                    var childFetchedAnyTile = plan.TileIndices
+                        .Any(index => fetchedKeys.Contains(new TerrariumTileKey(plan.Zoom, index.X, index.Y)));
+                    pending.ChildReady[childIndex] = true;
+                    if (!childFetchedAnyTile)
+                    {
+                        continue;
+                    }
+
+                    pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
+                    pending.ChildZoom[childIndex] = plan.Zoom;
+                    pending.ChildSucceeded[childIndex] = true;
+                }
+
+                // NOT finalized here -- this runs on a background thread pool thread, and FinalizeSplit
+                // mutates the scene graph (AddChild/RemoveChild on Children, a plain List<T>) -- doing
+                // that from a background thread raced with ManaWorld.CreateRenderScene()'s every-frame
+                // main-thread traversal of that same list ("Collection was modified; enumeration
+                // operation may not execute"). Queue it instead; ProcessPendingSplits (called once per
+                // frame from VoxelEditorGameMode, main thread) drains and finalizes it there.
+                _readyToFinalize.Enqueue(pending);
+            }
+
+            var succeededCount = pending.ChildSucceeded.Count(succeeded => succeeded);
+            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: applied {fetched.Count}/{tileKeys.Count} unique tile(s) to {succeededCount}/{pending.ChildPlans.Length} child patch(es) (pending swap-in).");
+        }
+
+        /// <summary>
+        /// Finalizes any splits whose children have all finished fetching. MUST be called from the
+        /// main thread once per frame (e.g. alongside other per-frame PlanetNode calls in
+        /// VoxelEditorGameMode) -- see UpresPendingChildrenAsync's comment for why finalizing can't safely
+        /// happen directly from the background fetch task that detects readiness.
+        /// </summary>
+        public void ProcessPendingSplits()
+        {
+            List<PendingSplit>? ready = null;
+            if (!Monitor.TryEnter(_rebuildLock))
+            {
+                return;
+            }
+
+            try
+            {
+                if (_readyToFinalize.Count > 0)
+                {
+                    ready = new List<PendingSplit>(_readyToFinalize);
+                    _readyToFinalize.Clear();
+                }
+
+                if (ready == null)
+                {
+                    return;
+                }
+
+                foreach (var pending in ready)
+                {
+                    FinalizeSplit(pending);
+                }
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
+            }
+        }
+
+        // Caller must already hold _rebuildLock.
+        private void FinalizeSplit(PendingSplit pending)
+        {
+            if (!Array.TrueForAll(pending.ChildSucceeded, succeeded => succeeded))
+            {
+                _splitPending.TryRemove(pending.ParentKey, out _);
+                if (_upresStatus.TryGetValue(pending.ParentKey, out var status) && status == PatchUpresStatus.InProgress)
+                {
+                    _upresStatus[pending.ParentKey] = PatchUpresStatus.Failed;
+                }
+                Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)} aborted: one or more children failed to fetch finer source data. Parent patch remains visible.");
+                return;
+            }
+
+            RemoveChild(pending.ParentLeaf.Node);
+            _leaves.Remove(pending.ParentKey);
+            _nodeToPatchKey.Remove(pending.ParentLeaf.Node);
+            _patchDetails.TryRemove(pending.ParentKey, out _);
+            _upresStatus.TryRemove(pending.ParentKey, out _);
+            _splitPending.TryRemove(pending.ParentKey, out _);
+
+            for (var quadrant = 0; quadrant < pending.ChildKeys.Length; quadrant++)
+            {
+                var childKey = pending.ChildKeys[quadrant];
+                var childMesh = pending.ChildMeshes[quadrant];
+                var childZoom = pending.ChildZoom[quadrant];
+                var childPlan = pending.ChildPlans[quadrant];
+                var childSourceResolution = childPlan.SourceResolution;
+                var childMetersPerPixel = childPlan.SourceMetersPerPixel;
+                var childNode = new ManaMeshSceneNode(Context, childMesh) { Name = PatchName(childKey, childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel) };
+                AddChild(childNode);
+
+                var childLeaf = new PatchLeaf
+                {
+                    Mesh = childMesh,
+                    Node = childNode,
+                    Zoom = childZoom,
+                    SourceResolution = childSourceResolution,
+                    SourceMetersPerPixel = childMetersPerPixel,
+                };
+                _leaves[childKey] = childLeaf;
+                _nodeToPatchKey[childNode] = childKey;
+                _patchDetails[childKey] = new PatchDetailInfo(childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
+                _upresStatus[childKey] = PatchUpresStatus.Done;
+            }
+
+            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)} into {pending.ChildKeys.Length} child patches (all pre-fetched, swapped in together). Total leaves now: {_leaves.Count}.");
+        }
+
+        public PatchUpresStatus GetPatchUpresStatus(PatchKey key)
+        {
+            return _upresStatus.TryGetValue(key, out var status) ? status : PatchUpresStatus.NotRequested;
+        }
+
+        public PatchDetailInfo? GetPatchDetailInfo(PatchKey key)
+        {
+            return _patchDetails.TryGetValue(key, out var detail) ? detail : null;
+        }
+
+        private async Task UpresPatchAsync(PatchKey key, PlanetPatchMesh patch, PatchUpresPlan plan)
+        {
+            var fetched = await FetchTilesForPatchAsync(key, plan);
+            if (fetched is not { Count: > 0 })
+            {
+                Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: no tiles fetched successfully, leaving patch as-is.");
+                lock (_rebuildLock) { _upresStatus[key] = PatchUpresStatus.Failed; }
+                return;
+            }
+
+            lock (_rebuildLock)
+            {
+                foreach (var tile in fetched)
+                {
+                    HeightLibrary!.AddTile(tile);
+                }
+                patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
                 _upresStatus[key] = PatchUpresStatus.Done;
                 if (_leaves.TryGetValue(key, out var leaf))
                 {
-                    leaf.Zoom = zoom;
-                    leaf.Node.Name = PatchName(key, zoom);
+                    leaf.Zoom = plan.Zoom;
+                    leaf.SourceResolution = plan.SourceResolution;
+                    leaf.SourceMetersPerPixel = plan.SourceMetersPerPixel;
+                    leaf.Node.Name = PatchName(key, plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
+                    _patchDetails[key] = new PatchDetailInfo(plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
                 }
             }
 
-            Console.WriteLine($"[Terrarium] Up-res {PatchName(key, zoom)}: applied {fetched.Count} tile(s).");
+            Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: applied {fetched.Count} tile(s).");
         }
 
-        // Shared by UpresPatchAsync (standalone up-res) and UpresPendingChildAsync (a split's child):
-        // picks a zoom (SlippyMapMath.PickZoom) and fetches every tile it needs with bounded concurrency
-        // -- a large patch can need hundreds of tiles (see UpresMaxTiles), and fetching those one at a
-        // time would take an impractically long time for what's meant to be a fairly quick action.
-        // Returns null for the (rare) antimeridian-spanning-bbox case PickZoom itself declines to
-        // handle; otherwise the list of successfully fetched tiles, which the caller may find empty if
-        // every individual fetch failed.
-        private static async Task<List<TerrariumHeightTile>?> FetchTilesForPatchAsync(PatchKey key, PlanetPatchMesh patch)
+        // Shared by standalone up-res and split/refine up-res. Fetches every unique Terrarium tile with
+        // bounded global concurrency. The returned list may be empty if every individual fetch failed.
+        private static async Task<List<TerrariumHeightTile>> FetchTilesForPatchAsync(PatchKey key, PatchUpresPlan plan)
         {
-            var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(patch);
-            var zoom = SlippyMapMath.PickZoom(lonMin, lonMax, latMin, latMax, UpresMaxTiles, UpresMaxZoom);
-            if (zoom == null)
+            Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: fetching {plan.TileIndices.Count} tile(s).");
+            var tileKeys = plan.TileIndices
+                .Select(index => new TerrariumTileKey(plan.Zoom, index.X, index.Y))
+                .ToList();
+            return await FetchTilesAsync(tileKeys);
+        }
+
+        private static async Task<List<TerrariumHeightTile>> FetchTilesAsync(IReadOnlyList<TerrariumTileKey> tileKeys)
+        {
+            var fetchTasks = tileKeys.Select(async tileKey =>
+            {
+                await UpresFetchThrottle.WaitAsync();
+                try
+                {
+                    return await TerrariumTileFetcher.FetchTileAsync(tileKey.Zoom, tileKey.X, tileKey.Y);
+                }
+                finally
+                {
+                    UpresFetchThrottle.Release();
+                }
+            });
+            return (await Task.WhenAll(fetchTasks)).Where(tile => tile != null).Select(tile => tile!).ToList();
+        }
+
+        private static IReadOnlyList<PlannedPatch>? CreateSourceMatchedPatchPlan(PatchKey key, PlanetPatchMesh patch, int targetZoom, bool includeTileIndices)
+        {
+            var plannedPatches = new List<PlannedPatch>();
+            return TryAddSourceMatchedPatchPlans(
+                key,
+                patch.FaceNormal,
+                patch.MinU,
+                patch.MaxU,
+                patch.MinV,
+                patch.MaxV,
+                targetZoom,
+                includeTileIndices,
+                plannedPatches)
+                    ? plannedPatches
+                    : null;
+        }
+
+        private static bool TryAddSourceMatchedPatchPlans(
+            PatchKey key,
+            Vector3 faceNormal,
+            float minU,
+            float maxU,
+            float minV,
+            float maxV,
+            int maxZoom,
+            bool includeTileIndices,
+            List<PlannedPatch> plannedPatches,
+            int depth = 0)
+        {
+            var plan = CreateUpresPlan(faceNormal, minU, maxU, minV, maxV, maxZoom, includeTileIndices);
+            if (plan != null && plan.SourceResolution <= MaxPatchMeshResolution)
+            {
+                plannedPatches.Add(new PlannedPatch(key, minU, maxU, minV, maxV, plan));
+                return true;
+            }
+
+            if (depth >= MaxDirectSourceMatchDepth)
+            {
+                return false;
+            }
+
+            var midU = (minU + maxU) * 0.5f;
+            var midV = (minV + maxV) * 0.5f;
+            for (var quadrant = 0; quadrant < 4; quadrant++)
+            {
+                var quadMinU = (quadrant & 1) == 0 ? minU : midU;
+                var quadMaxU = (quadrant & 1) == 0 ? midU : maxU;
+                var quadMinV = (quadrant & 2) == 0 ? minV : midV;
+                var quadMaxV = (quadrant & 2) == 0 ? midV : maxV;
+
+                if (!TryAddSourceMatchedPatchPlans(
+                    key.Child(quadrant),
+                    faceNormal,
+                    quadMinU,
+                    quadMaxU,
+                    quadMinV,
+                    quadMaxV,
+                    maxZoom,
+                    includeTileIndices,
+                    plannedPatches,
+                    depth + 1))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static PatchUpresPlan? CreateUpresPlan(
+            Vector3 faceNormal,
+            float minU,
+            float maxU,
+            float minV,
+            float maxV,
+            int maxZoom,
+            bool includeTileIndices)
+        {
+            var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(faceNormal, minU, maxU, minV, maxV);
+            var zoom = SlippyMapMath.PickZoom(lonMin, lonMax, latMin, latMax, UpresMaxTiles, maxZoom);
+            if (!zoom.HasValue)
+            {
+                return null;
+            }
+            if (zoom.Value != maxZoom)
             {
                 return null;
             }
 
-            var tileIndices = SlippyMapMath.EnumerateTiles(lonMin, lonMax, latMin, latMax, zoom.Value).ToList();
-            Console.WriteLine($"[Terrarium] Up-res {PatchName(key)}: fetching {tileIndices.Count} tile(s) @ zoom {zoom.Value}.");
-
-            using var throttle = new SemaphoreSlim(UpresMaxConcurrentFetches);
-            var fetchTasks = tileIndices.Select(async index =>
+            IReadOnlyList<(int X, int Y)> tileIndices = includeTileIndices
+                ? SlippyMapMath.EnumerateTiles(lonMin, lonMax, latMin, latMax, zoom.Value).ToList()
+                : Array.Empty<(int X, int Y)>();
+            var sourceResolution = EstimateSourceResolutionForZoom(lonMin, lonMax, latMin, latMax, zoom.Value);
+            return new PatchUpresPlan
             {
-                await throttle.WaitAsync();
-                try
-                {
-                    return await TerrariumTileFetcher.FetchTileAsync(zoom.Value, index.X, index.Y);
-                }
-                finally
-                {
-                    throttle.Release();
-                }
-            });
-            return (await Task.WhenAll(fetchTasks)).Where(tile => tile != null).Select(tile => tile!).ToList();
+                Zoom = zoom.Value,
+                MeshResolution = Math.Min(sourceResolution, MaxPatchMeshResolution),
+                SourceResolution = sourceResolution,
+                SourceMetersPerPixel = EstimateSourceMetersPerPixel(latMin, latMax, zoom.Value),
+                TileIndices = tileIndices
+            };
+        }
+
+        // Converts the streamed tile zoom into the approximate number of source samples available
+        // across this patch. Terrarium tiles are 256x256 samples in Web Mercator tile space.
+        private static int EstimateSourceResolutionForZoom(float lonMin, float lonMax, float latMin, float latMax, int zoom)
+        {
+            var (xMin, yMin) = SlippyMapMath.LatLongToTileCoords(lonMin, latMax, zoom);
+            var (xMax, yMax) = SlippyMapMath.LatLongToTileCoords(lonMax, latMin, zoom);
+            var pixelSpanX = Math.Abs(xMax - xMin) * TerrariumHeightTile.TileSize;
+            var pixelSpanY = Math.Abs(yMax - yMin) * TerrariumHeightTile.TileSize;
+            var sourceSamplesAcrossPatch = Math.Max(pixelSpanX, pixelSpanY);
+            if (double.IsNaN(sourceSamplesAcrossPatch) || double.IsInfinity(sourceSamplesAcrossPatch))
+            {
+                return FallbackPatchResolution;
+            }
+
+            return Math.Max(2, (int)Math.Ceiling(sourceSamplesAcrossPatch) + 1);
+        }
+
+        private static double EstimateSourceMetersPerPixel(float latMin, float latMax, int zoom)
+        {
+            var centerLatitude = Math.Clamp((latMin + latMax) * 0.5, -SlippyMapMath.MaxLatitudeDegrees, SlippyMapMath.MaxLatitudeDegrees);
+            var metersPerPixelAtEquator = 2.0 * Math.PI * PlanetLoader.EarthRadiusMeters
+                / (TerrariumHeightTile.TileSize * Math.Pow(2.0, zoom));
+            return Math.Max(0.0, metersPerPixelAtEquator * Math.Cos(centerLatitude * Math.PI / 180.0));
+        }
+
+        // Caller must already hold _rebuildLock.
+        private static bool TryCreateSplitPlanLocked(PatchKey parentKey, PatchLeaf parentLeaf, bool includeTileIndices, out PatchSplitPlan splitPlan)
+        {
+            splitPlan = null!;
+            var parentMesh = parentLeaf.Mesh;
+            var targetZoom = GetNextSourceZoom(parentLeaf);
+            if (!targetZoom.HasValue)
+            {
+                return false;
+            }
+
+            var children = new List<PlannedPatch>();
+            if (!TryAddSourceMatchedPatchPlans(
+                parentKey,
+                parentMesh.FaceNormal,
+                parentMesh.MinU,
+                parentMesh.MaxU,
+                parentMesh.MinV,
+                parentMesh.MaxV,
+                targetZoom.Value,
+                includeTileIndices,
+                children))
+            {
+                return false;
+            }
+
+            splitPlan = new PatchSplitPlan { Children = children };
+            return true;
         }
 
         // Same corner+center sampling pattern TileOverlapsPatch uses below, plus edge midpoints for a
@@ -508,17 +834,27 @@ namespace ManaGeoTools.Code.Planet
         // patch's edge.
         private static (float LonMin, float LonMax, float LatMin, float LatMax) ComputePatchLonLatBounds(PlanetPatchMesh patch)
         {
-            var axisA = new Vector3(patch.FaceNormal.Y, patch.FaceNormal.Z, patch.FaceNormal.X);
-            var axisB = Vector3.Cross(patch.FaceNormal, axisA);
-            var midU = (patch.MinU + patch.MaxU) * 0.5f;
-            var midV = (patch.MinV + patch.MaxV) * 0.5f;
+            return ComputePatchLonLatBounds(patch.FaceNormal, patch.MinU, patch.MaxU, patch.MinV, patch.MaxV);
+        }
+
+        private static (float LonMin, float LonMax, float LatMin, float LatMax) ComputePatchLonLatBounds(
+            Vector3 faceNormal,
+            float minU,
+            float maxU,
+            float minV,
+            float maxV)
+        {
+            var axisA = new Vector3(faceNormal.Y, faceNormal.Z, faceNormal.X);
+            var axisB = Vector3.Cross(faceNormal, axisA);
+            var midU = (minU + maxU) * 0.5f;
+            var midV = (minV + maxV) * 0.5f;
 
             var sampleUVs = new[]
             {
-                (patch.MinU, patch.MinV), (patch.MaxU, patch.MinV),
-                (patch.MinU, patch.MaxV), (patch.MaxU, patch.MaxV),
-                (midU, patch.MinV), (midU, patch.MaxV),
-                (patch.MinU, midV), (patch.MaxU, midV),
+                (minU, minV), (maxU, minV),
+                (minU, maxV), (maxU, maxV),
+                (midU, minV), (midU, maxV),
+                (minU, midV), (maxU, midV),
                 (midU, midV),
             };
 
@@ -529,7 +865,7 @@ namespace ManaGeoTools.Code.Planet
 
             foreach (var (u, v) in sampleUVs)
             {
-                var pointOnUnitCube = patch.FaceNormal + (u * axisA) + (v * axisB);
+                var pointOnUnitCube = faceNormal + (u * axisA) + (v * axisB);
                 var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
                 var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
 
@@ -600,21 +936,65 @@ namespace ManaGeoTools.Code.Planet
 
         // zoom is the Terrarium zoom level currently backing this patch's elevation data (see
         // PatchLeaf.Zoom) -- null for a patch still on the whole-globe ETOPO baseline, never up-res'd.
-        // Appended to the name so the current detail level is visible directly in the Outliner, since
-        // the split-path suffix alone (e.g. "_10233133") says how deep a patch was split but nothing
-        // about how much real detail it actually has.
-        private static string PatchName(PatchKey key, int? zoom = null)
+        // meshResolution is the current mesh grid size. sourceResolution is intentionally not shown in
+        // the Outliner: it can be a huge source span (e.g. 5395) that is useful in the Inspector but too
+        // noisy for node names.
+        private static string PatchName(
+            PatchKey key,
+            int? zoom = null,
+            int? meshResolution = null,
+            int? sourceResolution = null,
+            double? sourceMetersPerPixel = null)
         {
-            var name = $"Patch_F{key.Face}_{key.Row}_{key.Col}";
-            if (!key.SplitPath.IsEmpty)
-            {
-                name += $"_{string.Join("", key.SplitPath)}";
-            }
+            var name = "Terrain";
             if (zoom.HasValue)
             {
-                name += $"_z{zoom.Value}";
+                name += $" z{zoom.Value}";
+            }
+            if (sourceMetersPerPixel.HasValue)
+            {
+                name += $" {FormatMetersPerPixel(sourceMetersPerPixel.Value)}";
+            }
+            if (meshResolution.HasValue)
+            {
+                name += $" {meshResolution.Value}v";
+            }
+            name += $" F{key.Face}/R{key.Row}/C{key.Col}";
+            if (!key.SplitPath.IsEmpty)
+            {
+                name += $" L{key.SplitPath.Length}";
+                name += $" q{FormatSplitPathTail(key)}";
             }
             return name;
+        }
+
+        private static string FormatSplitPathTail(PatchKey key)
+        {
+            var splitPath = key.SplitPath;
+            var start = Math.Max(0, splitPath.Length - PatchNameSplitPathTailDigits);
+            return string.Concat(splitPath.Skip(start));
+        }
+
+        private static string FormatMetersPerPixel(double metersPerPixel)
+        {
+            if (metersPerPixel >= 1000.0)
+            {
+                return $"{metersPerPixel / 1000.0:0.##}km/px";
+            }
+
+            if (metersPerPixel >= 100.0)
+            {
+                return $"{metersPerPixel:0}m/px";
+            }
+
+            if (metersPerPixel >= 10.0)
+            {
+                return $"{metersPerPixel:0.#}m/px";
+            }
+
+            return metersPerPixel >= 1.0
+                ? $"{metersPerPixel:0.##}m/px"
+                : $"{metersPerPixel * 100.0:0.#}cm/px";
         }
     }
 }

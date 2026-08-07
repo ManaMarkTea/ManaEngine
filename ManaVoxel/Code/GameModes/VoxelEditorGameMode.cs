@@ -53,6 +53,17 @@ namespace Mana.Code.GameModes
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
+        private static readonly object TerrainCacheSizeLock = new();
+        private static Task<TerrainCacheSizeRefreshResult>? _terrainCacheSizeRefreshTask;
+        private static int _terrainCacheSizeRefreshGeneration;
+        private static long? _terrainCacheSizeBytes;
+        private static DateTimeOffset? _terrainCacheSizeUpdatedAt;
+        private static string? _terrainCacheSizeError;
+
+        private readonly record struct TerrainCacheSizeRefreshResult(
+            int Generation,
+            long? Bytes,
+            string? Error);
 
         public override bool DeferGpuUploadsOnStartup => true;
 
@@ -362,40 +373,75 @@ namespace Mana.Code.GameModes
                         planet.HeightExaggeration = exaggeration;
                     }
 
-                    ImGui.SeparatorText("Terrain Cache");
-                    ImGui.Text($"Cache size: {FormatByteCount(TerrariumTileFetcher.GetCacheSizeBytes())}");
-                    ImGui.TextWrapped(TerrariumTileFetcher.CacheRoot);
-                    if (ImGui.Button("Open Cache Folder"))
-                    {
-                        OpenFolderInFileExplorer(TerrariumTileFetcher.CacheRoot);
-                    }
-                    ImGui.SameLine();
-                    if (ImGui.Button("Clear Cache"))
-                    {
-                        TerrariumTileFetcher.ClearCache();
-                    }
+                    DrawTerrainCacheInspector();
                 }
 
-                if (node is ManaMeshSceneNode { Mesh: PlanetPatchMesh } patchNode && patchNode.Parent is PlanetNode owningPlanet
+                if (node is ManaMeshSceneNode { Mesh: PlanetPatchMesh patchMesh } patchNode && patchNode.Parent is PlanetNode owningPlanet
                     && owningPlanet.TryGetPatchKey(patchNode, out var patchKey))
                 {
                     ImGui.SeparatorText("Terrain Patch");
                     var status = owningPlanet.GetPatchUpresStatus(patchKey);
+                    var detail = owningPlanet.GetPatchDetailInfo(patchKey);
                     ImGui.Text($"Up-res status: {status}");
+                    ImGui.Text($"Mesh resolution: {patchMesh.Resolution} x {patchMesh.Resolution}");
+                    if (detail.HasValue)
+                    {
+                        var patchDetail = detail.Value;
+                        var sourceResolution = patchDetail.SourceResolution;
+                        var sourceMetersPerPixel = patchDetail.SourceMetersPerPixel;
+                        if (patchDetail.Zoom.HasValue)
+                        {
+                            ImGui.Text($"Source zoom: z{patchDetail.Zoom.Value}");
+                        }
+                        if (sourceResolution.HasValue)
+                        {
+                            ImGui.Text($"Source resolution: {sourceResolution.Value} x {sourceResolution.Value}");
+                        }
+                        if (sourceMetersPerPixel.HasValue)
+                        {
+                            ImGui.Text($"Source pixel: {FormatMetersPerPixel(sourceMetersPerPixel.Value)}");
+                        }
+                        if (sourceResolution.HasValue && sourceMetersPerPixel.HasValue && sourceResolution.Value > patchMesh.Resolution)
+                        {
+                            var meshSpacing = EstimateMeshSpacingMeters(
+                                patchMesh.Resolution,
+                                sourceResolution.Value,
+                                sourceMetersPerPixel.Value);
+                            var coarserFactor = Math.Max(1.0, meshSpacing / sourceMetersPerPixel.Value);
+                            ImGui.Text($"Mesh spacing: {FormatMetersPerPixel(meshSpacing)}");
+                            ImGui.TextDisabled($"Mesh is still coarser than source data ({coarserFactor:0.#}x).");
+                        }
+                    }
 
-                    // Deliberately gated on Done + an explicit button press -- NOT reachable by plain
-                    // reselection, since that's exactly what earlier caused a couple of casual re-clicks
-                    // near the same spot to cascade several split levels deep before it was noticed (see
-                    // PlanetNode.TrySplitPatch's doc comment).
+                    // Deliberately gated on Done + an explicit button press -- each click increases
+                    // Terrarium source zoom by one level, splitting only as needed to avoid
+                    // undersampling that one new zoom level.
                     if (status == PatchUpresStatus.Done)
                     {
                         if (owningPlanet.IsSplitPending(patchKey))
                         {
-                            ImGui.TextDisabled("Splitting... (fetching 4 children)");
+                            ImGui.TextDisabled("Increasing source zoom...");
                         }
-                        else if (ImGui.Button("Split for finer detail"))
+                        else if (owningPlanet.CanSplitPatch(patchKey))
                         {
-                            owningPlanet.TrySplitPatch(patchKey);
+                            if (ImGui.Button("Increase source zoom"))
+                            {
+                                owningPlanet.TrySplitPatch(patchKey);
+                            }
+                        }
+                        else
+                        {
+                            var meshIsBelowSource = detail.HasValue
+                                && detail.Value.SourceResolution.HasValue
+                                && detail.Value.SourceResolution.Value > patchMesh.Resolution;
+                            if (meshIsBelowSource)
+                            {
+                                ImGui.TextDisabled("Next source zoom cannot be represented without undersampling");
+                            }
+                            else
+                            {
+                                ImGui.TextDisabled("Mesh matches streamed source data");
+                            }
                         }
                     }
                 }
@@ -429,6 +475,144 @@ namespace Mana.Code.GameModes
             };
         }
 
+        private static void DrawTerrainCacheInspector()
+        {
+            PollTerrainCacheSizeRefresh();
+            EnsureTerrainCacheSizeRefreshStarted();
+
+            var snapshot = GetTerrainCacheSizeSnapshot();
+            ImGui.SeparatorText("Terrain Cache");
+
+            var cacheSizeText = snapshot.Bytes.HasValue
+                ? FormatByteCount(snapshot.Bytes.Value)
+                : snapshot.IsRefreshing ? "Calculating..." : "Unknown";
+            ImGui.Text($"Cache size: {cacheSizeText}");
+            if (snapshot.UpdatedAt.HasValue)
+            {
+                ImGui.TextDisabled($"Updated {snapshot.UpdatedAt.Value:HH:mm:ss}");
+            }
+            if (snapshot.IsRefreshing)
+            {
+                ImGui.TextDisabled("Refreshing...");
+            }
+            if (!string.IsNullOrWhiteSpace(snapshot.Error))
+            {
+                ImGui.TextDisabled($"Cache scan failed: {snapshot.Error}");
+            }
+
+            ImGui.TextWrapped(TerrariumTileFetcher.CacheRoot);
+
+            ImGui.BeginDisabled(snapshot.IsRefreshing);
+            if (ImGui.Button("Refresh"))
+            {
+                RequestTerrainCacheSizeRefresh();
+            }
+            ImGui.EndDisabled();
+            ImGui.SameLine();
+            if (ImGui.Button("Open Cache Folder"))
+            {
+                OpenFolderInFileExplorer(TerrariumTileFetcher.CacheRoot);
+            }
+            ImGui.SameLine();
+            ImGui.BeginDisabled(snapshot.IsRefreshing);
+            if (ImGui.Button("Clear Cache"))
+            {
+                RequestTerrainCacheSizeRefresh(clearFirst: true, force: true);
+            }
+            ImGui.EndDisabled();
+        }
+
+        private static void EnsureTerrainCacheSizeRefreshStarted()
+        {
+            lock (TerrainCacheSizeLock)
+            {
+                if (!_terrainCacheSizeBytes.HasValue && _terrainCacheSizeRefreshTask == null)
+                {
+                    StartTerrainCacheSizeRefreshLocked(clearFirst: false);
+                }
+            }
+        }
+
+        private static void RequestTerrainCacheSizeRefresh(bool clearFirst = false, bool force = false)
+        {
+            lock (TerrainCacheSizeLock)
+            {
+                if (!force && _terrainCacheSizeRefreshTask is { IsCompleted: false })
+                {
+                    return;
+                }
+
+                StartTerrainCacheSizeRefreshLocked(clearFirst);
+            }
+        }
+
+        private static void StartTerrainCacheSizeRefreshLocked(bool clearFirst)
+        {
+            _terrainCacheSizeError = null;
+            var generation = ++_terrainCacheSizeRefreshGeneration;
+            _terrainCacheSizeRefreshTask = Task.Run(() => RefreshTerrainCacheSize(generation, clearFirst));
+        }
+
+        private static TerrainCacheSizeRefreshResult RefreshTerrainCacheSize(int generation, bool clearFirst)
+        {
+            try
+            {
+                if (clearFirst)
+                {
+                    TerrariumTileFetcher.ClearCache();
+                }
+
+                return new TerrainCacheSizeRefreshResult(
+                    generation,
+                    TerrariumTileFetcher.GetCacheSizeBytes(),
+                    Error: null);
+            }
+            catch (Exception ex)
+            {
+                return new TerrainCacheSizeRefreshResult(generation, Bytes: null, ex.Message);
+            }
+        }
+
+        private static void PollTerrainCacheSizeRefresh()
+        {
+            Task<TerrainCacheSizeRefreshResult>? completedTask;
+            lock (TerrainCacheSizeLock)
+            {
+                if (_terrainCacheSizeRefreshTask is not { IsCompleted: true } task)
+                {
+                    return;
+                }
+
+                completedTask = task;
+                _terrainCacheSizeRefreshTask = null;
+            }
+
+            var result = completedTask.GetAwaiter().GetResult();
+            lock (TerrainCacheSizeLock)
+            {
+                if (result.Generation != _terrainCacheSizeRefreshGeneration)
+                {
+                    return;
+                }
+
+                _terrainCacheSizeBytes = result.Bytes;
+                _terrainCacheSizeUpdatedAt = DateTimeOffset.Now;
+                _terrainCacheSizeError = result.Error;
+            }
+        }
+
+        private static (long? Bytes, DateTimeOffset? UpdatedAt, string? Error, bool IsRefreshing) GetTerrainCacheSizeSnapshot()
+        {
+            lock (TerrainCacheSizeLock)
+            {
+                return (
+                    _terrainCacheSizeBytes,
+                    _terrainCacheSizeUpdatedAt,
+                    _terrainCacheSizeError,
+                    _terrainCacheSizeRefreshTask is { IsCompleted: false });
+            }
+        }
+
         private static string FormatByteCount(long bytes)
         {
             const double kibibyte = 1024.0;
@@ -442,6 +626,38 @@ namespace Mana.Code.GameModes
                 >= (long)kibibyte => $"{bytes / kibibyte:N2} KiB",
                 _ => $"{bytes} B",
             };
+        }
+
+        private static string FormatMetersPerPixel(double metersPerPixel)
+        {
+            if (metersPerPixel >= 1000.0)
+            {
+                return $"{metersPerPixel / 1000.0:0.##} km/px";
+            }
+
+            if (metersPerPixel >= 100.0)
+            {
+                return $"{metersPerPixel:0} m/px";
+            }
+
+            if (metersPerPixel >= 10.0)
+            {
+                return $"{metersPerPixel:0.#} m/px";
+            }
+
+            return metersPerPixel >= 1.0
+                ? $"{metersPerPixel:0.##} m/px"
+                : $"{metersPerPixel * 100.0:0.#} cm/px";
+        }
+
+        private static double EstimateMeshSpacingMeters(int meshResolution, int sourceResolution, double sourceMetersPerPixel)
+        {
+            if (meshResolution <= 1 || sourceResolution <= 1)
+            {
+                return sourceMetersPerPixel;
+            }
+
+            return sourceMetersPerPixel * (sourceResolution - 1) / (meshResolution - 1);
         }
 
         private static void OpenFolderInFileExplorer(string path)
@@ -768,7 +984,7 @@ namespace Mana.Code.GameModes
 
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
-            // that detects a split is ready (see PlanetNode.UpresPendingChildAsync's comment).
+            // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
             _planet?.ProcessPendingSplits();
             UpdateWaterRippleInteraction();
         }
@@ -857,7 +1073,7 @@ namespace Mana.Code.GameModes
 
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
-            // that detects a split is ready (see PlanetNode.UpresPendingChildAsync's comment).
+            // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
             _planet?.ProcessPendingSplits();
 
             var mainViewport = ImGui.GetMainViewport();
@@ -1018,11 +1234,10 @@ namespace Mana.Code.GameModes
             _lastSelectClickTimeMs = now;
             _lastSelectClickedNode = pickedNode;
 
-            // Double-click is the deliberate-but-quick alternative to the Inspector's "Split for finer
-            // detail" button -- still only ever an EXPLICIT gesture, never triggered by plain
-            // reselection, so it doesn't reintroduce the accidental-cascade problem a single reselect
-            // used to cause (see PlanetNode.TrySplitPatch's doc comment). No-ops via TrySplitPatch's own
-            // guard if the patch isn't currently Done.
+            // Double-click is the deliberate-but-quick alternative to the Inspector's "Increase source
+            // zoom" button -- still only ever an EXPLICIT gesture, never triggered by plain
+            // reselection. No-ops via TrySplitPatch's own guard if the patch isn't currently Done or
+            // can't increase source zoom without undersampling.
             if (isDoubleClick && _planet != null && pickedNode != null && _planet.TryGetPatchKey(pickedNode, out var patchKey))
             {
                 _planet.TrySplitPatch(patchKey);
