@@ -142,6 +142,8 @@ namespace ManaGeoTools.Code.Planet
         // pixels for a high-zoom cached patch. This is a per-leaf mesh ceiling, not a final density
         // ceiling: the refinement planner subdivides until each leaf's source span fits under it.
         private const int InitialTerrariumUpresZoom = 7;
+        public const int DefaultBaselineMaxPatchMeshResolution = 97;
+
         private const int FallbackPatchResolution = 160;
         private const int MaxPatchMeshResolution = 1025;
         private const int MaxDirectSourceMatchDepth = 3;
@@ -228,11 +230,26 @@ namespace ManaGeoTools.Code.Planet
         {
             lock (_rebuildLock)
             {
-                foreach (var leaf in _leaves.Values)
+                foreach (var (key, leaf) in _leaves)
                 {
                     if (TileOverlapsPatch(tile, leaf.Mesh))
                     {
-                        leaf.Mesh.ApplyHeightData(HeightLibrary!);
+                        if (leaf.Zoom.HasValue)
+                        {
+                            continue;
+                        }
+
+                        var sourceResolution = EstimateGeoTiffSourceResolutionForPatch(tile, leaf.Mesh);
+                        var sourceMetersPerPixel = EstimateGeoTiffMetersPerPixel(tile, leaf.Mesh);
+                        var meshResolution = Math.Max(
+                            leaf.Mesh.Resolution,
+                            Math.Min(sourceResolution, DefaultBaselineMaxPatchMeshResolution));
+
+                        leaf.Mesh.ApplyHeightDataWithResolution(HeightLibrary!, meshResolution);
+                        leaf.SourceResolution = sourceResolution;
+                        leaf.SourceMetersPerPixel = sourceMetersPerPixel;
+                        leaf.Node.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
+                        _patchDetails[key] = new PatchDetailInfo(leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
                     }
                 }
 
@@ -796,6 +813,42 @@ namespace ManaGeoTools.Code.Planet
             var metersPerPixelAtEquator = 2.0 * Math.PI * PlanetLoader.EarthRadiusMeters
                 / (TerrariumHeightTile.TileSize * Math.Pow(2.0, zoom));
             return Math.Max(0.0, metersPerPixelAtEquator * Math.Cos(centerLatitude * Math.PI / 180.0));
+        }
+
+        private static int EstimateGeoTiffSourceResolutionForPatch(ManaGeoTools.Code.GeoTiff.GeoTiff tile, PlanetPatchMesh patch)
+        {
+            var pixelSize = tile.Area.PixelSize;
+            if (pixelSize.X <= 0f || pixelSize.Y <= 0f)
+            {
+                return FallbackPatchResolution;
+            }
+
+            var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(patch);
+            var lonSpanPixels = Math.Abs(lonMax - lonMin) / pixelSize.X;
+            var latSpanPixels = Math.Abs(latMax - latMin) / pixelSize.Y;
+            var sourceSamplesAcrossPatch = Math.Max(lonSpanPixels, latSpanPixels);
+            if (float.IsNaN(sourceSamplesAcrossPatch) || float.IsInfinity(sourceSamplesAcrossPatch))
+            {
+                return FallbackPatchResolution;
+            }
+
+            return Math.Max(2, (int)MathF.Ceiling(sourceSamplesAcrossPatch) + 1);
+        }
+
+        private static double EstimateGeoTiffMetersPerPixel(ManaGeoTools.Code.GeoTiff.GeoTiff tile, PlanetPatchMesh patch)
+        {
+            var pixelSize = tile.Area.PixelSize;
+            if (pixelSize.X <= 0f || pixelSize.Y <= 0f)
+            {
+                return 0.0;
+            }
+
+            var (_, _, latMin, latMax) = ComputePatchLonLatBounds(patch);
+            var centerLatitude = Math.Clamp((latMin + latMax) * 0.5, -90.0f, 90.0f);
+            var metersPerDegree = 2.0 * Math.PI * PlanetLoader.EarthRadiusMeters / 360.0;
+            var latMetersPerPixel = metersPerDegree * pixelSize.Y;
+            var lonMetersPerPixel = metersPerDegree * pixelSize.X * Math.Cos(centerLatitude * Math.PI / 180.0);
+            return Math.Max(0.0, Math.Max(latMetersPerPixel, lonMetersPerPixel));
         }
 
         // Caller must already hold _rebuildLock.

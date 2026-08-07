@@ -708,9 +708,9 @@ namespace Mana.Code.GameModes
                 // heightExaggeration=300 makes real terrain/bathymetry read as a visible bump at this
                 // radius; true-scale relief (exaggeration=1) is nearly flat at planet scale, same as
                 // it looks on the real Earth from orbit.
-                // resolution=24 keeps total vertex/draw-call count reasonable across all 216 patches
-                // the cube-sphere grid divides the globe into — still no camera-distance LOD/
-                // streaming, so the whole globe builds and stays resident up front.
+                // resolution=24 is only the smooth placeholder grid. Once the ETOPO baseline decodes,
+                // PlanetNode raises baseline terrain patches up to its bounded baseline cap; still no
+                // camera-distance LOD/streaming, so the whole globe builds and stays resident up front.
                 //
                 // Construction itself is instant (a smooth placeholder sphere, no GeoTIFF decode);
                 // LoadHeightDataAsync below kicks off the real ~9s decode in the background and swaps
@@ -721,11 +721,10 @@ namespace Mana.Code.GameModes
                     patchesPerFaceEdge: PlanetPatchesPerFaceEdge,
                     radius: 40.0f, resolution: 24,
                     heightExaggeration: 1.0f,
-                    // Higher than the terrain patch resolution -- waves need enough vertex density to
-                    // resolve whatever wave frequency is dialed in without aliasing, and the ocean is
-                    // one un-tiled shell covering the whole globe rather than one of many small
-                    // patches, so it needs more vertices to match even a similar visual density.
-                    oceanResolution: 96);
+                    // Keep the ocean's startup mesh on the same baseline-resolution knob as terrain.
+                    // This is a numeric match, not exact spatial density: exact matching would require
+                    // a tiled ocean mesh or a much higher per-face resolution.
+                    oceanResolution: PlanetNode.DefaultBaselineMaxPatchMeshResolution);
                 _planet.Position = new Vector3(200.0f, 60.0f, 200.0f);
                 _planet.UpdateTransform();
 
