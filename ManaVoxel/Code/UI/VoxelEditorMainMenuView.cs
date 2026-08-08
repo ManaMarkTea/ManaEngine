@@ -56,6 +56,11 @@ namespace ManaVoxel.Code.UI
                     viewModel.ShowWireframe = !viewModel.ShowWireframe;
                 }
 
+                if (ImGui.MenuItem("Search Location...", string.Empty, viewModel.ShowSearchWindow))
+                {
+                    viewModel.ShowSearchWindow = !viewModel.ShowSearchWindow;
+                }
+
                 ImGui.Separator();
 
                 if (ImGui.MenuItem("Light Theme", string.Empty, viewModel.UseLightTheme))

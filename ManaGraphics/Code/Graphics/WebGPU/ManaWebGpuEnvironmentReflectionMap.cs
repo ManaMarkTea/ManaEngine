@@ -379,21 +379,43 @@ namespace ManaGraphics.Code.Graphics
 
         private static Vector3 ImportanceSampleGGX(Vector2 Xi, Vector3 N, float roughness)
         {
-            float a = roughness * roughness;
-            float phi = 2.0f * MathF.PI * Xi.X;
-            float cosTheta = MathF.Sqrt((1.0f - Xi.Y) / (1.0f + (a * a - 1.0f) * Xi.Y));
-            float sinTheta = MathF.Sqrt(1.0f - cosTheta * cosTheta);
+            var a = roughness * roughness;
+            var phi = 2.0f * MathF.PI * Xi.X;
+            var cosTheta = MathF.Sqrt((1.0f - Xi.Y) / (1.0f + (a * a - 1.0f) * Xi.Y));
+            var sinTheta = MathF.Sqrt(1.0f - cosTheta * cosTheta);
+            var sinPhi = MathF.Sin(phi);
+            var cosPhi = MathF.Cos(phi);
 
-            Vector3 H;
-            H.X = MathF.Cos(phi) * sinTheta;
-            H.Y = MathF.Sin(phi) * sinTheta;
-            H.Z = cosTheta;
+            var nx = N.X;
+            var ny = N.Y;
+            var nz = N.Z;
 
-            Vector3 up = MathF.Abs(N.Z) < 0.999f ? new Vector3(0.0f, 0.0f, 1.0f) : new Vector3(1.0f, 0.0f, 0.0f);
-            Vector3 tangent = Vector3.Normalize(Vector3.Cross(up, N));
-            Vector3 bitangent = Vector3.Cross(N, tangent);
+            var useZUp = MathF.Abs(nz) < 0.999f;
+            var upX = useZUp ? 0.0f : 1.0f;
+            var upY = 0.0f;
+            var upZ = useZUp ? 1.0f : 0.0f;
 
-            return Vector3.Normalize(tangent * H.X + bitangent * H.Y + N * H.Z);
+            var tangentX = upY * nz - upZ * ny;
+            var tangentY = upZ * nx - upX * nz;
+            var tangentZ = upX * ny - upY * nx;
+            var tangentLengthInv = 1.0f / MathF.Sqrt(
+                tangentX * tangentX + tangentY * tangentY + tangentZ * tangentZ);
+            tangentX *= tangentLengthInv;
+            tangentY *= tangentLengthInv;
+            tangentZ *= tangentLengthInv;
+
+            var bitangentX = ny * tangentZ - nz * tangentY;
+            var bitangentY = nz * tangentX - nx * tangentZ;
+            var bitangentZ = nx * tangentY - ny * tangentX;
+
+            var hx = cosPhi * sinTheta;
+            var hy = sinPhi * sinTheta;
+            var hz = cosTheta;
+
+            return new Vector3(
+                tangentX * hx + bitangentX * hy + nx * hz,
+                tangentY * hx + bitangentY * hy + ny * hz,
+                tangentZ * hx + bitangentZ * hy + nz * hz);
         }
 
         private static float GeometrySchlickGGX(float NdotV, float roughness)

@@ -198,10 +198,19 @@ namespace Mana
         {
             var radius = MathF.Max(worldRadius, 0.05f);
             var distance = (radius / MathF.Sin(FieldOfViewDegrees.ToRadians() * 0.5f)) * FramingPaddingMultiplier;
-            distance = MathF.Max(distance, NearClipPlane * 2.0f);
+            FlyToWorldPosition(worldCenter, distance);
+        }
 
-            Owner.Position = worldCenter - Owner.Forward.Normalized() * distance;
-            _viewCenterDistance = distance;
+        // Repositions the camera along its CURRENT forward direction (orientation untouched, same idiom
+        // as SetViewPreset/FrameWorldBounds) so worldPosition ends up exactly distance units in front of
+        // it. For callers with no mesh/bounding box to frame -- e.g. a geocoded search result, which is
+        // just a bare point -- so the caller picks a sensible arrival distance itself instead of this
+        // deriving one from FOV+radius the way FrameWorldBounds does.
+        public void FlyToWorldPosition(Vector3 worldPosition, float distance)
+        {
+            var clampedDistance = MathF.Max(distance, NearClipPlane * 2.0f);
+            Owner.Position = worldPosition - Owner.Forward.Normalized() * clampedDistance;
+            _viewCenterDistance = clampedDistance;
             UpdateViewMatrix();
         }
 

@@ -5,6 +5,7 @@ using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.UI;
+using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
@@ -31,6 +32,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelToolPaletteView _toolPaletteView = new();
         private readonly VoxelEditorPanelsView _panelsView = new();
         private readonly VoxelEditorAboutPanelView _aboutPanelView = new();
+        private readonly VoxelSearchPanelView _searchPanelView = new();
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
@@ -1124,9 +1126,54 @@ namespace Mana.Code.GameModes
             Context.World.RecordFrameStatText("Planet tile fetches active", $"{status.ActiveTileFetches}/{status.MaxConcurrentTileFetches}");
         }
 
+        // TEMP diagnostic instrumentation -- remove once the "50GB memory growth" report is root-caused.
+        // Set MANA_LOG_LEVEL=Verbose to see these (see ManaLog.WriteVerbose's own doc comment).
+        // 0, not long.MinValue -- Environment.TickCount64 is always non-negative, so "now - lastLogMs"
+        // against a MinValue sentinel overflows unchecked long arithmetic and wraps to a huge negative
+        // number, permanently satisfying "< interval" and silently blocking every future log forever.
+        private long _lastMemoryStatsLogMs;
+        private const long MemoryStatsLogIntervalMs = 5000;
+
+        private void LogMemoryStatsPeriodically()
+        {
+            var now = Environment.TickCount64;
+            if (now - _lastMemoryStatsLogMs < MemoryStatsLogIntervalMs)
+            {
+                return;
+            }
+            _lastMemoryStatsLogMs = now;
+
+            // Deliberately defensive/self-logging (unlike ManaLog.WriteVerbose's own silent catch) --
+            // this is throwaway diagnostic code investigating a real memory issue; if IT throws, that
+            // needs to be visible, not swallowed the same way a routine logging failure would be.
+            try
+            {
+                var gcInfo = GC.GetGCMemoryInfo();
+                var generationInfo = gcInfo.GenerationInfo;
+                // .NET's GCGenerationInfo array is always ordered Gen0, Gen1, Gen2, LOH, POH.
+                var lohSizeMB = generationInfo.Length > 3 ? generationInfo[3].SizeAfterBytes / (1024.0 * 1024.0) : 0;
+                var managedMB = GC.GetTotalMemory(false) / (1024.0 * 1024.0);
+                var heapSizeMB = gcInfo.HeapSizeBytes / (1024.0 * 1024.0);
+                var committedMB = gcInfo.TotalCommittedBytes / (1024.0 * 1024.0);
+                var workingSetMB = Environment.WorkingSet / (1024.0 * 1024.0);
+
+                ManaLog.WriteVerbose(
+                    $"[MemStats] managed={managedMB:0}MB heap={heapSizeMB:0}MB loh={lohSizeMB:0}MB " +
+                    $"committed={committedMB:0}MB workingSet={workingSetMB:0}MB " +
+                    $"gen0={GC.CollectionCount(0)} gen1={GC.CollectionCount(1)} gen2={GC.CollectionCount(2)} " +
+                    $"serverGC={System.Runtime.GCSettings.IsServerGC}");
+            }
+            catch (Exception ex)
+            {
+                ManaLog.WriteDiagnostic(ex);
+            }
+        }
+
         protected override void DrawImGui(double deltaTime)
         {
             PushWebGpuFrameStats();
+            LogMemoryStatsPeriodically();
+            ManaMemoryStats.Sample();
 
             if (_firstFrame)
             {
@@ -1299,6 +1346,7 @@ namespace Mana.Code.GameModes
             }
 
             _aboutPanelView.Draw(_viewModel, Context, _webGpuContext);
+            _searchPanelView.Draw(_viewModel, _planet, Context.World.MainCamera);
         }
 
         private void UpdateVoxelPointerInteraction(bool inputCaptured)

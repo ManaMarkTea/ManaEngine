@@ -364,6 +364,10 @@ namespace ManaVoxel.Code.UI
             }
 
             ImGui.Spacing();
+            ImGui.SeparatorText("Memory");
+            DrawMemoryHistory();
+
+            ImGui.Spacing();
             ImGui.SeparatorText("Ray");
             ImGui.InputFloat3("RAY", ref rayOrigin);
             ImGui.InputFloat3("DIR", ref rayDirection);
@@ -373,6 +377,38 @@ namespace ManaVoxel.Code.UI
             ImGui.Checkbox("Show ImGui Demo Window", ref viewModel.ShowImGuiDemoWindow);
 
             ImGui.EndTabItem();
+        }
+
+        private float[] _memoryHistoryData = Array.Empty<float>();
+
+        // Working-set (OS-visible resident memory) history -- mirrors DrawRecentFpsHistory's plot style
+        // below, feeding from ManaMemoryStats' own self-throttled ring buffer instead of ManaTime's.
+        // scale_max=float.MaxValue tells ImGui.PlotLines to auto-fit the Y range to whatever's currently
+        // visible, unlike the FPS graph's manual step-ceiling logic -- simpler, and fine for a debug tool
+        // whose whole point is watching memory grow, not a stable axis.
+        private void DrawMemoryHistory()
+        {
+            if (_memoryHistoryData.Length != ManaMemoryStats.HistoryCapacity)
+            {
+                _memoryHistoryData = new float[ManaMemoryStats.HistoryCapacity];
+            }
+
+            var count = ManaMemoryStats.CopyOrderedHistory(_memoryHistoryData);
+            if (count <= 1)
+            {
+                return;
+            }
+
+            ImGui.Text($"Working Set: {ManaMemoryStats.Latest:0} MB");
+            ImGui.PlotLines(
+                "Memory",
+                ref _memoryHistoryData[0],
+                count,
+                0,
+                "MB",
+                0.0f,
+                float.MaxValue,
+                new Vector2(ImGui.GetContentRegionAvail().X, 70));
         }
 
         private void DrawRecentFpsHistory()

@@ -81,6 +81,7 @@ namespace ManaVoxel.Code.UI
         public bool ShowLockPreview;
         public bool ShowImGuiDemoWindow;
         public bool ShowAboutWindow;
+        public bool ShowSearchWindow;
         public bool UseLightTheme = true;
         public bool ShowLightningBall = true;
         public bool ShowLiquidBall = true;
