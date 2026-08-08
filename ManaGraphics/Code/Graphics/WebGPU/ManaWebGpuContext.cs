@@ -96,6 +96,26 @@ namespace ManaGraphics.Code.Graphics
 
         private readonly record struct DeferredSceneMeshDisposal(ulong DisposeAfterFrame, ManaWebGpuSceneMesh SceneMesh);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void WgpuLogCallback(WgpuLogLevel level, string message, nint userdata);
+
+        private enum WgpuLogLevel : int
+        {
+            Error = 1,
+            Warn = 2,
+            Info = 3,
+            Debug = 4,
+            Trace = 5,
+        }
+
+        [DllImport("wgpu_native", EntryPoint = "wgpuSetLogLevel", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        private static extern void WgpuSetLogLevel(WgpuLogLevel level);
+
+        [DllImport("wgpu_native", EntryPoint = "wgpuSetLogCallback", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        private static extern void WgpuSetLogCallback(WgpuLogCallback callback, nint userdata);
+
+        private static readonly WgpuLogCallback NativeLogCallback = OnNativeLog;
+
         public ManaWebGpuContext(IWindow window, IInputContext? input, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
         {
             _window = window;
@@ -110,6 +130,10 @@ namespace ManaGraphics.Code.Graphics
             _errorCallback = OnError;
 
             ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MANA_WGPU_NATIVE_TRACE")))
+            {
+                EnableNativeBackendTracing();
+            }
             _instanceBackend = ParseInstanceBackend(requestedBackend);
             var instanceExtras = new InstanceExtras
             {
@@ -189,6 +213,61 @@ namespace ManaGraphics.Code.Graphics
         {
             _imGuiController = new ManaWebGpuImGuiController(_api, _device, _queue, _surfaceFormat, _window, input);
             return _imGuiController;
+        }
+
+        // Opt-in only (MANA_WGPU_NATIVE_TRACE env var) -- Trace is the noisiest level across the whole
+        // wgpu-native stack (wgpu_core/wgpu_hal/wgpu), and the native log callback fires synchronously,
+        // routed through ManaLog's single global lock, for every internal wgpu-native operation on
+        // whatever thread wgpu-native's own Rust internals call it from. With multiple threads submitting
+        // GPU work concurrently (e.g. PlanetNode's background split doing several GPU compute dispatches
+        // while the main thread renders), that produces enough simultaneous native->managed callback
+        // traffic to make the app appear to hang at the next SurfacePresent/QueueSubmit -- confirmed as
+        // the cause of an intermittent "deadlock on patch click" report. Only enable this for deep
+        // GPU-driver debugging, not by default.
+        private static void EnableNativeBackendTracing()
+        {
+            try
+            {
+                Environment.SetEnvironmentVariable("RUST_LOG", "wgpu_core=trace,wgpu_hal=trace,wgpu=trace");
+                Environment.SetEnvironmentVariable("RUST_BACKTRACE", "1");
+            }
+            catch (Exception ex)
+            {
+                ManaConsole.WriteDiagnostic($"[WebGPU] Failed to configure Rust tracing environment variables: {ex.Message}");
+            }
+
+            try
+            {
+                WgpuSetLogLevel(WgpuLogLevel.Trace);
+                WgpuSetLogCallback(NativeLogCallback, IntPtr.Zero);
+                ManaConsole.WriteDiagnostic("[WebGPU] Enabled native backend tracing.");
+            }
+            catch (DllNotFoundException ex)
+            {
+                ManaConsole.WriteDiagnostic($"[WebGPU] Native wgpu tracing library is unavailable: {ex.Message}");
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                ManaConsole.WriteDiagnostic($"[WebGPU] Native wgpu tracing entry points are unavailable: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                ManaConsole.WriteDiagnostic($"[WebGPU] Failed to enable native backend tracing: {ex.Message}");
+            }
+        }
+
+        private static void OnNativeLog(WgpuLogLevel level, string message, nint userdata)
+        {
+            var levelName = level switch
+            {
+                WgpuLogLevel.Error => "error",
+                WgpuLogLevel.Warn => "warn",
+                WgpuLogLevel.Info => "info",
+                WgpuLogLevel.Debug => "debug",
+                _ => "trace"
+            };
+
+            ManaConsole.WriteDiagnostic($"[wgpu:{levelName}] {message}");
         }
 
         // Backs IHeightSamplingComputeDevice.SampleHeightsAsync -- see ManaWebGpuGraphicsDevice, which
@@ -356,6 +435,16 @@ namespace ManaGraphics.Code.Graphics
             var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
             _api.QueueSubmit(_queue, 1, &commandBuffer);
             _api.SurfacePresent(_surface);
+
+            if (_wgpuNativeExtension != null)
+            {
+                _wgpuNativeExtension.DevicePoll(_device, false, null);
+            }
+            else
+            {
+                _api.InstanceProcessEvents(_instance);
+            }
+
             LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
 
             _api.CommandBufferRelease(commandBuffer);

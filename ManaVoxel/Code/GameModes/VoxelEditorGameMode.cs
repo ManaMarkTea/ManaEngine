@@ -135,6 +135,11 @@ namespace Mana.Code.GameModes
 
             Task.Run(() =>
             {
+                if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
+                {
+                    System.Threading.Thread.CurrentThread.Name = "Voxel editor load";
+                }
+
                 try
                 {
                     Context.DeferGpuUploads = true;
@@ -404,6 +409,16 @@ namespace Mana.Code.GameModes
                         if (patchDetail.Zoom.HasValue)
                         {
                             ImGui.Text($"Source zoom: z{patchDetail.Zoom.Value}");
+
+                            var tilePaths = owningPlanet.GetPatchTileCacheFilePaths(patchKey);
+                            var cachedTilePaths = tilePaths.Where(File.Exists).ToList();
+                            ImGui.Text($"Source tiles: {tilePaths.Count} ({cachedTilePaths.Count} cached)");
+                            ImGui.BeginDisabled(cachedTilePaths.Count == 0);
+                            if (ImGui.Button("Open Source Tile"))
+                            {
+                                RevealFileInExplorer(cachedTilePaths[0]);
+                            }
+                            ImGui.EndDisabled();
                         }
                         if (sourceResolution.HasValue)
                         {
@@ -689,6 +704,28 @@ namespace Mana.Code.GameModes
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
             {
                 ManaConsole.WriteDiagnostic($"Failed to open folder '{path}': {ex.Message}");
+            }
+        }
+
+        // Selects filePath in its containing folder (Explorer/Finder) rather than opening it directly --
+        // lets the user see sibling tiles too, and works the same whether or not there's a default image
+        // viewer associated with .png.
+        private static void RevealFileInExplorer(string filePath)
+        {
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{filePath}\"") { UseShellExecute = true });
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    Process.Start(new ProcessStartInfo("open", $"-R \"{filePath}\"") { UseShellExecute = true });
+                }
+            }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+            {
+                ManaConsole.WriteDiagnostic($"Failed to reveal file '{filePath}': {ex.Message}");
             }
         }
 

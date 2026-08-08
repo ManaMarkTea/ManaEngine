@@ -97,8 +97,8 @@ namespace ManaGeoTools.Code.Planet
             public required PatchKey[] ChildKeys { get; init; }
             public required PlanetPatchMesh[] ChildMeshes { get; init; }
             public required PatchUpresPlan[] ChildPlans { get; init; }
-            public required bool[] ChildReady { get; init; }
             public required bool[] ChildSucceeded { get; init; }
+            public required bool[] ChildFinalized { get; init; }
             public required int?[] ChildZoom { get; init; }
         }
 
@@ -130,9 +130,15 @@ namespace ManaGeoTools.Code.Planet
         // split for the same parent before the first one's children finish (see TrySplitPatch).
         private readonly ConcurrentDictionary<PatchKey, byte> _splitPending = new();
 
-        // Splits whose children have all finished fetching, waiting for ProcessPendingSplits to
-        // actually swap them into the scene graph on the main thread -- see UpresPendingChildrenAsync.
-        private readonly Queue<PendingSplit> _readyToFinalize = new();
+        private sealed class PendingSplitChildReady
+        {
+            public required PendingSplit Pending { get; init; }
+            public required int ChildIndex { get; init; }
+        }
+
+        // Child splits that have finished building, waiting for ProcessPendingSplits to swap each one
+        // into the scene graph on the main thread as it becomes ready -- see UpresPendingChildrenAsync.
+        private readonly Queue<PendingSplitChildReady> _readyToFinalize = new();
 
         // Child keys with a merge (of their sibling group) currently in flight -- one entry per child,
         // not per synthesized parent key, since the children (not the not-yet-existing merged patch)
@@ -159,16 +165,10 @@ namespace ManaGeoTools.Code.Planet
 
         private readonly PlanetOceanMesh _oceanMesh;
 
-        // Caps how many Terrarium tiles a single patch up-res will fetch, and how fine a zoom it'll
-        // reach for -- see SlippyMapMath.PickZoom. Tile count roughly quadruples per zoom level for a
-        // fixed geographic area, and these patches are genuinely large (PatchesPerFaceEdge divides a
-        // cube face into a fairly coarse grid by default) -- an earlier, much lower cap (16) forced the
-        // zoom picker down to zoom 5 (~4.9km/px) for a real patch, which is actually COARSER than the
-        // 60-arcsecond ETOPO baseline it's supposed to be improving on (~1.85km/px), making the whole
-        // fetch a no-op visually. 1024 tiles (a few hundred KB-to-low-MB of PNGs, fetched with bounded
-        // concurrency -- see UpresPatchAsync) reaches a genuinely finer zoom for patches this size.
-        // 13 is the highest zoom Terrarium serves directly (14/15 need oversampling from 13, out of
-        // scope here).
+        // Caps how many Terrarium tiles a single patch up-res will fetch (see SlippyMapMath.PickZoom).
+        // A lower cap (16) used to force the zoom picker down to z5 (~4.9km/px), coarser than the
+        // baseline it's meant to improve on -- 1024 tiles reaches a genuinely finer zoom. 13 is the
+        // highest zoom Terrarium serves directly (14/15 need oversampling, out of scope).
         private const int UpresMaxTiles = 1024;
         private const int UpresMaxZoom = 13;
         private const int UpresMaxConcurrentFetches = 24;
@@ -183,6 +183,7 @@ namespace ManaGeoTools.Code.Planet
         private const int MaxPatchMeshResolution = 1025;
         private const int MaxDirectSourceMatchDepth = 3;
         private const int PatchNameSplitPathTailDigits = 4;
+        private const int MaxPendingSplitFinalizationsPerFrame = 1;
 
         private static readonly SemaphoreSlim UpresFetchThrottle = new(UpresMaxConcurrentFetches);
 
@@ -191,41 +192,23 @@ namespace ManaGeoTools.Code.Planet
         // submission from many threads still serializes at the driver/queue level, so higher concurrency
         // here mostly adds contention rather than throughput.
         private const int HeightSampleMaxConcurrentDispatches = 8;
+        private static readonly TimeSpan HeightSampleTimeout = TimeSpan.FromSeconds(5);
         private static readonly SemaphoreSlim HeightSampleReadbackThrottle = new(HeightSampleMaxConcurrentDispatches);
 
-        // UpdateAutoLod's trigger is purely geographic: how far a patch's center sits (great-circle arc
-        // distance, in world units) from the point on the sphere directly below the camera, scaled by
-        // the camera's own altitude above the surface -- but altitude is first NORMALIZED into "planet
-        // scale" (altitude / Radius, a dimensionless fraction of the planet's own size) rather than used
-        // as a raw world-unit number, so every constant below means the same thing regardless of whether
-        // this (or a future) planet's Radius is 40 or 40,000: e.g. AutoLodActivationRadiusMultiplier=3
-        // always means "3 planet-radii-of-altitude's worth of ground distance," never an arbitrary
-        // absolute number tuned for one specific scene's scale. Scaling by altitude is what keeps the
-        // activation footprint naturally small when close to the ground (zoomed in) and wide from high
-        // up, without needing a screen-space/FOV calculation at all -- and unlike a screen-coverage
-        // metric, a patch behind or off to the side of the camera is never mistaken for "close" just
-        // because it's spatially nearby in 3D, since this only cares about actual distance from the
-        // sub-camera point. Deactivation is a larger multiple than activation so a patch that just got
-        // more detail doesn't immediately qualify to lose it again (real hysteresis, not an implicit/
-        // thrashy boundary).
+        // UpdateAutoLod's activation/deactivation radius is great-circle distance from the sub-camera
+        // point, scaled by altitude expressed as a fraction of Radius (not raw world units) so these
+        // multipliers mean the same thing at any planet scale. Deactivation > activation gives real
+        // hysteresis so a patch that just got more detail doesn't immediately qualify to lose it.
         private const float AutoLodActivationRadiusMultiplier = 3.0f;
         private const float AutoLodDeactivationRadiusMultiplier = 5.0f;
 
-        // Floor under the normalized altitude fraction (altitude / Radius) used to size the activation/
-        // deactivation radius -- without it, a camera sitting almost exactly on the (undisplaced) sphere
-        // surface would compute a near-zero radius and never trigger anything. 0.025 (a fortieth of the
-        // planet's own radius of "altitude") is the scale-invariant equivalent of this value's original
-        // hardcoded-for-this-scene form.
+        // Floor under the altitude fraction so a camera sitting on the surface doesn't compute a
+        // near-zero radius and trigger nothing.
         private const float AutoLodMinAltitudeFraction = 0.025f;
 
-        // Hard upper bound on the (already altitude-scaled) activation/deactivation radius, still
-        // expressed as a fraction of Radius -- without this, altitudeFraction*multiplier grows WITHOUT
-        // BOUND the farther the camera gets, so viewing from far enough away (including simply not
-        // having flown close yet -- the engine's default starting camera position is far enough from a
-        // custom-placed planet to trigger this) computes a radius bigger than the planet's own
-        // circumference, making every patch on the globe register as "close." Confirmed via testing:
-        // patches streamed in a burst with zero camera movement, immediately after launch. Picked small
-        // enough that "activated" genuinely means "nearby," not "anywhere on a globe-spanning radius."
+        // Hard cap on the altitude-scaled radius -- otherwise it grows unbounded with distance, and
+        // viewing from far away (including the engine's default starting camera) would make every patch
+        // on the globe register as "close" and stream in at once.
         private const float AutoLodMaxActivationRadiusFraction = 0.5f;
         private const float AutoLodMaxDeactivationRadiusFraction = 0.75f;
 
@@ -286,15 +269,9 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
-            // Always present, the same way a real planet just has oceans -- not a separate opt-in
-            // layer like the KML overlay or the flat demo water pond. A single un-tiled shell (not
-            // one per terrain patch), masked to real ocean coverage once height data arrives -- see
-            // PlanetOceanMesh's doc comment. Its own resolution is independent of (and typically
-            // higher than) the terrain patches': waves need enough vertex density to actually resolve
-            // whatever wave frequency the shader is asked for without aliasing, which the terrain's
-            // patch resolution was never tuned for (that's sized for elevation detail, not wave
-            // detail, and terrain patches are also much smaller than the whole-globe ocean shell to
-            // begin with).
+            // A single un-tiled shell covering the whole globe (not one per terrain patch), masked to
+            // real ocean coverage once height data arrives -- see PlanetOceanMesh. Resolution is
+            // independent of the terrain patches' since waves need their own vertex density.
             _oceanMesh = new PlanetOceanMesh(context, radius, oceanResolution, heightLibrary: null);
             var oceanNode = new ManaMeshSceneNode(context, _oceanMesh) { Name = "Ocean" };
             AddChild(oceanNode);
@@ -305,10 +282,22 @@ namespace ManaGeoTools.Code.Planet
         /// waiting on it. Each patch swaps from smooth placeholder to real elevation/color as soon as
         /// its own tile finishes, independently of the others.
         /// </summary>
+        private static void SetCurrentThreadName(string name)
+        {
+            if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
+            {
+                System.Threading.Thread.CurrentThread.Name = name;
+            }
+        }
+
         public void LoadHeightDataAsync(GeoTiffLibrary heightLibrary)
         {
             HeightLibrary = heightLibrary;
-            Task.Run(() => heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches));
+            Task.Run(() =>
+            {
+                SetCurrentThreadName("Planet height decode");
+                heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches);
+            });
         }
 
         private void ApplyTileToOverlappingPatches(ManaGeoTools.Code.GeoTiff.GeoTiff tile)
@@ -390,18 +379,12 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>
-        /// Deliberately splits an already up-res'd (Done) patch into 4 smaller patches, each of which
-        /// immediately starts its own up-res fetch -- since each child covers 1/4 the area, it may be
-        /// able to use a higher Terrarium zoom while staying inside the tile budget. Splitting is
-        /// rejected when it would only subdivide already-represented source data.
-        /// Unlike TryBeginPatchUpres,
-        /// this is intentionally NEVER triggered by plain reselection -- only by an explicit user action
-        /// (the Inspector's "Increase source zoom" button, shown once a patch reaches Done) --
-        /// otherwise a couple of casual re-clicks near the same spot as it splits and its children
-        /// finish (fast, since each child fetches far less than the original) can cascade several
-        /// levels deep before you notice. No-ops if the patch isn't currently Done (already split away,
-        /// still fetching, its up-res failed, or a split for it is already in flight -- see
-        /// IsSplitPending).
+        /// Splits an already up-res'd (Done) patch into 4 smaller patches, each starting its own up-res
+        /// fetch at a higher Terrarium zoom (each child covers 1/4 the area, so it fits a finer zoom in
+        /// the same tile budget). Unlike TryBeginPatchUpres, only ever triggered by an explicit user
+        /// action (the Inspector's "Increase source zoom" button) -- never by plain reselection, or a
+        /// couple of casual re-clicks could cascade several split levels deep. No-op if the patch isn't
+        /// currently Done.
         /// </summary>
         public void TrySplitPatch(PatchKey key)
         {
@@ -432,7 +415,11 @@ namespace ManaGeoTools.Code.Planet
                 if (splitPlan.Children.Count == 1 && splitPlan.Children[0].Key.Equals(key))
                 {
                     _upresStatus[key] = PatchUpresStatus.InProgress;
-                    Task.Run(() => UpresPatchAsync(key, leaf.Mesh, splitPlan.Children[0].Plan));
+                    Task.Run(() =>
+                {
+                    SetCurrentThreadName("Planet patch up-res");
+                    return UpresPatchAsync(key, leaf.Mesh, splitPlan.Children[0].Plan);
+                });
                     return;
                 }
 
@@ -509,7 +496,11 @@ namespace ManaGeoTools.Code.Planet
             _upresStatus[key] = PatchUpresStatus.InProgress;
             if (plannedPatches.Count == 1 && plannedPatches[0].Key.Equals(key))
             {
-                Task.Run(() => UpresPatchAsync(key, leaf.Mesh, plannedPatches[0].Plan));
+                Task.Run(() =>
+                {
+                    SetCurrentThreadName("Planet patch up-res");
+                    return UpresPatchAsync(key, leaf.Mesh, plannedPatches[0].Plan);
+                });
                 return;
             }
 
@@ -521,18 +512,10 @@ namespace ManaGeoTools.Code.Planet
             BeginSplitLocked(key, leaf, new PatchSplitPlan { Children = plannedPatches });
         }
 
-        // Caller must already hold _rebuildLock. Creates cheap, invisible child mesh placeholders
-        // (quadrant = a quarter of the parent's U/V range each) and kicks off each one's own up-res
-        // fetch, but touches neither the scene graph nor _leaves yet -- the parent keeps rendering,
-        // unchanged, until every child has finished. FinalizeSplit swaps the parent out only if all
-        // children fetched usable source data; otherwise the parent remains visible. Each child is
-        // rebuilt from fetched/cached Terrarium data before it is added to the scene, so no placeholder
-        // is ever visible.
-        //
-        // ComputePatchLonLatBounds/TileOverlapsPatch/PlanetPatchMesh's own skirt geometry all read only
-        // a mesh's own FaceNormal/MinU/MaxU/MinV/MaxV, never grid coordinates or how the sub-rectangle
-        // was derived, so a split child needs no special-casing anywhere else -- it's indistinguishable
-        // from an original grid patch to every other part of this class.
+        // Caller must already hold _rebuildLock. Each child starts as a crop of the parent's own
+        // already-loaded HeightLibrary data at the parent's resolution (no fetch needed), so the swap
+        // happens synchronously here with no visible gap. UpresPendingChildrenAsync then fetches each
+        // child's finer-zoom data in the background and updates that same live mesh in place.
         private void BeginSplitLocked(PatchKey parentKey, PatchLeaf parentLeaf, PatchSplitPlan splitPlan)
         {
             var parentMesh = parentLeaf.Mesh;
@@ -546,25 +529,55 @@ namespace ManaGeoTools.Code.Planet
                 ChildKeys = new PatchKey[children.Count],
                 ChildMeshes = new PlanetPatchMesh[children.Count],
                 ChildPlans = children.Select(child => child.Plan).ToArray(),
-                ChildReady = new bool[children.Count],
                 ChildSucceeded = new bool[children.Count],
+                ChildFinalized = new bool[children.Count],
                 ChildZoom = new int?[children.Count],
             };
 
             var targetZooms = string.Join("/", children.Select(child => $"z{child.Plan.Zoom}").Distinct().OrderBy(zoom => zoom));
-            Console.WriteLine($"[Terrarium] Increasing {PatchName(parentKey, parentLeaf.Zoom, parentLeaf.Mesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)} to {targetZooms}: building {children.Count} child patch(es) before swapping in (parent stays visible until then).");
+            Console.WriteLine($"[Terrarium] Increasing {PatchName(parentKey, parentLeaf.Zoom, parentLeaf.Mesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)} to {targetZooms}: swapping in {children.Count} child patch(es) at current resolution, refining each as finer source data arrives.");
+
+            RemoveChild(parentLeaf.Node);
+            _leaves.Remove(parentKey);
+            _nodeToPatchKey.Remove(parentLeaf.Node);
+            _patchDetails.TryRemove(parentKey, out _);
+            _upresStatus.TryRemove(parentKey, out _);
 
             for (var index = 0; index < children.Count; index++)
             {
                 var child = children[index];
                 var childMesh = new PlanetPatchMesh(
-                    Context, parentMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius, resolution: 2, heightScale, heightLibrary: null);
+                    Context, parentMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius,
+                    parentLeaf.Mesh.Resolution, heightScale, HeightLibrary);
 
                 pending.ChildKeys[index] = child.Key;
                 pending.ChildMeshes[index] = childMesh;
+
+                var childNode = new ManaMeshSceneNode(Context, childMesh)
+                {
+                    Name = PatchName(child.Key, parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)
+                };
+                AddChild(childNode);
+
+                _leaves[child.Key] = new PatchLeaf
+                {
+                    Mesh = childMesh,
+                    Node = childNode,
+                    Zoom = parentLeaf.Zoom,
+                    SourceResolution = parentLeaf.SourceResolution,
+                    SourceMetersPerPixel = parentLeaf.SourceMetersPerPixel,
+                    LocalBoundsSphere = ComputePatchLocalBoundsSphere(childMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius),
+                };
+                _nodeToPatchKey[childNode] = child.Key;
+                _patchDetails[child.Key] = new PatchDetailInfo(parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel);
+                _upresStatus[child.Key] = PatchUpresStatus.InProgress;
             }
 
-            Task.Run(() => UpresPendingChildrenAsync(pending));
+            Task.Run(() =>
+            {
+                SetCurrentThreadName("Planet split child build");
+                return UpresPendingChildrenAsync(pending);
+            });
         }
 
         private async Task UpresPendingChildrenAsync(PendingSplit pending)
@@ -625,9 +638,15 @@ namespace ManaGeoTools.Code.Planet
                     var plan = pending.ChildPlans[childIndex];
                     var childFetchedAnyTile = plan.TileIndices
                         .Any(index => fetchedByKey.ContainsKey(new TerrariumTileKey(plan.Zoom, index.X, index.Y)));
-                    pending.ChildReady[childIndex] = true;
                     if (!childFetchedAnyTile)
                     {
+                        pending.ChildZoom[childIndex] = plan.Zoom;
+                        pending.ChildSucceeded[childIndex] = false;
+                        _readyToFinalize.Enqueue(new PendingSplitChildReady
+                        {
+                            Pending = pending,
+                            ChildIndex = childIndex,
+                        });
                         continue;
                     }
 
@@ -646,30 +665,28 @@ namespace ManaGeoTools.Code.Planet
 
                     pending.ChildZoom[childIndex] = plan.Zoom;
                     pending.ChildSucceeded[childIndex] = true;
+                    _readyToFinalize.Enqueue(new PendingSplitChildReady
+                    {
+                        Pending = pending,
+                        ChildIndex = childIndex,
+                    });
                 }
 
-                // NOT finalized here -- this runs on a background thread pool thread, and FinalizeSplit
-                // mutates the scene graph (AddChild/RemoveChild on Children, a plain List<T>) -- doing
-                // that from a background thread raced with ManaWorld.CreateRenderScene()'s every-frame
-                // main-thread traversal of that same list ("Collection was modified; enumeration
-                // operation may not execute"). Queue it instead; ProcessPendingSplits (called once per
-                // frame from VoxelEditorGameMode, main thread) drains and finalizes it there.
-                _readyToFinalize.Enqueue(pending);
+                // Metadata (zoom/resolution/status) is finalized on the main thread, not here -- _leaves
+                // is read every frame by UpdateAutoLod/the Outliner, so mutating it off-thread risks a
+                // "collection modified" race. Queue each child instead; ProcessPendingSplits drains it.
             }
 
             var succeededCount = pending.ChildSucceeded.Count(succeeded => succeeded);
-            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: applied {fetched.Count}/{tileKeys.Count} unique tile(s) to {succeededCount}/{pending.ChildPlans.Length} child patch(es) (pending swap-in).");
+            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: refined {succeededCount}/{pending.ChildPlans.Length} child patch(es) with {fetched.Count}/{tileKeys.Count} unique tile(s).");
         }
 
         /// <summary>
-        /// Finalizes any splits whose children have all finished fetching. MUST be called from the
-        /// main thread once per frame (e.g. alongside other per-frame PlanetNode calls in
-        /// VoxelEditorGameMode) -- see UpresPendingChildrenAsync's comment for why finalizing can't safely
-        /// happen directly from the background fetch task that detects readiness.
+        /// Finalizes pending split children on the main thread, one per frame, so the scene graph
+        /// updates progressively as each child becomes ready rather than all at once.
         /// </summary>
         public void ProcessPendingSplits()
         {
-            List<PendingSplit>? ready = null;
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -677,20 +694,12 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                if (_readyToFinalize.Count > 0)
+                var processedThisFrame = 0;
+                while (processedThisFrame < MaxPendingSplitFinalizationsPerFrame && _readyToFinalize.Count > 0)
                 {
-                    ready = new List<PendingSplit>(_readyToFinalize);
-                    _readyToFinalize.Clear();
-                }
-
-                if (ready == null)
-                {
-                    return;
-                }
-
-                foreach (var pending in ready)
-                {
-                    FinalizeSplit(pending);
+                    var readySplit = _readyToFinalize.Dequeue();
+                    FinalizeSplitChild(readySplit.Pending, readySplit.ChildIndex);
+                    processedThisFrame++;
                 }
             }
             finally
@@ -699,65 +708,56 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        // Caller must already hold _rebuildLock.
-        private void FinalizeSplit(PendingSplit pending)
+        // Caller must already hold _rebuildLock. Children already exist in the scene (added up front by
+        // BeginSplitLocked) -- this just records the refined zoom/resolution metadata once a child's
+        // finer-zoom fetch completes. A failed fetch leaves that child visible at its parent-inherited
+        // resolution rather than deleting it.
+        private void FinalizeSplitChild(PendingSplit pending, int childIndex)
         {
-            if (!Array.TrueForAll(pending.ChildSucceeded, succeeded => succeeded))
+            if (pending.ChildFinalized[childIndex])
             {
-                _splitPending.TryRemove(pending.ParentKey, out _);
-                if (_upresStatus.TryGetValue(pending.ParentKey, out var status) && status == PatchUpresStatus.InProgress)
-                {
-                    _upresStatus[pending.ParentKey] = PatchUpresStatus.Failed;
-                }
-                Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)} aborted: one or more children failed to fetch finer source data. Parent patch remains visible.");
                 return;
             }
 
-            RemoveChild(pending.ParentLeaf.Node);
-            _leaves.Remove(pending.ParentKey);
-            _nodeToPatchKey.Remove(pending.ParentLeaf.Node);
-            _patchDetails.TryRemove(pending.ParentKey, out _);
-            _upresStatus.TryRemove(pending.ParentKey, out _);
-            _splitPending.TryRemove(pending.ParentKey, out _);
+            pending.ChildFinalized[childIndex] = true;
+            var childKey = pending.ChildKeys[childIndex];
 
-            for (var quadrant = 0; quadrant < pending.ChildKeys.Length; quadrant++)
+            if (pending.ChildSucceeded[childIndex])
             {
-                var childKey = pending.ChildKeys[quadrant];
-                var childMesh = pending.ChildMeshes[quadrant];
-                var childZoom = pending.ChildZoom[quadrant];
-                var childPlan = pending.ChildPlans[quadrant];
+                var childMesh = pending.ChildMeshes[childIndex];
+                var childZoom = pending.ChildZoom[childIndex];
+                var childPlan = pending.ChildPlans[childIndex];
                 var childSourceResolution = childPlan.SourceResolution;
                 var childMetersPerPixel = childPlan.SourceMetersPerPixel;
-                var childNode = new ManaMeshSceneNode(Context, childMesh) { Name = PatchName(childKey, childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel) };
-                AddChild(childNode);
 
-                var childLeaf = new PatchLeaf
+                if (_leaves.TryGetValue(childKey, out var childLeaf))
                 {
-                    Mesh = childMesh,
-                    Node = childNode,
-                    Zoom = childZoom,
-                    SourceResolution = childSourceResolution,
-                    SourceMetersPerPixel = childMetersPerPixel,
-                    LocalBoundsSphere = ComputePatchLocalBoundsSphere(
-                        childMesh.FaceNormal, childMesh.MinU, childMesh.MaxU, childMesh.MinV, childMesh.MaxV, Radius),
-                };
-                _leaves[childKey] = childLeaf;
-                _nodeToPatchKey[childNode] = childKey;
+                    childLeaf.Zoom = childZoom;
+                    childLeaf.SourceResolution = childSourceResolution;
+                    childLeaf.SourceMetersPerPixel = childMetersPerPixel;
+                    childLeaf.Node.Name = PatchName(childKey, childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
+                }
                 _patchDetails[childKey] = new PatchDetailInfo(childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
                 _upresStatus[childKey] = PatchUpresStatus.Done;
             }
+            else if (_upresStatus.TryGetValue(childKey, out var status) && status == PatchUpresStatus.InProgress)
+            {
+                _upresStatus[childKey] = PatchUpresStatus.Failed;
+            }
 
-            Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)} into {pending.ChildKeys.Length} child patches (all pre-fetched, swapped in together). Total leaves now: {_leaves.Count}.");
+            if (pending.ChildFinalized.All(finalized => finalized))
+            {
+                _splitPending.TryRemove(pending.ParentKey, out _);
+                var succeededCount = pending.ChildSucceeded.Count(succeeded => succeeded);
+                Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)} complete: {succeededCount}/{pending.ChildKeys.Length} child patch(es) refined to finer source data. Total leaves now: {_leaves.Count}.");
+            }
         }
 
         /// <summary>
-        /// Attempts to merge parentKey's 4 sibling children (quadrants 0-3, all currently Done leaves,
-        /// none already splitting/merging) back into one coarser patch. Purely structural/data-driven --
-        /// unlike UpdateAutoLod's own caller-side checks, this does NOT consider screen coverage, the
-        /// same way TrySplitPatch's own body never checks it either; kept public in case a future manual
-        /// "merge siblings" UI action wants it directly, mirroring TrySplitPatch's dual manual/
-        /// programmatic use. Returns false without doing anything if the group isn't a clean 4-sibling
-        /// set or any member is busy. No network fetch needed -- see BeginMergeLocked.
+        /// Merges parentKey's 4 sibling children (quadrants 0-3, all currently Done, none already
+        /// splitting/merging) back into one coarser patch. Purely structural -- doesn't consider screen
+        /// coverage, that's UpdateAutoLod's job. Returns false without doing anything if the group isn't
+        /// a clean 4-sibling set or any member is busy.
         /// </summary>
         public bool TryMergeSiblingGroup(PatchKey parentKey)
         {
@@ -788,11 +788,8 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // Caller must already hold _rebuildLock. Finds parentKey's 4 sibling children (quadrants 0-3,
-        // each present exactly once as a current, Done, not-already-busy leaf) -- re-deriving each
-        // expected child key directly via PatchKey.Child needs no bespoke sibling-matching logic.
-        // Deliberately does NOT match the rarer uneven-SplitPath-depth case TryAddSourceMatchedPatchPlans
-        // can produce (see its own doc comment) -- those subtrees just never auto-merge; a missed
-        // optimization in a rare corner case, not a correctness bug.
+        // each a current, Done, not-already-busy leaf). Doesn't match the rarer uneven-SplitPath-depth
+        // case TryAddSourceMatchedPatchPlans can produce -- those subtrees just never auto-merge.
         private bool TryFindMergeableSiblingGroupLocked(PatchKey parentKey, out PatchKey[] childKeys, out PatchLeaf[] childLeaves)
         {
             childKeys = new PatchKey[4];
@@ -843,13 +840,9 @@ namespace ManaGeoTools.Code.Planet
             return (targetZoom, meshResolution, sourceResolution, sourceMetersPerPixel);
         }
 
-        // Caller must already hold _rebuildLock. Builds ONE cheap placeholder merged mesh at the union of
-        // the 4 children's UV rects (for a clean 4-quadrant group this is exactly the pre-split parent
-        // rect) and kicks off its off-thread rebuild, but touches neither the scene graph nor _leaves yet
-        // -- all 4 children keep rendering, unchanged, until RebuildMergedPatchOffThread finishes and
-        // ProcessPendingMerges finalizes the swap. Mirrors BeginSplitLocked's "old state stays visible
-        // until the new state is fully ready" guarantee, with the visible/hidden roles inverted (here
-        // it's the 4 children that stay put, not a single parent).
+        // Caller must already hold _rebuildLock. Builds one placeholder merged mesh at the union of the
+        // 4 children's UV rects and kicks off its off-thread rebuild, touching neither the scene graph
+        // nor _leaves yet -- all 4 children keep rendering until ProcessPendingMerges swaps them out.
         private void BeginMergeLocked(PatchKey parentKey, PatchKey[] childKeys, PatchLeaf[] childLeaves)
         {
             var faceNormal = childLeaves[0].Mesh.FaceNormal;
@@ -879,7 +872,11 @@ namespace ManaGeoTools.Code.Planet
 
             Console.WriteLine($"[Terrarium] Merging {childKeys.Length} sibling patches under {PatchName(parentKey, meshResolution: mergedMeshResolution)} back into one (children stay visible until ready).");
 
-            Task.Run(() => RebuildMergedPatchOffThread(pending));
+            Task.Run(() =>
+            {
+                SetCurrentThreadName("Planet merge rebuild");
+                RebuildMergedPatchOffThread(pending);
+            });
         }
 
         // Off-main-thread (Task.Run), but unlike UpresPendingChildrenAsync there is no async I/O to
@@ -984,22 +981,11 @@ namespace ManaGeoTools.Code.Planet
 
         /// <summary>
         /// Camera-driven auto-LOD: splits/up-reses patches within AutoLodActivationRadiusMultiplier
-        /// altitude-lengths (great-circle distance, capped at AutoLodMaxActivationRadiusFraction of the
-        /// planet's own Radius -- see that constant's doc comment for why the cap is necessary) of the
-        /// point directly below the camera, and merges clean 4-sibling groups whose combined center has
-        /// drifted beyond AutoLodDeactivationRadiusMultiplier altitude-lengths (similarly capped) back
-        /// into one coarser patch. Call once per frame from the main thread, alongside
-        /// ProcessPendingSplits/ProcessPendingMerges. No-op if AutoLodEnabled is false. Reuses the same
-        /// guarded TryBeginPatchUpres/TrySplitPatch/TryMergeSiblingGroup entry points manual triggers
-        /// use, so auto-LOD and manual actions (double-click, Inspector button, reselection) can never
-        /// conflict -- they share the same idempotent no-op guards.
-        ///
-        /// Deliberately no concurrency cap: scaling the activation radius by the camera's own altitude
-        /// (and capping it) keeps the number of geographically-eligible patches naturally small at any
-        /// one time -- an explicit "at most N in flight" limit would just be capping a number that's
-        /// already small, at
-        /// the cost of real complexity (candidate collection, priority ordering, waiting for slots). The
-        /// existing global UpresFetchThrottle still bounds concurrent network fetches regardless.
+        /// altitude-lengths of the sub-camera point, and merges clean 4-sibling groups that have drifted
+        /// beyond AutoLodDeactivationRadiusMultiplier back into one coarser patch. Call once per frame
+        /// alongside ProcessPendingSplits/ProcessPendingMerges. No-op if AutoLodEnabled is false. Reuses
+        /// TryBeginPatchUpres/TrySplitPatch/TryMergeSiblingGroup's own guards, so this can never conflict
+        /// with a manual trigger (double-click, Inspector button, reselection).
         /// </summary>
         public void UpdateAutoLod(CameraComponent camera)
         {
@@ -1034,12 +1020,10 @@ namespace ManaGeoTools.Code.Planet
                 var activationRadius = Radius * MathF.Min(altitudeFraction * AutoLodActivationRadiusMultiplier, AutoLodMaxActivationRadiusFraction);
                 var deactivationRadius = Radius * MathF.Min(altitudeFraction * AutoLodDeactivationRadiusMultiplier, AutoLodMaxDeactivationRadiusFraction);
 
-                // Ground-sample-distance ceiling: the finest zoom worth requesting is whichever one just
-                // resolves to about one screen pixel at the camera's current altitude -- going finer than
-                // that buys no visible detail. Without this, a patch that's simply within the activation
+                // Ground-sample-distance ceiling: the finest zoom worth requesting resolves to about one
+                // screen pixel at the camera's altitude -- without this a patch inside the activation
                 // radius keeps re-qualifying for TrySplitPatch every frame with no ceiling short of
-                // UpresMaxZoom, regardless of whether the camera has stopped getting any closer (confirmed
-                // via testing: patches climbed to 600+ mesh resolution with the camera not moving at all).
+                // UpresMaxZoom, even once the camera stops moving.
                 var targetMetersPerPixel = ComputeTargetMetersPerPixel(camera, MathF.Max(0.001f, altitude));
 
                 var mergeCandidateParents = new HashSet<PatchKey>();
@@ -1061,13 +1045,8 @@ namespace ManaGeoTools.Code.Planet
 
                     if (groundDistance < activationRadius)
                     {
-                        // Geographic proximity alone isn't reason enough to escalate further once the
-                        // patch's CURRENT source data already resolves finer than the screen can show at
-                        // this altitude -- checked against leaf.SourceMetersPerPixel directly (populated
-                        // for every leaf once the whole-globe ETOPO baseline loads, not just up-res'd
-                        // ones) rather than leaf.Zoom, since a never-up-res'd baseline patch still has a
-                        // real, known source resolution and shouldn't get an unconditional "free" first
-                        // up-res just because Zoom happens to be null.
+                        // Proximity alone isn't enough to escalate once the patch's current source data
+                        // already resolves finer than the screen can show at this altitude.
                         if (IsSourceResolutionAlreadySufficientForAltitude(leaf.SourceMetersPerPixel, targetMetersPerPixel))
                         {
                             continue;
@@ -1137,13 +1116,9 @@ namespace ManaGeoTools.Code.Planet
             int MaxConcurrentTileFetches);
 
         /// <summary>
-        /// Cheap live snapshot of current streaming activity (see VoxelEditorGameMode, which pushes this
-        /// into the World Perf panel's "Streaming" section every frame). Safe to call from the main
-        /// thread without holding _rebuildLock: _upresStatus/_splitPending/_mergePending are
-        /// ConcurrentDictionary (see their own doc comments), UpresFetchThrottle.CurrentCount is a plain
-        /// semaphore counter, and _leaves is only ever mutated from the main thread (FinalizeSplit/
-        /// FinalizeMerge run only from ProcessPendingSplits/ProcessPendingMerges), same as the existing
-        /// unguarded TryGetPatchKey read.
+        /// Cheap live snapshot of current streaming activity (pushed into the World Perf panel's
+        /// "Streaming" section every frame). Safe to call from the main thread without _rebuildLock --
+        /// the backing collections are all ConcurrentDictionary/semaphore/main-thread-only-mutated.
         /// </summary>
         public PlanetStreamingStatus GetStreamingStatus()
         {
@@ -1158,15 +1133,10 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>
-        /// Scene nodes for every leaf currently doing background streaming work -- in-place up-res
-        /// (InProgress in _upresStatus), splitting (the still-visible PARENT leaf named in
-        /// _splitPending), or merging (the still-visible CHILD leaves named in _mergePending) -- for a
-        /// caller-side "highlight what's actively working" overlay, distinct from GetPatchUpresStatus's
-        /// single-key lookup. The parent/children are used rather than the not-yet-existing
-        /// split/merge result because that's what's actually resident and visible in the scene graph
-        /// right now (see BeginSplitLocked/BeginMergeLocked's "old state stays visible until the new
-        /// state is ready" guarantee). Safe to call from the main thread without _rebuildLock, same
-        /// reasoning as GetStreamingStatus.
+        /// Scene nodes for every leaf currently doing background streaming work -- in-place up-res or
+        /// splitting (both InProgress in _upresStatus), or merging (still-visible children in
+        /// _mergePending) -- for a caller-side "highlight what's actively working" overlay. Safe to call
+        /// without _rebuildLock, same as GetStreamingStatus.
         /// </summary>
         public IReadOnlyList<ManaSceneNode> GetStreamingActivityNodes()
         {
@@ -1175,14 +1145,6 @@ namespace ManaGeoTools.Code.Planet
             foreach (var (key, status) in _upresStatus)
             {
                 if (status == PatchUpresStatus.InProgress && _leaves.TryGetValue(key, out var leaf))
-                {
-                    nodes.Add(leaf.Node);
-                }
-            }
-
-            foreach (var parentKey in _splitPending.Keys)
-            {
-                if (_leaves.TryGetValue(parentKey, out var leaf))
                 {
                     nodes.Add(leaf.Node);
                 }
@@ -1209,15 +1171,31 @@ namespace ManaGeoTools.Code.Planet
             return _patchDetails.TryGetValue(key, out var detail) ? detail : null;
         }
 
-        // Attempts the GPU height-sampling path for one patch's up-res (see IHeightSamplingComputeDevice)
-        // -- builds the (lon,lat) point grid at the target resolution, converts the newly-fetched
-        // Terrarium tiles into GPU tile descriptors, and dispatches one batched compute sample instead of
-        // GenerateData()'s existing per-vertex CPU HeightLibrary.FindCurrentTile/GetHeightAtLatLong loop.
-        // Returns null (falls back to the existing CPU path) if no compute device is available, if any
-        // requested tile failed to fetch (a coverage gap the GPU path can't fall back through the way
-        // HeightLibrary.FindCurrentTile's whole-library search can -- deliberately out of scope for v1,
-        // see the plan's own non-goals), or if the GPU dispatch itself throws for any reason (e.g. a
-        // readback faulted because the graphics context is tearing down mid-flight).
+        /// <summary>
+        /// On-disk cache paths (see TerrariumTileFetcher.CacheRoot) for the Terrarium tiles currently
+        /// backing key's elevation data -- for an Inspector "open source tile" button, so terrain
+        /// anomalies can be checked against the actual cached PNG. Empty if the patch is still on the
+        /// whole-globe ETOPO baseline (Zoom null) rather than a Terrarium up-res. Paths aren't guaranteed
+        /// to exist on disk (a tile can be part of the plan but have failed to fetch).
+        /// </summary>
+        public IReadOnlyList<string> GetPatchTileCacheFilePaths(PatchKey key)
+        {
+            if (!_leaves.TryGetValue(key, out var leaf) || !leaf.Zoom.HasValue)
+            {
+                return Array.Empty<string>();
+            }
+
+            var zoom = leaf.Zoom.Value;
+            var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(leaf.Mesh);
+            return SlippyMapMath.EnumerateTiles(lonMin, lonMax, latMin, latMax, zoom)
+                .Select(tile => Path.Combine(TerrariumTileFetcher.CacheRoot, zoom.ToString(), tile.X.ToString(), $"{tile.Y}.png"))
+                .ToList();
+        }
+
+        // GPU height-sampling path for one patch's up-res (see IHeightSamplingComputeDevice) -- one
+        // batched compute dispatch instead of GenerateData()'s per-vertex CPU FindCurrentTile loop.
+        // Returns null (CPU fallback) if no compute device is available, a requested tile failed to
+        // fetch, or the dispatch throws for any reason (e.g. context tearing down mid-flight).
         private static async Task<float[,]?> TrySampleHeightsOnGpuAsync(
             ManaContext context,
             Vector3 faceNormal,
@@ -1272,7 +1250,15 @@ namespace ManaGeoTools.Code.Planet
                 await HeightSampleReadbackThrottle.WaitAsync();
                 try
                 {
-                    heights = await computeDevice.SampleHeightsAsync(points, tileDescriptors);
+                    var sampleTask = computeDevice.SampleHeightsAsync(points, tileDescriptors);
+                    var completedTask = await Task.WhenAny(sampleTask, Task.Delay(HeightSampleTimeout));
+                    if (completedTask != sampleTask)
+                    {
+                        Console.WriteLine($"[Terrarium] GPU height sampling timed out after {HeightSampleTimeout.TotalSeconds:0.#}s, falling back to CPU.");
+                        return null;
+                    }
+
+                    heights = await sampleTask;
                 }
                 finally
                 {
@@ -1515,25 +1501,13 @@ namespace ManaGeoTools.Code.Planet
             return visibleHeightMeters / viewportHeightPixels;
         }
 
-        // True once a patch's CURRENT source data (leaf.SourceMetersPerPixel -- populated for every leaf
-        // once the whole-globe ETOPO baseline loads, whether or not it's ever been Terrarium up-res'd)
-        // already resolves at or finer than one screen pixel at the camera's current altitude -- the gate
-        // UpdateAutoLod uses to stop escalating a geographically-close patch once further detail wouldn't
-        // actually be visible. Deliberately does NOT special-case "never up-res'd" as automatically
-        // insufficient -- a baseline-only patch already has a real, known source resolution (~1.85km/px
-        // at the equator for 60-arcsec ETOPO data), and from far enough away that's already finer than
-        // the screen can show, so it should stay on baseline rather than getting an unconditional "free"
-        // first up-res just because it hasn't been touched yet.
-        //
-        // No estimate AT ALL (null) means something different -- the whole-globe ETOPO baseline hasn't
-        // finished loading/applying to THIS patch yet (ApplyTileToOverlappingPatches runs once,
-        // asynchronously, after LoadHeightDataAsync kicks it off, and can take a while -- see this
-        // session's own perf investigation). Treated as "already sufficient" (i.e. leave it alone) rather
-        // than "go ahead," since jumping straight to a Terrarium fetch before the coarse baseline has even
-        // arrived is never right -- confirmed via debug logging: every leaf reads SourceMetersPerPixel as
-        // null in the first several seconds after launch, and treating that as "insufficient" made every
-        // geographically-nearby patch fire immediately regardless of altitude. The patch gets reconsidered
-        // on its own once ApplyTileToOverlappingPatches populates this for real.
+        // True once a patch's current source data already resolves at or finer than one screen pixel at
+        // the camera's altitude -- the gate UpdateAutoLod uses to stop escalating a close patch once
+        // more detail wouldn't be visible. A never-up-res'd baseline patch still has a real known
+        // resolution (~1.85km/px for 60-arcsec ETOPO), so it isn't treated as automatically insufficient.
+        // Null (baseline hasn't loaded for this patch yet) is also treated as sufficient/"leave it alone"
+        // rather than "go ahead" -- jumping to a Terrarium fetch before baseline even arrives is wrong,
+        // and every leaf reads null for the first few seconds after launch.
         private static bool IsSourceResolutionAlreadySufficientForAltitude(double? currentMetersPerPixel, float targetMetersPerPixel)
         {
             return !currentMetersPerPixel.HasValue || currentMetersPerPixel.Value <= targetMetersPerPixel;
@@ -1655,17 +1629,11 @@ namespace ManaGeoTools.Code.Planet
             return (lonMin, lonMax, latMin, latMax);
         }
 
-        // Samples a handful of representative points on the patch (4 corners + center) through the
-        // exact same FaceNormal/u/v -> CubeSphere.WarpCubeToSphere -> LatLong formula used for real
-        // vertex generation, and checks each against the tile's already-correct lat/long bounding box.
-        // A cube-face patch maps to a *curved* quadrilateral in lat/long space, so building a lat/long
-        // bounding box FOR the patch (the way the old lat/long-degree patch version could) breaks at
-        // the antimeridian seam and near the poles (a small polar patch's true longitude range can be
-        // the full 360 degrees) — sampling points through the real formula and testing them against
-        // the tile's simple, correct Area.Contains() sidesteps both problems entirely by never
-        // constructing a lat/long bounding box for the curved patch at all. A missed partial overlap
-        // just skips an unnecessary rebuild trigger this round, not a correctness bug — each vertex
-        // independently re-samples its own tile at generation time regardless.
+        // Samples 4 corners + center through the real vertex-generation formula and tests each against
+        // the tile's lat/long bounding box, rather than building a bounding box FOR the patch -- a
+        // cube-face patch is a *curved* quadrilateral in lat/long space, so its own bounding box breaks
+        // at the antimeridian and near the poles. A missed partial overlap just skips a rebuild trigger
+        // this round, not a correctness bug -- each vertex re-samples its own tile at generation time.
         private static bool TileOverlapsPatch(ManaGeoTools.Code.GeoTiff.GeoTiff tile, PlanetPatchMesh patch)
         {
             var axisA = new Vector3(patch.FaceNormal.Y, patch.FaceNormal.Z, patch.FaceNormal.X);

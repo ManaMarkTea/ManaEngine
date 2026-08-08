@@ -227,6 +227,11 @@ namespace ManaGraphics.Code.Graphics
 
                 Task.Run(() =>
                 {
+                    if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
+                    {
+                        System.Threading.Thread.CurrentThread.Name = "WebGPU env map load";
+                    }
+
                     try
                     {
                         var map = ManaWebGpuEnvironmentReflectionMap.Create(
