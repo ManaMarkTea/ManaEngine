@@ -1,13 +1,17 @@
 using ManaCore.Graphics;
 using Silk.NET.OpenGL;
 
-namespace ManaGraphics.Code.Graphics
+namespace Mana.Code.Graphics
 {
     public sealed class ManaOpenGlComputeShader : ManaComputeShader
     {
         private readonly GL _gl;
         private uint _program;
         private uint _shader;
+
+        // Exposed so callers can bind SSBOs/set uniforms (glUseProgram + glUniform*/glBindBufferBase)
+        // before calling Dispatch -- e.g. ManaOpenGlHeightSampleCompute setting its tileCount uniform.
+        public uint Program => _program;
 
         public ManaOpenGlComputeShader(GL gl, string name, string source)
             : base(ManaGraphicsBackendKind.OpenGL, name)
@@ -41,9 +45,14 @@ namespace ManaGraphics.Code.Graphics
         {
             _gl.UseProgram(_program);
             _gl.DispatchCompute(dispatchSize.X, dispatchSize.Y, dispatchSize.Z);
+            // ShaderStorageBarrierBit added alongside the first real SSBO consumer (ManaOpenGlHeightSampleCompute)
+            // -- the original two bits only covered image/texture access, not shader storage buffer writes,
+            // so a compute shader writing an SSBO had no guarantee its output was visible to a subsequent
+            // glGetBufferSubData without this.
             _gl.MemoryBarrier(
                 MemoryBarrierMask.ShaderImageAccessBarrierBit |
-                MemoryBarrierMask.TextureFetchBarrierBit);
+                MemoryBarrierMask.TextureFetchBarrierBit |
+                MemoryBarrierMask.ShaderStorageBarrierBit);
             _gl.UseProgram(0);
         }
 

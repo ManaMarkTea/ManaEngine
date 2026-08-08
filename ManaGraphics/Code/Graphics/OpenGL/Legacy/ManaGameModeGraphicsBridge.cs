@@ -24,6 +24,10 @@ namespace Mana.Code.Graphics
         {
             if (backend == ManaGraphicsBackendKind.OpenGL)
             {
+                // Services any SampleHeightsAsync requests queued from background threads (see
+                // ManaOpenGlGraphicsDevice/ManaOpenGlHeightSampleCompute) -- must run on this thread since
+                // it owns the GL context. No-op until the compute shader has actually been used once.
+                (context.GraphicsDevice as ManaOpenGlGraphicsDevice)?.ProcessPendingHeightSampleRequests();
                 context.World.Draw();
             }
         }

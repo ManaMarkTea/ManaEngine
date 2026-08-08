@@ -19,6 +19,11 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
 
         private readonly float[] _heights;
 
+        // Raw row-major TileSize x TileSize sample data -- exposed for the GPU height-sampling path
+        // (see IHeightSamplingComputeDevice/PlanetNode.UpresPatchAsync), which needs to upload a tile's
+        // actual pixels rather than query them one point at a time.
+        public ReadOnlyMemory<float> HeightData => _heights;
+
         public TerrariumHeightTile(int zoom, int tileX, int tileY, float[] heights)
         {
             if (heights.Length != TileSize * TileSize)

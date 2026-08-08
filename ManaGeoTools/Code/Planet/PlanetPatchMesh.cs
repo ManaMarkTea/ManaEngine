@@ -28,6 +28,13 @@ namespace ManaGeoTools.Code.Planet
         public float HeightScale { get; private set; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
 
+        // Set right before GenerateData() by ApplyHeightDataWithResolution's precomputed-heights
+        // overload (GPU height-sampling path, see PlanetNode.UpresPatchAsync), consumed and cleared
+        // inside GenerateData() itself. When set, Resolution x Resolution, indexed [x,y] matching
+        // GenerateData()'s own vertex loop -- null means "sample HeightLibrary per-vertex on the CPU as
+        // usual" (every other caller/overload).
+        private float[,]? _pendingPrecomputedHeights;
+
         // How far (in real-world meters, scaled through HeightScale the same as actual elevation) the
         // skirt geometry around this patch's 4 edges hangs inward toward the planet's center -- see the
         // skirt-building block in GenerateData for why this exists. 500m comfortably covers the height
@@ -87,11 +94,66 @@ namespace ManaGeoTools.Code.Planet
             GenerateData();
         }
 
+        /// <summary>
+        /// Same as ApplyHeightDataWithResolution, but with per-vertex heights already sampled elsewhere
+        /// (the GPU compute path, see IHeightSamplingComputeDevice/PlanetNode.UpresPatchAsync) instead of
+        /// looked up per-vertex against heightLibrary here. heightLibrary is still stored (kept
+        /// consistent with the non-precomputed overload, and used by anything that reads it later, e.g.
+        /// HeightExaggeration's Rebuild path) but is NOT consulted for sampling this time.
+        /// precomputedHeights must be resolution x resolution, indexed [x,y] the same way
+        /// GenerateData()'s own vertex loop is.
+        /// </summary>
+        public void ApplyHeightDataWithResolution(GeoTiffLibrary heightLibrary, int resolution, float[,] precomputedHeights)
+        {
+            HeightLibrary = heightLibrary;
+            Resolution = Math.Max(2, resolution);
+            _pendingPrecomputedHeights = precomputedHeights;
+            GenerateData();
+        }
+
         /// <summary>Updates the height displacement scale (e.g. from an Inspector edit) and regenerates.</summary>
         public void Rebuild(float heightScale)
         {
             HeightScale = heightScale;
             GenerateData();
+        }
+
+        /// <summary>
+        /// Computes the (longitude, latitude) degrees grid GenerateData() would place vertices at for the
+        /// given bounds/resolution, without sampling height or building any geometry -- used by the GPU
+        /// height-sampling path (PlanetNode.UpresPatchAsync) to gather sample points BEFORE calling
+        /// ApplyHeightDataWithResolution, since the grid must be computed at the TARGET resolution, which
+        /// is generally different from whatever this mesh's current Resolution is. Static, and takes the
+        /// same bounds parameters the constructor does, rather than reading them off an instance, so a
+        /// caller can compute this before the mesh's own Resolution/HeightLibrary are updated. Uses the
+        /// exact same per-vertex formula as GenerateData()'s own loop so GPU-sampled heights line up with
+        /// this mesh's actual vertex positions point-for-point.
+        /// </summary>
+        public static Vector2[,] ComputeLonLatGrid(Vector3 faceNormal, float minU, float maxU, float minV, float maxV, int resolution)
+        {
+            resolution = Math.Max(2, resolution);
+            var axisA = new Vector3(faceNormal.Y, faceNormal.Z, faceNormal.X);
+            var axisB = Vector3.Cross(faceNormal, axisA);
+            var grid = new Vector2[resolution, resolution];
+
+            ForEachRow(resolution, y =>
+            {
+                var ty = (float)y / (resolution - 1);
+                var v = float.Lerp(minV, maxV, ty);
+
+                for (var x = 0; x < resolution; x++)
+                {
+                    var tx = (float)x / (resolution - 1);
+                    var u = float.Lerp(minU, maxU, tx);
+
+                    var pointOnUnitCube = faceNormal + (u * axisA) + (v * axisB);
+                    var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
+                    var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+                    grid[x, y] = new Vector2(latLong.Longitude, latLong.Latitude);
+                }
+            });
+
+            return grid;
         }
 
         public override ManaMaterial GenerateMaterial()
@@ -125,6 +187,14 @@ namespace ManaGeoTools.Code.Planet
             var texCoords = new Vector2[Resolution, Resolution];
             var colors = new Vector4[Resolution, Resolution];
 
+            // Consumed here (not a per-vertex lookup below) -- GPU path already sampled every vertex's
+            // height in one batched compute dispatch (see IHeightSamplingComputeDevice/
+            // PlanetNode.UpresPatchAsync); this whole loop still needs to run either way, since UV/color
+            // computation and the position/pointOnUnitSphere math don't depend on WHERE the height came
+            // from, only the per-vertex HeightLibrary.FindCurrentTile/GetHeightAtLatLong call is skipped.
+            var precomputedHeights = _pendingPrecomputedHeights;
+            _pendingPrecomputedHeights = null;
+
             ForEachRow(Resolution, y =>
             {
                 var ty = (float)y / (Resolution - 1);
@@ -139,11 +209,15 @@ namespace ManaGeoTools.Code.Planet
                     var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
                     var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
 
-                    float? rawHeightMeters = null;
-                    var tile = HeightLibrary?.FindCurrentTile(latLong);
-                    if (tile != null)
+                    float? rawHeightMeters;
+                    if (precomputedHeights != null)
                     {
-                        rawHeightMeters = tile.GetHeightAtLatLong(latLong);
+                        rawHeightMeters = precomputedHeights[x, y];
+                    }
+                    else
+                    {
+                        var tile = HeightLibrary?.FindCurrentTile(latLong);
+                        rawHeightMeters = tile?.GetHeightAtLatLong(latLong);
                     }
 
                     var displacement = (rawHeightMeters ?? 0f) * HeightScale;

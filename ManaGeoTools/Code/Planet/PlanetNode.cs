@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Mana;
 using Mana.Code;
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using ManaGeoTools.Code.GeoTiff;
 using ManaGeoTools.Code.GeoTiff.Terrarium;
 
@@ -184,6 +185,13 @@ namespace ManaGeoTools.Code.Planet
 
         private static readonly SemaphoreSlim UpresFetchThrottle = new(UpresMaxConcurrentFetches);
 
+        // Caps concurrent GPU height-sample dispatches (see TrySampleHeightsOnGpuAsync), mirroring
+        // UpresFetchThrottle's role for network fetches above. Lower than the network throttle -- GPU
+        // submission from many threads still serializes at the driver/queue level, so higher concurrency
+        // here mostly adds contention rather than throughput.
+        private const int HeightSampleMaxConcurrentDispatches = 8;
+        private static readonly SemaphoreSlim HeightSampleReadbackThrottle = new(HeightSampleMaxConcurrentDispatches);
+
         // UpdateAutoLod's trigger is purely geographic: how far a patch's center sits (great-circle arc
         // distance, in world units) from the point on the sphere directly below the camera, scaled by
         // the camera's own altitude above the surface -- but altitude is first NORMALIZED into "planet
@@ -236,7 +244,7 @@ namespace ManaGeoTools.Code.Planet
         /// Live, reboundable toggle for UpdateAutoLod (see its doc comment) -- mirrors HeightExaggeration's
         /// own pattern of a PlanetNode-owned setting an Inspector checkbox flips directly.
         /// </summary>
-        public bool AutoLodEnabled { get; set; } = true;
+        public bool AutoLodEnabled { get; set; } = false;
 
         public PlanetNode(
             ManaContext context,
@@ -367,7 +375,7 @@ namespace ManaGeoTools.Code.Planet
                 }
 
                 if (_upresStatus.TryGetValue(key, out var status)
-                    && status is PatchUpresStatus.InProgress or PatchUpresStatus.Done)
+                    && status is PatchUpresStatus.InProgress or PatchUpresStatus.Done or PatchUpresStatus.Failed)
                 {
                     return;
                 }
@@ -560,6 +568,10 @@ namespace ManaGeoTools.Code.Planet
 
         private async Task UpresPendingChildrenAsync(PendingSplit pending)
         {
+            // TEMP verification instrumentation -- remove once the "20 seconds for one split" report is
+            // root-caused.
+            var splitSw = System.Diagnostics.Stopwatch.StartNew();
+
             var tileKeys = pending.ChildPlans
                 .SelectMany(plan => plan.TileIndices.Select(index => new TerrariumTileKey(plan.Zoom, index.X, index.Y)))
                 .Distinct()
@@ -567,9 +579,30 @@ namespace ManaGeoTools.Code.Planet
             Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: fetching {tileKeys.Count} unique tile(s) for {pending.ChildPlans.Length} child patch(es).");
 
             var fetched = await FetchTilesAsync(tileKeys);
-            var fetchedKeys = fetched
-                .Select(tile => new TerrariumTileKey(tile.Zoom, tile.TileX, tile.TileY))
-                .ToHashSet();
+            var fetchMs = splitSw.ElapsedMilliseconds;
+            var fetchedByKey = fetched.ToDictionary(tile => new TerrariumTileKey(tile.Zoom, tile.TileX, tile.TileY));
+
+            // GPU height-sampling path (see TrySampleHeightsOnGpuAsync), attempted per child -- outside
+            // the lock below since it involves awaiting a GPU dispatch+readback, which lock (a
+            // synchronous primitive) can't contain. Each child is independent, so run them concurrently
+            // rather than one at a time (HeightSampleReadbackThrottle still bounds how many actually
+            // dispatch to the GPU at once).
+            var precomputedHeightsTasks = new Task<float[,]?>[pending.ChildPlans.Length];
+            for (var childIndex = 0; childIndex < pending.ChildPlans.Length; childIndex++)
+            {
+                var plan = pending.ChildPlans[childIndex];
+                var childMesh = pending.ChildMeshes[childIndex];
+                var childFetchedTiles = plan.TileIndices
+                    .Select(index => fetchedByKey.GetValueOrDefault(new TerrariumTileKey(plan.Zoom, index.X, index.Y)))
+                    .Where(tile => tile != null)
+                    .Select(tile => tile!)
+                    .ToList();
+                precomputedHeightsTasks[childIndex] = TrySampleHeightsOnGpuAsync(
+                    Context, childMesh.FaceNormal, childMesh.MinU, childMesh.MaxU, childMesh.MinV, childMesh.MaxV,
+                    plan.MeshResolution, childFetchedTiles, plan.TileIndices.Count);
+            }
+            var precomputedHeightsResults = await Task.WhenAll(precomputedHeightsTasks);
+            var gpuSampleMs = splitSw.ElapsedMilliseconds - fetchMs;
 
             lock (_rebuildLock)
             {
@@ -578,18 +611,37 @@ namespace ManaGeoTools.Code.Planet
                     HeightLibrary!.AddTile(tile);
                 }
 
+                // Sequential across children, deliberately -- an earlier attempt to parallelize this loop
+                // with Parallel.For (nesting with each child's own internal Parallel.For inside
+                // GenerateData()'s ForEachRow) caused severe thread-pool oversubscription, regressing from
+                // ~40s total to ~30s PER CHILD, and a further attempt to fix that via a [ThreadStatic]
+                // suppression flag produced an outright deadlock under real use. Reverted to the simple,
+                // correct, known-quantity sequential loop -- see PlanetPatchMesh.GenerateData's own
+                // internal Parallel.For (gated on resolution) for the only parallelism active here.
                 for (var childIndex = 0; childIndex < pending.ChildPlans.Length; childIndex++)
                 {
                     var plan = pending.ChildPlans[childIndex];
                     var childFetchedAnyTile = plan.TileIndices
-                        .Any(index => fetchedKeys.Contains(new TerrariumTileKey(plan.Zoom, index.X, index.Y)));
+                        .Any(index => fetchedByKey.ContainsKey(new TerrariumTileKey(plan.Zoom, index.X, index.Y)));
                     pending.ChildReady[childIndex] = true;
                     if (!childFetchedAnyTile)
                     {
                         continue;
                     }
 
-                    pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
+                    var childSw = System.Diagnostics.Stopwatch.StartNew();
+                    var precomputedHeights = precomputedHeightsResults[childIndex];
+                    if (precomputedHeights != null)
+                    {
+                        pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution, precomputedHeights);
+                    }
+                    else
+                    {
+                        pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
+                    }
+
+                    Console.WriteLine($"[SplitTiming] child={childIndex} meshResolution={plan.MeshResolution} usedGpu={precomputedHeights != null} applyHeightDataMs={childSw.ElapsedMilliseconds}");
+
                     pending.ChildZoom[childIndex] = plan.Zoom;
                     pending.ChildSucceeded[childIndex] = true;
                 }
@@ -605,6 +657,8 @@ namespace ManaGeoTools.Code.Planet
 
             var succeededCount = pending.ChildSucceeded.Count(succeeded => succeeded);
             Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: applied {fetched.Count}/{tileKeys.Count} unique tile(s) to {succeededCount}/{pending.ChildPlans.Length} child patch(es) (pending swap-in).");
+            var applyMs = splitSw.ElapsedMilliseconds - fetchMs - gpuSampleMs;
+            Console.WriteLine($"[SplitTiming] TOTAL fetchMs={fetchMs} gpuSampleMs={gpuSampleMs} applyLockMs={applyMs} totalMs={splitSw.ElapsedMilliseconds}");
         }
 
         /// <summary>
@@ -1155,6 +1209,94 @@ namespace ManaGeoTools.Code.Planet
             return _patchDetails.TryGetValue(key, out var detail) ? detail : null;
         }
 
+        // Attempts the GPU height-sampling path for one patch's up-res (see IHeightSamplingComputeDevice)
+        // -- builds the (lon,lat) point grid at the target resolution, converts the newly-fetched
+        // Terrarium tiles into GPU tile descriptors, and dispatches one batched compute sample instead of
+        // GenerateData()'s existing per-vertex CPU HeightLibrary.FindCurrentTile/GetHeightAtLatLong loop.
+        // Returns null (falls back to the existing CPU path) if no compute device is available, if any
+        // requested tile failed to fetch (a coverage gap the GPU path can't fall back through the way
+        // HeightLibrary.FindCurrentTile's whole-library search can -- deliberately out of scope for v1,
+        // see the plan's own non-goals), or if the GPU dispatch itself throws for any reason (e.g. a
+        // readback faulted because the graphics context is tearing down mid-flight).
+        private static async Task<float[,]?> TrySampleHeightsOnGpuAsync(
+            ManaContext context,
+            Vector3 faceNormal,
+            float minU,
+            float maxU,
+            float minV,
+            float maxV,
+            int meshResolution,
+            IReadOnlyList<TerrariumHeightTile> fetchedTiles,
+            int requestedTileCount)
+        {
+            if (context.GraphicsDevice is not IHeightSamplingComputeDevice computeDevice)
+            {
+                return null;
+            }
+
+            if (fetchedTiles.Count != requestedTileCount)
+            {
+                return null;
+            }
+
+            try
+            {
+                var lonLatGrid = PlanetPatchMesh.ComputeLonLatGrid(faceNormal, minU, maxU, minV, maxV, meshResolution);
+                var resolution = lonLatGrid.GetLength(0);
+                var points = new Vector2[resolution * resolution];
+                for (var y = 0; y < resolution; y++)
+                {
+                    for (var x = 0; x < resolution; x++)
+                    {
+                        points[(y * resolution) + x] = lonLatGrid[x, y];
+                    }
+                }
+
+                var tileDescriptors = new HeightSampleTileDescriptor[fetchedTiles.Count];
+                for (var i = 0; i < fetchedTiles.Count; i++)
+                {
+                    var tile = fetchedTiles[i];
+                    tileDescriptors[i] = new HeightSampleTileDescriptor
+                    {
+                        LonMin = tile.Area.UpperLeft.Longitude,
+                        LonMax = tile.Area.LowerRight.Longitude,
+                        LatMin = tile.Area.LowerLeft.Latitude,
+                        LatMax = tile.Area.UpperRight.Latitude,
+                        Width = TerrariumHeightTile.TileSize,
+                        Height = TerrariumHeightTile.TileSize,
+                        HeightData = tile.HeightData,
+                    };
+                }
+
+                float[] heights;
+                await HeightSampleReadbackThrottle.WaitAsync();
+                try
+                {
+                    heights = await computeDevice.SampleHeightsAsync(points, tileDescriptors);
+                }
+                finally
+                {
+                    HeightSampleReadbackThrottle.Release();
+                }
+
+                var result = new float[resolution, resolution];
+                for (var y = 0; y < resolution; y++)
+                {
+                    for (var x = 0; x < resolution; x++)
+                    {
+                        result[x, y] = heights[(y * resolution) + x];
+                    }
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Terrarium] GPU height sampling failed, falling back to CPU: {ex.Message}");
+                return null;
+            }
+        }
+
         private async Task UpresPatchAsync(PatchKey key, PlanetPatchMesh patch, PatchUpresPlan plan)
         {
             var fetched = await FetchTilesForPatchAsync(key, plan);
@@ -1165,13 +1307,26 @@ namespace ManaGeoTools.Code.Planet
                 return;
             }
 
+            var precomputedHeights = await TrySampleHeightsOnGpuAsync(
+                Context, patch.FaceNormal, patch.MinU, patch.MaxU, patch.MinV, patch.MaxV,
+                plan.MeshResolution, fetched, plan.TileIndices.Count);
+
             lock (_rebuildLock)
             {
                 foreach (var tile in fetched)
                 {
                     HeightLibrary!.AddTile(tile);
                 }
-                patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
+
+                if (precomputedHeights != null)
+                {
+                    patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution, precomputedHeights);
+                }
+                else
+                {
+                    patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
+                }
+
                 _upresStatus[key] = PatchUpresStatus.Done;
                 if (_leaves.TryGetValue(key, out var leaf))
                 {
@@ -1183,7 +1338,7 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
-            Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: applied {fetched.Count} tile(s).");
+            Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: applied {fetched.Count} tile(s){(precomputedHeights != null ? " (GPU)" : "")}.");
         }
 
         // Shared by standalone up-res and split/refine up-res. Fetches every unique Terrarium tile with

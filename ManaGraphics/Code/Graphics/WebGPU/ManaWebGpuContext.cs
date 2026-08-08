@@ -35,6 +35,12 @@ namespace ManaGraphics.Code.Graphics
         private Adapter* _adapter;
         private Device* _device;
         private Queue* _queue;
+        // Resolved once, right after _device/_queue exist -- wgpu-native's own extension for pumping
+        // async callbacks (BufferMapAsync, QueueOnSubmittedWorkDone) to actually fire. Falls back to the
+        // portable InstanceProcessEvents if this build's WebGPU implementation doesn't expose it.
+        private Wgpu? _wgpuNativeExtension;
+        private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
+        private volatile bool _disposed;
         private Texture* _depthTexture;
         private TextureView* _depthTextureView;
         private TextureFormat _surfaceFormat;
@@ -67,6 +73,7 @@ namespace ManaGraphics.Code.Graphics
         private RenderPipeline* _wireframePipeline;
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
+        private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
         private Texture* _sceneCaptureDepthTexture;
         private TextureView* _sceneCaptureDepthTextureView;
         private uint _sceneCaptureDepthSize;
@@ -138,6 +145,10 @@ namespace ManaGraphics.Code.Graphics
 
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
             _queue = _api.DeviceGetQueue(_device);
+            if (!_api.TryGetDeviceExtension(_device, out _wgpuNativeExtension))
+            {
+                ManaConsole.WriteDiagnostic("WGPU native extension unavailable; falling back to InstanceProcessEvents for async GPU callback pumping.");
+            }
             _api.DeviceSetUncapturedErrorCallback(_device, _errorCallback, null);
             _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
             ConfigureSurface(window.FramebufferSize);
@@ -180,8 +191,43 @@ namespace ManaGraphics.Code.Graphics
             return _imGuiController;
         }
 
+        // Backs IHeightSamplingComputeDevice.SampleHeightsAsync -- see ManaWebGpuGraphicsDevice, which
+        // forwards here once wired up to this context (see VoxelEditorGameMode.RunWebGpu's webGpuReady
+        // callback). Callable from any thread, including the background threads PlanetNode's up-res flow
+        // already runs on -- GPU command submission from a background thread is an already-accepted
+        // pattern in this codebase (see ManaWebGpuEnvironmentPrefilterCompute.DispatchNow's own
+        // background-thread usage).
+        public Task<float[]> SampleHeightsAsync(
+            ReadOnlyMemory<Vector2> lonLatPointsDegrees,
+            IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
+        {
+            if (_disposed)
+            {
+                return Task.FromCanceled<float[]>(new CancellationToken(true));
+            }
+
+            _heightSampleCompute ??= new ManaWebGpuHeightSampleCompute(
+                _api, _device, _queue, _readbackRegistry,
+                ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
+
+            return _heightSampleCompute.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst);
+        }
+
         public void ClearFrame(Color clearColor)
         {
+            // Pumps any in-flight ManaWebGpuBufferReadback's native BufferMapAsync callback -- must run
+            // every frame, unconditionally, before either early-return path below, so a pending readback
+            // never stalls while the window is minimized/mid-resize/reconfiguring. Cheap (near-no-op) when
+            // nothing's pending, so not worth gating behind a pending-count check.
+            if (_wgpuNativeExtension != null)
+            {
+                _wgpuNativeExtension.DevicePoll(_device, false, null);
+            }
+            else
+            {
+                _api.InstanceProcessEvents(_instance);
+            }
+
             _frameSerial++;
             DrainDeferredSceneMeshDisposals();
 
@@ -324,6 +370,12 @@ namespace ManaGraphics.Code.Graphics
 
         public void Dispose()
         {
+            // Must happen before _queue/_device are released below: once polling stops, no native
+            // BufferMapAsync callback will ever fire again, so any still-pending readback awaiter would
+            // otherwise hang forever instead of getting a clean cancellation.
+            _disposed = true;
+            _readbackRegistry.FaultAllPending();
+
             DrainDeferredSceneMeshDisposals(force: true);
             ReleaseDemoResources();
 

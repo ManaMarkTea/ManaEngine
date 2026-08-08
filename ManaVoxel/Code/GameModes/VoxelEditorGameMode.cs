@@ -37,7 +37,6 @@ namespace Mana.Code.GameModes
         private bool _firstFrame = true;
         private bool _selectPointerWasDown;
         private ManaSceneNode? _lastOutlinedSelectionNode;
-        private ManaSceneNode? _lastUpresCheckedNode;
         private HashSet<ManaSceneNode> _lastStreamingHighlightedNodes = new();
         private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
         private static readonly Vector4 SelectionOutlineColor = new(0.30f, 0.72f, 1.0f, 1.0f);
@@ -98,6 +97,10 @@ namespace Mana.Code.GameModes
                 (webGpuContext, input) =>
                 {
                     _webGpuContext = webGpuContext;
+                    if (Context.GraphicsDevice is ManaWebGpuGraphicsDevice webGpuGraphicsDevice)
+                    {
+                        webGpuGraphicsDevice.Context = webGpuContext;
+                    }
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
                     _ImGui = webGpuContext.CreateImGuiController(input);
                     var io = ImGuiNET.ImGui.GetIO();
@@ -1146,18 +1149,18 @@ namespace Mana.Code.GameModes
             // the World Perf panel's aggregate counts, see PushPlanetStreamingStatusToWorldPerf).
             UpdateStreamingActivityOutlines(selectedNode, activeNode);
 
-            // Kept as its own tracked node rather than reusing _lastOutlinedSelectionNode above --
-            // different concern (triggering a one-shot background fetch vs. an outline highlight) that
-            // just happens to usually move together. Covers both the Outliner tree AND clicking a
-            // patch directly in the 3D view, since both already write to the same SelectedNode via
-            // UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
-            if (selectedNode != _lastUpresCheckedNode)
+            // Called every frame the patch is selected, not just once on selection change -- covers both
+            // the Outliner tree AND clicking a patch directly in the 3D view, since both already write to
+            // the same SelectedNode via UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
+            // TryBeginPatchUpres is documented as safe/idempotent to call repeatedly (a no-op once the
+            // patch is InProgress/Done/Failed) -- calling it only once per selection change used to leave
+            // a patch stuck forever if that single call happened to lose the non-blocking _rebuildLock
+            // race to some other in-flight background operation (split/merge/another patch's up-res),
+            // since nothing would retry until the user deselected and reselected. Calling every frame
+            // lets a lost race self-heal on the very next frame instead.
+            if (selectedNode != null && _planet != null && _planet.TryGetPatchKey(selectedNode, out var patchKey))
             {
-                _lastUpresCheckedNode = selectedNode;
-                if (selectedNode != null && _planet != null && _planet.TryGetPatchKey(selectedNode, out var patchKey))
-                {
-                    _planet.TryBeginPatchUpres(patchKey);
-                }
+                _planet.TryBeginPatchUpres(patchKey);
             }
 
             SyncLightningBallVisibility();
