@@ -7,6 +7,8 @@ namespace ManaGeoTools.Code
     {
         private float _longitude;
         private float _latitude;
+        private string? _longitudeString;
+        private string? _latitudeString;
 
         public float Longitude
         {
@@ -14,7 +16,7 @@ namespace ManaGeoTools.Code
             set
             {
                 _longitude = value;
-                LongitudeString = ToDms(value, "E", "W");
+                _longitudeString = null;
             }
         }
 
@@ -24,14 +26,19 @@ namespace ManaGeoTools.Code
             set
             {
                 _latitude = value;
-                LatitudeString = ToDms(value, "N", "S");
+                _latitudeString = null;
             }
         }
 
         public float Altitude { get; set; }
 
-        public string LongitudeString { get; private set; } = string.Empty;
-        public string LatitudeString { get; private set; } = string.Empty;
+        // Formatted lazily -- constructing a LatLong (e.g. once per vertex during planet mesh
+        // generation, see PlanetPatchMesh.GenerateData) used to unconditionally format both of these on
+        // every Longitude/Latitude set, even though most callers (height sampling, tile lookup) never
+        // read them. ToDms does int casts plus three culture-aware ToString() calls -- real cost at
+        // O(vertex count).
+        public string LongitudeString => _longitudeString ??= ToDms(_longitude, "E", "W");
+        public string LatitudeString => _latitudeString ??= ToDms(_latitude, "N", "S");
 
         public LatLong(float longitude, float latitude)
         {
@@ -58,8 +65,11 @@ namespace ManaGeoTools.Code
         public static LatLong FromLatLong(LatLong latLong)
         {
             var copy = new LatLong(latLong.Longitude, latLong.Latitude);
-            copy.LatitudeString = latLong.LatitudeString;
-            copy.LongitudeString = latLong.LongitudeString;
+            // Copy whatever's already cached (including "not yet computed") rather than reading the
+            // public getters, which would force ToDms to run on the copy even if the source never
+            // needed it either.
+            copy._latitudeString = latLong._latitudeString;
+            copy._longitudeString = latLong._longitudeString;
             return copy;
         }
 

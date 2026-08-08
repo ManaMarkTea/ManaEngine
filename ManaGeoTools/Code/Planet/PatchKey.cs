@@ -33,6 +33,18 @@ namespace ManaGeoTools.Code.Planet
             return new PatchKey(Face, Row, Col, SplitPath.Add(quadrant));
         }
 
+        /// <summary>True for an original, never-split grid patch -- has no coarser patch to merge into.</summary>
+        public bool IsRoot => SplitPath.IsEmpty;
+
+        /// <summary>The quadrant (0-3) this key was reached by from its immediate parent. Caller must check !IsRoot first.</summary>
+        public int Quadrant => SplitPath[^1];
+
+        /// <summary>Inverse of Child(quadrant): the key one level coarser than this one. Caller must check !IsRoot first.</summary>
+        public PatchKey Parent()
+        {
+            return new PatchKey(Face, Row, Col, SplitPath.RemoveAt(SplitPath.Length - 1));
+        }
+
         // ImmutableArray<T>'s own Equals/GetHashCode compare the backing array by REFERENCE, not
         // content -- using it as a Dictionary key field would silently break lookups unless Equals/
         // GetHashCode are hand-written to walk the contents instead, as done here.

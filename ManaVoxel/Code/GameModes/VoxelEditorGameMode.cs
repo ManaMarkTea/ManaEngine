@@ -38,6 +38,7 @@ namespace Mana.Code.GameModes
         private bool _selectPointerWasDown;
         private ManaSceneNode? _lastOutlinedSelectionNode;
         private ManaSceneNode? _lastUpresCheckedNode;
+        private HashSet<ManaSceneNode> _lastStreamingHighlightedNodes = new();
         private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
         private static readonly Vector4 SelectionOutlineColor = new(0.30f, 0.72f, 1.0f, 1.0f);
         private static readonly Vector4 PatchUpresInProgressOutlineColor = new(1.0f, 0.55f, 0.0f, 1.0f);
@@ -373,6 +374,12 @@ namespace Mana.Code.GameModes
                     if (ImGui.DragFloat("Height Exaggeration", ref exaggeration, 1.0f, 0.0f, 2000.0f))
                     {
                         planet.HeightExaggeration = exaggeration;
+                    }
+
+                    var autoLod = planet.AutoLodEnabled;
+                    if (ImGui.Checkbox("Auto LOD", ref autoLod))
+                    {
+                        planet.AutoLodEnabled = autoLod;
                     }
 
                     DrawTerrainCacheInspector();
@@ -1045,8 +1052,29 @@ namespace Mana.Code.GameModes
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
             // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
+            _planet?.UpdateAutoLod(Context.World.MainCamera);
             _planet?.ProcessPendingSplits();
+            _planet?.ProcessPendingMerges();
+            PushPlanetStreamingStatusToWorldPerf();
             UpdateWaterRippleInteraction();
+        }
+
+        // Surfaces PlanetNode's current up-res/split/merge/fetch activity in the World Perf panel's
+        // "Streaming" section (Mana.Code.Scenes.ManaWorld.DrawImGui) -- added after auto-LOD made it easy
+        // to have many patches streaming in at once with no visibility into how much work was in flight.
+        private void PushPlanetStreamingStatusToWorldPerf()
+        {
+            if (_planet == null)
+            {
+                return;
+            }
+
+            var status = _planet.GetStreamingStatus();
+            Context.World.RecordFrameStatText("Planet patches resident", status.TotalLeaves.ToString());
+            Context.World.RecordFrameStatText("Planet up-res in progress", status.PatchesUpresInProgress.ToString());
+            Context.World.RecordFrameStatText("Planet splits in progress", status.PatchesSplitting.ToString());
+            Context.World.RecordFrameStatText("Planet merges in progress", status.PatchesMerging.ToString());
+            Context.World.RecordFrameStatText("Planet tile fetches active", $"{status.ActiveTileFetches}/{status.MaxConcurrentTileFetches}");
         }
 
         protected override void DrawImGui(double deltaTime)
@@ -1112,6 +1140,12 @@ namespace Mana.Code.GameModes
 
             _lastOutlinedSelectionNode = selectedNode;
 
+            // Also highlight every OTHER patch currently doing background streaming work (in-place
+            // up-res, splitting, merging) -- not just the selected one. With auto-LOD running, several
+            // patches can be streaming at once with no way to see how much/which without this (besides
+            // the World Perf panel's aggregate counts, see PushPlanetStreamingStatusToWorldPerf).
+            UpdateStreamingActivityOutlines(selectedNode, activeNode);
+
             // Kept as its own tracked node rather than reusing _lastOutlinedSelectionNode above --
             // different concern (triggering a one-shot background fetch vs. an outline highlight) that
             // just happens to usually move together. Covers both the Outliner tree AND clicking a
@@ -1134,7 +1168,9 @@ namespace Mana.Code.GameModes
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
             // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
+            _planet?.UpdateAutoLod(Context.World.MainCamera);
             _planet?.ProcessPendingSplits();
+            _planet?.ProcessPendingMerges();
 
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
@@ -1322,6 +1358,47 @@ namespace Mana.Code.GameModes
                 PatchUpresStatus.Failed => PatchUpresFailedOutlineColor,
                 _ => SelectionOutlineColor,
             };
+        }
+
+        // Diffs against last frame's set rather than blindly turning everything on/off every frame --
+        // patches finish streaming (or get swapped out entirely by a split/merge finalize) constantly,
+        // so this avoids fighting the selection/active-voxel outline blocks above over the same
+        // MeshRendererComponent on any node that happens to be both selected/active AND streaming.
+        private void UpdateStreamingActivityOutlines(ManaSceneNode? selectedNode, ManaSceneNode? activeNode)
+        {
+            var currentNodes = _planet != null
+                ? new HashSet<ManaSceneNode>(_planet.GetStreamingActivityNodes())
+                : new HashSet<ManaSceneNode>();
+
+            foreach (var node in _lastStreamingHighlightedNodes)
+            {
+                if (currentNodes.Contains(node) || node == selectedNode || node == activeNode)
+                {
+                    continue;
+                }
+
+                foreach (var meshRenderer in node.Components.OfType<MeshRendererComponent>())
+                {
+                    meshRenderer.OutlineEnabled = false;
+                }
+            }
+
+            foreach (var node in currentNodes)
+            {
+                if (node == selectedNode || node == activeNode)
+                {
+                    continue;
+                }
+
+                foreach (var meshRenderer in node.Components.OfType<MeshRendererComponent>())
+                {
+                    meshRenderer.OutlineEnabled = true;
+                    meshRenderer.OutlineColor = PatchUpresInProgressOutlineColor;
+                    meshRenderer.OutlineWidth = 4.0f;
+                }
+            }
+
+            _lastStreamingHighlightedNodes = currentNodes;
         }
 
         private bool ShouldCaptureEditorMouseInput()

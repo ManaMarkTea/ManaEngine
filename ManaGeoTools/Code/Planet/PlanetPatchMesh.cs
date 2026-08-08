@@ -113,8 +113,19 @@ namespace ManaGeoTools.Code.Planet
             var axisA = new Vector3(FaceNormal.Y, FaceNormal.Z, FaceNormal.X);
             var axisB = Vector3.Cross(FaceNormal, axisA);
 
-            var verts = new ManaGeometryVertex[Resolution, Resolution];
-            for (var y = 0; y < Resolution; y++)
+            // Phase 1 (parallel): the actual expensive part -- height-tile lookup, trig, LatLong/UV/color
+            // computation -- writes only to each vertex's own (x,y) slot in plain arrays, so it's safe to
+            // spread across cores. HeightLibrary is never mutated during this call (every call site that
+            // adds a tile holds PlanetNode's _rebuildLock for the full duration of whatever triggered this
+            // GenerateData(), same as this call itself), so concurrent reads here have no concurrent
+            // writer to race with -- exactly .NET's documented safe case for unsynchronized Dictionary/
+            // List reads.
+            var positions = new Vector3[Resolution, Resolution];
+            var placeholderNormals = new Vector3[Resolution, Resolution];
+            var texCoords = new Vector2[Resolution, Resolution];
+            var colors = new Vector4[Resolution, Resolution];
+
+            ForEachRow(Resolution, y =>
             {
                 var ty = (float)y / (Resolution - 1);
                 var v = float.Lerp(MinV, MaxV, ty);
@@ -136,12 +147,26 @@ namespace ManaGeoTools.Code.Planet
                     }
 
                     var displacement = (rawHeightMeters ?? 0f) * HeightScale;
-                    var position = pointOnUnitSphere * (Radius + displacement);
+                    positions[x, y] = pointOnUnitSphere * (Radius + displacement);
                     // Placeholder normal -- overwritten below once every vertex's displaced position
                     // is known, from the actual built geometry rather than the undisplaced sphere.
-                    var vert = DynamicGeometryContainer.AddPoint(position, pointOnUnitSphere);
-                    vert.TexCoord0 = latLong.ToUv();
-                    vert.Color = PlanetColors.GetBiomeColor(rawHeightMeters, latLong.Latitude);
+                    placeholderNormals[x, y] = pointOnUnitSphere;
+                    texCoords[x, y] = latLong.ToUv();
+                    colors[x, y] = PlanetColors.GetBiomeColor(rawHeightMeters, latLong.Latitude);
+                }
+            });
+
+            // Phase 2 (sequential): AddPoint appends to DynamicGeometryContainer's shared Verts list and
+            // assigns sequential Index values, so this part can't be parallelized -- but it's now pure
+            // array-to-container copying with no lookups/trig/allocation left in it.
+            var verts = new ManaGeometryVertex[Resolution, Resolution];
+            for (var y = 0; y < Resolution; y++)
+            {
+                for (var x = 0; x < Resolution; x++)
+                {
+                    var vert = DynamicGeometryContainer.AddPoint(positions[x, y], placeholderNormals[x, y]);
+                    vert.TexCoord0 = texCoords[x, y];
+                    vert.Color = colors[x, y];
                     verts[x, y] = vert;
                 }
             }
@@ -155,7 +180,11 @@ namespace ManaGeoTools.Code.Planet
             // guarantees the lighting normal can never disagree with what's actually rendered (unlike
             // a separate finite-difference estimate against the height function, which would introduce
             // its own subtly different notion of the surface).
-            for (var y = 0; y < Resolution; y++)
+            //
+            // Safe to parallelize like phase 1 above: every iteration only READS neighboring verts[,]
+            // positions (fixed since phase 2 finished) and writes its OWN vertex's .Normal -- two threads
+            // never touch the same ManaGeometryVertex instance.
+            ForEachRow(Resolution, y =>
             {
                 for (var x = 0; x < Resolution; x++)
                 {
@@ -178,7 +207,7 @@ namespace ManaGeoTools.Code.Planet
                     }
                     verts[x, y].Normal = Vector3.Normalize(normalSum);
                 }
-            }
+            });
 
             // (x,y),(x+1,y),(x+1,y+1),(x,y+1) is CCW-as-seen-from-outside for every one of the 6
             // axis-aligned face normals (axisA x axisB == FaceNormal algebraically for all of them),
@@ -275,6 +304,30 @@ namespace ManaGeoTools.Code.Planet
         private static Vector3 QuadNormal(ManaGeometryVertex a, ManaGeometryVertex b, ManaGeometryVertex d)
         {
             return Vector3.Cross(b.Position - a.Position, d.Position - a.Position);
+        }
+
+        // Baseline/never-up-res'd patches (the common case -- see DefaultBaselineMaxPatchMeshResolution =
+        // 97) sit well under this; only genuinely up-res'd/split patches reach it. Parallel.For's
+        // thread-pool dispatch overhead isn't worth it for a small grid, and calling it dozens/hundreds of
+        // times in a tight loop (e.g. the initial whole-globe baseline load, one call per patch) measurably
+        // thrashes the thread pool rather than helping -- confirmed by testing: baseline load with an
+        // unconditional Parallel.For pegged every core and took far longer than the original sequential
+        // loop, even though a SINGLE large patch is much faster in isolation.
+        private const int ParallelGenerationResolutionThreshold = 128;
+
+        private static void ForEachRow(int resolution, Action<int> body)
+        {
+            if (resolution >= ParallelGenerationResolutionThreshold)
+            {
+                Parallel.For(0, resolution, body);
+            }
+            else
+            {
+                for (var y = 0; y < resolution; y++)
+                {
+                    body(y);
+                }
+            }
         }
     }
 }

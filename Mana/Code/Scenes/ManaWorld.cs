@@ -30,9 +30,19 @@ namespace Mana
         // a one-time load history) — keyed so repeated calls update in place instead of growing forever.
         private readonly Dictionary<string, TimeSpan> liveFrameStats = new();
 
+        // Same "overwritten every frame" convention as liveFrameStats, for live status text that isn't a
+        // duration (e.g. PlanetNode's streaming counts) -- avoids World Perf needing to know about any
+        // particular subsystem; callers just push a name/value pair each frame.
+        private readonly Dictionary<string, string> liveFrameStatTexts = new();
+
         public void RecordFrameStat(string name, TimeSpan duration)
         {
             liveFrameStats[name] = duration;
+        }
+
+        public void RecordFrameStatText(string name, string value)
+        {
+            liveFrameStatTexts[name] = value;
         }
 
         public int LastMeshCount { get; private set; }
@@ -255,6 +265,15 @@ namespace Mana
             foreach (var (name, duration) in liveFrameStats)
             {
                 ImGui.Text($"{duration.TotalMilliseconds,7:F2}ms - {name}");
+            }
+
+            if (liveFrameStatTexts.Count > 0)
+            {
+                ImGui.SeparatorText("Streaming");
+                foreach (var (name, value) in liveFrameStatTexts)
+                {
+                    ImGui.Text($"{name}: {value}");
+                }
             }
 
             ImGui.SeparatorText("Load times");
