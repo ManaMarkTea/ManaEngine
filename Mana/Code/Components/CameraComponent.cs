@@ -120,6 +120,91 @@ namespace Mana
             UpdateViewMatrix();
         }
 
+        // "Frame selected" (F key, see VoxelEditorGameMode) -- pulls the camera back/forward along its
+        // CURRENT forward direction (orientation is untouched, matching SetViewPreset's own "target -
+        // Forward*distance" pattern) until the selection's world bounds fit the vertical FOV. Prefers the
+        // specific selected component's own bounds; falls back to the union of every MeshRendererComponent
+        // on the selected node (e.g. selecting a bare PlanetNode shared root node with several patches).
+        // Returns false (no-op) if nothing selected has any mesh bounds to frame.
+        public bool TryFrameSelection(MeshRendererComponent? selectedComponent, ManaSceneNode? selectedNode)
+        {
+            if (!TryComputeSelectionWorldBounds(selectedComponent, selectedNode, out var worldMin, out var worldMax))
+            {
+                return false;
+            }
+
+            var center = (worldMin + worldMax) * 0.5f;
+            var radius = Vector3.Distance(center, worldMax);
+            FrameWorldBounds(center, radius);
+            return true;
+        }
+
+        private static bool TryComputeSelectionWorldBounds(MeshRendererComponent? selectedComponent, ManaSceneNode? selectedNode, out Vector3 worldMin, out Vector3 worldMax)
+        {
+            // Local function can't capture the method's own out parameters directly (C# forbids it), so
+            // accumulate into plain locals and assign the out parameters once at the end.
+            var min = Vector3.Zero;
+            var max = Vector3.Zero;
+            var found = false;
+
+            void Include(MeshRendererComponent renderer)
+            {
+                if (!renderer.TryGetWorldBounds(out var rendererMin, out var rendererMax))
+                {
+                    return;
+                }
+
+                min = found ? Vector3.Min(min, rendererMin) : rendererMin;
+                max = found ? Vector3.Max(max, rendererMax) : rendererMax;
+                found = true;
+            }
+
+            // Recurses into children -- a node like PlanetNode never carries a MeshRendererComponent
+            // itself (it's a pure container), only its descendants do, so framing the whole thing
+            // requires walking the subtree rather than just its own direct Components.
+            void IncludeSubtree(ManaSceneNode node)
+            {
+                foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+                {
+                    Include(renderer);
+                }
+
+                foreach (var child in node.Children)
+                {
+                    IncludeSubtree(child);
+                }
+            }
+
+            if (selectedComponent != null)
+            {
+                Include(selectedComponent);
+            }
+            else if (selectedNode != null)
+            {
+                IncludeSubtree(selectedNode);
+            }
+
+            worldMin = min;
+            worldMax = max;
+            return found;
+        }
+
+        // Padding keeps the object from touching the screen edge; distance is clamped to at least twice
+        // the near clip plane so an extremely small/degenerate bounds (e.g. a single-point mesh) can't
+        // put the camera on top of (or behind) its own near plane.
+        private const float FramingPaddingMultiplier = 1.25f;
+
+        private void FrameWorldBounds(Vector3 worldCenter, float worldRadius)
+        {
+            var radius = MathF.Max(worldRadius, 0.05f);
+            var distance = (radius / MathF.Sin(FieldOfViewDegrees.ToRadians() * 0.5f)) * FramingPaddingMultiplier;
+            distance = MathF.Max(distance, NearClipPlane * 2.0f);
+
+            Owner.Position = worldCenter - Owner.Forward.Normalized() * distance;
+            _viewCenterDistance = distance;
+            UpdateViewMatrix();
+        }
+
         public void UpdateViewMatrix()
         {
             Vector3 forward = Owner.Forward.Normalized();

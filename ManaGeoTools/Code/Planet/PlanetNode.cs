@@ -53,7 +53,14 @@ namespace ManaGeoTools.Code.Planet
         private sealed class PatchLeaf
         {
             public required PlanetPatchMesh Mesh { get; init; }
-            public required ManaMeshSceneNode Node { get; init; }
+
+            // The MeshRendererComponent that actually renders this patch, and the shared scene node it
+            // lives on (one persistent node per root (face,row,col) grid cell -- every patch anywhere in
+            // that root's split subtree is a component on the SAME node, however deep the split goes, so
+            // the scene graph never grows past its initial node count). Inherited unchanged from parent
+            // to children on split, and from siblings to the merged patch on merge.
+            public required MeshRendererComponent Renderer { get; init; }
+            public required ManaSceneNode RootNode { get; init; }
 
             // The Terrarium zoom level currently backing this patch's elevation data, once it's been
             // up-res'd at least once (null for a patch still on the whole-globe ETOPO baseline) --
@@ -80,7 +87,7 @@ namespace ManaGeoTools.Code.Planet
         private readonly record struct PatchBoundsSphere(Vector3 LocalCenter, float LocalRadius);
 
         private readonly Dictionary<PatchKey, PatchLeaf> _leaves = new();
-        private readonly Dictionary<ManaSceneNode, PatchKey> _nodeToPatchKey = new();
+        private readonly Dictionary<MeshRendererComponent, PatchKey> _componentToPatchKey = new();
         private readonly ConcurrentDictionary<PatchKey, PatchDetailInfo> _patchDetails = new();
         // Read every frame from the main thread (see VoxelEditorGameMode's selection-outline logic),
         // so status lookups deliberately stay off _rebuildLock; that lock can be held while rebuilding
@@ -259,11 +266,15 @@ namespace ManaGeoTools.Code.Planet
                         var mesh = new PlanetPatchMesh(
                             context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null);
                         var key = PatchKey.Root(face, row, col);
-                        var node = new ManaMeshSceneNode(context, mesh) { Name = PatchName(key, meshResolution: mesh.Resolution) };
+                        // A permanent, shared container -- every patch this root's subtree ever splits
+                        // into lives as a MeshRendererComponent on this SAME node, so the scene graph's
+                        // node count never grows past what's created here.
+                        var node = new ManaMeshSceneNode(context, mesh) { Name = $"Terrain Root F{face}/R{row}/C{col}" };
+                        node.MeshRenderer.Name = PatchName(key, meshResolution: mesh.Resolution);
                         AddChild(node);
                         var localBounds = ComputePatchLocalBoundsSphere(normal, minU, minU + step, minV, minV + step, radius);
-                        _leaves[key] = new PatchLeaf { Mesh = mesh, Node = node, LocalBoundsSphere = localBounds };
-                        _nodeToPatchKey[node] = key;
+                        _leaves[key] = new PatchLeaf { Mesh = mesh, Renderer = node.MeshRenderer, RootNode = node, LocalBoundsSphere = localBounds };
+                        _componentToPatchKey[node.MeshRenderer] = key;
                         _patchDetails[key] = new PatchDetailInfo(null, mesh.Resolution, null, null);
                     }
                 }
@@ -322,7 +333,7 @@ namespace ManaGeoTools.Code.Planet
                         leaf.Mesh.ApplyHeightDataWithResolution(HeightLibrary!, meshResolution);
                         leaf.SourceResolution = sourceResolution;
                         leaf.SourceMetersPerPixel = sourceMetersPerPixel;
-                        leaf.Node.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
+                        leaf.Renderer.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
                         _patchDetails[key] = new PatchDetailInfo(leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
                     }
                 }
@@ -334,9 +345,15 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        public bool TryGetPatchKey(ManaSceneNode node, out PatchKey key)
+        public bool TryGetPatchKey(MeshRendererComponent? renderer, out PatchKey key)
         {
-            return _nodeToPatchKey.TryGetValue(node, out key);
+            if (renderer == null)
+            {
+                key = default;
+                return false;
+            }
+
+            return _componentToPatchKey.TryGetValue(renderer, out key);
         }
 
         /// <summary>
@@ -537,9 +554,20 @@ namespace ManaGeoTools.Code.Planet
             var targetZooms = string.Join("/", children.Select(child => $"z{child.Plan.Zoom}").Distinct().OrderBy(zoom => zoom));
             Console.WriteLine($"[Terrarium] Increasing {PatchName(parentKey, parentLeaf.Zoom, parentLeaf.Mesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)} to {targetZooms}: swapping in {children.Count} child patch(es) at current resolution, refining each as finer source data arrives.");
 
-            RemoveChild(parentLeaf.Node);
+            var rootNode = parentLeaf.RootNode;
+
+            // The parent's own renderer component goes stale the moment it's removed below -- if it was
+            // the current selection, clear just that (not SelectedNode, since rootNode stays put and
+            // selected/expanded in the Outliner, ready for the user to click a new child straight away).
+            var selection = Context.World.Selection;
+            if (ReferenceEquals(selection.SelectedComponent, parentLeaf.Renderer))
+            {
+                selection.SelectedComponent = null;
+            }
+
+            rootNode.Components.Remove(parentLeaf.Renderer);
             _leaves.Remove(parentKey);
-            _nodeToPatchKey.Remove(parentLeaf.Node);
+            _componentToPatchKey.Remove(parentLeaf.Renderer);
             _patchDetails.TryRemove(parentKey, out _);
             _upresStatus.TryRemove(parentKey, out _);
 
@@ -553,22 +581,23 @@ namespace ManaGeoTools.Code.Planet
                 pending.ChildKeys[index] = child.Key;
                 pending.ChildMeshes[index] = childMesh;
 
-                var childNode = new ManaMeshSceneNode(Context, childMesh)
+                var childRenderer = new MeshRendererComponent(rootNode, childMesh)
                 {
                     Name = PatchName(child.Key, parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)
                 };
-                AddChild(childNode);
+                rootNode.Components.Add(childRenderer);
 
                 _leaves[child.Key] = new PatchLeaf
                 {
                     Mesh = childMesh,
-                    Node = childNode,
+                    Renderer = childRenderer,
+                    RootNode = rootNode,
                     Zoom = parentLeaf.Zoom,
                     SourceResolution = parentLeaf.SourceResolution,
                     SourceMetersPerPixel = parentLeaf.SourceMetersPerPixel,
                     LocalBoundsSphere = ComputePatchLocalBoundsSphere(childMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius),
                 };
-                _nodeToPatchKey[childNode] = child.Key;
+                _componentToPatchKey[childRenderer] = child.Key;
                 _patchDetails[child.Key] = new PatchDetailInfo(parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel);
                 _upresStatus[child.Key] = PatchUpresStatus.InProgress;
             }
@@ -735,7 +764,7 @@ namespace ManaGeoTools.Code.Planet
                     childLeaf.Zoom = childZoom;
                     childLeaf.SourceResolution = childSourceResolution;
                     childLeaf.SourceMetersPerPixel = childMetersPerPixel;
-                    childLeaf.Node.Name = PatchName(childKey, childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
+                    childLeaf.Renderer.Name = PatchName(childKey, childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
                 }
                 _patchDetails[childKey] = new PatchDetailInfo(childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
                 _upresStatus[childKey] = PatchUpresStatus.Done;
@@ -935,9 +964,13 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // Caller must already hold _rebuildLock. Removes the 4 children, adds the 1 merged patch --
-        // mirrors FinalizeSplit's atomic remove/add swap, cardinality inverted (4 -> 1 instead of 1 -> N).
+        // mirrors BeginSplitLocked's atomic remove/add swap, cardinality inverted (4 -> 1 instead of
+        // 1 -> N), reusing the same shared RootNode all 4 children already live on.
         private void FinalizeMerge(PendingMerge pending)
         {
+            var rootNode = pending.ChildLeaves[0].RootNode;
+            var selection = Context.World.Selection;
+
             foreach (var childKey in pending.ChildKeys)
             {
                 if (!_leaves.TryGetValue(childKey, out var childLeaf))
@@ -945,34 +978,40 @@ namespace ManaGeoTools.Code.Planet
                     continue;
                 }
 
-                RemoveChild(childLeaf.Node);
+                if (ReferenceEquals(selection.SelectedComponent, childLeaf.Renderer))
+                {
+                    selection.SelectedComponent = null;
+                }
+
+                childLeaf.RootNode.Components.Remove(childLeaf.Renderer);
                 _leaves.Remove(childKey);
-                _nodeToPatchKey.Remove(childLeaf.Node);
+                _componentToPatchKey.Remove(childLeaf.Renderer);
                 _patchDetails.TryRemove(childKey, out _);
                 _upresStatus.TryRemove(childKey, out _);
                 _mergePending.TryRemove(childKey, out _);
             }
 
             var mergedMesh = pending.MergedMesh;
-            var mergedNode = new ManaMeshSceneNode(Context, mergedMesh)
+            var mergedRenderer = new MeshRendererComponent(rootNode, mergedMesh)
             {
                 Name = PatchName(pending.MergedKey, pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel),
             };
-            AddChild(mergedNode);
+            rootNode.Components.Add(mergedRenderer);
 
             var localBounds = ComputePatchLocalBoundsSphere(
                 mergedMesh.FaceNormal, mergedMesh.MinU, mergedMesh.MaxU, mergedMesh.MinV, mergedMesh.MaxV, Radius);
             var mergedLeaf = new PatchLeaf
             {
                 Mesh = mergedMesh,
-                Node = mergedNode,
+                Renderer = mergedRenderer,
+                RootNode = rootNode,
                 Zoom = pending.MergedZoom,
                 SourceResolution = pending.MergedSourceResolution,
                 SourceMetersPerPixel = pending.MergedSourceMetersPerPixel,
                 LocalBoundsSphere = localBounds,
             };
             _leaves[pending.MergedKey] = mergedLeaf;
-            _nodeToPatchKey[mergedNode] = pending.MergedKey;
+            _componentToPatchKey[mergedRenderer] = pending.MergedKey;
             _patchDetails[pending.MergedKey] = new PatchDetailInfo(pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel);
             _upresStatus[pending.MergedKey] = PatchUpresStatus.Done;
 
@@ -1133,20 +1172,21 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>
-        /// Scene nodes for every leaf currently doing background streaming work -- in-place up-res or
-        /// splitting (both InProgress in _upresStatus), or merging (still-visible children in
-        /// _mergePending) -- for a caller-side "highlight what's actively working" overlay. Safe to call
-        /// without _rebuildLock, same as GetStreamingStatus.
+        /// Renderer components for every leaf currently doing background streaming work -- in-place
+        /// up-res or splitting (both InProgress in _upresStatus), or merging (still-visible children in
+        /// _mergePending) -- for a caller-side "highlight what's actively working" overlay. Component-
+        /// grained (not node-grained), since several unrelated patches can share one root node. Safe to
+        /// call without _rebuildLock, same as GetStreamingStatus.
         /// </summary>
-        public IReadOnlyList<ManaSceneNode> GetStreamingActivityNodes()
+        public IReadOnlyList<MeshRendererComponent> GetStreamingActivityComponents()
         {
-            var nodes = new List<ManaSceneNode>();
+            var renderers = new List<MeshRendererComponent>();
 
             foreach (var (key, status) in _upresStatus)
             {
                 if (status == PatchUpresStatus.InProgress && _leaves.TryGetValue(key, out var leaf))
                 {
-                    nodes.Add(leaf.Node);
+                    renderers.Add(leaf.Renderer);
                 }
             }
 
@@ -1154,11 +1194,11 @@ namespace ManaGeoTools.Code.Planet
             {
                 if (_leaves.TryGetValue(childKey, out var leaf))
                 {
-                    nodes.Add(leaf.Node);
+                    renderers.Add(leaf.Renderer);
                 }
             }
 
-            return nodes;
+            return renderers;
         }
 
         public PatchUpresStatus GetPatchUpresStatus(PatchKey key)
@@ -1319,7 +1359,7 @@ namespace ManaGeoTools.Code.Planet
                     leaf.Zoom = plan.Zoom;
                     leaf.SourceResolution = plan.SourceResolution;
                     leaf.SourceMetersPerPixel = plan.SourceMetersPerPixel;
-                    leaf.Node.Name = PatchName(key, plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
+                    leaf.Renderer.Name = PatchName(key, plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
                     _patchDetails[key] = new PatchDetailInfo(plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
                 }
             }

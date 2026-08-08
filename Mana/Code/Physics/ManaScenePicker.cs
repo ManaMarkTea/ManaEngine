@@ -12,24 +12,30 @@ namespace Mana.Code
     // on nodes with no collider (gltf imports, shapes) and resolves overlapping parts correctly.
     public static class ManaScenePicker
     {
-        public static ManaSceneNode? Pick(
+        // Node is the picked scene node; Renderer is specifically which MeshRendererComponent on that
+        // node won the closest-hit test (a node can host several, e.g. PlanetNode's shared-root patch
+        // nodes) -- null only if somehow no renderer contributed to the hit.
+        public readonly record struct ScenePickResult(ManaSceneNode Node, MeshRendererComponent? Renderer);
+
+        public static ScenePickResult? Pick(
             IEnumerable<ManaScene> scenes,
             Vector3 rayOrigin,
             Vector3 rayDirection,
             HashSet<ManaSceneNode>? excludeNodes = null)
         {
             ManaSceneNode? closestNode = null;
+            MeshRendererComponent? closestRenderer = null;
             var closestDistance = float.PositiveInfinity;
 
             foreach (var scene in scenes)
             {
                 foreach (var node in scene.Children)
                 {
-                    PickNode(node, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestDistance);
+                    PickNode(node, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestRenderer, ref closestDistance);
                 }
             }
 
-            return closestNode;
+            return closestNode != null ? new ScenePickResult(closestNode, closestRenderer) : null;
         }
 
         private static void PickNode(
@@ -38,26 +44,29 @@ namespace Mana.Code
             Vector3 rayDirection,
             HashSet<ManaSceneNode>? excludeNodes,
             ref ManaSceneNode? closestNode,
+            ref MeshRendererComponent? closestRenderer,
             ref float closestDistance)
         {
             if (excludeNodes == null || !excludeNodes.Contains(node))
             {
-                if (TryIntersect(node, rayOrigin, rayDirection, out var distance) && distance < closestDistance)
+                if (TryIntersect(node, rayOrigin, rayDirection, out var distance, out var renderer) && distance < closestDistance)
                 {
                     closestDistance = distance;
                     closestNode = node;
+                    closestRenderer = renderer;
                 }
             }
 
             foreach (var child in node.Children)
             {
-                PickNode(child, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestDistance);
+                PickNode(child, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestRenderer, ref closestDistance);
             }
         }
 
-        private static bool TryIntersect(ManaSceneNode node, Vector3 rayOrigin, Vector3 rayDirection, out float worldDistance)
+        private static bool TryIntersect(ManaSceneNode node, Vector3 rayOrigin, Vector3 rayDirection, out float worldDistance, out MeshRendererComponent? hitRenderer)
         {
             worldDistance = float.PositiveInfinity;
+            hitRenderer = null;
 
             if (!Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
             {
@@ -109,6 +118,7 @@ namespace Mana.Code
                 {
                     bestLocalT = meshLocalT;
                     hitAny = true;
+                    hitRenderer = renderer;
                 }
             }
 

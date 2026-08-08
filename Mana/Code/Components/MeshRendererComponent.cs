@@ -1,5 +1,6 @@
 ﻿using Mana.Code.Nodes;
 using System.Threading;
+using ManaCore.Graphics;
 
 namespace Mana
 {
@@ -110,6 +111,69 @@ namespace Mana
             }
 
             Mesh.Draw(Owner, this);
+        }
+
+        // World-space axis-aligned bounds of this renderer's mesh -- for "frame selected" camera framing
+        // (see CameraComponent.TryFrameSelection) and any future use needing scene bounds. Transforms all
+        // 8 local AABB corners through Owner.WorldTransform (not just min/max) since that transform can
+        // include rotation, which a naive min/max-only transform would get wrong. Mirrors
+        // ManaScenePicker's own local-bounds-from-CPU-data pattern.
+        public bool TryGetWorldBounds(out Vector3 worldMin, out Vector3 worldMax)
+        {
+            worldMin = Vector3.Zero;
+            worldMax = Vector3.Zero;
+
+            if (Mesh == null)
+            {
+                return false;
+            }
+
+            ManaMeshCpuData cpuData;
+            try
+            {
+                cpuData = Mesh.CpuData ?? Mesh.GetOrCreateCpuData();
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+
+            if (cpuData.Positions.Length == 0)
+            {
+                return false;
+            }
+
+            var localMin = cpuData.Positions[0];
+            var localMax = cpuData.Positions[0];
+            foreach (var position in cpuData.Positions)
+            {
+                localMin = Vector3.Min(localMin, position);
+                localMax = Vector3.Max(localMax, position);
+            }
+
+            var worldTransform = Owner.WorldTransform;
+            Span<Vector3> localCorners = stackalloc Vector3[8]
+            {
+                new Vector3(localMin.X, localMin.Y, localMin.Z),
+                new Vector3(localMax.X, localMin.Y, localMin.Z),
+                new Vector3(localMin.X, localMax.Y, localMin.Z),
+                new Vector3(localMax.X, localMax.Y, localMin.Z),
+                new Vector3(localMin.X, localMin.Y, localMax.Z),
+                new Vector3(localMax.X, localMin.Y, localMax.Z),
+                new Vector3(localMin.X, localMax.Y, localMax.Z),
+                new Vector3(localMax.X, localMax.Y, localMax.Z),
+            };
+
+            worldMin = Vector3.Transform(localCorners[0], worldTransform);
+            worldMax = worldMin;
+            foreach (var localCorner in localCorners)
+            {
+                var worldCorner = Vector3.Transform(localCorner, worldTransform);
+                worldMin = Vector3.Min(worldMin, worldCorner);
+                worldMax = Vector3.Max(worldMax, worldCorner);
+            }
+
+            return true;
         }
     }
 }

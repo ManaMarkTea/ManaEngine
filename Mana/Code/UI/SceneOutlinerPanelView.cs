@@ -7,11 +7,31 @@ namespace Mana.Code.UI
     {
         private readonly SceneSelectionState selectionState;
         private ManaSceneNode? _lastRevealedSelection;
+        private ManaComponent? _lastRevealedSelectionComponent;
         private HashSet<ManaSceneNode>? _pendingRevealAncestors;
 
         public SceneOutlinerPanelView(SceneSelectionState selectionState)
         {
             this.selectionState = selectionState;
+        }
+
+        // Small colored swatches distinguishing row kinds at a glance -- plain filled squares rather
+        // than a text/emoji glyph, since the Outliner's own font (BarlowCondensedImGuiFont) doesn't have
+        // an icon font merged in, so a glyph icon would likely render as a missing-character box.
+        private static readonly Vector4 NodeIconColor = new(0.55f, 0.68f, 0.85f, 1.0f);
+        private static readonly Vector4 MeshRendererIconColor = new(0.40f, 0.78f, 0.45f, 1.0f);
+        private static readonly Vector4 LightSourceIconColor = new(0.95f, 0.80f, 0.25f, 1.0f);
+        private static readonly Vector4 GenericComponentIconColor = new(0.60f, 0.60f, 0.65f, 1.0f);
+        private static readonly Vector2 IconSize = new(10.0f, 10.0f);
+
+        private static void DrawTypeIcon(Vector4 color)
+        {
+            ImGui.ColorButton(
+                "##icon",
+                color,
+                ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.NoDragDrop | ImGuiColorEditFlags.NoBorder | ImGuiColorEditFlags.NoAlpha,
+                IconSize);
+            ImGui.SameLine(0.0f, 6.0f);
         }
 
         public void Draw(ManaWorld world)
@@ -40,10 +60,11 @@ namespace Mana.Code.UI
                     return;
                 }
 
-                if (selectionState.SelectedNode != _lastRevealedSelection)
+                if (selectionState.SelectedNode != _lastRevealedSelection || selectionState.SelectedComponent != _lastRevealedSelectionComponent)
                 {
                     _pendingRevealAncestors = BuildAncestorSet(selectionState.SelectedNode);
                     _lastRevealedSelection = selectionState.SelectedNode;
+                    _lastRevealedSelectionComponent = selectionState.SelectedComponent;
                 }
                 else
                 {
@@ -115,10 +136,12 @@ namespace Mana.Code.UI
                 ImGui.SetNextItemOpen(true, ImGuiCond.Always);
             }
 
+            DrawTypeIcon(NodeIconColor);
             var open = ImGui.TreeNodeEx(label, flags);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
                 selectionState.SelectedNode = node;
+                selectionState.SelectedComponent = null;
             }
 
             if (isSelected && _pendingRevealAncestors != null)
@@ -168,6 +191,7 @@ namespace Mana.Code.UI
                 return;
             }
 
+            DrawTypeIcon(GenericComponentIconColor);
             ImGui.BulletText(GetDisplayName(component, component.GetType().Name));
         }
 
@@ -175,8 +199,26 @@ namespace Mana.Code.UI
         {
             var material = meshRenderer.Material;
             var label = GetDisplayName(meshRenderer, meshRenderer.GetType().Name);
+            var flags = ImGuiTreeNodeFlags.SpanAvailWidth;
+            if (selectionState.SelectedComponent == meshRenderer)
+            {
+                flags |= ImGuiTreeNodeFlags.Selected;
+            }
 
-            if (!ImGui.TreeNode(label))
+            DrawTypeIcon(MeshRendererIconColor);
+            var open = ImGui.TreeNodeEx(label, flags);
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+            {
+                selectionState.SelectedComponent = meshRenderer;
+                selectionState.SelectedNode = meshRenderer.Owner;
+            }
+
+            if (selectionState.SelectedComponent == meshRenderer && _pendingRevealAncestors != null)
+            {
+                ImGui.SetScrollHereY();
+            }
+
+            if (!open)
             {
                 return;
             }
@@ -207,6 +249,7 @@ namespace Mana.Code.UI
         private void DrawLightSourceComponent(ManaLightSourceComponent light)
         {
             var label = GetDisplayName(light, light.GetType().Name);
+            DrawTypeIcon(LightSourceIconColor);
             if (!ImGui.TreeNode(label))
             {
                 return;

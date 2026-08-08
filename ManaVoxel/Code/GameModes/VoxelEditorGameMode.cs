@@ -36,8 +36,9 @@ namespace Mana.Code.GameModes
         private readonly VoxelToolController _toolController = new();
         private bool _firstFrame = true;
         private bool _selectPointerWasDown;
-        private ManaSceneNode? _lastOutlinedSelectionNode;
-        private HashSet<ManaSceneNode> _lastStreamingHighlightedNodes = new();
+        private bool _frameSelectedKeyWasDown;
+        private HashSet<MeshRendererComponent> _lastOutlinedSelectionComponents = new();
+        private HashSet<MeshRendererComponent> _lastStreamingHighlightedComponents = new();
         private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
         private static readonly Vector4 SelectionOutlineColor = new(0.30f, 0.72f, 1.0f, 1.0f);
         private static readonly Vector4 PatchUpresInProgressOutlineColor = new(1.0f, 0.55f, 0.0f, 1.0f);
@@ -393,86 +394,6 @@ namespace Mana.Code.GameModes
                     DrawTerrainCacheInspector();
                 }
 
-                if (node is ManaMeshSceneNode { Mesh: PlanetPatchMesh patchMesh } patchNode && patchNode.Parent is PlanetNode owningPlanet
-                    && owningPlanet.TryGetPatchKey(patchNode, out var patchKey))
-                {
-                    ImGui.SeparatorText("Terrain Patch");
-                    var status = owningPlanet.GetPatchUpresStatus(patchKey);
-                    var detail = owningPlanet.GetPatchDetailInfo(patchKey);
-                    ImGui.Text($"Up-res status: {status}");
-                    ImGui.Text($"Mesh resolution: {patchMesh.Resolution} x {patchMesh.Resolution}");
-                    if (detail.HasValue)
-                    {
-                        var patchDetail = detail.Value;
-                        var sourceResolution = patchDetail.SourceResolution;
-                        var sourceMetersPerPixel = patchDetail.SourceMetersPerPixel;
-                        if (patchDetail.Zoom.HasValue)
-                        {
-                            ImGui.Text($"Source zoom: z{patchDetail.Zoom.Value}");
-
-                            var tilePaths = owningPlanet.GetPatchTileCacheFilePaths(patchKey);
-                            var cachedTilePaths = tilePaths.Where(File.Exists).ToList();
-                            ImGui.Text($"Source tiles: {tilePaths.Count} ({cachedTilePaths.Count} cached)");
-                            ImGui.BeginDisabled(cachedTilePaths.Count == 0);
-                            if (ImGui.Button("Open Source Tile"))
-                            {
-                                RevealFileInExplorer(cachedTilePaths[0]);
-                            }
-                            ImGui.EndDisabled();
-                        }
-                        if (sourceResolution.HasValue)
-                        {
-                            ImGui.Text($"Source resolution: {sourceResolution.Value} x {sourceResolution.Value}");
-                        }
-                        if (sourceMetersPerPixel.HasValue)
-                        {
-                            ImGui.Text($"Source pixel: {FormatMetersPerPixel(sourceMetersPerPixel.Value)}");
-                        }
-                        if (sourceResolution.HasValue && sourceMetersPerPixel.HasValue && sourceResolution.Value > patchMesh.Resolution)
-                        {
-                            var meshSpacing = EstimateMeshSpacingMeters(
-                                patchMesh.Resolution,
-                                sourceResolution.Value,
-                                sourceMetersPerPixel.Value);
-                            var coarserFactor = Math.Max(1.0, meshSpacing / sourceMetersPerPixel.Value);
-                            ImGui.Text($"Mesh spacing: {FormatMetersPerPixel(meshSpacing)}");
-                            ImGui.TextDisabled($"Mesh is still coarser than source data ({coarserFactor:0.#}x).");
-                        }
-                    }
-
-                    // Deliberately gated on Done + an explicit button press -- each click increases
-                    // Terrarium source zoom by one level, splitting only as needed to avoid
-                    // undersampling that one new zoom level.
-                    if (status == PatchUpresStatus.Done)
-                    {
-                        if (owningPlanet.IsSplitPending(patchKey))
-                        {
-                            ImGui.TextDisabled("Increasing source zoom...");
-                        }
-                        else if (owningPlanet.CanSplitPatch(patchKey))
-                        {
-                            if (ImGui.Button("Increase source zoom"))
-                            {
-                                owningPlanet.TrySplitPatch(patchKey);
-                            }
-                        }
-                        else
-                        {
-                            var meshIsBelowSource = detail.HasValue
-                                && detail.Value.SourceResolution.HasValue
-                                && detail.Value.SourceResolution.Value > patchMesh.Resolution;
-                            if (meshIsBelowSource)
-                            {
-                                ImGui.TextDisabled("Next source zoom cannot be represented without undersampling");
-                            }
-                            else
-                            {
-                                ImGui.TextDisabled("Mesh matches streamed source data");
-                            }
-                        }
-                    }
-                }
-
                 if (node is ManaMeshSceneNode { Mesh: ManaLineMesh lineMesh } lineNode)
                 {
                     ImGui.SeparatorText("Line");
@@ -497,6 +418,92 @@ namespace Mana.Code.GameModes
                     if (ImGui.DragFloat("Emission Strength", ref emissionStrength, 0.05f, 0.0f, 10.0f))
                     {
                         material.EmissionStrength = emissionStrength;
+                    }
+                }
+            };
+
+            SceneInspectorPanelView.CustomComponentInspectorHook = component =>
+            {
+                if (component is not MeshRendererComponent { Mesh: PlanetPatchMesh patchMesh } renderer
+                    || renderer.Owner.Parent is not PlanetNode owningPlanet
+                    || !owningPlanet.TryGetPatchKey(renderer, out var patchKey))
+                {
+                    return;
+                }
+
+                ImGui.SeparatorText("Terrain Patch");
+                var status = owningPlanet.GetPatchUpresStatus(patchKey);
+                var detail = owningPlanet.GetPatchDetailInfo(patchKey);
+                ImGui.Text($"Up-res status: {status}");
+                ImGui.Text($"Mesh resolution: {patchMesh.Resolution} x {patchMesh.Resolution}");
+                if (detail.HasValue)
+                {
+                    var patchDetail = detail.Value;
+                    var sourceResolution = patchDetail.SourceResolution;
+                    var sourceMetersPerPixel = patchDetail.SourceMetersPerPixel;
+                    if (patchDetail.Zoom.HasValue)
+                    {
+                        ImGui.Text($"Source zoom: z{patchDetail.Zoom.Value}");
+
+                        var tilePaths = owningPlanet.GetPatchTileCacheFilePaths(patchKey);
+                        var cachedTilePaths = tilePaths.Where(File.Exists).ToList();
+                        ImGui.Text($"Source tiles: {tilePaths.Count} ({cachedTilePaths.Count} cached)");
+                        ImGui.BeginDisabled(cachedTilePaths.Count == 0);
+                        if (ImGui.Button("Open Source Tile"))
+                        {
+                            RevealFileInExplorer(cachedTilePaths[0]);
+                        }
+                        ImGui.EndDisabled();
+                    }
+                    if (sourceResolution.HasValue)
+                    {
+                        ImGui.Text($"Source resolution: {sourceResolution.Value} x {sourceResolution.Value}");
+                    }
+                    if (sourceMetersPerPixel.HasValue)
+                    {
+                        ImGui.Text($"Source pixel: {FormatMetersPerPixel(sourceMetersPerPixel.Value)}");
+                    }
+                    if (sourceResolution.HasValue && sourceMetersPerPixel.HasValue && sourceResolution.Value > patchMesh.Resolution)
+                    {
+                        var meshSpacing = EstimateMeshSpacingMeters(
+                            patchMesh.Resolution,
+                            sourceResolution.Value,
+                            sourceMetersPerPixel.Value);
+                        var coarserFactor = Math.Max(1.0, meshSpacing / sourceMetersPerPixel.Value);
+                        ImGui.Text($"Mesh spacing: {FormatMetersPerPixel(meshSpacing)}");
+                        ImGui.TextDisabled($"Mesh is still coarser than source data ({coarserFactor:0.#}x).");
+                    }
+                }
+
+                // Deliberately gated on Done + an explicit button press -- each click increases
+                // Terrarium source zoom by one level, splitting only as needed to avoid
+                // undersampling that one new zoom level.
+                if (status == PatchUpresStatus.Done)
+                {
+                    if (owningPlanet.IsSplitPending(patchKey))
+                    {
+                        ImGui.TextDisabled("Increasing source zoom...");
+                    }
+                    else if (owningPlanet.CanSplitPatch(patchKey))
+                    {
+                        if (ImGui.Button("Increase source zoom"))
+                        {
+                            owningPlanet.TrySplitPatch(patchKey);
+                        }
+                    }
+                    else
+                    {
+                        var meshIsBelowSource = detail.HasValue
+                            && detail.Value.SourceResolution.HasValue
+                            && detail.Value.SourceResolution.Value > patchMesh.Resolution;
+                        if (meshIsBelowSource)
+                        {
+                            ImGui.TextDisabled("Next source zoom cannot be represented without undersampling");
+                        }
+                        else
+                        {
+                            ImGui.TextDisabled("Mesh matches streamed source data");
+                        }
                     }
                 }
             };
@@ -1158,19 +1165,42 @@ namespace Mana.Code.GameModes
 
             // Highlight whatever the Outliner or viewport select tool currently has selected, distinct from
             // the active-voxel-layer highlight above (skipped when they're the same node, to avoid flicker).
+            // A component-level selection (e.g. one patch on a PlanetNode shared root node) only outlines
+            // that ONE renderer, not every sibling on the same node -- a plain node-level selection (KML
+            // lines, shapes, a bare shared root) still blanket-highlights every renderer on the node.
+            // Diffs against the EXACT set of components lit last frame (not just node/component identity)
+            // -- keying off identity alone missed the transition from "whole node lit" to "one specific
+            // component on that SAME node lit," since the node itself hadn't changed, leaving every other
+            // sibling stuck outlined forever.
             var selectedNode = Context.World.Selection.SelectedNode;
-            if (_lastOutlinedSelectionNode != null && _lastOutlinedSelectionNode != selectedNode && _lastOutlinedSelectionNode != activeNode)
+            var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
+
+            HashSet<MeshRendererComponent> targetOutlinedComponents;
+            if (selectedComponent != null)
             {
-                foreach (var meshRenderer in _lastOutlinedSelectionNode.Components.OfType<MeshRendererComponent>())
+                targetOutlinedComponents = new HashSet<MeshRendererComponent> { selectedComponent };
+            }
+            else if (selectedNode != null && selectedNode != activeNode)
+            {
+                targetOutlinedComponents = new HashSet<MeshRendererComponent>(selectedNode.Components.OfType<MeshRendererComponent>());
+            }
+            else
+            {
+                targetOutlinedComponents = new HashSet<MeshRendererComponent>();
+            }
+
+            foreach (var meshRenderer in _lastOutlinedSelectionComponents)
+            {
+                if (!targetOutlinedComponents.Contains(meshRenderer))
                 {
                     meshRenderer.OutlineEnabled = false;
                 }
             }
 
-            if (selectedNode != null && selectedNode != activeNode)
+            if (targetOutlinedComponents.Count > 0)
             {
-                var outlineColor = GetSelectionOutlineColor(selectedNode);
-                foreach (var meshRenderer in selectedNode.Components.OfType<MeshRendererComponent>())
+                var outlineColor = selectedComponent != null ? GetSelectionOutlineColor(selectedComponent) : GetSelectionOutlineColor(null);
+                foreach (var meshRenderer in targetOutlinedComponents)
                 {
                     meshRenderer.OutlineEnabled = true;
                     meshRenderer.OutlineColor = outlineColor;
@@ -1178,24 +1208,24 @@ namespace Mana.Code.GameModes
                 }
             }
 
-            _lastOutlinedSelectionNode = selectedNode;
+            _lastOutlinedSelectionComponents = targetOutlinedComponents;
 
             // Also highlight every OTHER patch currently doing background streaming work (in-place
             // up-res, splitting, merging) -- not just the selected one. With auto-LOD running, several
             // patches can be streaming at once with no way to see how much/which without this (besides
             // the World Perf panel's aggregate counts, see PushPlanetStreamingStatusToWorldPerf).
-            UpdateStreamingActivityOutlines(selectedNode, activeNode);
+            UpdateStreamingActivityOutlines(selectedComponent, activeNode);
 
             // Called every frame the patch is selected, not just once on selection change -- covers both
             // the Outliner tree AND clicking a patch directly in the 3D view, since both already write to
-            // the same SelectedNode via UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
+            // the same SelectedComponent via UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
             // TryBeginPatchUpres is documented as safe/idempotent to call repeatedly (a no-op once the
             // patch is InProgress/Done/Failed) -- calling it only once per selection change used to leave
             // a patch stuck forever if that single call happened to lose the non-blocking _rebuildLock
             // race to some other in-flight background operation (split/merge/another patch's up-res),
             // since nothing would retry until the user deselected and reselected. Calling every frame
             // lets a lost race self-heal on the very next frame instead.
-            if (selectedNode != null && _planet != null && _planet.TryGetPatchKey(selectedNode, out var patchKey))
+            if (_planet != null && _planet.TryGetPatchKey(selectedComponent, out var patchKey))
             {
                 _planet.TryBeginPatchUpres(patchKey);
             }
@@ -1252,6 +1282,7 @@ namespace Mana.Code.GameModes
             bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse || gizmoCapturesMouse;
 
             UpdateVoxelPointerInteraction(imguiCapturesMouse);
+            UpdateFrameSelectedShortcut();
 
             _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
 
@@ -1344,7 +1375,36 @@ namespace Mana.Code.GameModes
         // the same node, which is a stronger check than cursor position alone.
         private const long DoubleClickThresholdMs = 400;
         private long _lastSelectClickTimeMs = long.MinValue;
-        private ManaSceneNode? _lastSelectClickedNode;
+
+        // Prefers the picked renderer's identity over the node's, since several patches can share one
+        // PlanetNode root node -- double-clicking two different sibling patches in quick succession must
+        // NOT register as a double-click on the same target.
+        private object? _lastSelectClickedTarget;
+
+        // "F to frame selected" -- edge-detected the same way UpdateSelectionPointerInteraction debounces
+        // a mouse click (a bool "was it down last frame" field), so holding F doesn't re-fire every frame.
+        // Gated on WantCaptureKeyboard so it doesn't fire while typing in an ImGui text field (e.g.
+        // renaming a node) that happens to contain the letter F.
+        private void UpdateFrameSelectedShortcut()
+        {
+            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            var keyDown = !ImGui.GetIO().WantCaptureKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.F);
+            var pressed = keyDown && !_frameSelectedKeyWasDown;
+            _frameSelectedKeyWasDown = keyDown;
+
+            if (!pressed)
+            {
+                return;
+            }
+
+            var selection = Context.World.Selection;
+            Context.World.MainCamera.TryFrameSelection(selection.SelectedComponent as MeshRendererComponent, selection.SelectedNode);
+        }
 
         private void UpdateSelectionPointerInteraction(bool inputCaptured, IMouse mouseState)
         {
@@ -1360,21 +1420,23 @@ namespace Mana.Code.GameModes
             var mouseStart = new Vector3(mouseState.Position, 0.0f);
             var mouseEnd = new Vector3(mouseState.Position, 1.0f);
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
-            var pickedNode = ManaScenePicker.Pick(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
-            Context.World.Selection.SelectedNode = pickedNode;
+            var pickResult = ManaScenePicker.Pick(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
+            Context.World.Selection.SelectedNode = pickResult?.Node;
+            Context.World.Selection.SelectedComponent = pickResult?.Renderer;
 
             var now = Environment.TickCount64;
-            var isDoubleClick = pickedNode != null
-                && ReferenceEquals(pickedNode, _lastSelectClickedNode)
+            object? clickedTarget = (object?)pickResult?.Renderer ?? pickResult?.Node;
+            var isDoubleClick = clickedTarget != null
+                && ReferenceEquals(clickedTarget, _lastSelectClickedTarget)
                 && now - _lastSelectClickTimeMs <= DoubleClickThresholdMs;
             _lastSelectClickTimeMs = now;
-            _lastSelectClickedNode = pickedNode;
+            _lastSelectClickedTarget = clickedTarget;
 
             // Double-click is the deliberate-but-quick alternative to the Inspector's "Increase source
             // zoom" button -- still only ever an EXPLICIT gesture, never triggered by plain
             // reselection. No-ops via TrySplitPatch's own guard if the patch isn't currently Done or
             // can't increase source zoom without undersampling.
-            if (isDoubleClick && _planet != null && pickedNode != null && _planet.TryGetPatchKey(pickedNode, out var patchKey))
+            if (isDoubleClick && _planet != null && _planet.TryGetPatchKey(pickResult?.Renderer, out var patchKey))
             {
                 _planet.TrySplitPatch(patchKey);
             }
@@ -1384,9 +1446,9 @@ namespace Mana.Code.GameModes
         // PlanetNode.TryBeginPatchUpres) instead of the plain default selection color -- otherwise
         // there's no way to tell from the 3D view whether selecting a patch actually did anything.
         // Everything else selectable keeps the default color unchanged.
-        private Vector4 GetSelectionOutlineColor(ManaSceneNode node)
+        private Vector4 GetSelectionOutlineColor(MeshRendererComponent? selectedRenderer)
         {
-            if (_planet == null || !_planet.TryGetPatchKey(node, out var patchKey))
+            if (_planet == null || !_planet.TryGetPatchKey(selectedRenderer, out var patchKey))
             {
                 return SelectionOutlineColor;
             }
@@ -1403,42 +1465,37 @@ namespace Mana.Code.GameModes
         // Diffs against last frame's set rather than blindly turning everything on/off every frame --
         // patches finish streaming (or get swapped out entirely by a split/merge finalize) constantly,
         // so this avoids fighting the selection/active-voxel outline blocks above over the same
-        // MeshRendererComponent on any node that happens to be both selected/active AND streaming.
-        private void UpdateStreamingActivityOutlines(ManaSceneNode? selectedNode, ManaSceneNode? activeNode)
+        // MeshRendererComponent. Component-grained (not node-grained), since several unrelated patches
+        // can share one root node -- a streaming patch must not light up its idle siblings.
+        private void UpdateStreamingActivityOutlines(MeshRendererComponent? selectedComponent, ManaSceneNode? activeNode)
         {
-            var currentNodes = _planet != null
-                ? new HashSet<ManaSceneNode>(_planet.GetStreamingActivityNodes())
-                : new HashSet<ManaSceneNode>();
+            var currentComponents = _planet != null
+                ? new HashSet<MeshRendererComponent>(_planet.GetStreamingActivityComponents())
+                : new HashSet<MeshRendererComponent>();
 
-            foreach (var node in _lastStreamingHighlightedNodes)
+            foreach (var component in _lastStreamingHighlightedComponents)
             {
-                if (currentNodes.Contains(node) || node == selectedNode || node == activeNode)
+                if (currentComponents.Contains(component) || component == selectedComponent || component.Owner == activeNode)
                 {
                     continue;
                 }
 
-                foreach (var meshRenderer in node.Components.OfType<MeshRendererComponent>())
-                {
-                    meshRenderer.OutlineEnabled = false;
-                }
+                component.OutlineEnabled = false;
             }
 
-            foreach (var node in currentNodes)
+            foreach (var component in currentComponents)
             {
-                if (node == selectedNode || node == activeNode)
+                if (component == selectedComponent || component.Owner == activeNode)
                 {
                     continue;
                 }
 
-                foreach (var meshRenderer in node.Components.OfType<MeshRendererComponent>())
-                {
-                    meshRenderer.OutlineEnabled = true;
-                    meshRenderer.OutlineColor = PatchUpresInProgressOutlineColor;
-                    meshRenderer.OutlineWidth = 4.0f;
-                }
+                component.OutlineEnabled = true;
+                component.OutlineColor = PatchUpresInProgressOutlineColor;
+                component.OutlineWidth = 4.0f;
             }
 
-            _lastStreamingHighlightedNodes = currentNodes;
+            _lastStreamingHighlightedComponents = currentComponents;
         }
 
         private bool ShouldCaptureEditorMouseInput()

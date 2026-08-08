@@ -18,6 +18,11 @@ namespace Mana.Code.UI
         // node is currently selected, so the hook itself decides what (if anything) to draw.
         public static Action<ManaSceneNode>? CustomNodeInspectorHook { get; set; }
 
+        // Component-level counterpart to CustomNodeInspectorHook -- invoked whenever
+        // SceneSelectionState.SelectedComponent is set (e.g. a specific patch on one of PlanetNode's
+        // shared root nodes), in addition to (not instead of) the node hook above.
+        public static Action<ManaComponent>? CustomComponentInspectorHook { get; set; }
+
         private static readonly HashSet<string> AutomaticUniformNames = new(StringComparer.OrdinalIgnoreCase)
         {
             "gWVP",
@@ -119,6 +124,13 @@ namespace Mana.Code.UI
             ImGui.PushID($"inspector_{selectionState.SelectedNode.GetHashCode()}");
             DrawSelectedNodeInspector(selectionState.SelectedNode);
             ImGui.PopID();
+
+            if (selectionState.SelectedComponent != null)
+            {
+                ImGui.PushID($"inspector_component_{selectionState.SelectedComponent.GetHashCode()}");
+                CustomComponentInspectorHook?.Invoke(selectionState.SelectedComponent);
+                ImGui.PopID();
+            }
         }
 
         private void DrawSelectedNodeInspector(ManaSceneNode node)
@@ -150,7 +162,19 @@ namespace Mana.Code.UI
                 return;
             }
 
-            ImGui.SeparatorText("Components");
+            // When a specific component on this node is selected (e.g. one patch on a PlanetNode shared
+            // root node hosting many), show just that one's detail instead of dumping every sibling --
+            // the node can host components belonging to unrelated things once one node is shared.
+            if (selectionState.SelectedComponent != null && node.Components.Contains(selectionState.SelectedComponent))
+            {
+                ImGui.SeparatorText("Component");
+                ImGui.PushID($"inspect_component_{selectionState.SelectedComponent.GetHashCode()}");
+                DrawComponentInspector(selectionState.SelectedComponent);
+                ImGui.PopID();
+                return;
+            }
+
+            ImGui.SeparatorText($"Components ({node.Components.Count})");
             foreach (var component in node.Components)
             {
                 ImGui.PushID($"inspect_component_{component.GetHashCode()}");
