@@ -1,19 +1,18 @@
 using System.Runtime.InteropServices;
-using Serilog;
-using Serilog.Core;
-using Serilog.Events;
+using ManaCore.Diagnostics;
 
 namespace ManaGraphics.Code.Diagnostics
 {
+    /// <summary>
+    /// Console-window attach/allocate behavior for this app, on top of the shared ManaLog logger (see
+    /// ManaCore.Diagnostics.ManaLog -- lives in ManaCore so it's reachable from every project, not just
+    /// ones that can reference ManaGraphics).
+    /// </summary>
     public static class ManaConsole
     {
         private const uint AttachParentProcess = 0xFFFFFFFF;
-        private const int AsyncBufferSize = 8_192;
-        private static readonly object LoggerLock = new();
-        private static Logger? _logger;
 
-        public static string DiagnosticLogPath { get; } =
-            Path.Combine(Environment.CurrentDirectory, "ManaGraphicsStartup.log");
+        public static string DiagnosticLogPath => ManaLog.DiagnosticLogPath;
 
         public static void AttachForDiagnostics(string title)
         {
@@ -33,71 +32,17 @@ namespace ManaGraphics.Code.Diagnostics
 
         public static void WriteDiagnostic(string message)
         {
-            try
-            {
-                GetLogger().Debug("{DiagnosticMessage}", message);
-            }
-            catch
-            {
-                // Logging must never take down the renderer.
-            }
+            ManaLog.WriteDiagnostic(message);
         }
 
         public static void WriteDiagnostic(Exception exception)
         {
-            try
-            {
-                GetLogger().Error(exception, "Graphics diagnostic exception");
-            }
-            catch
-            {
-                // Logging must never take down the renderer.
-            }
+            ManaLog.WriteDiagnostic(exception);
         }
 
         public static void Shutdown()
         {
-            Logger? logger;
-            lock (LoggerLock)
-            {
-                logger = _logger;
-                _logger = null;
-            }
-
-            logger?.Dispose();
-        }
-
-        private static Logger GetLogger()
-        {
-            lock (LoggerLock)
-            {
-                return _logger ??= CreateLogger();
-            }
-        }
-
-        private static Logger CreateLogger()
-        {
-            return new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.Async(
-                    sinks =>
-                    {
-                        sinks.Console(
-                            restrictedToMinimumLevel: LogEventLevel.Debug,
-                            outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}");
-                        sinks.File(
-                            DiagnosticLogPath,
-                            restrictedToMinimumLevel: LogEventLevel.Debug,
-                            outputTemplate: "[{Timestamp:O} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            buffered: true,
-                            flushToDiskInterval: TimeSpan.FromSeconds(1),
-                            fileSizeLimitBytes: 10 * 1024 * 1024,
-                            rollOnFileSizeLimit: true,
-                            retainedFileCountLimit: 3);
-                    },
-                    bufferSize: AsyncBufferSize,
-                    blockWhenFull: false)
-                .CreateLogger();
+            ManaLog.Shutdown();
         }
 
         private static void ReopenStandardStreams()

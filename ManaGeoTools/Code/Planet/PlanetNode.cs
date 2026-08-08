@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Mana;
 using Mana.Code;
 using Mana.Code.Nodes;
+using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using ManaGeoTools.Code.GeoTiff;
 using ManaGeoTools.Code.GeoTiff.Terrarium;
@@ -568,18 +569,18 @@ namespace ManaGeoTools.Code.Planet
 
         private async Task UpresPendingChildrenAsync(PendingSplit pending)
         {
-            // TEMP verification instrumentation -- remove once the "20 seconds for one split" report is
-            // root-caused.
-            var splitSw = System.Diagnostics.Stopwatch.StartNew();
-
             var tileKeys = pending.ChildPlans
                 .SelectMany(plan => plan.TileIndices.Select(index => new TerrariumTileKey(plan.Zoom, index.X, index.Y)))
                 .Distinct()
                 .ToList();
             Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: fetching {tileKeys.Count} unique tile(s) for {pending.ChildPlans.Length} child patch(es).");
 
+            // ManaLog.TimeVerbose's scope is a ref struct and can't be held alive across an await, so
+            // spans that need to cover an awaited call use the GetTimestamp()/WriteVerboseElapsed() pair
+            // instead (see ManaLog.TimeVerbose's doc comment).
+            var fetchStart = ManaLog.GetTimestamp();
             var fetched = await FetchTilesAsync(tileKeys);
-            var fetchMs = splitSw.ElapsedMilliseconds;
+            ManaLog.WriteVerboseElapsed($"[SplitTiming] fetch {tileKeys.Count} tile(s)", fetchStart);
             var fetchedByKey = fetched.ToDictionary(tile => new TerrariumTileKey(tile.Zoom, tile.TileX, tile.TileY));
 
             // GPU height-sampling path (see TrySampleHeightsOnGpuAsync), attempted per child -- outside
@@ -601,8 +602,9 @@ namespace ManaGeoTools.Code.Planet
                     Context, childMesh.FaceNormal, childMesh.MinU, childMesh.MaxU, childMesh.MinV, childMesh.MaxV,
                     plan.MeshResolution, childFetchedTiles, plan.TileIndices.Count);
             }
+            var gpuSampleStart = ManaLog.GetTimestamp();
             var precomputedHeightsResults = await Task.WhenAll(precomputedHeightsTasks);
-            var gpuSampleMs = splitSw.ElapsedMilliseconds - fetchMs;
+            ManaLog.WriteVerboseElapsed($"[SplitTiming] GPU sample {pending.ChildPlans.Length} child(ren)", gpuSampleStart);
 
             lock (_rebuildLock)
             {
@@ -629,18 +631,18 @@ namespace ManaGeoTools.Code.Planet
                         continue;
                     }
 
-                    var childSw = System.Diagnostics.Stopwatch.StartNew();
                     var precomputedHeights = precomputedHeightsResults[childIndex];
-                    if (precomputedHeights != null)
+                    using (ManaLog.TimeVerbose($"[SplitTiming] child={childIndex} meshResolution={plan.MeshResolution} usedGpu={precomputedHeights != null}"))
                     {
-                        pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution, precomputedHeights);
+                        if (precomputedHeights != null)
+                        {
+                            pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution, precomputedHeights);
+                        }
+                        else
+                        {
+                            pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
+                        }
                     }
-                    else
-                    {
-                        pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
-                    }
-
-                    Console.WriteLine($"[SplitTiming] child={childIndex} meshResolution={plan.MeshResolution} usedGpu={precomputedHeights != null} applyHeightDataMs={childSw.ElapsedMilliseconds}");
 
                     pending.ChildZoom[childIndex] = plan.Zoom;
                     pending.ChildSucceeded[childIndex] = true;
@@ -657,8 +659,6 @@ namespace ManaGeoTools.Code.Planet
 
             var succeededCount = pending.ChildSucceeded.Count(succeeded => succeeded);
             Console.WriteLine($"[Terrarium] Split {PatchName(pending.ParentKey, pending.ParentLeaf.Zoom, pending.ParentLeaf.Mesh.Resolution, pending.ParentLeaf.SourceResolution, pending.ParentLeaf.SourceMetersPerPixel)}: applied {fetched.Count}/{tileKeys.Count} unique tile(s) to {succeededCount}/{pending.ChildPlans.Length} child patch(es) (pending swap-in).");
-            var applyMs = splitSw.ElapsedMilliseconds - fetchMs - gpuSampleMs;
-            Console.WriteLine($"[SplitTiming] TOTAL fetchMs={fetchMs} gpuSampleMs={gpuSampleMs} applyLockMs={applyMs} totalMs={splitSw.ElapsedMilliseconds}");
         }
 
         /// <summary>

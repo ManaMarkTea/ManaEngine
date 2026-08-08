@@ -10,37 +10,16 @@
 
         public Vector3 Normal;
 
-        public void AssociateNeighbors()
+        // Used to be "AssociateNeighbors": also populated A/B/C.Neighbors, A/B/C.Face, per-vertex .Edges,
+        // per-edge .Faces, and Geom.Edges (3 new ManaGeometryEdge allocations per call). Confirmed via a
+        // full-repo search that nothing anywhere ever reads any of that -- Normal is the only output any
+        // caller consumes (ManaDynamicGeometryContainer.CreateQuadsFromVerts's Quad.Normal). For a large
+        // grid mesh (e.g. a ~700x700 up-res'd planet patch, ~490K quads) that dead bookkeeping was ~1.5M
+        // wasted ManaGeometryEdge allocations plus several million List<T>.Add calls per rebuild -- real
+        // GC/allocation cost for output nothing used. Renamed to match what it actually does now.
+        public void ComputeNormal()
         {
-            A.Neighbors.Add(B);
-            A.Neighbors.Add(C);
-            B.Neighbors.Add(A);
-            B.Neighbors.Add(C);
-            C.Neighbors.Add(A);
-            C.Neighbors.Add(B);
-            A.Face = B.Face = C.Face = this;
             Normal = (A.Normal + B.Normal + C.Normal) / 3.0f;
-
-            var newEdge1 = new ManaGeometryEdge { A = A, B = B, Geom = Geom };
-            var newEdge2 = new ManaGeometryEdge { A = B, B = C, Geom = Geom };
-            var newEdge3 = new ManaGeometryEdge { A = C, B = A, Geom = Geom };
-
-            A.Edges.Add(newEdge1);
-            B.Edges.Add(newEdge1);
-
-            B.Edges.Add(newEdge2);
-            C.Edges.Add(newEdge2);
-
-            C.Edges.Add(newEdge3);
-            A.Edges.Add(newEdge3);
-
-            newEdge1.Faces.Add(this);
-            newEdge2.Faces.Add(this);
-            newEdge3.Faces.Add(this);
-
-            Geom.Edges.Add(newEdge1);
-            Geom.Edges.Add(newEdge2);
-            Geom.Edges.Add(newEdge3);
         }
 
         public override string ToString()

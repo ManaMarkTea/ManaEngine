@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using Silk.NET.OpenGL;
 
@@ -127,71 +128,74 @@ namespace Mana.Code.Graphics
                 return Array.Empty<float>();
             }
 
-            // TEMP verification instrumentation -- remove once the "20 seconds for one dispatch" report
-            // is root-caused.
-            var totalSw = System.Diagnostics.Stopwatch.StartNew();
+            var label = $"[HeightSampleTiming][OpenGL] points={points.Length} tiles={tilesNewestFirst.Count}";
 
-            var tileDescriptors = new GpuTileDescriptor[Math.Max(1, tilesNewestFirst.Count)];
-            var heightDataFloatCount = 0;
-            for (var i = 0; i < tilesNewestFirst.Count; i++)
+            GpuTileDescriptor[] tileDescriptors;
+            float[] heightData;
+            using (ManaLog.TimeVerbose($"{label} phase=prep"))
             {
-                var tile = tilesNewestFirst[i];
-                // lat_max (north) maps to the SMALLER Mercator Y (top of a north-up image), lat_min
-                // (south) to the larger one -- matches the shader's own documented convention.
-                var mercMin = MercatorXy(tile.LonMin, tile.LatMax);
-                var mercMax = MercatorXy(tile.LonMax, tile.LatMin);
-                tileDescriptors[i] = new GpuTileDescriptor
+                tileDescriptors = new GpuTileDescriptor[Math.Max(1, tilesNewestFirst.Count)];
+                var heightDataFloatCount = 0;
+                for (var i = 0; i < tilesNewestFirst.Count; i++)
                 {
-                    MercXMin = mercMin.X,
-                    MercXMax = mercMax.X,
-                    MercYMin = mercMin.Y,
-                    MercYMax = mercMax.Y,
-                    PixelOffset = (uint)heightDataFloatCount,
-                    Width = (uint)tile.Width,
-                    Height = (uint)tile.Height,
-                    Padding0 = 0,
-                };
-                heightDataFloatCount += tile.Width * tile.Height;
-            }
+                    var tile = tilesNewestFirst[i];
+                    // lat_max (north) maps to the SMALLER Mercator Y (top of a north-up image), lat_min
+                    // (south) to the larger one -- matches the shader's own documented convention.
+                    var mercMin = MercatorXy(tile.LonMin, tile.LatMax);
+                    var mercMax = MercatorXy(tile.LonMax, tile.LatMin);
+                    tileDescriptors[i] = new GpuTileDescriptor
+                    {
+                        MercXMin = mercMin.X,
+                        MercXMax = mercMax.X,
+                        MercYMin = mercMin.Y,
+                        MercYMax = mercMax.Y,
+                        PixelOffset = (uint)heightDataFloatCount,
+                        Width = (uint)tile.Width,
+                        Height = (uint)tile.Height,
+                        Padding0 = 0,
+                    };
+                    heightDataFloatCount += tile.Width * tile.Height;
+                }
 
-            var heightData = new float[Math.Max(1, heightDataFloatCount)];
-            var writeOffset = 0;
-            foreach (var tile in tilesNewestFirst)
-            {
-                tile.HeightData.Span.CopyTo(heightData.AsSpan(writeOffset));
-                writeOffset += tile.HeightData.Length;
+                heightData = new float[Math.Max(1, heightDataFloatCount)];
+                var writeOffset = 0;
+                foreach (var tile in tilesNewestFirst)
+                {
+                    tile.HeightData.Span.CopyTo(heightData.AsSpan(writeOffset));
+                    writeOffset += tile.HeightData.Length;
+                }
             }
-
-            var prepMs = totalSw.ElapsedMilliseconds;
 
             var pointsBuffer = CreateStorageBuffer<Vector2>(points);
             var tilesBuffer = CreateStorageBuffer<GpuTileDescriptor>(tileDescriptors);
             var heightDataBuffer = CreateStorageBuffer<float>(heightData);
             var outputBuffer = CreateEmptyBuffer(points.Length * sizeof(float));
 
-            _gl.UseProgram(_computeShader.Program);
-            _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 0, pointsBuffer);
-            _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 1, tilesBuffer);
-            _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 2, heightDataBuffer);
-            _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 3, outputBuffer);
-            _gl.Uniform1(TileCountUniformLocation, (uint)tilesNewestFirst.Count);
+            using (ManaLog.TimeVerbose($"{label} phase=dispatch"))
+            {
+                _gl.UseProgram(_computeShader.Program);
+                _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 0, pointsBuffer);
+                _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 1, tilesBuffer);
+                _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 2, heightDataBuffer);
+                _gl.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 3, outputBuffer);
+                _gl.Uniform1(TileCountUniformLocation, (uint)tilesNewestFirst.Count);
 
-            var workgroups = (uint)((points.Length + 63) / 64);
-            _computeShader.Dispatch(new ManaComputeDispatchSize(workgroups, 1, 1));
-            var dispatchMs = totalSw.ElapsedMilliseconds - prepMs;
+                var workgroups = (uint)((points.Length + 63) / 64);
+                _computeShader.Dispatch(new ManaComputeDispatchSize(workgroups, 1, 1));
+            }
 
             var heights = new float[points.Length];
-            _gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, outputBuffer);
-            _gl.GetBufferSubData(BufferTargetARB.ShaderStorageBuffer, IntPtr.Zero, new Span<float>(heights));
-            _gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
-            var readbackMs = totalSw.ElapsedMilliseconds - prepMs - dispatchMs;
+            using (ManaLog.TimeVerbose($"{label} phase=readback"))
+            {
+                _gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, outputBuffer);
+                _gl.GetBufferSubData(BufferTargetARB.ShaderStorageBuffer, IntPtr.Zero, new Span<float>(heights));
+                _gl.BindBuffer(BufferTargetARB.ShaderStorageBuffer, 0);
+            }
 
             _gl.DeleteBuffer(pointsBuffer);
             _gl.DeleteBuffer(tilesBuffer);
             _gl.DeleteBuffer(heightDataBuffer);
             _gl.DeleteBuffer(outputBuffer);
-
-            Console.WriteLine($"[HeightSampleTiming][OpenGL] points={points.Length} tiles={tilesNewestFirst.Count} prepMs={prepMs} dispatchMs={dispatchMs} readbackMs={readbackMs} totalMs={totalSw.ElapsedMilliseconds}");
 
             return heights;
         }

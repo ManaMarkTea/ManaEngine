@@ -251,7 +251,7 @@ namespace Mana.Code
                 face.A = verts[indexA];
                 face.B = verts[indexB];
                 face.C = verts[indexC];
-                face.AssociateNeighbors();
+                face.ComputeNormal();
 
                 Faces.Add(face);
                 consumedPoints.Add(verts[indexA]);
@@ -293,14 +293,14 @@ namespace Mana.Code
                 face.A = verts[indexA];
                 face.B = verts[indexB];
                 face.C = verts[indexC];
-                face.AssociateNeighbors();
+                face.ComputeNormal();
 
                 ManaGeometryFace face2 = new ManaGeometryFace();
                 face2.Geom = this;
                 face2.A = verts[indexA];
                 face2.B = verts[indexC];
                 face2.C = verts[indexD];
-                face2.AssociateNeighbors();
+                face2.ComputeNormal();
 
                 Faces.Add(face);
                 Faces.Add(face2);
@@ -344,7 +344,7 @@ namespace Mana.Code
             face1.A = a;
             face1.B = b;
             face1.C = c;
-            face1.AssociateNeighbors();
+            face1.ComputeNormal();
             Faces.Add(face1);
 
             ManaGeometryFace face2 = new ManaGeometryFace();
@@ -352,7 +352,7 @@ namespace Mana.Code
             face2.A = a;
             face2.B = c;
             face2.C = d;
-            face2.AssociateNeighbors();
+            face2.ComputeNormal();
             Faces.Add(face2);
 
             DisconnectedPoints.Remove(a);
@@ -379,7 +379,7 @@ namespace Mana.Code
                 face.A = Verts[indexA];
                 face.B = Verts[indexB];
                 face.C = Verts[indexC];
-                face.AssociateNeighbors();
+                face.ComputeNormal();
 
                 Faces.Add(face);
             }

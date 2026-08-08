@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Shapes;
+using ManaCore.Diagnostics;
 using ManaGeoTools.Code.GeoTiff;
 
 namespace ManaGeoTools.Code.Planet
@@ -195,6 +197,8 @@ namespace ManaGeoTools.Code.Planet
             var precomputedHeights = _pendingPrecomputedHeights;
             _pendingPrecomputedHeights = null;
 
+            var computeSphereTime = Stopwatch.GetTimestamp();
+
             ForEachRow(Resolution, y =>
             {
                 var ty = (float)y / (Resolution - 1);
@@ -230,9 +234,13 @@ namespace ManaGeoTools.Code.Planet
                 }
             });
 
+            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Compute sphere time", computeSphereTime);
+
             // Phase 2 (sequential): AddPoint appends to DynamicGeometryContainer's shared Verts list and
             // assigns sequential Index values, so this part can't be parallelized -- but it's now pure
             // array-to-container copying with no lookups/trig/allocation left in it.
+            var vertexGenerationStart = Stopwatch.GetTimestamp();
+            
             var verts = new ManaGeometryVertex[Resolution, Resolution];
             for (var y = 0; y < Resolution; y++)
             {
@@ -244,6 +252,8 @@ namespace ManaGeoTools.Code.Planet
                     verts[x, y] = vert;
                 }
             }
+
+            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Vertex generation time", vertexGenerationStart);
 
             // Real elevation displacement can be substantial (HeightExaggeration commonly pushes it
             // well past what's visually negligible), so lighting the surface with the raw undisplaced
@@ -258,6 +268,9 @@ namespace ManaGeoTools.Code.Planet
             // Safe to parallelize like phase 1 above: every iteration only READS neighboring verts[,]
             // positions (fixed since phase 2 finished) and writes its OWN vertex's .Normal -- two threads
             // never touch the same ManaGeometryVertex instance.
+            
+            var normalCalculationStart = Stopwatch.GetTimestamp();
+            
             ForEachRow(Resolution, y =>
             {
                 for (var x = 0; x < Resolution; x++)
@@ -282,10 +295,14 @@ namespace ManaGeoTools.Code.Planet
                     verts[x, y].Normal = Vector3.Normalize(normalSum);
                 }
             });
+            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Normal calculation time", normalCalculationStart);
 
             // (x,y),(x+1,y),(x+1,y+1),(x,y+1) is CCW-as-seen-from-outside for every one of the 6
             // axis-aligned face normals (axisA x axisB == FaceNormal algebraically for all of them),
+            // axis-aligned face normals (axisA x axisB == FaceNormal algebraically for all of them),
             // so one consistent quad order works regardless of which face this patch is on.
+            var faceGenStart = Stopwatch.GetTimestamp();
+
             for (var y = 0; y < Resolution - 1; y++)
             {
                 for (var x = 0; x < Resolution - 1; x++)
@@ -297,6 +314,8 @@ namespace ManaGeoTools.Code.Planet
                     DynamicGeometryContainer.CreateFacesFromQuad(a, b, c, d);
                 }
             }
+            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Face generation time", faceGenStart);
+
 
             // Skirts: a thin wall of extra geometry hanging inward (toward the planet center) from
             // each of the patch's 4 edges. Adjacent patches' shared boundary vertices land on
@@ -310,11 +329,15 @@ namespace ManaGeoTools.Code.Planet
             // up neighboring a differently-resolved one at any time. CullMode.None is used for every
             // procedural mesh pipeline in this engine (confirmed in ManaWebGpuContext.Pipelines.cs), so
             // the skirt quads' winding direction doesn't need to be carefully oriented.
-            var skirtDepth = HeightScale * SkirtDepthMeters;
-            AddSkirtStrip(GetColumn(verts, row: 0), skirtDepth);
-            AddSkirtStrip(GetColumn(verts, row: Resolution - 1), skirtDepth);
-            AddSkirtStrip(GetRow(verts, col: 0), skirtDepth);
-            AddSkirtStrip(GetRow(verts, col: Resolution - 1), skirtDepth);
+            var skirtGenStart = Stopwatch.GetTimestamp();
+            {
+                var skirtDepth = HeightScale * SkirtDepthMeters;
+                AddSkirtStrip(GetColumn(verts, row: 0), skirtDepth);
+                AddSkirtStrip(GetColumn(verts, row: Resolution - 1), skirtDepth);
+                AddSkirtStrip(GetRow(verts, col: 0), skirtDepth);
+                AddSkirtStrip(GetRow(verts, col: Resolution - 1), skirtDepth);
+            }
+            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Skirt generation time", skirtGenStart);
 
             MinSize = new Vector3(-Radius, -Radius, -Radius);
             MaxSize = new Vector3(Radius, Radius, Radius);
@@ -322,7 +345,9 @@ namespace ManaGeoTools.Code.Planet
             // Explicit SetCpuData (now public) so ApplyHeightData()/Rebuild() calling GenerateData()
             // again after the mesh has already rendered once actually takes effect — see
             // GeoTiffTerrainMesh for the fuller explanation of why this matters.
+            var cpuDataGenStart = Stopwatch.GetTimestamp();
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] CPU data generation time", cpuDataGenStart);
         }
 
         private static ManaGeometryVertex[] GetColumn(ManaGeometryVertex[,] verts, int row)

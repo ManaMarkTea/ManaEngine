@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
@@ -88,17 +89,21 @@ namespace ManaGraphics.Code.Graphics
                 return Array.Empty<float>();
             }
 
-            // TEMP verification instrumentation -- remove once the "20 seconds for one dispatch" report
-            // is root-caused. Splits the whole call into dispatch-submit vs. readback-await so we know
-            // which side the time is actually going.
-            var totalSw = System.Diagnostics.Stopwatch.StartNew();
-            var bytesTask = DispatchAndRequestReadback(lonLatPointsDegrees.Span, tilesNewestFirst);
-            var dispatchMs = totalSw.ElapsedMilliseconds;
+            // Split into dispatch-submit vs. readback-await so it's clear which side any future slowness
+            // is coming from.
+            var label = $"[HeightSampleTiming][WebGPU] points={lonLatPointsDegrees.Length} tiles={tilesNewestFirst.Count}";
+            Task<byte[]> bytesTask;
+            using (ManaLog.TimeVerbose($"{label} phase=dispatchSubmit"))
+            {
+                bytesTask = DispatchAndRequestReadback(lonLatPointsDegrees.Span, tilesNewestFirst);
+            }
+            // ManaLog.TimeVerbose's scope is a ref struct and can't be held alive across an await, so
+            // this span uses the GetTimestamp()/WriteVerboseElapsed() pair instead.
+            var readbackStart = ManaLog.GetTimestamp();
             var bytes = await bytesTask;
-            var readbackMs = totalSw.ElapsedMilliseconds - dispatchMs;
+            ManaLog.WriteVerboseElapsed($"{label} phase=readbackAwait", readbackStart);
             var heights = new float[lonLatPointsDegrees.Length];
             MemoryMarshal.Cast<byte, float>(bytes).CopyTo(heights);
-            Console.WriteLine($"[HeightSampleTiming][WebGPU] points={lonLatPointsDegrees.Length} tiles={tilesNewestFirst.Count} dispatchSubmitMs={dispatchMs} readbackAwaitMs={readbackMs} totalMs={totalSw.ElapsedMilliseconds}");
             return heights;
         }
 
