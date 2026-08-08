@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Numerics;
@@ -51,6 +52,9 @@ namespace ManaGraphics.Code.Graphics
         private readonly List<ManaWebGpuSceneMesh> _sceneMeshes = new();
         private readonly Dictionary<string, ManaWebGpuSceneMesh> _sceneMeshMap = new();
         private readonly Queue<DeferredSceneMeshDisposal> _deferredSceneMeshDisposals = new();
+        // Work handed in from background threads that must run on the render thread instead -- see
+        // EnqueueRenderThreadWork for why submitting from anywhere else deadlocks wgpu-native.
+        private readonly ConcurrentQueue<Action> _renderThreadWork = new();
         private readonly Dictionary<string, ManaWebGpuMeshTexture> _meshTextureCache = new(StringComparer.OrdinalIgnoreCase);
         private ManaRenderScene? _activeRenderScene;
         private ulong _frameSerial;
@@ -270,12 +274,57 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic($"[wgpu:{levelName}] {message}");
         }
 
+        // Defers work onto the render thread, to be run by DrainRenderThreadWork() from inside ClearFrame.
+        //
+        // Every wgpu entry point that touches the device/queue/surface MUST run on the render thread.
+        // wgpu-native's surface-present path and its queue-submit path acquire the device's internal locks
+        // in opposite orders, so a background-thread wgpuQueueSubmit that overlaps the render thread's
+        // wgpuSurfacePresent deadlocks both threads outright (main thread parked in SurfacePresent inside
+        // ClearFrame, pool thread parked in QueueSubmit inside the height-sample dispatch). Nothing in the
+        // managed layer can make that overlap safe -- the only fix is to never let it happen.
+        //
+        // Callable from any thread. Ordering across callers is FIFO; a work item queued while a frame is
+        // mid-flight runs at the start of the next one.
+        private void EnqueueRenderThreadWork(Action work)
+        {
+            _renderThreadWork.Enqueue(work);
+
+            // Dispose()'s own drain may have already run by the time a racing producer got here, and no
+            // further ClearFrame is coming -- flush inline so the item still gets its (self-cancelling)
+            // invocation instead of leaving its awaiter hanging forever.
+            if (_disposed)
+            {
+                DrainRenderThreadWork();
+            }
+        }
+
+        // Render thread only. Each item is responsible for observing _disposed itself and completing
+        // whatever it owns accordingly, so that Dispose()'s drain cancels rather than submits.
+        private void DrainRenderThreadWork()
+        {
+            while (_renderThreadWork.TryDequeue(out var work))
+            {
+                try
+                {
+                    work();
+                }
+                catch (Exception ex)
+                {
+                    // A single bad work item must never take down the frame loop.
+                    ManaConsole.WriteDiagnostic($"[WebGPU] Deferred render-thread work failed: {ex}");
+                }
+            }
+        }
+
         // Backs IHeightSamplingComputeDevice.SampleHeightsAsync -- see ManaWebGpuGraphicsDevice, which
         // forwards here once wired up to this context (see VoxelEditorGameMode.RunWebGpu's webGpuReady
-        // callback). Callable from any thread, including the background threads PlanetNode's up-res flow
-        // already runs on -- GPU command submission from a background thread is an already-accepted
-        // pattern in this codebase (see ManaWebGpuEnvironmentPrefilterCompute.DispatchNow's own
-        // background-thread usage).
+        // callback).
+        //
+        // Callable from any thread (PlanetNode's up-res flow calls it from ThreadPool threads), but the
+        // dispatch itself is deliberately NOT performed on the calling thread -- it is queued onto the
+        // render thread, for the deadlock reason spelled out on EnqueueRenderThreadWork. Only the encode +
+        // submit is marshalled; the readback still completes asynchronously off the render thread, so the
+        // caller's await behaviour is unchanged.
         public Task<float[]> SampleHeightsAsync(
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
@@ -285,11 +334,61 @@ namespace ManaGraphics.Code.Graphics
                 return Task.FromCanceled<float[]>(new CancellationToken(true));
             }
 
-            _heightSampleCompute ??= new ManaWebGpuHeightSampleCompute(
-                _api, _device, _queue, _readbackRegistry,
-                ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
+            // RunContinuationsAsynchronously so a caller's continuation can never run inline on the render
+            // thread, mid-drain -- same reasoning as ManaWebGpuBufferReadback.MapAsync's own TCS.
+            var completion = new TaskCompletionSource<float[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            EnqueueRenderThreadWork(() =>
+            {
+                if (_disposed)
+                {
+                    completion.TrySetCanceled();
+                    return;
+                }
 
-            return _heightSampleCompute.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst);
+                try
+                {
+                    _heightSampleCompute ??= new ManaWebGpuHeightSampleCompute(
+                        _api, _device, _queue, _readbackRegistry,
+                        ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
+
+                    LinkTaskResult(
+                        _heightSampleCompute.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst),
+                        completion);
+                }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                }
+            });
+
+            return completion.Task;
+        }
+
+        // ContinueWith rather than await: this class is declared `unsafe` at the type level, which makes
+        // await illegal anywhere inside it (same constraint documented on ManaWebGpuHeightSampleCompute).
+        private static void LinkTaskResult<T>(Task<T> source, TaskCompletionSource<T> destination)
+        {
+            source.ContinueWith(
+                static (completed, state) =>
+                {
+                    var target = (TaskCompletionSource<T>)state!;
+                    if (completed.IsCanceled)
+                    {
+                        target.TrySetCanceled();
+                    }
+                    else if (completed.Exception != null)
+                    {
+                        target.TrySetException(completed.Exception.InnerExceptions);
+                    }
+                    else
+                    {
+                        target.TrySetResult(completed.Result);
+                    }
+                },
+                destination,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         public void ClearFrame(Color clearColor)
@@ -309,6 +408,12 @@ namespace ManaGraphics.Code.Graphics
 
             _frameSerial++;
             DrainDeferredSceneMeshDisposals();
+
+            // Deliberately above the !_configured early-return, and above SurfaceGetCurrentTexture below:
+            // background-thread callers waiting on deferred GPU work must keep making progress even while
+            // the window is minimized/mid-resize, and their submits must land before this frame's own
+            // submit/present pair rather than racing it.
+            DrainRenderThreadWork();
 
             if (!_configured)
             {
@@ -463,6 +568,10 @@ namespace ManaGraphics.Code.Graphics
             // BufferMapAsync callback will ever fire again, so any still-pending readback awaiter would
             // otherwise hang forever instead of getting a clean cancellation.
             _disposed = true;
+            // Runs every queued item with _disposed already set, so each cancels its own awaiter instead
+            // of submitting against a device that is about to go away. Must precede FaultAllPending() --
+            // a work item that slipped through before _disposed was observed can still register a readback.
+            DrainRenderThreadWork();
             _readbackRegistry.FaultAllPending();
 
             DrainDeferredSceneMeshDisposals(force: true);

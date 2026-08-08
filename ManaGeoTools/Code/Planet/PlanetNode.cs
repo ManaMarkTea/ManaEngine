@@ -1146,6 +1146,111 @@ namespace ManaGeoTools.Code.Planet
             return MathF.Acos(cosAngle) * Radius;
         }
 
+        // Driven by an explicit external request (e.g. a place search "go here and load full detail"),
+        // not by camera proximity like UpdateAutoLod -- repeatedly up-reses/splits whichever leaf
+        // currently covers the target lat/long, one step per UpdateDetailChase call, until it reaches
+        // TargetZoom or genuinely can't progress (undersampling/failure), at which point it clears itself.
+        private (float Longitude, float Latitude, int TargetZoom)? _pendingDetailChase;
+
+        public void RequestDetailAt(float longitudeDegrees, float latitudeDegrees, int targetZoom = UpresMaxZoom)
+        {
+            _pendingDetailChase = (longitudeDegrees, latitudeDegrees, Math.Clamp(targetZoom, InitialTerrariumUpresZoom, UpresMaxZoom));
+        }
+
+        /// <summary>
+        /// Advances any pending RequestDetailAt chase by one step. Call once per frame from the main
+        /// thread, alongside ProcessPendingSplits/ProcessPendingMerges -- cheap no-op when nothing's
+        /// pending.
+        /// </summary>
+        public void UpdateDetailChase()
+        {
+            if (_pendingDetailChase is not { } chase)
+            {
+                return;
+            }
+
+            if (!Monitor.TryEnter(_rebuildLock))
+            {
+                return;
+            }
+
+            try
+            {
+                if (!TryFindNearestLeafPatchKey(chase.Longitude, chase.Latitude, out var key))
+                {
+                    _pendingDetailChase = null;
+                    return;
+                }
+
+                var status = GetPatchUpresStatus(key);
+                if (status == PatchUpresStatus.InProgress || _splitPending.ContainsKey(key))
+                {
+                    return;
+                }
+
+                if (status == PatchUpresStatus.Failed)
+                {
+                    Console.WriteLine($"[Terrarium] Detail chase stopped at {PatchName(key)}: up-res failed.");
+                    _pendingDetailChase = null;
+                    return;
+                }
+
+                var currentZoom = GetPatchDetailInfo(key)?.Zoom;
+                if (currentZoom.HasValue && currentZoom.Value >= chase.TargetZoom)
+                {
+                    _pendingDetailChase = null;
+                    return;
+                }
+
+                if (!currentZoom.HasValue)
+                {
+                    TryBeginPatchUpres(key);
+                    return;
+                }
+
+                if (CanSplitPatch(key))
+                {
+                    TrySplitPatch(key);
+                    return;
+                }
+
+                Console.WriteLine($"[Terrarium] Detail chase stopped at {PatchName(key, currentZoom)}: z{currentZoom} is the finest zoom this area's source data supports.");
+                _pendingDetailChase = null;
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
+            }
+        }
+
+        // Finds whichever current leaf's center direction is closest to the target lat/long -- since
+        // leaves tessellate the sphere without gaps, "nearest center" reliably resolves to the leaf
+        // actually containing the point (or, right at a boundary, an immediate neighbor -- an acceptable
+        // approximation here, the same precision tradeoff TileOverlapsPatch's own corner-sampling
+        // already accepts elsewhere in this file). Caller must already hold _rebuildLock.
+        private bool TryFindNearestLeafPatchKey(float longitudeDegrees, float latitudeDegrees, out PatchKey key)
+        {
+            var direction = new LatLong(longitudeDegrees, latitudeDegrees).ToUnitSphere();
+
+            key = default;
+            var found = false;
+            var bestDot = float.NegativeInfinity;
+
+            foreach (var (candidateKey, leaf) in _leaves)
+            {
+                var leafDirection = Vector3.Normalize(leaf.LocalBoundsSphere.LocalCenter);
+                var dot = Vector3.Dot(direction, leafDirection);
+                if (dot > bestDot)
+                {
+                    bestDot = dot;
+                    key = candidateKey;
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
         public readonly record struct PlanetStreamingStatus(
             int TotalLeaves,
             int PatchesUpresInProgress,

@@ -88,6 +88,16 @@ namespace ManaVoxel.Code.UI
         public bool ShowWater = true;
         public bool ShowWireframe;
 
+        // Off by default -- the demo KML is a ~10.5MB external file whose parse + mesh build cost is not
+        // worth paying on every startup. Toggling this on is what triggers the (lazy, background) load;
+        // see VoxelEditorGameMode.SyncKmlAirspaceVisibility.
+        public bool ShowKmlAirspace;
+        // Both written by VoxelEditorGameMode, read by the View menu. KmlAirspaceAvailable is false on any
+        // machine that doesn't have the (non-repo) KML file, which greys the menu item out rather than
+        // offering a toggle that could only ever no-op.
+        public bool KmlAirspaceAvailable;
+        public bool KmlAirspaceLoading;
+
         public int LockOverlapPolicyIndex;
         public string[] LockOverlapPolicyOptions => LockOverlapPolicies;
 

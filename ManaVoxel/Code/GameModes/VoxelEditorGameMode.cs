@@ -52,6 +52,8 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _liquidBall;
         private PlanetNode? _planet;
         private ManaSceneNode? _kmlDemo;
+        private bool _kmlAirspaceAttached;
+        private Task<ManaSceneNode?>? _kmlAirspaceLoadTask;
         private ManaSceneNode? _countryBorders;
         private ManaSceneNode? _stateBorders;
         private ManaWaterNode? _water;
@@ -238,12 +240,12 @@ namespace Mana.Code.GameModes
                         AddPlanetDemo();
                     }
 
-                    // 5. Add demo KML placemarks (real-world airspace boundaries)
-                    Loading.Report(new ManaLoadingProgress("Loading KML placemarks", 0.95f));
-                    lock (world.SceneLock)
-                    {
-                        AddKmlDemo();
-                    }
+                    // 5. Probe for demo KML placemarks (real-world airspace boundaries). Deliberately only
+                    // a file-existence check -- the actual parse/mesh build happens lazily the first time
+                    // View > Show Airspace (KML) is switched on, so startup never pays for an overlay
+                    // that's off by default (see SyncKmlAirspaceVisibility).
+                    Loading.Report(new ManaLoadingProgress("Checking for KML placemarks", 0.95f));
+                    _viewModel.KmlAirspaceAvailable = File.Exists(KmlDemoFilePath);
 
                     // 6. Add boundary line overlays (Natural Earth admin-0/admin-1 boundaries)
                     Loading.Report(new ManaLoadingProgress("Loading boundary lines", 0.98f));
@@ -809,15 +811,13 @@ namespace Mana.Code.GameModes
         // polygon triangulation.
         private const string KmlDemoFilePath = @"C:\Users\night\Code\ManaAirSpace\AirSpaceModels\UnitedStates.xml";
 
-        private void AddKmlDemo()
+        // Parses the KML and builds its scene node WITHOUT attaching it to anything -- runs on a
+        // background thread (see SyncKmlAirspaceVisibility), so it must not touch the live scene graph.
+        // Returns null if the load failed; the caller turns that into "unavailable".
+        private ManaSceneNode? BuildKmlAirspaceNode()
         {
             try
             {
-                if (!File.Exists(KmlDemoFilePath))
-                {
-                    return;
-                }
-
                 // Same "shrink ratio" reasoning as the planet, and the same radius, so the two read
                 // as the same-scale world: real Earth radius/altitude scaled down to fit this scene.
                 const float radius = 40.0f;
@@ -826,9 +826,85 @@ namespace Mana.Code.GameModes
 
                 // Still one draw call per rendered KML mesh with no culling/LOD/batching, so revisit
                 // if airspace overlays ever become a frame bottleneck.
-                _kmlDemo = KmlSceneBuilder.BuildPlacemarks(Context, kml);
-                _kmlDemo.Name = "US Airspace (KML)";
+                var node = KmlSceneBuilder.BuildPlacemarks(Context, kml);
+                node.Name = "US Airspace (KML)";
+                return node;
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to load demo KML: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to load demo KML: {ex}");
+                return null;
+            }
+        }
 
+        // Main thread only. Drives the whole lifecycle of the View > Show Airspace (KML) toggle: kicks off
+        // the lazy first load, adopts the finished node, and attaches/detaches it on every later toggle.
+        // Attachment is kept on the main thread (rather than done by the loading task itself) because the
+        // node parents under _planet, whose children are concurrently rewritten by ProcessPendingSplits/
+        // ProcessPendingMerges -- same reasoning as the comment on those calls in Update().
+        private void SyncKmlAirspaceVisibility()
+        {
+            if (!_viewModel.KmlAirspaceAvailable)
+            {
+                return;
+            }
+
+            if (_kmlAirspaceLoadTask != null && _kmlAirspaceLoadTask.IsCompleted)
+            {
+                // BuildKmlAirspaceNode swallows its own failures into a null return, so a faulted task
+                // here means something escaped it entirely -- treat both the same way.
+                _kmlDemo = _kmlAirspaceLoadTask.IsCompletedSuccessfully ? _kmlAirspaceLoadTask.Result : null;
+                _kmlAirspaceLoadTask = null;
+                _viewModel.KmlAirspaceLoading = false;
+
+                if (_kmlDemo == null)
+                {
+                    // Nothing to show and retrying would just fail again -- retire the menu item rather
+                    // than leaving a toggle that silently does nothing.
+                    _viewModel.KmlAirspaceAvailable = false;
+                    _viewModel.ShowKmlAirspace = false;
+                    return;
+                }
+            }
+
+            if (!_viewModel.ShowKmlAirspace)
+            {
+                DetachKmlAirspace();
+                return;
+            }
+
+            if (_kmlDemo == null)
+            {
+                if (_kmlAirspaceLoadTask == null)
+                {
+                    _viewModel.KmlAirspaceLoading = true;
+                    _kmlAirspaceLoadTask = Task.Run(() =>
+                    {
+                        if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
+                        {
+                            System.Threading.Thread.CurrentThread.Name = "KML airspace load";
+                        }
+
+                        return BuildKmlAirspaceNode();
+                    });
+                }
+
+                return;
+            }
+
+            AttachKmlAirspace();
+        }
+
+        private void AttachKmlAirspace()
+        {
+            if (_kmlDemo == null || _kmlAirspaceAttached)
+            {
+                return;
+            }
+
+            lock (Context.World.SceneLock)
+            {
                 // Parented under the planet (not the scene root) so it moves with it — its geometry
                 // is already built on the same radius/origin convention as the planet (Kml.EarthRadius
                 // == the planet's own radius above), so it needs to sit at the planet's local origin,
@@ -837,20 +913,41 @@ namespace Mana.Code.GameModes
                 {
                     _planet.AddChild(_kmlDemo);
                     _kmlDemo.Position = Vector3.Zero;
-                    _kmlDemo.UpdateTransform();
                 }
                 else
                 {
                     _kmlDemo.Position = new Vector3(280.0f, 60.0f, 200.0f);
-                    _kmlDemo.UpdateTransform();
                     Context.World.DefaultScene.Children.Add(_kmlDemo);
                 }
+
+                _kmlDemo.UpdateTransform();
             }
-            catch (Exception ex)
+
+            _kmlAirspaceAttached = true;
+        }
+
+        private void DetachKmlAirspace()
+        {
+            if (_kmlDemo == null || !_kmlAirspaceAttached)
             {
-                Trace.TraceWarning($"Failed to load demo KML: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to load demo KML: {ex}");
+                return;
             }
+
+            lock (Context.World.SceneLock)
+            {
+                // Tracked with an explicit bool rather than inferred from Parent: the scene-root path
+                // below is a bare list Add, which (unlike ManaSceneNode.AddChild) never sets Parent.
+                if (_kmlDemo.Parent != null)
+                {
+                    _kmlDemo.Parent.RemoveChild(_kmlDemo);
+                }
+                else
+                {
+                    Context.World.DefaultScene.Children.Remove(_kmlDemo);
+                }
+            }
+
+            _kmlAirspaceAttached = false;
         }
 
         // Natural Earth's admin-0 country boundaries, 50m resolution (~100K raw points across 242
@@ -1097,11 +1194,13 @@ namespace Mana.Code.GameModes
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
             SyncWireframeViewOption();
+            SyncKmlAirspaceVisibility();
 
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
             // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
             _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
             PushPlanetStreamingStatusToWorldPerf();
@@ -1281,11 +1380,13 @@ namespace Mana.Code.GameModes
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
             SyncWireframeViewOption();
+            SyncKmlAirspaceVisibility();
 
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
             // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
             _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
 
@@ -1346,7 +1447,7 @@ namespace Mana.Code.GameModes
             }
 
             _aboutPanelView.Draw(_viewModel, Context, _webGpuContext);
-            _searchPanelView.Draw(_viewModel, _planet, Context.World.MainCamera);
+            _searchPanelView.Draw(_viewModel, Context, _planet, Context.World.MainCamera);
         }
 
         private void UpdateVoxelPointerInteraction(bool inputCaptured)

@@ -56,6 +56,18 @@ namespace ManaVoxel.Code.UI
                     viewModel.ShowWireframe = !viewModel.ShowWireframe;
                 }
 
+                // Stays enabled while loading so the toggle can be switched back off mid-load; the sync
+                // pass just won't attach the node when it eventually arrives. Disabled only when the
+                // (non-repo) KML file isn't on this machine at all.
+                if (ImGui.MenuItem(
+                        "Show Airspace (KML)",
+                        viewModel.KmlAirspaceLoading ? "Loading..." : string.Empty,
+                        viewModel.ShowKmlAirspace,
+                        viewModel.KmlAirspaceAvailable))
+                {
+                    viewModel.ShowKmlAirspace = !viewModel.ShowKmlAirspace;
+                }
+
                 if (ImGui.MenuItem("Search Location...", string.Empty, viewModel.ShowSearchWindow))
                 {
                     viewModel.ShowSearchWindow = !viewModel.ShowSearchWindow;
