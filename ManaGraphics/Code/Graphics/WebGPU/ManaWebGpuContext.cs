@@ -448,7 +448,10 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var textureView = _api.TextureCreateView(surfaceTexture.Texture, &viewDescriptor);
-            var hdrSceneTextureView = _hdrPostProcessor?.SceneTextureView;
+            // Explicit ternary, NOT `_hdrPostProcessor?.SceneTextureView`: `?.` yields a nullable result,
+            // and a pointer type can't be made nullable (CS8978). Some Roslyn versions miss that here and
+            // some don't, so the null-conditional form builds on one machine and fails on the next.
+            var hdrSceneTextureView = _hdrPostProcessor != null ? _hdrPostProcessor.SceneTextureView : null;
             if (textureView == null)
             {
                 if (textureView != null)

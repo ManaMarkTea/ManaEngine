@@ -260,7 +260,10 @@ namespace ManaGraphics.Code.Graphics
 
         private void DrawOutlineMask(CommandEncoder* commandEncoder)
         {
-            var outlineMaskView = _hdrPostProcessor?.OutlineMaskView;
+            // Explicit ternary rather than `?.` -- see the matching comment in ManaWebGpuContext.ClearFrame:
+            // `?.` on a pointer-typed member is CS8978 ("cannot be made nullable") and only some Roslyn
+            // versions actually diagnose it.
+            var outlineMaskView = _hdrPostProcessor != null ? _hdrPostProcessor.OutlineMaskView : null;
             if (commandEncoder == null || outlineMaskView == null || _depthTextureView == null)
             {
                 return;
