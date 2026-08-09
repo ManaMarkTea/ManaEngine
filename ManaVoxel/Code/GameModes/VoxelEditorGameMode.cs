@@ -10,10 +10,12 @@ using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
+using ManaGeoTools.Code;
 using ManaGeoTools.Code.GeoTiff;
 using ManaGeoTools.Code.GeoTiff.Terrarium;
 using ManaGeoTools.Code.Kml;
 using ManaGeoTools.Code.Planet;
+using ManaGeoTools.Code.Region;
 using ManaGeoTools.Code.Shapefile;
 using System.Diagnostics;
 using System.IO.Compression;
@@ -51,6 +53,7 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _lightningBall;
         private ManaSceneNode? _liquidBall;
         private PlanetNode? _planet;
+        private RegionNode? _region;
         private ManaSceneNode? _kmlDemo;
         private bool _kmlAirspaceAttached;
         private Task<ManaSceneNode?>? _kmlAirspaceLoadTask;
@@ -811,6 +814,89 @@ namespace Mana.Code.GameModes
         // polygon triangulation.
         private const string KmlDemoFilePath = @"C:\Users\night\Code\ManaAirSpace\AirSpaceModels\UnitedStates.xml";
 
+        // Where a loaded RegionNode's center sits in world space. A region is built at true scale (1 unit
+        // == 1 meter), so even the smallest offered size is a 1km square -- four times the 256-unit voxel
+        // grid on a side. Parked well clear to the west of everything else in this scene (grid at
+        // 0..256, planet centered at 200,60,200 with radius 40) so the largest offered region still can't
+        // reach any of it.
+        private static readonly Vector3 RegionWorldOrigin = new(-3000.0f, 0.0f, 0.0f);
+
+        // Camera arrival framing, both as multiples of the region's half-extent so every offered size is
+        // framed the same way: back off far enough to take the whole box in, from an eye height where
+        // relief still reads as relief rather than as a flat map.
+        private const float RegionArrivalDistanceFactor = 3.0f;
+        private const float RegionArrivalHeightFactor = 0.5f;
+
+        // The camera's default 1000-unit far clip was sized for this scene's original contents (a
+        // 256-unit voxel grid, a radius-40 planet). A region is true-scale, so even the smallest offered
+        // one is a 1km box viewed from ~1.5km back -- entirely beyond that plane. Widened to fit whenever
+        // a region loads, and restored from this saved value if a later region needs less.
+        //
+        // Worth revisiting: pushing the far plane out while the near plane stays at 0.1 stretches the
+        // depth range hard, and at the largest offered region size that's a ~320,000:1 ratio, enough to
+        // provoke z-fighting on distant coplanar surfaces. The real fixes are reversed-Z or a separate
+        // depth range for distant geometry; this is the cheap version that makes regions visible at all.
+        private float? _farClipBeforeRegion;
+
+        // Consumes the "load this place as a true-scale region" request the search panel queues (see
+        // VoxelSearchPanelView / RegionLoadRequest). Main thread only: this swaps scene-graph children.
+        private void ProcessPendingRegionRequest()
+        {
+            var request = _viewModel.PendingRegionRequest;
+            if (request == null)
+            {
+                return;
+            }
+
+            _viewModel.PendingRegionRequest = null;
+
+            try
+            {
+                lock (Context.World.SceneLock)
+                {
+                    // One region at a time -- these are large true-scale meshes and there's no placement
+                    // scheme for a second one, so a new request replaces the old rather than stacking up.
+                    if (_region != null)
+                    {
+                        Context.World.DefaultScene.Children.Remove(_region);
+                    }
+
+                    _region = new RegionNode(
+                        Context,
+                        request.PlaceName,
+                        new LatLong(request.Longitude, request.Latitude),
+                        request.HalfExtentMeters);
+                    _region.Position = RegionWorldOrigin;
+                    _region.UpdateTransform();
+                    Context.World.DefaultScene.Children.Add(_region);
+                }
+
+                var camera = Context.World.MainCamera;
+                if (camera != null)
+                {
+                    _farClipBeforeRegion ??= camera.FarClipPlane;
+                    camera.FarClipPlane = MathF.Max(
+                        _farClipBeforeRegion.Value,
+                        request.HalfExtentMeters * (RegionArrivalDistanceFactor + 2.0f));
+
+                    // Flown to immediately, while the node is still an empty placeholder -- the terrain
+                    // pops in underneath the camera a moment later via ProcessPendingLoad. Better than
+                    // waiting on the fetch and leaving the user staring at the planet with no feedback.
+                    // Aimed above the center rather than at it so a horizontally-oriented camera ends up
+                    // looking down at the terrain instead of standing inside it.
+                    var arrivalTarget = RegionWorldOrigin + new Vector3(0.0f, request.HalfExtentMeters * RegionArrivalHeightFactor, 0.0f);
+                    camera.FlyToWorldPosition(arrivalTarget, request.HalfExtentMeters * RegionArrivalDistanceFactor);
+                }
+
+                ManaConsole.WriteDiagnostic($"Loading region '{request.PlaceName}': {_region.DescribeStatus()}");
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to start region load: {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to start region load: {ex}");
+            }
+        }
+
         // Parses the KML and builds its scene node WITHOUT attaching it to anything -- runs on a
         // background thread (see SyncKmlAirspaceVisibility), so it must not touch the live scene graph.
         // Returns null if the load failed; the caller turns that into "unavailable".
@@ -1195,6 +1281,7 @@ namespace Mana.Code.GameModes
             SyncWaterVisibility();
             SyncWireframeViewOption();
             SyncKmlAirspaceVisibility();
+            ProcessPendingRegionRequest();
 
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
@@ -1203,6 +1290,8 @@ namespace Mana.Code.GameModes
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
+            // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
+            _region?.ProcessPendingLoad();
             PushPlanetStreamingStatusToWorldPerf();
             UpdateWaterRippleInteraction();
         }
@@ -1381,6 +1470,7 @@ namespace Mana.Code.GameModes
             SyncWaterVisibility();
             SyncWireframeViewOption();
             SyncKmlAirspaceVisibility();
+            ProcessPendingRegionRequest();
 
             // Must run on the main thread -- finalizing a completed patch split touches the scene
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
@@ -1389,6 +1479,8 @@ namespace Mana.Code.GameModes
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
+            // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
+            _region?.ProcessPendingLoad();
 
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;

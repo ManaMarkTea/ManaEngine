@@ -5,6 +5,7 @@ using Mana.Code.Nodes;
 using ManaGeoTools.Code;
 using ManaGeoTools.Code.Geocoding;
 using ManaGeoTools.Code.Planet;
+using ManaGeoTools.Code.Region;
 using System.Numerics;
 
 namespace ManaVoxel.Code.UI
@@ -31,7 +32,13 @@ namespace ManaVoxel.Code.UI
         private const float MarkerRadiusMeters = 300f;
         private static readonly Vector4 MarkerColor = Colors.Orange;
 
+        // Offered region sizes, coarsest detail last. The zoom shown against each is not a free choice --
+        // RegionExtents derives it from the extent (500m -> z13, and one zoom level down per doubling),
+        // so this array only has to pick which points on that curve are worth exposing.
+        private static readonly float[] RegionHalfExtentOptions = { 500f, 1000f, 2000f, 4000f };
+
         private string _query = string.Empty;
+        private int _regionSizeIndex;
         private bool _isSearching;
         private string? _errorMessage;
         private IReadOnlyList<GeocodeResult> _results = Array.Empty<GeocodeResult>();
@@ -87,16 +94,60 @@ namespace ManaVoxel.Code.UI
             else if (_results.Count > 0)
             {
                 ImGui.Separator();
-                foreach (var result in _results)
+                DrawRegionSizePicker();
+                ImGui.Separator();
+
+                for (var i = 0; i < _results.Count; i++)
                 {
+                    var result = _results[i];
+                    ImGui.PushID(i);
+
+                    // "Region" loads the place into the scene at true 1m scale, off the globe entirely
+                    // (see RegionNode); clicking the name itself keeps the original behaviour of flying
+                    // the planet camera there.
+                    if (ImGui.SmallButton("Region"))
+                    {
+                        viewModel.PendingRegionRequest = new RegionLoadRequest(
+                            result.DisplayName,
+                            result.Longitude,
+                            result.Latitude,
+                            RegionHalfExtentOptions[_regionSizeIndex]);
+                    }
+
+                    ImGui.SameLine();
                     if (ImGui.Selectable(result.DisplayName))
                     {
                         FlyTo(result, context, planet, camera);
                     }
+
+                    ImGui.PopID();
                 }
             }
 
             ImGui.End();
+        }
+
+        private void DrawRegionSizePicker()
+        {
+            var labels = new string[RegionHalfExtentOptions.Length];
+            for (var i = 0; i < RegionHalfExtentOptions.Length; i++)
+            {
+                var halfExtent = RegionHalfExtentOptions[i];
+                var sideMeters = halfExtent * 2f;
+                var zoom = RegionExtents.ZoomForHalfExtent(halfExtent);
+                labels[i] = sideMeters >= 1000f
+                    ? $"{sideMeters / 1000f:0.##} km  (+/-{halfExtent:0} m, z{zoom})"
+                    : $"{sideMeters:0} m  (+/-{halfExtent:0} m, z{zoom})";
+            }
+
+            ImGui.SetNextItemWidth(-1.0f);
+            ImGui.Combo("##RegionSize", ref _regionSizeIndex, labels, labels.Length);
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "Region size. Source detail drops one zoom level per doubling, so every size costs\n" +
+                    "about the same to fetch and build -- a bigger area trades resolution for coverage.");
+            }
         }
 
         private void StartSearch(string query)

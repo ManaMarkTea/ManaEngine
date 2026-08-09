@@ -4,6 +4,9 @@ using ManaVoxel.Code.Tools;
 
 namespace ManaVoxel.Code.UI
 {
+    /// <summary>A queued "load this place as a true-scale cartesian region" request -- see RegionNode.</summary>
+    public sealed record RegionLoadRequest(string PlaceName, float Longitude, float Latitude, float HalfExtentMeters);
+
     public class VoxelEditorViewModel : IVoxelEditorCommands
     {
         private const int MaxToolPreviewVoxelCount = 50_000;
@@ -91,6 +94,12 @@ namespace ManaVoxel.Code.UI
         // Off by default -- the demo KML is a ~10.5MB external file whose parse + mesh build cost is not
         // worth paying on every startup. Toggling this on is what triggers the (lazy, background) load;
         // see VoxelEditorGameMode.SyncKmlAirspaceVisibility.
+        // Set by VoxelSearchPanelView when a result's "Region" button is pressed, consumed and cleared by
+        // VoxelEditorGameMode.Update on the main thread. A plain hand-off field rather than a direct call
+        // because building a region adds to the scene graph, which the panel's ImGui draw pass has no
+        // business doing mid-frame.
+        public RegionLoadRequest? PendingRegionRequest;
+
         public bool ShowKmlAirspace;
         // Both written by VoxelEditorGameMode, read by the View menu. KmlAirspaceAvailable is false on any
         // machine that doesn't have the (non-repo) KML file, which greys the menu item out rather than
