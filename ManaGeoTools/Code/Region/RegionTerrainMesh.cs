@@ -2,6 +2,7 @@ using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.ManaShaders;
 using Mana.Code.Shapes;
+using ManaGeoTools.Code.Geo;
 using ManaGeoTools.Code.Planet;
 
 namespace ManaGeoTools.Code.Region
@@ -81,6 +82,17 @@ namespace ManaGeoTools.Code.Region
             return (float)(radius - Math.Sqrt(Math.Max(0.0, (radius * radius) - horizontalSquared)));
         }
 
+        // -1 means "not water", which is what PlanetColors expects for the land ramp.
+        private static float WaterDepthAt(GeoWaterLookup? lookup, float longitude, float latitude)
+        {
+            if (lookup == null || !lookup.IsWater(longitude, latitude))
+            {
+                return -1f;
+            }
+
+            return lookup.GetWaterDepth01(longitude, latitude);
+        }
+
         protected override void GenerateData()
         {
             base.GenerateData();
@@ -133,6 +145,14 @@ namespace ManaGeoTools.Code.Region
             MinElevationMeters = minElevation;
             MaxElevationMeters = maxElevation;
 
+            // Rasterized at the mesh's own resolution, so a shoreline lands within one vertex of where
+            // the polygon puts it. Null when the Natural Earth data isn't present -- colouring then
+            // falls back to elevation alone.
+            var waterLookup = GeoWaterMask.Shared?.Rasterize(
+                longitudes[0], longitudes[resolution - 1],
+                latitudes[resolution - 1], latitudes[0],
+                resolution, resolution);
+
             var verts = new ManaGeometryVertex[resolution, resolution];
             for (var z = 0; z < resolution; z++)
             {
@@ -152,7 +172,10 @@ namespace ManaGeoTools.Code.Region
 
                     var vert = DynamicGeometryContainer.AddPoint(position, normal);
                     vert.TexCoord0 = new Vector2((float)x / (resolution - 1), (float)z / (resolution - 1));
-                    vert.Color = PlanetColors.GetBiomeColor(elevations[x, z], latitudes[z]);
+                    vert.Color = PlanetColors.GetBiomeColor(
+                        elevations[x, z],
+                        latitudes[z],
+                        WaterDepthAt(waterLookup, longitudes[x], latitudes[z]));
                     verts[x, z] = vert;
                 }
             }

@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Mana.Code.UI;
@@ -11,6 +11,7 @@ using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code;
+using ManaGeoTools.Code.Geo;
 using ManaGeoTools.Code.GeoTiff;
 using ManaGeoTools.Code.GeoTiff.Terrarium;
 using ManaGeoTools.Code.Kml;
@@ -236,7 +237,11 @@ namespace Mana.Code.GameModes
                         AddFlightHelmetReferenceModel();
                     }
 
-                    // 4. Add a demo planet node
+                    // 4. Add a demo planet node. Water polygons load first -- patch colouring reads
+                    // GeoWaterMask.Shared as the meshes generate.
+                    Loading.Report(new ManaLoadingProgress("Loading water polygons", 0.88f));
+                    LoadWaterMask();
+
                     Loading.Report(new ManaLoadingProgress("Generating planet", 0.9f));
                     lock (world.SceneLock)
                     {
@@ -1059,6 +1064,30 @@ namespace Mana.Code.GameModes
         private const string StateBordersZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_50m_admin_1_states_provinces.zip";
         private const string StateBordersShpEntryName = "ne_50m_admin_1_states_provinces.shp";
 
+        // Natural Earth physical polygons, same non-repo Data folder as the boundary shapefiles --
+        // absent files just leave the mask empty and colouring stays elevation-only.
+        private const string LakesZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_10m_lakes.zip";
+        private const string OceanZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_10m_ocean.zip";
+
+        private static void LoadWaterMask()
+        {
+            var mask = new GeoWaterMask();
+            mask.Add(GeoPolygonSet.TryLoadFromZip(LakesZipPath, "ne_10m_lakes.shp"));
+            mask.Add(GeoPolygonSet.TryLoadFromZip(OceanZipPath, "ne_10m_ocean.shp"));
+
+            if (!mask.HasAnyData)
+            {
+                ManaConsole.WriteDiagnostic("[Water] No Natural Earth water polygons found; colouring stays elevation-only.");
+                return;
+            }
+
+            GeoWaterMask.Shared = mask;
+            foreach (var set in mask.Sets)
+            {
+                ManaConsole.WriteDiagnostic($"[Water] Loaded {set.Name}: {set.RingCount:N0} rings.");
+            }
+        }
+
         private void AddCountryBordersDemo()
         {
             try
@@ -1068,7 +1097,7 @@ namespace Mana.Code.GameModes
                     CountryBordersShpEntryName,
                     "Country Borders",
                     thickness: 0.08f,
-                    radiusOffset: 0.32f,
+                    radiusOffset: 0.01f,
                     minSegmentDegrees: 0.15f,
                     color: new Vector4(1.0f, 0.75f, 0.3f, 1.0f),
                     emissionStrength: 2.0f);
@@ -1096,7 +1125,7 @@ namespace Mana.Code.GameModes
                     StateBordersShpEntryName,
                     "State/Province Borders",
                     thickness: 0.035f,
-                    radiusOffset: 0.36f,
+                    radiusOffset: 0.014f,
                     minSegmentDegrees: 0.20f,
                     color: new Vector4(0.62f, 0.86f, 1.0f, 1.0f),
                     emissionStrength: 1.35f);
@@ -1137,9 +1166,16 @@ namespace Mana.Code.GameModes
             var built = CountryBorderLines.BuildDrapeable(
                 Context, rings, _planet.Radius, thickness, minSegmentDegrees, color, emissionStrength);
 
-            var draped = new PlanetDrapedLines(_planet, built.Mesh, built.LinePoints, built.LineLatLongs, radiusOffset);
-            _drapedOverlays.Add(draped);
-            draped.DrapeAll();
+            var draped = new PlanetDrapedLines(_planet.PatchesPerFaceEdge, built.Mesh, built.LinePoints, built.LineLatLongs, radiusOffset);
+
+            // This runs on the background load thread while RedrapePlanetOverlays iterates the list on
+            // the main thread -- an unguarded List add against a concurrent read corrupts it.
+            lock (_drapedOverlays)
+            {
+                _drapedOverlays.Add(draped);
+            }
+            // No initial drape: the baseline height decode snapshots every patch it touches, so the
+            // first real terrain arrives through the normal changed-patch path.
 
             return new ManaMeshSceneNode(Context, built.Mesh)
             {
@@ -1150,23 +1186,49 @@ namespace Mana.Code.GameModes
 
         private readonly List<PlanetDrapedLines> _drapedOverlays = new();
 
-        // Main thread, after ProcessPendingSplits/Merges so this frame's geometry changes are visible.
+        // Points re-draped per overlay per frame. The work is a batched radius sample plus a vector
+        // multiply per point, so this is a small slice of a frame; the whole-mesh ribbon rebuild only
+        // happens once an overlay's queue drains.
+        private const int DrapePointsPerFrame = 2048;
+
+        // Main thread, once per frame from Update. Never blocks: patches the planet is too busy to
+        // report on go back on its queue, and draping itself is spread over as many frames as it needs.
         private void RedrapePlanetOverlays()
         {
-            if (_planet == null || _drapedOverlays.Count == 0)
+            if (_planet == null)
             {
                 return;
+            }
+
+            PlanetDrapedLines[] overlays;
+            lock (_drapedOverlays)
+            {
+                if (_drapedOverlays.Count == 0)
+                {
+                    return;
+                }
+
+                overlays = _drapedOverlays.ToArray();
             }
 
             var changed = _planet.DrainChangedPatches();
-            if (changed.Count == 0)
+            if (changed.Count > 0)
             {
-                return;
+                foreach (var overlay in overlays)
+                {
+                    overlay.QueueChanged(changed);
+                }
             }
 
-            foreach (var overlay in _drapedOverlays)
+            foreach (var overlay in overlays)
             {
-                overlay.DrapeChanged(changed);
+                if (overlay.Tick(DrapePointsPerFrame))
+                {
+                    ManaConsole.WriteDiagnostic(
+                        $"[Drape] {overlay.Mesh.Name}: {overlay.LastMovedCount} point(s) moved, " +
+                        $"max {overlay.LastMaxDisplacement:0.####} units.");
+                    overlay.ResetStats();
+                }
             }
         }
 
@@ -1330,12 +1392,13 @@ namespace Mana.Code.GameModes
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
             // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
             _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateNearOcean(Context.World.MainCamera);
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
-            RedrapePlanetOverlays();
             // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
             _region?.ProcessPendingLoad();
+            RedrapePlanetOverlays();
             PushPlanetStreamingStatusToWorldPerf();
             UpdateWaterRippleInteraction();
         }
@@ -1521,10 +1584,10 @@ namespace Mana.Code.GameModes
             // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
             // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
             _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateNearOcean(Context.World.MainCamera);
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
-            RedrapePlanetOverlays();
             // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
             _region?.ProcessPendingLoad();
 

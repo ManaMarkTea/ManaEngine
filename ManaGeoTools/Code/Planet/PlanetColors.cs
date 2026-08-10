@@ -29,7 +29,33 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public static Vector4 GetBiomeColor(float? heightMeters, float latitudeDegrees)
         {
+            return GetBiomeColor(heightMeters, latitudeDegrees, isWater: false);
+        }
+
+        /// <summary>
+        /// isWater comes from GeoWaterMask rather than elevation -- inland lakes sit well above sea level
+        /// (Lake Michigan is ~176m) and would otherwise take a green land colour.
+        /// </summary>
+        public static Vector4 GetBiomeColor(float? heightMeters, float latitudeDegrees, bool isWater)
+        {
+            return GetBiomeColor(heightMeters, latitudeDegrees, isWater ? 0.5f : -1f);
+        }
+
+        /// <summary>
+        /// waterDepth01 &lt; 0 means "not water". Otherwise it's distance from the nearest shore,
+        /// normalized (see GeoWaterLookup.GetWaterDepth01) -- Natural Earth has no bathymetry, so shore
+        /// distance stands in for depth, which shades shallows at the edges and dark water in the middle.
+        /// </summary>
+        public static Vector4 GetBiomeColor(float? heightMeters, float latitudeDegrees, float waterDepth01)
+        {
             var absLatitude01 = Math.Clamp(MathF.Abs(latitudeDegrees) / 90f, 0f, 1f);
+
+            if (waterDepth01 >= 0f)
+            {
+                var lakeColor = Vector4.Lerp(ShallowOcean, DeepOcean, Math.Clamp(waterDepth01, 0f, 1f));
+                var lakePoleBlend = MathF.Max(0f, (absLatitude01 - 0.75f) / 0.25f);
+                return Vector4.Lerp(lakeColor, PolarIce, lakePoleBlend);
+            }
 
             if (heightMeters.HasValue)
             {

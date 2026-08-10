@@ -8,33 +8,20 @@ namespace ManaGeoTools.Code.Planet
     /// <summary>
     /// A 6-face cube-sphere shell at exactly sea-level radius, rendered with ManaOceanShader
     /// (ocean.wgsl), masked to real ocean coverage: a quad is only generated if at least one of its
-    /// corners samples as below sea level (or has no height data at all -- treated as ocean, same
-    /// fallback PlanetColors itself uses). Land quads are skipped entirely rather than relying on the
-    /// terrain to occlude a full, undisplaced sphere -- the earlier full-sphere version could still
-    /// show through over land wherever the shader's own wave displacement pushed the (otherwise-
-    /// occluded) ocean surface above nearby terrain, which is exactly the "ocean popping up over land"
-    /// problem this replaces. All wave motion still happens in the shader (radial displacement, 3D
-    /// position-keyed noise so it's seamless across the 6 cube faces) -- this mesh itself only carries
-    /// the flat (undisplaced), masked geometry.
+    /// corners samples as below sea level (or has no height data at all). Land quads are skipped
+    /// entirely rather than relying on the terrain to occlude a full, undisplaced sphere.
+    ///
+    /// This is the FAR tier of a two-tier ocean and is deliberately wave-free. At the scales this
+    /// actually renders at (a 40-unit planet standing in for 6371km means roughly 160km per scene
+    /// unit, and this shell's vertex spacing is ~100km) no wave that a person would recognize as a
+    /// wave is representable -- the earlier vertex-displacement version was really rendering ~60km
+    /// tall noise sampled at 100km, which is what read as blotchy "camouflage" and drove the long
+    /// chain of frequency/epsilon caps that used to live in ocean.wgsl. Waves are now the near tier's
+    /// job (PlanetNearOceanMesh), which only exists close to the surface where its vertex spacing can
+    /// actually resolve them; this shell just carries flat, masked geometry plus per-vertex depth.
     /// </summary>
     public sealed class PlanetOceanMesh : ManaProceduralMesh
     {
-        // Sea level is 0m by definition (matches PlanetColors' own `h < 0f` ocean check) -- not a
-        // tunable, since "ocean" and "sea level" are the same thing here.
-        private const float SeaLevelMeters = 0f;
-
-        // Assumed depth for open-ocean points with no height-data coverage at all (distinct from a
-        // point whose tile says it's below sea level) -- roughly Earth's actual mean ocean depth, so
-        // uncovered deep ocean reads as deep rather than defaulting to a bright shoreline color.
-        private const float DefaultOceanDepthMeters = 4000f;
-
-        // How quickly depthFactor (fed to the shader as the deep/shallow color mix amount) approaches
-        // 1.0 as depth increases -- an exponential falloff rather than a hard linear clamp so the
-        // shoreline-to-open-ocean transition looks like a gradient, not a band. At this scale, ~200m
-        // (shelf depth) is already visibly past the shallow end and ~4-5x this value is essentially
-        // fully "deep".
-        private const float DepthFalloffMeters = 1200f;
-
         public float Radius { get; }
         public int Resolution { get; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
@@ -90,8 +77,7 @@ namespace ManaGeoTools.Code.Planet
 
         private void BuildFace(Vector3 normal)
         {
-            var axisA = new Vector3(normal.Y, normal.Z, normal.X);
-            var axisB = Vector3.Cross(normal, axisA);
+            var (axisA, axisB) = CubeSphere.GetFaceAxes(normal);
 
             var verts = new ManaGeometryVertex[Resolution, Resolution];
             var isOcean = new bool[Resolution, Resolution];
@@ -105,23 +91,22 @@ namespace ManaGeoTools.Code.Planet
                     var pointOnUnitCube = normal + ((tx - 0.5f) * 2f * axisA) + ((ty - 0.5f) * 2f * axisB);
                     var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
 
-                    var rawHeightMeters = SampleHeightMeters(pointOnUnitSphere);
-                    isOcean[x, y] = !rawHeightMeters.HasValue || rawHeightMeters.Value < SeaLevelMeters;
-
-                    var depthMeters = rawHeightMeters.HasValue
-                        ? MathF.Max(0f, -rawHeightMeters.Value)
-                        : DefaultOceanDepthMeters;
-                    var depthFactor = 1f - MathF.Exp(-depthMeters / DepthFalloffMeters);
+                    var rawHeightMeters = OceanSurface.SampleHeightMeters(HeightLibrary, pointOnUnitSphere);
+                    isOcean[x, y] = OceanSurface.IsOcean(rawHeightMeters);
 
                     var position = pointOnUnitSphere * Radius;
                     var vert = DynamicGeometryContainer.AddPoint(position, pointOnUnitSphere);
                     vert.TexCoord0 = new Vector2(tx, ty);
                     // RGB stays white (the shader multiplies it in as a no-op tint); alpha carries the
                     // depth factor through to ocean.wgsl's fragment shader, which uses it to pick
-                    // between deepColor/shallowColor instead of the old lighting-driven mix -- see
-                    // ocean.wgsl's fs_main for why that swap also helps with visual noise, not just
-                    // depth accuracy.
-                    vert.Color = new Vector4(DefaultVertexColor.X, DefaultVertexColor.Y, DefaultVertexColor.Z, depthFactor);
+                    // between deepColor/shallowColor. Real bathymetry is smooth continuous data, so
+                    // driving color identity off it (rather than off lighting) keeps the shell's color
+                    // free of per-vertex noise.
+                    vert.Color = new Vector4(
+                        DefaultVertexColor.X,
+                        DefaultVertexColor.Y,
+                        DefaultVertexColor.Z,
+                        OceanSurface.ComputeDepthFactor(rawHeightMeters));
                     verts[x, y] = vert;
                 }
             }
@@ -143,21 +128,6 @@ namespace ManaGeoTools.Code.Planet
                     }
                 }
             }
-        }
-
-        // Null means "no data at all" (as opposed to real data that happens to be at/above sea level),
-        // so callers can tell the two cases apart -- e.g. DefaultOceanDepthMeters only applies to the
-        // former.
-        private float? SampleHeightMeters(Vector3 pointOnUnitSphere)
-        {
-            if (HeightLibrary == null)
-            {
-                return null;
-            }
-
-            var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
-            var tile = HeightLibrary.FindCurrentTile(latLong);
-            return tile?.GetHeightAtLatLong(latLong);
         }
     }
 }

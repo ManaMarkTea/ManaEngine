@@ -5,10 +5,17 @@ namespace ManaGeoTools.Code.Planet
     /// <summary>
     /// Keeps a ManaLineMesh's points pinned to the planet's rendered surface.
     ///
-    /// Each point's cube-face (u, v) is fixed for its lifetime -- it comes from lon/lat, which never
-    /// changes -- so a patch update only needs to re-sample the points whose (u, v) fall inside that
-    /// patch's box. Points are bucketed by root patch so that test scans one root's worth rather than
-    /// all of them (the border datasets run to tens of thousands of points after decimation).
+    /// Each point's cube-face (u, v) and unit direction are fixed for their lifetime -- they come from
+    /// lon/lat, which never changes -- so a patch update only re-samples the points inside that patch's
+    /// box, and only their radius changes. Points are bucketed by root patch so that test scans one
+    /// root's worth rather than all of them.
+    ///
+    /// Nothing here locks. Heights come from PatchGeometrySnapshot, captured by PlanetNode while it
+    /// already held its rebuild lock, so the drape never touches live quadtree state.
+    ///
+    /// Work is time-sliced: patch changes queue points, and Tick drains a bounded number per frame. A
+    /// border dataset is tens of thousands of points and the ribbon rebuild is whole-mesh, so doing it
+    /// all in the frame a patch happens to finish is a visible hitch.
     /// </summary>
     public sealed class PlanetDrapedLines
     {
@@ -16,35 +23,50 @@ namespace ManaGeoTools.Code.Planet
         {
             public required int LineIndex { get; init; }
             public required int PointIndex { get; init; }
-            public required float Longitude { get; init; }
-            public required float Latitude { get; init; }
             public required int Face { get; init; }
             public required float U { get; init; }
             public required float V { get; init; }
+
+            /// <summary>Precomputed unit-sphere direction. Constant, so the drape never re-runs the trig.</summary>
+            public required Vector3 Direction { get; init; }
         }
 
-        private readonly PlanetNode _planet;
         private readonly ManaLineMesh _mesh;
         private readonly Vector3[][] _linePoints;
         private readonly float _surfaceOffset;
+        private readonly int _patchesPerFaceEdge;
         private readonly Dictionary<(int Face, int Row, int Col), List<DrapedPoint>> _pointsByRoot = new();
+
+        // Points awaiting re-drape, each paired with the snapshot that supplies its height.
+        // Main thread only.
+        private readonly List<(DrapedPoint Point, PatchGeometrySnapshot Snapshot)> _pending = new();
+        private bool _geometryDirty;
 
         public ManaLineMesh Mesh => _mesh;
 
+        /// <summary>Points still queued for re-drape.</summary>
+        public int PendingPointCount => _pending.Count;
+
+        /// <summary>Largest distance any point moved since the last stats reset, in local units.</summary>
+        public float LastMaxDisplacement { get; private set; }
+
+        /// <summary>Points moved since the last stats reset.</summary>
+        public int LastMovedCount { get; private set; }
+
         /// <param name="surfaceOffset">Local units held above the sampled surface, so lines read as sitting on it rather than z-fighting with it.</param>
         public PlanetDrapedLines(
-            PlanetNode planet,
+            int patchesPerFaceEdge,
             ManaLineMesh mesh,
             Vector3[][] linePoints,
             IReadOnlyList<IReadOnlyList<(float Longitude, float Latitude)>> lineLatLongs,
             float surfaceOffset)
         {
-            _planet = planet;
             _mesh = mesh;
             _linePoints = linePoints;
             _surfaceOffset = surfaceOffset;
+            _patchesPerFaceEdge = Math.Max(1, patchesPerFaceEdge);
 
-            var step = 2f / planet.PatchesPerFaceEdge;
+            var step = 2f / _patchesPerFaceEdge;
             for (var lineIndex = 0; lineIndex < lineLatLongs.Count; lineIndex++)
             {
                 var points = lineLatLongs[lineIndex];
@@ -57,8 +79,8 @@ namespace ManaGeoTools.Code.Planet
                         continue;
                     }
 
-                    var col = Math.Clamp((int)((u + 1f) / step), 0, planet.PatchesPerFaceEdge - 1);
-                    var row = Math.Clamp((int)((v + 1f) / step), 0, planet.PatchesPerFaceEdge - 1);
+                    var col = Math.Clamp((int)((u + 1f) / step), 0, _patchesPerFaceEdge - 1);
+                    var row = Math.Clamp((int)((v + 1f) / step), 0, _patchesPerFaceEdge - 1);
                     var rootKey = (face, row, col);
                     if (!_pointsByRoot.TryGetValue(rootKey, out var bucket))
                     {
@@ -70,92 +92,100 @@ namespace ManaGeoTools.Code.Planet
                     {
                         LineIndex = lineIndex,
                         PointIndex = pointIndex,
-                        Longitude = longitude,
-                        Latitude = latitude,
                         Face = face,
                         U = u,
-                        V = v
+                        V = v,
+                        Direction = direction
                     });
                 }
             }
         }
 
-        /// <summary>Re-drapes every point. Main thread -- rebuilds the ribbon geometry.</summary>
-        public void DrapeAll()
-        {
-            var moved = false;
-            foreach (var bucket in _pointsByRoot.Values)
-            {
-                foreach (var point in bucket)
-                {
-                    moved |= DrapePoint(point);
-                }
-            }
-
-            if (moved)
-            {
-                _mesh.RebuildGeometry();
-            }
-        }
-
         /// <summary>
-        /// Re-drapes only the points inside the given patches. Main thread. Returns true if anything
-        /// moved, in which case the ribbon geometry has been rebuilt.
+        /// Queues the points covered by each snapshot. Main thread, and cheap -- bounds tests against
+        /// data the snapshot already carries. Nothing here can block or fail.
         /// </summary>
-        public bool DrapeChanged(IReadOnlyList<PatchKey> changedPatches)
+        public void QueueChanged(IReadOnlyList<PatchGeometrySnapshot> snapshots)
         {
-            var moved = false;
-            foreach (var key in changedPatches)
+            foreach (var snapshot in snapshots)
             {
+                var key = snapshot.Key;
                 if (!_pointsByRoot.TryGetValue((key.Face, key.Row, key.Col), out var bucket))
                 {
                     continue;
                 }
 
-                if (!_planet.TryGetPatchFaceBounds(key, out _, out var minU, out var maxU, out var minV, out var maxV))
-                {
-                    continue;
-                }
-
                 foreach (var point in bucket)
                 {
-                    if (point.U < minU || point.U > maxU || point.V < minV || point.V > maxV)
+                    if (!snapshot.Contains(point.Face, point.U, point.V))
                     {
                         continue;
                     }
 
-                    moved |= DrapePoint(point);
+                    _pending.Add((point, snapshot));
                 }
             }
-
-            if (moved)
-            {
-                // Whole-mesh rebuild: the ribbon is one vertex buffer, so there's no partial update to
-                // make. The scoping above is what keeps the cost down -- it avoids re-sampling every
-                // point against the quadtree, which is the expensive half.
-                _mesh.RebuildGeometry();
-            }
-
-            return moved;
         }
 
-        private bool DrapePoint(DrapedPoint point)
+        /// <summary>
+        /// Re-drapes up to pointBudget queued points. Main thread. The ribbon is only rebuilt once the
+        /// queue drains, since that rebuild is whole-mesh and would otherwise dominate every frame of a
+        /// long drain. Returns true if geometry was rebuilt this call.
+        /// </summary>
+        public bool Tick(int pointBudget)
         {
-            if (!_planet.TrySampleSurfaceRadiusAtFaceUv(point.Face, point.U, point.V, out var radius))
+            if (_pending.Count == 0)
+            {
+                return FinishIfDirty();
+            }
+
+            var count = Math.Min(Math.Max(pointBudget, 1), _pending.Count);
+
+            // Taken from the end so removal is O(count), not O(_pending.Count).
+            var start = _pending.Count - count;
+            for (var i = 0; i < count; i++)
+            {
+                var (point, snapshot) = _pending[start + i];
+                if (!snapshot.TrySampleRadius(point.U, point.V, out var radius))
+                {
+                    continue;
+                }
+
+                var updated = point.Direction * (radius + _surfaceOffset);
+                var existing = _linePoints[point.LineIndex][point.PointIndex];
+                var displacement = Vector3.Distance(existing, updated);
+                if (displacement < 1e-5f)
+                {
+                    continue;
+                }
+
+                _linePoints[point.LineIndex][point.PointIndex] = updated;
+                _geometryDirty = true;
+                LastMovedCount++;
+                LastMaxDisplacement = MathF.Max(LastMaxDisplacement, displacement);
+            }
+
+            _pending.RemoveRange(start, count);
+            return FinishIfDirty();
+        }
+
+        private bool FinishIfDirty()
+        {
+            if (_pending.Count > 0 || !_geometryDirty)
             {
                 return false;
             }
 
-            var direction = LatLong.FromLongitudeAndLatitude(point.Longitude, point.Latitude).ToUnitSphere();
-            var updated = direction * (radius + _surfaceOffset);
-            var existing = _linePoints[point.LineIndex][point.PointIndex];
-            if (Vector3.DistanceSquared(existing, updated) < 1e-8f)
-            {
-                return false;
-            }
-
-            _linePoints[point.LineIndex][point.PointIndex] = updated;
+            _mesh.RebuildGeometry();
+            _geometryDirty = false;
             return true;
+        }
+
+        /// <summary>Clears the moved/displacement counters, which accumulate across a drain.</summary>
+        public void ResetStats()
+        {
+            LastMovedCount = 0;
+            LastMaxDisplacement = 0f;
         }
     }
 }
