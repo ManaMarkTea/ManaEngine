@@ -16,7 +16,6 @@ namespace Mana.Code.Graphics
         private readonly ImGuiController _controller;
         private readonly IMouse? _mouse;
         private readonly ManaImGuiClipboardBridge _clipboardBridge;
-        private nint _iniFilename;
 
         public ManaOpenGlImGuiController(GL gl, IWindow window, IInputContext input)
         {
@@ -54,11 +53,6 @@ namespace Mana.Code.Graphics
             SaveIniSettings();
             _clipboardBridge.Dispose();
             _controller.Dispose();
-            if (_iniFilename != 0)
-            {
-                Marshal.FreeHGlobal(_iniFilename);
-                _iniFilename = 0;
-            }
         }
 
         private static void SavePendingIniSettings()
@@ -140,8 +134,13 @@ namespace Mana.Code.Graphics
         {
             var iniPath = ManaImGuiSettingsStorage.IniFilePath;
             var io = ImGui.GetIO();
-            _iniFilename = Marshal.StringToHGlobalAnsi(iniPath);
-            io.NativePtr->IniFilename = (byte*)_iniFilename;
+
+            // IniFilename left null on purpose: setting it makes ImGui auto-save to that ONE fixed path
+            // for the life of the context, which can't follow ManaImGuiSettingsStorage's now per-UI-scale
+            // ini path. Save and load are both already driven explicitly from that property (see
+            // SaveIniSettings and the load below), so the native filename was a redundant second
+            // mechanism -- dropping it leaves exactly one, and it's the one that tracks the scale.
+            io.NativePtr->IniFilename = null;
             if (File.Exists(iniPath))
             {
                 ImGui.LoadIniSettingsFromDisk(iniPath);

@@ -41,9 +41,7 @@ namespace ManaGeoTools.Code.Region
             _samples = samples;
             TileCount = tilesWide * tilesHigh;
 
-            var worldCircumferenceMeters = 2.0 * Math.PI * Planet.PlanetLoader.EarthRadiusMeters;
-            var cosLatitude = Math.Cos(centerLatitudeDegrees * Math.PI / 180.0);
-            MetersPerSample = worldCircumferenceMeters * cosLatitude / (Math.Pow(2, zoom) * TileSize);
+            MetersPerSample = RegionExtents.MetersPerSample(zoom, centerLatitudeDegrees);
         }
 
         /// <summary>

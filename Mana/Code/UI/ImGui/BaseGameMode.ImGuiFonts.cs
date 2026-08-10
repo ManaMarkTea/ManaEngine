@@ -59,6 +59,11 @@ namespace Mana.Code
                 fontSize -= 1.0f;
             }
 
+            // Every size below is a real rasterization size in pixels, so DPI has to be folded in here
+            // rather than stretched on afterwards -- see SyncImGuiUiScale on why not io.FontGlobalScale.
+            // Rounded to a whole pixel because hinting lands better on integer sizes.
+            fontSize = ScaleFontSize(fontSize);
+
             switch (preset)
             {
                 case ImGuiFontPreset.Default:
@@ -89,7 +94,7 @@ namespace Mana.Code
             BarlowCondensedImGuiFont = TryLoadImGuiFontCandidates(
                 io,
                 fontDirectories,
-                17.0f,
+                ScaleFontSize(17.0f),
                 "BarlowCondensed-Regular.ttf");
 
             // Build the atlas in-place; avoid invoking private ImGuiController internals via reflection.
@@ -105,6 +110,20 @@ namespace Mana.Code
         public void RequestImGuiFontPreset(ImGuiFontPreset preset)
         {
             _pendingImGuiFontPreset = preset;
+        }
+
+        /// <summary>
+        /// Queues a font-atlas rebuild without changing which preset is selected -- for when the SIZE
+        /// inputs changed rather than the typeface (a DPI change, see SyncImGuiUiScale).
+        ///
+        /// Deliberately re-requests any already-pending preset in preference to the current one: startup
+        /// queues its preferred preset before the first frame runs, and CurrentImGuiFontPreset doesn't
+        /// catch up until ApplyImGuiFontPreset actually runs, so reading the current value here would
+        /// quietly discard that queued choice and fall back to the default font.
+        /// </summary>
+        public void RequestImGuiFontRebuild()
+        {
+            _pendingImGuiFontPreset ??= CurrentImGuiFontPreset;
         }
 
         public void SetImGuiMonoSizeTier(ImGuiMonoSizeTier tier)
@@ -245,7 +264,9 @@ namespace Mana.Code
             }
 
             var emojiCandidates = GetEmojiFontCandidates();
-            var emojiFontSize = MathF.Max(13.0f, baseFontSize - 0.5f);
+            // baseFontSize arrives already DPI-scaled (see ApplyImGuiFontPreset), so only the 13px floor
+            // needs scaling here -- it's a minimum legible size, which is a physical constraint.
+            var emojiFontSize = MathF.Max(ScaleFontSize(13.0f), baseFontSize - 0.5f);
 
             foreach (var fontsDir in fontDirectories)
             {
@@ -420,6 +441,11 @@ namespace Mana.Code
                 default:
                     return (17.0f, new[] { "segoeui.ttf", "SFNS.ttf", "Helvetica.ttc", "Arial.ttf", "arial.ttf", "DejaVuSans.ttf" });
             }
+        }
+
+        private static float ScaleFontSize(float sizePixels)
+        {
+            return MathF.Round(sizePixels * ManaCore.Graphics.ManaImGuiSettingsStorage.CurrentUiScale);
         }
 
         public void ProcessPendingFontPreset()

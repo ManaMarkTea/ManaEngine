@@ -17,6 +17,10 @@ namespace ManaCore.Graphics
         public float DebugSceneScale { get; set; } = 1.0f;
         public float WebGpuDebugMode { get; set; } = 0.0f;
         public bool WireframeEnabled { get; set; }
+        public bool VertexNormalsEnabled { get; set; }
+
+        /// <summary>Length of each vertex-normal debug line, in world units.</summary>
+        public float VertexNormalLength { get; set; } = 1.0f;
 
         public ManaIrradianceSettings Clone()
         {
@@ -34,7 +38,9 @@ namespace ManaCore.Graphics
                 DebugAlbedo = DebugAlbedo,
                 DebugSceneScale = DebugSceneScale,
                 WebGpuDebugMode = WebGpuDebugMode,
-                WireframeEnabled = WireframeEnabled
+                WireframeEnabled = WireframeEnabled,
+                VertexNormalsEnabled = VertexNormalsEnabled,
+                VertexNormalLength = VertexNormalLength
             };
         }
     }

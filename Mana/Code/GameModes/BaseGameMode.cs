@@ -99,6 +99,9 @@ namespace Mana.Code
         {
             RenderFrame++;
 
+            // Before ProcessPendingFontPreset: a scale change queues a font rebuild, which this next call
+            // then performs in the same frame rather than a frame late.
+            SyncImGuiUiScale();
             ProcessPendingFontPreset();
 
             _ImGui.Update((float)deltaTime);

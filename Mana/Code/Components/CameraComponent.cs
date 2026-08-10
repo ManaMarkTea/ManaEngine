@@ -316,7 +316,7 @@ namespace Mana
             {
                 const float scrollSpeedMultiplierPerNotch = 1.5f;
                 _MovementSpeed *= MathF.Pow(scrollSpeedMultiplierPerNotch, MouseState.ScrollWheels[0].Y);
-                _MovementSpeed = _MovementSpeed.Clamp(0.25f, 5000.0f);
+                _MovementSpeed = _MovementSpeed.Clamp(0.25f, 25000.0f);
             }
 
             Owner.Position = position;

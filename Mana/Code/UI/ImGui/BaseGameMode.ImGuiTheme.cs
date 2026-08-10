@@ -1,17 +1,42 @@
 using ImGuiNET;
+using ManaCore.Graphics;
 using System.Numerics;
 
 namespace Mana.Code
 {
     public abstract partial class BaseGameMode
     {
+        // ImGui's own defaults, captured before this class has touched anything. ImGuiStyle is a plain
+        // struct (its color table is a fixed buffer, so a struct copy takes the whole thing), which makes
+        // snapshot/restore the simplest exact way to undo a previous ScaleAllSizes -- ImGui offers no
+        // "reset metrics to default" of its own, and ScaleAllSizes touches roughly twenty fields, only
+        // some of which ConfigImStyle overwrites. Without this, every theme switch or DPI change would
+        // compound the scale onto the fields ConfigImStyle doesn't reset.
+        private static ImGuiStyle? _pristineImGuiStyle;
+
+        private bool _useDarkImGuiTheme;
+
         protected void ConfigImStyle()
         {
             ApplyLightImGuiTheme();
         }
 
+        /// <summary>Re-applies whichever theme is currently active -- used after a DPI change, which needs the base metrics rebuilt before being rescaled.</summary>
+        public void ReapplyCurrentImGuiTheme()
+        {
+            if (_useDarkImGuiTheme)
+            {
+                ApplyDarkImGuiTheme();
+            }
+            else
+            {
+                ApplyLightImGuiTheme();
+            }
+        }
+
         public void ApplyLightImGuiTheme()
         {
+            _useDarkImGuiTheme = false;
             var color_for_text = new Vector3(52.0f / 255.0f, 68.0f / 255.0f, 86.0f / 255.0f);
             var color_for_head = new Vector3(41.0f / 255.0f, 133.0f / 255.0f, 220.0f / 255.0f);
             var color_for_area = new Vector3(232.0f / 255.0f, 239.0f / 255.0f, 247.0f / 255.0f);
@@ -22,6 +47,7 @@ namespace Mana.Code
 
         public void ApplyDarkImGuiTheme()
         {
+            _useDarkImGuiTheme = true;
             var color_for_text = new Vector3(236.0f / 255.0f, 240.0f / 255.0f, 241.0f / 255.0f);
             var color_for_head = new Vector3(61.0f / 255.0f, 128.0f / 255.0f, 185.0f / 255.0f);
             var color_for_area = new Vector3(57.0f / 255.0f, 79.0f / 255.0f, 105.0f / 255.0f);
@@ -30,9 +56,20 @@ namespace Mana.Code
             ConfigImStyle(color_for_text, color_for_head, color_for_area, color_for_body, color_for_pops);
         }
 
-        public void ConfigImStyle(Vector3 color_for_text, Vector3 color_for_head, Vector3 color_for_area, Vector3 color_for_body, Vector3 color_for_pops)
+        public unsafe void ConfigImStyle(Vector3 color_for_text, Vector3 color_for_head, Vector3 color_for_area, Vector3 color_for_body, Vector3 color_for_pops)
         {
             ImGuiStylePtr style = ImGui.GetStyle();
+
+            // Snapshot on first use (before any override below has run), then restore on every later call
+            // so the metric overrides and the DPI scaling below always start from a known base.
+            if (_pristineImGuiStyle == null)
+            {
+                _pristineImGuiStyle = *style.NativePtr;
+            }
+            else
+            {
+                *style.NativePtr = _pristineImGuiStyle.Value;
+            }
 
             style.WindowRounding = 8.0f;
             style.ChildRounding = 8.0f;
@@ -96,6 +133,15 @@ namespace Mana.Code
             style.Colors[(int)ImGuiCol.ResizeGrip] = new Vector4(0.62f, 0.76f, 0.92f, 0.30f);
             style.Colors[(int)ImGuiCol.ResizeGripHovered] = new Vector4(0.50f, 0.69f, 0.89f, 0.65f);
             style.Colors[(int)ImGuiCol.ResizeGripActive] = new Vector4(color_for_head.X, color_for_head.Y, color_for_head.Z, 0.85f);
+
+            // Last, so it catches both ImGui's defaults and the overrides above. Safe to call
+            // unconditionally because the restore at the top of this method guarantees the metrics are
+            // unscaled right now -- ScaleAllSizes is multiplicative and would otherwise stack.
+            var uiScale = ManaImGuiSettingsStorage.CurrentUiScale;
+            if (uiScale != 1.0f)
+            {
+                style.ScaleAllSizes(uiScale);
+            }
 
             /*
             style.Colors[(int)ImGuiCol.ComboBg] = new Vector4(color_for_area.X, color_for_area.Y, color_for_area.Z, 1.00f);

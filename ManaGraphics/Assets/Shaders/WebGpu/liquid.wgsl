@@ -6,7 +6,7 @@ struct FrameUniform {
     light_colors : array<vec4<f32>, 4>,
     time : f32,
     webgpu_debug_mode : f32,
-    _padding1 : f32,
+    vertex_normal_length : f32,
     _padding2 : f32,
 };
 

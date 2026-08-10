@@ -1,3 +1,4 @@
+using ManaGeoTools.Code.GeoTiff.Terrarium;
 using ManaGeoTools.Code.Planet;
 
 namespace ManaGeoTools.Code.Region
@@ -17,17 +18,35 @@ namespace ManaGeoTools.Code.Region
     /// </summary>
     public static class RegionExtents
     {
-        public const float BaseHalfExtentMeters = 500f;
+        public const float BaseHalfExtentMeters = 2000;
         public const int BaseZoom = 13;
 
-        // Upper bound is the Terrarium dataset's own maximum zoom, not a budget choice. The lower bound
-        // is a budget choice: below it the box is wide enough that a flat tangent plane stops being a
-        // reasonable approximation of the curved surface anyway.
-        public const int MinZoom = 6;
+        // Upper bound is the Terrarium dataset's own maximum zoom, not a budget choice.
+        //
+        // The lower bound caps how large a region may be, and 9 (a 64km box at the base extent above) is
+        // where the local-tangent-plane model stops being trustworthy rather than where performance gives
+        // out. RegionTerrainMesh does correct for the sphere's vertical drop, which is what would
+        // otherwise dominate -- 80m at the corners of a 64km box -- but it still treats the east and
+        // north axes as parallel everywhere, and meridian convergence grows with the box. 64km comfortably
+        // spans a large lake or a mountain range, which is what regions are for; wanting more than that is
+        // really wanting the planet.
+        public const int MinZoom = 9;
         public const int MaxZoom = 15;
 
         public static float MinHalfExtentMeters => HalfExtentForZoom(MaxZoom);
         public static float MaxHalfExtentMeters => HalfExtentForZoom(MinZoom);
+
+        /// <summary>
+        /// Ground distance between adjacent source samples for a Terrarium tile at this zoom and latitude
+        /// -- i.e. the real resolution limit of a region built here, regardless of how dense its mesh is.
+        /// Shared so the UI can preview it before a fetch and RegionHeightField can report it after.
+        /// </summary>
+        public static double MetersPerSample(int zoom, float latitudeDegrees)
+        {
+            var circumferenceMeters = 2.0 * Math.PI * PlanetLoader.EarthRadiusMeters;
+            var cosLatitude = Math.Cos(latitudeDegrees * Math.PI / 180.0);
+            return circumferenceMeters * cosLatitude / (Math.Pow(2, zoom) * TerrariumHeightTile.TileSize);
+        }
 
         /// <summary>Meters per degree of latitude on the sphere the rest of this codebase assumes (PlanetLoader.EarthRadiusMeters).</summary>
         public const float MetersPerDegreeLatitude = PlanetLoader.EarthRadiusMeters * MathF.PI / 180f;

@@ -543,7 +543,8 @@ namespace ManaGraphics.Code.Graphics
             return Matrix4x4.CreateTranslation(-center) * Matrix4x4.CreateScale(scale);
         }
 
-        private sealed class ManaWebGpuSceneMesh : IDisposable
+        // internal, not private: the overlay passes under Overlays/ take one of these per draw call.
+        internal sealed class ManaWebGpuSceneMesh : IDisposable
         {
             private readonly WebGPU _api;
             private readonly Action<ManaWebGpuMeshTexture> _releaseTexture;
@@ -606,6 +607,69 @@ namespace ManaGraphics.Code.Graphics
             // already correctly invalidated by that existing logic with no extra bookkeeping needed.
             private WebGpuBuffer* _wireframeIndexBuffer;
             private uint _wireframeIndexCount;
+
+            // Same lazy/lifetime reasoning as the wireframe buffer above.
+            private ManaWebGpuMesh? _normalLinesMesh;
+
+            // Builds a separate LineList mesh whose vertices alternate base/tip -- the tip positions
+            // don't exist in the source mesh, so unlike the wireframe this can't be done with an index
+            // buffer over the original vertices.
+            //
+            // Both vertices of a line are stored at the surface position; uv0.x is 0 on the base and 1 on
+            // the tip, and normal_lines.wgsl extrudes the tip by normal * uv0.x * length. Keeping length
+            // out of the buffer is what lets it be a live setting instead of a rebuild.
+            public ManaWebGpuMesh? GetOrCreateNormalLinesMesh(WebGPU api, Device* device, Queue* queue)
+            {
+                if (_normalLinesMesh != null)
+                {
+                    return _normalLinesMesh;
+                }
+
+                var meshData = Instance.MeshData;
+                var positions = meshData.Positions;
+                var normals = meshData.Normals;
+                if (positions.Length == 0 || normals.Length != positions.Length)
+                {
+                    return null;
+                }
+
+                var linePositions = new Vector3[positions.Length * 2];
+                var lineNormals = new Vector3[positions.Length * 2];
+                var lineColors = new Vector4[positions.Length * 2];
+                var lineTexCoords = new Vector2[positions.Length * 2];
+                var lineIndexes = new uint[positions.Length * 2];
+                for (var i = 0; i < positions.Length; i++)
+                {
+                    var normal = normals[i];
+                    var baseIndex = i * 2;
+                    linePositions[baseIndex] = positions[i];
+                    linePositions[baseIndex + 1] = positions[i];
+                    lineNormals[baseIndex] = normal;
+                    lineNormals[baseIndex + 1] = normal;
+                    lineTexCoords[baseIndex] = Vector2.Zero;
+                    lineTexCoords[baseIndex + 1] = Vector2.UnitX;
+
+                    // Tip carries the direction as colour, base stays dark, so each line reads as a
+                    // gradient pointing away from the surface.
+                    lineColors[baseIndex] = new Vector4(0.05f, 0.05f, 0.05f, 1.0f);
+                    lineColors[baseIndex + 1] = new Vector4((normal * 0.5f) + new Vector3(0.5f), 1.0f);
+                    lineIndexes[baseIndex] = (uint)baseIndex;
+                    lineIndexes[baseIndex + 1] = (uint)(baseIndex + 1);
+                }
+
+                var lineData = new ManaMeshCpuData
+                {
+                    Positions = linePositions,
+                    Normals = lineNormals,
+                    Colors = lineColors,
+                    TextureCoordinates0 = lineTexCoords,
+                    TextureCoordinates1 = Array.Empty<Vector2>(),
+                    Indexes = lineIndexes
+                };
+
+                _normalLinesMesh = ManaWebGpuMesh.CreateFromMeshData(api, device, queue, lineData, "NormalLines");
+                return _normalLinesMesh;
+            }
 
             // Pointer types can't be used as a generic type argument (e.g. a (WebGpuBuffer*, uint)
             // tuple), hence out-parameters instead of a tuple return here.
@@ -726,6 +790,9 @@ namespace ManaGraphics.Code.Graphics
                     _api.BufferRelease(_wireframeIndexBuffer);
                     _wireframeIndexBuffer = null;
                 }
+
+                _normalLinesMesh?.Dispose();
+                _normalLinesMesh = null;
 
                 foreach (var sceneCaptureBindGroup in SceneCaptureBindGroups)
                 {

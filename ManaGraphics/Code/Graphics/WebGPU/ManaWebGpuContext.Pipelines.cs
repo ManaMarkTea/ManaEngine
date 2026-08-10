@@ -6,6 +6,7 @@ using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
+using ManaGraphics.Code.Graphics.Overlays;
 using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
 using Silk.NET.Windowing;
@@ -561,25 +562,27 @@ namespace ManaGraphics.Code.Graphics
             return _outlineMaskPipeline;
         }
 
-        private RenderPipeline* GetOrCreateWireframePipeline()
+        private RenderPipeline* GetOrCreateOverlayPipeline(ManaWebGpuOverlayPass overlay)
         {
-            if (_wireframePipeline != null)
+            if (_overlayPipelines.TryGetValue(overlay.Name, out var cached))
             {
-                return _wireframePipeline;
+                return (RenderPipeline*)cached;
             }
 
-            var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "wireframe.wgsl"));
-            _wireframePipeline = CreateDemoRenderPipeline(
+            var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", overlay.ShaderFileName));
+            var pipeline = CreateDemoRenderPipeline(
                 shaderModule,
                 GetSceneColorFormat(),
                 _demoPipelineLayout,
-                "Wireframe",
+                overlay.Name,
                 disableDepthWrite: true,
                 depthCompare: CompareFunction.LessEqual,
-                primitiveTopology: PrimitiveTopology.LineList);
-            _shaderModules["Wireframe"] = (nint)shaderModule;
-            ManaConsole.WriteDiagnostic("WebGPU wireframe pipeline created successfully.");
-            return _wireframePipeline;
+                primitiveTopology: overlay.Topology);
+
+            _shaderModules[overlay.Name] = (nint)shaderModule;
+            _overlayPipelines[overlay.Name] = (nint)pipeline;
+            ManaConsole.WriteDiagnostic($"WebGPU {overlay.Name} overlay pipeline created successfully.");
+            return pipeline;
         }
 
         private ShaderModule* CreateShaderModule(string relativePath)

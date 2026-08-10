@@ -11,6 +11,8 @@
          for high-allocation-rate workloads like this. -->
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <!-- Declares PerMonitorV2 DPI awareness; see app.manifest for why. No effect off Windows. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>

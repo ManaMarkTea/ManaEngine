@@ -29,13 +29,21 @@ namespace ManaGeoTools.Code.Region
     /// </summary>
     public sealed class RegionNode : ManaSceneNode
     {
-        public const int DefaultResolution = 193;
+        // Resolution is normally derived from the source data rather than fixed: RegionExtents ties zoom
+        // to extent so the sample count across the box is roughly constant, and matching it means a mesh
+        // that neither throws away detail that was fetched nor interpolates a lot of vertices that carry
+        // no new information. The bounds are backstops for the extremes (very high latitudes, where the
+        // Mercator sample spacing tightens up, and rounding at the ladder's edges).
+        public const int MinResolution = 65;
+        public const int MaxResolution = 385;
 
         public string PlaceName { get; }
         public LatLong Center { get; }
         public float HalfExtentMeters { get; }
         public int Zoom { get; }
-        public int Resolution { get; }
+
+        /// <summary>Vertex grid size per side. Only final once State is Ready -- it's derived from the fetched source data unless the constructor was given an explicit override.</summary>
+        public int Resolution { get; private set; }
 
         public RegionLoadState State { get; private set; } = RegionLoadState.Loading;
         public string? ErrorMessage { get; private set; }
@@ -46,6 +54,7 @@ namespace ManaGeoTools.Code.Region
         public double LoadSeconds { get; private set; }
 
         private Task<RegionTerrainMesh?>? _buildTask;
+        private readonly int? _resolutionOverride;
         private readonly Stopwatch _loadStopwatch = Stopwatch.StartNew();
 
         public RegionNode(
@@ -53,14 +62,18 @@ namespace ManaGeoTools.Code.Region
             string placeName,
             LatLong center,
             float halfExtentMeters,
-            int resolution = DefaultResolution)
+            int? resolution = null)
             : base(context, Matrix4x4.Identity)
         {
             PlaceName = placeName;
             Center = center;
-            HalfExtentMeters = halfExtentMeters;
-            Zoom = RegionExtents.ZoomForHalfExtent(halfExtentMeters);
-            Resolution = Math.Max(2, resolution);
+            HalfExtentMeters = Math.Clamp(halfExtentMeters, RegionExtents.MinHalfExtentMeters, RegionExtents.MaxHalfExtentMeters);
+            Zoom = RegionExtents.ZoomForHalfExtent(HalfExtentMeters);
+            _resolutionOverride = resolution;
+
+            // A provisional value so the property is never nonsense while the build is in flight; the
+            // real one is derived from the fetched data in BuildAsync.
+            Resolution = resolution ?? MinResolution;
             Name = $"Region: {placeName}";
 
             _buildTask = Task.Run(BuildAsync);
@@ -81,6 +94,12 @@ namespace ManaGeoTools.Code.Region
             }
 
             MetersPerSample = heightField.MetersPerSample;
+
+            // One mesh vertex per source sample: below that the fetched detail is thrown away, above it
+            // the extra vertices only interpolate data that isn't there. Clamped, and overridable.
+            var samplesAcross = (2.0 * HalfExtentMeters) / Math.Max(heightField.MetersPerSample, 0.001);
+            Resolution = _resolutionOverride
+                ?? Math.Clamp((int)Math.Round(samplesAcross) + 1, MinResolution, MaxResolution);
 
             // Sampled from the same stitched field the mesh uses, so the center vertex lands at exactly
             // y == 0 rather than at some near-zero value from a separately-rounded lookup.
@@ -130,7 +149,26 @@ namespace ManaGeoTools.Code.Region
             AddChild(meshNode);
             meshNode.UpdateTransform();
 
+            AddRegionSun();
             State = RegionLoadState.Ready;
+        }
+
+        // The scene's default lights sit on a 256-unit grid with power sized for that distance, so at a
+        // region's scale and offset they contribute essentially nothing (1/d^2) and the terrain ends up
+        // lit only by ambient IBL -- which reads as uniformly glossy. This gives the region its own sun,
+        // with intensity undoing the fixed 256*256 power scale ManaWorld applies to collected lights.
+        private void AddRegionSun()
+        {
+            var offset = new Vector3(HalfExtentMeters * 0.6f, HalfExtentMeters * 3.0f, -HalfExtentMeters * 0.6f);
+            var sun = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(offset)) { Name = "Region Sun" };
+            sun.Components.Add(new ManaLightSourceComponent(sun)
+            {
+                Intensity = offset.LengthSquared() / (256.0f * 256.0f),
+                Color = Colors.White
+            });
+
+            AddChild(sun);
+            sun.UpdateTransform();
         }
 
         /// <summary>A one-line summary for a status/HUD readout.</summary>
@@ -140,7 +178,7 @@ namespace ManaGeoTools.Code.Region
             {
                 RegionLoadState.Loading => $"Loading {DescribeSize()} at z{Zoom}...",
                 RegionLoadState.Ready =>
-                    $"{DescribeSize()} at z{Zoom} ({MetersPerSample:0.#} m/sample), ground {GroundElevationMeters:0} m, built in {LoadSeconds:0.0}s",
+                    $"{DescribeSize()} at z{Zoom} ({MetersPerSample:0.#} m/sample, {Resolution}x{Resolution} verts), ground {GroundElevationMeters:0} m, built in {LoadSeconds:0.0}s",
                 _ => ErrorMessage ?? "Region failed to load."
             };
         }

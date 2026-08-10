@@ -56,6 +56,29 @@ namespace ManaVoxel.Code.UI
                     viewModel.ShowWireframe = !viewModel.ShowWireframe;
                 }
 
+                if (ImGui.MenuItem("Show Vertex Normals", string.Empty, viewModel.ShowVertexNormals))
+                {
+                    viewModel.ShowVertexNormals = !viewModel.ShowVertexNormals;
+                }
+
+                // Logarithmic: useful lengths span a voxel-scale scene and a kilometre-scale region.
+                ImGui.BeginDisabled(!viewModel.ShowVertexNormals);
+                ImGui.SetNextItemWidth(160.0f);
+                ImGui.DragFloat(
+                    "Normal Length",
+                    ref viewModel.VertexNormalLength,
+                    0.05f,
+                    0.01f,
+                    1000.0f,
+                    "%.2f",
+                    ImGuiSliderFlags.Logarithmic);
+                ImGui.EndDisabled();
+
+                if (ImGui.MenuItem("Shade By Normal", string.Empty, viewModel.ShowNormals))
+                {
+                    viewModel.ShowNormals = !viewModel.ShowNormals;
+                }
+
                 // Stays enabled while loading so the toggle can be switched back off mid-load; the sync
                 // pass just won't attach the node when it eventually arrives. Disabled only when the
                 // (non-repo) KML file isn't on this machine at all.

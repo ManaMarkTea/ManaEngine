@@ -174,9 +174,9 @@ namespace Mana.Code.GameModes
 
                     lock (world.SceneLock)
                     {
-                        xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize);
-                        yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize);
-                        zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize);
+                        xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane XZ");
+                        yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize, "Grid Plane YX");
+                        zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize, "Grid Plane ZY");
 
                         Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                         Cursor.Name = "CursorBall";
@@ -832,11 +832,13 @@ namespace Mana.Code.GameModes
         // one is a 1km box viewed from ~1.5km back -- entirely beyond that plane. Widened to fit whenever
         // a region loads, and restored from this saved value if a later region needs less.
         //
-        // Worth revisiting: pushing the far plane out while the near plane stays at 0.1 stretches the
-        // depth range hard, and at the largest offered region size that's a ~320,000:1 ratio, enough to
-        // provoke z-fighting on distant coplanar surfaces. The real fixes are reversed-Z or a separate
-        // depth range for distant geometry; this is the cheap version that makes regions visible at all.
+        // The near plane moves with it. Pushing far out alone would leave a near:far ratio of over a
+        // million at the largest region size, which is well past what a 24-bit depth buffer can resolve
+        // and shows up as z-fighting across flat terrain. Scaling both keeps the ratio fixed at a
+        // comfortable ~10,000:1 regardless of region size.
+        private const float RegionNearClipDivisor = 2000.0f;
         private float? _farClipBeforeRegion;
+        private float? _nearClipBeforeRegion;
 
         // Consumes the "load this place as a true-scale region" request the search panel queues (see
         // VoxelSearchPanelView / RegionLoadRequest). Main thread only: this swaps scene-graph children.
@@ -875,9 +877,20 @@ namespace Mana.Code.GameModes
                 if (camera != null)
                 {
                     _farClipBeforeRegion ??= camera.FarClipPlane;
+                    _nearClipBeforeRegion ??= camera.NearClipPlane;
                     camera.FarClipPlane = MathF.Max(
                         _farClipBeforeRegion.Value,
                         request.HalfExtentMeters * (RegionArrivalDistanceFactor + 2.0f));
+                    camera.NearClipPlane = MathF.Max(
+                        _nearClipBeforeRegion.Value,
+                        request.HalfExtentMeters / RegionNearClipDivisor);
+
+                    // Required: NearClipPlane/FarClipPlane are plain fields, and the projection matrix is
+                    // only rebuilt on demand (constructor, window resize, or an Inspector edit -- see
+                    // CameraComponentImGuiView, which calls this after every clip-plane drag). Without it
+                    // the widened range never reaches the matrix and the region stays clipped away
+                    // entirely, until some unrelated edit happens to rebuild the projection.
+                    camera.UpdateProjection();
 
                     // Flown to immediately, while the node is still an empty placeholder -- the terrain
                     // pops in underneath the camera a moment later via ProcessPendingLoad. Better than
@@ -1280,6 +1293,7 @@ namespace Mana.Code.GameModes
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
             SyncWireframeViewOption();
+            SyncNormalsViewOption();
             SyncKmlAirspaceVisibility();
             ProcessPendingRegionRequest();
 
@@ -1469,6 +1483,7 @@ namespace Mana.Code.GameModes
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
             SyncWireframeViewOption();
+            SyncNormalsViewOption();
             SyncKmlAirspaceVisibility();
             ProcessPendingRegionRequest();
 
@@ -1885,6 +1900,29 @@ namespace Mana.Code.GameModes
         private void SyncWireframeViewOption()
         {
             Context.World.IrradianceSettings.WireframeEnabled = _viewModel.ShowWireframe;
+            Context.World.IrradianceSettings.VertexNormalsEnabled = _viewModel.ShowVertexNormals;
+            Context.World.IrradianceSettings.VertexNormalLength = _viewModel.VertexNormalLength;
+        }
+
+        // Mode 2 in pbr_irradiance.wgsl's debug ladder -- world normal as n * 0.5 + 0.5.
+        private const float WorldNormalDebugMode = 2.0f;
+        private float? _debugModeBeforeNormals;
+
+        // Drives the same WebGpuDebugMode the Irradiance panel does, so the previous mode is saved and
+        // restored rather than clobbered to 0 on toggle-off.
+        private void SyncNormalsViewOption()
+        {
+            var settings = Context.World.IrradianceSettings;
+            if (_viewModel.ShowNormals)
+            {
+                _debugModeBeforeNormals ??= settings.WebGpuDebugMode;
+                settings.WebGpuDebugMode = WorldNormalDebugMode;
+            }
+            else if (_debugModeBeforeNormals != null)
+            {
+                settings.WebGpuDebugMode = _debugModeBeforeNormals.Value;
+                _debugModeBeforeNormals = null;
+            }
         }
 
         // Demo hook for testing ripples: left-click over the water plane's footprint. Water has no

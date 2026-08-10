@@ -12,45 +12,54 @@ namespace Mana
     {
         public static ManaUiDensityPreset CurrentPreset { get; private set; } = ManaUiDensityPreset.Comfortable;
 
-        private static string DensityPresetFilePath => Path.ChangeExtension(ManaImGuiSettingsStorage.IniFilePath, ".density");
+        // Deliberately NOT derived from ManaImGuiSettingsStorage.IniFilePath (which now varies per UI
+        // scale): density is a taste preference, not layout geometry, so it should follow the user across
+        // monitors rather than being remembered separately at each scale. The filename is unchanged from
+        // when it was derived, so existing saved preferences still load.
+        private static string DensityPresetFilePath => ManaImGuiSettingsStorage.SharedSettingsFilePath("imgui.density");
+
+        // Every value below is a raw pixel measurement pushed as an ImGui style var, so each one is
+        // DPI-scaled on the way out. ImGuiStyle.ScaleAllSizes (applied in BaseGameMode.ConfigImStyle)
+        // only reaches the style struct's own fields -- it can't see these.
+        private static float Scaled(float pixels) => pixels * ManaImGuiSettingsStorage.CurrentUiScale;
 
         // Property table row spacing used by Inspector and Irradiance panels.
-        public static float PropertyTableCellPaddingY => CurrentPreset switch
+        public static float PropertyTableCellPaddingY => Scaled(CurrentPreset switch
         {
             ManaUiDensityPreset.Comfortable => 4.0f,
             ManaUiDensityPreset.Compact => 2.5f,
             _ => 4.0f
-        };
+        });
 
         // Vector/color compound editor spacing (axis badges + value fields + color swatch).
-        public static float CompactEditorFramePaddingY => CurrentPreset switch
+        public static float CompactEditorFramePaddingY => Scaled(CurrentPreset switch
         {
             ManaUiDensityPreset.Comfortable => 5.0f,
             ManaUiDensityPreset.Compact => 3.5f,
             _ => 5.0f
-        };
+        });
 
-        public static float CompactEditorItemSpacingY => CurrentPreset switch
+        public static float CompactEditorItemSpacingY => Scaled(CurrentPreset switch
         {
             ManaUiDensityPreset.Comfortable => 4.0f,
             ManaUiDensityPreset.Compact => 2.5f,
             _ => 4.0f
-        };
+        });
 
         // Scalar value editor spacing (sliders, drags, inputs, checkboxes, combos).
-        public static float CompactValueFramePaddingY => CurrentPreset switch
+        public static float CompactValueFramePaddingY => Scaled(CurrentPreset switch
         {
             ManaUiDensityPreset.Comfortable => 5.0f,
             ManaUiDensityPreset.Compact => 3.5f,
             _ => 5.0f
-        };
+        });
 
-        public static float CompactValueItemSpacingY => CurrentPreset switch
+        public static float CompactValueItemSpacingY => Scaled(CurrentPreset switch
         {
             ManaUiDensityPreset.Comfortable => 4.0f,
             ManaUiDensityPreset.Compact => 2.5f,
             _ => 4.0f
-        };
+        });
 
         public static void SetPreset(ManaUiDensityPreset preset, bool persist = true)
         {

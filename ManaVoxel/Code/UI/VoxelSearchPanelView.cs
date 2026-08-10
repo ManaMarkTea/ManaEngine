@@ -32,13 +32,14 @@ namespace ManaVoxel.Code.UI
         private const float MarkerRadiusMeters = 300f;
         private static readonly Vector4 MarkerColor = Colors.Orange;
 
-        // Offered region sizes, coarsest detail last. The zoom shown against each is not a free choice --
-        // RegionExtents derives it from the extent (500m -> z13, and one zoom level down per doubling),
-        // so this array only has to pick which points on that curve are worth exposing.
-        private static readonly float[] RegionHalfExtentOptions = { 500f, 1000f, 2000f, 4000f };
+        // Region size is free-form (in km across the box) rather than a fixed menu, bounded by
+        // RegionExtents' own zoom ladder: the smallest box the max-zoom end supports, up to the largest
+        // the local-tangent-plane model stays trustworthy over. Whatever is picked, the source zoom is
+        // derived rather than chosen -- see RegionExtents.
+        private const float DefaultRegionBoxKm = 4.0f;
 
         private string _query = string.Empty;
-        private int _regionSizeIndex;
+        private float _regionBoxKm = DefaultRegionBoxKm;
         private bool _isSearching;
         private string? _errorMessage;
         private IReadOnlyList<GeocodeResult> _results = Array.Empty<GeocodeResult>();
@@ -94,7 +95,7 @@ namespace ManaVoxel.Code.UI
             else if (_results.Count > 0)
             {
                 ImGui.Separator();
-                DrawRegionSizePicker();
+                DrawRegionSizePicker(_results[0].Latitude);
                 ImGui.Separator();
 
                 for (var i = 0; i < _results.Count; i++)
@@ -111,7 +112,7 @@ namespace ManaVoxel.Code.UI
                             result.DisplayName,
                             result.Longitude,
                             result.Latitude,
-                            RegionHalfExtentOptions[_regionSizeIndex]);
+                            _regionBoxKm * 1000f * 0.5f);
                     }
 
                     ImGui.SameLine();
@@ -127,27 +128,40 @@ namespace ManaVoxel.Code.UI
             ImGui.End();
         }
 
-        private void DrawRegionSizePicker()
+        // previewLatitude only affects the reported meters-per-sample (Mercator samples tighten toward the
+        // poles); the chosen zoom itself is latitude-independent. Taken from the first result purely so
+        // the readout is representative of what's about to be loaded.
+        private void DrawRegionSizePicker(float previewLatitude)
         {
-            var labels = new string[RegionHalfExtentOptions.Length];
-            for (var i = 0; i < RegionHalfExtentOptions.Length; i++)
-            {
-                var halfExtent = RegionHalfExtentOptions[i];
-                var sideMeters = halfExtent * 2f;
-                var zoom = RegionExtents.ZoomForHalfExtent(halfExtent);
-                labels[i] = sideMeters >= 1000f
-                    ? $"{sideMeters / 1000f:0.##} km  (+/-{halfExtent:0} m, z{zoom})"
-                    : $"{sideMeters:0} m  (+/-{halfExtent:0} m, z{zoom})";
-            }
+            var minKm = RegionExtents.MinHalfExtentMeters * 2f / 1000f;
+            var maxKm = RegionExtents.MaxHalfExtentMeters * 2f / 1000f;
+            _regionBoxKm = Math.Clamp(_regionBoxKm, minKm, maxKm);
 
             ImGui.SetNextItemWidth(-1.0f);
-            ImGui.Combo("##RegionSize", ref _regionSizeIndex, labels, labels.Length);
+            // Logarithmic: the useful range spans a couple of orders of magnitude, and a linear slider
+            // would bunch every small region into the first few pixels of travel.
+            ImGui.SliderFloat(
+                "##RegionSize",
+                ref _regionBoxKm,
+                minKm,
+                maxKm,
+                "Region: %.1f km across",
+                ImGuiSliderFlags.Logarithmic);
+
+            // Checked immediately after the slider, while it's still the "current item" -- the readout
+            // below becomes the current item the moment it's emitted.
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip(
-                    "Region size. Source detail drops one zoom level per doubling, so every size costs\n" +
-                    "about the same to fetch and build -- a bigger area trades resolution for coverage.");
+                    "Source detail steps down one zoom level per doubling of size, so every region costs\n" +
+                    "about the same to fetch and build -- a bigger area trades resolution for coverage\n" +
+                    "rather than taking proportionally longer.");
             }
+
+            var halfExtent = _regionBoxKm * 1000f * 0.5f;
+            var zoom = RegionExtents.ZoomForHalfExtent(halfExtent);
+            var metersPerSample = RegionExtents.MetersPerSample(zoom, previewLatitude);
+            ImGui.TextDisabled($"z{zoom} source, ~{metersPerSample:0.#} m/sample");
         }
 
         private void StartSearch(string query)

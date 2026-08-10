@@ -489,7 +489,10 @@ namespace ManaGraphics.Code.Graphics
             var progressSync = new object();
             Parallel.For(0, height, y =>
             {
-                var roughness = 1.0f - y / (float)Math.Max(1, height - 1);
+                // Row y IS roughness, matching both brdf.frag's IntegrateBRDF(TexCoords.x, TexCoords.y)
+                // and the shader's textureSample(brdf_lut, vec2(ndotv, roughness)). No V flip: row 0 of a
+                // QueueWriteTexture upload lands at v=0.
+                var roughness = y / (float)Math.Max(1, height - 1);
                 for (var x = 0; x < width; x++)
                 {
                     var ndotv = x / (float)Math.Max(1, width - 1);

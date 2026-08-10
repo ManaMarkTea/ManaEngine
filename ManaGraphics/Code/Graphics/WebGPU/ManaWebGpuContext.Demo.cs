@@ -6,6 +6,7 @@ using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
+using ManaGraphics.Code.Graphics.Overlays;
 using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
 using Silk.NET.Windowing;
@@ -223,38 +224,44 @@ namespace ManaGraphics.Code.Graphics
         // depth buffer the opaque pass just wrote is what these lines depth-test against -- correctly
         // occluded by anything in front, without needing a separate render target the way the outline
         // mask pass does.
-        private void DrawWireframeOverlay(RenderPassEncoder* renderPass)
+        // One loop for every debug overlay (see Overlays/ManaWebGpuOverlayPass). Adding one is a new
+        // subclass plus an entry in _overlayPasses, not more methods here.
+        private void DrawOverlays(RenderPassEncoder* renderPass)
         {
-            if (_activeRenderScene?.IrradianceSettings.WireframeEnabled != true || _sceneMeshes.Count == 0)
+            var settings = _activeRenderScene?.IrradianceSettings;
+            if (settings == null || _sceneMeshes.Count == 0)
             {
                 return;
             }
 
-            var pipeline = GetOrCreateWireframePipeline();
-            if (pipeline == null)
+            foreach (var overlay in _overlayPasses)
             {
-                return;
-            }
-            _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
-
-            if (_frameBindGroup != null)
-            {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-            }
-
-            foreach (var sceneMesh in _sceneMeshes)
-            {
-                if (!sceneMesh.TryGetOrCreateWireframeIndexBuffer(_api, _device, _queue, out var wireframeBuffer, out var wireframeIndexCount))
+                if (!overlay.IsEnabled(settings))
                 {
                     continue;
                 }
 
-                if (sceneMesh.ObjectBindGroup != null)
+                var pipeline = GetOrCreateOverlayPipeline(overlay);
+                if (pipeline == null)
                 {
-                    _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
+                    continue;
                 }
 
-                sceneMesh.Mesh.DrawWithIndexBuffer(renderPass, wireframeBuffer, wireframeIndexCount);
+                _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+                if (_frameBindGroup != null)
+                {
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+                }
+
+                foreach (var sceneMesh in _sceneMeshes)
+                {
+                    if (sceneMesh.ObjectBindGroup != null)
+                    {
+                        _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
+                    }
+
+                    overlay.DrawMesh(_api, _device, _queue, renderPass, sceneMesh);
+                }
             }
         }
 

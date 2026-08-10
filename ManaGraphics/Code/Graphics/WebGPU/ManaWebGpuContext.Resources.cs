@@ -48,11 +48,15 @@ namespace ManaGraphics.Code.Graphics
                 _outlineMaskPipeline = null;
             }
 
-            if (_wireframePipeline != null)
+            foreach (var overlayPipeline in _overlayPipelines.Values)
             {
-                _api.RenderPipelineRelease(_wireframePipeline);
-                _wireframePipeline = null;
+                if (overlayPipeline != 0)
+                {
+                    _api.RenderPipelineRelease((RenderPipeline*)overlayPipeline);
+                }
             }
+
+            _overlayPipelines.Clear();
 
             _hdrPostProcessor?.Dispose();
             _hdrPostProcessor = null;

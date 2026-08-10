@@ -56,7 +56,7 @@ namespace ManaGraphics.Code.Graphics
                 LightColors3 = _activeRenderScene.LightColors[3],
                 Time = elapsedSeconds,
                 WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
-                _padding1 = 0.0f,
+                VertexNormalLength = irradianceSettings.VertexNormalLength,
                 _padding2 = 0.0f
             };
 
@@ -298,14 +298,14 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 LightColors3;
             public float Time;
             public float WebGpuDebugMode;
-            public float _padding1;
+            public float VertexNormalLength;
             public float _padding2;
         }
 
         // Written per mesh, only when the mesh's transform/material actually changed since last
         // frame (see ManaWebGpuSceneMesh.TryUpdateObjectUniform) -- group 1, binding 0.
         [StructLayout(LayoutKind.Sequential)]
-        private struct ManaWebGpuObjectUniform
+        internal struct ManaWebGpuObjectUniform
         {
             public Matrix4x4 Model;
             public Matrix4x4 NormalMatrix;

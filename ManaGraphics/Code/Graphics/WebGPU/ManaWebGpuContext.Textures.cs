@@ -165,7 +165,7 @@ namespace ManaGraphics.Code.Graphics
             return "fallback:white";
         }
 
-        private unsafe sealed class ManaWebGpuMeshTexture
+        internal unsafe sealed class ManaWebGpuMeshTexture
         {
             public ManaWebGpuMeshTexture(string key, Texture* texture, TextureView* textureView)
             {

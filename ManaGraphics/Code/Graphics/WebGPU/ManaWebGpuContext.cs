@@ -8,6 +8,7 @@ using ManaCore.Graphics;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
+using ManaGraphics.Code.Graphics.Overlays;
 using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
 using Silk.NET.Windowing;
@@ -74,7 +75,14 @@ namespace ManaGraphics.Code.Graphics
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;
         private RenderPipeline* _outlineMaskPipeline;
-        private RenderPipeline* _wireframePipeline;
+        // Debug overlays drawn after the main mesh pass; add a ManaWebGpuOverlayPass subclass and list it
+        // here. Pipelines are keyed by overlay name and built on first use.
+        private readonly ManaWebGpuOverlayPass[] _overlayPasses =
+        {
+            new ManaWebGpuWireframeOverlay(),
+            new ManaWebGpuNormalLinesOverlay()
+        };
+        private readonly Dictionary<string, nint> _overlayPipelines = new(StringComparer.Ordinal);
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
@@ -274,32 +282,22 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic($"[wgpu:{levelName}] {message}");
         }
 
-        // Defers work onto the render thread, to be run by DrainRenderThreadWork() from inside ClearFrame.
-        //
-        // Every wgpu entry point that touches the device/queue/surface MUST run on the render thread.
-        // wgpu-native's surface-present path and its queue-submit path acquire the device's internal locks
-        // in opposite orders, so a background-thread wgpuQueueSubmit that overlaps the render thread's
-        // wgpuSurfacePresent deadlocks both threads outright (main thread parked in SurfacePresent inside
-        // ClearFrame, pool thread parked in QueueSubmit inside the height-sample dispatch). Nothing in the
-        // managed layer can make that overlap safe -- the only fix is to never let it happen.
-        //
-        // Callable from any thread. Ordering across callers is FIFO; a work item queued while a frame is
-        // mid-flight runs at the start of the next one.
+        // Callable from any thread; runs FIFO on the render thread via DrainRenderThreadWork.
+        // wgpu-native takes device locks in opposite orders for surface-present and queue-submit, so a
+        // background-thread submit overlapping SurfacePresent deadlocks both threads.
         private void EnqueueRenderThreadWork(Action work)
         {
             _renderThreadWork.Enqueue(work);
 
-            // Dispose()'s own drain may have already run by the time a racing producer got here, and no
-            // further ClearFrame is coming -- flush inline so the item still gets its (self-cancelling)
-            // invocation instead of leaving its awaiter hanging forever.
+            // Dispose()'s drain may already have run; flush inline so a racing item still cancels.
             if (_disposed)
             {
                 DrainRenderThreadWork();
             }
         }
 
-        // Render thread only. Each item is responsible for observing _disposed itself and completing
-        // whatever it owns accordingly, so that Dispose()'s drain cancels rather than submits.
+        // Render thread only. Each item checks _disposed itself so Dispose()'s drain cancels rather
+        // than submits.
         private void DrainRenderThreadWork()
         {
             while (_renderThreadWork.TryDequeue(out var work))
@@ -310,21 +308,14 @@ namespace ManaGraphics.Code.Graphics
                 }
                 catch (Exception ex)
                 {
-                    // A single bad work item must never take down the frame loop.
                     ManaConsole.WriteDiagnostic($"[WebGPU] Deferred render-thread work failed: {ex}");
                 }
             }
         }
 
-        // Backs IHeightSamplingComputeDevice.SampleHeightsAsync -- see ManaWebGpuGraphicsDevice, which
-        // forwards here once wired up to this context (see VoxelEditorGameMode.RunWebGpu's webGpuReady
-        // callback).
-        //
-        // Callable from any thread (PlanetNode's up-res flow calls it from ThreadPool threads), but the
-        // dispatch itself is deliberately NOT performed on the calling thread -- it is queued onto the
-        // render thread, for the deadlock reason spelled out on EnqueueRenderThreadWork. Only the encode +
-        // submit is marshalled; the readback still completes asynchronously off the render thread, so the
-        // caller's await behaviour is unchanged.
+        // Backs IHeightSamplingComputeDevice.SampleHeightsAsync. Callable from any thread; only the
+        // encode+submit is marshalled to the render thread (see EnqueueRenderThreadWork), the readback
+        // still completes off it.
         public Task<float[]> SampleHeightsAsync(
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
@@ -334,8 +325,7 @@ namespace ManaGraphics.Code.Graphics
                 return Task.FromCanceled<float[]>(new CancellationToken(true));
             }
 
-            // RunContinuationsAsynchronously so a caller's continuation can never run inline on the render
-            // thread, mid-drain -- same reasoning as ManaWebGpuBufferReadback.MapAsync's own TCS.
+            // RunContinuationsAsynchronously keeps caller continuations off the render thread mid-drain.
             var completion = new TaskCompletionSource<float[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             EnqueueRenderThreadWork(() =>
             {
@@ -364,8 +354,7 @@ namespace ManaGraphics.Code.Graphics
             return completion.Task;
         }
 
-        // ContinueWith rather than await: this class is declared `unsafe` at the type level, which makes
-        // await illegal anywhere inside it (same constraint documented on ManaWebGpuHeightSampleCompute).
+        // ContinueWith rather than await: this class is `unsafe` at the type level, which bans await.
         private static void LinkTaskResult<T>(Task<T> source, TaskCompletionSource<T> destination)
         {
             source.ContinueWith(
@@ -409,10 +398,8 @@ namespace ManaGraphics.Code.Graphics
             _frameSerial++;
             DrainDeferredSceneMeshDisposals();
 
-            // Deliberately above the !_configured early-return, and above SurfaceGetCurrentTexture below:
-            // background-thread callers waiting on deferred GPU work must keep making progress even while
-            // the window is minimized/mid-resize, and their submits must land before this frame's own
-            // submit/present pair rather than racing it.
+            // Above the !_configured early-return so deferred work still progresses while minimized,
+            // and above this frame's own submit/present so it never races it.
             DrainRenderThreadWork();
 
             if (!_configured)
@@ -509,7 +496,7 @@ namespace ManaGraphics.Code.Graphics
             var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
             var drawStopwatch = Stopwatch.StartNew();
             DrawDemoMesh(sceneRenderPass);
-            DrawWireframeOverlay(sceneRenderPass);
+            DrawOverlays(sceneRenderPass);
             _api.RenderPassEncoderEnd(sceneRenderPass);
             LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
@@ -571,9 +558,7 @@ namespace ManaGraphics.Code.Graphics
             // BufferMapAsync callback will ever fire again, so any still-pending readback awaiter would
             // otherwise hang forever instead of getting a clean cancellation.
             _disposed = true;
-            // Runs every queued item with _disposed already set, so each cancels its own awaiter instead
-            // of submitting against a device that is about to go away. Must precede FaultAllPending() --
-            // a work item that slipped through before _disposed was observed can still register a readback.
+            // Before FaultAllPending: an item that slipped through can still register a readback.
             DrainRenderThreadWork();
             _readbackRegistry.FaultAllPending();
 

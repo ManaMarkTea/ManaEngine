@@ -102,20 +102,20 @@ namespace Mana.Code.Shapes
             return isoSphereNode;
         }
 
-        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size)
+        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, Vector3 size, string name = "Quad")
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Name = "Quad";
+            extraCube.Name = name;
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, size)));
             Scene.Children.Add(extraCube);
             return extraCube;
         }
 
 
-        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, ManaQuadPlanes plane, float axisStart, float axisEnd, float extrusionStart, float extrusionEnd)
+        public ManaSceneNode AddQuad(Vector3 position, Vector4 color, ManaQuadPlanes plane, float axisStart, float axisEnd, float extrusionStart, float extrusionEnd, string name = "Quad")
         {
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
-            extraCube.Name = "Quad";
+            extraCube.Name = name;
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, plane, axisStart, axisEnd, extrusionStart, extrusionEnd)));
             Scene.Children.Add(extraCube);
             return extraCube;

@@ -38,7 +38,6 @@ namespace ManaGraphics.Code.Graphics
         private ulong _vertexBufferSize = 0;
         private Buffer* _indexBuffer;
         private ulong _indexBufferSize = 0;
-        private nint _iniFilename;
         private readonly ManaImGuiClipboardBridge _clipboardBridge;
         private bool _frameFinalized;
 
@@ -63,8 +62,13 @@ namespace ManaGraphics.Code.Graphics
             ImGui.CreateContext();
             var io = ImGui.GetIO();
             var iniPath = ManaImGuiSettingsStorage.IniFilePath;
-            _iniFilename = Marshal.StringToHGlobalAnsi(iniPath);
-            io.NativePtr->IniFilename = (byte*)_iniFilename;
+
+            // IniFilename left null on purpose: setting it makes ImGui auto-save to that ONE fixed path
+            // for the life of the context, which can't follow ManaImGuiSettingsStorage's now per-UI-scale
+            // ini path. Save and load are both already driven explicitly from that property (see
+            // SaveIniSettings and the load below), so the native filename was a redundant second
+            // mechanism -- dropping it leaves exactly one, and it's the one that tracks the scale.
+            io.NativePtr->IniFilename = null;
             io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset |
                 ImGuiBackendFlags.HasMouseCursors;
             io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
@@ -802,11 +806,6 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
             _clipboardBridge.Dispose();
             ImGui.DestroyContext();
-            if (_iniFilename != 0)
-            {
-                Marshal.FreeHGlobal(_iniFilename);
-                _iniFilename = 0;
-            }
         }
 
         private static void SavePendingIniSettings()

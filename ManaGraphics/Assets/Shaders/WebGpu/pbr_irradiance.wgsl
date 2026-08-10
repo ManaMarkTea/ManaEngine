@@ -6,7 +6,7 @@ struct FrameUniform {
     light_colors : array<vec4<f32>, 4>,
     time : f32,
     webgpu_debug_mode : f32,
-    _padding1 : f32,
+    vertex_normal_length : f32,
     _padding2 : f32,
 };
 
@@ -101,8 +101,18 @@ fn mana_environment_radiance(direction : vec3<f32>) -> vec3<f32> {
     return textureSample(environment_map, clamp_sampler, normalize(direction)).rgb;
 }
 
+// Bevy's radiance_sample_direction. Rough surfaces sample along N rather than R -- R swings toward the
+// horizon at grazing angles, which is what makes matte terrain shimmer along ridgelines.
+fn mana_radiance_direction(n : vec3<f32>, r : vec3<f32>, roughness : f32) -> vec3<f32> {
+    let smoothness = saturate(1.0 - roughness);
+    let lerp_factor = smoothness * (sqrt(smoothness) + roughness);
+    return mix(n, r, lerp_factor);
+}
+
 fn mana_environment_reflection(direction : vec3<f32>, roughness : f32) -> vec3<f32> {
-    let max_lod = 4.0;
+    // Inverse of the prefilter compute's roughness = mip / (mipCount - 1). Queried, not hardcoded --
+    // the mip count follows PrefilterCubeSize.
+    let max_lod = max(f32(textureNumLevels(prefiltered_reflection_map)) - 1.0, 0.0);
     return textureSampleLevel(prefiltered_reflection_map, clamp_sampler, normalize(direction), saturate(roughness) * max_lod).rgb;
 }
 
@@ -129,7 +139,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let v = normalize(frame.camera_position.xyz - input.world_position);
 
     let metallic = saturate(object.material_factors.x);
-    let roughness = saturate(object.material_factors.y);
+    // Floor from Filament/Bevy (perceptualRoughnessToRoughness): below ~0.089 GGX loses precision and
+    // the surface becomes a mirror that aliases badly.
+    let roughness = clamp(object.material_factors.y, 0.089, 1.0);
     let specular_roughness = roughness;
     let ao = saturate(object.material_factors.z);
 
@@ -165,10 +177,12 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let diffuse_ibl = irradiance * vertex_albedo * ibl_intensity;
 
     let reflection = reflect(-v, n);
-    let reflection_radiance = mana_environment_reflection(reflection, roughness);
+    let reflection_radiance = mana_environment_reflection(mana_radiance_direction(n, reflection, roughness), roughness);
     let ndotv = max(dot(n, v), 0.0);
     let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(ndotv, roughness)).rg;
-    let specular_ibl = reflection_radiance * (F * brdf.x + brdf.y) * ibl_intensity;
+    // f0, not F: the LUT already integrates Fresnel (Karis split-sum is F0 * A + B). Using F here
+    // applies it twice and blows out grazing angles.
+    let specular_ibl = reflection_radiance * (f0 * brdf.x + brdf.y) * ibl_intensity;
     let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao;
     let emissive_color = pow(max(object.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
     let emissive_strength = object.material_emission.a;
