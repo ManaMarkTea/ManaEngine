@@ -82,6 +82,22 @@ namespace Mana.Code.Shapes
             GenerateData();
         }
 
+        // Distance at which a ScreenRibbon reaches its full Thickness. Nearer than this it thins down
+        // toward the floor below, further it is capped. Chosen so the whole-planet view (the distance
+        // these overlays were tuned at) lands on the authored thickness.
+        private const float ScreenRibbonReferenceDistance = 120.0f;
+
+        // Keeps the Thickness argument meaningful for ScreenRibbon, whose geometry carries no width at
+        // all -- without this the constructor parameter would silently do nothing. These are seeded as
+        // material uniforms, so they stay live-editable in the Inspector afterwards.
+        private void SeedScreenRibbonWidth(ManaMaterial material)
+        {
+            var halfThickness = Thickness * 0.5f;
+            material.SetShaderUniform("widthPerDistance", halfThickness / ScreenRibbonReferenceDistance);
+            material.SetShaderUniform("minHalfWidth", halfThickness * 0.05f);
+            material.SetShaderUniform("maxHalfWidth", halfThickness);
+        }
+
         /// <summary>Live-editable thickness (e.g. from an Inspector slider) -- a real geometry change,
         /// so this regenerates immediately. Color and emission are NOT baked into the geometry (see
         /// AddSegment's use of Vector4.One below) specifically so they can be edited live by mutating
@@ -108,6 +124,11 @@ namespace Mana.Code.Shapes
                 material.Emission.Value = DefaultVertexColor;
                 material.EmissionStrength = EmissionStrength;
             }
+            if (Profile == ManaLineProfile.ScreenRibbon)
+            {
+                SeedScreenRibbonWidth(material);
+            }
+
             material.EnsureShaderMetadataDefaults();
             return material;
         }
