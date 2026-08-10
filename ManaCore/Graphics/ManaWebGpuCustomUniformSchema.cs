@@ -85,6 +85,7 @@ namespace ManaCore.Graphics
                 ["ManaLightningBallShader"] = "lightning_ball.wgsl",
                 ["ManaLiquidBallShader"] = "liquid_ball.wgsl",
                 ["ManaNearOceanShader"] = "near_ocean.wgsl",
+                ["ManaDrapedLineShader"] = "draped_line.wgsl",
                 ["ManaOceanShader"] = "ocean.wgsl",
                 ["ManaPbrShader"] = DefaultShaderFileName,
                 ["ManaWaterShader"] = "water.wgsl",
