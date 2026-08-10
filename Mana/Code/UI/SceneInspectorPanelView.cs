@@ -73,6 +73,18 @@ namespace Mana.Code.UI
             "gProjectionMatrix",
             "gCameraWorldMatrixProjection",
             "gPointLight.Base.DiffuseIntensity",
+            // Ocean tier cross-fade / wave-plane framing, rewritten every frame by
+            // PlanetNode.UpdateNearOcean -- editing them would be overwritten before the next draw.
+            "nearFadeCenter",
+            "nearFadeInnerRadius",
+            "nearFadeOuterRadius",
+            "waveEast",
+            "waveNorth",
+            "unitsPerMeter",
+            "waveTileMeters",
+            "vertexSpacingMeters",
+            "depthLiftCoefficient",
+            "depthLiftMaxUnits",
         };
 
         private readonly SceneSelectionState selectionState;

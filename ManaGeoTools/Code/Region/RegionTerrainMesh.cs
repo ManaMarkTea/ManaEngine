@@ -2,18 +2,23 @@ using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.ManaShaders;
 using Mana.Code.Shapes;
+using ManaGeoTools.Code.Geo;
 using ManaGeoTools.Code.Planet;
 
 namespace ManaGeoTools.Code.Region
 {
     /// <summary>
-    /// A flat XZ terrain grid for one RegionNode, built in a local east-north-up tangent plane centered
+    /// A flat XZ terrain tiling for one RegionNode, built in a local east-north-up tangent plane centered
     /// on the region's lat/long at 1 scene unit == 1 real meter -- the cartesian counterpart to
     /// PlanetPatchMesh, which puts the same Terrarium elevation data on a (heavily shrunk) sphere.
     ///
     /// Axes: +X is east, +Y is up, +Z is SOUTH. That ordering is what makes the basis right-handed with
     /// Y up (east x up == south), and it puts north at -Z, i.e. straight ahead of a default-oriented
     /// camera looking down -Z.
+    ///
+    /// The surface is a hexagonal tiling rather than a quad grid (see RegionHexGrid): each hex is a plateau
+    /// at its own sampled elevation, joined to its neighbours by a rim of wall quads. StepStrength dials
+    /// between that and a continuous, merely hex-faceted surface -- a drawing choice, not a data one.
     ///
     /// Elevation is stored relative to GroundElevationMeters (the real elevation at the region's exact
     /// center) rather than absolute, so the node's own origin sits on the ground instead of the mesh
@@ -22,12 +27,35 @@ namespace ManaGeoTools.Code.Region
     /// </summary>
     public sealed class RegionTerrainMesh : ManaProceduralMesh
     {
+        /// <summary>Default hex radius in source sample spacings -- 1.0 covers ~2.6 samples, fine enough to lose nothing.</summary>
+        public const float DefaultHexRadiusInSamples = 1.0f;
+
+        // Ceiling on hex count, applied by growing the hexes rather than cropping the region: a hex costs
+        // ~13 verts and 18 tris against a quad cell's 1 and 2, so a small radius on a big box runs away.
+        public const int MaxHexCells = 120_000;
+
+        // Below this the walls are shorter than the noise in the source data, so they're built as bare
+        // top faces with no rim at all.
+        private const float MinStepStrengthForWalls = 0.01f;
+
         public LatLong Center { get; }
         public float HalfExtentMeters { get; }
         public int Resolution { get; }
         public float GroundElevationMeters { get; }
         public float MinElevationMeters { get; private set; }
         public float MaxElevationMeters { get; private set; }
+
+        /// <summary>Center-to-corner size of one hex, in meters. Call RebuildGeometry after changing it.</summary>
+        public float HexRadiusMeters { get; set; }
+
+        /// <summary>0 == continuous hex-faceted surface, 1 == stepped plateaus with walls. Call RebuildGeometry after changing it.</summary>
+        public float StepStrength { get; set; } = 1.0f;
+
+        /// <summary>Hexes the last build emitted.</summary>
+        public int HexCellCount { get; private set; }
+
+        /// <summary>Radius the last build used -- larger than HexRadiusMeters when MaxHexCells bit.</summary>
+        public float EffectiveHexRadiusMeters { get; private set; }
 
         private readonly RegionHeightField _heightField;
 
@@ -37,7 +65,9 @@ namespace ManaGeoTools.Code.Region
             float halfExtentMeters,
             int resolution,
             RegionHeightField heightField,
-            float groundElevationMeters)
+            float groundElevationMeters,
+            float? hexRadiusMeters = null,
+            float stepStrength = 1.0f)
             : base(context)
         {
             Center = center;
@@ -45,6 +75,10 @@ namespace ManaGeoTools.Code.Region
             Resolution = Math.Max(2, resolution);
             GroundElevationMeters = groundElevationMeters;
             _heightField = heightField;
+            // Infers sample spacing from Resolution, which is only right when Resolution wasn't clamped --
+            // RegionNode passes the height field's real MetersPerSample instead.
+            HexRadiusMeters = hexRadiusMeters ?? (DefaultHexRadiusInSamples * (2f * halfExtentMeters) / (Resolution - 1));
+            StepStrength = Math.Clamp(stepStrength, 0f, 1f);
             DefaultVertexColor = Colors.White;
 
             GenerateData();
@@ -57,8 +91,7 @@ namespace ManaGeoTools.Code.Region
             // Inspector would show no PBR channels at all.
             var material = new ManaMaterial(Context) { Name = "Region Terrain Material" };
             material.Shader = new ManaPbrShader(Context);
-            // Faceted by default -- reads as terrain rather than a smooth putting green at these
-            // sample spacings. Toggleable per-material in the Inspector.
+            // Faceted so each plateau reads as one solid tile. Toggleable in the Inspector.
             material.FlatShaded = true;
             material.Albedo.Value = DefaultVertexColor;
             material.EnsureShaderMetadataDefaults();
@@ -81,111 +114,268 @@ namespace ManaGeoTools.Code.Region
             return (float)(radius - Math.Sqrt(Math.Max(0.0, (radius * radius) - horizontalSquared)));
         }
 
+        // -1 means "not water", which is what PlanetColors expects for the land ramp.
+        private static float WaterDepthAt(GeoWaterLookup? lookup, float longitude, float latitude)
+        {
+            if (lookup == null || !lookup.IsWater(longitude, latitude))
+            {
+                return -1f;
+            }
+
+            return lookup.GetWaterDepth01(longitude, latitude);
+        }
+
+        /// <summary>Running total for one corner, so its shared height is the mean of the hexes touching it.</summary>
+        private struct CornerHeight
+        {
+            public float Sum;
+            public int Count;
+        }
+
+        // Grows the radius until the lattice fits MaxHexCells. Count scales as 1/radius^2, so the ratio of
+        // the two counts gives the factor in one step rather than by iterating.
+        private float ResolveHexRadius()
+        {
+            var requested = MathF.Max(HexRadiusMeters, 0.05f);
+            var probe = new RegionHexGrid(HalfExtentMeters, requested);
+            var cells = (long)probe.Columns * probe.Rows;
+            if (cells <= MaxHexCells)
+            {
+                return requested;
+            }
+
+            return requested * MathF.Sqrt((float)cells / MaxHexCells);
+        }
+
         protected override void GenerateData()
         {
             base.GenerateData();
 
-            var resolution = Resolution;
+            var radius = ResolveHexRadius();
+            EffectiveHexRadiusMeters = radius;
+            var grid = new RegionHexGrid(HalfExtentMeters, radius);
+            var step = Math.Clamp(StepStrength, 0f, 1f);
+            var buildWalls = step >= MinStepStrengthForWalls;
             var metersPerDegreeLongitude = RegionExtents.MetersPerDegreeLongitude(Center.Latitude);
-            var spacingMeters = (2f * HalfExtentMeters) / (resolution - 1);
 
-            // Sampled up front, as its own pass, because per-vertex normals below are a central
-            // difference over the four neighbours -- same reason GeoTiffTerrainMesh does it this way
-            // (ManaGeometryVertex.Normal has to be supplied when the vertex is added; there's no
-            // generate-normals post-pass in this engine).
-            // Two height arrays, deliberately: `elevations` is true elevation above sea level (what the
-            // biome ramp and the reported min/max want), while `surfaceY` is the local vertical coordinate
-            // after the datum and Earth's curvature are taken out. Normals are computed from surfaceY so
-            // they match the geometry that actually gets built.
-            var elevations = new float[resolution, resolution];
-            var surfaceY = new float[resolution, resolution];
-            var latitudes = new float[resolution];
-            var longitudes = new float[resolution];
-            var eastOffsets = new float[resolution];
-            var southOffsets = new float[resolution];
+            var longitudeSpan = HalfExtentMeters / metersPerDegreeLongitude;
+            var latitudeSpan = HalfExtentMeters / RegionExtents.MetersPerDegreeLatitude;
+
+            // Rasterized on the source resolution, not the hex lattice's, so shorelines don't move when the
+            // tiling is re-dialled. Null without the Natural Earth data -- colouring falls back to elevation.
+            var waterLookup = GeoWaterMask.Shared?.Rasterize(
+                Center.Longitude - longitudeSpan, Center.Longitude + longitudeSpan,
+                Center.Latitude - latitudeSpan, Center.Latitude + latitudeSpan,
+                Resolution, Resolution);
+
+            // Its own pass because normals need neighbouring cells and corner heights need every hex that
+            // meets there -- neither is knowable while the first hex is being built. Two height arrays:
+            // `elevations` is above sea level (what the biome ramp wants), `surfaceY` is local vertical
+            // with the datum and curvature taken out.
+            var included = new bool[grid.Columns, grid.Rows];
+            var elevations = new float[grid.Columns, grid.Rows];
+            var surfaceY = new float[grid.Columns, grid.Rows];
+            var colors = new Vector4[grid.Columns, grid.Rows];
             var minElevation = float.MaxValue;
             var maxElevation = float.MinValue;
+            var cellCount = 0;
 
-            for (var z = 0; z < resolution; z++)
+            for (var row = 0; row < grid.Rows; row++)
             {
-                southOffsets[z] = float.Lerp(-HalfExtentMeters, HalfExtentMeters, (float)z / (resolution - 1));
-                latitudes[z] = Center.Latitude - (southOffsets[z] / RegionExtents.MetersPerDegreeLatitude);
-            }
+                var south = grid.CellSouth(row);
+                var latitude = Center.Latitude - (south / RegionExtents.MetersPerDegreeLatitude);
 
-            for (var x = 0; x < resolution; x++)
-            {
-                eastOffsets[x] = float.Lerp(-HalfExtentMeters, HalfExtentMeters, (float)x / (resolution - 1));
-                longitudes[x] = Center.Longitude + (eastOffsets[x] / metersPerDegreeLongitude);
-            }
-
-            for (var z = 0; z < resolution; z++)
-            {
-                for (var x = 0; x < resolution; x++)
+                for (var column = 0; column < grid.Columns; column++)
                 {
-                    var elevation = _heightField.SampleMeters(longitudes[x], latitudes[z]);
-                    elevations[x, z] = elevation;
-                    surfaceY[x, z] = elevation - GroundElevationMeters - CurvatureDropMeters(eastOffsets[x], southOffsets[z]);
+                    var east = grid.CellEast(column, row);
+
+                    // The lattice over-covers the square, so cells centered outside it are dropped -- which
+                    // leaves a jagged hexagonal border rather than a clean edge.
+                    if (MathF.Abs(east) > HalfExtentMeters || MathF.Abs(south) > HalfExtentMeters)
+                    {
+                        continue;
+                    }
+
+                    var longitude = Center.Longitude + (east / metersPerDegreeLongitude);
+                    var elevation = _heightField.SampleMeters(longitude, latitude);
+
+                    included[column, row] = true;
+                    elevations[column, row] = elevation;
+                    surfaceY[column, row] = elevation - GroundElevationMeters - CurvatureDropMeters(east, south);
+                    colors[column, row] = PlanetColors.GetBiomeColor(
+                        elevation,
+                        latitude,
+                        WaterDepthAt(waterLookup, longitude, latitude));
+
                     minElevation = MathF.Min(minElevation, elevation);
                     maxElevation = MathF.Max(maxElevation, elevation);
+                    cellCount++;
                 }
             }
 
-            MinElevationMeters = minElevation;
-            MaxElevationMeters = maxElevation;
+            HexCellCount = cellCount;
+            MinElevationMeters = cellCount > 0 ? minElevation : 0f;
+            MaxElevationMeters = cellCount > 0 ? maxElevation : 0f;
 
-            var verts = new ManaGeometryVertex[resolution, resolution];
-            for (var z = 0; z < resolution; z++)
+            // The mean plateau height at each corner: what that corner would sit at on a continuous
+            // surface, so it's what StepStrength interpolates away from. Also what keeps the walls
+            // watertight -- all three hexes at a corner agree on it, so their rims meet edge to edge.
+            var cornerHeights = new Dictionary<long, CornerHeight>(cellCount * 2);
+            for (var row = 0; row < grid.Rows; row++)
             {
-                for (var x = 0; x < resolution; x++)
+                for (var column = 0; column < grid.Columns; column++)
                 {
-                    // Central difference in real meters: for a heightfield y = f(x,z) the surface normal
-                    // is proportional to (-df/dx, 1, -df/dz); scaling through by 2*spacing clears the
-                    // divisions out. Same shape as GeoTiffTerrainMesh's, except that one could hardcode
-                    // a spacing of 1 because its grid was in raw pixel units rather than meters.
-                    var left = surfaceY[Math.Max(x - 1, 0), z];
-                    var right = surfaceY[Math.Min(x + 1, resolution - 1), z];
-                    var north = surfaceY[x, Math.Max(z - 1, 0)];
-                    var south = surfaceY[x, Math.Min(z + 1, resolution - 1)];
-                    var normal = Vector3.Normalize(new Vector3(left - right, 2f * spacingMeters, north - south));
+                    if (!included[column, row])
+                    {
+                        continue;
+                    }
 
-                    var position = new Vector3(eastOffsets[x], surfaceY[x, z], southOffsets[z]);
-
-                    var vert = DynamicGeometryContainer.AddPoint(position, normal);
-                    vert.TexCoord0 = new Vector2((float)x / (resolution - 1), (float)z / (resolution - 1));
-                    vert.Color = PlanetColors.GetBiomeColor(elevations[x, z], latitudes[z]);
-                    verts[x, z] = vert;
+                    var height = surfaceY[column, row];
+                    for (var corner = 0; corner < RegionHexGrid.CornersPerHex; corner++)
+                    {
+                        var key = RegionHexGrid.CornerKey(column, row, corner);
+                        cornerHeights.TryGetValue(key, out var accumulated);
+                        accumulated.Sum += height;
+                        accumulated.Count++;
+                        cornerHeights[key] = accumulated;
+                    }
                 }
             }
 
-            for (var x = 0; x < resolution - 1; x++)
-            {
-                for (var z = 0; z < resolution - 1; z++)
-                {
-                    DynamicGeometryContainer.CreateFacesFromQuad(
-                        verts[x, z],
-                        verts[x + 1, z],
-                        verts[x + 1, z + 1],
-                        verts[x, z + 1]);
-                }
-            }
-
-            // Bounds come from surfaceY, not raw elevation: the curvature drop pulls the corners down by
-            // as much as 80m at the largest allowed region, which the raw range wouldn't account for.
             var minSurfaceY = float.MaxValue;
             var maxSurfaceY = float.MinValue;
-            foreach (var y in surfaceY)
+            var topCorners = new ManaGeometryVertex[RegionHexGrid.CornersPerHex];
+            var bottomCorners = new ManaGeometryVertex[RegionHexGrid.CornersPerHex];
+            var uvScale = 1f / (2f * HalfExtentMeters);
+
+            for (var row = 0; row < grid.Rows; row++)
             {
-                minSurfaceY = MathF.Min(minSurfaceY, y);
-                maxSurfaceY = MathF.Max(maxSurfaceY, y);
+                for (var column = 0; column < grid.Columns; column++)
+                {
+                    if (!included[column, row])
+                    {
+                        continue;
+                    }
+
+                    var east = grid.CellEast(column, row);
+                    var south = grid.CellSouth(row);
+                    var height = surfaceY[column, row];
+                    var color = colors[column, row];
+                    var normal = CellNormal(grid, included, surfaceY, column, row, step);
+
+                    var center = DynamicGeometryContainer.AddPoint(new Vector3(east, height, south), normal);
+                    center.Color = color;
+                    center.TexCoord0 = new Vector2((east + HalfExtentMeters) * uvScale, (south + HalfExtentMeters) * uvScale);
+
+                    minSurfaceY = MathF.Min(minSurfaceY, height);
+                    maxSurfaceY = MathF.Max(maxSurfaceY, height);
+
+                    for (var corner = 0; corner < RegionHexGrid.CornersPerHex; corner++)
+                    {
+                        var cornerEast = grid.CornerEast(column, row, corner);
+                        var cornerSouth = grid.CornerSouth(row, corner);
+                        var shared = cornerHeights[RegionHexGrid.CornerKey(column, row, corner)];
+                        var sharedHeight = shared.Sum / shared.Count;
+                        var topHeight = float.Lerp(sharedHeight, height, step);
+
+                        var top = DynamicGeometryContainer.AddPoint(new Vector3(cornerEast, topHeight, cornerSouth), normal);
+                        top.Color = color;
+                        top.TexCoord0 = new Vector2((cornerEast + HalfExtentMeters) * uvScale, (cornerSouth + HalfExtentMeters) * uvScale);
+                        topCorners[corner] = top;
+
+                        minSurfaceY = MathF.Min(minSurfaceY, topHeight);
+                        maxSurfaceY = MathF.Max(maxSurfaceY, topHeight);
+
+                        if (!buildWalls)
+                        {
+                            continue;
+                        }
+
+                        // Outward normals so walls read as sides with flat shading off. The rim bottom sits
+                        // at the shared height even when that's above the plateau (a hex in a hollow),
+                        // which just turns the wall inside out -- still watertight.
+                        var outward = Vector3.Normalize(new Vector3(cornerEast - east, 0f, cornerSouth - south));
+                        var bottom = DynamicGeometryContainer.AddPoint(new Vector3(cornerEast, sharedHeight, cornerSouth), outward);
+                        bottom.Color = color;
+                        bottom.TexCoord0 = top.TexCoord0;
+                        bottomCorners[corner] = bottom;
+
+                        minSurfaceY = MathF.Min(minSurfaceY, sharedHeight);
+                        maxSurfaceY = MathF.Max(maxSurfaceY, sharedHeight);
+                    }
+
+                    for (var corner = 0; corner < RegionHexGrid.CornersPerHex; corner++)
+                    {
+                        var next = (corner + 1) % RegionHexGrid.CornersPerHex;
+                        DynamicGeometryContainer.CreateFacesFromTriangle(center, topCorners[corner], topCorners[next]);
+
+                        if (buildWalls)
+                        {
+                            DynamicGeometryContainer.CreateFacesFromQuad(
+                                topCorners[corner],
+                                topCorners[next],
+                                bottomCorners[next],
+                                bottomCorners[corner]);
+                        }
+                    }
+                }
             }
 
-            MinSize = new Vector3(-HalfExtentMeters, minSurfaceY, -HalfExtentMeters);
-            MaxSize = new Vector3(HalfExtentMeters, maxSurfaceY, HalfExtentMeters);
+            if (cellCount == 0)
+            {
+                minSurfaceY = 0f;
+                maxSurfaceY = 0f;
+            }
+
+            // Horizontal bounds allow for the corner overhang past a kept cell's center. Vertical bounds
+            // use surfaceY, not raw elevation -- the curvature drop is up to 80m at the largest region.
+            var horizontalExtent = HalfExtentMeters + grid.Radius;
+            MinSize = new Vector3(-horizontalExtent, minSurfaceY, -horizontalExtent);
+            MaxSize = new Vector3(horizontalExtent, maxSurfaceY, horizontalExtent);
 
             // Explicit rather than relying on GetOrCreateCpuData()'s lazy build, for the same reason
             // GeoTiffTerrainMesh does it: the lazy path returns the cached CpuData immediately once set,
             // so a later regenerate would otherwise have no visible effect.
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
+        }
+
+        /// <summary>
+        /// Top-face normal, lerped from the local gradient to straight up alongside the geometry -- a flat
+        /// plateau would otherwise be shaded as though still sloped. The gradient is a central difference
+        /// over neighbouring cells: east is the adjacent column (Width apart), south is two rows away
+        /// (3 * Radius), which is the nearest cell sharing this one's column alignment.
+        /// </summary>
+        private static Vector3 CellNormal(
+            RegionHexGrid grid,
+            bool[,] included,
+            float[,] surfaceY,
+            int column,
+            int row,
+            float step)
+        {
+            var west = SampleCell(included, surfaceY, column - 1, row, column, row);
+            var east = SampleCell(included, surfaceY, column + 1, row, column, row);
+            var north = SampleCell(included, surfaceY, column, row - 2, column, row);
+            var south = SampleCell(included, surfaceY, column, row + 2, column, row);
+
+            var surfaceNormal = Vector3.Normalize(new Vector3(
+                west - east,
+                2f * grid.Width,
+                (north - south) * (grid.Width / (3f * grid.Radius))));
+
+            return Vector3.Normalize(Vector3.Lerp(surfaceNormal, Vector3.UnitY, step));
+        }
+
+        // Falls back to the cell's own height at the lattice edge, rather than reading a dropped cell's
+        // uninitialised zero as a cliff.
+        private static float SampleCell(bool[,] included, float[,] surfaceY, int column, int row, int fallbackColumn, int fallbackRow)
+        {
+            if (column < 0 || row < 0 || column >= included.GetLength(0) || row >= included.GetLength(1) || !included[column, row])
+            {
+                return surfaceY[fallbackColumn, fallbackRow];
+            }
+
+            return surfaceY[column, row];
         }
     }
 }

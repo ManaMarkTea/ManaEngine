@@ -18,7 +18,15 @@ namespace Mana.Code.Shapes
     public enum ManaLineProfile
     {
         Tube,
-        Ribbon
+        Ribbon,
+
+        /// <summary>
+        /// Like Ribbon, but vertices sit on the CENTERLINE and carry their signed unit offset in vertex
+        /// colour, leaving the widening to the vertex shader (see draped_line.wgsl). Lets width track
+        /// camera distance per-vertex with no rebuild -- baked width would need a whole-mesh regenerate
+        /// every time the camera moved far enough.
+        /// </summary>
+        ScreenRibbon
     }
 
     /// <summary>
@@ -74,6 +82,22 @@ namespace Mana.Code.Shapes
             GenerateData();
         }
 
+        // Distance at which a ScreenRibbon reaches its full Thickness. Nearer than this it thins down
+        // toward the floor below, further it is capped. Chosen so the whole-planet view (the distance
+        // these overlays were tuned at) lands on the authored thickness.
+        private const float ScreenRibbonReferenceDistance = 120.0f;
+
+        // Keeps the Thickness argument meaningful for ScreenRibbon, whose geometry carries no width at
+        // all -- without this the constructor parameter would silently do nothing. These are seeded as
+        // material uniforms, so they stay live-editable in the Inspector afterwards.
+        private void SeedScreenRibbonWidth(ManaMaterial material)
+        {
+            var halfThickness = Thickness * 0.5f;
+            material.SetShaderUniform("widthPerDistance", halfThickness / ScreenRibbonReferenceDistance);
+            material.SetShaderUniform("minHalfWidth", halfThickness * 0.05f);
+            material.SetShaderUniform("maxHalfWidth", halfThickness);
+        }
+
         /// <summary>Live-editable thickness (e.g. from an Inspector slider) -- a real geometry change,
         /// so this regenerates immediately. Color and emission are NOT baked into the geometry (see
         /// AddSegment's use of Vector4.One below) specifically so they can be edited live by mutating
@@ -88,7 +112,9 @@ namespace Mana.Code.Shapes
         public override ManaMaterial GenerateMaterial()
         {
             var material = new ManaMaterial(Context) { Name = $"{GetShapeDisplayName()} Material" };
-            material.Shader = new ManaPbrShader(Context);
+            material.Shader = Profile == ManaLineProfile.ScreenRibbon
+                ? new ManaDrapedLineShader(Context)
+                : new ManaPbrShader(Context);
             material.Albedo.Value = DefaultVertexColor;
             if (EmissionStrength > 0f)
             {
@@ -98,6 +124,11 @@ namespace Mana.Code.Shapes
                 material.Emission.Value = DefaultVertexColor;
                 material.EmissionStrength = EmissionStrength;
             }
+            if (Profile == ManaLineProfile.ScreenRibbon)
+            {
+                SeedScreenRibbonWidth(material);
+            }
+
             material.EnsureShaderMetadataDefaults();
             return material;
         }
@@ -118,9 +149,13 @@ namespace Mana.Code.Shapes
                     continue;
                 }
 
-                if (Profile == ManaLineProfile.Ribbon)
+                if (Profile == ManaLineProfile.ScreenRibbon)
                 {
-                    AddFlatRibbon(points, line.Closed);
+                    AddFlatRibbon(points, line.Closed, shaderExpanded: true);
+                }
+                else if (Profile == ManaLineProfile.Ribbon)
+                {
+                    AddFlatRibbon(points, line.Closed, shaderExpanded: false);
                 }
                 else
                 {
@@ -212,7 +247,7 @@ namespace Mana.Code.Shapes
             }
         }
 
-        private void AddFlatRibbon(List<Vector3> points, bool closed)
+        private void AddFlatRibbon(List<Vector3> points, bool closed, bool shaderExpanded)
         {
             var count = points.Count;
             if (closed && count < 3)
@@ -236,10 +271,21 @@ namespace Mana.Code.Shapes
                 {
                     side = ArbitraryPerpendicular(tangents[i]);
                 }
-                side = Vector3.Normalize(side) * halfThickness;
-
-                left[i] = AddRibbonVertex(center + side, outward);
-                right[i] = AddRibbonVertex(center - side, outward);
+                var sideDirection = Vector3.Normalize(side);
+                if (shaderExpanded)
+                {
+                    // Both vertices sit on the centerline; the shader offsets them along the signed
+                    // direction carried in vertex colour. Colour is free here -- ribbons have always
+                    // written white, with the material as the sole source of colour.
+                    left[i] = AddRibbonVertex(center, outward, new Vector4(sideDirection, 1f));
+                    right[i] = AddRibbonVertex(center, outward, new Vector4(-sideDirection, 1f));
+                }
+                else
+                {
+                    var offset = sideDirection * halfThickness;
+                    left[i] = AddRibbonVertex(center + offset, outward, Vector4.One);
+                    right[i] = AddRibbonVertex(center - offset, outward, Vector4.One);
+                }
             }
 
             var connectionCount = closed ? count : count - 1;
@@ -250,10 +296,10 @@ namespace Mana.Code.Shapes
             }
         }
 
-        private ManaGeometryVertex AddRibbonVertex(Vector3 position, Vector3 normal)
+        private ManaGeometryVertex AddRibbonVertex(Vector3 position, Vector3 normal, Vector4 color)
         {
             var vert = DynamicGeometryContainer.AddPoint(position, Vector3.Normalize(normal));
-            vert.Color = Vector4.One;
+            vert.Color = color;
             return vert;
         }
 

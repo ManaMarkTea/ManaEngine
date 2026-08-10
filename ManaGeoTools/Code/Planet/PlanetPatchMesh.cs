@@ -3,6 +3,7 @@ using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Shapes;
 using ManaCore.Diagnostics;
+using ManaGeoTools.Code.Geo;
 using ManaGeoTools.Code.GeoTiff;
 
 namespace ManaGeoTools.Code.Planet
@@ -158,46 +159,54 @@ namespace ManaGeoTools.Code.Planet
             return grid;
         }
 
-        /// <summary>
-        /// Distance from the planet's center to this patch's rendered surface at a face-space (u, v),
-        /// bilinear over the four surrounding grid vertices. This reads the mesh that's actually on
-        /// screen, so it tracks whatever detail the patch currently holds.
-        /// </summary>
-        public bool TrySampleRadiusAtFaceUv(float u, float v, out float radius)
+        // The patch's lat/long bounding box from its perimeter -- a cube-face patch isn't axis-aligned
+        // in lat/long, and its edges bow outward past the corners, so sampling the border is the cheap
+        // way to bound it without a second full grid pass.
+        //
+        // Patches spanning a pole or the antimeridian get a longitude range covering most of the globe,
+        // which makes the raster coarse but never wrong -- the lookup is still per-vertex lat/long.
+        private GeoWaterLookup? BuildWaterLookup()
         {
-            radius = Radius;
-            var cpuData = GetOrCreateCpuData();
-
-            // Skirt vertices are appended AFTER the grid, so the first Resolution^2 entries are the grid
-            // in y-outer/x-inner order (see GenerateData's phase 2).
-            if (cpuData == null || cpuData.Positions.Length < Resolution * Resolution)
+            var mask = GeoWaterMask.Shared;
+            if (mask == null || !mask.HasAnyData)
             {
-                return false;
+                return null;
             }
 
-            var spanU = MaxU - MinU;
-            var spanV = MaxV - MinV;
-            if (spanU <= 0f || spanV <= 0f)
+            const int samplesPerEdge = 32;
+            var axisA = new Vector3(FaceNormal.Y, FaceNormal.Z, FaceNormal.X);
+            var axisB = Vector3.Cross(FaceNormal, axisA);
+            var minLon = float.MaxValue;
+            var maxLon = float.MinValue;
+            var minLat = float.MaxValue;
+            var maxLat = float.MinValue;
+
+            Span<(float U, float V)> perimeter = stackalloc (float, float)[4];
+            for (var i = 0; i <= samplesPerEdge; i++)
             {
-                return false;
+                var t = (float)i / samplesPerEdge;
+                perimeter[0] = (float.Lerp(MinU, MaxU, t), MinV);
+                perimeter[1] = (float.Lerp(MinU, MaxU, t), MaxV);
+                perimeter[2] = (MinU, float.Lerp(MinV, MaxV, t));
+                perimeter[3] = (MaxU, float.Lerp(MinV, MaxV, t));
+
+                foreach (var (u, v) in perimeter)
+                {
+                    var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(FaceNormal + (u * axisA) + (v * axisB));
+                    var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+                    minLon = MathF.Min(minLon, latLong.Longitude);
+                    maxLon = MathF.Max(maxLon, latLong.Longitude);
+                    minLat = MathF.Min(minLat, latLong.Latitude);
+                    maxLat = MathF.Max(maxLat, latLong.Latitude);
+                }
             }
 
-            var gridX = Math.Clamp((u - MinU) / spanU, 0f, 1f) * (Resolution - 1);
-            var gridY = Math.Clamp((v - MinV) / spanV, 0f, 1f) * (Resolution - 1);
-            var x0 = Math.Clamp((int)MathF.Floor(gridX), 0, Resolution - 1);
-            var y0 = Math.Clamp((int)MathF.Floor(gridY), 0, Resolution - 1);
-            var x1 = Math.Min(x0 + 1, Resolution - 1);
-            var y1 = Math.Min(y0 + 1, Resolution - 1);
-            var fx = gridX - x0;
-            var fy = gridY - y0;
+            if (maxLon <= minLon || maxLat <= minLat)
+            {
+                return null;
+            }
 
-            var positions = cpuData.Positions;
-            float RadiusAt(int x, int y) => positions[(y * Resolution) + x].Length();
-
-            var top = float.Lerp(RadiusAt(x0, y0), RadiusAt(x1, y0), fx);
-            var bottom = float.Lerp(RadiusAt(x0, y1), RadiusAt(x1, y1), fx);
-            radius = float.Lerp(top, bottom, fy);
-            return true;
+            return mask.Rasterize(minLon, maxLon, minLat, maxLat, Resolution, Resolution);
         }
 
         public override ManaMaterial GenerateMaterial()
@@ -211,6 +220,17 @@ namespace ManaGeoTools.Code.Planet
             material.Albedo.Value = DefaultVertexColor;
             material.EnsureShaderMetadataDefaults();
             return material;
+        }
+
+        // -1 means "not water", which is what PlanetColors expects for the land ramp.
+        private static float WaterDepthAt(GeoWaterLookup? lookup, float longitude, float latitude)
+        {
+            if (lookup == null || !lookup.IsWater(longitude, latitude))
+            {
+                return -1f;
+            }
+
+            return lookup.GetWaterDepth01(longitude, latitude);
         }
 
         protected override void GenerateData()
@@ -239,6 +259,10 @@ namespace ManaGeoTools.Code.Planet
             // from, only the per-vertex HeightLibrary.FindCurrentTile/GetHeightAtLatLong call is skipped.
             var precomputedHeights = _pendingPrecomputedHeights;
             _pendingPrecomputedHeights = null;
+
+            // Built before the parallel loop below so every row can read it lock-free. Null when the
+            // Natural Earth data isn't present, which falls back to elevation-only colouring.
+            var waterLookup = BuildWaterLookup();
 
             var computeSphereTime = Stopwatch.GetTimestamp();
 
@@ -273,7 +297,10 @@ namespace ManaGeoTools.Code.Planet
                     // is known, from the actual built geometry rather than the undisplaced sphere.
                     placeholderNormals[x, y] = pointOnUnitSphere;
                     texCoords[x, y] = latLong.ToUv();
-                    colors[x, y] = PlanetColors.GetBiomeColor(rawHeightMeters, latLong.Latitude);
+                    colors[x, y] = PlanetColors.GetBiomeColor(
+                        rawHeightMeters,
+                        latLong.Latitude,
+                        WaterDepthAt(waterLookup, latLong.Longitude, latLong.Latitude));
                 }
             });
 

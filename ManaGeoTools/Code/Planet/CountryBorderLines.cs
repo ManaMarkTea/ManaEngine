@@ -1,5 +1,6 @@
 using Mana.Code;
 using Mana.Code.Shapes;
+using ManaCore.Graphics;
 
 namespace ManaGeoTools.Code.Planet
 {
@@ -70,7 +71,14 @@ namespace ManaGeoTools.Code.Planet
                 lineLatLongs.Add(latLongs);
             }
 
-            var mesh = new ManaLineMesh(context, lines, thickness, color, emissionStrength, ManaLineProfile.Ribbon);
+            // ScreenRibbon leaves the widening to draped_line.wgsl, which only exists on the WebGPU
+            // path -- under OpenGL those centerline-only vertices would render as a zero-width, and so
+            // invisible, ribbon. Fall back to the CPU-expanded profile there.
+            var profile = context.GraphicsBackend == ManaGraphicsBackendKind.WebGpu
+                ? ManaLineProfile.ScreenRibbon
+                : ManaLineProfile.Ribbon;
+
+            var mesh = new ManaLineMesh(context, lines, thickness, color, emissionStrength, profile);
             return new BuildResult(mesh, linePoints.ToArray(), lineLatLongs);
         }
 

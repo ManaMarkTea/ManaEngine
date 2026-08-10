@@ -18,6 +18,12 @@ namespace ManaGeoTools.Code.Region
     {
         private const int TileSize = TerrariumHeightTile.TileSize;
 
+        // Tile count used to be bounded by construction (zoom slid down as the box grew) so everything
+        // could be fetched at once. Zoom is the caller's choice now and count scales with area, so this
+        // needs the same bound PlanetNode's up-res has (PlanetNode.UpresFetchThrottle).
+        private const int MaxConcurrentFetches = 24;
+        private static readonly SemaphoreSlim FetchThrottle = new(MaxConcurrentFetches);
+
         private readonly int _zoom;
         private readonly int _tileXMin;
         private readonly int _tileYMin;
@@ -49,6 +55,9 @@ namespace ManaGeoTools.Code.Region
         /// a region is small enough that a missing tile would be a visible hole or cliff right in the
         /// middle of it, so failing the whole load (and telling the user) beats silently filling gaps
         /// with a made-up elevation.
+        ///
+        /// Throws over RegionExtents.MaxTilesPerRegion -- louder than the null return, because unlike a
+        /// missing tile this is something the caller can ask for differently.
         /// </summary>
         public static async Task<RegionHeightField?> FetchAsync(
             float lonMin,
@@ -64,6 +73,13 @@ namespace ManaGeoTools.Code.Region
                 return null;
             }
 
+            if (tiles.Count > RegionExtents.MaxTilesPerRegion)
+            {
+                throw new InvalidOperationException(
+                    $"This region needs {tiles.Count} source tiles at z{zoom}, over the {RegionExtents.MaxTilesPerRegion} tile limit. " +
+                    "Pick a smaller box -- cost grows with area, and with latitude.");
+            }
+
             var tileXMin = tiles.Min(tile => tile.X);
             var tileXMax = tiles.Max(tile => tile.X);
             var tileYMin = tiles.Min(tile => tile.Y);
@@ -71,10 +87,18 @@ namespace ManaGeoTools.Code.Region
             var tilesWide = tileXMax - tileXMin + 1;
             var tilesHigh = tileYMax - tileYMin + 1;
 
-            // A region's tile count is bounded by construction (RegionExtents ties zoom to extent so the
-            // box is only ever a handful of tiles across), so all of them can be in flight at once
-            // without the concurrency throttle PlanetNode's unbounded up-res streaming needs.
-            var fetched = await Task.WhenAll(tiles.Select(tile => TerrariumTileFetcher.FetchTileAsync(zoom, tile.X, tile.Y)));
+            var fetched = await Task.WhenAll(tiles.Select(async tile =>
+            {
+                await FetchThrottle.WaitAsync();
+                try
+                {
+                    return await TerrariumTileFetcher.FetchTileAsync(zoom, tile.X, tile.Y);
+                }
+                finally
+                {
+                    FetchThrottle.Release();
+                }
+            }));
 
             var width = tilesWide * TileSize;
             var samples = new float[width * tilesHigh * TileSize];

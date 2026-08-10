@@ -4,8 +4,19 @@ using ManaVoxel.Code.Tools;
 
 namespace ManaVoxel.Code.UI
 {
-    /// <summary>A queued "load this place as a true-scale cartesian region" request -- see RegionNode.</summary>
-    public sealed record RegionLoadRequest(string PlaceName, float Longitude, float Latitude, float HalfExtentMeters);
+    /// <summary>
+    /// A queued "load this place as a true-scale cartesian region" request -- see RegionNode.
+    /// HexRadiusMeters/StepStrength are only the tiling's STARTING style; both stay adjustable on the
+    /// loaded region from the Inspector.
+    /// </summary>
+    public sealed record RegionLoadRequest(
+        string PlaceName,
+        float Longitude,
+        float Latitude,
+        float HalfExtentMeters,
+        int Zoom,
+        float HexRadiusMeters,
+        float StepStrength);
 
     public class VoxelEditorViewModel : IVoxelEditorCommands
     {

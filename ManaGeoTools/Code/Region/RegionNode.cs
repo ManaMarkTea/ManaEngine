@@ -42,8 +42,15 @@ namespace ManaGeoTools.Code.Region
         public float HalfExtentMeters { get; }
         public int Zoom { get; }
 
-        /// <summary>Vertex grid size per side. Only final once State is Ready -- it's derived from the fetched source data unless the constructor was given an explicit override.</summary>
+        /// <summary>Source sample grid size per side. Only final once State is Ready -- it's derived from the fetched source data unless the constructor was given an explicit override.</summary>
         public int Resolution { get; private set; }
+
+        /// <summary>Terrain tiling style (see RegionTerrainMesh). Null radius derives it from the source sample spacing.</summary>
+        public float? HexRadiusMeters { get; }
+        public float StepStrength { get; }
+
+        /// <summary>The built terrain, once Ready -- exposed so a style edit can rebuild it without re-fetching.</summary>
+        public RegionTerrainMesh? TerrainMesh { get; private set; }
 
         public RegionLoadState State { get; private set; } = RegionLoadState.Loading;
         public string? ErrorMessage { get; private set; }
@@ -62,14 +69,19 @@ namespace ManaGeoTools.Code.Region
             string placeName,
             LatLong center,
             float halfExtentMeters,
-            int? resolution = null)
+            int? zoom = null,
+            int? resolution = null,
+            float? hexRadiusMeters = null,
+            float stepStrength = 1.0f)
             : base(context, Matrix4x4.Identity)
         {
             PlaceName = placeName;
             Center = center;
             HalfExtentMeters = Math.Clamp(halfExtentMeters, RegionExtents.MinHalfExtentMeters, RegionExtents.MaxHalfExtentMeters);
-            Zoom = RegionExtents.ZoomForHalfExtent(HalfExtentMeters);
+            Zoom = RegionExtents.ClampZoom(zoom);
             _resolutionOverride = resolution;
+            HexRadiusMeters = hexRadiusMeters;
+            StepStrength = Math.Clamp(stepStrength, 0f, 1f);
 
             // A provisional value so the property is never nonsense while the build is in flight; the
             // real one is derived from the fetched data in BuildAsync.
@@ -95,8 +107,8 @@ namespace ManaGeoTools.Code.Region
 
             MetersPerSample = heightField.MetersPerSample;
 
-            // One mesh vertex per source sample: below that the fetched detail is thrown away, above it
-            // the extra vertices only interpolate data that isn't there. Clamped, and overridable.
+            // One row per source sample. No longer the mesh's density -- the hex lattice sets that -- but
+            // still what the water raster is sized from. Clamped, and overridable.
             var samplesAcross = (2.0 * HalfExtentMeters) / Math.Max(heightField.MetersPerSample, 0.001);
             Resolution = _resolutionOverride
                 ?? Math.Clamp((int)Math.Round(samplesAcross) + 1, MinResolution, MaxResolution);
@@ -109,7 +121,17 @@ namespace ManaGeoTools.Code.Region
             // Mesh construction off the main thread is fine -- ManaMesh.SetCpuData is documented
             // thread-safe, and this touches nothing else (see PlanetPatchMesh.ApplyHeightData). Only the
             // AddChild in ProcessPendingLoad has to wait for the main thread.
-            return new RegionTerrainMesh(Context, Center, HalfExtentMeters, Resolution, heightField, groundElevation);
+            return new RegionTerrainMesh(
+                Context,
+                Center,
+                HalfExtentMeters,
+                Resolution,
+                heightField,
+                groundElevation,
+                // Resolved here: the mesh's own fallback can only guess from Resolution, which is clamped
+                // and so understates the real detail on a large box at a high zoom.
+                HexRadiusMeters ?? (float)(heightField.MetersPerSample * RegionTerrainMesh.DefaultHexRadiusInSamples),
+                StepStrength);
         }
 
         /// <summary>
@@ -144,6 +166,7 @@ namespace ManaGeoTools.Code.Region
                 return;
             }
 
+            TerrainMesh = mesh;
             var meshNode = new ManaMeshSceneNode(Context, mesh) { Name = "Region Terrain" };
             meshNode.MeshRenderer.Name = $"Region Terrain z{Zoom}";
             AddChild(meshNode);
@@ -178,9 +201,16 @@ namespace ManaGeoTools.Code.Region
             {
                 RegionLoadState.Loading => $"Loading {DescribeSize()} at z{Zoom}...",
                 RegionLoadState.Ready =>
-                    $"{DescribeSize()} at z{Zoom} ({MetersPerSample:0.#} m/sample, {Resolution}x{Resolution} verts), ground {GroundElevationMeters:0} m, built in {LoadSeconds:0.0}s",
+                    $"{DescribeSize()} at z{Zoom} ({MetersPerSample:0.#} m/sample, {DescribeTiling()}), ground {GroundElevationMeters:0} m, built in {LoadSeconds:0.0}s",
                 _ => ErrorMessage ?? "Region failed to load."
             };
+        }
+
+        private string DescribeTiling()
+        {
+            return TerrainMesh == null
+                ? $"{Resolution}x{Resolution} samples"
+                : $"{TerrainMesh.HexCellCount:N0} hexes at {TerrainMesh.EffectiveHexRadiusMeters:0.#} m";
         }
 
         private string DescribeSize()
