@@ -411,9 +411,8 @@ namespace Mana.Code.GameModes
                     ImGui.SeparatorText("Region Hex Tiling");
                     ImGui.TextDisabled($"{terrain.HexCellCount:N0} hexes at {terrain.EffectiveHexRadiusMeters:0.#} m");
 
-                    // Both of these re-tessellate the whole region, which is far too slow to run on every
-                    // frame of a drag -- so the value is written live (the widget has to track the cursor)
-                    // but the rebuild waits until the mouse comes off the control.
+                    // Both re-tessellate the whole region, too slow for every frame of a drag -- so the
+                    // value is written live but the rebuild waits for the mouse to come off the control.
                     var rebuild = false;
                     var hexRadius = terrain.HexRadiusMeters;
                     if (ImGui.DragFloat("Hex Radius (m)", ref hexRadius, 0.5f, 0.5f, 2000.0f))
@@ -432,9 +431,8 @@ namespace Mana.Code.GameModes
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip(
-                            "1 = every hex is a flat plateau with vertical walls between it and its\n" +
-                            "neighbours. 0 = the hex corners settle onto the shared surface, leaving a\n" +
-                            "continuous terrain that is merely hex-faceted.");
+                            "1 = flat plateaus with vertical walls between them, 0 = a continuous surface\n" +
+                            "that is merely hex-faceted.");
                     }
 
                     if (rebuild)
@@ -910,6 +908,7 @@ namespace Mana.Code.GameModes
                         request.PlaceName,
                         new LatLong(request.Longitude, request.Latitude),
                         request.HalfExtentMeters,
+                        zoom: request.Zoom,
                         resolution: null,
                         hexRadiusMeters: request.HexRadiusMeters,
                         stepStrength: request.StepStrength);

@@ -16,12 +16,9 @@ namespace ManaGeoTools.Code.Region
     /// Y up (east x up == south), and it puts north at -Z, i.e. straight ahead of a default-oriented
     /// camera looking down -Z.
     ///
-    /// The surface is a HEXAGONAL tiling rather than a quad grid (see RegionHexGrid), and each hex is a
-    /// plateau at its own sampled elevation joined to its neighbours by a rim of wall quads -- a boardgame
-    /// / Civ read rather than a smooth heightfield. StepStrength dials continuously between the two: at 1
-    /// every hex is dead flat and the walls carry the whole elevation change, at 0 the hex corners settle
-    /// onto the shared average and the surface becomes continuous again, merely hex-FACETED. Nothing about
-    /// the underlying data changes with it, only how the same samples are drawn.
+    /// The surface is a hexagonal tiling rather than a quad grid (see RegionHexGrid): each hex is a plateau
+    /// at its own sampled elevation, joined to its neighbours by a rim of wall quads. StepStrength dials
+    /// between that and a continuous, merely hex-faceted surface -- a drawing choice, not a data one.
     ///
     /// Elevation is stored relative to GroundElevationMeters (the real elevation at the region's exact
     /// center) rather than absolute, so the node's own origin sits on the ground instead of the mesh
@@ -30,23 +27,14 @@ namespace ManaGeoTools.Code.Region
     /// </summary>
     public sealed class RegionTerrainMesh : ManaProceduralMesh
     {
-        /// <summary>
-        /// Hex radius as a multiple of the source sample spacing, when the caller doesn't name one. At 1.0
-        /// a hex covers about 2.6 source samples, which is small enough that nothing in the elevation data
-        /// is smoothed away but large enough that the tiling reads as hexagons from a normal viewing
-        /// distance rather than as noise.
-        /// </summary>
+        /// <summary>Default hex radius in source sample spacings -- 1.0 covers ~2.6 samples, fine enough to lose nothing.</summary>
         public const float DefaultHexRadiusInSamples = 1.0f;
 
-        /// <summary>
-        /// Ceiling on hex count, applied by growing the hexes rather than by cropping the region. A hex
-        /// costs roughly 13 vertices and 18 triangles against a quad grid cell's 1 and 2, so an
-        /// unconstrained small radius over the largest allowed 64km box would run to millions of both.
-        /// </summary>
+        // Ceiling on hex count, applied by growing the hexes rather than cropping the region: a hex costs
+        // ~13 verts and 18 tris against a quad cell's 1 and 2, so a small radius on a big box runs away.
         public const int MaxHexCells = 120_000;
 
-        // Below this the walls are shorter than the noise in the source data, so they cost geometry
-        // without being visible -- the surface is just hex-faceted at that point, and is built as bare
+        // Below this the walls are shorter than the noise in the source data, so they're built as bare
         // top faces with no rim at all.
         private const float MinStepStrengthForWalls = 0.01f;
 
@@ -60,16 +48,13 @@ namespace ManaGeoTools.Code.Region
         /// <summary>Center-to-corner size of one hex, in meters. Call RebuildGeometry after changing it.</summary>
         public float HexRadiusMeters { get; set; }
 
-        /// <summary>
-        /// 0 == continuous hex-faceted surface, 1 == fully stepped plateaus with vertical walls between
-        /// them. Call RebuildGeometry after changing it.
-        /// </summary>
+        /// <summary>0 == continuous hex-faceted surface, 1 == stepped plateaus with walls. Call RebuildGeometry after changing it.</summary>
         public float StepStrength { get; set; } = 1.0f;
 
-        /// <summary>How many hexes the last build actually emitted -- what the UI reports in place of a vertex count.</summary>
+        /// <summary>Hexes the last build emitted.</summary>
         public int HexCellCount { get; private set; }
 
-        /// <summary>The hex radius the last build actually used, which is larger than HexRadiusMeters when MaxHexCells bit.</summary>
+        /// <summary>Radius the last build used -- larger than HexRadiusMeters when MaxHexCells bit.</summary>
         public float EffectiveHexRadiusMeters { get; private set; }
 
         private readonly RegionHeightField _heightField;
@@ -90,6 +75,8 @@ namespace ManaGeoTools.Code.Region
             Resolution = Math.Max(2, resolution);
             GroundElevationMeters = groundElevationMeters;
             _heightField = heightField;
+            // Infers sample spacing from Resolution, which is only right when Resolution wasn't clamped --
+            // RegionNode passes the height field's real MetersPerSample instead.
             HexRadiusMeters = hexRadiusMeters ?? (DefaultHexRadiusInSamples * (2f * halfExtentMeters) / (Resolution - 1));
             StepStrength = Math.Clamp(stepStrength, 0f, 1f);
             DefaultVertexColor = Colors.White;
@@ -104,8 +91,7 @@ namespace ManaGeoTools.Code.Region
             // Inspector would show no PBR channels at all.
             var material = new ManaMaterial(Context) { Name = "Region Terrain Material" };
             material.Shader = new ManaPbrShader(Context);
-            // Faceted by default -- with a hex tiling this is what makes each plateau read as one solid
-            // tile instead of being smeared across its neighbours. Toggleable per-material in the Inspector.
+            // Faceted so each plateau reads as one solid tile. Toggleable in the Inspector.
             material.FlatShaded = true;
             material.Albedo.Value = DefaultVertexColor;
             material.EnsureShaderMetadataDefaults();
@@ -139,18 +125,15 @@ namespace ManaGeoTools.Code.Region
             return lookup.GetWaterDepth01(longitude, latitude);
         }
 
-        /// <summary>Running total for one hex corner, so its shared height is the mean of every hex touching it.</summary>
+        /// <summary>Running total for one corner, so its shared height is the mean of the hexes touching it.</summary>
         private struct CornerHeight
         {
             public float Sum;
             public int Count;
         }
 
-        /// <summary>
-        /// Grows the requested radius until the lattice fits inside MaxHexCells. Cell count scales as
-        /// 1/radius^2, so the ratio of the two counts gives the needed factor in one step rather than by
-        /// iterating.
-        /// </summary>
+        // Grows the radius until the lattice fits MaxHexCells. Count scales as 1/radius^2, so the ratio of
+        // the two counts gives the factor in one step rather than by iterating.
         private float ResolveHexRadius()
         {
             var requested = MathF.Max(HexRadiusMeters, 0.05f);
@@ -178,20 +161,17 @@ namespace ManaGeoTools.Code.Region
             var longitudeSpan = HalfExtentMeters / metersPerDegreeLongitude;
             var latitudeSpan = HalfExtentMeters / RegionExtents.MetersPerDegreeLatitude;
 
-            // Rasterized on the source grid's resolution rather than the hex lattice's, so a shoreline
-            // lands where the polygon puts it regardless of how the terrain is currently tiled. Null when
-            // the Natural Earth data isn't present -- colouring then falls back to elevation alone.
+            // Rasterized on the source resolution, not the hex lattice's, so shorelines don't move when the
+            // tiling is re-dialled. Null without the Natural Earth data -- colouring falls back to elevation.
             var waterLookup = GeoWaterMask.Shared?.Rasterize(
                 Center.Longitude - longitudeSpan, Center.Longitude + longitudeSpan,
                 Center.Latitude - latitudeSpan, Center.Latitude + latitudeSpan,
                 Resolution, Resolution);
 
-            // Sampled up front, as its own pass, for two reasons: per-hex normals below are a central
-            // difference over neighbouring cells, and every corner height is an average over the hexes
-            // that meet there. Neither is knowable while the first hex is still being built.
-            // Two height arrays, deliberately: `elevations` is true elevation above sea level (what the
-            // biome ramp and the reported min/max want), while `surfaceY` is the local vertical coordinate
-            // after the datum and Earth's curvature are taken out.
+            // Its own pass because normals need neighbouring cells and corner heights need every hex that
+            // meets there -- neither is knowable while the first hex is being built. Two height arrays:
+            // `elevations` is above sea level (what the biome ramp wants), `surfaceY` is local vertical
+            // with the datum and curvature taken out.
             var included = new bool[grid.Columns, grid.Rows];
             var elevations = new float[grid.Columns, grid.Rows];
             var surfaceY = new float[grid.Columns, grid.Rows];
@@ -209,9 +189,8 @@ namespace ManaGeoTools.Code.Region
                 {
                     var east = grid.CellEast(column, row);
 
-                    // The lattice deliberately over-covers the square (see RegionHexGrid), so the hexes
-                    // whose centers land outside it are dropped here. That leaves a jagged hexagonal
-                    // border rather than a clean edge, which suits the tiling.
+                    // The lattice over-covers the square, so cells centered outside it are dropped -- which
+                    // leaves a jagged hexagonal border rather than a clean edge.
                     if (MathF.Abs(east) > HalfExtentMeters || MathF.Abs(south) > HalfExtentMeters)
                     {
                         continue;
@@ -238,11 +217,9 @@ namespace ManaGeoTools.Code.Region
             MinElevationMeters = cellCount > 0 ? minElevation : 0f;
             MaxElevationMeters = cellCount > 0 ? maxElevation : 0f;
 
-            // Every hex contributes its own plateau height to each of its six corners; the mean is the
-            // height that corner would have on a continuous surface. It is what StepStrength interpolates
-            // AWAY from, and -- because all three hexes at a corner agree on it exactly -- it is also what
-            // keeps the walls watertight: each hex's rim drops to this shared value, so neighbouring rims
-            // meet edge to edge no matter how different their plateaus are.
+            // The mean plateau height at each corner: what that corner would sit at on a continuous
+            // surface, so it's what StepStrength interpolates away from. Also what keeps the walls
+            // watertight -- all three hexes at a corner agree on it, so their rims meet edge to edge.
             var cornerHeights = new Dictionary<long, CornerHeight>(cellCount * 2);
             for (var row = 0; row < grid.Rows; row++)
             {
@@ -314,10 +291,9 @@ namespace ManaGeoTools.Code.Region
                             continue;
                         }
 
-                        // Walls point outward from the hex center, so that with flat shading off they
-                        // still read as sides rather than as more of the plateau. The rim bottom sits at
-                        // the shared height even when that is ABOVE the plateau (a hex in a hollow), which
-                        // simply turns the wall inside out and is still watertight.
+                        // Outward normals so walls read as sides with flat shading off. The rim bottom sits
+                        // at the shared height even when that's above the plateau (a hex in a hollow),
+                        // which just turns the wall inside out -- still watertight.
                         var outward = Vector3.Normalize(new Vector3(cornerEast - east, 0f, cornerSouth - south));
                         var bottom = DynamicGeometryContainer.AddPoint(new Vector3(cornerEast, sharedHeight, cornerSouth), outward);
                         bottom.Color = color;
@@ -351,10 +327,8 @@ namespace ManaGeoTools.Code.Region
                 maxSurfaceY = 0f;
             }
 
-            // Horizontal bounds allow for the corner overhang: a hex kept because its CENTER is inside the
-            // box still reaches a radius past it. Vertical bounds come from surfaceY rather than raw
-            // elevation, because the curvature drop pulls the far corners down by as much as 80m at the
-            // largest allowed region, which the raw range wouldn't account for.
+            // Horizontal bounds allow for the corner overhang past a kept cell's center. Vertical bounds
+            // use surfaceY, not raw elevation -- the curvature drop is up to 80m at the largest region.
             var horizontalExtent = HalfExtentMeters + grid.Radius;
             MinSize = new Vector3(-horizontalExtent, minSurfaceY, -horizontalExtent);
             MaxSize = new Vector3(horizontalExtent, maxSurfaceY, horizontalExtent);
@@ -366,14 +340,10 @@ namespace ManaGeoTools.Code.Region
         }
 
         /// <summary>
-        /// The normal for one hex's top face. At full step strength a plateau is exactly level, so this
-        /// lerps from the local surface gradient to straight up alongside the geometry itself -- otherwise
-        /// flat tiles would be shaded as though they were still sloped.
-        ///
-        /// The gradient is a central difference over neighbouring CELLS: east is the adjacent column
-        /// (Width apart), south is two rows away, which is the nearest cell sharing this one's column
-        /// alignment (3 * Radius apart). Same (-df/dx, 1, -df/dz) form the quad grid used, just on the
-        /// hex lattice's spacings.
+        /// Top-face normal, lerped from the local gradient to straight up alongside the geometry -- a flat
+        /// plateau would otherwise be shaded as though still sloped. The gradient is a central difference
+        /// over neighbouring cells: east is the adjacent column (Width apart), south is two rows away
+        /// (3 * Radius), which is the nearest cell sharing this one's column alignment.
         /// </summary>
         private static Vector3 CellNormal(
             RegionHexGrid grid,
@@ -396,8 +366,8 @@ namespace ManaGeoTools.Code.Region
             return Vector3.Normalize(Vector3.Lerp(surfaceNormal, Vector3.UnitY, step));
         }
 
-        // Falls back to the cell's own height at the lattice edge, which flattens the gradient there
-        // rather than reading a dropped cell's uninitialised zero as a cliff.
+        // Falls back to the cell's own height at the lattice edge, rather than reading a dropped cell's
+        // uninitialised zero as a cliff.
         private static float SampleCell(bool[,] included, float[,] surfaceY, int column, int row, int fallbackColumn, int fallbackRow)
         {
             if (column < 0 || row < 0 || column >= included.GetLength(0) || row >= included.GetLength(1) || !included[column, row])

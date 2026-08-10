@@ -59,6 +59,13 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
             return 0;
         }
 
+        /// <summary>How many tiles EnumerateTiles would yield, without enumerating them. Long, because the point of asking is that it might be huge.</summary>
+        public static long CountTiles(float lonMin, float lonMax, float latMin, float latMax, int zoom)
+        {
+            var (xMin, xMax, yMin, yMax) = TileIndexRange(lonMin, lonMax, latMin, latMax, zoom);
+            return (long)(xMax - xMin + 1) * (yMax - yMin + 1);
+        }
+
         public static IEnumerable<(int X, int Y)> EnumerateTiles(float lonMin, float lonMax, float latMin, float latMax, int zoom)
         {
             var (xMin, xMax, yMin, yMax) = TileIndexRange(lonMin, lonMax, latMin, latMax, zoom);

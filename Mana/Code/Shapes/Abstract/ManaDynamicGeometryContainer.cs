@@ -332,9 +332,8 @@ namespace Mana.Code
             return outputQuads.ToArray();
         }
 
-        // The triangle counterpart to CreateFacesFromQuad, for meshes whose cells aren't quads (e.g.
-        // RegionTerrainMesh's hex fans). CreateFacesFromPoints can do this, but only via a List
-        // allocated per triangle, which is a lot of garbage on a mesh built one triangle at a time.
+        // Triangle counterpart to CreateFacesFromQuad, for meshes whose cells aren't quads (RegionTerrainMesh's
+        // hex fans). CreateFacesFromPoints can do this, but only via a List allocated per triangle.
         public void CreateFacesFromTriangle(ManaGeometryVertex a, ManaGeometryVertex b, ManaGeometryVertex c)
         {
             ManaGeometryFace face = new ManaGeometryFace();

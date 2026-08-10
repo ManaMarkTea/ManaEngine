@@ -1,27 +1,20 @@
 namespace ManaGeoTools.Code.Region
 {
     /// <summary>
-    /// A pointy-top hexagonal lattice covering a region's square footprint, expressed in the region's
-    /// local east/south meters (see RegionTerrainMesh for the axis convention).
+    /// A pointy-top hexagonal lattice over a region's square footprint, in local east/south meters (see
+    /// RegionTerrainMesh for the axis convention). Rows run east-west with odd rows shifted half a hex,
+    /// which is the whole difference between a row/column pair and a honeycomb.
     ///
-    /// Rows run east-west at 1.5 * Radius apart and odd rows are shifted half a hex east -- that stagger
-    /// is the whole difference between a plain row/column pair and a honeycomb. Everything else here is
-    /// derived from Radius alone, so hex size stays a single knob.
-    ///
-    /// Corners are ALSO addressable as exact integers (see CornerKey). Three hexes meet at every interior
-    /// corner and the mesh has to find those three to average their heights; doing that by quantizing a
-    /// float position would be fragile, so the lattice is defined on an integer grid from the start --
-    /// measuring east in units of Width/2 and south in units of Radius/2 puts every center and every
-    /// corner on a whole number.
+    /// Corners are addressable as exact integers (see CornerKey), measuring east in units of Width/2 and
+    /// south in units of Radius/2 -- the mesh has to find the three hexes meeting at each corner, and
+    /// quantizing float positions to do it would be fragile.
     /// </summary>
     public readonly struct RegionHexGrid
     {
         public const int CornersPerHex = 6;
 
-        // Corner k sits at angle (30 + 60k) degrees in the (east, south) plane, listed in increasing
-        // angle so that a fan of (center, corner k, corner k+1) triangles winds the same way as the quad
-        // grid this replaced. cos/sin of those angles are exactly +-1 and +-1/2 in the units above, which
-        // is why these are integer tables rather than trig.
+        // Corner k at angle (30 + 60k) degrees in the (east, south) plane, in increasing angle so a fan of
+        // (center, k, k+1) winds like the quad grid this replaced. Integer in the units above, not trig.
         private static readonly int[] CornerEastUnits = { 1, 0, -1, -1, 0, 1 };
         private static readonly int[] CornerSouthUnits = { 1, 2, 1, -1, -2, -1 };
 
@@ -46,14 +39,12 @@ namespace ManaGeoTools.Code.Region
             Width = MathF.Sqrt(3f) * Radius;
             RowSpacing = 1.5f * Radius;
 
-            // Deliberately over-covers by a row and column on each side: the caller then drops the cells
-            // whose centers fall outside the box, and without the slack the outermost surviving centers
-            // would sit well short of the edge and leave a bald strip all the way round.
+            // Over-covers by a row and column each side; the caller drops cells whose centers fall outside
+            // the box, and without the slack the survivors would leave a bald strip round the edge.
             Columns = (int)MathF.Ceiling((2f * halfExtentMeters) / Width) + 2;
             Rows = (int)MathF.Ceiling((2f * halfExtentMeters) / RowSpacing) + 2;
 
-            // The odd-row stagger leaves the two row parities centered a quarter width apart, so the
-            // lattice as a whole is centered by splitting that difference.
+            // The stagger leaves the two row parities centered a quarter width apart -- split the difference.
             _eastOrigin = -((Columns - 1) * Width * 0.5f) - (Width * 0.25f);
             _southOrigin = -((Rows - 1) * RowSpacing * 0.5f);
         }
@@ -78,10 +69,7 @@ namespace ManaGeoTools.Code.Region
             return CellSouth(row) + (CornerSouthUnits[corner] * Radius * 0.5f);
         }
 
-        /// <summary>
-        /// The integer identity of one hex corner -- the same value for all three hexes that meet there,
-        /// which is what lets the mesh average their heights into a single shared corner height.
-        /// </summary>
+        /// <summary>Integer identity of one corner -- the same value for all three hexes meeting there.</summary>
         public static long CornerKey(int column, int row, int corner)
         {
             var east = (2 * column) + (row & 1) + CornerEastUnits[corner];

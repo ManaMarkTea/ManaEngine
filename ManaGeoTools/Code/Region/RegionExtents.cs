@@ -6,35 +6,34 @@ namespace ManaGeoTools.Code.Region
     /// <summary>
     /// The size/detail rule for a RegionNode, plus the local tangent-plane math its mesh is built on.
     ///
-    /// A region is always a square box of (2 * HalfExtentMeters) on a side centered on a lat/long, built
-    /// at 1 scene unit == 1 real meter. Source detail is tied to size rather than chosen independently:
-    /// 500m half-extent is served by zoom 13, and every doubling of the half-extent drops one zoom level
-    /// (1km -> z12, 2km -> z11, ...). That keeps the SAMPLE COUNT across the box roughly constant no
-    /// matter how large an area is asked for, so tile count, fetch time and vertex budget all stay flat
-    /// -- a bigger region trades resolution for coverage instead of getting proportionally more
-    /// expensive. Zoom 13 is also exactly where PlanetNode's own up-res streaming tops out
-    /// (PlanetNode.UpresMaxZoom), so a 500m region over a place the planet has already flown to is
-    /// usually served entirely from TerrariumTileFetcher's on-disk cache with no network round trip.
+    /// A region is a square box of (2 * HalfExtentMeters) on a side centered on a lat/long, built at
+    /// 1 scene unit == 1 real meter. Size and source zoom are independent choices, both the caller's.
+    ///
+    /// Zoom used to be derived from size (one level down per doubling of the box) to hold tile count
+    /// constant. Dropped: fetching is fast enough that silently trading resolution for tiles was a bad
+    /// deal. Cost now scales with area and with zoom, four-fold per step of either.
     /// </summary>
     public static class RegionExtents
     {
-        public const float BaseHalfExtentMeters = 2000;
-        public const int BaseZoom = 13;
+        // Finest zoom Terrarium serves everywhere, and where PlanetNode's up-res tops out
+        // (PlanetNode.UpresMaxZoom) -- so a region the planet has already flown to is usually all cached.
+        public const int DefaultZoom = 13;
 
-        // Upper bound is the Terrarium dataset's own maximum zoom, not a budget choice.
-        //
-        // The lower bound caps how large a region may be, and 9 (a 64km box at the base extent above) is
-        // where the local-tangent-plane model stops being trustworthy rather than where performance gives
-        // out. RegionTerrainMesh does correct for the sphere's vertical drop, which is what would
-        // otherwise dominate -- 80m at the corners of a 64km box -- but it still treats the east and
-        // north axes as parallel everywhere, and meridian convergence grows with the box. 64km comfortably
-        // spans a large lake or a mountain range, which is what regions are for; wanting more than that is
-        // really wanting the planet.
-        public const int MinZoom = 9;
+        // Below z8 one tile is wider than the largest region, so going lower changes nothing. 14/15 are
+        // offered but only published in places -- a gap surfaces as a failed load naming the zoom.
+        public const int MinZoom = 8;
         public const int MaxZoom = 15;
 
-        public static float MinHalfExtentMeters => HalfExtentForZoom(MaxZoom);
-        public static float MaxHalfExtentMeters => HalfExtentForZoom(MinZoom);
+        public const float MinHalfExtentMeters = 500f;
+
+        // 64km across is where the local-tangent-plane model stops being trustworthy: the mesh corrects
+        // the sphere's vertical drop, but still treats east/north as parallel everywhere.
+        public const float MaxHalfExtentMeters = 32000f;
+
+        // Memory budget, enforced by RegionHeightField: the stitched grid is 256KB per tile, so ~134MB at
+        // the limit. Tile count grows with area, with zoom, and with latitude (a tile covers cos(lat) of
+        // its equatorial ground), so the largest box at the highest zoom is not loadable everywhere.
+        public const int MaxTilesPerRegion = 512;
 
         /// <summary>
         /// Ground distance between adjacent source samples for a Terrarium tile at this zoom and latitude
@@ -65,15 +64,16 @@ namespace ManaGeoTools.Code.Region
             return MetersPerDegreeLatitude * MathF.Max(cosLatitude, 1e-4f);
         }
 
-        public static int ZoomForHalfExtent(float halfExtentMeters)
+        public static int ClampZoom(int? zoom)
         {
-            var doublings = MathF.Log2(MathF.Max(halfExtentMeters, 1f) / BaseHalfExtentMeters);
-            return Math.Clamp(BaseZoom - (int)MathF.Round(doublings), MinZoom, MaxZoom);
+            return Math.Clamp(zoom ?? DefaultZoom, MinZoom, MaxZoom);
         }
 
-        public static float HalfExtentForZoom(int zoom)
+        /// <summary>Exact tile count (the index range, not an area estimate) so the UI can price a region before requesting it.</summary>
+        public static long EstimateTileCount(LatLong center, float halfExtentMeters, int zoom)
         {
-            return BaseHalfExtentMeters * MathF.Pow(2f, BaseZoom - Math.Clamp(zoom, MinZoom, MaxZoom));
+            var (lonMin, lonMax, latMin, latMax) = ComputeBounds(center, halfExtentMeters);
+            return SlippyMapMath.CountTiles(lonMin, lonMax, latMin, latMax, zoom);
         }
 
         /// <summary>The lon/lat bounding box of a region, from its center and half-extent.</summary>

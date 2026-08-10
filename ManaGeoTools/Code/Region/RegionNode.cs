@@ -45,14 +45,11 @@ namespace ManaGeoTools.Code.Region
         /// <summary>Source sample grid size per side. Only final once State is Ready -- it's derived from the fetched source data unless the constructor was given an explicit override.</summary>
         public int Resolution { get; private set; }
 
-        /// <summary>
-        /// Hex size and plateau-vs-continuous blend for the terrain tiling (see RegionTerrainMesh). Null
-        /// radius means "derive it from the source sample spacing", which is what the mesh does by default.
-        /// </summary>
+        /// <summary>Terrain tiling style (see RegionTerrainMesh). Null radius derives it from the source sample spacing.</summary>
         public float? HexRadiusMeters { get; }
         public float StepStrength { get; }
 
-        /// <summary>The built terrain, once State is Ready. Exposed so a style edit can rebuild it in place rather than re-fetching the whole region.</summary>
+        /// <summary>The built terrain, once Ready -- exposed so a style edit can rebuild it without re-fetching.</summary>
         public RegionTerrainMesh? TerrainMesh { get; private set; }
 
         public RegionLoadState State { get; private set; } = RegionLoadState.Loading;
@@ -72,6 +69,7 @@ namespace ManaGeoTools.Code.Region
             string placeName,
             LatLong center,
             float halfExtentMeters,
+            int? zoom = null,
             int? resolution = null,
             float? hexRadiusMeters = null,
             float stepStrength = 1.0f)
@@ -80,7 +78,7 @@ namespace ManaGeoTools.Code.Region
             PlaceName = placeName;
             Center = center;
             HalfExtentMeters = Math.Clamp(halfExtentMeters, RegionExtents.MinHalfExtentMeters, RegionExtents.MaxHalfExtentMeters);
-            Zoom = RegionExtents.ZoomForHalfExtent(HalfExtentMeters);
+            Zoom = RegionExtents.ClampZoom(zoom);
             _resolutionOverride = resolution;
             HexRadiusMeters = hexRadiusMeters;
             StepStrength = Math.Clamp(stepStrength, 0f, 1f);
@@ -109,10 +107,8 @@ namespace ManaGeoTools.Code.Region
 
             MetersPerSample = heightField.MetersPerSample;
 
-            // One sample row per source sample: below that the fetched detail is thrown away, above it
-            // the extra rows only interpolate data that isn't there. This no longer sets the mesh's own
-            // density -- the hex lattice does that (RegionTerrainMesh.HexRadiusMeters) -- but it is still
-            // what the default hex size and the water raster are sized from. Clamped, and overridable.
+            // One row per source sample. No longer the mesh's density -- the hex lattice sets that -- but
+            // still what the water raster is sized from. Clamped, and overridable.
             var samplesAcross = (2.0 * HalfExtentMeters) / Math.Max(heightField.MetersPerSample, 0.001);
             Resolution = _resolutionOverride
                 ?? Math.Clamp((int)Math.Round(samplesAcross) + 1, MinResolution, MaxResolution);
@@ -132,7 +128,9 @@ namespace ManaGeoTools.Code.Region
                 Resolution,
                 heightField,
                 groundElevation,
-                HexRadiusMeters,
+                // Resolved here: the mesh's own fallback can only guess from Resolution, which is clamped
+                // and so understates the real detail on a large box at a high zoom.
+                HexRadiusMeters ?? (float)(heightField.MetersPerSample * RegionTerrainMesh.DefaultHexRadiusInSamples),
                 StepStrength);
         }
 
