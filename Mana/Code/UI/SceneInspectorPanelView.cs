@@ -513,6 +513,12 @@ namespace Mana.Code.UI
                     {
                         material.EmissionStrength = emissionStrength;
                     }
+
+                    var flatShaded = material.FlatShaded;
+                    if (DrawCheckboxProperty("Flat Shading", ref flatShaded))
+                    {
+                        material.FlatShaded = flatShaded;
+                    }
                 }
 
                 ImGui.EndTable();

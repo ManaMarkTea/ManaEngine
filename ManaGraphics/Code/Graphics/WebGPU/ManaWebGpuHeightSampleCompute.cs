@@ -281,7 +281,7 @@ namespace ManaGraphics.Code.Graphics
 
         private unsafe ShaderModule* CreateShaderModule(string shaderPath)
         {
-            var source = File.ReadAllText(shaderPath);
+            var source = ManaWgslPreprocessor.LoadResolved(shaderPath);
             nint sourcePointer = Marshal.StringToCoTaskMemUTF8(source);
             try
             {

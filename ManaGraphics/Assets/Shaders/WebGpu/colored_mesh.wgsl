@@ -1,16 +1,10 @@
-struct FrameUniform {
-    view_projection : mat4x4<f32>,
-};
-
-struct ObjectUniform {
-    model : mat4x4<f32>,
-};
-
 struct VertexOutput {
     @builtin(position) position : vec4<f32>,
     @location(0) color : vec4<f32>,
     @location(1) uv0 : vec2<f32>,
 }
+
+#include "include/uniforms.wgsl"
 
 @group(0)
 @binding(0)

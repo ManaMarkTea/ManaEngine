@@ -99,7 +99,7 @@ namespace ManaGraphics.Code.Graphics
                 // -1 means "no per-object override, use the frame's global debug mode" -- valid debug
                 // mode indexes are >= 0 (see ManaIrradianceSettings.WebGpuDebugMode).
                 DebugModeOverride = meshInstance.PbrDebugMode ?? -1.0f,
-                _padding0 = 0.0f,
+                FlatShading = meshInstance.FlatShaded ? 1.0f : 0.0f,
                 _padding1 = 0.0f,
                 _padding2 = 0.0f
             };
@@ -315,7 +315,7 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 OutlineColor;
             public Vector4 OutlineParameters;
             public float DebugModeOverride;
-            public float _padding0;
+            public float FlatShading;
             public float _padding1;
             public float _padding2;
         }

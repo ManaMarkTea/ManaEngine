@@ -1,22 +1,7 @@
 // Vertex-normal overlay (see Overlays/ManaWebGpuNormalLinesOverlay). Both ends of a line arrive at the
 // surface position; uv0.x is 0 on the base and 1 on the tip, so the tip extrudes along the normal by
-// vertex_normal_length. Declares the full FrameUniform prefix because that field sits past the lights.
-struct FrameUniform {
-    view_projection : mat4x4<f32>,
-    camera_position : vec4<f32>,
-    irradiance_factors : vec4<f32>,
-    light_positions : array<vec4<f32>, 4>,
-    light_colors : array<vec4<f32>, 4>,
-    time : f32,
-    webgpu_debug_mode : f32,
-    vertex_normal_length : f32,
-    _padding2 : f32,
-};
-
-struct ObjectUniform {
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
-};
+// vertex_normal_length.
+#include "include/uniforms.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;

@@ -1132,13 +1132,42 @@ namespace Mana.Code.GameModes
 
             var rings = ReadShapefileRingsFromZip(zipPath, shpEntryName);
 
-            // Thin map ribbons sitting just above the terrain radius to avoid z-fighting.
-            var mesh = CountryBorderLines.Build(Context, rings, _planet.Radius + radiusOffset, thickness, minSegmentDegrees, color, emissionStrength);
-            return new ManaMeshSceneNode(Context, mesh)
+            // Built on the bare sphere, then draped onto the terrain below -- radiusOffset becomes a
+            // hover above the sampled surface rather than above the sea-level radius.
+            var built = CountryBorderLines.BuildDrapeable(
+                Context, rings, _planet.Radius, thickness, minSegmentDegrees, color, emissionStrength);
+
+            var draped = new PlanetDrapedLines(_planet, built.Mesh, built.LinePoints, built.LineLatLongs, radiusOffset);
+            _drapedOverlays.Add(draped);
+            draped.DrapeAll();
+
+            return new ManaMeshSceneNode(Context, built.Mesh)
             {
                 Name = name,
                 IncludeInEnvironmentCapture = false,
             };
+        }
+
+        private readonly List<PlanetDrapedLines> _drapedOverlays = new();
+
+        // Main thread, after ProcessPendingSplits/Merges so this frame's geometry changes are visible.
+        private void RedrapePlanetOverlays()
+        {
+            if (_planet == null || _drapedOverlays.Count == 0)
+            {
+                return;
+            }
+
+            var changed = _planet.DrainChangedPatches();
+            if (changed.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var overlay in _drapedOverlays)
+            {
+                overlay.DrapeChanged(changed);
+            }
         }
 
         private static List<IReadOnlyList<(double Longitude, double Latitude)>> ReadShapefileRingsFromZip(string zipPath, string shpEntryName)
@@ -1304,6 +1333,7 @@ namespace Mana.Code.GameModes
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
+            RedrapePlanetOverlays();
             // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
             _region?.ProcessPendingLoad();
             PushPlanetStreamingStatusToWorldPerf();
@@ -1494,6 +1524,7 @@ namespace Mana.Code.GameModes
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
+            RedrapePlanetOverlays();
             // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
             _region?.ProcessPendingLoad();
 

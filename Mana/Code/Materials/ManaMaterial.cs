@@ -40,6 +40,9 @@ namespace Mana.Code.Materials
         public double NormalSelector = 1.0;
         public double EmissionStrength = 0.0;
 
+        /// <summary>Shade with per-triangle geometric normals instead of interpolated vertex ones.</summary>
+        public bool FlatShaded = false;
+
         public ManaMaterial(ManaContext context) : base(context)
         {
             Name = "PBR Material";
@@ -294,6 +297,7 @@ namespace Mana.Code.Materials
             copy.Normal = (ManaTextureVector4)copy.Normal.Clone();
             copy.Emission = (ManaTextureVector4)copy.Emission.Clone();
             copy.Metallic = (ManaTextureSingle)copy.Metallic.Clone();
+            copy.FlatShaded = FlatShaded;
             copy.Roughness = (ManaTextureSingle)copy.Roughness.Clone();
             copy.Ambient = (ManaTextureSingle)copy.Ambient.Clone();
             copy.ShaderUniforms = copy.ShaderUniforms.ToDictionary(

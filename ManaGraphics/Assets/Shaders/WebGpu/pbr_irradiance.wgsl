@@ -1,29 +1,3 @@
-struct FrameUniform {
-    view_projection : mat4x4<f32>,
-    camera_position : vec4<f32>,
-    irradiance_factors : vec4<f32>,
-    light_positions : array<vec4<f32>, 4>,
-    light_colors : array<vec4<f32>, 4>,
-    time : f32,
-    webgpu_debug_mode : f32,
-    vertex_normal_length : f32,
-    _padding2 : f32,
-};
-
-struct ObjectUniform {
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
-    material_albedo : vec4<f32>,
-    material_factors : vec4<f32>,
-    material_emission : vec4<f32>,
-    outline_color : vec4<f32>,
-    outline_parameters : vec4<f32>,
-    debug_mode_override : f32,
-    _padding0 : f32,
-    _padding1 : f32,
-    _padding2 : f32,
-};
-
 struct VertexOutput {
     @builtin(position) clip_position : vec4<f32>,
     @location(0) color : vec4<f32>,
@@ -31,6 +5,8 @@ struct VertexOutput {
     @location(2) world_position : vec3<f32>,
     @location(3) world_normal : vec3<f32>,
 };
+
+#include "include/uniforms.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
@@ -135,7 +111,16 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let vertex_albedo = vertex_color_linear * sampled.rgb * material_albedo_linear;
     let alpha = input.color.a * sampled.a * object.material_albedo.a;
 
-    let n = normalize(input.world_normal);
+    let smooth_n = normalize(input.world_normal);
+
+    // Flat shading from screen-space derivatives: the cross of the world-position gradients IS the
+    // triangle's geometric normal, so faceting needs no duplicated vertices. Derivatives must be taken
+    // in uniform control flow, hence computed unconditionally and selected after. The sign flip keeps it
+    // in the same hemisphere as the interpolated normal, since winding varies across procedural meshes.
+    let derivative_n = normalize(cross(dpdx(input.world_position), dpdy(input.world_position)));
+    let facet_n = select(-derivative_n, derivative_n, dot(derivative_n, smooth_n) >= 0.0);
+    let n = select(smooth_n, facet_n, object.flat_shading > 0.5);
+
     let v = normalize(frame.camera_position.xyz - input.world_position);
 
     let metallic = saturate(object.material_factors.x);

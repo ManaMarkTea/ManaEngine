@@ -229,6 +229,8 @@ namespace Mana
             var KeyboardState = Context.Input.Keyboards.First();
             bool externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
             bool imguiCapturesMouse = GetImGuiWantsCaptureMouse() || externalCapturesMouse;
+            // Without this the WASD/QE block below fires while typing into any ImGui text field.
+            bool imguiCapturesKeyboard = GetImGuiWantsCaptureKeyboard();
 
             var position = Owner.Position;
             var rotation = Owner.Rotation;
@@ -250,34 +252,37 @@ namespace Mana
                 (MouseState.IsButtonPressed(MouseButton.Middle) || MouseState.IsButtonPressed(MouseButton.Right));
             Vector2 mouseDelta = UpdateAverage(delta, cameraMouseActive, ref dxAvg, ref dyAvg);
 
-            if (KeyboardState.IsKeyPressed(Key.W))
+            if (!imguiCapturesKeyboard)
             {
-                position += forward * +delta * _MovementSpeed;
-            }
+                if (KeyboardState.IsKeyPressed(Key.W))
+                {
+                    position += forward * +delta * _MovementSpeed;
+                }
 
-            if (KeyboardState.IsKeyPressed(Key.S))
-            {
-                position += forward * -delta * _MovementSpeed;
-            }
+                if (KeyboardState.IsKeyPressed(Key.S))
+                {
+                    position += forward * -delta * _MovementSpeed;
+                }
 
-            if (KeyboardState.IsKeyPressed(Key.A))
-            {
-                position += right * -delta * _MovementSpeed;
-            }
+                if (KeyboardState.IsKeyPressed(Key.A))
+                {
+                    position += right * -delta * _MovementSpeed;
+                }
 
-            if (KeyboardState.IsKeyPressed(Key.D))
-            {
-                position += right * delta * _MovementSpeed;
-            }
+                if (KeyboardState.IsKeyPressed(Key.D))
+                {
+                    position += right * delta * _MovementSpeed;
+                }
 
-            if (KeyboardState.IsKeyPressed(Key.E))
-            {
-                position += worldUp * +delta * _MovementSpeed;
-            }
+                if (KeyboardState.IsKeyPressed(Key.E))
+                {
+                    position += worldUp * +delta * _MovementSpeed;
+                }
 
-            if (KeyboardState.IsKeyPressed(Key.Q))
-            {
-                position += worldUp * -delta * _MovementSpeed;
+                if (KeyboardState.IsKeyPressed(Key.Q))
+                {
+                    position += worldUp * -delta * _MovementSpeed;
+                }
             }
 
             if (!imguiCapturesMouse && MouseState.IsButtonPressed(MouseButton.Middle))
@@ -335,6 +340,23 @@ namespace Mana
                 }
 
                 return ImGui.GetIO().WantCaptureMouse;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool GetImGuiWantsCaptureKeyboard()
+        {
+            try
+            {
+                if (ImGui.GetCurrentContext() == IntPtr.Zero)
+                {
+                    return false;
+                }
+
+                return ImGui.GetIO().WantCaptureKeyboard;
             }
             catch
             {

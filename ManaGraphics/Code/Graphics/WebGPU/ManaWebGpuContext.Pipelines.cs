@@ -588,7 +588,7 @@ namespace ManaGraphics.Code.Graphics
         private ShaderModule* CreateShaderModule(string relativePath)
         {
             var path = ResolveAssetPath(relativePath);
-            var source = File.ReadAllText(path);
+            var source = ManaWgslPreprocessor.LoadResolved(path);
             nint sourcePointer = Marshal.StringToCoTaskMemUTF8(source);
 
             try

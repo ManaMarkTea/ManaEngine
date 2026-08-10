@@ -4,20 +4,12 @@
 // (no skipped fields). This shader previously declared its own hand-rolled field order that did NOT
 // match the C# struct's actual byte layout (time/model were at the wrong offsets) -- fixed here by
 // using real prefixes instead.
-struct FrameUniform {
-    view_projection : mat4x4<f32>,
-    camera_position : vec4<f32>,
-    irradiance_factors : vec4<f32>,
-};
-
-struct ObjectUniform {
-    model : mat4x4<f32>,
-};
-
 struct VertexOutput {
     @builtin(position) clip_position : vec4<f32>,
     @location(0) direction : vec3<f32>,
 };
+
+#include "include/uniforms.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;

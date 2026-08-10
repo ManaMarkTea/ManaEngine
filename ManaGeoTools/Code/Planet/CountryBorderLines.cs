@@ -13,7 +13,26 @@ namespace ManaGeoTools.Code.Planet
     /// </summary>
     public static class CountryBorderLines
     {
+        /// <summary>The built mesh plus what PlanetDrapedLines needs to move its points later: the same
+        /// point arrays the mesh reads (mutable in place) and each point's source lon/lat.</summary>
+        public readonly record struct BuildResult(
+            ManaLineMesh Mesh,
+            Vector3[][] LinePoints,
+            IReadOnlyList<IReadOnlyList<(float Longitude, float Latitude)>> LineLatLongs);
+
         public static ManaLineMesh Build(
+            ManaContext context,
+            IReadOnlyList<IReadOnlyList<(double Longitude, double Latitude)>> rings,
+            float radius,
+            float thickness,
+            float minSegmentDegrees,
+            Vector4 color,
+            float emissionStrength)
+        {
+            return BuildDrapeable(context, rings, radius, thickness, minSegmentDegrees, color, emissionStrength).Mesh;
+        }
+
+        public static BuildResult BuildDrapeable(
             ManaContext context,
             IReadOnlyList<IReadOnlyList<(double Longitude, double Latitude)>> rings,
             float radius,
@@ -24,6 +43,8 @@ namespace ManaGeoTools.Code.Planet
         {
             var cosThreshold = MathF.Cos(minSegmentDegrees * MathF.PI / 180.0f);
             var lines = new List<ManaLinePolyline>();
+            var linePoints = new List<Vector3[]>();
+            var lineLatLongs = new List<IReadOnlyList<(float Longitude, float Latitude)>>();
 
             foreach (var ring in rings)
             {
@@ -34,16 +55,23 @@ namespace ManaGeoTools.Code.Planet
                 }
 
                 var points = new Vector3[decimated.Count];
+                var latLongs = new (float, float)[decimated.Count];
                 for (var i = 0; i < decimated.Count; i++)
                 {
                     points[i] = ToSpherePosition(decimated[i], radius);
+                    latLongs[i] = ((float)decimated[i].Item1, (float)decimated[i].Item2);
                 }
 
                 // Every ring is a closed loop -- ManaLineMesh wraps the last point back to the first.
+                // The array is handed to the polyline by reference on purpose: PlanetDrapedLines mutates
+                // it in place and calls RebuildGeometry, so no re-wiring is needed to re-drape.
                 lines.Add(new ManaLinePolyline(points, closed: true));
+                linePoints.Add(points);
+                lineLatLongs.Add(latLongs);
             }
 
-            return new ManaLineMesh(context, lines, thickness, color, emissionStrength, ManaLineProfile.Ribbon);
+            var mesh = new ManaLineMesh(context, lines, thickness, color, emissionStrength, ManaLineProfile.Ribbon);
+            return new BuildResult(mesh, linePoints.ToArray(), lineLatLongs);
         }
 
         private static Vector3 ToSpherePosition((double Longitude, double Latitude) point, float radius)

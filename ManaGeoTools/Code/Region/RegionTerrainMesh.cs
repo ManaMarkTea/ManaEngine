@@ -57,6 +57,9 @@ namespace ManaGeoTools.Code.Region
             // Inspector would show no PBR channels at all.
             var material = new ManaMaterial(Context) { Name = "Region Terrain Material" };
             material.Shader = new ManaPbrShader(Context);
+            // Faceted by default -- reads as terrain rather than a smooth putting green at these
+            // sample spacings. Toggleable per-material in the Inspector.
+            material.FlatShaded = true;
             material.Albedo.Value = DefaultVertexColor;
             material.EnsureShaderMetadataDefaults();
             return material;

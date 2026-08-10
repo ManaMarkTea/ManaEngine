@@ -1,4 +1,4 @@
-﻿using Mana;
+using Mana;
 using Mana.Code.Nodes;
 using ManaVoxel.Code.Tools;
 

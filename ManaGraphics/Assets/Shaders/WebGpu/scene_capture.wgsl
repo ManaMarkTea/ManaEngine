@@ -12,7 +12,7 @@ struct TransformUniform {
     time : f32,
     webgpu_debug_mode : f32,
     vertex_normal_length : f32,
-    _padding2 : f32,
+    flat_shading : f32,
 };
 
 struct VertexOutput {

@@ -158,6 +158,48 @@ namespace ManaGeoTools.Code.Planet
             return grid;
         }
 
+        /// <summary>
+        /// Distance from the planet's center to this patch's rendered surface at a face-space (u, v),
+        /// bilinear over the four surrounding grid vertices. This reads the mesh that's actually on
+        /// screen, so it tracks whatever detail the patch currently holds.
+        /// </summary>
+        public bool TrySampleRadiusAtFaceUv(float u, float v, out float radius)
+        {
+            radius = Radius;
+            var cpuData = GetOrCreateCpuData();
+
+            // Skirt vertices are appended AFTER the grid, so the first Resolution^2 entries are the grid
+            // in y-outer/x-inner order (see GenerateData's phase 2).
+            if (cpuData == null || cpuData.Positions.Length < Resolution * Resolution)
+            {
+                return false;
+            }
+
+            var spanU = MaxU - MinU;
+            var spanV = MaxV - MinV;
+            if (spanU <= 0f || spanV <= 0f)
+            {
+                return false;
+            }
+
+            var gridX = Math.Clamp((u - MinU) / spanU, 0f, 1f) * (Resolution - 1);
+            var gridY = Math.Clamp((v - MinV) / spanV, 0f, 1f) * (Resolution - 1);
+            var x0 = Math.Clamp((int)MathF.Floor(gridX), 0, Resolution - 1);
+            var y0 = Math.Clamp((int)MathF.Floor(gridY), 0, Resolution - 1);
+            var x1 = Math.Min(x0 + 1, Resolution - 1);
+            var y1 = Math.Min(y0 + 1, Resolution - 1);
+            var fx = gridX - x0;
+            var fy = gridY - y0;
+
+            var positions = cpuData.Positions;
+            float RadiusAt(int x, int y) => positions[(y * Resolution) + x].Length();
+
+            var top = float.Lerp(RadiusAt(x0, y0), RadiusAt(x1, y0), fx);
+            var bottom = float.Lerp(RadiusAt(x0, y1), RadiusAt(x1, y1), fx);
+            radius = float.Lerp(top, bottom, fy);
+            return true;
+        }
+
         public override ManaMaterial GenerateMaterial()
         {
             // The base ManaProceduralMesh material leaves Shader null, which only gets backfilled by
@@ -165,6 +207,7 @@ namespace ManaGeoTools.Code.Planet
             // channels. Assign it explicitly instead, mirroring ManaWaterPlane.GenerateMaterial().
             var material = new ManaMaterial(Context) { Name = "Planet Patch Material" };
             material.Shader = new ManaPbrShader(Context);
+            material.FlatShaded = true;
             material.Albedo.Value = DefaultVertexColor;
             material.EnsureShaderMetadataDefaults();
             return material;

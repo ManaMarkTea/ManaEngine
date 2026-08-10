@@ -94,6 +94,11 @@ namespace ManaGeoTools.Code.Planet
         // large patch meshes after a cached Terrarium fetch completes.
         private readonly ConcurrentDictionary<PatchKey, PatchUpresStatus> _upresStatus = new();
 
+        // Patches whose geometry changed since the last DrainChangedPatches. A queue rather than an
+        // event because the baseline-decode path enqueues from a background thread, while consumers
+        // (draped overlays) must rebuild on the main thread.
+        private readonly ConcurrentQueue<PatchKey> _changedPatches = new();
+
         // Tracks a split/refinement that's fetching its children in the background -- see
         // BeginSplitLocked's doc comment for why this exists (avoiding a visible "downrez then refill"
         // flash).
@@ -335,6 +340,7 @@ namespace ManaGeoTools.Code.Planet
                         leaf.SourceMetersPerPixel = sourceMetersPerPixel;
                         leaf.Renderer.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
                         _patchDetails[key] = new PatchDetailInfo(leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
+                        _changedPatches.Enqueue(key);
                     }
                 }
 
@@ -344,6 +350,113 @@ namespace ManaGeoTools.Code.Planet
                 _oceanMesh.ApplyHeightData(HeightLibrary!);
             }
         }
+
+        /// <summary>Hands over the patches that changed geometry since the last call. Main thread.</summary>
+        public List<PatchKey> DrainChangedPatches()
+        {
+            var drained = new List<PatchKey>();
+            while (_changedPatches.TryDequeue(out var key))
+            {
+                drained.Add(key);
+            }
+
+            return drained;
+        }
+
+        /// <summary>The face-space (u, v) box a patch covers, for testing which overlay points it owns.</summary>
+        public bool TryGetPatchFaceBounds(PatchKey key, out int face, out float minU, out float maxU, out float minV, out float maxV)
+        {
+            face = key.Face;
+            minU = maxU = minV = maxV = 0f;
+
+            lock (_rebuildLock)
+            {
+                if (!_leaves.TryGetValue(key, out var leaf))
+                {
+                    return false;
+                }
+
+                minU = leaf.Mesh.MinU;
+                maxU = leaf.Mesh.MaxU;
+                minV = leaf.Mesh.MinV;
+                maxV = leaf.Mesh.MaxV;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Distance from the planet's center to the rendered terrain surface below a lon/lat, in local
+        /// units. Walks the quadtree to whichever leaf currently owns that direction and samples its
+        /// mesh, so the answer follows up-res/merge automatically.
+        /// </summary>
+        public bool TrySampleSurfaceRadius(float longitudeDegrees, float latitudeDegrees, out float radius)
+        {
+            radius = Radius;
+            var direction = LatLong.FromLongitudeAndLatitude(longitudeDegrees, latitudeDegrees).ToUnitSphere();
+            if (!CubeSphere.TryUnwarpSphereToFaceUv(direction, out var face, out var u, out var v))
+            {
+                return false;
+            }
+
+            return TrySampleSurfaceRadiusAtFaceUv(face, u, v, out radius);
+        }
+
+        public bool TrySampleSurfaceRadiusAtFaceUv(int face, float u, float v, out float radius)
+        {
+            radius = Radius;
+
+            var step = 2f / PatchesPerFaceEdge;
+            var col = Math.Clamp((int)((u + 1f) / step), 0, PatchesPerFaceEdge - 1);
+            var row = Math.Clamp((int)((v + 1f) / step), 0, PatchesPerFaceEdge - 1);
+
+            var key = PatchKey.Root(face, row, col);
+            var minU = -1f + (col * step);
+            var maxU = minU + step;
+            var minV = -1f + (row * step);
+            var maxV = minV + step;
+
+            lock (_rebuildLock)
+            {
+                // Descend by quadrant until the key names an actual leaf. Depth is bounded by how far
+                // the tree has ever split, but guard anyway rather than risk spinning on a torn state.
+                for (var depth = 0; !_leaves.ContainsKey(key); depth++)
+                {
+                    if (depth > MaxPatchDescentDepth)
+                    {
+                        return false;
+                    }
+
+                    var midU = (minU + maxU) * 0.5f;
+                    var midV = (minV + maxV) * 0.5f;
+                    var quadrant = 0;
+                    if (u >= midU)
+                    {
+                        quadrant |= 1;
+                        minU = midU;
+                    }
+                    else
+                    {
+                        maxU = midU;
+                    }
+
+                    if (v >= midV)
+                    {
+                        quadrant |= 2;
+                        minV = midV;
+                    }
+                    else
+                    {
+                        maxV = midV;
+                    }
+
+                    key = key.Child(quadrant);
+                }
+
+                return _leaves[key].Mesh.TrySampleRadiusAtFaceUv(u, v, out radius);
+            }
+        }
+
+        private const int MaxPatchDescentDepth = 24;
 
         public bool TryGetPatchKey(MeshRendererComponent? renderer, out PatchKey key)
         {
@@ -768,6 +881,7 @@ namespace ManaGeoTools.Code.Planet
                 }
                 _patchDetails[childKey] = new PatchDetailInfo(childZoom, childMesh.Resolution, childSourceResolution, childMetersPerPixel);
                 _upresStatus[childKey] = PatchUpresStatus.Done;
+                _changedPatches.Enqueue(childKey);
             }
             else if (_upresStatus.TryGetValue(childKey, out var status) && status == PatchUpresStatus.InProgress)
             {
@@ -1014,6 +1128,7 @@ namespace ManaGeoTools.Code.Planet
             _componentToPatchKey[mergedRenderer] = pending.MergedKey;
             _patchDetails[pending.MergedKey] = new PatchDetailInfo(pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel);
             _upresStatus[pending.MergedKey] = PatchUpresStatus.Done;
+            _changedPatches.Enqueue(pending.MergedKey);
 
             Console.WriteLine($"[Terrarium] Merge {PatchName(pending.MergedKey, pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel)} complete: {pending.ChildKeys.Length} children folded into 1 patch. Total leaves now: {_leaves.Count}.");
         }

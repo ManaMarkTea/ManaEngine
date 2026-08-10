@@ -250,6 +250,7 @@ namespace Mana.Code.Nodes
                         Albedo = renderer.Material.Albedo.Value,
                         Metallic = renderer.Material.Metallic.Value,
                         Roughness = renderer.Material.Roughness.Value,
+                        FlatShaded = renderer.Material.FlatShaded,
                         AmbientOcclusion = renderer.Material.Ambient.Value,
                         Emission = renderer.Material.Emission.Value,
                         EmissionStrength = (float)renderer.Material.EmissionStrength,

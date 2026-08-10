@@ -1,20 +1,4 @@
-struct FrameUniform {
-    view_projection : mat4x4<f32>,
-};
-
-struct ObjectUniform {
-    model : mat4x4<f32>,
-    normal_matrix : mat4x4<f32>,
-    material_albedo : vec4<f32>,
-    material_factors : vec4<f32>,
-    material_emission : vec4<f32>,
-    outline_color : vec4<f32>,
-    outline_parameters : vec4<f32>,
-    debug_mode_override : f32,
-    _padding0 : f32,
-    _padding1 : f32,
-    _padding2 : f32,
-};
+#include "include/uniforms.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;

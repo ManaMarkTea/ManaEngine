@@ -35,7 +35,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\Shaders\WebGpu\*.wgsl">
+    <!-- Recursive: include/ holds the shared uniform declarations pulled in via #include. -->
+    <Content Include="Assets\Shaders\WebGpu\**\*.wgsl">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Shaders\OpenGL\*.glsl">
