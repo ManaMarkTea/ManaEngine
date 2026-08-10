@@ -4,8 +4,18 @@ using ManaVoxel.Code.Tools;
 
 namespace ManaVoxel.Code.UI
 {
-    /// <summary>A queued "load this place as a true-scale cartesian region" request -- see RegionNode.</summary>
-    public sealed record RegionLoadRequest(string PlaceName, float Longitude, float Latitude, float HalfExtentMeters);
+    /// <summary>
+    /// A queued "load this place as a true-scale cartesian region" request -- see RegionNode.
+    /// HexRadiusMeters/StepStrength are the terrain tiling's starting style; both stay adjustable on the
+    /// loaded region from the Inspector, so these are only the values it is first built with.
+    /// </summary>
+    public sealed record RegionLoadRequest(
+        string PlaceName,
+        float Longitude,
+        float Latitude,
+        float HalfExtentMeters,
+        float HexRadiusMeters,
+        float StepStrength);
 
     public class VoxelEditorViewModel : IVoxelEditorCommands
     {

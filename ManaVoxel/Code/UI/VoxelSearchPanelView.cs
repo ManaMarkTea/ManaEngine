@@ -38,8 +38,18 @@ namespace ManaVoxel.Code.UI
         // derived rather than chosen -- see RegionExtents.
         private const float DefaultRegionBoxKm = 4.0f;
 
+        // Hex size is picked as a MULTIPLE of the source sample spacing rather than in meters, because
+        // that's the number that actually controls the look: at 1 a hex is about the size of one source
+        // sample and the tiling resolves everything the data has, and doubling it makes the hexes four
+        // times as coarse regardless of which zoom level the chosen region size happens to land on.
+        private const float DefaultHexRadiusInSamples = RegionTerrainMesh.DefaultHexRadiusInSamples;
+        private const float DefaultStepStrength = 1.0f;
+
         private string _query = string.Empty;
         private float _regionBoxKm = DefaultRegionBoxKm;
+        private float _hexRadiusInSamples = DefaultHexRadiusInSamples;
+        private float _stepStrength = DefaultStepStrength;
+        private float _previewHexRadiusMeters = 1.0f;
         private bool _isSearching;
         private string? _errorMessage;
         private IReadOnlyList<GeocodeResult> _results = Array.Empty<GeocodeResult>();
@@ -112,7 +122,9 @@ namespace ManaVoxel.Code.UI
                             result.DisplayName,
                             result.Longitude,
                             result.Latitude,
-                            _regionBoxKm * 1000f * 0.5f);
+                            _regionBoxKm * 1000f * 0.5f,
+                            _previewHexRadiusMeters,
+                            _stepStrength);
                     }
 
                     ImGui.SameLine();
@@ -162,6 +174,30 @@ namespace ManaVoxel.Code.UI
             var zoom = RegionExtents.ZoomForHalfExtent(halfExtent);
             var metersPerSample = RegionExtents.MetersPerSample(zoom, previewLatitude);
             ImGui.TextDisabled($"z{zoom} source, ~{metersPerSample:0.#} m/sample");
+
+            // Held in a field rather than recomputed at click time because the "Region" buttons below are
+            // drawn per result and all send the same style; this is the one place the sample spacing that
+            // converts it into meters is already to hand.
+            _previewHexRadiusMeters = _hexRadiusInSamples * (float)metersPerSample;
+
+            ImGui.SetNextItemWidth(-1.0f);
+            ImGui.SliderFloat("##HexSize", ref _hexRadiusInSamples, 0.5f, 8.0f, $"Hexes: %.2f samples (~{_previewHexRadiusMeters:0.#} m)");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "Terrain is tiled with hexagons rather than a quad grid. Coarser hexes are more\n" +
+                    "obviously stylised and much cheaper -- cost falls with the square of this.");
+            }
+
+            ImGui.SetNextItemWidth(-1.0f);
+            ImGui.SliderFloat("##HexStep", ref _stepStrength, 0.0f, 1.0f, "Step: %.2f");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "1 = every hex is a flat plateau with vertical walls between it and its neighbours.\n" +
+                    "0 = a continuous surface that is merely hex-faceted. Adjustable after loading, from\n" +
+                    "the Inspector on the region node.");
+            }
         }
 
         private void StartSearch(string query)

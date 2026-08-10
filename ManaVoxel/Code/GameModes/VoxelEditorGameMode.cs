@@ -406,6 +406,43 @@ namespace Mana.Code.GameModes
                     DrawTerrainCacheInspector();
                 }
 
+                if (node is RegionNode { TerrainMesh: { } terrain })
+                {
+                    ImGui.SeparatorText("Region Hex Tiling");
+                    ImGui.TextDisabled($"{terrain.HexCellCount:N0} hexes at {terrain.EffectiveHexRadiusMeters:0.#} m");
+
+                    // Both of these re-tessellate the whole region, which is far too slow to run on every
+                    // frame of a drag -- so the value is written live (the widget has to track the cursor)
+                    // but the rebuild waits until the mouse comes off the control.
+                    var rebuild = false;
+                    var hexRadius = terrain.HexRadiusMeters;
+                    if (ImGui.DragFloat("Hex Radius (m)", ref hexRadius, 0.5f, 0.5f, 2000.0f))
+                    {
+                        terrain.HexRadiusMeters = hexRadius;
+                    }
+                    rebuild |= ImGui.IsItemDeactivatedAfterEdit();
+
+                    var stepStrength = terrain.StepStrength;
+                    if (ImGui.SliderFloat("Step Strength", ref stepStrength, 0.0f, 1.0f))
+                    {
+                        terrain.StepStrength = stepStrength;
+                    }
+                    rebuild |= ImGui.IsItemDeactivatedAfterEdit();
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(
+                            "1 = every hex is a flat plateau with vertical walls between it and its\n" +
+                            "neighbours. 0 = the hex corners settle onto the shared surface, leaving a\n" +
+                            "continuous terrain that is merely hex-faceted.");
+                    }
+
+                    if (rebuild)
+                    {
+                        terrain.RebuildGeometry();
+                    }
+                }
+
                 if (node is ManaMeshSceneNode { Mesh: ManaLineMesh lineMesh } lineNode)
                 {
                     ImGui.SeparatorText("Line");
@@ -872,7 +909,10 @@ namespace Mana.Code.GameModes
                         Context,
                         request.PlaceName,
                         new LatLong(request.Longitude, request.Latitude),
-                        request.HalfExtentMeters);
+                        request.HalfExtentMeters,
+                        resolution: null,
+                        hexRadiusMeters: request.HexRadiusMeters,
+                        stepStrength: request.StepStrength);
                     _region.Position = RegionWorldOrigin;
                     _region.UpdateTransform();
                     Context.World.DefaultScene.Children.Add(_region);
