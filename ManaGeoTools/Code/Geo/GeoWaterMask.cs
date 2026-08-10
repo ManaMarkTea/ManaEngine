@@ -15,17 +15,63 @@ namespace ManaGeoTools.Code.Geo
         /// </summary>
         public static GeoWaterMask? Shared { get; set; }
 
+        // Lakes are tracked separately from ocean, not merged: colouring wants "any water", but the
+        // ocean meshes need to EXCLUDE lakes -- an inland lake is water, and is emphatically not sea.
+        private readonly List<GeoPolygonSet> _lakeSets = new();
         private readonly List<GeoPolygonSet> _waterSets = new();
+
+        // Whole-globe lake coverage, built once. Cell size is ~10km at the equator, which comfortably
+        // resolves anything the ocean shell could render into (Lake Michigan spans ~19x12 cells) while
+        // staying at 8MB. Point queries against 1597 lake rings would be far too slow per vertex.
+        private const int GlobalLakeRasterWidth = 4096;
+        private const int GlobalLakeRasterHeight = 2048;
+        private GeoWaterLookup? _globalLakes;
 
         public bool HasAnyData => _waterSets.Count > 0;
         public IReadOnlyList<GeoPolygonSet> Sets => _waterSets;
 
+        /// <summary>Adds a set counted as water for colouring, and as a lake to be kept clear of ocean geometry.</summary>
+        public void AddLakes(GeoPolygonSet? set)
+        {
+            if (set == null)
+            {
+                return;
+            }
+
+            _lakeSets.Add(set);
+            _waterSets.Add(set);
+
+            // Built here, on the loading thread, rather than lazily from the first IsLake call -- that
+            // would land inside mesh generation, on whichever thread got there first.
+            var coverage = new bool[GlobalLakeRasterWidth * GlobalLakeRasterHeight];
+            foreach (var lakeSet in _lakeSets)
+            {
+                lakeSet.RasterizeInto(coverage, -180f, 180f, -90f, 90f, GlobalLakeRasterWidth, GlobalLakeRasterHeight);
+            }
+
+            _globalLakes = new GeoWaterLookup(
+                coverage, -180f, 180f, -90f, 90f,
+                GlobalLakeRasterWidth, GlobalLakeRasterHeight, buildShoreDistance: false);
+        }
+
+        /// <summary>Adds a set counted as water for colouring only.</summary>
         public void Add(GeoPolygonSet? set)
         {
             if (set != null)
             {
                 _waterSets.Add(set);
             }
+        }
+
+        /// <summary>True inside a lake polygon. O(1) -- backed by the global raster above.</summary>
+        public bool IsLake(float longitude, float latitude)
+        {
+            if (_lakeSets.Count == 0)
+            {
+                return false;
+            }
+
+            return _globalLakes?.IsWater(longitude, latitude) ?? false;
         }
 
         /// <summary>
@@ -65,7 +111,19 @@ namespace ManaGeoTools.Code.Geo
         private readonly int _width;
         private readonly int _height;
 
-        internal GeoWaterLookup(bool[] coverage, float lonMin, float lonMax, float latMin, float latMax, int width, int height)
+        /// <param name="buildShoreDistance">
+        /// Skip for coverage-only lookups. The transform is two sweeps over every cell plus a float per
+        /// cell, which is 33MB of pointless work on a whole-globe raster that only answers IsWater.
+        /// </param>
+        internal GeoWaterLookup(
+            bool[] coverage,
+            float lonMin,
+            float lonMax,
+            float latMin,
+            float latMax,
+            int width,
+            int height,
+            bool buildShoreDistance = true)
         {
             _coverage = coverage;
             _lonMin = lonMin;
@@ -81,7 +139,9 @@ namespace ManaGeoTools.Code.Geo
                 * MathF.Max(MathF.Cos(midLatitude * MathF.PI / 180f), 1e-3f);
             _metersPerCell = MathF.Max((cellWidthMeters + cellHeightMeters) * 0.5f, 1e-3f);
 
-            _shoreDistanceCells = BuildShoreDistance(coverage, width, height);
+            _shoreDistanceCells = buildShoreDistance
+                ? BuildShoreDistance(coverage, width, height)
+                : Array.Empty<float>();
         }
 
         public bool IsWater(float longitude, float latitude)
@@ -92,7 +152,9 @@ namespace ManaGeoTools.Code.Geo
         /// <summary>0 at the shoreline, 1 once FullDepthShoreDistanceMeters from any land. 0 on land.</summary>
         public float GetWaterDepth01(float longitude, float latitude)
         {
-            if (!TryGetCell(longitude, latitude, out var index) || !_coverage[index])
+            if (_shoreDistanceCells.Length == 0 ||
+                !TryGetCell(longitude, latitude, out var index) ||
+                !_coverage[index])
             {
                 return 0f;
             }

@@ -1,3 +1,4 @@
+using ManaGeoTools.Code.Geo;
 using ManaGeoTools.Code.GeoTiff;
 
 namespace ManaGeoTools.Code.Planet
@@ -47,6 +48,29 @@ namespace ManaGeoTools.Code.Planet
         public static bool IsOcean(float? rawHeightMeters)
         {
             return !rawHeightMeters.HasValue || rawHeightMeters.Value < SeaLevelMeters;
+        }
+
+        /// <summary>
+        /// As IsOcean, but never true inside a lake. Elevation alone can't tell the two apart: a lake
+        /// bed can read below sea level (the Caspian, the Dead Sea), and anywhere the height library has
+        /// no coverage falls through to the "no data means ocean" default. Either way the sea shell
+        /// would be built across inland water.
+        /// </summary>
+        public static bool IsOcean(float? rawHeightMeters, Vector3 pointOnUnitSphere)
+        {
+            if (!IsOcean(rawHeightMeters))
+            {
+                return false;
+            }
+
+            var mask = GeoWaterMask.Shared;
+            if (mask == null)
+            {
+                return true;
+            }
+
+            var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+            return !mask.IsLake(latLong.Longitude, latLong.Latitude);
         }
 
         /// <summary>0 = shoreline (or no data-backed depth), 1 = deep open ocean.</summary>

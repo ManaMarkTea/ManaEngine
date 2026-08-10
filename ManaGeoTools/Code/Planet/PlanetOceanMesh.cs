@@ -92,7 +92,7 @@ namespace ManaGeoTools.Code.Planet
                     var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
 
                     var rawHeightMeters = OceanSurface.SampleHeightMeters(HeightLibrary, pointOnUnitSphere);
-                    isOcean[x, y] = OceanSurface.IsOcean(rawHeightMeters);
+                    isOcean[x, y] = OceanSurface.IsOcean(rawHeightMeters, pointOnUnitSphere);
 
                     var position = pointOnUnitSphere * Radius;
                     var vert = DynamicGeometryContainer.AddPoint(position, pointOnUnitSphere);

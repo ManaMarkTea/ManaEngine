@@ -1072,7 +1072,7 @@ namespace Mana.Code.GameModes
         private static void LoadWaterMask()
         {
             var mask = new GeoWaterMask();
-            mask.Add(GeoPolygonSet.TryLoadFromZip(LakesZipPath, "ne_10m_lakes.shp"));
+            mask.AddLakes(GeoPolygonSet.TryLoadFromZip(LakesZipPath, "ne_10m_lakes.shp"));
             mask.Add(GeoPolygonSet.TryLoadFromZip(OceanZipPath, "ne_10m_ocean.shp"));
 
             if (!mask.HasAnyData)

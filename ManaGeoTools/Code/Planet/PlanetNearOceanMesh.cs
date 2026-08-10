@@ -216,7 +216,7 @@ namespace ManaGeoTools.Code.Planet
                         CenterDirection + (East * eastTangent) + (North * northTangent));
 
                     var rawHeightMeters = OceanSurface.SampleHeightMeters(HeightLibrary, direction);
-                    isOcean[x, y] = OceanSurface.IsOcean(rawHeightMeters);
+                    isOcean[x, y] = OceanSurface.IsOcean(rawHeightMeters, direction);
 
                     var radialMeters = MathF.Sqrt((eastMeters * eastMeters) + (northMeters * northMeters));
                     isInsideFade[x, y] = radialMeters <= fadeOuterMeters;
