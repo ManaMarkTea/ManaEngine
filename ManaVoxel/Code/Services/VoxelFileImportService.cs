@@ -1,11 +1,15 @@
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.UI;
 using Mana;
+using Mana.Code.Nodes;
+using System.IO.Compression;
+using System.Text;
 
 namespace ManaVoxel.Code.Services
 {
     public class VoxelFileImportService
     {
+        private const string ZipAssetPrefix = "zipasset:";
         private readonly Vector3 _startImportPos = new Vector3(30.0f, 0, 20);
         private Vector3 _lastImportPos = new Vector3(30.0f, 0, 20);
 
@@ -18,6 +22,12 @@ namespace ManaVoxel.Code.Services
 
             foreach (var file in files)
             {
+                if (IsZipAssetReference(file))
+                {
+                    ImportZipAsset(file, world, viewModel);
+                    continue;
+                }
+
                 if (Path.GetExtension(file).Equals(".vox", StringComparison.OrdinalIgnoreCase))
                 {
                     ImportVoxFile(file, viewModel);
@@ -26,6 +36,11 @@ namespace ManaVoxel.Code.Services
 
                 ImportModelFile(file, world, viewModel);
             }
+        }
+
+        public void ImportFile(string file, Vector3? dropPosition, ManaWorld world, VoxelEditorViewModel viewModel)
+        {
+            ImportDroppedFiles(new[] { file }, dropPosition, world, viewModel);
         }
 
         private void ImportVoxFile(string file, VoxelEditorViewModel viewModel)
@@ -53,6 +68,136 @@ namespace ManaVoxel.Code.Services
         private void ImportModelFile(string file, ManaWorld world, VoxelEditorViewModel viewModel)
         {
             var model = world.LoadFromGltf(file);
+            ApplyModelTransform(model, viewModel);
+            AdvanceImportCursor();
+        }
+
+        private void ImportZipAsset(string assetReference, ManaWorld world, VoxelEditorViewModel viewModel)
+        {
+            if (!TryDecodeZipAssetReference(assetReference, out var zipPath, out var entryPath))
+            {
+                throw new InvalidOperationException($"Invalid zip asset reference: {assetReference}");
+            }
+
+            using var archive = ZipFile.OpenRead(zipPath);
+            var entry = archive.GetEntry(entryPath);
+            if (entry == null)
+            {
+                throw new FileNotFoundException($"Entry '{entryPath}' not found in zip '{zipPath}'.", zipPath);
+            }
+
+            var extension = Path.GetExtension(entry.Name);
+            if (extension.Equals(".vox", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new NotSupportedException("Streaming .vox from zip is not yet supported. Import a loose .vox file instead.");
+            }
+
+            using var entryStream = entry.Open();
+            using var memory = new MemoryStream();
+            entryStream.CopyTo(memory);
+            var sidecarResolver = CreateZipSidecarResolver(archive, entryPath);
+
+            // No temp extraction: the scene file is imported directly from the zip entry's bytes.
+            var model = world.LoadFromGltfMemory(memory.ToArray(), entry.Name, sidecarResolver);
+            ApplyModelTransform(model, viewModel);
+            AdvanceImportCursor();
+        }
+
+        public static Func<string, byte[]?> CreateZipSidecarResolver(ZipArchive archive, string modelEntryPath)
+        {
+            var modelDirectory = GetEntryDirectory(modelEntryPath);
+            return textureReference => TryReadZipEntryBytes(archive, modelDirectory, textureReference);
+        }
+
+        private static byte[]? TryReadZipEntryBytes(ZipArchive archive, string modelDirectory, string textureReference)
+        {
+            if (string.IsNullOrWhiteSpace(textureReference) ||
+                textureReference.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var normalized = textureReference
+                .Replace('\\', '/')
+                .Trim();
+
+            try
+            {
+                normalized = Uri.UnescapeDataString(normalized);
+            }
+            catch
+            {
+                // Keep original if URI decoding fails.
+            }
+
+            var candidates = new List<string>();
+            AddArchivePathCandidate(candidates, normalized);
+            if (normalized.StartsWith("./", StringComparison.Ordinal))
+            {
+                AddArchivePathCandidate(candidates, normalized[2..]);
+            }
+
+            if (!string.IsNullOrWhiteSpace(modelDirectory))
+            {
+                AddArchivePathCandidate(candidates, $"{modelDirectory}/{normalized}");
+                if (normalized.StartsWith("./", StringComparison.Ordinal))
+                {
+                    AddArchivePathCandidate(candidates, $"{modelDirectory}/{normalized[2..]}");
+                }
+            }
+
+            foreach (var candidate in candidates)
+            {
+                var entry = FindArchiveEntryIgnoreCase(archive, candidate);
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                using var stream = entry.Open();
+                using var memory = new MemoryStream();
+                stream.CopyTo(memory);
+                return memory.ToArray();
+            }
+
+            return null;
+        }
+
+        private static void AddArchivePathCandidate(List<string> candidates, string value)
+        {
+            var normalized = value.Replace('\\', '/').TrimStart('/');
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return;
+            }
+
+            if (!candidates.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+            {
+                candidates.Add(normalized);
+            }
+        }
+
+        private static ZipArchiveEntry? FindArchiveEntryIgnoreCase(ZipArchive archive, string fullName)
+        {
+            var directMatch = archive.GetEntry(fullName);
+            if (directMatch != null)
+            {
+                return directMatch;
+            }
+
+            return archive.Entries.FirstOrDefault(entry =>
+                string.Equals(entry.FullName, fullName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string GetEntryDirectory(string entryPath)
+        {
+            var normalized = entryPath.Replace('\\', '/');
+            var slash = normalized.LastIndexOf('/');
+            return slash <= 0 ? string.Empty : normalized[..slash];
+        }
+
+        private void ApplyModelTransform(ManaSceneNode model, VoxelEditorViewModel viewModel)
+        {
             model.Position = _lastImportPos + viewModel.ImportPositionOffset;
             model.Rotation = new Vector3(
                 viewModel.ImportRotationDegrees.X.ToRadians(),
@@ -62,12 +207,48 @@ namespace ManaVoxel.Code.Services
                 MathF.Max(0.01f, viewModel.ImportScale.X),
                 MathF.Max(0.01f, viewModel.ImportScale.Y),
                 MathF.Max(0.01f, viewModel.ImportScale.Z));
+        }
 
+        private void AdvanceImportCursor()
+        {
             _lastImportPos.X += 2.0f;
             if (_lastImportPos.X > _startImportPos.X + 30)
             {
                 _lastImportPos.X = _startImportPos.X;
                 _lastImportPos.Z += 2.0f;
+            }
+        }
+
+        private static bool IsZipAssetReference(string pathOrReference)
+        {
+            return pathOrReference.StartsWith(ZipAssetPrefix, StringComparison.Ordinal);
+        }
+
+        private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath)
+        {
+            zipPath = string.Empty;
+            entryPath = string.Empty;
+            if (!assetReference.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var payload = assetReference.Substring(ZipAssetPrefix.Length);
+            var separator = payload.IndexOf(':');
+            if (separator <= 0 || separator >= payload.Length - 1)
+            {
+                return false;
+            }
+
+            try
+            {
+                zipPath = Encoding.UTF8.GetString(Convert.FromBase64String(payload[..separator]));
+                entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(payload[(separator + 1)..]));
+                return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
+            }
+            catch
+            {
+                return false;
             }
         }
     }

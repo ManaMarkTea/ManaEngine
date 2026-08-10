@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
@@ -31,6 +32,16 @@ namespace ManaGraphics.Code.Graphics
                 pixels = new byte[image.Width * image.Height * 4];
                 image.CopyPixelDataTo(pixels);
                 ManaConsole.WriteDiagnostic($"WebGPU mesh texture loaded: {cpuData.AlbedoTexturePath}");
+            }
+            else if (cpuData.AlbedoTextureBytes is { Length: > 0 } embeddedBytes)
+            {
+                using var image = ImageSharpImage.Load<Rgba32>(embeddedBytes);
+                image.Mutate(x => x.Flip(FlipMode.Vertical));
+                width = (uint)image.Width;
+                height = (uint)image.Height;
+                pixels = new byte[image.Width * image.Height * 4];
+                image.CopyPixelDataTo(pixels);
+                ManaConsole.WriteDiagnostic($"WebGPU mesh texture loaded from embedded bytes ({embeddedBytes.Length} bytes).");
             }
             else
             {
@@ -160,6 +171,12 @@ namespace ManaGraphics.Code.Graphics
             if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
             {
                 return $"file:{Path.GetFullPath(cpuData.AlbedoTexturePath)}";
+            }
+
+            if (cpuData.AlbedoTextureBytes is { Length: > 0 } embeddedBytes)
+            {
+                var hash = Convert.ToHexString(SHA256.HashData(embeddedBytes));
+                return $"embedded:{hash}";
             }
 
             return "fallback:white";

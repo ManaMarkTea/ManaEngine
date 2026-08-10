@@ -3,6 +3,7 @@ using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
+using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.UI;
 using ManaCore.Diagnostics;
@@ -20,6 +21,7 @@ using ManaGeoTools.Code.Region;
 using ManaGeoTools.Code.Shapefile;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Text;
 
 namespace Mana.Code.GameModes
 {
@@ -39,7 +41,17 @@ namespace Mana.Code.GameModes
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
+        private readonly VoxelFileImportService _fileImportService = new();
+        private const string ZipAssetPrefix = "zipasset:";
         private bool _firstFrame = true;
+        private bool _meshPickerDragWasDown;
+        private bool _meshPickerPlaceClickWasDown;
+        private bool _meshPickerEscapeWasDown;
+        private string? _meshPickerPreviewAssetPath;
+        private ManaSceneNode? _meshPickerPreviewNode;
+        private int _meshPickerPreviewSceneStartIndex = -1;
+        private int _meshPickerPreviewMeshStartIndex = -1;
+        private int _meshPickerPreviewMaterialStartIndex = -1;
         private bool _selectPointerWasDown;
         private bool _frameSelectedKeyWasDown;
         private HashSet<MeshRendererComponent> _lastOutlinedSelectionComponents = new();
@@ -51,8 +63,8 @@ namespace Mana.Code.GameModes
         private static readonly Vector4 PatchUpresFailedOutlineColor = new(0.9f, 0.2f, 0.2f, 1.0f);
 
         public ManaSceneNode Cursor { get; private set; } = null!;
-        private ManaSceneNode? _lightningBall;
-        private ManaSceneNode? _liquidBall;
+        private ManaSceneNode? _lightningBall = null;
+        private ManaSceneNode? _liquidBall = null;
         private PlanetNode? _planet;
         private RegionNode? _region;
         private ManaSceneNode? _kmlDemo;
@@ -182,15 +194,6 @@ namespace Mana.Code.GameModes
                         Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                         Cursor.Name = "CursorBall";
 
-/*
-                        _lightningBall = shapes.AddSphere(new Vector3(10, 10, 10), Colors.White, 1.0f);
-                        _lightningBall.Name = "Lightning Ball";
-                        _lightningBall.Scale = new Vector3(20, 20, 20);
-
-                        _liquidBall = shapes.AddSphere(new Vector3(34, 10, 10), Colors.White, 1.0f);
-                        _liquidBall.Name = "Liquid Ball";
-                        _liquidBall.Scale = new Vector3(20, 20, 20);
-*/
                         voxelsNode = shapes.AddVoxels(Vector3.Zero);
                     }
 
@@ -1324,60 +1327,11 @@ namespace Mana.Code.GameModes
             return relativePath;
         }
 
-        Vector3 startImportPos = new Vector3(30.0f, 0, 20);
-        Vector3 lastImportPos = new Vector3(30.0f, 0, 20);
         private void Window_FileDrop(string[] files)
         {
             var mouseDropWorld = GetProjectedMouseHit();
-            if (mouseDropWorld.Position.LengthSquared() != 0)
-            {
-                lastImportPos = mouseDropWorld.Position;
-            }
-
-            foreach (var file in files)
-            {
-                if (Path.GetExtension(file).Equals(".vox", StringComparison.OrdinalIgnoreCase))
-                {
-                    var voxLoader = new MagicaVoxLoader();
-                    voxLoader.Load(file);
-
-                    var importedVoxels = voxLoader.Voxels
-                        .Select(voxelData => new ManaVoxelData
-                        {
-                            Position = voxelData.Position + Vector3.One * 0.5f,
-                            Color = voxelData.Color
-                        })
-                        .ToArray();
-
-                    _viewModel.CreateVoxelLayer(
-                        Path.GetFileNameWithoutExtension(file),
-                        "Import",
-                        lastImportPos + _viewModel.ImportPositionOffset,
-                        importedVoxels);
-
-                    lastImportPos.X += 2.0f;
-                    continue;
-                }
-
-                var fileWorld = Context.World;
-                var model = fileWorld.LoadFromGltf(file);
-                model.Position = lastImportPos + _viewModel.ImportPositionOffset;
-                model.Rotation = new Vector3(
-                    _viewModel.ImportRotationDegrees.X.ToRadians(),
-                    _viewModel.ImportRotationDegrees.Y.ToRadians(),
-                    _viewModel.ImportRotationDegrees.Z.ToRadians());
-                model.Scale = new Vector3(
-                    MathF.Max(0.01f, _viewModel.ImportScale.X),
-                    MathF.Max(0.01f, _viewModel.ImportScale.Y),
-                    MathF.Max(0.01f, _viewModel.ImportScale.Z));
-                lastImportPos.X += 2.0f;
-
-                if (lastImportPos.X > startImportPos.X + 30)
-                {
-                    lastImportPos.X = startImportPos.X;
-                    lastImportPos.Z += 2.0f;
-                }                
-            }
+            var dropPosition = mouseDropWorld.Hit ? mouseDropWorld.Position : (Vector3?)null;
+            _fileImportService.ImportDroppedFiles(files, dropPosition, Context.World, _viewModel);
         }
 
         RayHit GetProjectedMouseHit()
@@ -1656,6 +1610,7 @@ namespace Mana.Code.GameModes
             var rayDirection = ray.Direction;
 
             _panelsView.Draw(_viewModel, ref rayOrigin, ref rayDirection);
+            ProcessMeshPickerPlacement(MouseState, sceneMin, sceneMax);
 
             ImGui.End();
 
@@ -1688,6 +1643,264 @@ namespace Mana.Code.GameModes
 
             _aboutPanelView.Draw(_viewModel, Context, _webGpuContext);
             _searchPanelView.Draw(_viewModel, Context, _planet, Context.World.MainCamera);
+        }
+
+        private void ProcessMeshPickerPlacement(Silk.NET.Input.IMouse mouseState, Vector2 sceneMin, Vector2 sceneMax)
+        {
+            if (HandleMeshPickerEscapeCancel())
+            {
+                _panelsView.ClearDraggedMeshAssetPath();
+            }
+
+            var pendingPath = _panelsView.ConsumePendingMeshSpawnPath();
+            if (!string.IsNullOrWhiteSpace(pendingPath))
+            {
+                BeginMeshPickerPlacementPreview(pendingPath);
+            }
+
+            var leftMouseDown = mouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
+            var mousePosition = mouseState.Position;
+            var isOverScene = mousePosition.X >= sceneMin.X &&
+                              mousePosition.X <= sceneMax.X &&
+                              mousePosition.Y >= sceneMin.Y &&
+                              mousePosition.Y <= sceneMax.Y;
+            var draggedPath = _panelsView.CurrentDraggedMeshAssetPath;
+            if (!string.IsNullOrWhiteSpace(draggedPath) && isOverScene)
+            {
+                BeginMeshPickerPlacementPreview(draggedPath);
+            }
+
+            if (_meshPickerPreviewNode != null && isOverScene)
+            {
+                UpdateMeshPickerPlacementPreviewTransform();
+            }
+
+            if (!leftMouseDown && _meshPickerDragWasDown && !string.IsNullOrWhiteSpace(draggedPath))
+            {
+                if (isOverScene && string.Equals(draggedPath, _meshPickerPreviewAssetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    CommitMeshPickerPlacementPreview();
+                }
+                else
+                {
+                    CancelMeshPickerPlacementPreview();
+                }
+
+                _panelsView.ClearDraggedMeshAssetPath();
+            }
+
+            var placeClick = leftMouseDown && !_meshPickerPlaceClickWasDown;
+            _meshPickerPlaceClickWasDown = leftMouseDown;
+            if (placeClick &&
+                _meshPickerPreviewNode != null &&
+                string.IsNullOrWhiteSpace(draggedPath) &&
+                isOverScene &&
+                !ImGui.GetIO().WantCaptureMouse)
+            {
+                CommitMeshPickerPlacementPreview();
+            }
+
+            _meshPickerDragWasDown = leftMouseDown;
+        }
+
+        private bool HandleMeshPickerEscapeCancel()
+        {
+            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            if (keyboard == null)
+            {
+                _meshPickerEscapeWasDown = false;
+                return false;
+            }
+
+            var keyDown = !ImGui.GetIO().WantCaptureKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.Escape);
+            var pressed = keyDown && !_meshPickerEscapeWasDown;
+            _meshPickerEscapeWasDown = keyDown;
+
+            if (!pressed)
+            {
+                return false;
+            }
+
+            CancelMeshPickerPlacementPreview();
+            return true;
+        }
+
+        private void BeginMeshPickerPlacementPreview(string assetReference)
+        {
+            if (_meshPickerPreviewNode != null &&
+                string.Equals(_meshPickerPreviewAssetPath, assetReference, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            CancelMeshPickerPlacementPreview();
+
+            var world = Context.World;
+            var sceneStart = world.Scenes.Count;
+            var meshStart = world.Meshes.Count;
+            var materialStart = world.Materials.Count;
+
+            try
+            {
+                var previewNode = LoadMeshPickerAsset(assetReference);
+                _meshPickerPreviewAssetPath = assetReference;
+                _meshPickerPreviewNode = previewNode;
+                _meshPickerPreviewSceneStartIndex = sceneStart;
+                _meshPickerPreviewMeshStartIndex = meshStart;
+                _meshPickerPreviewMaterialStartIndex = materialStart;
+                UpdateMeshPickerPlacementPreviewTransform();
+            }
+            catch (Exception ex)
+            {
+                RemoveMeshPickerPreviewWorldData(sceneStart, meshStart, materialStart);
+                _meshPickerPreviewAssetPath = null;
+                _meshPickerPreviewNode = null;
+                _meshPickerPreviewSceneStartIndex = -1;
+                _meshPickerPreviewMeshStartIndex = -1;
+                _meshPickerPreviewMaterialStartIndex = -1;
+                Trace.TraceWarning($"Failed to start mesh placement preview for '{assetReference}': {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to start mesh placement preview for '{assetReference}': {ex}");
+            }
+        }
+
+        private void UpdateMeshPickerPlacementPreviewTransform()
+        {
+            if (_meshPickerPreviewNode == null)
+            {
+                return;
+            }
+
+            var mouseHit = GetProjectedMouseHit();
+            if (!mouseHit.Hit)
+            {
+                return;
+            }
+
+            _meshPickerPreviewNode.Position = mouseHit.Position + _viewModel.ImportPositionOffset;
+            _meshPickerPreviewNode.Rotation = new Vector3(
+                _viewModel.ImportRotationDegrees.X.ToRadians(),
+                _viewModel.ImportRotationDegrees.Y.ToRadians(),
+                _viewModel.ImportRotationDegrees.Z.ToRadians());
+            _meshPickerPreviewNode.Scale = new Vector3(
+                MathF.Max(0.01f, _viewModel.ImportScale.X),
+                MathF.Max(0.01f, _viewModel.ImportScale.Y),
+                MathF.Max(0.01f, _viewModel.ImportScale.Z));
+            _meshPickerPreviewNode.UpdateTransform();
+        }
+
+        private void CommitMeshPickerPlacementPreview()
+        {
+            _meshPickerPreviewAssetPath = null;
+            _meshPickerPreviewNode = null;
+            _meshPickerPreviewSceneStartIndex = -1;
+            _meshPickerPreviewMeshStartIndex = -1;
+            _meshPickerPreviewMaterialStartIndex = -1;
+        }
+
+        private void CancelMeshPickerPlacementPreview()
+        {
+            if (_meshPickerPreviewSceneStartIndex >= 0 ||
+                _meshPickerPreviewMeshStartIndex >= 0 ||
+                _meshPickerPreviewMaterialStartIndex >= 0)
+            {
+                RemoveMeshPickerPreviewWorldData(
+                    _meshPickerPreviewSceneStartIndex,
+                    _meshPickerPreviewMeshStartIndex,
+                    _meshPickerPreviewMaterialStartIndex);
+            }
+
+            _meshPickerPreviewAssetPath = null;
+            _meshPickerPreviewNode = null;
+            _meshPickerPreviewSceneStartIndex = -1;
+            _meshPickerPreviewMeshStartIndex = -1;
+            _meshPickerPreviewMaterialStartIndex = -1;
+        }
+
+        private ManaSceneNode LoadMeshPickerAsset(string assetReference)
+        {
+            if (TryDecodeZipAssetReference(assetReference, out var zipPath, out var entryPath))
+            {
+                using var archive = ZipFile.OpenRead(zipPath);
+                var entry = archive.GetEntry(entryPath);
+                if (entry == null)
+                {
+                    throw new FileNotFoundException($"Entry '{entryPath}' not found in zip '{zipPath}'.", zipPath);
+                }
+
+                using var entryStream = entry.Open();
+                using var memory = new MemoryStream();
+                entryStream.CopyTo(memory);
+                var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
+                return Context.World.LoadFromGltfMemory(memory.ToArray(), entry.Name, sidecarResolver);
+            }
+
+            return Context.World.LoadFromGltf(assetReference);
+        }
+
+        private void RemoveMeshPickerPreviewWorldData(int sceneStart, int meshStart, int materialStart)
+        {
+            var world = Context.World;
+            lock (world.SceneLock)
+            {
+                if (sceneStart >= 0 && sceneStart < world.Scenes.Count)
+                {
+                    world.Scenes.RemoveRange(sceneStart, world.Scenes.Count - sceneStart);
+                }
+
+                if (meshStart >= 0 && meshStart < world.Meshes.Count)
+                {
+                    world.Meshes.RemoveRange(meshStart, world.Meshes.Count - meshStart);
+                }
+
+                if (materialStart >= 0 && materialStart < world.Materials.Count)
+                {
+                    world.Materials.RemoveRange(materialStart, world.Materials.Count - materialStart);
+                }
+            }
+        }
+
+        private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath)
+        {
+            zipPath = string.Empty;
+            entryPath = string.Empty;
+
+            if (!assetReference.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var payload = assetReference.Substring(ZipAssetPrefix.Length);
+            var separator = payload.IndexOf(':');
+            if (separator <= 0 || separator >= payload.Length - 1)
+            {
+                return false;
+            }
+
+            try
+            {
+                zipPath = Encoding.UTF8.GetString(Convert.FromBase64String(payload[..separator]));
+                entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(payload[(separator + 1)..]));
+                return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void ImportMeshAssetFromPicker(string filePath)
+        {
+            try
+            {
+                var mouseHit = GetProjectedMouseHit();
+                var dropPosition = mouseHit.Hit ? mouseHit.Position : (Vector3?)null;
+                _fileImportService.ImportFile(filePath, dropPosition, Context.World, _viewModel);
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"Failed to import mesh asset '{filePath}': {ex}");
+                ManaConsole.WriteDiagnostic($"Failed to import mesh asset '{filePath}': {ex}");
+            }
         }
 
         private void UpdateVoxelPointerInteraction(bool inputCaptured)

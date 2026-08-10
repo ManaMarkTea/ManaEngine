@@ -17,6 +17,8 @@ namespace Mana.Code.Shapes.Loaders
     {
         public Assimp _AssetImporter { get; set; } = null!;
         public string ActivePath { get; set; } = string.Empty;
+        private unsafe Scene* _activeScene;
+        private Func<string, byte[]?>? _externalAssetResolver;
 
         public List<ManaMesh> Meshes { get; set; }
 
@@ -35,8 +37,10 @@ namespace Mana.Code.Shapes.Loaders
         public unsafe ManaSceneNode LoadFile(string sceneFile)
         {
             _AssetImporter = Assimp.GetApi();
+            _externalAssetResolver = null;
 
             var scene = _AssetImporter.ImportFile(sceneFile, (uint)PostProcessSteps.Triangulate);
+            _activeScene = scene;
             ActivePath = System.IO.Path.GetDirectoryName(sceneFile) ?? string.Empty;
 
             if (scene == null || scene->MFlags == Silk.NET.Assimp.Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
@@ -65,6 +69,58 @@ namespace Mana.Code.Shapes.Loaders
 
             var rootSceneNode = LoadScene(scene, manaScene);
             Scenes.Add(manaScene);
+            _activeScene = null;
+
+            return rootSceneNode;
+        }
+
+        public unsafe ManaSceneNode LoadFileFromMemory(ReadOnlySpan<byte> sceneBytes, string virtualFileName, Func<string, byte[]?>? externalAssetResolver = null)
+        {
+            _AssetImporter = Assimp.GetApi();
+            _externalAssetResolver = externalAssetResolver;
+
+            var extensionHint = Path.GetExtension(virtualFileName);
+            if (!string.IsNullOrWhiteSpace(extensionHint) && extensionHint.StartsWith('.'))
+            {
+                extensionHint = extensionHint[1..];
+            }
+
+            Scene* scene;
+            fixed (byte* sceneBuffer = sceneBytes)
+            {
+                scene = _AssetImporter.ImportFileFromMemory(sceneBuffer, (uint)sceneBytes.Length, (uint)PostProcessSteps.Triangulate, extensionHint);
+            }
+            _activeScene = scene;
+
+            ActivePath = string.Empty;
+
+            if (scene == null || scene->MFlags == Silk.NET.Assimp.Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
+            {
+                var error = _AssetImporter.GetErrorStringS();
+                throw new Exception(error);
+            }
+
+            ManaScene manaScene = new ManaScene(Context);
+            manaScene.Name = Path.GetFileNameWithoutExtension(virtualFileName);
+
+            for (int i = 0; i < scene->MNumMaterials; i++)
+            {
+                var material = scene->MMaterials[i];
+
+                ManaMaterial manaMaterial = LoadMaterial(Context, material);
+                Materials.Add(manaMaterial);
+            }
+
+            for (int i = 0; i < scene->MNumMeshes; i++)
+            {
+                var mesh = scene->MMeshes[i];
+                ManaMesh model = LoadMesh(Context, mesh);
+                Meshes.Add(model);
+            }
+
+            var rootSceneNode = LoadScene(scene, manaScene);
+            Scenes.Add(manaScene);
+            _activeScene = null;
 
             return rootSceneNode;
         }
@@ -332,36 +388,77 @@ namespace Mana.Code.Shapes.Loaders
                     string filePath = metaChannel.Value;
                     if (filePath != null)
                     {
-                        string fullPath = Path.Combine(ActivePath, filePath);
-
-                        if (System.IO.File.Exists(fullPath))
+                        if (TryLoadEmbeddedTexture(context, filePath, out var embeddedTexture))
                         {
-                            var channelTexture = TextureManager.GetInstance(context).CreateTexture(filePath);
-                            textureNames.Add(Path.GetFileNameWithoutExtension(fullPath));
-                            if (!channelTexture.IsLoaded)
-                            {
-                                channelTexture.OriginalFilename = fullPath;
-                                channelTexture.Name = metaChannel.Value;
-                                if (context.OpenGl != null)
-                                {
-                                    channelTexture.Load();
-                                }
-                            }
-                            metaChannel.Texture = channelTexture;
-
+                            metaChannel.Texture = embeddedTexture;
+                            textureNames.Add(filePath);
 
                             switch (type)
                             {
-                                case TextureType.Diffuse: { outputMaterial.Albedo.TextureValue = channelTexture; } break;
-                                case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = channelTexture; } break;
-                                case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = channelTexture; } break;
-                                case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = channelTexture; } break;
-                                case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
-                                case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
-                                case TextureType.Emissive: { outputMaterial.Emission.TextureValue = channelTexture; } break;
-                                case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = channelTexture; } break;
-                                case TextureType.Normals: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
-                                case TextureType.NormalCamera: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                                case TextureType.Diffuse: { outputMaterial.Albedo.TextureValue = embeddedTexture; } break;
+                                case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = embeddedTexture; } break;
+                                case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = embeddedTexture; } break;
+                                case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = embeddedTexture; } break;
+                                case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = embeddedTexture; } break;
+                                case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = embeddedTexture; } break;
+                                case TextureType.Emissive: { outputMaterial.Emission.TextureValue = embeddedTexture; } break;
+                                case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = embeddedTexture; } break;
+                                case TextureType.Normals: { outputMaterial.Normal.TextureValue = embeddedTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                                case TextureType.NormalCamera: { outputMaterial.Normal.TextureValue = embeddedTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                            }
+                        }
+                        else if (TryLoadResolvedExternalTexture(context, filePath, out var resolvedTexture))
+                        {
+                            metaChannel.Texture = resolvedTexture;
+                            textureNames.Add(filePath);
+
+                            switch (type)
+                            {
+                                case TextureType.Diffuse: { outputMaterial.Albedo.TextureValue = resolvedTexture; } break;
+                                case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = resolvedTexture; } break;
+                                case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = resolvedTexture; } break;
+                                case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = resolvedTexture; } break;
+                                case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = resolvedTexture; } break;
+                                case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = resolvedTexture; } break;
+                                case TextureType.Emissive: { outputMaterial.Emission.TextureValue = resolvedTexture; } break;
+                                case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = resolvedTexture; } break;
+                                case TextureType.Normals: { outputMaterial.Normal.TextureValue = resolvedTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                                case TextureType.NormalCamera: { outputMaterial.Normal.TextureValue = resolvedTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                            }
+                        }
+                        else
+                        {
+                            string fullPath = Path.Combine(ActivePath, filePath);
+
+                            if (System.IO.File.Exists(fullPath))
+                            {
+                                var channelTexture = TextureManager.GetInstance(context).CreateTexture(filePath);
+                                textureNames.Add(Path.GetFileNameWithoutExtension(fullPath));
+                                if (!channelTexture.IsLoaded)
+                                {
+                                    channelTexture.OriginalFilename = fullPath;
+                                    channelTexture.Name = metaChannel.Value;
+                                    if (context.OpenGl != null)
+                                    {
+                                        channelTexture.Load();
+                                    }
+                                }
+                                metaChannel.Texture = channelTexture;
+
+
+                                switch (type)
+                                {
+                                    case TextureType.Diffuse: { outputMaterial.Albedo.TextureValue = channelTexture; } break;
+                                    case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = channelTexture; } break;
+                                    case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = channelTexture; } break;
+                                    case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = channelTexture; } break;
+                                    case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
+                                    case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
+                                    case TextureType.Emissive: { outputMaterial.Emission.TextureValue = channelTexture; } break;
+                                    case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = channelTexture; } break;
+                                    case TextureType.Normals: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                                    case TextureType.NormalCamera: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
+                                }
                             }
                         }
                     }
@@ -401,6 +498,85 @@ namespace Mana.Code.Shapes.Loaders
             }
 
             return outputMaterial;
+        }
+
+        private unsafe bool TryLoadEmbeddedTexture(ManaContext context, string textureReference, out ManaTexture texture)
+        {
+            texture = null!;
+            if (_activeScene == null || string.IsNullOrWhiteSpace(textureReference))
+            {
+                return false;
+            }
+
+            if (!textureReference.StartsWith("*", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (!int.TryParse(textureReference[1..], out var embeddedIndex) ||
+                embeddedIndex < 0 ||
+                embeddedIndex >= _activeScene->MNumTextures)
+            {
+                return false;
+            }
+
+            var embedded = _activeScene->MTextures[embeddedIndex];
+            if (embedded == null || embedded->PcData == null)
+            {
+                return false;
+            }
+
+            // Assimp contract: MHeight == 0 means compressed blob, MWidth is byte length.
+            if (embedded->MHeight != 0)
+            {
+                return false;
+            }
+
+            var byteCount = checked((int)embedded->MWidth);
+            if (byteCount <= 0)
+            {
+                return false;
+            }
+
+            var bytes = new byte[byteCount];
+            Marshal.Copy((IntPtr)embedded->PcData, bytes, 0, byteCount);
+
+            var textureKey = $"embedded:{textureReference}:{byteCount}";
+            texture = TextureManager.GetInstance(context).CreateTexture(textureKey);
+            texture.Name = textureReference;
+            texture.PixelStream = new MemoryStream(bytes, writable: false);
+            if (context.OpenGl != null && !texture.IsLoaded)
+            {
+                texture.Load();
+            }
+
+            return true;
+        }
+
+        private bool TryLoadResolvedExternalTexture(ManaContext context, string textureReference, out ManaTexture texture)
+        {
+            texture = null!;
+            if (_externalAssetResolver == null || string.IsNullOrWhiteSpace(textureReference))
+            {
+                return false;
+            }
+
+            var bytes = _externalAssetResolver(textureReference);
+            if (bytes == null || bytes.Length == 0)
+            {
+                return false;
+            }
+
+            var key = $"resolved:{textureReference}:{bytes.Length}";
+            texture = TextureManager.GetInstance(context).CreateTexture(key);
+            texture.Name = textureReference;
+            texture.PixelStream = new MemoryStream(bytes, writable: false);
+            if (context.OpenGl != null && !texture.IsLoaded)
+            {
+                texture.Load();
+            }
+
+            return true;
         }
 
         private static string ToMaterialDisplayName(string name)
@@ -552,6 +728,7 @@ namespace Mana.Code.Shapes.Loaders
                 TextureCoordinates0 = textureCoordinates0,
                 TextureCoordinates1 = textureCoordinates1,
                 AlbedoTexturePath = GetMaterialTexturePath(foundMaterial, TextureType.BaseColor, TextureType.Diffuse),
+                AlbedoTextureBytes = GetMaterialTextureBytes(foundMaterial, TextureType.BaseColor, TextureType.Diffuse),
                 AlbedoFactor = foundMaterial?.Albedo.Value
             };
 
@@ -583,6 +760,52 @@ namespace Mana.Code.Shapes.Loaders
                 if (match?.Texture != null && !string.IsNullOrWhiteSpace(match.Texture.OriginalFilename))
                 {
                     return match.Texture.OriginalFilename;
+                }
+            }
+
+            return null;
+        }
+
+        private static byte[]? GetMaterialTextureBytes(ManaMaterial? material, params TextureType[] textureTypes)
+        {
+            if (material == null)
+            {
+                return null;
+            }
+
+            foreach (var textureType in textureTypes)
+            {
+                var match = material.Channels.Values.FirstOrDefault(channel =>
+                    channel.Texture != null &&
+                    channel.Name.EndsWith($"_{textureType}", StringComparison.OrdinalIgnoreCase));
+                var stream = match?.Texture?.PixelStream;
+                if (stream == null)
+                {
+                    continue;
+                }
+
+                var originalPosition = stream.CanSeek ? stream.Position : 0L;
+                try
+                {
+                    if (stream.CanSeek)
+                    {
+                        stream.Position = 0;
+                    }
+
+                    using var copy = new MemoryStream();
+                    stream.CopyTo(copy);
+                    var bytes = copy.ToArray();
+                    if (bytes.Length > 0)
+                    {
+                        return bytes;
+                    }
+                }
+                finally
+                {
+                    if (stream.CanSeek)
+                    {
+                        stream.Position = originalPosition;
+                    }
                 }
             }
 

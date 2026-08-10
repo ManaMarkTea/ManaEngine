@@ -163,6 +163,27 @@ namespace Mana
             return rootSceneNode;
         }
 
+        public unsafe ManaSceneNode LoadFromGltfMemory(ReadOnlyMemory<byte> sceneBytes, string virtualFileName, Func<string, byte[]?>? externalAssetResolver = null)
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
+            ManaGltfLoader loader = new ManaGltfLoader(Context);
+            var rootSceneNode = loader.LoadFileFromMemory(sceneBytes.Span, virtualFileName, externalAssetResolver);
+
+            stopwatch.Stop();
+            manaPerformanceLogs.Add(new ManaPerformanceLog()
+            {
+                Name = $"Loading {virtualFileName} (memory)",
+                Duration = stopwatch.Elapsed
+            });
+
+            Scenes.AddRange(loader.Scenes);
+            Meshes.AddRange(loader.Meshes);
+            Materials.AddRange(loader.Materials);
+
+            return rootSceneNode;
+        }
+
         private void RunFutures(List<Action> futures, List<Action> activeFutures)
         {
             activeFutures.AddRange(futures);

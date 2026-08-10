@@ -11,6 +11,7 @@ namespace ManaCore.Graphics
         public required Vector2[] TextureCoordinates0 { get; init; }
         public required Vector2[] TextureCoordinates1 { get; init; }
         public string? AlbedoTexturePath { get; init; }
+        public byte[]? AlbedoTextureBytes { get; init; }
         public Vector4? AlbedoFactor { get; init; }
     }
 }
