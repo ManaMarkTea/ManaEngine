@@ -1329,9 +1329,41 @@ namespace Mana.Code.GameModes
 
         private void Window_FileDrop(string[] files)
         {
-            var mouseDropWorld = GetProjectedMouseHit();
+            var mouseDropWorld = GetProjectedPlacementHit();
             var dropPosition = mouseDropWorld.Hit ? mouseDropWorld.Position : (Vector3?)null;
             _fileImportService.ImportDroppedFiles(files, dropPosition, Context.World, _viewModel);
+        }
+
+        private RayHit GetProjectedPlacementHit()
+        {
+            var hit = GetProjectedMouseHit();
+            if (hit.Hit)
+            {
+                return hit;
+            }
+
+            var mouseState = Context.Input.Mice.FirstOrDefault();
+            if (mouseState == null)
+            {
+                return hit;
+            }
+
+            var mouseStart = new Vector3(mouseState.Position, 0.0f);
+            var mouseEnd = new Vector3(mouseState.Position, 1.0f);
+            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+            var pick = ManaScenePicker.PickWithHit(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
+            if (!pick.HasValue)
+            {
+                return hit;
+            }
+
+            return new RayHit
+            {
+                Hit = true,
+                Position = pick.Value.Position,
+                Normal = pick.Value.Normal,
+                Distance = pick.Value.Distance,
+            };
         }
 
         RayHit GetProjectedMouseHit()
@@ -1770,7 +1802,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var mouseHit = GetProjectedMouseHit();
+            var mouseHit = GetProjectedPlacementHit();
             if (!mouseHit.Hit)
             {
                 return;
@@ -1892,7 +1924,7 @@ namespace Mana.Code.GameModes
         {
             try
             {
-                var mouseHit = GetProjectedMouseHit();
+                var mouseHit = GetProjectedPlacementHit();
                 var dropPosition = mouseHit.Hit ? mouseHit.Position : (Vector3?)null;
                 _fileImportService.ImportFile(filePath, dropPosition, Context.World, _viewModel);
             }

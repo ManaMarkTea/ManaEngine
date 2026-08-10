@@ -16,6 +16,12 @@ namespace Mana.Code
         // node won the closest-hit test (a node can host several, e.g. PlanetNode's shared-root patch
         // nodes) -- null only if somehow no renderer contributed to the hit.
         public readonly record struct ScenePickResult(ManaSceneNode Node, MeshRendererComponent? Renderer);
+        public readonly record struct ScenePickHitResult(
+            ManaSceneNode Node,
+            MeshRendererComponent? Renderer,
+            Vector3 Position,
+            Vector3 Normal,
+            float Distance);
 
         public static ScenePickResult? Pick(
             IEnumerable<ManaScene> scenes,
@@ -36,6 +42,40 @@ namespace Mana.Code
             }
 
             return closestNode != null ? new ScenePickResult(closestNode, closestRenderer) : null;
+        }
+
+        public static ScenePickHitResult? PickWithHit(
+            IEnumerable<ManaScene> scenes,
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            HashSet<ManaSceneNode>? excludeNodes = null)
+        {
+            ManaSceneNode? closestNode = null;
+            MeshRendererComponent? closestRenderer = null;
+            var closestDistance = float.PositiveInfinity;
+            var closestPosition = Vector3.Zero;
+            var closestNormal = Vector3.UnitY;
+
+            foreach (var scene in scenes)
+            {
+                foreach (var node in scene.Children)
+                {
+                    PickNodeWithHit(
+                        node,
+                        rayOrigin,
+                        rayDirection,
+                        excludeNodes,
+                        ref closestNode,
+                        ref closestRenderer,
+                        ref closestDistance,
+                        ref closestPosition,
+                        ref closestNormal);
+                }
+            }
+
+            return closestNode != null
+                ? new ScenePickHitResult(closestNode, closestRenderer, closestPosition, closestNormal, closestDistance)
+                : null;
         }
 
         private static void PickNode(
@@ -60,6 +100,45 @@ namespace Mana.Code
             foreach (var child in node.Children)
             {
                 PickNode(child, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestRenderer, ref closestDistance);
+            }
+        }
+
+        private static void PickNodeWithHit(
+            ManaSceneNode node,
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            HashSet<ManaSceneNode>? excludeNodes,
+            ref ManaSceneNode? closestNode,
+            ref MeshRendererComponent? closestRenderer,
+            ref float closestDistance,
+            ref Vector3 closestPosition,
+            ref Vector3 closestNormal)
+        {
+            if (excludeNodes == null || !excludeNodes.Contains(node))
+            {
+                if (TryIntersectWithHit(node, rayOrigin, rayDirection, out var distance, out var renderer, out var position, out var normal) &&
+                    distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestNode = node;
+                    closestRenderer = renderer;
+                    closestPosition = position;
+                    closestNormal = normal;
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                PickNodeWithHit(
+                    child,
+                    rayOrigin,
+                    rayDirection,
+                    excludeNodes,
+                    ref closestNode,
+                    ref closestRenderer,
+                    ref closestDistance,
+                    ref closestPosition,
+                    ref closestNormal);
             }
         }
 
@@ -133,6 +212,82 @@ namespace Mana.Code
             return true;
         }
 
+        private static bool TryIntersectWithHit(
+            ManaSceneNode node,
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            out float worldDistance,
+            out MeshRendererComponent? hitRenderer,
+            out Vector3 worldHitPosition,
+            out Vector3 worldHitNormal)
+        {
+            worldDistance = float.PositiveInfinity;
+            hitRenderer = null;
+            worldHitPosition = Vector3.Zero;
+            worldHitNormal = Vector3.UnitY;
+
+            if (!Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
+            {
+                return false;
+            }
+
+            var localOrigin = Vector3.Transform(rayOrigin, worldToLocal);
+            var localDirection = Vector3.TransformNormal(rayDirection, worldToLocal);
+            if (localDirection.LengthSquared() < 1e-12f)
+            {
+                return false;
+            }
+
+            var bestLocalT = float.PositiveInfinity;
+            var bestLocalNormal = Vector3.UnitY;
+            var hitAny = false;
+
+            foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+            {
+                if (renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                {
+                    continue;
+                }
+
+                GetLocalBounds(cpuData, out var localMin, out var localMax);
+
+                var center = (localMin + localMax) * 0.5f;
+                var recenteredOrigin = localOrigin - center;
+                var recenteredMin = localMin - center;
+                var recenteredMax = localMax - center;
+
+                if (!RayIntersectsAabb(recenteredOrigin, localDirection, recenteredMin, recenteredMax))
+                {
+                    continue;
+                }
+
+                if (TryIntersectTrianglesWithNormal(recenteredOrigin, localDirection, cpuData, center, out var meshLocalT, out var meshLocalNormal) &&
+                    meshLocalT < bestLocalT)
+                {
+                    bestLocalT = meshLocalT;
+                    bestLocalNormal = meshLocalNormal;
+                    hitAny = true;
+                    hitRenderer = renderer;
+                }
+            }
+
+            if (!hitAny)
+            {
+                return false;
+            }
+
+            var localHitPosition = localOrigin + localDirection * bestLocalT;
+            worldHitPosition = Vector3.Transform(localHitPosition, node.WorldTransform);
+            worldHitNormal = Vector3.Normalize(Vector3.TransformNormal(bestLocalNormal, node.WorldTransform));
+            if (worldHitNormal.LengthSquared() < 1e-12f)
+            {
+                worldHitNormal = Vector3.UnitY;
+            }
+
+            worldDistance = Vector3.Distance(rayOrigin, worldHitPosition);
+            return true;
+        }
+
         private static bool TryIntersectTriangles(Vector3 origin, Vector3 direction, ManaMeshCpuData cpuData, Vector3 center, out float t)
         {
             t = float.PositiveInfinity;
@@ -149,6 +304,38 @@ namespace Mana.Code
                 if (RayIntersectsTriangle(origin, direction, v0, v1, v2, out var triangleT) && triangleT < t)
                 {
                     t = triangleT;
+                    hitAny = true;
+                }
+            }
+
+            return hitAny;
+        }
+
+        private static bool TryIntersectTrianglesWithNormal(
+            Vector3 origin,
+            Vector3 direction,
+            ManaMeshCpuData cpuData,
+            Vector3 center,
+            out float t,
+            out Vector3 normal)
+        {
+            t = float.PositiveInfinity;
+            normal = Vector3.UnitY;
+            var hitAny = false;
+            var positions = cpuData.Positions;
+            var indexes = cpuData.Indexes;
+
+            for (var i = 0; i + 2 < indexes.Length; i += 3)
+            {
+                var v0 = positions[indexes[i]] - center;
+                var v1 = positions[indexes[i + 1]] - center;
+                var v2 = positions[indexes[i + 2]] - center;
+
+                if (RayIntersectsTriangle(origin, direction, v0, v1, v2, out var triangleT) && triangleT < t)
+                {
+                    t = triangleT;
+                    var faceNormal = Vector3.Cross(v1 - v0, v2 - v0);
+                    normal = faceNormal.LengthSquared() > 1e-12f ? Vector3.Normalize(faceNormal) : Vector3.UnitY;
                     hitAny = true;
                 }
             }
