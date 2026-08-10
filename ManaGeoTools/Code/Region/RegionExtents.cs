@@ -33,7 +33,7 @@ namespace ManaGeoTools.Code.Region
         // Memory budget, enforced by RegionHeightField: the stitched grid is 256KB per tile, so ~134MB at
         // the limit. Tile count grows with area, with zoom, and with latitude (a tile covers cos(lat) of
         // its equatorial ground), so the largest box at the highest zoom is not loadable everywhere.
-        public const int MaxTilesPerRegion = 512;
+        public const int MaxTilesPerRegion = 2048;
 
         /// <summary>
         /// Ground distance between adjacent source samples for a Terrarium tile at this zoom and latitude
