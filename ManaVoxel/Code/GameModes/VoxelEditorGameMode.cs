@@ -42,6 +42,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
         private readonly VoxelFileImportService _fileImportService = new();
+        private ManaPawnController? _pawnController;
         private const string ZipAssetPrefix = "zipasset:";
         private bool _firstFrame = true;
         private bool _meshPickerDragWasDown;
@@ -153,6 +154,20 @@ namespace Mana.Code.GameModes
             InitCustomNodeInspectorHooks();
 
             var world = Context.World;
+
+            // Shares the editor's picking exclusions so a click-to-move order falls through the grid
+            // planes onto the ground plane, exactly like the voxel placement raycast does.
+            _pawnController = new ManaPawnController(Context)
+            {
+                PickingExclusions = _pickingExclusions,
+                GroundPlaneHeight = 0.0f
+            };
+            _viewModel.AttachPawnController(_pawnController);
+
+            // Hands WASD to the possessed character. Set here rather than alongside
+            // ShouldCaptureMouseInput below because that assignment runs on the background load task,
+            // and this one has to be live from the first frame.
+            Context.World.MainCamera.ShouldCaptureKeyboardInput = () => _pawnController?.IsCapturingMovementKeys == true;
 
             Task.Run(() =>
             {
@@ -1658,6 +1673,7 @@ namespace Mana.Code.GameModes
 
             UpdateVoxelPointerInteraction(imguiCapturesMouse);
             UpdateFrameSelectedShortcut();
+            _pawnController?.UpdateDriveInput(ImGui.GetIO().WantCaptureKeyboard);
 
             _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
 
@@ -2055,6 +2071,25 @@ namespace Mana.Code.GameModes
             var mouseEnd = new Vector3(mouseState.Position, 1.0f);
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
             var pickResult = ManaScenePicker.Pick(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
+
+            // Pawn clicks get first refusal: clicking a character possesses it (and selects the pawn
+            // root rather than the body-mesh child the ray actually hit), and a follow-up click
+            // elsewhere is a walk order that must not clear the selection out from under it.
+            var pawnOutcome = _pawnController?.HandleClick(pickResult?.Node, ray.Origin, ray.Direction)
+                ?? ManaPawnController.ClickOutcome.Ignored;
+
+            if (pawnOutcome == ManaPawnController.ClickOutcome.Ordered)
+            {
+                return;
+            }
+
+            if (pawnOutcome == ManaPawnController.ClickOutcome.Possessed)
+            {
+                Context.World.Selection.SelectedNode = _pawnController?.PossessedPawn;
+                Context.World.Selection.SelectedComponent = null;
+                return;
+            }
+
             Context.World.Selection.SelectedNode = pickResult?.Node;
             Context.World.Selection.SelectedComponent = pickResult?.Renderer;
 

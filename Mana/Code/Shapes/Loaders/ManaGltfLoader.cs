@@ -32,6 +32,11 @@ namespace Mana.Code.Shapes.Loaders
         // what a file shipped without walking the scene graph.
         public List<ManaAnimationClip> AnimationClips { get; } = new();
 
+        // Lets a caller substitute a ManaSkeletalActorNode subclass for the root of a rigged file --
+        // ManaPawnNode uses this to import straight into a controllable character instead of having to
+        // retype the node after the fact. Ignored for files with no skin or clips.
+        public Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? SkeletalActorFactory { get; set; }
+
         // Per-mesh skin data harvested during LoadMesh, keyed by Assimp mesh index. Resolved into a
         // real ManaSkeleton only after the node tree exists, since bones are scene nodes by name.
         private readonly Dictionary<int, ManaMeshSkinSource> _meshSkinSources = new();
@@ -313,7 +318,7 @@ namespace Mana.Code.Shapes.Loaders
             var local = node->MTransformation;
             local = Matrix4x4.Transpose(local);
             var metaSceneNode = asSkeletalActor
-                ? new ManaSkeletalActorNode(Context, local)
+                ? SkeletalActorFactory?.Invoke(Context, local) ?? new ManaSkeletalActorNode(Context, local)
                 : new ManaSceneNode(Context, local);
             metaSceneNode.Name = node->MName;
 

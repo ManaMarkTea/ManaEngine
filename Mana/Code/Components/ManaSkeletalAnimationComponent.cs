@@ -165,6 +165,25 @@ namespace Mana
             }
         }
 
+        // The rest transform a node had before anything animated it. Exposed because evaluating a clip
+        // off to the side (see ManaStrideAnalyzer) needs the un-posed value for every node the clip
+        // does not animate -- reading LocalTransform there would pick up the live pose instead.
+        public bool TryGetBindPose(string nodeName, out Vector3 position, out Quaternion rotation, out Vector3 scale)
+        {
+            if (bindPoses.TryGetValue(nodeName, out var pose))
+            {
+                position = pose.Position;
+                rotation = pose.Rotation;
+                scale = pose.Scale;
+                return true;
+            }
+
+            position = Vector3.Zero;
+            rotation = Quaternion.Identity;
+            scale = Vector3.One;
+            return false;
+        }
+
         public void ResetToBindPose()
         {
             foreach (var entry in bindPoses)

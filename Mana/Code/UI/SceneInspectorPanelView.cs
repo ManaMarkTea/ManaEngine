@@ -167,6 +167,11 @@ namespace Mana.Code.UI
                 DrawVoxelsNodeInspector(voxelsNode);
             }
 
+            if (node is ManaPawnNode pawn)
+            {
+                DrawPawnInspector(pawn);
+            }
+
             if (node is ManaSkeletalActorNode skeletalActor)
             {
                 DrawSkeletalActorInspector(skeletalActor);
@@ -1022,6 +1027,93 @@ namespace Mana.Code.UI
             {
                 DrawReadOnlyProperty("Source", voxelsNode.Source);
                 ImGui.EndTable();
+            }
+        }
+
+        private static void DrawPawnInspector(ManaPawnNode pawn)
+        {
+            ImGui.SeparatorText("Pawn");
+            if (BeginPropertyTable("PawnProperties"))
+            {
+                DrawReadOnlyProperty("Possessed", pawn.IsPossessed ? "Yes" : "No");
+                DrawReadOnlyProperty("Speed", $"{pawn.CurrentSpeed:0.00} u/s");
+                DrawReadOnlyProperty("Destination", pawn.Destination.HasValue
+                    ? $"{pawn.Destination.Value.X:0.0}, {pawn.Destination.Value.Y:0.0}, {pawn.Destination.Value.Z:0.0}"
+                    : "<none>");
+
+                var walkSpeed = pawn.WalkSpeed;
+                if (DrawSliderFloatProperty("Walk speed", ref walkSpeed, 0.1f, 20.0f))
+                {
+                    pawn.WalkSpeed = walkSpeed;
+                }
+
+                var runSpeed = pawn.RunSpeed;
+                if (DrawSliderFloatProperty("Run speed", ref runSpeed, 0.1f, 40.0f))
+                {
+                    pawn.RunSpeed = runSpeed;
+                }
+
+                var turnSpeed = pawn.TurnDegreesPerSecond;
+                if (DrawSliderFloatProperty("Turn deg/s", ref turnSpeed, 45.0f, 1440.0f))
+                {
+                    pawn.TurnDegreesPerSecond = turnSpeed;
+                }
+
+                // Exposed because it is model-dependent: a rig whose mesh faces -Z instead of +Z walks
+                // backwards until this is 180.
+                var facingOffset = pawn.FacingOffsetDegrees;
+                if (DrawSliderFloatProperty("Facing offset", ref facingOffset, -180.0f, 180.0f))
+                {
+                    pawn.FacingOffsetDegrees = facingOffset;
+                }
+
+                var groundHeight = pawn.GroundHeight;
+                if (DrawDragFloatProperty("Ground Y", ref groundHeight, 0.05f))
+                {
+                    pawn.GroundHeight = groundHeight;
+                }
+
+                ImGui.EndTable();
+            }
+
+            ImGui.SeparatorText("Foot Sliding");
+            if (BeginPropertyTable("PawnStrideProperties"))
+            {
+                var matchAnimation = pawn.MatchAnimationToSpeed;
+                if (DrawCheckboxProperty("Match to speed", ref matchAnimation))
+                {
+                    pawn.MatchAnimationToSpeed = matchAnimation;
+                }
+
+                // The ratio between these two is the playback rate; equal means the clip is running at
+                // 1.0x and the feet are as planted as the source animation allows.
+                DrawReadOnlyProperty("Walk authored for", pawn.TryGetClipReferenceSpeed(pawn.WalkClipName, out var walkReference)
+                    ? $"{walkReference:0.00} u/s"
+                    : "<not calibrated>");
+                DrawReadOnlyProperty("Run authored for", pawn.TryGetClipReferenceSpeed(pawn.RunClipName, out var runReference)
+                    ? $"{runReference:0.00} u/s"
+                    : "<not calibrated>");
+                DrawReadOnlyProperty("Playback rate", $"{pawn.Animation.PlaybackSpeed:0.00}x");
+
+                ImGui.EndTable();
+            }
+
+            if (ImGui.Button("Recalibrate"))
+            {
+                pawn.CalibrateLocomotionClips();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Use Authored Speeds"))
+            {
+                pawn.CalibrateLocomotionClips();
+                pawn.ApplyCalibratedSpeeds();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Stop"))
+            {
+                pawn.StopMoving();
             }
         }
 

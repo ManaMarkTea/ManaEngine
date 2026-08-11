@@ -1,5 +1,6 @@
 using Mana;
 using Mana.Code.Nodes;
+using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
 
 namespace ManaVoxel.Code.UI
@@ -25,6 +26,7 @@ namespace ManaVoxel.Code.UI
         private static readonly string[] LockOverlapPolicies = { "Closest", "Brightest", "First Seen" };
 
         private readonly List<VoxelLayerViewModel> _voxelLayers = new();
+        private readonly CharacterSpawnService _characterSpawnService = new();
         private ManaContext? _context;
         private ManaScene? _scene;
         private ManaVoxelsNode? _previewNode;
@@ -146,6 +148,14 @@ namespace ManaVoxel.Code.UI
             _context = context;
             _scene = scene;
         }
+
+        public void AttachPawnController(ManaPawnController pawnController)
+        {
+            PawnController = pawnController;
+        }
+
+        public ManaPawnController? PawnController { get; private set; }
+        public string? CharacterSpawnError { get; set; }
 
         public void AttachVoxelData(ManaVoxelShape voxel, ManaVoxelsNode voxelNode)
         {
@@ -287,6 +297,67 @@ namespace ManaVoxel.Code.UI
             }
 
             return hash.ToHashCode();
+        }
+
+        // Spawn placement is deliberately in front of the camera rather than at a fixed world point --
+        // the editor camera roams a 256-unit grid, and a character that lands off-screen reads as
+        // "nothing happened".
+        public void SpawnCharacter()
+        {
+            CharacterSpawnError = null;
+
+            if (_context == null || PawnController == null)
+            {
+                CharacterSpawnError = "The editor is still loading.";
+                return;
+            }
+
+            var camera = _context.World.MainCamera;
+            var forward = camera.Owner.Forward;
+            var flatForward = new Vector3(forward.X, 0.0f, forward.Z);
+            flatForward = flatForward.LengthSquared() < 1e-6f
+                ? -Vector3.UnitZ
+                : Vector3.Normalize(flatForward);
+
+            var spawnPosition = camera.Owner.Position + flatForward * 8.0f;
+            spawnPosition.Y = 0.0f;
+
+            ManaPawnNode? pawn;
+            lock (_context.World.SceneLock)
+            {
+                pawn = _characterSpawnService.SpawnNextCharacter(_context.World, spawnPosition, PawnController);
+            }
+
+            if (pawn == null)
+            {
+                CharacterSpawnError = _characterSpawnService.LastError ?? "Failed to spawn character.";
+                return;
+            }
+
+            // Possessing on spawn means the very next ground click already walks it somewhere.
+            PawnController.Possess(pawn);
+        }
+
+        public void RemoveAllCharacters()
+        {
+            if (_context == null || PawnController == null)
+            {
+                return;
+            }
+
+            lock (_context.World.SceneLock)
+            {
+                foreach (var pawn in PawnController.Pawns.ToList())
+                {
+                    pawn.Parent?.RemoveChild(pawn);
+                    foreach (var scene in _context.World.Scenes)
+                    {
+                        scene.Children.Remove(pawn);
+                    }
+
+                    PawnController.Unregister(pawn);
+                }
+            }
         }
 
         public void BakeToPhysics()

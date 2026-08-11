@@ -34,6 +34,12 @@ namespace ManaVoxel.Code.UI
                 ImGui.EndMenu();
             }
 
+            if (ImGui.BeginMenu("Character"))
+            {
+                DrawCharacterMenu(viewModel);
+                ImGui.EndMenu();
+            }
+
             if (ImGui.BeginMenu("View"))
             {
                 if (ImGui.MenuItem("Show Lightning Ball", string.Empty, viewModel.ShowLightningBall))
@@ -203,6 +209,62 @@ namespace ManaVoxel.Code.UI
             }
 
             ImGui.EndMenu();
+        }
+
+        private static void DrawCharacterMenu(VoxelEditorViewModel viewModel)
+        {
+            var controller = viewModel.PawnController;
+
+            if (ImGui.MenuItem("Spawn Character"))
+            {
+                viewModel.Commands.SpawnCharacter();
+            }
+
+            if (ImGui.MenuItem("Remove All Characters", string.Empty, false, controller is { Pawns.Count: > 0 }))
+            {
+                viewModel.Commands.RemoveAllCharacters();
+            }
+
+            if (controller == null)
+            {
+                return;
+            }
+
+            ImGui.Separator();
+
+            var clickToMove = controller.ClickToMoveEnabled;
+            if (ImGui.MenuItem("Click To Move", string.Empty, clickToMove))
+            {
+                controller.ClickToMoveEnabled = !clickToMove;
+            }
+
+            var keyboardDrive = controller.KeyboardDriveEnabled;
+            if (ImGui.MenuItem("WASD Drive", string.Empty, keyboardDrive))
+            {
+                controller.KeyboardDriveEnabled = !keyboardDrive;
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("While a character is possessed, WASD drives it instead of the camera.\nQ/E and mouse orbit still move the camera. Esc releases.");
+            }
+
+            if (ImGui.MenuItem("Release Character", "Esc", false, controller.PossessedPawn != null))
+            {
+                controller.Possess(null);
+            }
+
+            ImGui.Separator();
+            ImGui.TextDisabled($"Characters: {controller.Pawns.Count}");
+            ImGui.TextDisabled(controller.PossessedPawn == null
+                ? "Click a character to control it"
+                : $"Controlling: {controller.PossessedPawn.Name} (WASD, Shift to run)");
+
+            if (!string.IsNullOrWhiteSpace(viewModel.CharacterSpawnError))
+            {
+                ImGui.Separator();
+                ImGui.TextColored(new Vector4(0.95f, 0.45f, 0.35f, 1.0f), viewModel.CharacterSpawnError);
+            }
         }
 
         private static void DrawFontPresetMenuItem(

@@ -9,5 +9,7 @@ namespace ManaVoxel.Code.UI
         void ExplodeBakedVoxelsAt(Vector3 position);
         void AddVoxelAt(Vector3 position);
         void ApplyRuntimeSettings();
+        void SpawnCharacter();
+        void RemoveAllCharacters();
     }
 }

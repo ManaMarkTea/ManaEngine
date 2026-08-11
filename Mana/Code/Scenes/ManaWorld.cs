@@ -146,11 +146,13 @@ namespace Mana
         }
        
 
-        public unsafe ManaSceneNode LoadFromGltf(string sceneFile)
+        public unsafe ManaSceneNode LoadFromGltf(
+            string sceneFile,
+            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            ManaGltfLoader loader = new ManaGltfLoader(Context);
+            ManaGltfLoader loader = new ManaGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
             var rootSceneNode = loader.LoadFile(sceneFile);
 
             stopwatch.Stop();
@@ -163,11 +165,15 @@ namespace Mana
             return rootSceneNode;
         }
 
-        public unsafe ManaSceneNode LoadFromGltfMemory(ReadOnlyMemory<byte> sceneBytes, string virtualFileName, Func<string, byte[]?>? externalAssetResolver = null)
+        public unsafe ManaSceneNode LoadFromGltfMemory(
+            ReadOnlyMemory<byte> sceneBytes,
+            string virtualFileName,
+            Func<string, byte[]?>? externalAssetResolver = null,
+            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            ManaGltfLoader loader = new ManaGltfLoader(Context);
+            ManaGltfLoader loader = new ManaGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
             var rootSceneNode = loader.LoadFileFromMemory(sceneBytes.Span, virtualFileName, externalAssetResolver);
 
             stopwatch.Stop();

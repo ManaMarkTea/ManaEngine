@@ -27,6 +27,11 @@ namespace Mana
         public float PanSpeed = 1.0f;
         public bool TouchpadPanInOrthographic = true;
         public Func<bool>? ShouldCaptureMouseInput { get; set; }
+
+        // Mirrors ShouldCaptureMouseInput for the WASD/QE fly block. Something else in the app can lay
+        // claim to the movement keys for a frame -- ManaPawnController does exactly this while a
+        // character is possessed, so WASD drives the character instead of the camera.
+        public Func<bool>? ShouldCaptureKeyboardInput { get; set; }
         public Vector2D<int> DebugPointCount = new Vector2D<int>(5, 3);
 
 
@@ -232,6 +237,11 @@ namespace Mana
             // Without this the WASD/QE block below fires while typing into any ImGui text field.
             bool imguiCapturesKeyboard = GetImGuiWantsCaptureKeyboard();
 
+            // Only the WASD ground-plane keys are surrenderable, not the whole fly block: something
+            // else can want WASD (a possessed character) while the camera still needs Q/E to change
+            // height and look at it.
+            bool horizontalFlyKeysAvailable = !imguiCapturesKeyboard && ShouldCaptureKeyboardInput?.Invoke() != true;
+
             var position = Owner.Position;
             var rotation = Owner.Rotation;
             var rotationEuler = rotation;
@@ -252,7 +262,7 @@ namespace Mana
                 (MouseState.IsButtonPressed(MouseButton.Middle) || MouseState.IsButtonPressed(MouseButton.Right));
             Vector2 mouseDelta = UpdateAverage(delta, cameraMouseActive, ref dxAvg, ref dyAvg);
 
-            if (!imguiCapturesKeyboard)
+            if (horizontalFlyKeysAvailable)
             {
                 if (KeyboardState.IsKeyPressed(Key.W))
                 {
@@ -273,7 +283,10 @@ namespace Mana
                 {
                     position += right * delta * _MovementSpeed;
                 }
+            }
 
+            if (!imguiCapturesKeyboard)
+            {
                 if (KeyboardState.IsKeyPressed(Key.E))
                 {
                     position += worldUp * +delta * _MovementSpeed;
