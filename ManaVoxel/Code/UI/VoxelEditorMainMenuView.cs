@@ -225,6 +225,29 @@ namespace ManaVoxel.Code.UI
                 viewModel.Commands.RemoveAllCharacters();
             }
 
+            ImGui.Separator();
+
+            if (ImGui.MenuItem("Spawn Platform Course"))
+            {
+                viewModel.Commands.SpawnPlatformCourse();
+            }
+
+            if (ImGui.MenuItem("Remove Platform Course", string.Empty, false, viewModel.HasPlatformCourse))
+            {
+                viewModel.Commands.RemovePlatformCourse();
+            }
+
+            var physicsEnabled = viewModel.CharacterPhysicsEnabled;
+            if (ImGui.MenuItem("Physics Capsule (new spawns)", string.Empty, physicsEnabled))
+            {
+                viewModel.CharacterPhysicsEnabled = !physicsEnabled;
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("On: the character gets a Bepu capsule, falls under gravity, collides with\nplatforms and can jump with Space. Off: the old flat-ground walker.");
+            }
+
             if (controller == null)
             {
                 return;
@@ -258,7 +281,7 @@ namespace ManaVoxel.Code.UI
             ImGui.TextDisabled($"Characters: {controller.Pawns.Count}");
             ImGui.TextDisabled(controller.PossessedPawn == null
                 ? "Click a character to control it"
-                : $"Controlling: {controller.PossessedPawn.Name} (WASD, Shift to run)");
+                : $"Controlling: {controller.PossessedPawn.Name} (WASD, Shift run, Space jump)");
 
             if (!string.IsNullOrWhiteSpace(viewModel.CharacterSpawnError))
             {

@@ -11,5 +11,7 @@ namespace ManaVoxel.Code.UI
         void ApplyRuntimeSettings();
         void SpawnCharacter();
         void RemoveAllCharacters();
+        void SpawnPlatformCourse();
+        void RemovePlatformCourse();
     }
 }

@@ -1076,6 +1076,87 @@ namespace Mana.Code.UI
                 ImGui.EndTable();
             }
 
+            ImGui.SeparatorText("Physics & Jump");
+            if (BeginPropertyTable("PawnPhysicsProperties"))
+            {
+                DrawReadOnlyProperty("Capsule", pawn.Body == null
+                    ? "<none - kinematic>"
+                    : $"r={pawn.Body.Radius:0.00} h={pawn.Body.Height:0.00}");
+
+                if (pawn.Body != null)
+                {
+                    DrawReadOnlyProperty("Grounded", pawn.IsGrounded ? "Yes" : "No");
+                    DrawReadOnlyProperty("Vertical vel", $"{pawn.Body.Velocity.Y:0.00} u/s");
+                    DrawReadOnlyProperty("Jumps used", $"{pawn.JumpsUsed} / {pawn.MaxJumpCount}");
+
+                    var jumpHeight = pawn.JumpHeight;
+                    if (DrawSliderFloatProperty("Jump height", ref jumpHeight, 0.5f, 12.0f))
+                    {
+                        pawn.JumpHeight = jumpHeight;
+                    }
+
+                    var releaseCutoff = pawn.JumpReleaseCutoff;
+                    if (DrawSliderFloatProperty("Release cutoff", ref releaseCutoff, 0.0f, 1.0f))
+                    {
+                        pawn.JumpReleaseCutoff = releaseCutoff;
+                    }
+
+                    var fallMultiplier = pawn.FallGravityMultiplier;
+                    if (DrawSliderFloatProperty("Fall gravity", ref fallMultiplier, 1.0f, 4.0f))
+                    {
+                        pawn.FallGravityMultiplier = fallMultiplier;
+                    }
+
+                    var airControl = pawn.AirControl;
+                    if (DrawSliderFloatProperty("Air control", ref airControl, 0.0f, 1.0f))
+                    {
+                        pawn.AirControl = airControl;
+                    }
+
+                    var coyoteTime = pawn.CoyoteTimeSeconds;
+                    if (DrawSliderFloatProperty("Coyote time", ref coyoteTime, 0.0f, 0.4f))
+                    {
+                        pawn.CoyoteTimeSeconds = coyoteTime;
+                    }
+
+                    var jumpBuffer = pawn.JumpBufferSeconds;
+                    if (DrawSliderFloatProperty("Jump buffer", ref jumpBuffer, 0.0f, 0.4f))
+                    {
+                        pawn.JumpBufferSeconds = jumpBuffer;
+                    }
+
+                    var maxJumps = pawn.MaxJumpCount;
+                    if (DrawSliderIntProperty("Max jumps", ref maxJumps, 1, 3))
+                    {
+                        pawn.MaxJumpCount = maxJumps;
+                    }
+                }
+
+                ImGui.EndTable();
+            }
+
+            if (pawn.Body == null)
+            {
+                if (ImGui.Button("Add Physics Capsule"))
+                {
+                    pawn.EnablePhysics();
+                    pawn.RespawnPoint = pawn.Position;
+                }
+            }
+            else
+            {
+                if (ImGui.Button("Remove Physics Capsule"))
+                {
+                    pawn.DisablePhysics();
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Respawn"))
+                {
+                    pawn.TeleportTo(pawn.RespawnPoint);
+                }
+            }
+
             ImGui.SeparatorText("Foot Sliding");
             if (BeginPropertyTable("PawnStrideProperties"))
             {

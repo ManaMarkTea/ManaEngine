@@ -26,6 +26,7 @@ namespace Mana.Code
 
         private readonly List<ManaPawnNode> pawns = new();
         private bool releaseKeyWasDown;
+        private bool jumpKeyWasDown;
 
         public ManaPawnController(ManaContext context) : base(context)
         {
@@ -204,6 +205,20 @@ namespace Mana.Code
 
             pawn.DriveDirection = drive;
             pawn.WantsToRun = keyboard.IsKeyPressed(Key.ShiftLeft) || keyboard.IsKeyPressed(Key.ShiftRight);
+
+            // Edge-triggered on both sides: the press is what gets buffered, and the release is what
+            // cuts the jump short for a variable-height hop.
+            var jumpKeyDown = keyboard.IsKeyPressed(Key.Space);
+            if (jumpKeyDown && !jumpKeyWasDown)
+            {
+                pawn.PressJump();
+            }
+            else if (!jumpKeyDown && jumpKeyWasDown)
+            {
+                pawn.ReleaseJump();
+            }
+
+            jumpKeyWasDown = jumpKeyDown;
         }
 
         // A steeply-pitched camera's forward vector is mostly vertical; falling back to world -Z keeps

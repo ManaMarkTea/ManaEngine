@@ -27,6 +27,7 @@ namespace ManaVoxel.Code.UI
 
         private readonly List<VoxelLayerViewModel> _voxelLayers = new();
         private readonly CharacterSpawnService _characterSpawnService = new();
+        private readonly PlatformCourseService _platformCourseService = new();
         private ManaContext? _context;
         private ManaScene? _scene;
         private ManaVoxelsNode? _previewNode;
@@ -156,6 +157,8 @@ namespace ManaVoxel.Code.UI
 
         public ManaPawnController? PawnController { get; private set; }
         public string? CharacterSpawnError { get; set; }
+        public bool CharacterPhysicsEnabled { get; set; } = true;
+        public bool HasPlatformCourse => _platformCourseService.Platforms.Count > 0;
 
         public void AttachVoxelData(ManaVoxelShape voxel, ManaVoxelsNode voxelNode)
         {
@@ -322,10 +325,18 @@ namespace ManaVoxel.Code.UI
             var spawnPosition = camera.Owner.Position + flatForward * 8.0f;
             spawnPosition.Y = 0.0f;
 
+            // Spawned a little above the floor so the capsule settles onto it rather than starting
+            // interpenetrated, which the solver would resolve as a shove.
+            spawnPosition.Y = CharacterPhysicsEnabled ? 0.5f : 0.0f;
+
             ManaPawnNode? pawn;
             lock (_context.World.SceneLock)
             {
-                pawn = _characterSpawnService.SpawnNextCharacter(_context.World, spawnPosition, PawnController);
+                pawn = _characterSpawnService.SpawnNextCharacter(
+                    _context.World,
+                    spawnPosition,
+                    PawnController,
+                    CharacterPhysicsEnabled);
             }
 
             if (pawn == null)
@@ -336,6 +347,33 @@ namespace ManaVoxel.Code.UI
 
             // Possessing on spawn means the very next ground click already walks it somewhere.
             PawnController.Possess(pawn);
+        }
+
+        public void SpawnPlatformCourse()
+        {
+            if (_context == null || _scene == null)
+            {
+                return;
+            }
+
+            _platformCourseService.ClearCourse(_context);
+
+            // Laid out from a fixed, easy-to-find spot rather than in front of the camera: a course is
+            // a place you go back to, unlike a character, which you want where you are looking.
+            lock (_context.World.SceneLock)
+            {
+                _platformCourseService.BuildCourse(_context, _scene, new Vector3(20.0f, 0.0f, 20.0f));
+            }
+        }
+
+        public void RemovePlatformCourse()
+        {
+            if (_context == null)
+            {
+                return;
+            }
+
+            _platformCourseService.ClearCourse(_context);
         }
 
         public void RemoveAllCharacters()

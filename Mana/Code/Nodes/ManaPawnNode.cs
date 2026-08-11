@@ -162,6 +162,23 @@ namespace Mana.Code.Nodes
         {
             destination = null;
             DriveDirection = Vector3.Zero;
+
+            // Vertical velocity is left alone: cancelling a walk order should not freeze a pawn in
+            // mid-air.
+            if (Body != null && Body.Exists)
+            {
+                var velocity = Body.Velocity;
+                Body.Velocity = new Vector3(0.0f, velocity.Y, 0.0f);
+            }
+        }
+
+        // Moves the pawn and, when physics-driven, the capsule with it -- setting Position alone would
+        // be overwritten by the body's pose on the very next frame.
+        public void TeleportTo(Vector3 worldPosition)
+        {
+            Position = worldPosition;
+            destination = null;
+            Body?.Teleport(worldPosition);
         }
 
         // Walks up from any descendant (the pick lands on a child mesh node, never on the pawn root).
@@ -222,7 +239,17 @@ namespace Mana.Code.Nodes
 
         public override void UpdateTransform()
         {
-            StepLocomotion((float)ManaTime.GlobalTime.DeltaTime.TotalSeconds);
+            var deltaSeconds = (float)ManaTime.GlobalTime.DeltaTime.TotalSeconds;
+
+            if (Body != null)
+            {
+                StepPhysicsLocomotion(deltaSeconds);
+            }
+            else
+            {
+                StepLocomotion(deltaSeconds);
+            }
+
             SyncLocomotionClip();
             SyncAnimationPlaybackRate();
 
@@ -264,6 +291,227 @@ namespace Mana.Code.Nodes
 
             var groundY = GroundSampler?.Invoke(position) ?? GroundHeight;
             Position = new Vector3(position.X, groundY, position.Z);
+        }
+
+        // ---- Physics-driven locomotion ------------------------------------------------------------
+
+        // Attaches a Bepu capsule and switches this pawn from kinematic position integration to
+        // velocity-driven physics: it now collides with walls and platforms, falls under gravity, and
+        // can jump. Sized from the pawn's rendered height by default.
+        public ManaCharacterBody EnablePhysics(float? radius = null, float? height = null, float mass = 1.0f)
+        {
+            DisablePhysics();
+
+            var capsuleHeight = height ?? ResolveWorldHeight();
+            var capsuleRadius = radius ?? MathF.Max(capsuleHeight * 0.18f, 0.05f);
+
+            Body = ManaCharacterBody.Create(Context, Position, capsuleRadius, capsuleHeight, mass);
+            return Body;
+        }
+
+        public void DisablePhysics()
+        {
+            Body?.Dispose();
+            Body = null;
+        }
+
+        public ManaCharacterBody? Body { get; private set; }
+
+        // Jump tuning. The defaults are shaped for the editor's -64 u/s^2 gravity and a 2-unit
+        // character; JumpHeight is the apex a full-hold jump reaches from flat ground.
+        public float JumpHeight { get; set; } = 3.0f;
+
+        // Mario's defining trick: releasing the button early cuts the rise short, so tapping gives a
+        // hop and holding gives the full arc. Applied as a one-shot multiplier on upward velocity at
+        // the moment of release.
+        public float JumpReleaseCutoff { get; set; } = 0.45f;
+
+        // Falling faster than you rose is what stops a jump feeling floaty. Applied as extra gravity
+        // on top of the simulation's own, only while descending.
+        public float FallGravityMultiplier { get; set; } = 1.9f;
+
+        // Fraction of ground control retained mid-air. 1 is full air control, 0 commits you to the
+        // arc you took off with.
+        public float AirControl { get; set; } = 0.75f;
+
+        // Grace period after walking off a ledge during which a jump still counts, and how long a jump
+        // pressed just before landing is remembered. Both are the standard forgiveness windows -- input
+        // that "should" have worked does.
+        public float CoyoteTimeSeconds { get; set; } = 0.12f;
+        public float JumpBufferSeconds { get; set; } = 0.12f;
+
+        // 1 is a plain jump; 2 gives a double jump, and so on.
+        public int MaxJumpCount { get; set; } = 1;
+
+        public string JumpClipName { get; set; } = "jump";
+        public string FallClipName { get; set; } = "fall";
+
+        // Falling off the edge of the world is a real outcome once gravity is involved -- the editor's
+        // collision floor only covers the 256-unit grid. Dropping below this teleports the pawn back
+        // to RespawnPoint instead of accelerating into the void forever.
+        public float FallResetHeight { get; set; } = -50.0f;
+        public Vector3 RespawnPoint { get; set; }
+
+        // Ground contact is suppressed for this long right after take-off. Without it the capsule is
+        // still inside the ground probe on the frame after a jump, which reads as an instant landing
+        // and refills the jump budget -- infinite jumps from a held button.
+        public float JumpLockoutSeconds { get; set; } = 0.1f;
+
+        public bool IsGrounded => Body == null || isGrounded;
+        public bool IsJumpHeld { get; private set; }
+        public int JumpsUsed { get; private set; }
+
+        private float coyoteTimer;
+        private float jumpBufferTimer;
+        private float jumpLockoutTimer;
+        private bool isGrounded = true;
+        private bool wasGrounded = true;
+
+        // Call on the frame the jump button goes down. Buffered rather than acted on immediately, so a
+        // press a few frames before landing still fires (see JumpBufferSeconds).
+        public void PressJump()
+        {
+            IsJumpHeld = true;
+            jumpBufferTimer = JumpBufferSeconds;
+        }
+
+        public void ReleaseJump()
+        {
+            IsJumpHeld = false;
+
+            if (Body == null)
+            {
+                return;
+            }
+
+            // Cut the rise short. Only while actually rising -- applying this on the way down would
+            // slow the fall instead, which reads as floatiness.
+            var velocity = Body.Velocity;
+            if (velocity.Y > 0.0f)
+            {
+                velocity.Y *= Math.Clamp(JumpReleaseCutoff, 0.0f, 1.0f);
+                Body.Velocity = velocity;
+            }
+        }
+
+        // Take-off speed for the configured apex: v = sqrt(2 * g * h).
+        public float GetJumpVelocity()
+        {
+            var gravity = MathF.Abs(Context.Physics.Gravity.Y);
+            return MathF.Sqrt(2.0f * gravity * MathF.Max(JumpHeight, 0.0f));
+        }
+
+        private void StepPhysicsLocomotion(float deltaSeconds)
+        {
+            var body = Body!;
+            if (!body.Exists || deltaSeconds <= 0.0f)
+            {
+                CurrentSpeed = 0.0f;
+                return;
+            }
+
+            if (body.FootPosition.Y < FallResetHeight)
+            {
+                TeleportTo(RespawnPoint);
+                CurrentSpeed = 0.0f;
+                JumpsUsed = 0;
+                return;
+            }
+
+            body.RefreshGroundState();
+
+            jumpLockoutTimer = MathF.Max(jumpLockoutTimer - deltaSeconds, 0.0f);
+
+            var grounded = body.IsGrounded && jumpLockoutTimer <= 0.0f;
+            isGrounded = grounded;
+
+            if (grounded && !wasGrounded)
+            {
+                JumpsUsed = 0;
+            }
+
+            coyoteTimer = grounded ? CoyoteTimeSeconds : MathF.Max(coyoteTimer - deltaSeconds, 0.0f);
+
+            // Walking off a ledge and letting the coyote window lapse forfeits the ground jump.
+            // Without this, JumpsUsed stays 0 the whole way down and MaxJumpCount == 1 still grants a
+            // free mid-air jump -- which is a double jump wearing a disguise.
+            if (!grounded && coyoteTimer <= 0.0f && JumpsUsed == 0)
+            {
+                JumpsUsed = 1;
+            }
+
+            jumpBufferTimer = MathF.Max(jumpBufferTimer - deltaSeconds, 0.0f);
+            wasGrounded = grounded;
+
+            var velocity = body.Velocity;
+
+            // Horizontal steering. The same heading logic as the kinematic path, but resolved against
+            // the body's position, which is now the authority on where the pawn is.
+            var footPosition = body.FootPosition;
+            var heading = ResolveHeading(footPosition, out var distanceToDestination);
+
+            var targetSpeed = WantsToRun ? RunSpeed : WalkSpeed;
+            var horizontal = new Vector3(velocity.X, 0.0f, velocity.Z);
+
+            if (heading.HasValue)
+            {
+                // Arrival damping only matters on the ground; in the air the pawn is committed.
+                if (distanceToDestination.HasValue && grounded)
+                {
+                    targetSpeed = MathF.Min(targetSpeed, distanceToDestination.Value / deltaSeconds);
+                }
+
+                var desired = heading.Value * targetSpeed;
+                horizontal = grounded
+                    ? desired
+                    : Vector3.Lerp(horizontal, desired, Math.Clamp(AirControl, 0.0f, 1.0f));
+
+                TurnToward(heading.Value, deltaSeconds);
+            }
+            else if (grounded)
+            {
+                horizontal = Vector3.Zero;
+            }
+            else
+            {
+                horizontal = Vector3.Lerp(horizontal, Vector3.Zero, Math.Clamp(AirControl, 0.0f, 1.0f) * deltaSeconds);
+            }
+
+            velocity.X = horizontal.X;
+            velocity.Z = horizontal.Z;
+
+            // Jump: a buffered press fires if we are grounded, inside the coyote window, or still have
+            // an air jump left.
+            var canGroundJump = grounded || coyoteTimer > 0.0f;
+            if (jumpBufferTimer > 0.0f && (canGroundJump || JumpsUsed < MaxJumpCount))
+            {
+                velocity.Y = GetJumpVelocity();
+                JumpsUsed = canGroundJump ? 1 : JumpsUsed + 1;
+                jumpBufferTimer = 0.0f;
+                coyoteTimer = 0.0f;
+                jumpLockoutTimer = JumpLockoutSeconds;
+                isGrounded = false;
+                wasGrounded = false;
+            }
+            else if (velocity.Y < 0.0f)
+            {
+                // Extra fall gravity, on top of what the pose integrator already applies.
+                var extraGravity = MathF.Abs(Context.Physics.Gravity.Y) * MathF.Max(FallGravityMultiplier - 1.0f, 0.0f);
+                velocity.Y -= extraGravity * deltaSeconds;
+            }
+
+            body.Velocity = velocity;
+
+            CurrentSpeed = new Vector3(velocity.X, 0.0f, velocity.Z).Length();
+            Position = body.FootPosition;
+        }
+
+        private float ResolveWorldHeight()
+        {
+            var worldScale = MathF.Abs(Scale.Y) > 1e-6f ? MathF.Abs(Scale.Y) : 1.0f;
+            return TryGetBindPoseHeight(out var bindHeight) && bindHeight > 0.0f
+                ? bindHeight * worldScale
+                : 2.0f;
         }
 
         // Returns the horizontal unit direction to travel this frame, plus how far is left when the
@@ -318,21 +566,45 @@ namespace Mana.Code.Nodes
             return float.IsNaN(wrapped) ? 0.0f : wrapped;
         }
 
+        // Airborne beats everything else: a character mid-jump should not be running on the spot. The
+        // rise/fall split is what makes a jump read as an arc rather than one held pose.
+        private string ResolveLocomotionClipName()
+        {
+            // IsGrounded rather than Body.IsGrounded: the jump lockout has to count as airborne here
+            // too, or the take-off frame flashes the idle pose.
+            if (Body != null && !IsGrounded)
+            {
+                return Body.Velocity.Y > 0.0f ? JumpClipName : FallClipName;
+            }
+
+            if (!IsMoving)
+            {
+                return IdleClipName;
+            }
+
+            return WantsToRun ? RunClipName : WalkClipName;
+        }
+
         private void SyncLocomotionClip()
         {
-            var desiredClip = !IsMoving
-                ? IdleClipName
-                : WantsToRun ? RunClipName : WalkClipName;
+            var desiredClip = ResolveLocomotionClipName();
 
             if (string.Equals(desiredClip, activeLocomotionClip, StringComparison.Ordinal))
             {
                 return;
             }
 
+            // Jump and fall are one-shots -- looping them restarts the take-off pose mid-arc, which
+            // reads as a stutter. Everything else is a cycle.
+            var isAirborneClip =
+                string.Equals(desiredClip, JumpClipName, StringComparison.Ordinal) ||
+                string.Equals(desiredClip, FallClipName, StringComparison.Ordinal);
+
             // Only remember the clip if the rig actually has it, so a rig missing "sprint" keeps
             // retrying against "walk" rather than latching onto a name that never resolved.
             if (Animation.Play(desiredClip))
             {
+                Animation.Looping = !isAirborneClip;
                 activeLocomotionClip = desiredClip;
             }
         }

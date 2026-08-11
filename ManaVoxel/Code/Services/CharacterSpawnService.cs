@@ -51,7 +51,7 @@ namespace ManaVoxel.Code.Services
 
         // Cycles through the available characters so repeated spawns produce a varied crowd rather
         // than a stack of identical models.
-        public ManaPawnNode? SpawnNextCharacter(ManaWorld world, Vector3 position, ManaPawnController? controller = null)
+        public ManaPawnNode? SpawnNextCharacter(ManaWorld world, Vector3 position, ManaPawnController? controller = null, bool usePhysics = true)
         {
             LastError = null;
 
@@ -109,6 +109,14 @@ namespace ManaVoxel.Code.Services
                 // as the default speeds is what keeps the feet planted out of the box.
                 LastStrideMeasurements = pawn.CalibrateLocomotionClips();
                 pawn.ApplyCalibratedSpeeds();
+
+                // Physics last: the capsule is sized from the pawn's final rendered height and spawned
+                // at its final position, so both have to be settled first.
+                if (usePhysics)
+                {
+                    pawn.EnablePhysics();
+                    pawn.RespawnPoint = position;
+                }
 
                 pawn.UpdateTransform();
 

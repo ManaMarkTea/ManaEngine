@@ -19,9 +19,14 @@ namespace Mana.Code
         public Dictionary<BodyHandle, ManaCollisionComponent> PhysicsMap = new ();
         public List<BodyHandle> DirectBodies = new ();
 
+        // The value handed to the pose integrator. Exposed because a character controller has to know
+        // it to shape a jump arc -- Mario-style falling applies extra gravity on top of this.
+        public Vector3 Gravity { get; }
+
         public ManaPhysics(ManaContext context) : base(context)
-        {            
+        {
             BufferPool = new BufferPool();
+            Gravity = new Vector3(0, -64, 0);
             
             var targetThreadCount = int.Max(1, Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
             ThreadDispatcher = new ThreadDispatcher(targetThreadCount);
@@ -29,7 +34,7 @@ namespace Mana.Code
             Simulation = Simulation.Create(
                 BufferPool,
                 new DemoNarrowPhaseCallbacks(new SpringSettings(30, 1), maximumRecoveryVelocity: 2f, frictionCoefficient: 1f),
-                new DemoPoseIntegratorCallbacks(new Vector3(0, -64, 0), linearDamping: 0.03f, angularDamping: 0.12f),
+                new DemoPoseIntegratorCallbacks(Gravity, linearDamping: 0.03f, angularDamping: 0.12f),
                 new SolveDescription(8, 1));
 
         }
