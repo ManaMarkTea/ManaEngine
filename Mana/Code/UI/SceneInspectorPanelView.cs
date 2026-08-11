@@ -167,6 +167,11 @@ namespace Mana.Code.UI
                 DrawVoxelsNodeInspector(voxelsNode);
             }
 
+            if (node is ManaSkeletalActorNode skeletalActor)
+            {
+                DrawSkeletalActorInspector(skeletalActor);
+            }
+
             CustomNodeInspectorHook?.Invoke(node);
 
             if (node.Components.Count == 0)
@@ -247,6 +252,18 @@ namespace Mana.Code.UI
             if (component is ManaLightSourceComponent light)
             {
                 DrawLightSourceInspector(light);
+                return;
+            }
+
+            if (component is ManaSkeletalAnimationComponent animation)
+            {
+                DrawSkeletalAnimationInspector(animation);
+                return;
+            }
+
+            if (component is ManaSkinnedMeshComponent skinnedMesh)
+            {
+                DrawSkinnedMeshInspector(skinnedMesh);
                 return;
             }
 
@@ -1004,6 +1021,111 @@ namespace Mana.Code.UI
             if (BeginPropertyTable("VoxelNodeProperties"))
             {
                 DrawReadOnlyProperty("Source", voxelsNode.Source);
+                ImGui.EndTable();
+            }
+        }
+
+        private static void DrawSkeletalActorInspector(ManaSkeletalActorNode actor)
+        {
+            ImGui.SeparatorText("Skeletal Actor");
+            if (BeginPropertyTable("SkeletalActorProperties"))
+            {
+                DrawReadOnlyProperty("Bones", (actor.Skeleton?.BoneCount ?? 0).ToString());
+                DrawReadOnlyProperty("Skinned meshes", actor.SkinnedMeshes.Count.ToString());
+                DrawReadOnlyProperty("Clips", actor.Animation.Clips.Count.ToString());
+
+                var skinningEnabled = actor.SkinningEnabled;
+                if (DrawCheckboxProperty("Skinning", ref skinningEnabled))
+                {
+                    actor.SkinningEnabled = skinningEnabled;
+                }
+
+                ImGui.EndTable();
+            }
+        }
+
+        private static void DrawSkeletalAnimationInspector(ManaSkeletalAnimationComponent animation)
+        {
+            if (!ImGui.CollapsingHeader(GetComponentLabel(animation), ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                return;
+            }
+
+            if (animation.Clips.Count == 0)
+            {
+                ImGui.TextUnformatted("No animation clips.");
+                return;
+            }
+
+            if (BeginPropertyTable("SkeletalAnimationProperties"))
+            {
+                BeginPropertyRow("Clip");
+                ImGui.SetNextItemWidth(-1.0f);
+                PushCompactValueStyle();
+                var activeName = animation.ActiveClip?.Name ?? "<none>";
+                if (ImGui.BeginCombo("##Clip", activeName))
+                {
+                    foreach (var clip in animation.Clips)
+                    {
+                        if (ImGui.Selectable(clip.Name, ReferenceEquals(clip, animation.ActiveClip)))
+                        {
+                            animation.Play(clip);
+                        }
+                    }
+
+                    ImGui.EndCombo();
+                }
+                PopCompactValueStyle();
+
+                var duration = (float)(animation.ActiveClip?.DurationSeconds ?? 0.0);
+                var time = (float)animation.TimeSeconds;
+                if (DrawSliderFloatProperty("Time", ref time, 0.0f, MathF.Max(duration, 0.0001f)))
+                {
+                    animation.TimeSeconds = time;
+                    animation.IsPlaying = false;
+                }
+
+                var speed = animation.PlaybackSpeed;
+                if (DrawSliderFloatProperty("Speed", ref speed, -2.0f, 4.0f))
+                {
+                    animation.PlaybackSpeed = speed;
+                }
+
+                var looping = animation.Looping;
+                if (DrawCheckboxProperty("Loop", ref looping))
+                {
+                    animation.Looping = looping;
+                }
+
+                var playing = animation.IsPlaying;
+                if (DrawCheckboxProperty("Playing", ref playing))
+                {
+                    animation.IsPlaying = playing;
+                }
+
+                DrawReadOnlyProperty("Duration", $"{duration:0.000} s");
+                ImGui.EndTable();
+            }
+        }
+
+        private static void DrawSkinnedMeshInspector(ManaSkinnedMeshComponent skinnedMesh)
+        {
+            if (!ImGui.CollapsingHeader(GetComponentLabel(skinnedMesh), ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                return;
+            }
+
+            if (BeginPropertyTable("SkinnedMeshProperties"))
+            {
+                DrawReadOnlyProperty("Vertices", skinnedMesh.Binding.VertexCount.ToString());
+                DrawReadOnlyProperty("Bones", skinnedMesh.Binding.Skeleton.BoneCount.ToString());
+
+                var enabled = skinnedMesh.Enabled;
+                if (DrawCheckboxProperty("Enabled", ref enabled))
+                {
+                    skinnedMesh.Enabled = enabled;
+                }
+
                 ImGui.EndTable();
             }
         }

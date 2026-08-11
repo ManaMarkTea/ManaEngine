@@ -409,6 +409,18 @@ namespace ManaGraphics.Code.Graphics
                         continue;
                     }
 
+                    // Same mesh, same topology, new vertex data -- CPU-skinned characters produce this
+                    // every frame. Rewriting the two geometry buffers keeps the (far more expensive)
+                    // uniform buffers, bind groups and texture binding alive.
+                    if (CanUpdateSceneMeshGeometryInPlace(existing.Instance, instance) &&
+                        existing.Mesh.TryUpdateGeometryInPlace(_queue, instance.MeshData))
+                    {
+                        existing.Instance = instance;
+                        existing.InvalidateDerivedGeometry();
+                        nextSceneMeshes.Add(existing);
+                        continue;
+                    }
+
                     removedCount++;
                     removedIndexes += existing.Mesh.IndexCount;
                     DeferSceneMeshDispose(existing);
@@ -497,6 +509,19 @@ namespace ManaGraphics.Code.Graphics
             }
 
             return ReferenceEquals(current.MeshData, incoming.MeshData);
+        }
+
+        // Narrower than CanReuseSceneMesh: same GPU resources are still valid, but the vertex/index
+        // bytes need rewriting. Deliberately requires the same MeshKey -- a different source mesh that
+        // happens to share a vertex count would also need a different texture and bind group.
+        private static bool CanUpdateSceneMeshGeometryInPlace(ManaRenderMeshInstance current, ManaRenderMeshInstance incoming)
+        {
+            return string.Equals(current.MeshKey, incoming.MeshKey, StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(current.MeshKey) &&
+                string.Equals(current.Name, incoming.Name, StringComparison.Ordinal) &&
+                string.Equals(current.MeshData.AlbedoTexturePath, incoming.MeshData.AlbedoTexturePath, StringComparison.Ordinal) &&
+                current.MeshData.Positions.Length == incoming.MeshData.Positions.Length &&
+                current.MeshData.Indexes.Length == incoming.MeshData.Indexes.Length;
         }
 
         private static string GetSceneMeshKey(ManaRenderMeshInstance instance, int index)
@@ -601,15 +626,26 @@ namespace ManaGraphics.Code.Graphics
             // ManaWebGpuContext.Demo.cs's DrawWireframeOverlay), not eagerly for every mesh -- this is
             // a rarely-toggled debug view, so the ~2000 resident meshes in a typical scene shouldn't
             // all pay edge-extraction cost unconditionally. Cached for this object's whole lifetime:
-            // CanReuseSceneMesh only reuses a ManaWebGpuSceneMesh when the incoming mesh is guaranteed
-            // to have identical index data (same MeshVersion, or the same MeshData reference) -- any
-            // real geometry change creates a brand new ManaWebGpuSceneMesh instead, so this cache is
-            // already correctly invalidated by that existing logic with no extra bookkeeping needed.
+            // a ManaWebGpuSceneMesh is only ever kept across frames when the index data is identical
+            // (CanReuseSceneMesh requires a matching MeshVersion or the same MeshData reference;
+            // CanUpdateSceneMeshGeometryInPlace requires a matching index count on the same source
+            // mesh), so a real topology change always builds a brand new ManaWebGpuSceneMesh and this
+            // cache needs no extra invalidation bookkeeping.
             private WebGpuBuffer* _wireframeIndexBuffer;
             private uint _wireframeIndexCount;
 
-            // Same lazy/lifetime reasoning as the wireframe buffer above.
+            // Same lazy/lifetime reasoning as the wireframe buffer above, except this one bakes the
+            // actual positions and normals, so an in-place geometry rewrite does invalidate it.
             private ManaWebGpuMesh? _normalLinesMesh;
+
+            // Called when ReconcileSceneMeshes rewrites this mesh's vertex buffer in place rather than
+            // rebuilding the whole scene mesh (skinned meshes, every frame). The wireframe index buffer
+            // survives -- it is derived from topology alone, which an in-place update never changes.
+            public void InvalidateDerivedGeometry()
+            {
+                _normalLinesMesh?.Dispose();
+                _normalLinesMesh = null;
+            }
 
             // Builds a separate LineList mesh whose vertices alternate base/tip -- the tip positions
             // don't exist in the source mesh, so unlike the wireframe this can't be done with an index

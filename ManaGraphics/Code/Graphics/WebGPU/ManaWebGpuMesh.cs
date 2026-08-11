@@ -30,21 +30,7 @@ namespace ManaGraphics.Code.Graphics
 
         public static ManaWebGpuMesh CreateFromMeshData(WebGPU api, Device* device, Queue* queue, ManaMeshCpuData meshData, string meshName)
         {
-            var vertices = new ManaWebGpuVertex[meshData.Positions.Length];
-
-            for (var i = 0; i < vertices.Length; i++)
-            {
-                var color = meshData.Colors.Length == meshData.Positions.Length
-                    ? meshData.Colors[i]
-                    : Vector4.One;
-                var uv = meshData.TextureCoordinates0.Length == meshData.Positions.Length
-                    ? meshData.TextureCoordinates0[i]
-                    : Vector2.Zero;
-                var normal = meshData.Normals.Length == meshData.Positions.Length
-                    ? meshData.Normals[i]
-                    : Vector3.UnitY;
-                vertices[i] = new ManaWebGpuVertex(meshData.Positions[i], normal, color, uv);
-            }
+            var vertices = BuildVertices(meshData);
 
             var vertexBufferDescriptor = new BufferDescriptor
             {
@@ -80,6 +66,54 @@ namespace ManaGraphics.Code.Graphics
             }
 
             return new ManaWebGpuMesh(api, vertexBuffer, indexBuffer, (uint)meshData.Indexes.Length, (uint)meshData.Positions.Length);
+        }
+
+        // Rewrites this mesh's existing buffers instead of building new ones. Only valid when the
+        // topology is unchanged (same vertex and index counts) -- the caller checks that. CPU-skinned
+        // meshes hit this every frame, and rebuilding them the normal way would mean recreating a
+        // uniform buffer, seven bind groups and a texture binding per character per frame.
+        public bool TryUpdateGeometryInPlace(Queue* queue, ManaMeshCpuData meshData)
+        {
+            if (_vertexBuffer == null || _indexBuffer == null ||
+                meshData.Positions.Length != VertexCount ||
+                meshData.Indexes.Length != IndexCount)
+            {
+                return false;
+            }
+
+            var vertices = BuildVertices(meshData);
+            fixed (ManaWebGpuVertex* vertexPointer = vertices)
+            {
+                _api.QueueWriteBuffer(queue, _vertexBuffer, 0, vertexPointer, (nuint)((ulong)vertices.Length * VertexStride));
+            }
+
+            fixed (uint* indexPointer = meshData.Indexes)
+            {
+                _api.QueueWriteBuffer(queue, _indexBuffer, 0, indexPointer, (nuint)(meshData.Indexes.Length * sizeof(uint)));
+            }
+
+            return true;
+        }
+
+        private static ManaWebGpuVertex[] BuildVertices(ManaMeshCpuData meshData)
+        {
+            var vertices = new ManaWebGpuVertex[meshData.Positions.Length];
+
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                var color = meshData.Colors.Length == meshData.Positions.Length
+                    ? meshData.Colors[i]
+                    : Vector4.One;
+                var uv = meshData.TextureCoordinates0.Length == meshData.Positions.Length
+                    ? meshData.TextureCoordinates0[i]
+                    : Vector2.Zero;
+                var normal = meshData.Normals.Length == meshData.Positions.Length
+                    ? meshData.Normals[i]
+                    : Vector3.UnitY;
+                vertices[i] = new ManaWebGpuVertex(meshData.Positions[i], normal, color, uv);
+            }
+
+            return vertices;
         }
 
         public void Draw(RenderPassEncoder* renderPass)

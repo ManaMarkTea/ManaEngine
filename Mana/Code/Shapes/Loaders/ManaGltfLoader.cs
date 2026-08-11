@@ -1,3 +1,4 @@
+using Mana.Code.Animation;
 using Mana.Code.Nodes;
 using Mana.Code.Graphics;
 using Mana.Code.ManaShaders;
@@ -26,12 +27,34 @@ namespace Mana.Code.Shapes.Loaders
 
         public List<ManaScene> Scenes { get; set; }
 
+        // Animation clips found in the last imported file, in Assimp order. Also handed to the actor
+        // node's ManaSkeletalAnimationComponent, so this is mostly for callers that want to inspect
+        // what a file shipped without walking the scene graph.
+        public List<ManaAnimationClip> AnimationClips { get; } = new();
+
+        // Per-mesh skin data harvested during LoadMesh, keyed by Assimp mesh index. Resolved into a
+        // real ManaSkeleton only after the node tree exists, since bones are scene nodes by name.
+        private readonly Dictionary<int, ManaMeshSkinSource> _meshSkinSources = new();
+        private readonly Dictionary<string, ManaSceneNode> _nodesByName = new(StringComparer.Ordinal);
+        private readonly List<(ManaSceneNode Node, ManaMesh Mesh, int MeshIndex)> _skinnedMeshPlacements = new();
+
         public ManaGltfLoader(ManaContext context) : base(context)
         {
             Meshes = new();
             Materials = new();
             Scenes = new();
 
+        }
+
+        // Raw Assimp bone/weight data for one mesh, before bones are matched up to scene nodes.
+        private sealed class ManaMeshSkinSource
+        {
+            public required string[] BoneNames { get; init; }
+            public required Matrix4x4[] OffsetMatrices { get; init; }
+            public required int[] BoneIndices { get; init; }
+            public required float[] BoneWeights { get; init; }
+            public required Vector3[] BindPositions { get; init; }
+            public required Vector3[] BindNormals { get; init; }
         }
 
         public unsafe ManaSceneNode LoadFile(string sceneFile)
@@ -64,9 +87,11 @@ namespace Mana.Code.Shapes.Loaders
             {
                 var mesh = scene->MMeshes[i];
                 ManaMesh model = LoadMesh(Context, mesh);
+                CaptureMeshSkinSource(i, mesh);
                 Meshes.Add(model);
             }
 
+            LoadAnimationClips(scene);
             var rootSceneNode = LoadScene(scene, manaScene);
             Scenes.Add(manaScene);
             _activeScene = null;
@@ -115,9 +140,11 @@ namespace Mana.Code.Shapes.Loaders
             {
                 var mesh = scene->MMeshes[i];
                 ManaMesh model = LoadMesh(Context, mesh);
+                CaptureMeshSkinSource(i, mesh);
                 Meshes.Add(model);
             }
 
+            LoadAnimationClips(scene);
             var rootSceneNode = LoadScene(scene, manaScene);
             Scenes.Add(manaScene);
             _activeScene = null;
@@ -266,18 +293,36 @@ namespace Mana.Code.Shapes.Loaders
         public unsafe ManaSceneNode LoadScene(Scene* scene, ManaScene manaScene)
         {
             var root = scene->MRootNode;
-            var rootSceneNode = LoadSceneNode(root);
+
+            // A file with skins or clips gets a ManaSkeletalActorNode root, which owns the per-frame
+            // pose/propagate/skin ordering. Everything else keeps the plain node it always had.
+            var isRigged = _meshSkinSources.Count > 0 || AnimationClips.Count > 0;
+            var rootSceneNode = LoadSceneNode(root, isRigged);
             manaScene.Children.Add(rootSceneNode);
+
+            if (rootSceneNode is ManaSkeletalActorNode actor)
+            {
+                BindSkeleton(actor);
+            }
 
             return rootSceneNode;
         }
 
-        private unsafe ManaSceneNode LoadSceneNode(Node* node)
+        private unsafe ManaSceneNode LoadSceneNode(Node* node, bool asSkeletalActor = false)
         {
             var local = node->MTransformation;
             local = Matrix4x4.Transpose(local);
-            var metaSceneNode = new ManaSceneNode(Context, local);
+            var metaSceneNode = asSkeletalActor
+                ? new ManaSkeletalActorNode(Context, local)
+                : new ManaSceneNode(Context, local);
             metaSceneNode.Name = node->MName;
+
+            // Bones are matched to nodes by name (Assimp's aiBone carries only a name), so the lookup
+            // has to be built as the tree is. First name wins if a file has duplicates.
+            if (!string.IsNullOrEmpty(metaSceneNode.Name))
+            {
+                _nodesByName.TryAdd(metaSceneNode.Name, metaSceneNode);
+            }
 
             if (node->MNumMeshes != 0)
             {
@@ -288,6 +333,11 @@ namespace Mana.Code.Shapes.Loaders
                     if (foundMesh != null)
                     {
                         metaSceneNode.Components.Add(new MeshRendererComponent(metaSceneNode, foundMesh) { });
+
+                        if (_meshSkinSources.ContainsKey(meshIndex))
+                        {
+                            _skinnedMeshPlacements.Add((metaSceneNode, foundMesh, meshIndex));
+                        }
                     }
                     else
                     {
@@ -304,6 +354,248 @@ namespace Mana.Code.Shapes.Loaders
             }
 
             return metaSceneNode;
+        }
+
+        // Assimp gives one aiBone list per mesh with a weight list per bone; skinning wants the
+        // transpose (a fixed-width influence table per vertex), so this inverts it here rather than
+        // making every frame of skinning pay for the indirection.
+        private unsafe void CaptureMeshSkinSource(int meshIndex, Mesh* mesh)
+        {
+            if (mesh->MNumBones == 0 || mesh->MNumVertices == 0)
+            {
+                return;
+            }
+
+            var vertexCount = (int)mesh->MNumVertices;
+            var boneCount = (int)mesh->MNumBones;
+            var boneNames = new string[boneCount];
+            var offsetMatrices = new Matrix4x4[boneCount];
+
+            var influences = ManaSkinBinding.InfluencesPerVertex;
+            var boneIndices = new int[vertexCount * influences];
+            var boneWeights = new float[vertexCount * influences];
+            Array.Fill(boneIndices, -1);
+
+            var droppedInfluences = 0;
+            for (var bone = 0; bone < boneCount; bone++)
+            {
+                var sourceBone = mesh->MBones[bone];
+                boneNames[bone] = sourceBone->MName;
+                offsetMatrices[bone] = Matrix4x4.Transpose(sourceBone->MOffsetMatrix);
+
+                for (var weight = 0; weight < sourceBone->MNumWeights; weight++)
+                {
+                    var vertexWeight = sourceBone->MWeights[weight];
+                    var vertex = (int)vertexWeight.MVertexId;
+                    if (vertex < 0 || vertex >= vertexCount || vertexWeight.MWeight <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    var slot = -1;
+                    for (var candidate = 0; candidate < influences; candidate++)
+                    {
+                        if (boneIndices[(vertex * influences) + candidate] < 0)
+                        {
+                            slot = candidate;
+                            break;
+                        }
+                    }
+
+                    if (slot < 0)
+                    {
+                        droppedInfluences++;
+                        continue;
+                    }
+
+                    boneIndices[(vertex * influences) + slot] = bone;
+                    boneWeights[(vertex * influences) + slot] = vertexWeight.MWeight;
+                }
+            }
+
+            if (droppedInfluences > 0)
+            {
+                Trace.TraceWarning(
+                    $"Mesh '{mesh->MName}' has vertices with more than {influences} bone influences; " +
+                    $"{droppedInfluences} were dropped.");
+            }
+
+            var bindPositions = new Vector3[vertexCount];
+            var bindNormals = mesh->MNormals != null ? new Vector3[vertexCount] : Array.Empty<Vector3>();
+            for (var i = 0; i < vertexCount; i++)
+            {
+                bindPositions[i] = new Vector3(mesh->MVertices[i].X, mesh->MVertices[i].Y, mesh->MVertices[i].Z);
+                if (mesh->MNormals != null)
+                {
+                    bindNormals[i] = new Vector3(mesh->MNormals[i].X, mesh->MNormals[i].Y, mesh->MNormals[i].Z).Normalized();
+                }
+            }
+
+            _meshSkinSources[meshIndex] = new ManaMeshSkinSource
+            {
+                BoneNames = boneNames,
+                OffsetMatrices = offsetMatrices,
+                BoneIndices = boneIndices,
+                BoneWeights = boneWeights,
+                BindPositions = bindPositions,
+                BindNormals = bindNormals
+            };
+        }
+
+        private unsafe void LoadAnimationClips(Scene* scene)
+        {
+            for (var i = 0; i < scene->MNumAnimations; i++)
+            {
+                var animation = scene->MAnimations[i];
+                var channels = new List<ManaAnimationChannel>((int)animation->MNumChannels);
+
+                for (var channelIndex = 0; channelIndex < animation->MNumChannels; channelIndex++)
+                {
+                    var nodeAnimation = animation->MChannels[channelIndex];
+
+                    var positionKeys = new ManaVectorKey[nodeAnimation->MNumPositionKeys];
+                    for (var key = 0; key < nodeAnimation->MNumPositionKeys; key++)
+                    {
+                        var source = nodeAnimation->MPositionKeys[key];
+                        positionKeys[key] = new ManaVectorKey(
+                            (float)source.MTime,
+                            new Vector3(source.MValue.X, source.MValue.Y, source.MValue.Z));
+                    }
+
+                    var scaleKeys = new ManaVectorKey[nodeAnimation->MNumScalingKeys];
+                    for (var key = 0; key < nodeAnimation->MNumScalingKeys; key++)
+                    {
+                        var source = nodeAnimation->MScalingKeys[key];
+                        scaleKeys[key] = new ManaVectorKey(
+                            (float)source.MTime,
+                            new Vector3(source.MValue.X, source.MValue.Y, source.MValue.Z));
+                    }
+
+                    var rotationKeys = new ManaQuaternionKey[nodeAnimation->MNumRotationKeys];
+                    for (var key = 0; key < nodeAnimation->MNumRotationKeys; key++)
+                    {
+                        var source = nodeAnimation->MRotationKeys[key];
+                        rotationKeys[key] = new ManaQuaternionKey(
+                            (float)source.MTime,
+                            new Quaternion(source.MValue.X, source.MValue.Y, source.MValue.Z, source.MValue.W));
+                    }
+
+                    channels.Add(new ManaAnimationChannel
+                    {
+                        NodeName = nodeAnimation->MNodeName,
+                        PositionKeys = positionKeys,
+                        RotationKeys = rotationKeys,
+                        ScaleKeys = scaleKeys
+                    });
+                }
+
+                var clipName = animation->MName.ToString();
+                AnimationClips.Add(new ManaAnimationClip
+                {
+                    Name = string.IsNullOrWhiteSpace(clipName) ? $"Clip {i}" : clipName,
+                    DurationInTicks = animation->MDuration,
+                    // Assimp leaves this at 0 when the format doesn't state one; glTF times are already
+                    // in seconds, so 1 tick per second is the right fallback for this importer.
+                    TicksPerSecond = animation->MTicksPerSecond > 0.0 ? animation->MTicksPerSecond : 1.0,
+                    Channels = channels
+                });
+            }
+        }
+
+        // Resolves bone names to the nodes built by LoadSceneNode, then attaches one
+        // ManaSkinnedMeshComponent per skinned mesh placement.
+        private void BindSkeleton(ManaSkeletalActorNode actor)
+        {
+            // The actor's animation component was built with an empty subtree (it is created in the
+            // node constructor), so the rest pose and node lookup only become real once the tree is.
+            actor.Animation.RefreshBindPose();
+            actor.Animation.AddClips(AnimationClips);
+
+            if (_skinnedMeshPlacements.Count == 0)
+            {
+                return;
+            }
+
+            var skeleton = new ManaSkeleton(Context) { Name = $"{actor.Name} Skeleton" };
+            actor.Skeleton = skeleton;
+
+            foreach (var placement in _skinnedMeshPlacements)
+            {
+                if (!_meshSkinSources.TryGetValue(placement.MeshIndex, out var skinSource))
+                {
+                    continue;
+                }
+
+                // Per-mesh bone ordering is remapped onto the skeleton's shared ordering, so two meshes
+                // over the same joints (a Kenney character's body and head) share one bone list.
+                var remappedIndices = new int[skinSource.BoneIndices.Length];
+                var localToSkeleton = new int[skinSource.BoneNames.Length];
+                var missingBones = 0;
+
+                for (var bone = 0; bone < skinSource.BoneNames.Length; bone++)
+                {
+                    var boneName = skinSource.BoneNames[bone];
+                    if (skeleton.TryGetBoneIndex(boneName, out var existingIndex))
+                    {
+                        localToSkeleton[bone] = existingIndex;
+                        continue;
+                    }
+
+                    if (!_nodesByName.TryGetValue(boneName, out var boneNode))
+                    {
+                        localToSkeleton[bone] = -1;
+                        missingBones++;
+                        continue;
+                    }
+
+                    if (!Matrix4x4.Decompose(boneNode.LocalTransform, out var bindScale, out var bindRotation, out var bindPosition))
+                    {
+                        bindScale = Vector3.One;
+                        bindRotation = Quaternion.Identity;
+                        bindPosition = boneNode.LocalTransform.Translation;
+                    }
+
+                    localToSkeleton[bone] = skeleton.AddBone(new ManaBone
+                    {
+                        Name = boneName,
+                        Node = boneNode,
+                        OffsetMatrix = skinSource.OffsetMatrices[bone],
+                        BindPosition = bindPosition,
+                        BindRotation = bindRotation,
+                        BindScale = bindScale
+                    });
+                }
+
+                if (missingBones > 0)
+                {
+                    Trace.TraceWarning($"Skinned mesh '{placement.Mesh.Name}' references {missingBones} bone(s) with no matching scene node.");
+                }
+
+                for (var i = 0; i < skinSource.BoneIndices.Length; i++)
+                {
+                    var localIndex = skinSource.BoneIndices[i];
+                    remappedIndices[i] = localIndex < 0 ? -1 : localToSkeleton[localIndex];
+                }
+
+                var binding = new ManaSkinBinding
+                {
+                    Skeleton = skeleton,
+                    BindPositions = skinSource.BindPositions,
+                    BindNormals = skinSource.BindNormals,
+                    BoneIndices = remappedIndices,
+                    BoneWeights = skinSource.BoneWeights
+                };
+
+                var skinnedMesh = new ManaSkinnedMeshComponent(placement.Node, placement.Mesh, binding);
+                placement.Node.Components.Add(skinnedMesh);
+                actor.RegisterSkinnedMesh(skinnedMesh);
+            }
+
+            if (AnimationClips.Count > 0)
+            {
+                actor.Animation.Play(AnimationClips.FirstOrDefault(clip =>
+                    string.Equals(clip.Name, "idle", StringComparison.OrdinalIgnoreCase)) ?? AnimationClips[0]);
+            }
         }
 
 
@@ -618,6 +910,10 @@ namespace Mana.Code.Shapes.Loaders
         public unsafe ManaMesh LoadMesh(ManaContext context, Mesh* mesh)
         {
             ManaMesh output = new ManaMesh(context);
+            if (!string.IsNullOrWhiteSpace(mesh->MName))
+            {
+                output.Name = mesh->MName;
+            }
 
             uint[] indexes = new uint[0];
             Vector3[] positions = new Vector3[0];

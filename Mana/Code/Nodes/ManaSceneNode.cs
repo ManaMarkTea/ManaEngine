@@ -172,7 +172,9 @@ namespace Mana.Code.Nodes
             child.Parent = null;
         }
 
-        public void UpdateTransform()
+        // virtual so a node can wrap the walk with work that has to straddle it -- see
+        // ManaSkeletalActorNode, which poses bones before the walk and skins after it.
+        public virtual void UpdateTransform()
         {
             if (_needsLocalTransformRebuild)
             {
