@@ -31,6 +31,14 @@ layout(location = 7) in uint aFlags;
 
 uniform vec2 uViewportSize;
 
+// Whether the target re-encodes linear output back to sRGB on write.
+//
+// WebGPU presents to a Bgra8UnormSrgb surface, so its shader must hand over linear values and the hardware
+// encodes them. The OpenGL default framebuffer has no such encoding: linear values written there are shown
+// as-is, which darkens every midtone -- #2B2D30 would land at roughly (6, 7, 7). So this path passes the
+// authored sRGB colours straight through, which is also what the ImGui GL backend does.
+uniform bool uConvertToLinear;
+
 out vec2 vLocal;
 out vec2 vUv;
 flat out vec4 vRect;
@@ -56,8 +64,13 @@ float srgbToLinearChannel(float value)
     return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4);
 }
 
-vec4 srgbToLinear(vec4 color)
+vec4 toTargetSpace(vec4 color)
 {
+    if (!uConvertToLinear)
+    {
+        return color;
+    }
+
     return vec4(
         srgbToLinearChannel(color.r),
         srgbToLinearChannel(color.g),
@@ -79,8 +92,8 @@ void main()
     vRect = aRect;
     vCorners = aCorners;
     vClip = aClip;
-    vFill = srgbToLinear(unpackRgba(aFillColor));
-    vBorder = srgbToLinear(unpackRgba(aBorderColor));
+    vFill = toTargetSpace(unpackRgba(aFillColor));
+    vBorder = toTargetSpace(unpackRgba(aBorderColor));
     vBorderWidth = aBorderWidth;
     vFlags = aFlags;
     vSourceRect = aUv;
@@ -226,10 +239,19 @@ void main()
         private int _viewportUniform;
         private int _glyphAtlasUniform;
         private int _imageAtlasUniform;
+        private int _convertToLinearUniform;
+
+        /// <summary>
+        /// True only when the target re-encodes to sRGB on write. The GL default framebuffer does not, so
+        /// this stays false; it exists so the difference from the WebGPU path is explicit rather than an
+        /// unexplained divergence between two otherwise identical shaders.
+        /// </summary>
+        public bool ConvertToLinear { get; set; }
 
         private int _instanceBufferCapacity;
         private int _glyphAtlasWidth;
         private int _glyphAtlasHeight;
+        private Vector2 _lastLogicalSize;
         private bool _loggedFirstFrame;
         private bool _disposed;
 
@@ -241,6 +263,7 @@ void main()
             _viewportUniform = _gl.GetUniformLocation(_program, "uViewportSize");
             _glyphAtlasUniform = _gl.GetUniformLocation(_program, "uGlyphAtlas");
             _imageAtlasUniform = _gl.GetUniformLocation(_program, "uImageAtlas");
+            _convertToLinearUniform = _gl.GetUniformLocation(_program, "uConvertToLinear");
 
             CreateBuffers();
             CreateImagePlaceholder();
@@ -252,6 +275,8 @@ void main()
             {
                 return;
             }
+
+            _lastLogicalSize = logicalSize;
 
             SyncGlyphAtlas(atlas);
             UploadInstances(drawList);
@@ -288,6 +313,7 @@ void main()
 
             _gl.UseProgram(_program);
             _gl.Uniform2(_viewportUniform, logicalSize.X, logicalSize.Y);
+            _gl.Uniform1(_convertToLinearUniform, ConvertToLinear ? 1 : 0);
 
             _gl.ActiveTexture(TextureUnit.Texture0);
             _gl.BindTexture(TextureTarget.Texture2D, _glyphTexture);
@@ -319,6 +345,7 @@ void main()
             if (!_loggedFirstFrame)
             {
                 _loggedFirstFrame = true;
+                LogSampledPixel(drawList, framebufferSize);
 
                 // Reported once, with the GL error state, because a silently failing draw looks exactly
                 // like a UI that simply has nothing to show.
@@ -335,6 +362,61 @@ void main()
             SetEnabled(EnableCap.ScissorTest, hadScissor);
             _gl.DepthMask(hadDepthMask != 0);
             _gl.ActiveTexture(TextureUnit.Texture0);
+        }
+
+        /// <summary>
+        /// Reads back the centre of the first opaque box drawn and logs it against the colour that was
+        /// asked for. Colour space bugs are invisible to every other kind of check -- the UI still draws,
+        /// still reports no GL error, and simply comes out the wrong shade -- so this measures the one
+        /// thing that actually distinguishes them.
+        /// </summary>
+        private void LogSampledPixel(ManaUiDrawList drawList, Vector2 framebufferSize)
+        {
+            ManaUiInstance sample = default;
+            var found = false;
+
+            foreach (var instance in drawList.Instances)
+            {
+                // A large, fully opaque, untextured box: a panel background rather than a glyph or a
+                // shadow, whose blended edges would not compare cleanly.
+                var opaque = (instance.FillColor >> 24) == 0xFF;
+                var plain = instance.Flags == 0;
+                var wide = instance.Rect.Z - instance.Rect.X > 40.0f && instance.Rect.W - instance.Rect.Y > 40.0f;
+
+                if (opaque && plain && wide)
+                {
+                    sample = instance;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                return;
+            }
+
+            var centre = new Vector2((sample.Rect.X + sample.Rect.Z) * 0.5f, (sample.Rect.Y + sample.Rect.W) * 0.5f);
+
+            // Logical to framebuffer pixels, then flipped: GL reads with the origin at the bottom left.
+            var scale = framebufferSize.Y / MathF.Max(1.0f, _lastLogicalSize.Y);
+            var x = (int)(centre.X * scale);
+            var y = (int)(framebufferSize.Y - centre.Y * scale);
+
+            if (x < 0 || y < 0 || x >= framebufferSize.X || y >= framebufferSize.Y)
+            {
+                return;
+            }
+
+            var pixel = stackalloc byte[4];
+            _gl.PixelStore(PixelStoreParameter.PackAlignment, 1);
+            _gl.ReadPixels(x, y, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, pixel);
+
+            var expected = UiColor.Unpack(sample.FillColor);
+            ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
+                $"[ManaUI/GL] colour check at ({x},{y}): expected sRGB "
+                + $"({(int)(expected.X * 255)},{(int)(expected.Y * 255)},{(int)(expected.Z * 255)}), "
+                + $"read ({pixel[0]},{pixel[1]},{pixel[2]}), convertToLinear={ConvertToLinear}");
         }
 
         private void SetEnabled(EnableCap capability, bool enabled)
