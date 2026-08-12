@@ -130,6 +130,17 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 new CheckBox().Label("Show wireframe").BindIsChecked(vm, v => v.ShowWireframe),
 
+                // The dropdown and the label share a source, so the label proves the selection committed
+                // rather than the combo merely repainting itself.
+                new ComboBox()
+                    .Options(vm.Tools)
+                    .Width(320.0f)
+                    .BindSelectedIndex(vm, v => v.SelectedToolIndex),
+
+                new TextBlock()
+                    .BindText(vm, v => v.SelectedToolName, name => $"Tool: {name}")
+                    .Foreground(theme.TextMuted),
+
                 // Bound to the same property as the panel heading, so editing here retitles the panel --
                 // the clearest possible demonstration that write-back works.
                 new TextBox()

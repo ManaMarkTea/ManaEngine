@@ -463,6 +463,29 @@ namespace ManaUI
             return checkBox;
         }
 
+        // ----- ComboBox ------------------------------------------------------------------------------
+
+        public static ComboBox Options<T>(
+            this ComboBox comboBox,
+            IEnumerable<T> items,
+            Func<T, string>? display = null)
+        {
+            comboBox.SetItems(items, display);
+            return comboBox;
+        }
+
+        public static ComboBox Selected(this ComboBox comboBox, int index)
+        {
+            comboBox.SelectedIndex = index;
+            return comboBox;
+        }
+
+        public static ComboBox OnSelected(this ComboBox comboBox, Action<int> action)
+        {
+            comboBox.SelectionChanged += (_, index) => action(index);
+            return comboBox;
+        }
+
         // ----- TextBox -------------------------------------------------------------------------------
 
         public static TextBox Value(this TextBox textBox, string text)

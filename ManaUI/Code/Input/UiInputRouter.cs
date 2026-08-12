@@ -138,6 +138,14 @@ namespace ManaUI
 
             var target = PointerCaptureTarget ?? HoveredElement;
 
+            // Light dismissal runs before dispatch so a press outside an open menu closes it. It only
+            // swallows the press when it landed on the popup's own anchor, which is what stops a dropdown
+            // button from closing and instantly reopening.
+            if (PointerCaptureTarget == null && _root.Popups.HandlePointerPressed(target))
+            {
+                return;
+            }
+
             // A press on empty space drops focus, matching every desktop toolkit -- otherwise a text box
             // would keep swallowing keystrokes after the user clicked away from it.
             if (target == null)
@@ -286,6 +294,13 @@ namespace ManaUI
             }
 
             var focused = _root.FocusManager.Focused;
+
+            // Escape closes the topmost popup before anything else sees it, so a menu can be dismissed
+            // even when focus is somewhere behind it.
+            if (key == UiKey.Escape && !isRepeat && _root.Popups.HandleEscape())
+            {
+                return true;
+            }
 
             // Tab is navigation unless the focused element asked for raw keys (a multi-line editor might).
             if (key == UiKey.Tab && (focused == null || !focused.WantsAllKeyboardInput))

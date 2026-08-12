@@ -25,6 +25,7 @@ namespace ManaUI
             Theme = theme ?? UiTheme.Dark();
             FocusManager = new UiFocusManager(this);
             Input = new UiInputRouter(this);
+            Popups = new UiPopupManager(this);
 
             ContentLayer = new ContentHost();
             FloatingLayer = new Canvas();
@@ -45,6 +46,9 @@ namespace ManaUI
         public UiInputRouter Input { get; }
 
         public UiFocusManager FocusManager { get; }
+
+        /// <summary>Open dropdowns, menus and tooltips.</summary>
+        public UiPopupManager Popups { get; }
 
         /// <summary>The cursor shape the UI wants right now; the host applies it to the real window.</summary>
         public UiCursor RequestedCursor => Input.RequestedCursor;
@@ -168,6 +172,12 @@ namespace ManaUI
             }
 
             Measure(_size);
+
+            // Between the passes on purpose: placement needs the popup's measured size (to know whether it
+            // fits, and which way to flip) and its anchor's bounds, and it writes canvas offsets that the
+            // arrange pass then consumes. Doing it after arrange would need a second arrange to apply.
+            Popups.UpdatePlacements(_size);
+
             Arrange(new UiRect(Vector2.Zero, _size));
             _layoutDirty = false;
 

@@ -22,6 +22,20 @@ namespace ManaVoxel.Code.UI.ManaUi
         [ObservableProperty]
         private int _clickCount;
 
+        [ObservableProperty]
+        private int _selectedToolIndex;
+
+        /// <summary>Stand-in for the real tool list, so the dropdown has something plausible to show.</summary>
+        public string[] Tools { get; } = { "Place", "Erase", "Paint", "Select", "Text", "Line", "Sphere" };
+
+        public string SelectedToolName =>
+            SelectedToolIndex >= 0 && SelectedToolIndex < Tools.Length ? Tools[SelectedToolIndex] : "None";
+
+        partial void OnSelectedToolIndexChanged(int value)
+        {
+            OnPropertyChanged(nameof(SelectedToolName));
+        }
+
         public ObservableCollection<ShowcaseLayerViewModel> Layers { get; } = new();
 
         public ManaUiShowcaseViewModel()

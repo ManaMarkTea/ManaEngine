@@ -168,6 +168,29 @@ namespace ManaUI
             return checkBox;
         }
 
+        public static ComboBox BindSelectedIndex<TSource>(
+            this ComboBox comboBox,
+            TSource source,
+            Expression<Func<TSource, int>> sourceProperty,
+            BindingMode mode = BindingMode.TwoWay)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, int>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => comboBox.SelectedIndex = value,
+                () => comboBox.SelectedIndex,
+                mode);
+
+            comboBox.SelectionChanged += (_, _) => binding.PushToSource();
+            comboBox.AddBinding(binding);
+            return comboBox;
+        }
+
         public static TextBlock BindText<TSource>(
             this TextBlock textBlock,
             TSource source,
