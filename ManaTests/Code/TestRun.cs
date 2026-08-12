@@ -70,7 +70,8 @@ public static class TestRunner
         ("ManaUI", "layout persistence", PersistenceChecks.Run),
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),
-        ("ManaUI", "ported scene outliner", OutlinerChecks.Run)
+        ("ManaUI", "ported scene outliner", OutlinerChecks.Run),
+        ("ManaUI", "ported scene inspector", InspectorChecks.Run)
     };
 
     /// <summary>

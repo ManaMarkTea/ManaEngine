@@ -632,6 +632,29 @@ namespace ManaUI
             return expander;
         }
 
+        // ----- DynamicContent ------------------------------------------------------------------------
+
+        /// <summary>Sets the watched source and its template together, typed to save the cast at the use site.</summary>
+        public static DynamicContent Showing<T>(
+            this DynamicContent content,
+            Func<T?> source,
+            Func<T, UiElement?> template)
+            where T : class
+        {
+            content.Template = value => value is T typed ? template(typed) : null;
+            content.Source = () => source();
+            return content;
+        }
+
+        public static DynamicContent Empty(this DynamicContent content, UiElement placeholder)
+        {
+            content.Placeholder = placeholder;
+
+            // Re-run so an empty start shows the placeholder rather than nothing at all.
+            content.Refresh();
+            return content;
+        }
+
         // ----- TreeView ------------------------------------------------------------------------------
 
         /// <summary>Sets the roots, the children accessor and the row template together.</summary>

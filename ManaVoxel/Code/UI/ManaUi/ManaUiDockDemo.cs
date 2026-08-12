@@ -26,7 +26,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 3;
+        private const int LayoutVersion = 4;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -71,6 +71,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "outliner" when world != null => new DockItem(
                     "Outliner",
                     SceneOutlinerManaView.Build(theme, world, world.Selection)) { Id = "outliner" },
+                "inspector" when world != null => new DockItem(
+                    "Inspector",
+                    SceneInspectorManaView.Build(theme, world.Selection)) { Id = "inspector" },
                 _ => null
             };
 
@@ -140,7 +143,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>
         /// Every panel this layout can show, in the order they should be added.
         /// </summary>
-        private static readonly string[] PanelIds = { "tools", "outliner", "showcase", "layers", "stats" };
+        private static readonly string[] PanelIds =
+            { "tools", "outliner", "inspector", "showcase", "layers", "stats" };
 
         /// <summary>
         /// Docks any panel the restored layout did not contain. Only runs when the saved version differs
@@ -185,6 +189,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (outliner != null)
             {
                 dock.Dock(outliner, tools == null ? DockSide.Center : DockSide.Bottom, tools?.Owner);
+            }
+
+            // Tabbed with the outliner: the two are a master/detail pair, and side by side in a panel this
+            // narrow would leave neither enough width for a transform row.
+            var inspector = resolve("inspector");
+            if (inspector != null)
+            {
+                dock.Dock(inspector, DockSide.Center, outliner?.Owner);
             }
 
             // Tabbed with the palette when there is one, otherwise it becomes the first panel itself.
