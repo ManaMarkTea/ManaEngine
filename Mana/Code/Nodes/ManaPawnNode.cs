@@ -60,10 +60,20 @@ namespace Mana.Code.Nodes
 
         public Vector3? Destination => destination;
         public float CurrentSpeed { get; private set; }
-        public bool IsMoving => CurrentSpeed > DirectionEpsilon;
+
+        // Well below any real walk, but far above the residual the solver leaves on a character
+        // pressed against a wall -- comparing against a float epsilon there left the walk cycle
+        // creeping along at 0.003 u/s instead of settling into idle.
+        public bool IsMoving => CurrentSpeed > MovingSpeedThreshold;
+
+        private const float MovingSpeedThreshold = 0.05f;
 
         // Purely presentational -- ManaPawnController owns which pawn is actually being driven.
         public bool IsPossessed { get; set; }
+
+        // Which asset pack this model came from. Together with Name it identifies the character in the
+        // spawn catalogue, which is how "swap to the next character" knows where it currently is.
+        public string? SourcePackName { get; set; }
 
         // Retimes the locomotion clip so its stride matches how fast the pawn is actually moving --
         // the fix for feet sliding on the floor. Needs CalibrateLocomotionClips to have run; without a
@@ -210,30 +220,19 @@ namespace Mana.Code.Nodes
             return true;
         }
 
-        // Height of the untouched bind pose, in this node's local space. Read from the skin bindings
-        // rather than the live mesh so an in-progress animation can't skew the result.
+        // Height of the model in this node's local space. Delegates to TryGetLocalBounds, which knows
+        // how to measure both a skinned rig (from its bind pose) and a rigid one (from the meshes
+        // parented into the node tree) -- the blocky characters are the latter and would otherwise
+        // measure as zero and spawn at native scale.
         public bool TryGetBindPoseHeight(out float height)
         {
             height = 0.0f;
-            var minY = float.MaxValue;
-            var maxY = float.MinValue;
-
-            foreach (var skinnedMesh in SkinnedMeshes)
-            {
-                foreach (var bindPosition in skinnedMesh.Binding.BindPositions)
-                {
-                    var local = Vector3.Transform(bindPosition, skinnedMesh.Owner.LocalTransform);
-                    minY = MathF.Min(minY, local.Y);
-                    maxY = MathF.Max(maxY, local.Y);
-                }
-            }
-
-            if (minY > maxY)
+            if (!TryGetLocalBounds(out var min, out var max))
             {
                 return false;
             }
 
-            height = maxY - minY;
+            height = max.Y - min.Y;
             return height > 0.0f;
         }
 
@@ -444,6 +443,7 @@ namespace Mana.Code.Nodes
             wasGrounded = grounded;
 
             var velocity = body.Velocity;
+            var velocityBeforeInput = velocity;
 
             // Horizontal steering. The same heading logic as the kinematic path, but resolved against
             // the body's position, which is now the authority on where the pawn is.
@@ -502,7 +502,11 @@ namespace Mana.Code.Nodes
 
             body.Velocity = velocity;
 
-            CurrentSpeed = new Vector3(velocity.X, 0.0f, velocity.Z).Length();
+            // Reported from the velocity the solver actually produced last step, not the velocity we
+            // are about to request. Walking into a wall then reads as stopped -- the walk cycle stops
+            // and the stride retiming stops stretching -- instead of running on the spot.
+            var solvedHorizontal = new Vector3(velocityBeforeInput.X, 0.0f, velocityBeforeInput.Z);
+            CurrentSpeed = solvedHorizontal.Length();
             Position = body.FootPosition;
         }
 
@@ -574,7 +578,17 @@ namespace Mana.Code.Nodes
             // too, or the take-off frame flashes the idle pose.
             if (Body != null && !IsGrounded)
             {
-                return Body.Velocity.Y > 0.0f ? JumpClipName : FallClipName;
+                var airborneClip = Body.Velocity.Y > 0.0f ? JumpClipName : FallClipName;
+
+                // Not every rig has airborne clips -- the Kenney blocky characters ship walk and
+                // sprint but no jump or fall. Idle is the least wrong stand-in; without this the
+                // previous clip stays resident and the character runs on the spot in mid-air.
+                if (Animation.HasClip(airborneClip))
+                {
+                    return airborneClip;
+                }
+
+                return IdleClipName;
             }
 
             if (!IsMoving)

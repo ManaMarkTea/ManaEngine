@@ -44,14 +44,15 @@ namespace Mana.Code.Animation
             IReadOnlyList<string>? footBoneNames = null,
             int sampleCount = DefaultSampleCount)
         {
-            var skeleton = actor.Skeleton;
-            if (skeleton == null || clip.DurationSeconds <= 0.0 || sampleCount < 8)
+            if (clip.DurationSeconds <= 0.0 || sampleCount < 8)
             {
                 return null;
             }
 
-            var footBones = ResolveFootBones(skeleton, footBoneNames);
-            if (footBones.Count == 0)
+            // Works off nodes rather than skeleton bones, so this measures a rigid rig (a mesh per
+            // body part, no skinning -- the blocky characters) as readily as a skinned one.
+            var footNodes = ResolveFootNodes(actor, footBoneNames);
+            if (footNodes.Count == 0)
             {
                 return null;
             }
@@ -65,17 +66,21 @@ namespace Mana.Code.Animation
             var totalStepLength = 0.0f;
             var measuredFeet = 0;
 
-            foreach (var bone in footBones)
+            foreach (var footNode in footNodes)
             {
-                var sole = FindSoleCentroid(actor, skeleton, bone);
+                if (!TryFindSoleInNodeSpace(actor, footNode, out var sole))
+                {
+                    continue;
+                }
+
                 var minForward = float.MaxValue;
                 var maxForward = float.MinValue;
 
                 for (var sample = 0; sample < sampleCount; sample++)
                 {
                     var timeInTicks = (float)(clip.DurationInTicks * sample / sampleCount);
-                    var boneToActor = EvaluateNodeToActor(actor, bone.Node, channelsByNode, timeInTicks);
-                    var footPosition = Vector3.Transform(sole, bone.OffsetMatrix * boneToActor);
+                    var nodeToActor = EvaluateNodeToActor(actor, footNode, channelsByNode, timeInTicks);
+                    var footPosition = Vector3.Transform(sole, nodeToActor);
 
                     // +Z is the model's forward axis (see ManaPawnNode.FacingOffsetDegrees).
                     minForward = MathF.Min(minForward, footPosition.Z);
@@ -143,23 +148,24 @@ namespace Mana.Code.Animation
                 Matrix4x4.CreateTranslation(position);
         }
 
-        private static List<ManaBone> ResolveFootBones(ManaSkeleton skeleton, IReadOnlyList<string>? footBoneNames)
+        private static List<ManaSceneNode> ResolveFootNodes(ManaSkeletalActorNode actor, IReadOnlyList<string>? footNodeNames)
         {
-            if (footBoneNames is { Count: > 0 })
+            var candidates = new List<ManaSceneNode>();
+            CollectNodes(actor, candidates);
+
+            if (footNodeNames is { Count: > 0 })
             {
-                return footBoneNames
-                    .Select(skeleton.FindBone)
-                    .Where(bone => bone != null)
-                    .Select(bone => bone!)
+                return candidates
+                    .Where(node => footNodeNames.Contains(node.Name, StringComparer.OrdinalIgnoreCase))
                     .ToList();
             }
 
-            // Most specific hint that matches anything wins, so a rig with both "leg" and "foot" bones
+            // Most specific hint that matches anything wins, so a rig with both "leg" and "foot" nodes
             // measures the feet rather than the thighs.
             foreach (var hint in DefaultFootBoneHints)
             {
-                var matches = skeleton.Bones
-                    .Where(bone => bone.Name.Contains(hint, StringComparison.OrdinalIgnoreCase))
+                var matches = candidates
+                    .Where(node => node.Name.Contains(hint, StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 if (matches.Count > 0)
                 {
@@ -167,18 +173,46 @@ namespace Mana.Code.Animation
                 }
             }
 
-            return new List<ManaBone>();
+            return new List<ManaSceneNode>();
         }
 
-        // The point on the bone that touches the floor: the centroid of the bind-pose vertices this
-        // bone dominates that sit at its lowest extent. A centroid rather than the single lowest
-        // vertex, which can land on an inner edge and skew the arc.
-        private static Vector3 FindSoleCentroid(ManaSkeletalActorNode actor, ManaSkeleton skeleton, ManaBone bone)
+        private static void CollectNodes(ManaSceneNode node, List<ManaSceneNode> output)
         {
-            if (!skeleton.TryGetBoneIndex(bone.Name, out var boneIndex))
+            output.Add(node);
+            foreach (var child in node.Children)
             {
-                return Vector3.Zero;
+                CollectNodes(child, output);
             }
+        }
+
+        // The point on this node that touches the floor, expressed in the node's own space so the
+        // caller can transform it by the node's animated pose directly.
+        //
+        // Two sources, because the two rig styles put the geometry in different places: a skinned rig
+        // has vertices weighted to a bone (which need the inverse bind matrix to reach bone space),
+        // while a rigid rig has a whole mesh parented to the node already in its space.
+        private static bool TryFindSoleInNodeSpace(ManaSkeletalActorNode actor, ManaSceneNode node, out Vector3 sole)
+        {
+            if (actor.Skeleton != null &&
+                actor.SkinnedMeshes.Count > 0 &&
+                actor.Skeleton.TryGetBoneIndex(node.Name, out var boneIndex))
+            {
+                var bone = actor.Skeleton.Bones[boneIndex];
+                if (TryFindSkinnedSole(actor, boneIndex, out var bindSpaceSole))
+                {
+                    sole = Vector3.Transform(bindSpaceSole, bone.OffsetMatrix);
+                    return true;
+                }
+            }
+
+            return TryFindRigidSole(node, out sole);
+        }
+
+        // Centroid of the lowest bind-pose vertices this bone dominates. A centroid rather than the
+        // single lowest vertex, which can land on an inner edge and skew the arc.
+        private static bool TryFindSkinnedSole(ManaSkeletalActorNode actor, int boneIndex, out Vector3 sole)
+        {
+            sole = Vector3.Zero;
 
             var lowest = float.MaxValue;
             foreach (var skinnedMesh in actor.SkinnedMeshes)
@@ -195,7 +229,7 @@ namespace Mana.Code.Animation
 
             if (lowest == float.MaxValue)
             {
-                return Vector3.Zero;
+                return false;
             }
 
             var sum = Vector3.Zero;
@@ -214,7 +248,78 @@ namespace Mana.Code.Animation
                 }
             }
 
-            return count == 0 ? Vector3.Zero : sum / count;
+            if (count == 0)
+            {
+                return false;
+            }
+
+            sole = sum / count;
+            return true;
+        }
+
+        // Same idea over the meshes parented to the node itself.
+        private static bool TryFindRigidSole(ManaSceneNode node, out Vector3 sole)
+        {
+            sole = Vector3.Zero;
+
+            var meshes = node.GetComponents<MeshRendererComponent>();
+            if (meshes.Count == 0)
+            {
+                return false;
+            }
+
+            var lowest = float.MaxValue;
+            foreach (var renderer in meshes)
+            {
+                foreach (var position in GetPositions(renderer))
+                {
+                    lowest = MathF.Min(lowest, position.Y);
+                }
+            }
+
+            if (lowest == float.MaxValue)
+            {
+                return false;
+            }
+
+            var sum = Vector3.Zero;
+            var count = 0;
+            foreach (var renderer in meshes)
+            {
+                foreach (var position in GetPositions(renderer))
+                {
+                    if (position.Y <= lowest + 0.001f)
+                    {
+                        sum += position;
+                        count++;
+                    }
+                }
+            }
+
+            if (count == 0)
+            {
+                return false;
+            }
+
+            sole = sum / count;
+            return true;
+        }
+
+        private static Vector3[] GetPositions(MeshRendererComponent renderer)
+        {
+            if (renderer.Mesh == null)
+            {
+                return Array.Empty<Vector3>();
+            }
+
+            try
+            {
+                return (renderer.Mesh.CpuData ?? renderer.Mesh.GetOrCreateCpuData()).Positions;
+            }
+            catch (InvalidOperationException)
+            {
+                return Array.Empty<Vector3>();
+            }
         }
 
         private static int GetDominantBone(ManaSkinBinding binding, int vertex)

@@ -23,6 +23,9 @@ namespace Mana.Code
         // it to shape a jump arc -- Mario-style falling applies extra gravity on top of this.
         public Vector3 Gravity { get; }
 
+        // Shared with the narrow phase so character capsules can get their own contact material.
+        public ManaCharacterRegistry Characters { get; } = new();
+
         public ManaPhysics(ManaContext context) : base(context)
         {
             BufferPool = new BufferPool();
@@ -33,7 +36,7 @@ namespace Mana.Code
             
             Simulation = Simulation.Create(
                 BufferPool,
-                new DemoNarrowPhaseCallbacks(new SpringSettings(30, 1), maximumRecoveryVelocity: 2f, frictionCoefficient: 1f),
+                new DemoNarrowPhaseCallbacks(new SpringSettings(30, 1), maximumRecoveryVelocity: 2f, frictionCoefficient: 1f, characters: Characters),
                 new DemoPoseIntegratorCallbacks(Gravity, linearDamping: 0.03f, angularDamping: 0.12f),
                 new SolveDescription(8, 1));
 

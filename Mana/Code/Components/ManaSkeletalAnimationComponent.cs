@@ -12,10 +12,12 @@ namespace Mana
 
         private readonly Dictionary<string, ManaSceneNode> nodesByName = new(StringComparer.Ordinal);
         private readonly Dictionary<string, BonePose> bindPoses = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, ManaAnimationChannel> activeChannels = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, BonePose> blendFromPoses = new(StringComparer.Ordinal);
         private readonly List<ManaAnimationClip> clips = new();
 
         private ManaAnimationClip? activeClip;
-        private ManaSceneNode?[] resolvedChannelNodes = Array.Empty<ManaSceneNode?>();
+        private float blendRemainingSeconds;
 
         public IReadOnlyList<ManaAnimationClip> Clips => clips;
         public ManaAnimationClip? ActiveClip => activeClip;
@@ -23,6 +25,13 @@ namespace Mana
         public float PlaybackSpeed { get; set; } = 1.0f;
         public bool Looping { get; set; } = true;
         public bool IsPlaying { get; set; } = true;
+
+        // Cross-fade applied when the clip changes. Without it a switch snaps, which is most obvious
+        // going from walk to idle: the Kenney idle clip animates only the torso, arms and head, so the
+        // legs jump from mid-stride straight back to their rest pose.
+        public float BlendDurationSeconds { get; set; } = 0.15f;
+
+        public bool IsBlending => blendRemainingSeconds > 0.0f;
 
         public ManaSkeletalAnimationComponent(ManaSceneNode owner) : base(owner)
         {
@@ -42,14 +51,13 @@ namespace Mana
         {
             nodesByName.Clear();
             bindPoses.Clear();
+            blendFromPoses.Clear();
             CaptureBindPose(Owner);
+        }
 
-            if (activeClip != null)
-            {
-                resolvedChannelNodes = activeClip.Channels
-                    .Select(channel => nodesByName.GetValueOrDefault(channel.NodeName))
-                    .ToArray();
-            }
+        public bool HasClip(string clipName)
+        {
+            return clips.Any(clip => string.Equals(clip.Name, clipName, StringComparison.OrdinalIgnoreCase));
         }
 
         public bool Play(string clipName, bool restart = true)
@@ -73,10 +81,19 @@ namespace Mana
                 return;
             }
 
+            // Snapshot where every bone is right now, before the new clip overwrites anything, so the
+            // cross-fade has something to come from.
+            CaptureBlendSource();
+
             activeClip = clip;
-            resolvedChannelNodes = clip == null
-                ? Array.Empty<ManaSceneNode?>()
-                : clip.Channels.Select(channel => nodesByName.GetValueOrDefault(channel.NodeName)).ToArray();
+            activeChannels.Clear();
+            if (clip != null)
+            {
+                foreach (var channel in clip.Channels)
+                {
+                    activeChannels[channel.NodeName] = channel;
+                }
+            }
 
             if (restart)
             {
@@ -90,6 +107,34 @@ namespace Mana
             {
                 ResetToBindPose();
             }
+        }
+
+        private void CaptureBlendSource()
+        {
+            blendFromPoses.Clear();
+            blendRemainingSeconds = 0.0f;
+
+            if (BlendDurationSeconds <= 0.0f)
+            {
+                return;
+            }
+
+            foreach (var entry in nodesByName)
+            {
+                blendFromPoses[entry.Key] = DecomposePose(entry.Value.LocalTransform, entry.Key);
+            }
+
+            blendRemainingSeconds = BlendDurationSeconds;
+        }
+
+        private BonePose DecomposePose(Matrix4x4 transform, string nodeName)
+        {
+            if (Matrix4x4.Decompose(transform, out var scale, out var rotation, out var position))
+            {
+                return new BonePose(position, rotation, scale);
+            }
+
+            return bindPoses.GetValueOrDefault(nodeName, new BonePose(Vector3.Zero, Quaternion.Identity, Vector3.One));
         }
 
         public void Stop()
@@ -129,9 +174,18 @@ namespace Mana
                 }
             }
 
+            if (blendRemainingSeconds > 0.0f)
+            {
+                blendRemainingSeconds = MathF.Max(blendRemainingSeconds - (float)deltaTime.TotalSeconds, 0.0f);
+            }
+
             ApplyPose();
         }
 
+        // Writes a pose for EVERY bone, not only the ones the active clip animates. A clip defines the
+        // whole pose: a bone it says nothing about belongs at its bind pose, not wherever the previous
+        // clip happened to leave it. Iterating only the channels is what left the legs frozen mid-stride
+        // when walk handed over to an idle clip that has no leg channels.
         private void ApplyPose()
         {
             if (activeClip == null)
@@ -140,29 +194,45 @@ namespace Mana
             }
 
             var timeInTicks = (float)(TimeSeconds * activeClip.TicksPerSecond);
+            var blendAlpha = BlendDurationSeconds > 0.0f && blendRemainingSeconds > 0.0f
+                ? 1.0f - (blendRemainingSeconds / BlendDurationSeconds)
+                : 1.0f;
 
-            for (var i = 0; i < activeClip.Channels.Count; i++)
+            foreach (var entry in bindPoses)
             {
-                var node = i < resolvedChannelNodes.Length ? resolvedChannelNodes[i] : null;
-                if (node == null)
+                if (!nodesByName.TryGetValue(entry.Key, out var node))
                 {
                     continue;
                 }
 
-                var channel = activeClip.Channels[i];
-                var bindPose = bindPoses.GetValueOrDefault(
-                    channel.NodeName,
-                    new BonePose(Vector3.Zero, Quaternion.Identity, Vector3.One));
+                var bindPose = entry.Value;
+                var target = bindPose;
 
-                var position = channel.SamplePosition(timeInTicks, bindPose.Position);
-                var rotation = channel.SampleRotation(timeInTicks, bindPose.Rotation);
-                var scale = channel.SampleScale(timeInTicks, bindPose.Scale);
+                if (activeChannels.TryGetValue(entry.Key, out var channel))
+                {
+                    target = new BonePose(
+                        channel.SamplePosition(timeInTicks, bindPose.Position),
+                        channel.SampleRotation(timeInTicks, bindPose.Rotation),
+                        channel.SampleScale(timeInTicks, bindPose.Scale));
+                }
+
+                var pose = blendAlpha >= 1.0f || !blendFromPoses.TryGetValue(entry.Key, out var from)
+                    ? target
+                    : BlendPoses(from, target, blendAlpha);
 
                 node.LocalTransform =
-                    Matrix4x4.CreateScale(scale) *
-                    Matrix4x4.CreateFromQuaternion(rotation) *
-                    Matrix4x4.CreateTranslation(position);
+                    Matrix4x4.CreateScale(pose.Scale) *
+                    Matrix4x4.CreateFromQuaternion(pose.Rotation) *
+                    Matrix4x4.CreateTranslation(pose.Position);
             }
+        }
+
+        private static BonePose BlendPoses(BonePose from, BonePose to, float alpha)
+        {
+            return new BonePose(
+                Vector3.Lerp(from.Position, to.Position, alpha),
+                Quaternion.Normalize(Quaternion.Slerp(from.Rotation, to.Rotation, alpha)),
+                Vector3.Lerp(from.Scale, to.Scale, alpha));
         }
 
         // The rest transform a node had before anything animated it. Exposed because evaluating a clip
@@ -202,9 +272,14 @@ namespace Mana
 
         // The rig's authored rest pose, captured before anything animates it. Doubles as the fallback
         // for channels that omit a track -- glTF clips routinely ship rotation only.
+        //
+        // The owner node itself is deliberately excluded. ApplyPose writes a transform for every entry
+        // in here, and the owner's transform belongs to whatever placed the actor in the world -- for a
+        // ManaPawnNode that is the locomotion code, so including it would teleport the character back
+        // to its import pose every frame.
         private void CaptureBindPose(ManaSceneNode node)
         {
-            if (!string.IsNullOrEmpty(node.Name))
+            if (!string.IsNullOrEmpty(node.Name) && !ReferenceEquals(node, Owner))
             {
                 nodesByName.TryAdd(node.Name, node);
 

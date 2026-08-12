@@ -163,6 +163,7 @@ namespace Mana.Code.GameModes
                 GroundPlaneHeight = 0.0f
             };
             _viewModel.AttachPawnController(_pawnController);
+            _pawnController.ChangeCharacterRequested += direction => _viewModel.CycleControlledCharacter(direction);
 
             // Hands WASD to the possessed character. Set here rather than alongside
             // ShouldCaptureMouseInput below because that assignment runs on the background load task,

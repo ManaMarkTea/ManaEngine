@@ -10,6 +10,20 @@ namespace Mana.Code
     // as long as it is possessed -- see IsCapturingMovementKeys, which the host wires to
     // CameraComponent.ShouldCaptureKeyboardInput. The camera keeps QE and its mouse orbit/pan, and
     // Escape hands the keys straight back.
+    // Which camera is driving the view.
+    public enum ManaCameraMode
+    {
+        // The editor's own fly camera. WASD/QE, right-drag to look. Unchanged behaviour.
+        Free,
+
+        // Third-person boom that swings around behind the character as it moves.
+        Follow,
+
+        // The same boom, but it stays wherever you leave it instead of auto-aligning -- better for
+        // looking at the character, or for lining up a jump you are about to make.
+        Orbit
+    }
+
     public sealed class ManaPawnController : ManaObject
     {
         public enum ClickOutcome
@@ -27,6 +41,13 @@ namespace Mana.Code
         private readonly List<ManaPawnNode> pawns = new();
         private bool releaseKeyWasDown;
         private bool jumpKeyWasDown;
+        private bool cameraKeyWasDown;
+        private bool nextCharacterKeyWasDown;
+        private bool previousCharacterKeyWasDown;
+
+        // Raised on numpad +/- with the step direction. The controller has no idea what characters
+        // exist -- that catalogue lives with the host's asset services -- so it asks rather than acts.
+        public event Action<int>? ChangeCharacterRequested;
 
         public ManaPawnController(ManaContext context) : base(context)
         {
@@ -87,6 +108,104 @@ namespace Mana.Code
             {
                 pawn.IsPossessed = true;
             }
+
+            // Re-resolve the boom against whoever is possessed now (or detach, if nobody is).
+            SyncCameraMode();
+        }
+
+        // ---- Camera modes -------------------------------------------------------------------------
+
+        public ManaCameraMode CameraMode { get; private set; } = ManaCameraMode.Free;
+
+        // The boom in use, or null in Free mode / with nothing possessed. Exposed so the inspector can
+        // show and tune it.
+        public ManaSpringArmComponent? SpringArm { get; private set; }
+
+        public void SetCameraMode(ManaCameraMode mode)
+        {
+            CameraMode = mode;
+            SyncCameraMode();
+        }
+
+        public void CycleCameraMode()
+        {
+            SetCameraMode(CameraMode switch
+            {
+                ManaCameraMode.Free => ManaCameraMode.Follow,
+                ManaCameraMode.Follow => ManaCameraMode.Orbit,
+                _ => ManaCameraMode.Free
+            });
+        }
+
+        // Attaching the boom needs a pawn to hang it off, so an attached mode with nothing possessed
+        // quietly behaves as Free until something is. The requested mode is remembered either way, so
+        // possessing a character later lands straight in the mode that was asked for.
+        private void SyncCameraMode()
+        {
+            var camera = Context.World.MainCamera;
+            var pawn = PossessedPawn;
+
+            if (CameraMode == ManaCameraMode.Free || pawn == null)
+            {
+                if (SpringArm != null)
+                {
+                    SpringArm.Owner.Components.Remove(SpringArm);
+                    SpringArm = null;
+                }
+
+                camera.DetachFromSpringArm();
+                return;
+            }
+
+            if (SpringArm == null || !ReferenceEquals(SpringArm.Owner, pawn))
+            {
+                if (SpringArm != null)
+                {
+                    SpringArm.Owner.Components.Remove(SpringArm);
+                }
+
+                SpringArm = CreateSpringArmFor(pawn);
+                pawn.Components.Add(SpringArm);
+            }
+
+            SpringArm.AutoAlignBehindTarget = CameraMode == ManaCameraMode.Follow;
+
+            // Refreshed rather than only set at creation: a capsule added or removed after the boom
+            // exists would otherwise leave the probe colliding with the character it follows.
+            SpringArm.IgnoreBody = pawn.Body;
+
+            camera.AttachToSpringArm(SpringArm);
+        }
+
+        private ManaSpringArmComponent CreateSpringArmFor(ManaPawnNode pawn)
+        {
+            // Scaled off the character so the framing holds for any model: eye-height socket, boom
+            // about four body-heights back.
+            var characterHeight = pawn.TryGetBindPoseHeight(out var bindHeight) && bindHeight > 0.0f
+                ? bindHeight * MathF.Abs(pawn.Scale.Y)
+                : 2.0f;
+
+            // Start behind the character rather than in its face. The model faces +Z, so its heading is
+            // (sin yaw, 0, cos yaw); the camera looks along -Z, so the boom yaw that matches that
+            // heading -- and therefore sits behind it -- is the pawn's yaw plus half a turn.
+            var behindYaw = pawn.Rotation.Y + MathF.PI;
+
+            return new ManaSpringArmComponent(pawn)
+            {
+                YawRadians = behindYaw,
+                SocketOffset = new Vector3(0.0f, characterHeight * 0.8f, 0.0f),
+                ArmLength = characterHeight * 4.0f,
+                MinArmLength = characterHeight * 0.5f,
+                MaxArmLength = characterHeight * 20.0f,
+                IgnoreBody = pawn.Body,
+
+                // Auto-align follows where the character is actually going, and only while it is
+                // going somewhere -- reading the drive input instead would swing the camera on a
+                // key press even when the character is jammed against a wall.
+                AutoAlignSource = () => (pawn.Body != null
+                    ? pawn.Body.Velocity
+                    : pawn.DriveDirection, pawn.IsMoving)
+            };
         }
 
         // Called by the host on a left-click that the UI didn't already swallow. pickedNode is whatever
@@ -161,6 +280,32 @@ namespace Mana.Code
             }
 
             releaseKeyWasDown = releaseKeyDown;
+
+            var cameraKeyDown = !keyboardCaptured && keyboard?.IsKeyPressed(Key.C) == true;
+            if (cameraKeyDown && !cameraKeyWasDown)
+            {
+                CycleCameraMode();
+            }
+
+            cameraKeyWasDown = cameraKeyDown;
+
+            // Numpad +/- steps through the character catalogue. The host owns the swap itself (it needs
+            // the asset catalogue and the scene), so this only raises the request.
+            var nextCharacterKeyDown = !keyboardCaptured && keyboard?.IsKeyPressed(Key.KeypadAdd) == true;
+            if (nextCharacterKeyDown && !nextCharacterKeyWasDown)
+            {
+                ChangeCharacterRequested?.Invoke(1);
+            }
+
+            nextCharacterKeyWasDown = nextCharacterKeyDown;
+
+            var previousCharacterKeyDown = !keyboardCaptured && keyboard?.IsKeyPressed(Key.KeypadSubtract) == true;
+            if (previousCharacterKeyDown && !previousCharacterKeyWasDown)
+            {
+                ChangeCharacterRequested?.Invoke(-1);
+            }
+
+            previousCharacterKeyWasDown = previousCharacterKeyDown;
 
             var pawn = PossessedPawn;
             if (pawn == null)

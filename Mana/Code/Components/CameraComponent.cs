@@ -226,9 +226,100 @@ namespace Mana
             _ViewMatrix = Matrix4x4.CreateLookAt(Owner.Position, Owner.Position + forward, up);
         }
 
+        // When set, this camera stops flying and rides a boom instead. The camera still owns its own
+        // pose; the arm only supplies where that pose should be (see ApplyAttachedPose, which runs
+        // after the scene graph has moved so it reads the target's position from this frame, not last).
+        public ManaSpringArmComponent? AttachedSpringArm { get; private set; }
+
+        public bool IsAttached => AttachedSpringArm != null;
+
+        public void AttachToSpringArm(ManaSpringArmComponent springArm)
+        {
+            AttachedSpringArm = springArm;
+            springArm.SnapToTarget();
+            ApplyAttachedPose(0.0f);
+        }
+
+        // Leaves the camera exactly where the arm last put it, so releasing a character drops you into
+        // free flight from that view instead of snapping back somewhere else.
+        public void DetachFromSpringArm()
+        {
+            AttachedSpringArm = null;
+        }
+
+        // Called from ManaWorld.Update after the scenes have updated. Split out from UpdateComponent
+        // because the camera node is updated before the scene graph: evaluating the arm there would
+        // follow the target's previous-frame position and visibly trail it.
+        public void ApplyAttachedPose(float deltaSeconds)
+        {
+            var springArm = AttachedSpringArm;
+            if (springArm == null)
+            {
+                return;
+            }
+
+            springArm.Evaluate(deltaSeconds);
+
+            Owner.Position = springArm.CameraPosition;
+
+            // The arm's yaw/pitch are in ManaSceneNode.Forward's own convention, so they go straight
+            // onto Rotation with no conversion.
+            Owner.Rotation = new Vector3(springArm.PitchRadians, springArm.YawRadians, 0.0f);
+
+            // Matrices written directly rather than via Owner.UpdateTransform(), which would tick this
+            // component again and apply a second frame of mouse input -- orbiting at double speed.
+            // Same direct-write pattern ManaCollisionComponent uses for its physics sync.
+            var localTransform =
+                Matrix4x4.CreateScale(Owner.Scale) *
+                Matrix4x4.CreateFromQuaternion(Owner.Rotation.ToQuaternionFromEuler()) *
+                Matrix4x4.CreateTranslation(Owner.Position);
+
+            Owner.LocalTransform = localTransform;
+            Owner.WorldTransform = Owner.Parent != null ? localTransform * Owner.Parent.WorldTransform : localTransform;
+
+            UpdateViewMatrix();
+        }
+
+        // Same gestures as free flight, redirected at the boom: right-drag orbits, scroll changes the
+        // arm length instead of the fly speed. The pose itself is applied later, in ApplyAttachedPose.
+        private void UpdateAttachedInput()
+        {
+            var springArm = AttachedSpringArm!;
+            var mouseState = Context.Input.Mice.First();
+
+            var externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
+            var imguiCapturesMouse = GetImGuiWantsCaptureMouse() || externalCapturesMouse;
+
+            const float delta = 0.001f;
+            float dxAvg = 0, dyAvg = 0;
+            var orbitActive = !imguiCapturesMouse && mouseState.IsButtonPressed(MouseButton.Right);
+            UpdateAverage(delta, orbitActive, ref dxAvg, ref dyAvg);
+
+            if (orbitActive)
+            {
+                // Same 0.4 scaling as the free camera's look, so the two modes feel identical.
+                springArm.AddLookInput(dxAvg * 0.4f, dyAvg * 0.4f);
+            }
+
+            if (!imguiCapturesMouse)
+            {
+                var scroll = mouseState.ScrollWheels[0];
+                if (scroll.Y != 0.0f)
+                {
+                    springArm.AddZoomInput(scroll.Y);
+                }
+            }
+        }
+
         public override void UpdateComponent()
         {
             base.UpdateComponent();
+
+            if (AttachedSpringArm != null)
+            {
+                UpdateAttachedInput();
+                return;
+            }
 
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();

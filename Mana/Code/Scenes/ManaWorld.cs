@@ -228,6 +228,16 @@ namespace Mana
             }
 
             RunFutures(PostUpdateFutures, activePostUpdateFutures);
+
+            // A camera riding a spring arm is posed here rather than in CameraNode.UpdateTransform
+            // above, because the thing it follows only reaches its final position during the scene
+            // update. Doing it first would leave the camera a frame behind its target, which reads as
+            // the character sliding around inside the view whenever it moves quickly.
+            if (MainCamera.IsAttached)
+            {
+                MainCamera.ApplyAttachedPose((float)ManaTime.GlobalTime.DeltaTime.TotalSeconds);
+                ViewMatrix = MainCamera._ViewMatrix;
+            }
         }
 
         public void Draw()

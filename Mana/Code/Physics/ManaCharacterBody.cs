@@ -5,20 +5,20 @@ using System.Runtime.CompilerServices;
 
 namespace Mana.Code
 {
-    // Downward probe for the grounded test. Skips the character's own capsule -- the ray starts inside
-    // it, so without this every cast reports an immediate self-hit and the character never leaves the
-    // ground state.
-    public struct CharacterGroundRayHandler : IRayHitHandler
+    // Closest-hit ray probe that ignores one body. Used for the character's grounded test, where the
+    // ray starts inside its own capsule and would otherwise self-hit every frame, and for the spring
+    // arm, which must not collide with the character it is following.
+    public struct ExcludeBodyRayHandler : IRayHitHandler
     {
-        private readonly int selfBodyHandle;
+        private readonly int excludedBodyHandle;
 
         public bool Hit;
         public float Distance;
         public Vector3 Normal;
 
-        public CharacterGroundRayHandler(BodyHandle self)
+        public ExcludeBodyRayHandler(BodyHandle excluded)
         {
-            selfBodyHandle = self.Value;
+            excludedBodyHandle = excluded.Value;
             Hit = false;
             Distance = float.MaxValue;
             Normal = Vector3.UnitY;
@@ -29,7 +29,7 @@ namespace Mana.Code
         {
             // BodyHandle is only meaningful for non-static collidables; reading it on a static is
             // undefined, hence the mobility check first.
-            return collidable.Mobility == CollidableMobility.Static || collidable.BodyHandle.Value != selfBodyHandle;
+            return collidable.Mobility == CollidableMobility.Static || collidable.BodyHandle.Value != excludedBodyHandle;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,6 +114,9 @@ namespace Mana.Code
             var handle = context.Physics.Simulation.Bodies.Add(description);
             context.Physics.Simulation.Awakener.AwakenBody(handle);
 
+            // Tells the narrow phase this is a character, so its wall contacts get zero friction.
+            context.Physics.Characters.Register(handle);
+
             return new ManaCharacterBody(context, handle, radius, height);
         }
 
@@ -177,7 +180,7 @@ namespace Mana.Code
             var center = Context.Physics.Simulation.Bodies[Handle].Pose.Position;
             var maximumT = HalfHeight + GroundProbeDistance;
 
-            var handler = new CharacterGroundRayHandler(Handle);
+            var handler = new ExcludeBodyRayHandler(Handle);
             Context.Physics.Simulation.RayCast(center, -Vector3.UnitY, maximumT, Context.Physics.BufferPool, ref handler, 0);
 
             if (!handler.Hit)
@@ -206,6 +209,7 @@ namespace Mana.Code
             }
 
             disposed = true;
+            Context.Physics.Characters.Unregister(Handle);
             if (Context.Physics.Simulation.Bodies.BodyExists(Handle))
             {
                 Context.Physics.Simulation.Bodies.Remove(Handle);

@@ -221,11 +221,15 @@ namespace Mana.Code
         public float MaximumRecoveryVelocity;
         public float FrictionCoefficient;
 
-        public DemoNarrowPhaseCallbacks(SpringSettings contactSpringiness, float maximumRecoveryVelocity = 2f, float frictionCoefficient = 1f)
+        // Optional. When set, character capsules get zero friction against walls.
+        public ManaCharacterRegistry? Characters;
+
+        public DemoNarrowPhaseCallbacks(SpringSettings contactSpringiness, float maximumRecoveryVelocity = 2f, float frictionCoefficient = 1f, ManaCharacterRegistry? characters = null)
         {
             ContactSpringiness = contactSpringiness;
             MaximumRecoveryVelocity = maximumRecoveryVelocity;
             FrictionCoefficient = frictionCoefficient;
+            Characters = characters;
         }
 
         public void Initialize(Simulation simulation)
@@ -260,6 +264,24 @@ namespace Mana.Code
             pairMaterial.FrictionCoefficient = FrictionCoefficient;
             pairMaterial.MaximumRecoveryVelocity = MaximumRecoveryVelocity;
             pairMaterial.SpringSettings = ContactSpringiness;
+
+            // Character capsules get frictionless contacts, everywhere, not just on walls.
+            //
+            // Against a wall, friction is what makes a character cling in mid-air for as long as the
+            // movement key is held instead of sliding down. On the floor it is just as wrong: the
+            // controller writes its own horizontal velocity every frame and never uses friction to
+            // move, so a floor contact's friction can only fight the velocity it just set -- measured
+            // at a coefficient of 1, that dragged a character walking at a requested 2.73 u/s down to
+            // an actual 0.67.
+            //
+            // Nothing is lost by removing it. The controller zeroes horizontal velocity itself when
+            // grounded with no input, so a character still stands still on a platform rather than
+            // drifting; it simply does so under its own control instead of the solver's.
+            if (Characters != null && Characters.Involves(pair))
+            {
+                pairMaterial.FrictionCoefficient = 0.0f;
+            }
+
             return true;
         }
 

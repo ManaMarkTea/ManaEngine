@@ -220,10 +220,23 @@ namespace ManaVoxel.Code.UI
                 viewModel.Commands.SpawnCharacter();
             }
 
+            if (ImGui.MenuItem("Next Character", "Num +", false, controller?.PossessedPawn != null))
+            {
+                viewModel.Commands.CycleControlledCharacter(1);
+            }
+
+            if (ImGui.MenuItem("Previous Character", "Num -", false, controller?.PossessedPawn != null))
+            {
+                viewModel.Commands.CycleControlledCharacter(-1);
+            }
+
             if (ImGui.MenuItem("Remove All Characters", string.Empty, false, controller is { Pawns.Count: > 0 }))
             {
                 viewModel.Commands.RemoveAllCharacters();
             }
+
+            ImGui.TextDisabled($"{viewModel.CharacterCatalog.Count} characters across " +
+                $"{viewModel.CharacterCatalog.Select(asset => asset.PackName).Distinct().Count()} pack(s)");
 
             ImGui.Separator();
 
@@ -278,6 +291,28 @@ namespace ManaVoxel.Code.UI
             }
 
             ImGui.Separator();
+
+            if (ImGui.BeginMenu("Camera"))
+            {
+                DrawCameraModeItem(controller, ManaCameraMode.Free, "Free Camera", "Editor fly camera. WASD/QE, right-drag to look.");
+                DrawCameraModeItem(controller, ManaCameraMode.Follow, "Follow (Spring Arm)", "Boom behind the character that swings around as it moves.");
+                DrawCameraModeItem(controller, ManaCameraMode.Orbit, "Orbit (Spring Arm)", "Same boom, but it stays where you leave it.");
+
+                ImGui.Separator();
+                ImGui.TextDisabled("C cycles modes");
+                ImGui.TextDisabled("Right-drag orbits, scroll zooms the boom");
+
+                if (controller.SpringArm is { } springArm)
+                {
+                    ImGui.Separator();
+                    ImGui.TextDisabled($"Arm {springArm.CurrentArmLength:0.0} / {springArm.ArmLength:0.0}" +
+                        (springArm.IsProbeShortened ? " (pulled in)" : string.Empty));
+                }
+
+                ImGui.EndMenu();
+            }
+
+            ImGui.Separator();
             ImGui.TextDisabled($"Characters: {controller.Pawns.Count}");
             ImGui.TextDisabled(controller.PossessedPawn == null
                 ? "Click a character to control it"
@@ -287,6 +322,22 @@ namespace ManaVoxel.Code.UI
             {
                 ImGui.Separator();
                 ImGui.TextColored(new Vector4(0.95f, 0.45f, 0.35f, 1.0f), viewModel.CharacterSpawnError);
+            }
+        }
+
+        private static void DrawCameraModeItem(ManaPawnController controller, ManaCameraMode mode, string label, string tooltip)
+        {
+            // The spring-arm modes need something to hang off, so they stay greyed out until a
+            // character is possessed rather than silently doing nothing.
+            var available = mode == ManaCameraMode.Free || controller.PossessedPawn != null;
+            if (ImGui.MenuItem(label, string.Empty, controller.CameraMode == mode, available))
+            {
+                controller.SetCameraMode(mode);
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(available ? tooltip : $"{tooltip}\n(Possess a character first.)");
             }
         }
 

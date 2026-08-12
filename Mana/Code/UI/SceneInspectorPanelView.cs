@@ -272,6 +272,12 @@ namespace Mana.Code.UI
                 return;
             }
 
+            if (component is ManaSpringArmComponent springArm)
+            {
+                DrawSpringArmInspector(springArm);
+                return;
+            }
+
             ImGui.TextUnformatted(GetComponentLabel(component));
         }
 
@@ -1030,6 +1036,67 @@ namespace Mana.Code.UI
             }
         }
 
+        private static void DrawSpringArmInspector(ManaSpringArmComponent springArm)
+        {
+            if (!ImGui.CollapsingHeader(GetComponentLabel(springArm), ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                return;
+            }
+
+            if (BeginPropertyTable("SpringArmProperties"))
+            {
+                var armLength = springArm.ArmLength;
+                if (DrawSliderFloatProperty("Arm length", ref armLength, springArm.MinArmLength, springArm.MaxArmLength))
+                {
+                    springArm.ArmLength = armLength;
+                }
+
+                DrawReadOnlyProperty("Current length", springArm.IsProbeShortened
+                    ? $"{springArm.CurrentArmLength:0.00} (pulled in)"
+                    : $"{springArm.CurrentArmLength:0.00}");
+
+                var socketOffset = springArm.SocketOffset;
+                if (DrawVector3Property("Socket offset", ref socketOffset))
+                {
+                    springArm.SocketOffset = socketOffset;
+                }
+
+                var lagSpeed = springArm.SocketLagSpeed;
+                if (DrawSliderFloatProperty("Lag speed", ref lagSpeed, 0.0f, 40.0f))
+                {
+                    springArm.SocketLagSpeed = lagSpeed;
+                }
+
+                var probe = springArm.ProbeForCollision;
+                if (DrawCheckboxProperty("Probe collision", ref probe))
+                {
+                    springArm.ProbeForCollision = probe;
+                }
+
+                var probeBuffer = springArm.ProbeBuffer;
+                if (DrawSliderFloatProperty("Probe buffer", ref probeBuffer, 0.0f, 2.0f))
+                {
+                    springArm.ProbeBuffer = probeBuffer;
+                }
+
+                var autoAlign = springArm.AutoAlignBehindTarget;
+                if (DrawCheckboxProperty("Auto align", ref autoAlign))
+                {
+                    springArm.AutoAlignBehindTarget = autoAlign;
+                }
+
+                var autoAlignSpeed = springArm.AutoAlignSpeed;
+                if (DrawSliderFloatProperty("Align speed", ref autoAlignSpeed, 0.0f, 12.0f))
+                {
+                    springArm.AutoAlignSpeed = autoAlignSpeed;
+                }
+
+                DrawReadOnlyProperty("Yaw / Pitch", $"{springArm.YawRadians.ToDegrees():0.} / {springArm.PitchRadians.ToDegrees():0.}");
+
+                ImGui.EndTable();
+            }
+        }
+
         private static void DrawPawnInspector(ManaPawnNode pawn)
         {
             ImGui.SeparatorText("Pawn");
@@ -1262,6 +1329,12 @@ namespace Mana.Code.UI
                 if (DrawSliderFloatProperty("Speed", ref speed, -2.0f, 4.0f))
                 {
                     animation.PlaybackSpeed = speed;
+                }
+
+                var blendDuration = animation.BlendDurationSeconds;
+                if (DrawSliderFloatProperty("Blend", ref blendDuration, 0.0f, 0.6f))
+                {
+                    animation.BlendDurationSeconds = blendDuration;
                 }
 
                 var looping = animation.Looping;
