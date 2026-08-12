@@ -8,21 +8,19 @@ using ManaUI;
 // non-zero is everything a CI step needs. Every check is an independent named assertion, so moving to
 // xUnit later is mechanical.
 //
-// Nothing here needs a GPU or a window. For ManaUI that is by construction -- it has no graphics
-// dependency -- which is what makes layout, input, binding and docking testable at all.
+//   dotnet run --project ManaTests              all suites, console
+//   dotnet run --project ManaTests -- ManaUI    one system
+//   dotnet run --project ManaTests -- -gui      results in a window, drawn with ManaUI itself
+//
+// Nothing here needs a GPU or a window except -gui. For ManaUI that is by construction -- it has no
+// graphics dependency -- which is what makes layout, input, binding and docking testable at all.
 
-var failures = 0;
-var total = 0;
+var useGui = args.Any(arg => arg.Equals("-gui", StringComparison.OrdinalIgnoreCase)
+    || arg.Equals("--gui", StringComparison.OrdinalIgnoreCase));
 
-void Check(string what, bool ok, string detail = "")
-{
-    total++;
-    Console.WriteLine($"{(ok ? "  ok  " : " FAIL ")} {what}{(detail.Length > 0 ? "  -> " + detail : "")}");
-    if (!ok)
-    {
-        failures++;
-    }
-}
+// Flags are ignored when matching the system filter, because the dotnet CLI forwards some of its own
+// (--nologo among them) straight through to the app.
+var filter = args.FirstOrDefault(arg => !arg.StartsWith('-'));
 
 var fonts = new ManaFontManager();
 foreach (var directory in TestFonts.SearchDirectories())
@@ -41,58 +39,39 @@ catch (Exception ex)
     return 2;
 }
 
-// Add a system by appending its suites here; each one owns whatever setup it needs.
-var suites = new (string System, string Section, Action Run)[]
+if (useGui)
 {
-    ("ManaUI", "layout, text and draw list", () => LayoutChecks.Run(fonts, Check)),
-    ("ManaUI", "input", () => InputChecks.Run(fonts, Check)),
-    ("ManaUI", "bindings", () => BindingChecks.Run(fonts, Check)),
-    ("ManaUI", "scrolling and text editing", () => ScrollAndTextChecks.Run(fonts, Check)),
-    ("ManaUI", "floating windows", () => WindowChecks.Run(fonts, Check)),
-    ("ManaUI", "docking", () => DockingChecks.Run(fonts, Check)),
-    ("ManaUI", "drag docking", () => DragDockingChecks.Run(fonts, Check)),
-    ("ManaUI", "layout persistence", () => PersistenceChecks.Run(fonts, Check)),
-    ("ManaUI", "real editor views", () => ShowcaseChecks.Run(fonts, Check))
-};
-
-// Optional filter: `dotnet run --project ManaTests -- ManaUI` runs one system's suites.
-// Flags are ignored rather than treated as a filter, because the dotnet CLI forwards some of its own
-// (--nologo among them) straight through to the app.
-var filter = args.FirstOrDefault(arg => !arg.StartsWith('-'));
-var ran = 0;
-
-foreach (var suite in suites)
-{
-    if (filter != null && !suite.System.Contains(filter, StringComparison.OrdinalIgnoreCase))
-    {
-        continue;
-    }
-
-    ran++;
-    Console.WriteLine();
-    Console.WriteLine($"== {suite.System}: {suite.Section} ==");
-
-    try
-    {
-        suite.Run();
-    }
-    catch (Exception ex)
-    {
-        // A suite that throws must not hide the suites after it.
-        Check($"{suite.System}/{suite.Section} completed without throwing", false, ex.ToString());
-    }
+    return TestRunnerWindow.Show(fonts, filter);
 }
+
+TestSection? current = null;
+
+var run = TestRunner.Run(
+    fonts,
+    filter,
+    onCheck: (section, check) =>
+    {
+        Console.WriteLine(
+            $"{(check.Passed ? "  ok  " : " FAIL ")} {check.Name}"
+            + (check.Detail.Length > 0 ? $"  -> {check.Detail}" : string.Empty));
+    },
+    onSectionStarted: section =>
+    {
+        current = section;
+        Console.WriteLine();
+        Console.WriteLine($"== {section.Title} ==");
+    });
 
 Console.WriteLine();
 
-if (ran == 0)
+if (run.Total == 0)
 {
     Console.WriteLine($"No suites matched '{filter}'.");
     return 2;
 }
 
-Console.WriteLine(failures == 0
-    ? $"ALL {total} CHECKS PASSED"
-    : $"{failures} of {total} CHECK(S) FAILED");
+Console.WriteLine(run.Success
+    ? $"ALL {run.Total} CHECKS PASSED in {run.Duration.TotalSeconds:F1}s"
+    : $"{run.Failed} of {run.Total} CHECK(S) FAILED");
 
-return failures == 0 ? 0 : 1;
+return run.Success ? 0 : 1;

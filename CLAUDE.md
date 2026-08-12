@@ -26,6 +26,9 @@ dotnet run --project ManaTests
 
 # One system's suites only
 dotnet run --project ManaTests -- ManaUI
+
+# Results in a window, drawn with ManaUI itself (filter, failures-only, re-run)
+dotnet run --project ManaTests -- -gui
 ```
 
 Add coverage by dropping a suite in `ManaTests/Code/<System>/` and registering it in the `suites` array

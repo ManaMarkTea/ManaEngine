@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>ManaTests</RootNamespace>
+    <!-- The -gui runner opens a real WebGPU window, so it needs the native runtime beside it. -->
+    <ManaCopyWebGpuNativeRuntime>true</ManaCopyWebGpuNativeRuntime>
   </PropertyGroup>
 
   <ItemGroup>
