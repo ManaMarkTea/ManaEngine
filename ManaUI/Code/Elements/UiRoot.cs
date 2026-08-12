@@ -15,6 +15,7 @@ namespace ManaUI
         private readonly List<UiElement> _polledBindingElements = new();
         private Vector2 _size;
         private bool _layoutDirty = true;
+        private bool _polledBindingsDirty = true;
         private bool _visualDirty = true;
 
         public UiRoot(ManaFontManager fonts, UiTheme? theme = null)
@@ -160,8 +161,9 @@ namespace ManaUI
 
             // Polled bindings feed layout inputs (a label's text changes its width), so they are applied
             // before measure rather than after. The tree is only rescanned when it actually changed --
-            // any structural edit dirties layout, so that flag is an exact trigger.
-            if (_layoutDirty)
+            // any structural edit dirties layout, and a binding added to an already-attached element
+            // raises its own flag.
+            if (_layoutDirty || _polledBindingsDirty)
             {
                 RescanPolledBindings();
             }
@@ -239,8 +241,14 @@ namespace ManaUI
         /// Rebuilds the flat list of elements carrying polled bindings, so the per-frame refresh iterates a
         /// short list instead of walking the whole tree.
         /// </summary>
+        internal void NotifyPolledBindingsChanged()
+        {
+            _polledBindingsDirty = true;
+        }
+
         private void RescanPolledBindings()
         {
+            _polledBindingsDirty = false;
             _polledBindingElements.Clear();
             Collect(this);
 

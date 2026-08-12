@@ -62,6 +62,7 @@ public static class TestRunner
         ("ManaUI", "scrolling and text editing", ScrollAndTextChecks.Run),
         ("ManaUI", "popups and combo boxes", PopupChecks.Run),
         ("ManaUI", "menus", MenuChecks.Run),
+        ("ManaUI", "tree view", TreeChecks.Run),
         ("ManaUI", "floating windows", WindowChecks.Run),
         ("ManaUI", "docking", DockingChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),

@@ -21,6 +21,11 @@ namespace ManaUI
         {
             (_polledBindings ??= new List<IUiBinding>()).Add(binding);
             AddBinding(binding);
+
+            // The root keeps a flat list of elements carrying polled bindings and only rebuilds it when
+            // the tree changed. A binding added to an element that is already attached and laid out would
+            // otherwise never join that list, and so would never be evaluated.
+            Root?.NotifyPolledBindingsChanged();
         }
 
         internal void RefreshPolledBindings()

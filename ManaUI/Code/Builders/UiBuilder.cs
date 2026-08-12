@@ -519,6 +519,56 @@ namespace ManaUI
             return textBox;
         }
 
+        // ----- TreeView ------------------------------------------------------------------------------
+
+        /// <summary>Sets the roots, the children accessor and the row template together.</summary>
+        public static TreeView Tree<T>(
+            this TreeView tree,
+            IEnumerable<T> roots,
+            Func<T, IEnumerable<T>?> children,
+            Func<T, UiElement> template)
+            where T : class
+        {
+            tree.ChildrenSelector = item => children((T)item);
+            tree.ItemTemplate = item => template((T)item);
+            tree.ItemsSource = (System.Collections.IEnumerable)roots;
+            return tree;
+        }
+
+        /// <summary>
+        /// A tree over a model with mixed item types, where children and template must handle each kind.
+        /// </summary>
+        public static TreeView Tree(
+            this TreeView tree,
+            System.Collections.IEnumerable roots,
+            Func<object, System.Collections.IEnumerable?> children,
+            Func<object, UiElement> template)
+        {
+            tree.ChildrenSelector = children;
+            tree.ItemTemplate = template;
+            tree.ItemsSource = roots;
+            return tree;
+        }
+
+        /// <summary>Rebuilds the tree whenever this cheap signature changes -- for models with no events.</summary>
+        public static TreeView RebuildWhen(this TreeView tree, Func<int> signature)
+        {
+            tree.StructureSignature = signature;
+            return tree;
+        }
+
+        public static TreeView OnSelected(this TreeView tree, Action<object?> action)
+        {
+            tree.SelectionChanged += (_, item) => action(item);
+            return tree;
+        }
+
+        public static TreeView OnActivated(this TreeView tree, Action<object> action)
+        {
+            tree.ItemActivated += (_, item) => action(item);
+            return tree;
+        }
+
         // ----- ScrollViewer ---------------------------------------------------------------------------
 
         /// <summary>Wraps an element in a vertically scrolling viewport.</summary>
