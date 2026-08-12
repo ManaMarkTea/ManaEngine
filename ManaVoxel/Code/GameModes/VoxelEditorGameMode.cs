@@ -1694,11 +1694,11 @@ namespace Mana.Code.GameModes
             _toolPaletteView.Draw(_viewModel);
 
             bool gizmoCapturesMouse = _cameraGizmoView.Draw(Context.World.MainCamera, sceneMin, sceneMax);
-            bool imguiCapturesMouse = ImGui.GetIO().WantCaptureMouse || gizmoCapturesMouse;
+            bool uiCapturesMouse = UiWantsMouse || gizmoCapturesMouse;
 
-            UpdateVoxelPointerInteraction(imguiCapturesMouse);
+            UpdateVoxelPointerInteraction(uiCapturesMouse);
             UpdateFrameSelectedShortcut();
-            _pawnController?.UpdateDriveInput(ImGui.GetIO().WantCaptureKeyboard);
+            _pawnController?.UpdateDriveInput(UiWantsKeyboard);
 
             _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
 
@@ -1768,7 +1768,7 @@ namespace Mana.Code.GameModes
                 _meshPickerPreviewNode != null &&
                 string.IsNullOrWhiteSpace(draggedPath) &&
                 isOverScene &&
-                !ImGui.GetIO().WantCaptureMouse)
+                !UiWantsMouse)
             {
                 CommitMeshPickerPlacementPreview();
             }
@@ -1785,7 +1785,7 @@ namespace Mana.Code.GameModes
                 return false;
             }
 
-            var keyDown = !ImGui.GetIO().WantCaptureKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.Escape);
+            var keyDown = !UiWantsKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.Escape);
             var pressed = keyDown && !_meshPickerEscapeWasDown;
             _meshPickerEscapeWasDown = keyDown;
 
@@ -2068,7 +2068,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var keyDown = !ImGui.GetIO().WantCaptureKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.F);
+            var keyDown = !UiWantsKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.F);
             var pressed = keyDown && !_frameSelectedKeyWasDown;
             _frameSelectedKeyWasDown = keyDown;
 

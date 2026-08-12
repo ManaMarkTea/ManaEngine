@@ -13,6 +13,9 @@ namespace ManaUI
         private const float TabPaddingX = 12.0f;
         private const float TabCloseSize = 14.0f;
 
+        /// <summary>Narrowest a tab shrinks to before the strip gives up and splits evenly instead.</summary>
+        private const float MinimumTabWidth = 44.0f;
+
         private readonly List<DockItem> _items = new();
         private readonly ContentHost _contentHost = new();
 
@@ -154,7 +157,8 @@ namespace ManaUI
 
         // ----- tab geometry ---------------------------------------------------------------------------
 
-        private float TabWidth(DockItem item)
+        /// <summary>Width a tab would like, before the strip has had its say.</summary>
+        private float NaturalTabWidth(DockItem item)
         {
             var root = Root;
             if (root == null)
@@ -170,7 +174,46 @@ namespace ManaUI
                 width += TabCloseSize + 4.0f;
             }
 
-            return MathF.Max(60.0f, width);
+            return MathF.Max(MinimumTabWidth, width);
+        }
+
+        /// <summary>
+        /// Width a tab actually gets. Natural widths whenever they fit, and shrunk proportionally when they
+        /// do not -- titles already trim with an ellipsis, so a narrow tab is still a readable one, whereas
+        /// a tab laid out past the strip's edge is simply unreachable. That is what hid the Inspector tab
+        /// once a sixth panel was added to a 400px dock.
+        /// <para>
+        /// Below <see cref="MinimumTabWidth"/> proportional shrinking stops being useful -- the longest
+        /// title would collapse to nothing while a short one kept its space -- so a cramped strip splits
+        /// evenly instead. Every tab stays clickable either way.
+        /// </para>
+        /// </summary>
+        private float TabWidth(int index)
+        {
+            if (index < 0 || index >= _items.Count)
+            {
+                return 0.0f;
+            }
+
+            var available = Bounds.Width;
+            var natural = 0.0f;
+            for (var i = 0; i < _items.Count; i++)
+            {
+                natural += NaturalTabWidth(_items[i]);
+            }
+
+            if (available <= 0.0f || natural <= available)
+            {
+                return NaturalTabWidth(_items[index]);
+            }
+
+            var scale = available / natural;
+            if (NaturalTabWidth(_items[index]) * scale >= MinimumTabWidth)
+            {
+                return NaturalTabWidth(_items[index]) * scale;
+            }
+
+            return available / _items.Count;
         }
 
         /// <summary>Bounds of a tab in root coordinates.</summary>
@@ -184,10 +227,10 @@ namespace ManaUI
             var x = Bounds.X;
             for (var i = 0; i < index; i++)
             {
-                x += TabWidth(_items[i]);
+                x += TabWidth(i);
             }
 
-            return new UiRect(x, Bounds.Y, TabWidth(_items[index]), ResolvedTabHeight);
+            return new UiRect(x, Bounds.Y, TabWidth(index), ResolvedTabHeight);
         }
 
         private UiRect TabCloseRect(int index)

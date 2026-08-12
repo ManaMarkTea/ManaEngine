@@ -124,6 +124,46 @@ public static class DockingChecks
         Check("unselected content is not laid out", outliner.Content.Bounds.IsEmpty,
             outliner.Content.Bounds.ToString());
 
+        // ---------------------------------------------------------------- a crowded strip
+        // Tabs laid out at their natural width run off the end of a narrow group, and a tab past the edge
+        // is not merely ugly -- it cannot be clicked at all. That is how the Inspector disappeared from a
+        // 400px dock once it became the sixth panel.
+        var crowded = new DockTabGroup();
+        for (var i = 0; i < 6; i++)
+        {
+            crowded.Add(new DockItem($"Long Panel Name {i}", new TextBlock().Text($"Body {i}")));
+        }
+
+        var crowdedHost = new DockHost { RootNode = crowded };
+        root.Content = null;
+        root.Content = crowdedHost;
+        root.UpdateLayout(new Vector2(400, 400));
+
+        var last = crowded.TabRect(crowded.Items.Count - 1);
+        Check("every tab fits inside the strip", last.Right <= crowded.Bounds.Right + 0.5f,
+            $"last tab ends at {last.Right:F1}, strip ends at {crowded.Bounds.Right:F1}");
+        Check("tabs do not overlap",
+            MathF.Abs(crowded.TabRect(1).X - crowded.TabRect(0).Right) < 0.5f,
+            $"{crowded.TabRect(0)} then {crowded.TabRect(1)}");
+        Check("a squeezed tab is still wide enough to hit", last.Width > 20.0f, $"{last.Width:F1}px");
+
+        // Reachable means clickable, which is the whole point.
+        root.Input.InjectPointerMoved(last.Center);
+        root.Input.InjectPointerPressed(last.Center, PointerButton.Left, 3.0);
+        root.Input.InjectPointerReleased(last.Center, PointerButton.Left);
+        Check("the last tab can be selected", crowded.SelectedIndex == crowded.Items.Count - 1,
+            $"{crowded.SelectedIndex}");
+
+        // Given room, tabs go back to their natural widths rather than staying squeezed.
+        root.UpdateLayout(new Vector2(1600, 400));
+        Check("a roomy strip uses natural widths",
+            crowded.TabRect(0).Width > crowded.TabRect(0).Height * 2.0f,
+            $"{crowded.TabRect(0).Width:F1}px");
+
+        root.Content = null;
+        root.Content = host;
+        root.UpdateLayout(new Vector2(1000, 600));
+
         // ---------------------------------------------------------------- pruning
         var beforePrune = host.AllItems().Count();
         Check("all items enumerated", beforePrune == 5, $"{beforePrune}");

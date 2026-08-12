@@ -33,6 +33,45 @@ namespace Mana.Code
         /// <summary>Opt in per game mode. Off by default so existing modes are untouched.</summary>
         protected virtual bool EnableManaUi => false;
 
+        /// <summary>
+        /// True when any UI layer owns the mouse, so the scene must not act on it -- no picking, no camera
+        /// orbit, no voxel placement.
+        /// <para>
+        /// There are two layers now, and asking only ImGui is worse than useless: while ManaUI owns the
+        /// pointer, ImGui is deliberately told there is no mouse at all, so its WantCaptureMouse reads
+        /// false at exactly the moments it most needs to read true. Every gate has to ask this rather than
+        /// ImGui directly, or clicking a ManaUI panel also picks in the scene behind it -- which then
+        /// destroys the panel that was mid-drag.
+        /// </para>
+        /// </summary>
+        public bool UiWantsMouse => ManaUi is { IsPointerOverUi: true } || ImGuiWantsMouse();
+
+        /// <summary>True when any UI layer wants raw keystrokes, so editor shortcuts should stand down.</summary>
+        public bool UiWantsKeyboard => ManaUi is { IsKeyboardCaptured: true } || ImGuiWantsKeyboard();
+
+        private static bool ImGuiWantsMouse()
+        {
+            return HasImGuiContext() && ImGuiNET.ImGui.GetIO().WantCaptureMouse;
+        }
+
+        private static bool ImGuiWantsKeyboard()
+        {
+            return HasImGuiContext() && ImGuiNET.ImGui.GetIO().WantCaptureKeyboard;
+        }
+
+        /// <summary>Guards the headless case, where there is no ImGui context to ask.</summary>
+        private static bool HasImGuiContext()
+        {
+            try
+            {
+                return ImGuiNET.ImGui.GetCurrentContext() != IntPtr.Zero;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public ManaContext Context = null!;
 
 

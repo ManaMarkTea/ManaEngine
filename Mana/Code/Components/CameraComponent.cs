@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Nodes;
 using ManaCore.Graphics;
 using Silk.NET.Input;
@@ -288,11 +288,11 @@ namespace Mana
             var mouseState = Context.Input.Mice.First();
 
             var externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
-            var imguiCapturesMouse = GetImGuiWantsCaptureMouse() || externalCapturesMouse;
+            var uiCapturesMouse = GetUiWantsCaptureMouse() || externalCapturesMouse;
 
             const float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            var orbitActive = !imguiCapturesMouse && mouseState.IsButtonPressed(MouseButton.Right);
+            var orbitActive = !uiCapturesMouse && mouseState.IsButtonPressed(MouseButton.Right);
             UpdateAverage(delta, orbitActive, ref dxAvg, ref dyAvg);
 
             if (orbitActive)
@@ -301,7 +301,7 @@ namespace Mana
                 springArm.AddLookInput(dxAvg * 0.4f, dyAvg * 0.4f);
             }
 
-            if (!imguiCapturesMouse)
+            if (!uiCapturesMouse)
             {
                 var scroll = mouseState.ScrollWheels[0];
                 if (scroll.Y != 0.0f)
@@ -324,14 +324,14 @@ namespace Mana
             var MouseState = Context.Input.Mice.First();
             var KeyboardState = Context.Input.Keyboards.First();
             bool externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
-            bool imguiCapturesMouse = GetImGuiWantsCaptureMouse() || externalCapturesMouse;
+            bool uiCapturesMouse = GetUiWantsCaptureMouse() || externalCapturesMouse;
             // Without this the WASD/QE block below fires while typing into any ImGui text field.
-            bool imguiCapturesKeyboard = GetImGuiWantsCaptureKeyboard();
+            bool uiCapturesKeyboard = GetUiWantsCaptureKeyboard();
 
             // Only the WASD ground-plane keys are surrenderable, not the whole fly block: something
             // else can want WASD (a possessed character) while the camera still needs Q/E to change
             // height and look at it.
-            bool horizontalFlyKeysAvailable = !imguiCapturesKeyboard && ShouldCaptureKeyboardInput?.Invoke() != true;
+            bool horizontalFlyKeysAvailable = !uiCapturesKeyboard && ShouldCaptureKeyboardInput?.Invoke() != true;
 
             var position = Owner.Position;
             var rotation = Owner.Rotation;
@@ -349,7 +349,7 @@ namespace Mana
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            bool cameraMouseActive = !imguiCapturesMouse &&
+            bool cameraMouseActive = !uiCapturesMouse &&
                 (MouseState.IsButtonPressed(MouseButton.Middle) || MouseState.IsButtonPressed(MouseButton.Right));
             Vector2 mouseDelta = UpdateAverage(delta, cameraMouseActive, ref dxAvg, ref dyAvg);
 
@@ -376,7 +376,7 @@ namespace Mana
                 }
             }
 
-            if (!imguiCapturesKeyboard)
+            if (!uiCapturesKeyboard)
             {
                 if (KeyboardState.IsKeyPressed(Key.E))
                 {
@@ -389,12 +389,12 @@ namespace Mana
                 }
             }
 
-            if (!imguiCapturesMouse && MouseState.IsButtonPressed(MouseButton.Middle))
+            if (!uiCapturesMouse && MouseState.IsButtonPressed(MouseButton.Middle))
             {
                 position += GetPanTranslation(mouseDelta);
             }
 
-            if (!imguiCapturesMouse && OrthoGraphic && !MouseState.IsButtonPressed(MouseButton.Right))
+            if (!uiCapturesMouse && OrthoGraphic && !MouseState.IsButtonPressed(MouseButton.Right))
             {
                 var scroll = MouseState.ScrollWheels[0];
                 if (scroll.Y != 0.0f)
@@ -434,6 +434,36 @@ namespace Mana
 
         }
 
+        /// <summary>
+        /// Whether any UI layer owns the mouse. Routed through the game mode, which knows about ManaUI as
+        /// well as ImGui -- asking ImGui alone would let the camera orbit while the pointer is dragging a
+        /// ManaUI slider, because ImGui is told there is no mouse at all at that moment.
+        /// </summary>
+        private bool GetUiWantsCaptureMouse()
+        {
+            try
+            {
+                return Context?.GameMode?.UiWantsMouse ?? GetImGuiWantsCaptureMouse();
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool GetUiWantsCaptureKeyboard()
+        {
+            try
+            {
+                return Context?.GameMode?.UiWantsKeyboard ?? GetImGuiWantsCaptureKeyboard();
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Fallback for a camera running without a game mode, such as in a test harness.</summary>
         private static bool GetImGuiWantsCaptureMouse()
         {
             try

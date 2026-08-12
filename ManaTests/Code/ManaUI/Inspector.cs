@@ -229,6 +229,38 @@ public static class InspectorChecks
         Check("re-expanding still renders", root.Render().InstanceCount > 20,
             $"{root.Render().InstanceCount} instances");
 
+        // ---------------------------------------------------------------- rebuilt mid-drag
+        // The failure this reproduces: drag a position field, something clears the selection, the panel
+        // rebuilds, and the element holding pointer capture is torn out of the tree mid-gesture. The
+        // release then has nowhere to go, so the capture never clears -- and because the router keeps
+        // reporting that the UI owns the pointer, every layer underneath stays suppressed and the whole
+        // application stops responding to the mouse.
+        world.Selection.SelectedNode = first;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var live = FindAll<VectorBox>(view)[0].Field(0);
+        var strip = live.DragStripRect.Center;
+
+        root.Input.InjectPointerMoved(strip);
+        root.Input.InjectPointerPressed(strip, PointerButton.Left, 1.0);
+        root.Input.InjectPointerMoved(strip + new Vector2(20.0f, 0.0f));
+        Check("the field captured the pointer", root.PointerCaptureTarget == live,
+            root.PointerCaptureTarget?.GetType().Name ?? "null");
+
+        // Pulled out from under the drag.
+        world.Selection.SelectedNode = null;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        Check("a destroyed capture target releases the pointer", root.PointerCaptureTarget == null,
+            root.PointerCaptureTarget?.GetType().Name ?? "null");
+        Check("and the UI stops claiming the pointer", !root.Input.IsPointerOverUi,
+            $"hovered {root.Input.HoveredElement?.GetType().Name ?? "null"}");
+
+        // The gesture must also be able to end without throwing, and leave the router usable.
+        root.Input.InjectPointerReleased(strip + new Vector2(20.0f, 0.0f), PointerButton.Left);
+        root.Input.InjectPointerMoved(strip);
+        Check("input still works afterwards", root.PointerCaptureTarget == null, "recovered");
+
         // ---------------------------------------------------------------- deselecting
         world.Selection.SelectedNode = null;
         root.UpdateLayout(new Vector2(420, 700));

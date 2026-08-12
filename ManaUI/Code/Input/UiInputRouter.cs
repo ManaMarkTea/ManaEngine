@@ -52,11 +52,76 @@ namespace ManaUI
         /// <summary>Current pointer position in logical root coordinates.</summary>
         public Vector2 PointerPosition => _pointerPosition;
 
-        /// <summary>Deepest hit-testable element under the pointer, or null.</summary>
-        public UiElement? HoveredElement { get; private set; }
+        /// <summary>
+        /// Deepest hit-testable element under the pointer, or null.
+        /// <para>
+        /// Validated on read for the same reason the capture target is: hover is only recomputed when the
+        /// pointer moves, so an element destroyed while the pointer sits still would otherwise keep the
+        /// router reporting that the UI is under the cursor -- and the layers underneath suppressed --
+        /// until the user happened to move the mouse.
+        /// </para>
+        /// </summary>
+        public UiElement? HoveredElement
+        {
+            get
+            {
+                if (_hoveredElement != null && !IsInTree(_hoveredElement))
+                {
+                    _hoveredElement = null;
+                }
 
-        /// <summary>Element receiving all pointer input regardless of position, or null.</summary>
-        public UiElement? PointerCaptureTarget { get; private set; }
+                return _hoveredElement;
+            }
+
+            private set => _hoveredElement = value;
+        }
+
+        private UiElement? _hoveredElement;
+
+        /// <summary>
+        /// Element receiving all pointer input regardless of position, or null.
+        /// <para>
+        /// Self-healing: an element can be torn out of the tree while it holds the capture -- a panel that
+        /// rebuilds mid-drag does exactly that -- and a capture pointing at something detached is
+        /// unrecoverable. Every subsequent event routes to an element nobody can see, the release never
+        /// arrives to clear it, and because the router keeps reporting that the UI owns the pointer, the
+        /// layers underneath stay suppressed for the rest of the session. So the target is validated on
+        /// read rather than trusted.
+        /// </para>
+        /// </summary>
+        public UiElement? PointerCaptureTarget
+        {
+            get
+            {
+                if (_captureTarget != null && !IsInTree(_captureTarget))
+                {
+                    _captureTarget = null;
+                }
+
+                return _captureTarget;
+            }
+
+            private set => _captureTarget = value;
+        }
+
+        private UiElement? _captureTarget;
+
+        /// <summary>Whether an element is still connected to the root this router serves.</summary>
+        private bool IsInTree(UiElement element)
+        {
+            var current = element;
+            while (current != null)
+            {
+                if (ReferenceEquals(current, _root))
+                {
+                    return true;
+                }
+
+                current = current.Parent;
+            }
+
+            return false;
+        }
 
         /// <summary>Maximum gap between two clicks that still counts as a double-click.</summary>
         public double DoubleClickSeconds { get; set; } = 0.4;
