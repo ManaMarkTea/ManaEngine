@@ -34,7 +34,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Shadow(18.0f)
                 .PaddingOf(16.0f)
                 .Left().Top()
-                .Content(new StackPanel().Vertical(theme.Spacing).Children(
+                .Content(BuildContent(theme, vm, liveStat));
+        }
+
+        /// <summary>
+        /// The panel's contents without the floating chrome, for hosting inside a dock group -- the group
+        /// supplies its own frame and title.
+        /// </summary>
+        public static UiElement BuildContent(UiTheme theme, ManaUiShowcaseViewModel vm, Func<string>? liveStat)
+        {
+            return new StackPanel().Vertical(theme.Spacing).Padding(12.0f).Children(
                     new TextBlock()
                         .BindText(vm, v => v.Title)
                         .FontSize(theme.FontSizeHeading)
@@ -96,7 +105,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .Content(new TextBlock()
                             .Text("This single line is far too long for the box it lives in, so it trims.")
                             .Ellipsis()
-                            .Foreground(theme.TextMuted))));
+                            .Foreground(theme.TextMuted)));
         }
 
         // ----- sections ---------------------------------------------------------------------------------

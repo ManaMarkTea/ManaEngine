@@ -163,8 +163,8 @@ namespace Mana.Code.GameModes
         {
             // RenderFrame is plain engine state with no change notification, which is exactly the case the
             // polled binding exists for.
-            host.Root.Content = ManaUiShowcaseView.Build(
-                host.Root.Theme,
+            host.Root.Content = ManaUiDockDemo.Attach(
+                host.Root,
                 _manaUiShowcase,
                 () => $"render frame {RenderFrame:N0}");
         }
