@@ -47,13 +47,23 @@ namespace Mana.Code.Graphics
         public static void DrawManaUi(
             ManaContext context,
             ManaGraphicsBackendKind backend,
-            ManaUI.UiRoot? root,
-            Vector2 framebufferSize)
+            ManaUI.UiRoot? root)
         {
             if (backend != ManaGraphicsBackendKind.OpenGL || root == null)
             {
                 return;
             }
+
+            // Taken from the context rather than the caller: BaseGameMode._Window is only assigned on the
+            // OpenGL load path, so reading it at the call site threw on WebGPU before this backend check
+            // could reject the call. ManaContext.Window is set by both paths.
+            var window = context.Window;
+            if (window == null)
+            {
+                return;
+            }
+
+            var framebufferSize = new Vector2(window.FramebufferSize.X, window.FramebufferSize.Y);
 
             if (_openGlUiRendererFailed)
             {
