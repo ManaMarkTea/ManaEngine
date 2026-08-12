@@ -463,6 +463,57 @@ namespace ManaUI
             return checkBox;
         }
 
+        // ----- TextBox -------------------------------------------------------------------------------
+
+        public static TextBox Value(this TextBox textBox, string text)
+        {
+            textBox.Text = text;
+            return textBox;
+        }
+
+        public static TextBox Hint(this TextBox textBox, string placeholder)
+        {
+            textBox.Placeholder = placeholder;
+            return textBox;
+        }
+
+        public static TextBox ReadOnly(this TextBox textBox, bool readOnly = true)
+        {
+            textBox.IsReadOnly = readOnly;
+            return textBox;
+        }
+
+        /// <summary>Restricts input to digits, sign and decimal point.</summary>
+        public static TextBox Numeric(this TextBox textBox)
+        {
+            textBox.CharacterFilter = c => char.IsDigit(c) || c == '.' || c == '-';
+            return textBox;
+        }
+
+        public static TextBox OnCommitted(this TextBox textBox, Action<string> action)
+        {
+            textBox.TextCommitted += (_, value) => action(value);
+            return textBox;
+        }
+
+        // ----- ScrollViewer ---------------------------------------------------------------------------
+
+        /// <summary>Wraps an element in a vertically scrolling viewport.</summary>
+        public static ScrollViewer Scrollable(this UiElement content)
+        {
+            return new ScrollViewer { Child = content };
+        }
+
+        public static ScrollViewer Scrolls(
+            this ScrollViewer viewer,
+            ScrollBarVisibility vertical = ScrollBarVisibility.Auto,
+            ScrollBarVisibility horizontal = ScrollBarVisibility.Disabled)
+        {
+            viewer.VerticalScrollBar = vertical;
+            viewer.HorizontalScrollBar = horizontal;
+            return viewer;
+        }
+
         // ----- ItemsControl --------------------------------------------------------------------------
 
         /// <summary>Sets the source and the per-item template together, which is how they are always used.</summary>

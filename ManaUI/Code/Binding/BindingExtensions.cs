@@ -177,6 +177,42 @@ namespace ManaUI
             return textBlock.Bind(t => t.Text, source, sourceProperty);
         }
 
+        /// <summary>
+        /// Two-way binds an editable field. <paramref name="commitOnly"/> writes back on Enter or focus loss
+        /// rather than on every keystroke -- the right choice when the source setter is expensive, such as
+        /// one that rebuilds a mesh.
+        /// </summary>
+        public static TextBox BindText<TSource>(
+            this TextBox textBox,
+            TSource source,
+            Expression<Func<TSource, string>> sourceProperty,
+            bool commitOnly = false)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, string>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => textBox.Text = value ?? string.Empty,
+                () => textBox.Text,
+                BindingMode.TwoWay);
+
+            if (commitOnly)
+            {
+                textBox.TextCommitted += (_, _) => binding.PushToSource();
+            }
+            else
+            {
+                textBox.TextChanged += (_, _) => binding.PushToSource();
+            }
+
+            textBox.AddBinding(binding);
+            return textBox;
+        }
+
         /// <summary>Binds a label to a non-string source with a formatter -- counts, sizes, percentages.</summary>
         public static TextBlock BindText<TSource, TValue>(
             this TextBlock textBlock,

@@ -119,7 +119,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new Slider().Range(0.0f, 16.0f, 0.5f).Width(320.0f).BindValue(vm, v => v.BrushRadius),
                 new TextBlock().BindText(vm, v => v.BrushSummary).Foreground(theme.TextMuted),
 
-                new CheckBox().Label("Show wireframe").BindIsChecked(vm, v => v.ShowWireframe));
+                new CheckBox().Label("Show wireframe").BindIsChecked(vm, v => v.ShowWireframe),
+
+                // Bound to the same property as the panel heading, so editing here retitles the panel --
+                // the clearest possible demonstration that write-back works.
+                new TextBox()
+                    .Hint("Panel title")
+                    .Width(320.0f)
+                    .BindText(vm, v => v.Title));
         }
 
         private static UiElement LayerList(UiTheme theme, ManaUiShowcaseViewModel vm)
@@ -129,11 +136,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new Button().Label("Add layer").Command(vm.AddLayerCommand),
                     new Button().Label("Remove").Command(vm.RemoveLayerCommand)),
 
+                // Capped in height so adding layers scrolls rather than growing the panel forever.
                 new ItemsControl()
                     .Items(vm.Layers, layer => LayerRow(theme, layer))
                     .Spacing(2.0f)
                     .WhenEmpty(Caption("No layers.", theme))
-                    .Width(320.0f));
+                    .Scrollable()
+                    .Size(320.0f, 92.0f));
         }
 
         private static UiElement LayerRow(UiTheme theme, ShowcaseLayerViewModel layer)

@@ -429,6 +429,10 @@ namespace ManaUI
                 RenderChildren(drawList);
             }
 
+            // Drawn after children so an element can put chrome over its own content -- scrollbars being
+            // the reason this exists.
+            OnRenderOverlay(drawList);
+
             if (pushedClip)
             {
                 drawList.PopClip();
@@ -442,6 +446,11 @@ namespace ManaUI
 
         /// <summary>Draws this element itself, before any children.</summary>
         protected virtual void OnRender(ManaUiDrawList drawList)
+        {
+        }
+
+        /// <summary>Draws on top of this element's children.</summary>
+        protected virtual void OnRenderOverlay(ManaUiDrawList drawList)
         {
         }
 
