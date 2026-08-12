@@ -65,8 +65,45 @@ namespace ManaVoxel.Code.UI.ManaUi
                 dock.LayoutChanged += (_, _) => TrySaveLayout(dock);
             }
 
+            // The menu bar sits above the dock host in the same column, so both stay clear of the viewport.
             return new Canvas().Children(
+                new Border()
+                    .Fill(theme.Surface)
+                    .Outline(theme.Border, 1.0f)
+                    .Rounded(theme.CornerRadius)
+                    .Content(BuildMenuBar(vm))
+                    .Anchor(top: TopOffset - 32.0f, right: 0.0f)
+                    .Width(PanelWidth),
+
                 dock.Anchor(top: TopOffset, right: 0.0f, bottom: 0.0f).Width(PanelWidth));
+        }
+
+        /// <summary>
+        /// A ManaUI menu bar running beside ImGui's own. Not a replacement yet -- it drives the demo view
+        /// model rather than the editor -- but it is the shape the real one will take.
+        /// </summary>
+        private static MenuBar BuildMenuBar(ManaUiShowcaseViewModel vm)
+        {
+            return new MenuBar().AddRange(
+                new MenuItem("Layers").WithItems(
+                    new MenuItem("Add layer") { Command = vm.AddLayerCommand }.WithShortcut("Ctrl+N"),
+                    new MenuItem("Remove layer") { Command = vm.RemoveLayerCommand },
+                    MenuItem.Separator(),
+                    new MenuItem("Clear all", () =>
+                    {
+                        while (vm.Layers.Count > 0)
+                        {
+                            vm.RemoveLayerCommand.Execute(null);
+                        }
+                    })),
+
+                new MenuItem("View").WithItems(
+                    new MenuItem("Wireframe", () => vm.ShowWireframe = !vm.ShowWireframe)
+                        .Checkable(() => vm.ShowWireframe),
+                    MenuItem.Separator(),
+                    new MenuItem("Tool").WithItems(
+                        vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
+                            .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
         }
 
         private static void BuildDefaultLayout(DockHost dock, Func<string, DockItem?> resolve)

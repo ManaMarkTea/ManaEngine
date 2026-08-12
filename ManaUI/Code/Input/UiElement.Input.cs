@@ -79,7 +79,7 @@ namespace ManaUI
             var root = Root;
             if (root != null && ReferenceEquals(root.PointerCaptureTarget, this))
             {
-                root.ReleasePointerCapture();
+                root.ReleaseAnyPointerCapture();
             }
         }
 

@@ -147,7 +147,10 @@ namespace ManaUI
             {
                 // Detached from the split it was promoted out of before it can be re-hosted; an element
                 // cannot have two parents, and the old root is still holding it at this point.
-                (pruned?.Parent as DockSplit)?.Remove(pruned);
+                if (pruned?.Parent is DockSplit promotedFrom)
+                {
+                    promotedFrom.Remove(pruned);
+                }
 
                 Child = null;
                 RootNode = pruned;

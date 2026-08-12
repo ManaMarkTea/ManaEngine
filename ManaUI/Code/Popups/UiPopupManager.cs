@@ -96,6 +96,26 @@ namespace ManaUI
         }
 
         /// <summary>
+        /// Closes every popup opened after <paramref name="popup"/>, leaving it open. This is how a menu
+        /// collapses its submenus as the pointer moves down its own rows.
+        /// </summary>
+        public void CloseDeeperThan(UiPopup popup)
+        {
+            var index = _open.IndexOf(popup);
+            if (index < 0)
+            {
+                return;
+            }
+
+            for (var i = _open.Count - 1; i > index; i--)
+            {
+                var open = _open[i];
+                _open.RemoveAt(i);
+                open.Close();
+            }
+        }
+
+        /// <summary>
         /// Applies light dismissal for a pointer press.
         /// </summary>
         /// <returns>

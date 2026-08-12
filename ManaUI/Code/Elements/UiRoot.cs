@@ -61,7 +61,12 @@ namespace ManaUI
             Input.CapturePointer(element);
         }
 
-        public void ReleasePointerCapture()
+        /// <summary>
+        /// Releases whichever element currently holds the pointer. Named apart from
+        /// <see cref="UiElement.ReleasePointerCapture"/>, which releases only the caller's own capture --
+        /// the two read alike but mean different things, and one silently hid the other.
+        /// </summary>
+        public void ReleaseAnyPointerCapture()
         {
             Input.ReleasePointerCapture();
         }
