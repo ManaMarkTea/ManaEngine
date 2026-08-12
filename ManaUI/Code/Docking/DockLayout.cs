@@ -74,14 +74,28 @@ namespace ManaUI
                 case DockTabGroup group:
                 {
                     var items = new List<string>();
-                    foreach (var item in group.Items)
+                    var selected = 0;
+
+                    for (var i = 0; i < group.Items.Count; i++)
                     {
+                        var item = group.Items[i];
+
                         // An item with no id cannot be restored, so it is not recorded either -- writing it
                         // would produce a layout that silently loses a panel on load.
-                        if (!string.IsNullOrEmpty(item.Id))
+                        if (string.IsNullOrEmpty(item.Id))
                         {
-                            items.Add(item.Id);
+                            continue;
                         }
+
+                        // Recorded as an index into what is being written, not into the live group. Skipping
+                        // an id-less tab shifts everything after it, and clamping the live index instead
+                        // would restore the wrong panel.
+                        if (i == group.SelectedIndex)
+                        {
+                            selected = items.Count;
+                        }
+
+                        items.Add(item.Id);
                     }
 
                     return items.Count == 0
@@ -90,7 +104,7 @@ namespace ManaUI
                         {
                             Type = "tabs",
                             Items = items,
-                            SelectedIndex = Math.Clamp(group.SelectedIndex, 0, items.Count - 1)
+                            SelectedIndex = selected
                         };
                 }
                 case DockSplit split:

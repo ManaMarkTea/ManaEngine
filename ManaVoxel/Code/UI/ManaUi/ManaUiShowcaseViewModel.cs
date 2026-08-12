@@ -25,6 +25,20 @@ namespace ManaVoxel.Code.UI.ManaUi
         [ObservableProperty]
         private int _selectedToolIndex;
 
+        [ObservableProperty]
+        private Vector3 _brushOrigin = new(0.0f, 12.0f, 0.0f);
+
+        [ObservableProperty]
+        private float _density = 0.65f;
+
+        public string BrushOriginSummary =>
+            $"Origin {BrushOrigin.X:F2}, {BrushOrigin.Y:F2}, {BrushOrigin.Z:F2}";
+
+        partial void OnBrushOriginChanged(Vector3 value)
+        {
+            OnPropertyChanged(nameof(BrushOriginSummary));
+        }
+
         /// <summary>Stand-in for the real tool list, so the dropdown has something plausible to show.</summary>
         public string[] Tools { get; } = { "Place", "Erase", "Paint", "Select", "Text", "Line", "Sphere" };
 

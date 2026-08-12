@@ -145,6 +145,77 @@ namespace ManaUI
             return slider;
         }
 
+        public static NumericBox BindValue<TSource>(
+            this NumericBox numericBox,
+            TSource source,
+            Expression<Func<TSource, float>> sourceProperty,
+            BindingMode mode = BindingMode.TwoWay)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, float>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => numericBox.Value = value,
+                () => numericBox.Value,
+                mode);
+
+            // ValueChanged, not ValueCommitted: a scrub should drive the model live, the way an ImGui drag
+            // does. Anything too expensive to run per frame should listen to ValueCommitted itself.
+            numericBox.ValueChanged += (_, _) => binding.PushToSource();
+            numericBox.AddBinding(binding);
+            return numericBox;
+        }
+
+        public static VectorBox BindValue<TSource>(
+            this VectorBox vectorBox,
+            TSource source,
+            Expression<Func<TSource, Vector3>> sourceProperty,
+            BindingMode mode = BindingMode.TwoWay)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, Vector3>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => vectorBox.Value = value,
+                () => vectorBox.Value,
+                mode);
+
+            vectorBox.ValueChanged += (_, _) => binding.PushToSource();
+            vectorBox.AddBinding(binding);
+            return vectorBox;
+        }
+
+        public static Expander BindIsExpanded<TSource>(
+            this Expander expander,
+            TSource source,
+            Expression<Func<TSource, bool>> sourceProperty,
+            BindingMode mode = BindingMode.TwoWay)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, bool>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => expander.IsExpanded = value,
+                () => expander.IsExpanded,
+                mode);
+
+            expander.ExpandedChanged += (_, _) => binding.PushToSource();
+            expander.AddBinding(binding);
+            return expander;
+        }
+
         public static CheckBox BindIsChecked<TSource>(
             this CheckBox checkBox,
             TSource source,

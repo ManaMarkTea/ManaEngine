@@ -50,7 +50,11 @@ namespace Mana.Code.Shapes
 
         public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
         {
-            if (ImmediateGpuMesh != null)
+            // Snapshotted: ImmediateGpuMesh recomputes from GpuMesh on every read, and GpuMesh is nulled
+            // whenever VertexBufferObject is reassigned (procedural rebuilds, planet patch splits). Testing
+            // the property and then dereferencing it again is a null between the two.
+            var gpuMesh = ImmediateGpuMesh;
+            if (gpuMesh != null)
             {
                 ManaMaterial material = Materials[0];
                 if (meshRenderer != null)
@@ -60,7 +64,7 @@ namespace Mana.Code.Shapes
 
                 material.Bind(owner.WorldTransform, owner);
 
-                ImmediateGpuMesh.Draw();
+                gpuMesh.Draw();
 
                 material.UnBind();
             }
@@ -68,9 +72,10 @@ namespace Mana.Code.Shapes
 
         public void RenderDirectly()
         {
-            if (ImmediateGpuMesh != null)
+            var gpuMesh = ImmediateGpuMesh;
+            if (gpuMesh != null)
             {
-                ImmediateGpuMesh.Draw();
+                gpuMesh.Draw();
             }
         }
 

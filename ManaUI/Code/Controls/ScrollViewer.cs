@@ -319,7 +319,13 @@ namespace ManaUI
             }
         }
 
-        protected override void OnPointerPressed(UiPointerEventArgs e)
+        /// <summary>
+        /// Preview, not bubble. The bar is drawn in the overlay pass on top of the content, but the content
+        /// is what the hit test finds underneath it -- so on the way back up a tree row or a list item has
+        /// already claimed the press and the thumb never sees it. Tunnelling means the viewer gets first
+        /// refusal on any press that lands on a visible bar, and passes everything else straight through.
+        /// </summary>
+        protected override void OnPreviewPointerPressed(UiPointerEventArgs e)
         {
             var theme = Root?.Theme;
             if (theme == null || e.Button != PointerButton.Left)
@@ -332,6 +338,29 @@ namespace ManaUI
                 CapturePointer();
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// An arrow over the bar, whatever the content underneath would have asked for -- a text caret over
+        /// a scroll thumb is the same lie as the click going through to the row behind it.
+        /// </summary>
+        public override UiCursor GetCursor(Vector2 point)
+        {
+            var theme = Root?.Theme;
+            if (theme != null && (IsOverBar(theme, point, vertical: true) || IsOverBar(theme, point, vertical: false)))
+            {
+                return UiCursor.Arrow;
+            }
+
+            return base.GetCursor(point);
+        }
+
+        private bool IsOverBar(UiTheme theme, Vector2 point, bool vertical)
+        {
+            return ShouldShowBar(
+                       vertical ? VerticalScrollBar : HorizontalScrollBar,
+                       vertical ? ScrollableSize.Y : ScrollableSize.X)
+                   && TrackRect(theme, vertical).Contains(point);
         }
 
         /// <summary>

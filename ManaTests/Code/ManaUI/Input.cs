@@ -52,6 +52,22 @@ public static class InputChecks
         root.Input.InjectPointerReleased(new Vector2(300, 250), PointerButton.Left);
         Check("drag-off aborts the click", clicks == 1, $"{clicks}");
 
+        // IsPointerOverUi is what tells the layer underneath -- ImGui, and the game mode's own picking --
+        // to stand down. It has to stay true for the whole of a drag, not just while the pointer is over
+        // something: ImGui polls the mouse rather than consuming events, so a gap here means a click that
+        // started on a ManaUI control also lands in whatever was behind it.
+        root.Input.InjectPointerMoved(new Vector2(100, 50));
+        root.Input.InjectPointerPressed(new Vector2(100, 50), PointerButton.Left, time += 1.0);
+        root.Input.InjectPointerMoved(new Vector2(320, 260));
+        Check("a captured drag still owns the pointer off the control", root.Input.IsPointerOverUi,
+            $"hover {root.Input.HoveredElement?.GetType().Name ?? "null"}, "
+            + $"capture {root.PointerCaptureTarget?.GetType().Name ?? "null"}");
+
+        root.Input.InjectPointerReleased(new Vector2(320, 260), PointerButton.Left);
+        root.Input.InjectPointerMoved(new Vector2(320, 260));
+        Check("and hands it back on release", !root.Input.IsPointerOverUi,
+            $"capture {root.PointerCaptureTarget?.GetType().Name ?? "null"}");
+
         // -------------------------------------------------------------- double click
         root.Input.InjectPointerMoved(new Vector2(100, 50));
         var lastCount = 0;

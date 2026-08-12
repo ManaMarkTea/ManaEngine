@@ -460,8 +460,25 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             }
         }
 
+        /// <inheritdoc />
+        public Func<bool>? IsPointerOwnedByOverlay { get; set; }
+
+        /// <inheritdoc />
+        public Func<bool>? IsKeyboardOwnedByOverlay { get; set; }
+
+        private bool PointerOwnedByOverlay => IsPointerOwnedByOverlay?.Invoke() ?? false;
+
+        private bool KeyboardOwnedByOverlay => IsKeyboardOwnedByOverlay?.Invoke() ?? false;
+
         private void OnKeyDown(IKeyboard keyboard, Key key, int keyCode)
         {
+            // Key up is deliberately NOT suppressed. Swallowing a release while letting the press through
+            // leaves ImGui holding a key down forever, which is worse than the double input.
+            if (KeyboardOwnedByOverlay)
+            {
+                return;
+            }
+
             var io = ImGui.GetIO();
             var imguiKey = MapKey(key);
             if (imguiKey != ImGuiKey.None)
@@ -486,12 +503,22 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         private void OnKeyChar(IKeyboard keyboard, char character)
         {
+            if (KeyboardOwnedByOverlay)
+            {
+                return;
+            }
+
             var io = ImGui.GetIO();
             io.AddInputCharacter(character);
         }
 
         private void OnMouseScroll(IMouse mouse, ScrollWheel scroll)
         {
+            if (PointerOwnedByOverlay)
+            {
+                return;
+            }
+
             var io = ImGui.GetIO();
             io.AddMouseWheelEvent(scroll.X, scroll.Y);
         }
@@ -508,10 +535,24 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             var mouse = _input.Mice.FirstOrDefault();
             if (mouse != null)
             {
-                io.MousePos = new Vector2(mouse.Position.X, mouse.Position.Y);
-                io.MouseDown[0] = mouse.IsButtonPressed(MouseButton.Left);
-                io.MouseDown[1] = mouse.IsButtonPressed(MouseButton.Right);
-                io.MouseDown[2] = mouse.IsButtonPressed(MouseButton.Middle);
+                if (PointerOwnedByOverlay)
+                {
+                    // ImGui's own convention for "there is no mouse this frame". Parking the position
+                    // offscreen rather than only clearing the buttons is what stops widgets underneath the
+                    // overlay lighting up on hover, and stops a press that began over the overlay being
+                    // read as a click when it is released.
+                    io.MousePos = new Vector2(float.MinValue, float.MinValue);
+                    io.MouseDown[0] = false;
+                    io.MouseDown[1] = false;
+                    io.MouseDown[2] = false;
+                }
+                else
+                {
+                    io.MousePos = new Vector2(mouse.Position.X, mouse.Position.Y);
+                    io.MouseDown[0] = mouse.IsButtonPressed(MouseButton.Left);
+                    io.MouseDown[1] = mouse.IsButtonPressed(MouseButton.Right);
+                    io.MouseDown[2] = mouse.IsButtonPressed(MouseButton.Middle);
+                }
             }
 
             ImGui.NewFrame();

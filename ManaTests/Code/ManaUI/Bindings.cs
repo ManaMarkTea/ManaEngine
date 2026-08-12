@@ -20,6 +20,12 @@ public partial class DemoViewModel : ObservableObject
     [ObservableProperty]
     private int _voxelCount;
 
+    [ObservableProperty]
+    private Vector3 _origin = new(1.0f, 2.0f, 3.0f);
+
+    [ObservableProperty]
+    private bool _sectionExpanded = true;
+
     public ObservableCollection<LayerViewModel> Layers { get; } = new();
 
     public int ExecuteCount { get; private set; }

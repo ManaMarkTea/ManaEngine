@@ -35,6 +35,22 @@ public static class PersistenceChecks
             MathF.Abs(topSplit.Weights[0] - 0.7f) < 0.001f,
             $"{string.Join(", ", topSplit.Weights.Select(w => w.ToString("F3")))}");
 
+        // Which tab is showing is part of the layout, and nothing saves a layout that never reports having
+        // changed. Without this the file only ever records whichever panel was docked last, so every
+        // session reopens on that tab no matter what the user had selected.
+        var selectionSignals = 0;
+        host.LayoutChanged += (_, _) => selectionSignals++;
+
+        var otherTab = group.SelectedIndex == 0 ? group.Items.Count - 1 : 0;
+        group.SelectedIndex = otherTab;
+        Check("changing the active tab reports a layout change", selectionSignals == 1,
+            $"{selectionSignals} signals");
+
+        selectionSignals = 0;
+        group.SelectedIndex = otherTab;
+        Check("re-selecting the same tab reports nothing", selectionSignals == 0,
+            $"{selectionSignals} signals");
+
         var savedWeights = topSplit.Weights.ToArray();
         var savedTitles = host.AllItems().Select(i => i.Title).ToArray();
         var savedSelected = group.SelectedIndex;

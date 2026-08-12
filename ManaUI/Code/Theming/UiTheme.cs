@@ -61,6 +61,26 @@ namespace ManaUI
         public Vector4 Warning { get; set; } = UiColor.FromHex("#D9A441");
         public Vector4 Success { get; set; } = UiColor.FromHex("#57A75B");
 
+        // ----- axes ----------------------------------------------------------------------------------
+        // The red/green/blue convention every 3D tool shares, so a vector field's components read at a
+        // glance. Muted well below the gizmo colours -- an inspector full of these should not shout.
+
+        public Vector4 AxisX { get; set; } = UiColor.FromHex("#C75450");
+        public Vector4 AxisY { get; set; } = UiColor.FromHex("#6DA05A");
+        public Vector4 AxisZ { get; set; } = UiColor.FromHex("#5A87C7");
+        public Vector4 AxisW { get; set; } = UiColor.FromHex("#9B7FC7");
+
+        public Vector4 AxisColor(int index)
+        {
+            return index switch
+            {
+                0 => AxisX,
+                1 => AxisY,
+                2 => AxisZ,
+                _ => AxisW
+            };
+        }
+
         // ----- metrics -------------------------------------------------------------------------------
 
         public CornerRadius CornerRadius { get; set; } = new CornerRadius(4.0f);

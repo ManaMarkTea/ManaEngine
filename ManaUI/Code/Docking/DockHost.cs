@@ -34,7 +34,7 @@ namespace ManaUI
             set
             {
                 Child = value;
-                AttachEmptyHandlers(value);
+                AttachGroupHandlers(value);
             }
         }
 
@@ -96,7 +96,7 @@ namespace ManaUI
                 // The pair share the space the target had, so the rest of the row keeps its proportions.
                 parent.SetWeight(index, weight * 0.5f);
                 parent.Insert(before ? index : index + 1, inserted, weight * 0.5f);
-                AttachEmptyHandlers(inserted);
+                AttachGroupHandlers(inserted);
                 return;
             }
 
@@ -128,7 +128,7 @@ namespace ManaUI
                 split.Add(inserted, 0.5f);
             }
 
-            AttachEmptyHandlers(split);
+            AttachGroupHandlers(split);
         }
 
         /// <summary>
@@ -290,8 +290,13 @@ namespace ManaUI
             }
         }
 
-        /// <summary>Subscribes to Emptied on every group beneath a node so removals self-heal.</summary>
-        private void AttachEmptyHandlers(UiElement? node)
+        /// <summary>
+        /// Subscribes to every group beneath a node: Emptied so removals self-heal, and SelectionChanged so
+        /// which tab is active counts as part of the layout. Without the latter, picking a tab changes
+        /// nothing anyone saves, and a restored layout always comes back showing whichever panel happened
+        /// to be docked last.
+        /// </summary>
+        private void AttachGroupHandlers(UiElement? node)
         {
             if (node == null)
             {
@@ -302,13 +307,15 @@ namespace ManaUI
             {
                 group.Emptied -= OnGroupEmptied;
                 group.Emptied += OnGroupEmptied;
+                group.SelectionChanged -= OnGroupSelectionChanged;
+                group.SelectionChanged += OnGroupSelectionChanged;
                 return;
             }
 
             var count = node.VisualChildCount;
             for (var i = 0; i < count; i++)
             {
-                AttachEmptyHandlers(node.GetVisualChild(i));
+                AttachGroupHandlers(node.GetVisualChild(i));
             }
         }
 
@@ -317,9 +324,18 @@ namespace ManaUI
             Prune();
         }
 
+        /// <summary>
+        /// Raises LayoutChanged directly rather than going through OnLayoutChanged, which would re-subscribe
+        /// every group from inside one of their own events.
+        /// </summary>
+        private void OnGroupSelectionChanged(object? sender, EventArgs e)
+        {
+            LayoutChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         protected void OnLayoutChanged()
         {
-            AttachEmptyHandlers(RootNode);
+            AttachGroupHandlers(RootNode);
             InvalidateMeasure();
             LayoutChanged?.Invoke(this, EventArgs.Empty);
         }

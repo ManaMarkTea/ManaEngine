@@ -104,6 +104,91 @@ public static class ScrollAndTextChecks
         Check("short content is not scrollable", !small.CanScrollVertically && small.ScrollableSize.Y == 0.0f,
             $"{small.ScrollableSize.Y}");
 
+        // A scroll viewer only scrolls if something bounds its height. Dropping one into a vertical stack
+        // measures it with unbounded height, so it sizes to its content and shows no bar -- which is how the
+        // scene outliner ended up with no scroll bars. The fix belongs at the use site, not in ScrollViewer:
+        // sizing to content when unconstrained is what makes a viewer usable inside a popup or a tooltip.
+        var freeRows = new StackPanel().Vertical();
+        for (var i = 0; i < 40; i++)
+        {
+            freeRows.Children.Add(new Border().Fill(UiColor.White).Height(20.0f));
+        }
+
+        var unbounded = new ScrollViewer { Child = freeRows };
+        var stackHost = new StackPanel().Vertical().Children(new TextBlock().Text("Header"), unbounded);
+        root.Content = null;
+        root.Content = stackHost;
+        root.UpdateLayout(new Vector2(300, 200));
+        Check("a viewer in a vertical stack grows instead of scrolling",
+            !unbounded.CanScrollVertically && unbounded.Bounds.Height > 700.0f,
+            $"{unbounded.Bounds.Height:F0}px tall, scrollable {unbounded.ScrollableSize.Y:F0}");
+
+        // The same content in a star row is bounded by the leftover space, so it scrolls and draws a bar.
+        var boundedRows = new StackPanel().Vertical();
+        for (var i = 0; i < 40; i++)
+        {
+            boundedRows.Children.Add(new Border().Fill(UiColor.White).Height(20.0f));
+        }
+
+        var bounded = new ScrollViewer { Child = boundedRows };
+        var gridHost = new Grid().Rows("Auto, *").Columns("*").Children(
+            new TextBlock().Text("Header").GridRow(0),
+            bounded.GridRow(1));
+        root.Content = null;
+        root.Content = gridHost;
+        root.UpdateLayout(new Vector2(300, 200));
+        Check("a viewer in a star grid row scrolls",
+            bounded.CanScrollVertically && bounded.Bounds.Height < 200.0f,
+            $"{bounded.Bounds.Height:F0}px tall, scrollable {bounded.ScrollableSize.Y:F0}");
+
+        var barInstances = root.Render().InstanceCount;
+        bounded.VerticalScrollBar = ScrollBarVisibility.Disabled;
+        root.UpdateLayout(new Vector2(300, 200));
+        Check("the bar is actually drawn", root.Render().InstanceCount < barInstances,
+            $"{barInstances} instances with the bar, {root.Render().InstanceCount} without");
+
+        // The bar is drawn over the content but the hit test finds the content underneath it, so the viewer
+        // has to claim the press on the way down. Otherwise grabbing the thumb selects the tree row behind
+        // it -- which is exactly what a list of clickable rows made happen.
+        var treeRoots = Enumerable.Range(0, 60).Select(i => $"Row {i}").ToList();
+        var overBarTree = new TreeView()
+            .Tree(treeRoots, _ => null, item => new TextBlock().Text(item));
+
+        var overBars = (ScrollViewer)overBarTree.Scrollable();
+        var barHost = new Grid().Rows("*").Columns("*").Children(overBars);
+        root.Content = null;
+        root.Content = barHost;
+        root.UpdateLayout(new Vector2(300, 200));
+
+        Check("the list is scrollable", overBars.CanScrollVertically,
+            $"scrollable {overBars.ScrollableSize.Y:F0}");
+
+        // A point on the thumb, which sits directly over a row that would otherwise take the click.
+        var thumbPoint = new Vector2(
+            overBars.Bounds.Right - root.Theme.ScrollBarThickness * 0.5f,
+            overBars.Bounds.Y + 10.0f);
+
+        // The precondition for the bug: the hit test finds the tree, not the viewer, so on the way back up
+        // the tree would claim the press first.
+        Check("the tree lies under the thumb", root.HitTest(thumbPoint) is not ScrollViewer,
+            root.HitTest(thumbPoint)?.GetType().Name ?? "null");
+
+        root.Input.InjectPointerMoved(thumbPoint);
+        Check("the bar overrides the content's cursor", root.RequestedCursor == UiCursor.Arrow,
+            root.RequestedCursor.ToString());
+
+        root.Input.InjectPointerPressed(thumbPoint, PointerButton.Left, 0.0);
+        Check("the viewer captures the thumb press", root.PointerCaptureTarget == overBars,
+            root.PointerCaptureTarget?.GetType().Name ?? "null");
+
+        root.Input.InjectPointerMoved(thumbPoint + new Vector2(0.0f, 60.0f));
+        root.UpdateLayout(new Vector2(300, 200));
+        Check("dragging the thumb scrolls", overBars.Offset.Y > 0.0f, $"{overBars.Offset.Y:F0}");
+
+        root.Input.InjectPointerReleased(thumbPoint + new Vector2(0.0f, 60.0f), PointerButton.Left);
+        Check("the row underneath was never selected", overBarTree.SelectedItem == null,
+            overBarTree.SelectedItem?.ToString() ?? "nothing selected");
+
         // ScrollIntoView
         var tallStack = new StackPanel().Vertical();
         for (var i = 0; i < 50; i++)

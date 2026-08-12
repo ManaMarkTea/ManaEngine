@@ -519,6 +519,119 @@ namespace ManaUI
             return textBox;
         }
 
+        // ----- NumericBox ----------------------------------------------------------------------------
+
+        public static NumericBox Value(this NumericBox box, float value)
+        {
+            box.Value = value;
+            return box;
+        }
+
+        /// <summary>Drag sensitivity per pixel, which doubles as the snap and arrow-key increment.</summary>
+        public static NumericBox Step(this NumericBox box, float step)
+        {
+            box.Step = step;
+            return box;
+        }
+
+        public static NumericBox Range(this NumericBox box, float minimum, float maximum)
+        {
+            box.Minimum = minimum;
+            box.Maximum = maximum;
+            return box;
+        }
+
+        public static NumericBox Places(this NumericBox box, int decimalPlaces)
+        {
+            box.DecimalPlaces = decimalPlaces;
+            return box;
+        }
+
+        public static NumericBox Integer(this NumericBox box, bool isInteger = true)
+        {
+            box.IsInteger = isInteger;
+            box.Step = box.Step < 1.0f ? 1.0f : box.Step;
+            return box;
+        }
+
+        public static NumericBox OnChanged(this NumericBox box, Action<float> action)
+        {
+            box.ValueChanged += (_, value) => action(value);
+            return box;
+        }
+
+        /// <summary>Fires only when an edit settles -- for work too expensive to run per drag pixel.</summary>
+        public static NumericBox OnCommitted(this NumericBox box, Action<float> action)
+        {
+            box.ValueCommitted += (_, value) => action(value);
+            return box;
+        }
+
+        // ----- VectorBox -----------------------------------------------------------------------------
+
+        public static VectorBox Value(this VectorBox box, Vector3 value)
+        {
+            box.Value = value;
+            return box;
+        }
+
+        public static VectorBox Components(this VectorBox box, int components)
+        {
+            box.Components = components;
+            return box;
+        }
+
+        public static VectorBox Step(this VectorBox box, float step)
+        {
+            box.Step = step;
+            return box;
+        }
+
+        public static VectorBox Places(this VectorBox box, int decimalPlaces)
+        {
+            box.DecimalPlaces = decimalPlaces;
+            return box;
+        }
+
+        public static VectorBox OnChanged(this VectorBox box, Action<Vector3> action)
+        {
+            box.ValueChanged += (_, value) => action(new Vector3(value.X, value.Y, value.Z));
+            return box;
+        }
+
+        // ----- Expander ------------------------------------------------------------------------------
+
+        public static Expander Header(this Expander expander, string header)
+        {
+            expander.Header = header;
+            return expander;
+        }
+
+        public static Expander Expanded(this Expander expander, bool isExpanded = true)
+        {
+            expander.IsExpanded = isExpanded;
+            return expander;
+        }
+
+        /// <summary>Wraps the children in a vertical stack, which is what a section almost always wants.</summary>
+        public static Expander Section(this Expander expander, float spacing, params UiElement[] children)
+        {
+            expander.Content = new StackPanel().Vertical(spacing).Children(children);
+            return expander;
+        }
+
+        public static Expander Content(this Expander expander, UiElement content)
+        {
+            expander.Content = content;
+            return expander;
+        }
+
+        public static Expander Accessory(this Expander expander, UiElement accessory)
+        {
+            expander.HeaderAccessory = accessory;
+            return expander;
+        }
+
         // ----- TreeView ------------------------------------------------------------------------------
 
         /// <summary>Sets the roots, the children accessor and the row template together.</summary>

@@ -26,11 +26,50 @@ namespace Mana.Code.Graphics
             ConfigureIniStorage();
         }
 
+        /// <inheritdoc />
+        public Func<bool>? IsPointerOwnedByOverlay { get; set; }
+
+        /// <inheritdoc />
+        public Func<bool>? IsKeyboardOwnedByOverlay { get; set; }
+
         public void Update(float deltaTime)
         {
+            // Set before Update, because Update ends in ImGui.NewFrame and these flags are read there.
+            // Silk's controller owns its own input subscriptions, so unlike the WebGPU one there are no
+            // handlers here to suppress -- but ImGui's own NoMouse/NoKeyboard do the same job from inside:
+            // it parks the mouse offscreen and clears the buttons itself.
+            ApplyOverlayOwnership();
+
             _controller.Update(deltaTime);
             UpdateMouseCursor();
             SavePendingIniSettings();
+        }
+
+        private void ApplyOverlayOwnership()
+        {
+            var io = ImGui.GetIO();
+
+            SetFlag(io, ImGuiConfigFlags.NoMouse, IsPointerOwnedByOverlay?.Invoke() ?? false);
+
+            // No NoKeyboard flag in this ImGui binding, so the keys are cleared directly instead. Enough to
+            // stop an ImGui field consuming what was typed into a ManaUI one; the WebGPU path suppresses at
+            // the source and is the more thorough of the two.
+            if (IsKeyboardOwnedByOverlay?.Invoke() ?? false)
+            {
+                io.ClearInputKeys();
+            }
+        }
+
+        private static void SetFlag(ImGuiIOPtr io, ImGuiConfigFlags flag, bool set)
+        {
+            if (set)
+            {
+                io.ConfigFlags |= flag;
+            }
+            else
+            {
+                io.ConfigFlags &= ~flag;
+            }
         }
 
         public void Render()

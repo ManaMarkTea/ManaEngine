@@ -48,8 +48,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             tree.SelectionChanged += (_, item) => ApplySelection(selection, item);
 
-            return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
-                new StackPanel().Horizontal(theme.Spacing).Children(
+            // A Grid, not a StackPanel: a vertical stack measures its children with unbounded height, so a
+            // scroll viewer inside one grows to fit its content and never scrolls. The star row hands the
+            // viewer whatever is left over, which is what gives it something to scroll against.
+            return new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Padding(8.0f).Children(
+                new StackPanel().Horizontal(theme.Spacing).GridRow(0).Children(
                     new Button().Label("Collapse all").Variant(ButtonVariant.Subtle)
                         .OnClick(tree.CollapseAll),
                     new TextBlock()
@@ -57,7 +60,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .Foreground(theme.TextMuted)
                         .CenterV()),
 
-                tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f));
+                tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f).GridRow(1));
         }
 
         private static bool HasChildren(object item)

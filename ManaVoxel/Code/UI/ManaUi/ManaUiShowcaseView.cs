@@ -68,6 +68,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                     Divider(theme),
 
+                    Caption("Inspector editors (drag to scrub, click to type)", theme),
+                    EditorSample(theme, vm),
+
+                    Divider(theme),
+
                     Caption("ItemsControl over an ObservableCollection", theme),
                     LayerList(theme, vm),
 
@@ -147,6 +152,30 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Hint("Panel title")
                     .Width(320.0f)
                     .BindText(vm, v => v.Title));
+        }
+
+        /// <summary>
+        /// The three controls the inspector is made of. Both editors write to the same view model as the
+        /// readouts beneath them, so a drag that moves the label is proof the write-back happened rather
+        /// than the field repainting itself.
+        /// </summary>
+        private static UiElement EditorSample(UiTheme theme, ManaUiShowcaseViewModel vm)
+        {
+            return new Expander()
+                .Header("Brush")
+                .Width(320.0f)
+                .Section(theme.Spacing,
+                    new Grid().Columns("70, *", 8.0f).Rows("Auto").Children(
+                        Caption("Origin", theme).CenterV().GridColumn(0),
+                        new VectorBox().Step(0.25f).Places(2)
+                            .BindValue(vm, v => v.BrushOrigin).GridColumn(1)),
+
+                    new Grid().Columns("70, *", 8.0f).Rows("Auto").Children(
+                        Caption("Density", theme).CenterV().GridColumn(0),
+                        new NumericBox().Step(0.01f).Range(0.0f, 1.0f).Places(2)
+                            .BindValue(vm, v => v.Density).GridColumn(1)),
+
+                    new TextBlock().BindText(vm, v => v.BrushOriginSummary).Foreground(theme.TextMuted));
         }
 
         private static UiElement LayerList(UiTheme theme, ManaUiShowcaseViewModel vm)

@@ -36,6 +36,12 @@ namespace ManaUI
         /// <summary>Raised when the last item is removed, so the host can collapse the empty node away.</summary>
         public event EventHandler? Emptied;
 
+        /// <summary>
+        /// Raised when the active tab changes. Which tab is showing is part of the layout, so the host
+        /// treats this the same as a structural change and persists it.
+        /// </summary>
+        public event EventHandler? SelectionChanged;
+
         /// <summary>Raised when a tab is dragged off the strip; the docking layer turns this into a float.</summary>
         public event EventHandler<DockTabDragEventArgs>? TabDragOut;
 
@@ -60,6 +66,7 @@ namespace ManaUI
                 _selectedIndex = clamped;
                 _contentHost.Child = SelectedItem?.Content;
                 InvalidateMeasure();
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 

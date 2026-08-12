@@ -128,6 +128,7 @@ namespace Mana.Code
             SyncImGuiUiScale();
             ProcessPendingFontPreset();
 
+            AttachManaUiToImGui();
             _ImGui.Update((float)deltaTime);
 
             if (IsLoading)
@@ -155,6 +156,40 @@ namespace Mana.Code
                 ManaGameModeGraphicsBridge.DrawManaUi(Context, GraphicsBackend, ManaUi?.Root);
             }
         }
+
+        /// <summary>
+        /// Tells ImGui to stand down while ManaUI owns the pointer or the keyboard.
+        /// <para>
+        /// ManaUI draws after ImGui and so sits on top of it, but the two read input independently -- ImGui
+        /// polls the mouse rather than consuming events, so there is nothing ManaUI can mark as handled.
+        /// Without this every click lands in both, and pressing a ManaUI button also presses whatever ImGui
+        /// happened to have underneath it.
+        /// </para>
+        /// <para>
+        /// Wired here rather than where the controller is built, because each backend constructs its own and
+        /// this has to hold for all of them. The predicates are read per event and per frame, so they always
+        /// reflect ManaUI's live state rather than a snapshot.
+        /// </para>
+        /// </summary>
+        private void AttachManaUiToImGui()
+        {
+            if (_manaUiAttachedToImGui || ManaUi == null)
+            {
+                return;
+            }
+
+            _manaUiAttachedToImGui = true;
+
+            var host = ManaUi;
+
+            // IsPointerOverUi is true while anything holds pointer capture as well as on plain hover, so a
+            // drag that starts on a ManaUI slider and wanders off it keeps ImGui out until the button
+            // comes up.
+            _ImGui.IsPointerOwnedByOverlay = () => host.IsPointerOverUi;
+            _ImGui.IsKeyboardOwnedByOverlay = () => host.IsKeyboardCaptured;
+        }
+
+        private bool _manaUiAttachedToImGui;
 
         protected virtual void OnLoadingComplete() { }
 

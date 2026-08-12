@@ -21,8 +21,25 @@ namespace ManaUI
     /// </summary>
     public class UiWindow : Decorator
     {
-        /// <summary>Grab margin for resizing. Generous on purpose -- a 1px target is unusable.</summary>
-        private const float ResizeMargin = 6.0f;
+        /// <summary>Grab margin along an edge. Generous on purpose -- a 1px target is unusable.</summary>
+        private const float ResizeMargin = 9.0f;
+
+        /// <summary>
+        /// Grab margin near a corner, where both axes are live. Wider than the edges because a corner is
+        /// the handle people actually reach for, and the plain edge band made it a pixel-hunt.
+        /// </summary>
+        private const float CornerResizeMargin = 20.0f;
+
+        /// <summary>
+        /// Grab margin along the top edge, which is the one competing with drag-to-move. Deliberately
+        /// slimmer than the others: nobody resizes a window upwards nearly as often as they move it, and a
+        /// wide band there turns the top of the title bar into a trap.
+        /// </summary>
+        private const float TitleBarResizeMargin = 5.0f;
+
+        /// <summary>Size of one dot in the bottom-right grip, and the gap between dot centres.</summary>
+        private const float GripDotSize = 2.5f;
+        private const float GripDotPitch = 4.5f;
 
         private string _title = string.Empty;
         private bool _dragging;
@@ -175,6 +192,45 @@ namespace ManaUI
             {
                 RenderCloseButton(drawList, theme);
             }
+
+            if (CanResize)
+            {
+                RenderResizeGrip(drawList, theme);
+            }
+        }
+
+        /// <summary>
+        /// The stepped triangle of dots every desktop toolkit uses for a resize corner. Without it the grab
+        /// area is invisible and people hunt for the edge; with it the corner reads as a handle.
+        /// </summary>
+        private void RenderResizeGrip(ManaUiDrawList drawList, UiTheme theme)
+        {
+            var grip = ResizeGripRect();
+            var hovered = grip.Contains(Root?.Input.PointerPosition ?? new Vector2(-1.0f))
+                || _resizing != ResizeEdge.None;
+
+            var color = hovered ? theme.Text : theme.TextDisabled;
+            var corners = new CornerRadius(GripDotSize * 0.5f);
+
+            // Anchored off the inside corner and stepped inwards, so the dots follow the diagonal and the
+            // outermost one sits clear of the window's rounded border.
+            var anchor = new Vector2(
+                Bounds.Right - 4.0f - GripDotSize,
+                Bounds.Bottom - 4.0f - GripDotSize);
+
+            for (var row = 0; row < 3; row++)
+            {
+                for (var column = 0; column <= row; column++)
+                {
+                    var dot = new UiRect(
+                        anchor.X - column * GripDotPitch,
+                        anchor.Y - (row - column) * GripDotPitch,
+                        GripDotSize,
+                        GripDotSize);
+
+                    drawList.FillRect(dot, color, corners);
+                }
+            }
         }
 
         private void RenderTitleText(ManaUiDrawList drawList, UiTheme theme, UiRect titleBar)
@@ -278,6 +334,11 @@ namespace ManaUI
                 return UiCursor.SizeAll;
             }
 
+            if (CanClose && CloseButtonRect().Contains(point))
+            {
+                return UiCursor.Arrow;
+            }
+
             var edge = EdgeAt(point);
             return edge != ResizeEdge.None ? CursorForEdge(edge) : UiCursor.Arrow;
         }
@@ -305,27 +366,61 @@ namespace ManaUI
                 return ResizeEdge.None;
             }
 
+            var fromLeft = point.X - Bounds.Left;
+            var fromRight = Bounds.Right - point.X;
+            var fromTop = point.Y - Bounds.Top;
+            var fromBottom = Bounds.Bottom - point.Y;
+
+            // The corner band is checked first and against the wider margin, so approaching a corner from
+            // along an edge widens into the two-axis grab rather than staying a one-axis one.
+            var nearLeft = fromLeft <= CornerResizeMargin;
+            var nearRight = fromRight <= CornerResizeMargin;
+            var nearTop = fromTop <= CornerResizeMargin;
+            var nearBottom = fromBottom <= CornerResizeMargin;
+
+            // Not over the title bar. Widening the corner there would eat into the drag-to-move area and
+            // swallow the close button, which sits inside the top-right corner band.
+            var overTitleBar = point.Y < Bounds.Y + ResolvedTitleBarHeight;
+
+            if (!overTitleBar && (nearLeft || nearRight) && (nearTop || nearBottom))
+            {
+                var corner = ResizeEdge.None;
+                corner |= nearLeft && fromLeft <= fromRight ? ResizeEdge.Left : ResizeEdge.Right;
+                corner |= nearTop && fromTop <= fromBottom ? ResizeEdge.Top : ResizeEdge.Bottom;
+                return corner;
+            }
+
             var edge = ResizeEdge.None;
 
-            if (point.X - Bounds.Left <= ResizeMargin)
+            if (fromLeft <= ResizeMargin)
             {
                 edge |= ResizeEdge.Left;
             }
-            else if (Bounds.Right - point.X <= ResizeMargin)
+            else if (fromRight <= ResizeMargin)
             {
                 edge |= ResizeEdge.Right;
             }
 
-            if (point.Y - Bounds.Top <= ResizeMargin)
+            if (fromTop <= (overTitleBar ? TitleBarResizeMargin : ResizeMargin))
             {
                 edge |= ResizeEdge.Top;
             }
-            else if (Bounds.Bottom - point.Y <= ResizeMargin)
+            else if (fromBottom <= ResizeMargin)
             {
                 edge |= ResizeEdge.Bottom;
             }
 
             return edge;
+        }
+
+        /// <summary>The bottom-right corner's grab square -- the region the visible grip advertises.</summary>
+        public UiRect ResizeGripRect()
+        {
+            return new UiRect(
+                Bounds.Right - CornerResizeMargin,
+                Bounds.Bottom - CornerResizeMargin,
+                CornerResizeMargin,
+                CornerResizeMargin);
         }
 
         protected override void OnPreviewPointerPressed(UiPointerEventArgs e)

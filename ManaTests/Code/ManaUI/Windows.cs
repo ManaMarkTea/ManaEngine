@@ -95,6 +95,32 @@ public static class WindowChecks
         Check("corner wants a diagonal cursor", root.RequestedCursor == UiCursor.SizeNWSE,
             root.RequestedCursor.ToString());
 
+        // The corner is the handle people reach for, so its grab area is deliberately much wider than the
+        // edge band -- a few pixels of exact corner was the thing that made resizing feel fiddly.
+        var insideCorner = new Vector2(window.Bounds.Right - 14.0f, window.Bounds.Bottom - 14.0f);
+        root.Input.InjectPointerMoved(insideCorner);
+        Check("the corner grab area is generous", root.RequestedCursor == UiCursor.SizeNWSE,
+            $"14px in still reads as a corner, got {root.RequestedCursor}");
+
+        // ...but not so wide that it swallows the content in the middle of the window.
+        root.Input.InjectPointerMoved(window.Bounds.Center);
+        Check("the middle is not a resize area", root.RequestedCursor == UiCursor.Arrow,
+            root.RequestedCursor.ToString());
+
+        // The close button sits inside the top-right corner band, and must still be a button.
+        var closePoint = new Vector2(window.Bounds.Right - 12.0f, window.Bounds.Y + 12.0f);
+        root.Input.InjectPointerMoved(closePoint);
+        Check("the close button is not a resize corner", root.RequestedCursor == UiCursor.Arrow,
+            root.RequestedCursor.ToString());
+
+        // The grip is drawn, not just felt: without it the grab area is invisible and gets hunted for.
+        root.Input.InjectPointerMoved(new Vector2(-100.0f, -100.0f));
+        var withGrip = root.Render().InstanceCount;
+        window.CanResize = false;
+        Check("the resize grip is drawn", root.Render().InstanceCount + 6 == withGrip,
+            $"{withGrip} with grip, {root.Render().InstanceCount} without");
+        window.CanResize = true;
+
         // ---------------------------------------------------------------- z-order
         var second = new UiWindow("Second") { Width = 200.0f, Height = 150.0f };
         root.ShowWindow(second, new Vector2(150.0f, 150.0f));
