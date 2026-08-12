@@ -61,11 +61,14 @@ namespace ManaUI
         /// <summary>Maximum gap between two clicks that still counts as a double-click.</summary>
         public double DoubleClickSeconds { get; set; } = 0.4;
 
-        /// <summary>How long a key must be held before it starts repeating.</summary>
-        public double KeyRepeatDelaySeconds { get; set; } = 0.45;
+        /// <summary>
+        /// How long a key must be held before it starts repeating. Hosts should overwrite this with the
+        /// operating system's own setting; the default is only what applies when nobody asks the OS.
+        /// </summary>
+        public double KeyRepeatDelaySeconds { get; set; } = 0.35;
 
-        /// <summary>Interval between repeats once they start.</summary>
-        public double KeyRepeatIntervalSeconds { get; set; } = 0.033;
+        /// <summary>Interval between repeats once they start. Also expected to come from the OS.</summary>
+        public double KeyRepeatIntervalSeconds { get; set; } = 0.03;
 
         /// <summary>
         /// The cursor the UI currently wants. During a capture it comes from the captured element, not

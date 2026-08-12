@@ -1,3 +1,4 @@
+using Mana.Code.UI.ManaUi;
 using ManaUI;
 
 namespace ManaTests;
@@ -330,6 +331,42 @@ public static class ScrollAndTextChecks
         var afterCancel = cancel.Text;
         root.Input.TickKeyRepeat(2.0);
         Check("another key cancels the hold", cancel.Text == afterCancel, cancel.Text);
+
+        // The OS mapping is pure arithmetic, so it can be checked without touching the machine's settings.
+        Check("windows delay index 0 is 250ms",
+            MathF.Abs((float)ManaUiKeyboardSettings.DelayFromWindowsIndex(0) - 0.25f) < 0.001f,
+            $"{ManaUiKeyboardSettings.DelayFromWindowsIndex(0)}");
+        Check("windows delay index 1 is 500ms",
+            MathF.Abs((float)ManaUiKeyboardSettings.DelayFromWindowsIndex(1) - 0.5f) < 0.001f,
+            $"{ManaUiKeyboardSettings.DelayFromWindowsIndex(1)}");
+        Check("windows delay index 3 is 1000ms",
+            MathF.Abs((float)ManaUiKeyboardSettings.DelayFromWindowsIndex(3) - 1.0f) < 0.001f,
+            $"{ManaUiKeyboardSettings.DelayFromWindowsIndex(3)}");
+        Check("out-of-range delay index clamps",
+            ManaUiKeyboardSettings.DelayFromWindowsIndex(99) <= 1.0
+            && ManaUiKeyboardSettings.DelayFromWindowsIndex(-5) >= 0.25,
+            "clamped");
+
+        Check("windows speed 31 is ~30 per second",
+            MathF.Abs((float)ManaUiKeyboardSettings.IntervalFromWindowsSpeed(31) - 1.0f / 30.0f) < 0.001f,
+            $"{ManaUiKeyboardSettings.IntervalFromWindowsSpeed(31):F4}s");
+        Check("windows speed 0 is ~2.5 per second",
+            MathF.Abs((float)ManaUiKeyboardSettings.IntervalFromWindowsSpeed(0) - 1.0f / 2.5f) < 0.001f,
+            $"{ManaUiKeyboardSettings.IntervalFromWindowsSpeed(0):F4}s");
+        Check("faster speed index means shorter interval",
+            ManaUiKeyboardSettings.IntervalFromWindowsSpeed(31)
+            < ManaUiKeyboardSettings.IntervalFromWindowsSpeed(10),
+            "monotonic");
+
+        Check("macOS ticks convert at 60Hz",
+            MathF.Abs((float)ManaUiKeyboardSettings.TicksToSeconds(30) - 0.5f) < 0.001f,
+            $"{ManaUiKeyboardSettings.TicksToSeconds(30)}");
+
+        // Whatever the OS reports must be usable: never zero, never absurd.
+        var (osDelay, osInterval) = ManaUiKeyboardSettings.Read();
+        Check("OS settings are in a sane range",
+            osDelay is >= 0.1 and <= 2.0 && osInterval is >= 0.01 and <= 1.0,
+            $"delay {osDelay:F3}s, interval {osInterval:F4}s");
 
         // Losing focus mid-hold must not leave a key repeating forever.
         var blurred = new TextBox().Value("abcdefgh").Width(200.0f);

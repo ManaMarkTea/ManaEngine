@@ -37,6 +37,11 @@ namespace Mana.Code.UI.ManaUi
             Root = new UiRoot(Fonts, theme ?? UiTheme.Dark());
             Root.SetScale(GetFramebufferScale());
 
+            // Matched to the OS so held keys behave the same here as everywhere else on the machine.
+            var (repeatDelay, repeatInterval) = ManaUiKeyboardSettings.Read();
+            Root.Input.KeyRepeatDelaySeconds = repeatDelay;
+            Root.Input.KeyRepeatIntervalSeconds = repeatInterval;
+
             if (input != null)
             {
                 InputBridge = new ManaUiInputBridge(Root, input);
