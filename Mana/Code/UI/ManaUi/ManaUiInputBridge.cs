@@ -67,6 +67,46 @@ namespace Mana.Code.UI.ManaUi
         /// <summary>True when a focused control wants raw keystrokes, so editor shortcuts should stand down.</summary>
         public bool IsKeyboardCaptured => _root.Input.IsKeyboardCaptured;
 
+        /// <summary>
+        /// Applies the cursor ManaUI is asking for. Only while the pointer is actually over ManaUI --
+        /// ImGui manages the cursor too, and fighting it every frame would make both flicker.
+        /// </summary>
+        public void ApplyCursor()
+        {
+            if (_mouse == null || !_root.Input.IsPointerOverUi)
+            {
+                return;
+            }
+
+            var requested = _root.RequestedCursor switch
+            {
+                UiCursor.IBeam => StandardCursor.IBeam,
+                UiCursor.Hand => StandardCursor.Hand,
+                UiCursor.SizeWE => StandardCursor.HResize,
+                UiCursor.SizeNS => StandardCursor.VResize,
+                UiCursor.SizeNWSE => StandardCursor.NwseResize,
+                UiCursor.SizeNESW => StandardCursor.NeswResize,
+                UiCursor.SizeAll => StandardCursor.ResizeAll,
+                UiCursor.NotAllowed => StandardCursor.NotAllowed,
+                _ => StandardCursor.Arrow
+            };
+
+            try
+            {
+                if (!_mouse.Cursor.IsSupported(requested))
+                {
+                    requested = StandardCursor.Arrow;
+                }
+
+                _mouse.Cursor.Type = CursorType.Standard;
+                _mouse.Cursor.StandardCursor = requested;
+            }
+            catch
+            {
+                // Cursor changes are cosmetic and must never interrupt a frame.
+            }
+        }
+
         private void OnMouseMove(IMouse mouse, System.Numerics.Vector2 position)
         {
             _root.Input.InjectPointerMoved(position, CurrentModifiers());

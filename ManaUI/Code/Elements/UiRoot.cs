@@ -46,6 +46,9 @@ namespace ManaUI
 
         public UiFocusManager FocusManager { get; }
 
+        /// <summary>The cursor shape the UI wants right now; the host applies it to the real window.</summary>
+        public UiCursor RequestedCursor => Input.RequestedCursor;
+
         /// <summary>Element currently receiving all pointer input, or null.</summary>
         public UiElement? PointerCaptureTarget => Input.PointerCaptureTarget;
 
@@ -193,6 +196,23 @@ namespace ManaUI
 
         /// <summary>The draw list from the most recent <see cref="Render"/>.</summary>
         public ManaUiDrawList DrawList => _drawList;
+
+        /// <summary>
+        /// Adds a floating window and raises it. Placement defaults to a cascade from the top-left so two
+        /// windows opened in a row do not land exactly on top of each other.
+        /// </summary>
+        public UiWindow ShowWindow(UiWindow window, Vector2? position = null)
+        {
+            ArgumentNullException.ThrowIfNull(window);
+
+            window.Position = position ?? new Vector2(
+                40.0f + FloatingLayer.Children.Count * 24.0f,
+                40.0f + FloatingLayer.Children.Count * 24.0f);
+
+            FloatingLayer.Children.Add(window);
+            window.BringToFront();
+            return window;
+        }
 
         /// <summary>Topmost hit-testable element under a point in logical coordinates.</summary>
         public UiElement? HitTest(float x, float y)

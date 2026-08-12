@@ -85,6 +85,16 @@ namespace ManaUI
 
         public bool HasPointerCapture => Root?.PointerCaptureTarget == this;
 
+        /// <summary>
+        /// The cursor this element wants at <paramref name="point"/>, in root coordinates. Position-dependent
+        /// so one element can vary it across its own area -- a window asking for a diagonal resize cursor
+        /// only in its corners.
+        /// </summary>
+        public virtual UiCursor GetCursor(Vector2 point)
+        {
+            return UiCursor.Arrow;
+        }
+
         // ----- overridable handlers ------------------------------------------------------------------
 
         protected virtual void OnPreviewPointerPressed(UiPointerEventArgs e) { }

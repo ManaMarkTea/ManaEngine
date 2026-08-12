@@ -77,6 +77,9 @@ namespace Mana.Code.UI.ManaUi
             Root.SetScale(GetFramebufferScale());
             Root.UpdateLayout(LogicalSize);
             Root.Render();
+
+            // After layout, so resize handles report against this frame's geometry.
+            InputBridge?.ApplyCursor();
         }
 
         /// <summary>

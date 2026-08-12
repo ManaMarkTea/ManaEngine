@@ -42,6 +42,20 @@ namespace ManaUI
         public double DoubleClickSeconds { get; set; } = 0.4;
 
         /// <summary>
+        /// The cursor the UI currently wants. During a capture it comes from the captured element, not
+        /// whatever happens to be under the pointer -- otherwise a resize cursor would flicker back to an
+        /// arrow the moment a drag left the window being resized.
+        /// </summary>
+        public UiCursor RequestedCursor
+        {
+            get
+            {
+                var target = PointerCaptureTarget ?? HoveredElement;
+                return target?.GetCursor(_pointerPosition) ?? UiCursor.Arrow;
+            }
+        }
+
+        /// <summary>
         /// True when the pointer is over UI that would consume a click. The host uses this to stop a click
         /// meant for a button from also placing a voxel in the scene behind it.
         /// </summary>
