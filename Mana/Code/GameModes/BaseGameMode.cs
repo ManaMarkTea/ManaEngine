@@ -149,6 +149,14 @@ namespace Mana.Code
 
                 ManaGameModeGraphicsBridge.DrawWorld(Context, GraphicsBackend);
                 _ImGui.Render();
+
+                // OpenGL draws immediately, so ManaUI goes here to land on top of ImGui. The WebGPU path
+                // submits inside its own frame instead, and this is a no-op there.
+                ManaGameModeGraphicsBridge.DrawManaUi(
+                    Context,
+                    GraphicsBackend,
+                    ManaUi?.Root,
+                    new Vector2(_Window.FramebufferSize.X, _Window.FramebufferSize.Y));
             }
         }
 
@@ -168,6 +176,7 @@ namespace Mana.Code
 
         public virtual void Closing()
         {
+            ManaGameModeGraphicsBridge.DisposeManaUi();
             ManaUi?.Dispose();
             ManaUi = null;
             ManaGameModeGraphicsBridge.Dispose(Context, _ImGui);

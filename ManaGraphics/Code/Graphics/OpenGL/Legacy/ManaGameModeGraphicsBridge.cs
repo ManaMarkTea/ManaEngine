@@ -1,3 +1,4 @@
+using System.Numerics;
 using Mana.Code.Components;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
@@ -30,6 +31,60 @@ namespace Mana.Code.Graphics
                 (context.GraphicsDevice as ManaOpenGlGraphicsDevice)?.ProcessPendingHeightSampleRequests();
                 context.World.Draw();
             }
+        }
+
+        private static ManaOpenGlUiRenderer? _openGlUiRenderer;
+        private static bool _openGlUiRendererFailed;
+
+        /// <summary>
+        /// Draws the ManaUI tree on the OpenGL backend. The WebGPU path submits inside its own frame, so
+        /// this is a no-op there.
+        /// <para>
+        /// Created lazily, and dropped permanently if it cannot be built, so a project that never uses
+        /// ManaUI pays nothing and a shader failure reports once instead of every frame.
+        /// </para>
+        /// </summary>
+        public static void DrawManaUi(
+            ManaContext context,
+            ManaGraphicsBackendKind backend,
+            ManaUI.UiRoot? root,
+            Vector2 framebufferSize)
+        {
+            if (backend != ManaGraphicsBackendKind.OpenGL || root == null)
+            {
+                return;
+            }
+
+            if (_openGlUiRendererFailed)
+            {
+                return;
+            }
+
+            if (_openGlUiRenderer == null)
+            {
+                try
+                {
+                    _openGlUiRenderer = new ManaOpenGlUiRenderer(context.gl);
+                }
+                catch (Exception ex)
+                {
+                    // Latched, not just logged: without the flag this retries every frame and floods the
+                    // log with the same failure at frame rate.
+                    _openGlUiRendererFailed = true;
+                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
+                        $"ManaUI OpenGL renderer failed to initialise, disabling it: {ex.Message}");
+                    return;
+                }
+            }
+
+            _openGlUiRenderer.Render(root.DrawList, root.Atlas, root.Size, framebufferSize);
+        }
+
+        public static void DisposeManaUi()
+        {
+            _openGlUiRenderer?.Dispose();
+            _openGlUiRenderer = null;
+            _openGlUiRendererFailed = false;
         }
 
         public static void InitializeRendererForLoading(ManaContext context, ManaGraphicsBackendKind backend)

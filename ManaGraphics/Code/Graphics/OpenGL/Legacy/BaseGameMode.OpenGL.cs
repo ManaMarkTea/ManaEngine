@@ -51,6 +51,15 @@ namespace Mana.Code
 
             // Initialize the physics engine
             Context.Physics = new ManaPhysics(Context);
+
+            // Same opt-in as the WebGPU path. Without this the tree is never built on OpenGL, so ManaUI
+            // recorded a draw list every frame that nothing could ever submit.
+            if (EnableManaUi)
+            {
+                ManaUi = new Mana.Code.UI.ManaUi.ManaUiHost(window, input);
+                BuildManaUi(ManaUi);
+            }
+
             Load();
         }
 
