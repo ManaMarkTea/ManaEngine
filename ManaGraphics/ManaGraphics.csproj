@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
+    <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
   </ItemGroup>
 
   <!-- See Mana.csproj. Remove this exclusion as each legacy implementation is

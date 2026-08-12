@@ -1,5 +1,6 @@
 using Mana.Code.Graphics;
 using Mana.Code.UI;
+using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaCore.Loading;
 using Silk.NET.Input;
@@ -22,6 +23,15 @@ namespace Mana.Code
 
         public IManaImGuiController _ImGui = null!;
         public IWindow _Window = null!;
+
+        /// <summary>
+        /// The ManaUI tree, or null when <see cref="EnableManaUi"/> is off. Runs alongside ImGui rather than
+        /// replacing it, so panels can be ported one at a time.
+        /// </summary>
+        public ManaUiHost? ManaUi { get; private set; }
+
+        /// <summary>Opt in per game mode. Off by default so existing modes are untouched.</summary>
+        protected virtual bool EnableManaUi => false;
 
         public ManaContext Context = null!;
 
@@ -48,7 +58,21 @@ namespace Mana.Code
             world.Initialize(Context, DeferGpuUploadsOnStartup ? false : initializeWorldRenderer);
 
             Context.Physics = new ManaPhysics(Context);
+
+            if (EnableManaUi)
+            {
+                ManaUi = new ManaUiHost(window);
+                BuildManaUi(ManaUi);
+            }
+
             Load();
+        }
+
+        /// <summary>
+        /// Populate the ManaUI tree. Called once, after the host exists and before <see cref="Load"/>.
+        /// </summary>
+        protected virtual void BuildManaUi(ManaUiHost host)
+        {
         }
 
         public virtual void Load()
@@ -120,6 +144,9 @@ namespace Mana.Code
                 DrawImGui(deltaTime);
                 Context.World.DrawImGui();
 
+                // Recorded before the backend draws, so the draw list the GPU submits is this frame's.
+                ManaUi?.Render();
+
                 ManaGameModeGraphicsBridge.DrawWorld(Context, GraphicsBackend);
                 _ImGui.Render();
             }
@@ -141,6 +168,8 @@ namespace Mana.Code
 
         public virtual void Closing()
         {
+            ManaUi?.Dispose();
+            ManaUi = null;
             ManaGameModeGraphicsBridge.Dispose(Context, _ImGui);
         }
     }

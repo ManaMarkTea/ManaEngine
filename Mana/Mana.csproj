@@ -517,6 +517,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
+    <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
   </ItemGroup>
 
   <!-- Transitional bridge: these implementations now live with the graphics

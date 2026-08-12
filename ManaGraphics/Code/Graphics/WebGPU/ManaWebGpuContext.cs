@@ -96,6 +96,18 @@ namespace ManaGraphics.Code.Graphics
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
+        private ManaWebGpuUiRenderer? _uiRenderer;
+
+        /// <summary>
+        /// The ManaUI tree to draw over the scene, or null while the app is still on ImGui alone.
+        /// <para>
+        /// The app layer owns the root and records its draw list during its own render phase; this context
+        /// only submits whatever was last recorded. Keeping layout out of the present path means a UI bug
+        /// cannot stall the GPU timeline, and it keeps the dependency pointing the right way -- ManaGraphics
+        /// knows about ManaUI, never about Mana.
+        /// </para>
+        /// </summary>
+        public ManaUI.UiRoot? UiRoot { get; set; }
 
         // Per-frame CPU-side timing for the last completed ClearFrame call, in milliseconds.
         // Read by the app layer (which owns Mana/ManaWorld) once per frame to feed a live perf HUD —
@@ -225,6 +237,44 @@ namespace ManaGraphics.Code.Graphics
         {
             _imGuiController = new ManaWebGpuImGuiController(_api, _device, _queue, _surfaceFormat, _window, input);
             return _imGuiController;
+        }
+
+        /// <summary>
+        /// Submits the ManaUI draw list recorded by the app this frame. Created lazily so a project that
+        /// never assigns <see cref="UiRoot"/> pays nothing for the pipeline or its atlas texture.
+        /// </summary>
+        private void DrawManaUi(RenderPassEncoder* renderPass)
+        {
+            var root = UiRoot;
+            if (root == null)
+            {
+                return;
+            }
+
+            if (_uiRenderer == null)
+            {
+                try
+                {
+                    _uiRenderer = new ManaWebGpuUiRenderer(_api, _device, _queue, _surfaceFormat);
+                }
+                catch (Exception ex)
+                {
+                    // A failed UI pipeline must not take the whole renderer down; drop the root so the
+                    // failure is reported once rather than every frame.
+                    ManaConsole.WriteDiagnostic($"ManaUI renderer failed to initialise, disabling it: {ex.Message}");
+                    UiRoot = null;
+                    return;
+                }
+            }
+
+            var framebufferSize = _window.FramebufferSize;
+            _uiRenderer.Render(
+                renderPass,
+                root.DrawList,
+                root.Atlas,
+                root.Size,
+                (uint)Math.Max(0, framebufferSize.X),
+                (uint)Math.Max(0, framebufferSize.Y));
         }
 
         // Opt-in only (MANA_WGPU_NATIVE_TRACE env var) -- Trace is the noisiest level across the whole
@@ -523,6 +573,11 @@ namespace ManaGraphics.Code.Graphics
             var toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
             _hdrPostProcessor?.Draw(toneMapRenderPass);
             _imGuiController?.Render(toneMapRenderPass);
+
+            // ManaUI draws last so it sits above ImGui during the migration -- the two coexist by design,
+            // and panels move across one at a time.
+            DrawManaUi(toneMapRenderPass);
+
             _api.RenderPassEncoderEnd(toneMapRenderPass);
 
             var commandBufferDescriptor = new CommandBufferDescriptor();
@@ -563,6 +618,11 @@ namespace ManaGraphics.Code.Graphics
             _readbackRegistry.FaultAllPending();
 
             DrainDeferredSceneMeshDisposals(force: true);
+
+            UiRoot = null;
+            _uiRenderer?.Dispose();
+            _uiRenderer = null;
+
             ReleaseDemoResources();
 
             if (_surface != null && _configured)

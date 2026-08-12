@@ -6,6 +6,7 @@ using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.UI;
+using ManaVoxel.Code.UI.ManaUi;
 using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using ManaCore.Loading;
@@ -123,6 +124,10 @@ namespace Mana.Code.GameModes
                     {
                         webGpuGraphicsDevice.Context = webGpuContext;
                     }
+
+                    // Hands the backend the tree to draw. The engine layer still owns layout and recording;
+                    // the context only submits the draw list this produced.
+                    webGpuContext.UiRoot = ManaUi?.Root;
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
                     _ImGui = webGpuContext.CreateImGuiController(input);
                     var io = ImGuiNET.ImGui.GetIO();
@@ -146,6 +151,15 @@ namespace Mana.Code.GameModes
                 ManaConsole.WriteDiagnostic(
                     $"VoxelEditor WebGPU mesh packet: name='{mesh.Name}', vertices={mesh.MeshData.Positions.Length}, indexes={mesh.MeshData.Indexes.Length}.");
             }
+        }
+
+        // ManaUI runs alongside ImGui while the widget library is built out; the showcase panel is the
+        // standing visual regression check for layout, text and the SDF primitive.
+        protected override bool EnableManaUi => true;
+
+        protected override void BuildManaUi(global::Mana.Code.UI.ManaUi.ManaUiHost host)
+        {
+            host.Root.Content = ManaUiShowcaseView.Build(host.Root.Theme);
         }
 
         public override void Load()
