@@ -258,6 +258,11 @@ namespace ManaUI
                 var rect = SplitterRect(i);
                 var active = _draggingSplitter == i || (_draggingSplitter < 0 && rect.Contains(pointer));
 
+                // Filled first, always. The gutter between two panes is a gap in the panel surface, and
+                // leaving it unpainted let whatever the dock sits over -- the viewport -- show through, so
+                // the column looked translucent rather than solid.
+                drawList.FillRect(rect, theme.Background);
+
                 // The visible line is thinner than the grab area: a 6px bar is easy to hit but ugly to look
                 // at, so only a hairline is drawn unless it is being used.
                 if (active)

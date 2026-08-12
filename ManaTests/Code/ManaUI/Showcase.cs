@@ -66,6 +66,34 @@ public static class ShowcaseChecks
             Check("an empty column is collapsed",
                 panels[0].Visibility == Visibility.Collapsed, panels[0].Visibility.ToString());
 
+            // A column sits over the viewport, so every pixel of it has to be painted. The gutters are the
+            // easy ones to miss: the handle strip and the seams between panes belong to the column but to
+            // no panel's content, and leaving them unpainted made a solid column read as translucent.
+            Check("the column paints a backdrop", panels[1].Background.W > 0.0f,
+                $"alpha {panels[1].Background.W}");
+
+            // Sampled off-centre on purpose. The handle's own 2px line sits exactly in the middle of the
+            // grab strip, so a centre sample passes whether or not the rest of the gutter is painted --
+            // which is what it did before this comment existed.
+            var handleRect = panels[1].HandleRect;
+            var gutter = new Vector2(handleRect.X + 1.0f, handleRect.Center.Y);
+            var painted = false;
+
+            foreach (var instance in dockRoot.Render().Instances)
+            {
+                if (gutter.X >= instance.Rect.X
+                    && gutter.X <= instance.Rect.X + instance.Rect.Z
+                    && gutter.Y >= instance.Rect.Y
+                    && gutter.Y <= instance.Rect.Y + instance.Rect.W
+                    && UiColor.Unpack(instance.FillColor).W >= 1.0f)
+                {
+                    painted = true;
+                    break;
+                }
+            }
+
+            Check("something opaque covers the handle gutter", painted, $"sampled at {gutter}");
+
             // Dragging the handle widens the column, which is the point of the whole exercise.
             var rightPanel = panels[1];
             var widthBefore = rightPanel.Size;

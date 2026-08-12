@@ -60,6 +60,13 @@ namespace ManaUI
 
         public float MaximumSize { get; set; } = 1200.0f;
 
+        /// <summary>
+        /// Painted across the whole panel, behind its content. Worth setting for anything sitting over a
+        /// viewport: the handle gutter is part of the panel but not part of the content, so leaving it
+        /// unpainted makes a solid column look translucent along its inner edge.
+        /// </summary>
+        public Vector4 Background { get; set; }
+
         /// <summary>True while the handle is being dragged.</summary>
         public bool IsResizing => _dragging;
 
@@ -136,6 +143,11 @@ namespace ManaUI
             if (theme == null)
             {
                 return;
+            }
+
+            if (Background.W > 0.0f)
+            {
+                drawList.FillRect(Bounds, Background);
             }
 
             var handle = HandleRect;

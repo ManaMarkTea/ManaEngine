@@ -116,11 +116,15 @@ namespace ManaVoxel.Code.UI.ManaUi
             _ = new DockDragController(root, left);
             _ = new DockDragController(root, right);
 
+            // Backgrounds matter here because the columns sit over the viewport: the handle gutter and the
+            // seams between panes are part of the column but not part of any panel's content, so without a
+            // backdrop the scene shows through and a solid column reads as translucent.
             var leftPanel = new ResizablePanel
             {
                 Edge = Dock.Left,
                 Size = saved is { LeftWidth: > 0.0f } ? saved.LeftWidth : DefaultLeftWidth,
                 MinimumSize = 200.0f,
+                Background = theme.Background,
                 Child = left
             };
 
@@ -129,6 +133,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Edge = Dock.Right,
                 Size = saved is { RightWidth: > 0.0f } ? saved.RightWidth : DefaultRightWidth,
                 MinimumSize = 220.0f,
+                Background = theme.Background,
                 Child = right
             };
 
