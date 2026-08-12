@@ -168,7 +168,8 @@ namespace Mana.Code.GameModes
                 host.Root,
                 _manaUiShowcase,
                 () => $"render frame {RenderFrame:N0}",
-                editor: _viewModel);
+                editor: _viewModel,
+                world: Context.World);
         }
 
         public override void Load()

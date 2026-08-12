@@ -26,7 +26,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 2;
+        private const int LayoutVersion = 3;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -47,7 +47,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaUiShowcaseViewModel vm,
             Func<string>? liveStat = null,
             bool persist = true,
-            VoxelEditorViewModel? editor = null)
+            VoxelEditorViewModel? editor = null,
+            global::Mana.ManaWorld? world = null)
         {
             var theme = root.Theme;
             var dock = new DockHost();
@@ -65,6 +66,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "tools" when editor != null => new DockItem(
                     "Voxel Tools",
                     VoxelToolPaletteManaView.Build(theme, editor).Scrollable()) { Id = "tools" },
+                // world.Selection rather than a separately supplied instance: it is the same object the
+                // ImGui outliner and the viewport already use, so the two outliners cannot drift apart.
+                "outliner" when world != null => new DockItem(
+                    "Outliner",
+                    SceneOutlinerManaView.Build(theme, world, world.Selection)) { Id = "outliner" },
                 _ => null
             };
 
@@ -134,7 +140,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>
         /// Every panel this layout can show, in the order they should be added.
         /// </summary>
-        private static readonly string[] PanelIds = { "tools", "showcase", "layers", "stats" };
+        private static readonly string[] PanelIds = { "tools", "outliner", "showcase", "layers", "stats" };
 
         /// <summary>
         /// Docks any panel the restored layout did not contain. Only runs when the saved version differs
@@ -168,11 +174,17 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static void BuildDefaultLayout(DockHost dock, Func<string, DockItem?> resolve)
         {
-            // The ported palette leads, since it is the one panel here that does real work.
+            // The ported panels lead, since they are the ones here that do real work.
             var tools = resolve("tools");
             if (tools != null)
             {
                 dock.Dock(tools, DockSide.Center);
+            }
+
+            var outliner = resolve("outliner");
+            if (outliner != null)
+            {
+                dock.Dock(outliner, tools == null ? DockSide.Center : DockSide.Bottom, tools?.Owner);
             }
 
             // Tabbed with the palette when there is one, otherwise it becomes the first panel itself.
