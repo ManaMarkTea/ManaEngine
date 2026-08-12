@@ -14,6 +14,32 @@ public static class LayoutChecks
 
         // ---------------------------------------------------------------- fonts + text
         Console.WriteLine("== fonts ==");
+
+        // Font lookup happens on every measure and every render of every text element. It used to walk the
+        // search directories recursively each time -- including the system font folder -- which cost about
+        // three milliseconds a frame no matter how little UI was on screen. Resolution is cached now, and
+        // this is the guard: repeated lookups must not touch the filesystem again.
+        var lookupClock = System.Diagnostics.Stopwatch.StartNew();
+        for (var i = 0; i < 20000; i++)
+        {
+            fonts.Get("Roboto", 15.0f);
+        }
+
+        lookupClock.Stop();
+        var perLookupUs = lookupClock.Elapsed.TotalMilliseconds * 1000.0 / 20000.0;
+        Check("repeat font lookups are cached", perLookupUs < 5.0, $"{perLookupUs:F2} us per lookup");
+
+        // A family that does not exist is just as expensive to search for, so misses cache too.
+        var missClock = System.Diagnostics.Stopwatch.StartNew();
+        for (var i = 0; i < 2000; i++)
+        {
+            fonts.Get("NoSuchFontFamily", 15.0f);
+        }
+
+        missClock.Stop();
+        Check("unresolved families do not rescan",
+            missClock.Elapsed.TotalMilliseconds / 2000.0 < 0.05,
+            $"{missClock.Elapsed.TotalMilliseconds / 2000.0 * 1000.0:F2} us per miss");
         ManaFont? font = null;
         try
         {

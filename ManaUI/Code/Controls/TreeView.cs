@@ -21,6 +21,12 @@ namespace ManaUI
         // still expand independently.
         private readonly HashSet<object> _expanded = new(ReferenceEqualityComparer.Instance);
         private readonly List<object> _visibleItems = new();
+        private readonly List<int> _depths = new();
+        private readonly List<bool> _hasChildren = new();
+
+        private ScrollViewer? _scroller;
+        private int _realizedFirst = -1;
+        private int _realizedCount;
 
         private IEnumerable? _itemsSource;
         private object? _selectedItem;
@@ -51,6 +57,29 @@ namespace ManaUI
 
         /// <summary>Returns an item's children, or null for a leaf.</summary>
         public Func<object, IEnumerable?>? ChildrenSelector { get; set; }
+
+        /// <summary>
+        /// Optional cheap "does this have children" test. Without it the tree has to ask for the children
+        /// of every visible item just to decide whether to draw an expander, which for a model that
+        /// materialises a collection per call means an allocation per row per rebuild.
+        /// </summary>
+        public Func<object, bool>? HasChildrenSelector { get; set; }
+
+        /// <summary>Uniform row height. NaN follows the theme's control height.</summary>
+        public float RowHeight { get; set; } = float.NaN;
+
+        /// <summary>
+        /// Whether to build only the rows inside the scroll viewport. On by default; turning it off is
+        /// only useful for a tree small enough that the bookkeeping is not worth it.
+        /// </summary>
+        public bool IsVirtualizing { get; set; } = true;
+
+        private float ResolvedRowHeight => LayoutHelper.IsAuto(RowHeight)
+            ? MathF.Max(1.0f, (Root?.Theme.ControlHeight ?? 26.0f) - 4.0f)
+            : RowHeight;
+
+        /// <summary>Row elements that currently exist, which is a window onto <see cref="VisibleItems"/>.</summary>
+        public int RealizedRowCount => Children.Count;
 
         /// <summary>Builds the content of a row. The expander and indent are drawn around it.</summary>
         public Func<object, UiElement>? ItemTemplate { get; set; }
@@ -208,12 +237,18 @@ namespace ManaUI
 
         // ----- row construction -----------------------------------------------------------------------
 
-        private void RebuildRows()
+        /// <summary>
+        /// Walks the model into flat parallel lists. Builds no elements: a scene graph can expand to
+        /// thousands of rows, and materialising all of them was what made expanding a large node drop the
+        /// frame rate -- especially since a model that changes every frame forces this to run every frame.
+        /// </summary>
+        private void Flatten()
         {
             _rebuildQueued = false;
 
-            Children.Clear();
             _visibleItems.Clear();
+            _depths.Clear();
+            _hasChildren.Clear();
 
             if (_itemsSource == null || ItemTemplate == null)
             {
@@ -221,6 +256,9 @@ namespace ManaUI
             }
 
             AddLevel(_itemsSource, 0);
+
+            // Whatever was realised describes the old list, so it cannot be reused as-is.
+            _realizedFirst = -1;
         }
 
         private void AddLevel(IEnumerable items, int depth)
@@ -232,29 +270,128 @@ namespace ManaUI
                     continue;
                 }
 
-                var children = ChildrenSelector?.Invoke(item);
-                var hasChildren = false;
+                var expanded = _expanded.Contains(item);
 
-                if (children != null)
+                // The children of a collapsed node are never needed, so asking for them is skipped
+                // entirely unless HasChildrenSelector is absent and the expander state has to be derived.
+                IEnumerable? children = null;
+                bool hasChildren;
+
+                if (HasChildrenSelector != null)
                 {
-                    foreach (var _ in children)
+                    hasChildren = HasChildrenSelector(item);
+                    if (hasChildren && expanded)
                     {
-                        hasChildren = true;
-                        break;
+                        children = ChildrenSelector?.Invoke(item);
                     }
+                }
+                else
+                {
+                    children = ChildrenSelector?.Invoke(item);
+                    hasChildren = children != null && AnyItem(children);
                 }
 
                 _visibleItems.Add(item);
-                Children.Add(new TreeViewRow(this, item, depth, hasChildren)
-                {
-                    Child = ItemTemplate!(item)
-                });
+                _depths.Add(depth);
+                _hasChildren.Add(hasChildren);
 
-                if (hasChildren && _expanded.Contains(item))
+                if (hasChildren && expanded && children != null)
                 {
-                    AddLevel(children!, depth + 1);
+                    AddLevel(children, depth + 1);
                 }
             }
+        }
+
+        private static bool AnyItem(IEnumerable items)
+        {
+            foreach (var _ in items)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Builds row elements only for the slice inside the scroll viewport, plus a little overscan.
+        /// <para>
+        /// Rows are a uniform height so an index maps to a position arithmetically, which is what lets a
+        /// tree of any size cost the same as one screenful.
+        /// </para>
+        /// </summary>
+        private void RealizeRows(float rowHeight)
+        {
+            var (first, count) = VisibleRange(rowHeight);
+
+            if (first == _realizedFirst && count == _realizedCount && Children.Count == count)
+            {
+                return;
+            }
+
+            _realizedFirst = first;
+            _realizedCount = count;
+
+            Children.Clear();
+
+            for (var i = first; i < first + count; i++)
+            {
+                Children.Add(new TreeViewRow(this, _visibleItems[i], _depths[i], _hasChildren[i])
+                {
+                    Child = ItemTemplate!(_visibleItems[i])
+                });
+            }
+        }
+
+        /// <summary>The index range to realise, from the enclosing scroll viewport.</summary>
+        private (int First, int Count) VisibleRange(float rowHeight)
+        {
+            var total = _visibleItems.Count;
+            if (total == 0 || rowHeight <= 0.0f)
+            {
+                return (0, 0);
+            }
+
+            var scroller = FindScrollViewer();
+            if (scroller == null || !IsVirtualizing)
+            {
+                return (0, total);
+            }
+
+            // A few rows either side, so a scroll of less than one row does not have to rebuild.
+            const int Overscan = 3;
+
+            var viewportHeight = scroller.Viewport.Y;
+            if (viewportHeight <= 0.0f)
+            {
+                return (0, total);
+            }
+
+            var first = Math.Max(0, (int)(scroller.Offset.Y / rowHeight) - Overscan);
+            var visible = (int)MathF.Ceiling(viewportHeight / rowHeight) + Overscan * 2;
+
+            return (first, Math.Clamp(visible, 0, total - first));
+        }
+
+        private ScrollViewer? FindScrollViewer()
+        {
+            if (_scroller != null)
+            {
+                return _scroller;
+            }
+
+            for (var current = Parent; current != null; current = current.Parent)
+            {
+                if (current is ScrollViewer scroller)
+                {
+                    _scroller = scroller;
+
+                    // Scrolling changes which rows exist, not just where they sit, so it has to re-measure.
+                    scroller.ScrollChanged += (_, _) => InvalidateMeasure();
+                    return scroller;
+                }
+            }
+
+            return null;
         }
 
         // ----- layout ---------------------------------------------------------------------------------
@@ -263,33 +400,37 @@ namespace ManaUI
         {
             if (_rebuildQueued)
             {
-                RebuildRows();
+                Flatten();
             }
 
+            var rowHeight = ResolvedRowHeight;
+            RealizeRows(rowHeight);
+
             var inner = LayoutHelper.Deflate(availableSize, Padding);
-            var height = 0.0f;
             var width = 0.0f;
 
             foreach (var child in Children)
             {
-                child.Measure(new Vector2(inner.X, LayoutHelper.Infinity));
-                height += child.DesiredSize.Y;
+                child.Measure(new Vector2(inner.X, rowHeight));
                 width = MathF.Max(width, child.DesiredSize.X);
             }
 
-            return LayoutHelper.Inflate(new Vector2(width, height), Padding);
+            // Height comes from the row count, not the realised rows: the scroll viewer has to see the
+            // full extent even though only a screenful exists.
+            return LayoutHelper.Inflate(new Vector2(width, _visibleItems.Count * rowHeight), Padding);
         }
 
         protected override Vector2 ArrangeOverride(Vector2 finalSize)
         {
             var content = ContentBounds;
-            var offset = 0.0f;
+            var rowHeight = ResolvedRowHeight;
 
-            foreach (var child in Children)
+            for (var i = 0; i < Children.Count; i++)
             {
-                var height = child.DesiredSize.Y;
-                child.Arrange(new UiRect(content.X, content.Y + offset, content.Width, height));
-                offset += height;
+                // Positioned by absolute row index, since the realised rows are a window into the middle
+                // of the list rather than the start of it.
+                var y = content.Y + (_realizedFirst + i) * rowHeight;
+                Children[i].Arrange(new UiRect(content.X, y, content.Width, rowHeight));
             }
 
             return finalSize;

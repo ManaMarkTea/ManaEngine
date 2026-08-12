@@ -47,6 +47,9 @@ namespace ManaUI
             Focusable = true;
         }
 
+        /// <summary>Raised when the offset changes. Virtualizing content uses this to re-realize rows.</summary>
+        public event EventHandler<Vector2>? ScrollChanged;
+
         public ScrollBarVisibility VerticalScrollBar { get; set; } = ScrollBarVisibility.Auto;
         public ScrollBarVisibility HorizontalScrollBar { get; set; } = ScrollBarVisibility.Disabled;
 
@@ -69,6 +72,7 @@ namespace ManaUI
 
                 // Arrange, not measure: the content's size has not changed, only where it sits.
                 InvalidateArrange();
+                ScrollChanged?.Invoke(this, clamped);
             }
         }
 
@@ -136,6 +140,15 @@ namespace ManaUI
 
             // Unconstrained on any scrollable axis -- that is what lets the content report how big it
             // really wants to be instead of squashing into the viewport.
+            // Published before the child is measured, not only during arrange. Virtualizing content sizes
+            // its realised window from the viewport, and on the first pass after a large expansion the
+            // viewport would otherwise still be zero -- so it would materialise everything exactly once,
+            // on the frame that can least afford it.
+            if (float.IsFinite(inner.X) && float.IsFinite(inner.Y))
+            {
+                _viewport = inner;
+            }
+
             var childConstraint = new Vector2(
                 HorizontalScrollBar == ScrollBarVisibility.Disabled ? inner.X : LayoutHelper.Infinity,
                 VerticalScrollBar == ScrollBarVisibility.Disabled ? inner.Y : LayoutHelper.Infinity);

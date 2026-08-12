@@ -33,6 +33,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 ItemsSource = world.Scenes,
                 ChildrenSelector = ChildrenOf,
+
+                // Answered without materialising anything. ChildrenOf has to combine a node's children and
+                // its components into one list, and the tree asks every visible row whether it has any --
+                // so without this, a planet's worth of rows allocates a list each, every rebuild.
+                HasChildrenSelector = HasChildren,
                 ItemTemplate = item => BuildRow(theme, item),
 
                 // The scene graph raises nothing when it changes, so the tree watches a cheap summary
@@ -53,6 +58,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .CenterV()),
 
                 tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f));
+        }
+
+        private static bool HasChildren(object item)
+        {
+            return item switch
+            {
+                ManaScene scene => scene.Children.Count > 0,
+                ManaSceneNode node => node.Children.Count > 0 || node.Components.Count > 0,
+                _ => false
+            };
         }
 
         /// <summary>

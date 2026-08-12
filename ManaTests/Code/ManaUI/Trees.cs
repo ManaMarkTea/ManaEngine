@@ -208,11 +208,62 @@ public static class TreeChecks
         bigView.Expand(deep);
         root.UpdateLayout(new Vector2(400, 500));
 
-        Check("large tree builds every expanded row", bigView.Children.Count == 201,
-            $"{bigView.Children.Count}");
+        // Virtualization is the difference between a large tree costing a screenful and costing all of it.
+        // A scene graph that changes every frame forces a rebuild every frame, so realising 200 rows to
+        // show 10 is what dropped the frame rate when a planet node was expanded.
+        Check("large tree flattens every row", bigView.VisibleItems.Count == 201,
+            $"{bigView.VisibleItems.Count}");
+        Check("only a screenful is realised", bigView.RealizedRowCount < 30,
+            $"{bigView.RealizedRowCount} rows realised of {bigView.VisibleItems.Count}");
+        Check("extent covers every row, not just the realised ones",
+            bigView.DesiredSize.Y > 201 * 10.0f, $"{bigView.DesiredSize.Y:F0}px tall");
 
         var drawn = root.Render();
         Check("offscreen rows culled", drawn.InstanceCount < 60, $"{drawn.InstanceCount} instances");
         Check("still one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
+
+        // Scrolling realises a different window, and the rows must land at their true positions.
+        var bigScroller = (ScrollViewer)scroller;
+        bigScroller.Offset = new Vector2(0.0f, 1000.0f);
+        root.UpdateLayout(new Vector2(400, 500));
+
+        Check("scrolling keeps the realised window small", bigView.RealizedRowCount < 30,
+            $"{bigView.RealizedRowCount} rows");
+
+        // The realised window has to be the one actually on screen, not just any window of the right size.
+        var visibleRows = bigView.Children.Count(row => row.Bounds.IntersectsWith(bigScroller.Bounds));
+        Check("realised rows cover the viewport", visibleRows > 5,
+            $"{visibleRows} of {bigView.RealizedRowCount} realised rows intersect the viewport");
+        Check("scrolled content still renders", root.Render().InstanceCount > 5);
+
+        // Rebuilding every frame -- what a live scene graph forces -- must stay cheap.
+        var rebuildCounter = 0;
+        bigView.StructureSignature = () => rebuildCounter;
+        root.UpdateLayout(new Vector2(400, 500));
+
+        var layoutClock = new System.Diagnostics.Stopwatch();
+        var renderClock = new System.Diagnostics.Stopwatch();
+
+        for (var frame = 0; frame < 120; frame++)
+        {
+            rebuildCounter++;
+
+            layoutClock.Start();
+            root.UpdateLayout(new Vector2(400, 500));
+            layoutClock.Stop();
+
+            renderClock.Start();
+            root.Render();
+            renderClock.Stop();
+        }
+
+        var layoutMs = layoutClock.Elapsed.TotalMilliseconds / 120.0;
+        var renderMs = renderClock.Elapsed.TotalMilliseconds / 120.0;
+
+        // A live scene graph changes every frame, so this is the steady state, not a worst case. The bar is
+        // generous enough not to be flaky on a loaded machine, but far below the ~6ms this cost before
+        // virtualization and the font path cache landed.
+        Check("rebuilding every frame stays cheap", layoutMs + renderMs < 1.0,
+            $"layout {layoutMs:F3} ms + render {renderMs:F3} ms per frame");
     }
 }

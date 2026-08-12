@@ -12,6 +12,7 @@ namespace ManaUI
         private static readonly string[] Extensions = { ".ttf", ".otf" };
 
         private readonly Dictionary<string, byte[]> _fileCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string?> _pathCache = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<(string File, int Size, int Scale), ManaFont> _fonts = new();
         private readonly List<string> _searchDirectories = new();
 
@@ -41,6 +42,10 @@ namespace ManaUI
             if (Directory.Exists(full) && !_searchDirectories.Contains(full, StringComparer.OrdinalIgnoreCase))
             {
                 _searchDirectories.Add(full);
+
+                // A new directory can resolve a family that previously could not be found, so the
+                // remembered answers no longer hold.
+                _pathCache.Clear();
             }
         }
 
@@ -63,8 +68,8 @@ namespace ManaUI
             var rounded = Math.Max(1, (int)MathF.Round(pixelSize));
             var quantisedScale = Math.Max(1, (int)MathF.Round(MathF.Max(0.1f, renderScale) * 4.0f));
 
-            var path = ResolvePath(family)
-                ?? ResolvePath(DefaultFamily)
+            var path = ResolveCachedPath(family)
+                ?? ResolveCachedPath(DefaultFamily)
                 ?? throw new FileNotFoundException(
                     $"No font file for '{family}' or fallback '{DefaultFamily}' in: {string.Join("; ", _searchDirectories)}");
 
@@ -88,6 +93,33 @@ namespace ManaUI
                 quantisedScale / 4.0f);
             _fonts[key] = font;
             return font;
+        }
+
+        /// <summary>
+        /// Family name to file path, resolved once and remembered.
+        /// <para>
+        /// The lookup underneath walks the search directories recursively, and one of them is the system
+        /// font folder. Callers ask for a font on every measure and every render of every text element, so
+        /// without this cache a frame performs a full directory scan per label -- which measured at about
+        /// three milliseconds a frame regardless of how much UI was on screen. Misses are cached too, since
+        /// a family that does not exist is just as expensive to look for the second time.
+        /// </para>
+        /// </summary>
+        private string? ResolveCachedPath(string family)
+        {
+            if (string.IsNullOrWhiteSpace(family))
+            {
+                return null;
+            }
+
+            if (_pathCache.TryGetValue(family, out var cached))
+            {
+                return cached;
+            }
+
+            var resolved = ResolvePath(family);
+            _pathCache[family] = resolved;
+            return resolved;
         }
 
         /// <summary>Finds a font file for a family name, trying the bare name then a "-Regular" suffix.</summary>
