@@ -66,7 +66,8 @@ public static class TestRunner
         ("ManaUI", "docking", DockingChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "layout persistence", PersistenceChecks.Run),
-        ("ManaUI", "real editor views", ShowcaseChecks.Run)
+        ("ManaUI", "real editor views", ShowcaseChecks.Run),
+        ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run)
     };
 
     /// <summary>

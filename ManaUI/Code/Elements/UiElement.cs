@@ -134,7 +134,46 @@ namespace ManaUI
         public Visibility Visibility
         {
             get => _visibility;
-            set => SetLayoutProperty(ref _visibility, value);
+            set
+            {
+                if (_visibility == value)
+                {
+                    return;
+                }
+
+                _visibility = value;
+
+                // Panels skip collapsed children entirely, so Arrange never runs on this element again and
+                // neither it nor its descendants would ever clear the geometry they had when last shown.
+                // Bounds is public, and something invisible reporting where it used to be makes it lie to
+                // hit testing, ScrollIntoView and anything else that asks.
+                if (value == Visibility.Collapsed)
+                {
+                    ClearSubtreeBounds();
+                }
+
+                InvalidateMeasure();
+            }
+        }
+
+        private void ClearSubtreeBounds()
+        {
+            Bounds = UiRect.Empty;
+
+            // The cached validity has to go with the geometry. Measure and Arrange both short-circuit when
+            // they are still valid for the same input, so clearing bounds while leaving the flags set
+            // would mean a later Arrange at the identical rect returns immediately and never restores what
+            // was cleared -- the subtree would come back visible but sized to nothing.
+            IsMeasureValid = false;
+            IsArrangeValid = false;
+            _lastArrangeRect = UiRect.Empty;
+            _lastMeasureConstraint = new Vector2(float.NaN, float.NaN);
+
+            var count = VisualChildCount;
+            for (var i = 0; i < count; i++)
+            {
+                GetVisualChild(i).ClearSubtreeBounds();
+            }
         }
 
         /// <summary>Local enabled flag. Read <see cref="IsEffectivelyEnabled"/> for the inherited answer.</summary>
@@ -229,27 +268,36 @@ namespace ManaUI
         /// </summary>
         public void InvalidateMeasure()
         {
-            if (!IsMeasureValid)
-            {
-                return;
-            }
-
             IsMeasureValid = false;
             IsArrangeValid = false;
-            Parent?.InvalidateMeasure();
+
+            // Walks up while ancestors still believe they are valid. Stopping at the first already-invalid
+            // ancestor is safe -- it has propagated once already. Stopping because *this* element was
+            // invalid is not: a parent that skipped it, as panels do for collapsed children, has since
+            // completed a perfectly valid layout, and would never learn it has to run again.
+            var ancestor = Parent;
+            while (ancestor is { IsMeasureValid: true })
+            {
+                ancestor.IsMeasureValid = false;
+                ancestor.IsArrangeValid = false;
+                ancestor = ancestor.Parent;
+            }
+
             Root?.NotifyLayoutInvalidated();
         }
 
         /// <summary>Marks placement as stale without re-asking for sizes.</summary>
         public void InvalidateArrange()
         {
-            if (!IsArrangeValid)
+            IsArrangeValid = false;
+
+            var ancestor = Parent;
+            while (ancestor is { IsArrangeValid: true })
             {
-                return;
+                ancestor.IsArrangeValid = false;
+                ancestor = ancestor.Parent;
             }
 
-            IsArrangeValid = false;
-            Parent?.InvalidateArrange();
             Root?.NotifyLayoutInvalidated();
         }
 

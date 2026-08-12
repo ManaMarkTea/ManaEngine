@@ -30,11 +30,16 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Takes the <see cref="UiRoot"/> rather than the windowing host, so the whole layout can be built
         /// and exercised headlessly.
         /// </summary>
+        /// <summary>
+        /// <paramref name="editor"/> is the editor's real view model. When supplied, the ported voxel tool
+        /// palette is docked alongside the demo panels and drives the same state the ImGui palette does.
+        /// </summary>
         public static UiElement Attach(
             UiRoot root,
             ManaUiShowcaseViewModel vm,
             Func<string>? liveStat = null,
-            bool persist = true)
+            bool persist = true,
+            VoxelEditorViewModel? editor = null)
         {
             var theme = root.Theme;
             var dock = new DockHost();
@@ -49,6 +54,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 },
                 "layers" => new DockItem("Layers", BuildLayers(theme, vm).Scrollable()) { Id = "layers" },
                 "stats" => new DockItem("Stats", BuildStats(theme, vm, liveStat)) { Id = "stats" },
+                "tools" when editor != null => new DockItem(
+                    "Voxel Tools",
+                    VoxelToolPaletteManaView.Build(theme, editor).Scrollable()) { Id = "tools" },
                 _ => null
             };
 
@@ -108,10 +116,18 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static void BuildDefaultLayout(DockHost dock, Func<string, DockItem?> resolve)
         {
+            // The ported palette leads, since it is the one panel here that does real work.
+            var tools = resolve("tools");
+            if (tools != null)
+            {
+                dock.Dock(tools, DockSide.Center);
+            }
+
+            // Tabbed with the palette when there is one, otherwise it becomes the first panel itself.
             var showcase = resolve("showcase");
             if (showcase != null)
             {
-                dock.Dock(showcase, DockSide.Center);
+                dock.Dock(showcase, DockSide.Center, tools?.Owner);
             }
 
             var layers = resolve("layers");

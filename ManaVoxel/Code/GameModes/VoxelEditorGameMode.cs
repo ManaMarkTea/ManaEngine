@@ -163,10 +163,12 @@ namespace Mana.Code.GameModes
         {
             // RenderFrame is plain engine state with no change notification, which is exactly the case the
             // polled binding exists for.
+            // The same view model the ImGui palette uses, so both drive the editor and stay in step.
             host.Root.Content = ManaUiDockDemo.Attach(
                 host.Root,
                 _manaUiShowcase,
-                () => $"render frame {RenderFrame:N0}");
+                () => $"render frame {RenderFrame:N0}",
+                editor: _viewModel);
         }
 
         public override void Load()
