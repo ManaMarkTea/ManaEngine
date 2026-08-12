@@ -157,9 +157,16 @@ namespace Mana.Code.GameModes
         // standing visual regression check for layout, text and the SDF primitive.
         protected override bool EnableManaUi => true;
 
+        private readonly ManaUiShowcaseViewModel _manaUiShowcase = new();
+
         protected override void BuildManaUi(global::Mana.Code.UI.ManaUi.ManaUiHost host)
         {
-            host.Root.Content = ManaUiShowcaseView.Build(host.Root.Theme);
+            // RenderFrame is plain engine state with no change notification, which is exactly the case the
+            // polled binding exists for.
+            host.Root.Content = ManaUiShowcaseView.Build(
+                host.Root.Theme,
+                _manaUiShowcase,
+                () => $"render frame {RenderFrame:N0}");
         }
 
         public override void Load()

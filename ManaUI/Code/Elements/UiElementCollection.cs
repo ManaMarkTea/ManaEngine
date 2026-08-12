@@ -154,6 +154,11 @@ namespace ManaUI
             if (ReferenceEquals(item.Parent, _owner))
             {
                 item.Parent = null;
+
+                // Released here rather than left to the GC: a binding subscribes to the source's
+                // PropertyChanged, so a long-lived view model would otherwise keep every panel ever
+                // removed from the tree alive and still reacting to changes.
+                item.ClearBindings();
             }
         }
 

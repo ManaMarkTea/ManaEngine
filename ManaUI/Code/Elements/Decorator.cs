@@ -23,6 +23,9 @@ namespace ManaUI
                 if (_child != null && ReferenceEquals(_child.Parent, this))
                 {
                     _child.Parent = null;
+
+                    // Same reason as UiElementCollection.Detach: bindings must not outlive the tree.
+                    _child.ClearBindings();
                 }
 
                 if (value != null)

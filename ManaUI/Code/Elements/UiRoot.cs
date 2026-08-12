@@ -12,6 +12,7 @@ namespace ManaUI
     public sealed class UiRoot : Panel
     {
         private readonly ManaUiDrawList _drawList = new();
+        private readonly List<UiElement> _polledBindingElements = new();
         private Vector2 _size;
         private bool _layoutDirty = true;
         private bool _visualDirty = true;
@@ -145,6 +146,19 @@ namespace ManaUI
                 InvalidateMeasure();
             }
 
+            // Polled bindings feed layout inputs (a label's text changes its width), so they are applied
+            // before measure rather than after. The tree is only rescanned when it actually changed --
+            // any structural edit dirties layout, so that flag is an exact trigger.
+            if (_layoutDirty)
+            {
+                RescanPolledBindings();
+            }
+
+            foreach (var element in _polledBindingElements)
+            {
+                element.RefreshPolledBindings();
+            }
+
             if (!_layoutDirty)
             {
                 return;
@@ -184,6 +198,30 @@ namespace ManaUI
         public UiElement? HitTest(float x, float y)
         {
             return HitTest(new Vector2(x, y));
+        }
+
+        /// <summary>
+        /// Rebuilds the flat list of elements carrying polled bindings, so the per-frame refresh iterates a
+        /// short list instead of walking the whole tree.
+        /// </summary>
+        private void RescanPolledBindings()
+        {
+            _polledBindingElements.Clear();
+            Collect(this);
+
+            void Collect(UiElement element)
+            {
+                if (element.HasPolledBindings)
+                {
+                    _polledBindingElements.Add(element);
+                }
+
+                var count = element.VisualChildCount;
+                for (var i = 0; i < count; i++)
+                {
+                    Collect(element.GetVisualChild(i));
+                }
+            }
         }
 
         protected override Vector2 MeasureOverride(Vector2 availableSize)
