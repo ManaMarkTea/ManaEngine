@@ -10,6 +10,18 @@ namespace ManaUI
     /// </summary>
     public sealed class DockLayoutNode
     {
+        /// <summary>
+        /// The application's layout version, written at the root node only.
+        /// <para>
+        /// Owned by the application, not this class: it means "the panel set or default arrangement this
+        /// file was written against", so the app can tell an out-of-date layout from a current one and
+        /// decide what to do about it. Without it, a panel added after a layout was saved can never appear
+        /// for anyone who has run the app before.
+        /// </para>
+        /// </summary>
+        [JsonPropertyName("version")]
+        public int LayoutVersion { get; set; }
+
         /// <summary>"split" or "tabs".</summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "tabs";
@@ -42,10 +54,17 @@ namespace ManaUI
         };
 
         /// <summary>Captures the current layout, or null when the host is empty.</summary>
-        public static DockLayoutNode? Capture(DockHost host)
+        public static DockLayoutNode? Capture(DockHost host, int layoutVersion = 0)
         {
             ArgumentNullException.ThrowIfNull(host);
-            return CaptureNode(host.RootNode);
+
+            var captured = CaptureNode(host.RootNode);
+            if (captured != null)
+            {
+                captured.LayoutVersion = layoutVersion;
+            }
+
+            return captured;
         }
 
         private static DockLayoutNode? CaptureNode(DockNode? node)
@@ -225,7 +244,7 @@ namespace ManaUI
             }
         }
 
-        public static void Save(DockHost host, string path)
+        public static void Save(DockHost host, string path, int layoutVersion = 0)
         {
             var directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory))
@@ -233,12 +252,23 @@ namespace ManaUI
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllText(path, ToJson(Capture(host)));
+            File.WriteAllText(path, ToJson(Capture(host, layoutVersion)));
         }
 
         /// <summary>Loads a layout file. Returns false when it is missing, corrupt or unusable.</summary>
         public static bool Load(DockHost host, string path, Func<string, DockItem?> resolve)
         {
+            return Load(host, path, resolve, out _);
+        }
+
+        /// <summary>
+        /// Loads a layout file, reporting the version it was written against so the caller can tell a
+        /// current layout from one that predates the panels it now has.
+        /// </summary>
+        public static bool Load(DockHost host, string path, Func<string, DockItem?> resolve, out int layoutVersion)
+        {
+            layoutVersion = 0;
+
             if (!File.Exists(path))
             {
                 return false;
@@ -246,7 +276,9 @@ namespace ManaUI
 
             try
             {
-                return Apply(host, FromJson(File.ReadAllText(path)), resolve);
+                var layout = FromJson(File.ReadAllText(path));
+                layoutVersion = layout?.LayoutVersion ?? 0;
+                return Apply(host, layout, resolve);
             }
             catch (IOException)
             {

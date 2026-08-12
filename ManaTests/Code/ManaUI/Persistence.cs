@@ -156,6 +156,88 @@ public static class PersistenceChecks
 
         Check("missing file reports failure",
             !DockLayout.Load(new DockHost(), Path.Combine(Path.GetTempPath(), "no-such-layout.json"), Resolve));
+
+        // ---------------------------------------------------------------- layout versioning
+        // Reproduces the reported case: a layout saved before a panel existed must not silently hide it
+        // forever. The version is what tells an out-of-date file from a current one.
+        var versioned = DockLayout.Capture(host, 7);
+        Check("capture records the version", versioned!.LayoutVersion == 7, $"{versioned.LayoutVersion}");
+
+        var versionedJson = DockLayout.ToJson(versioned);
+        Check("version survives json", DockLayout.FromJson(versionedJson)!.LayoutVersion == 7,
+            $"{DockLayout.FromJson(versionedJson)!.LayoutVersion}");
+
+        var versionPath = Path.Combine(Path.GetTempPath(), $"manaui-version-{Guid.NewGuid():N}.json");
+        try
+        {
+            // An older layout containing only one panel -- exactly the file that caused the report.
+            var stale = new DockLayoutNode
+            {
+                LayoutVersion = 1,
+                Type = "tabs",
+                Items = new List<string> { "Scene" },
+                SelectedIndex = 0
+            };
+
+            File.WriteAllText(versionPath, DockLayout.ToJson(stale));
+
+            var staleHost = new DockHost();
+            root.Content = null;
+            root.Content = staleHost;
+
+            Check("stale layout loads", DockLayout.Load(staleHost, versionPath, Resolve, out var loadedVersion));
+            Check("stale version reported back", loadedVersion == 1, $"{loadedVersion}");
+            Check("stale layout has only its own panel",
+                staleHost.AllItems().Count() == 1, $"{staleHost.AllItems().Count()}");
+
+            // What the application does with a version mismatch: merge in whatever is missing.
+            var known = new[] { "Scene", "Outliner", "Inspector", "Timeline" };
+            var present = staleHost.AllItems().Select(i => i.Id).ToHashSet(StringComparer.Ordinal);
+
+            foreach (var id in known.Where(id => !present.Contains(id)))
+            {
+                var item = Resolve(id);
+                if (item != null)
+                {
+                    staleHost.Dock(item, DockSide.Center, DockHost.FindFirstGroup(staleHost.RootNode));
+                }
+            }
+
+            root.UpdateLayout(new Vector2(1200, 700));
+            Check("merging surfaces the missing panels",
+                staleHost.AllItems().Count() == 4, $"{staleHost.AllItems().Count()}");
+            Check("merging keeps the original panel",
+                staleHost.AllItems().Any(i => i.Id == "Scene"),
+                string.Join(", ", staleHost.AllItems().Select(i => i.Id)));
+
+            // Saving with the current version means the next run takes the layout as-is.
+            DockLayout.Save(staleHost, versionPath, 2);
+            var currentHost = new DockHost();
+            root.Content = null;
+            root.Content = currentHost;
+
+            Check("re-saved layout carries the new version",
+                DockLayout.Load(currentHost, versionPath, Resolve, out var currentVersion) && currentVersion == 2,
+                $"{currentVersion}");
+            Check("current layout keeps every panel",
+                currentHost.AllItems().Count() == 4, $"{currentHost.AllItems().Count()}");
+
+            // A file with no version at all reads as 0, so pre-versioning layouts count as out of date.
+            File.WriteAllText(versionPath, "{ \"type\": \"tabs\", \"items\": [\"Scene\"] }");
+            var legacyHost = new DockHost();
+            root.Content = null;
+            root.Content = legacyHost;
+            Check("unversioned layout reads as version 0",
+                DockLayout.Load(legacyHost, versionPath, Resolve, out var legacyVersion) && legacyVersion == 0,
+                $"{legacyVersion}");
+        }
+        finally
+        {
+            if (File.Exists(versionPath))
+            {
+                File.Delete(versionPath);
+            }
+        }
     }
 
     private static bool NoEmptyNodes(DockHost host)

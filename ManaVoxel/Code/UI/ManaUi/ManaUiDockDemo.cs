@@ -21,6 +21,14 @@ namespace ManaVoxel.Code.UI.ManaUi
         private const float TopOffset = 60.0f;
 
         /// <summary>
+        /// Bump when a panel is added, removed or renamed. A saved layout carrying an older version has
+        /// missing panels merged into it on the next run; one carrying this version is taken as-is, so a
+        /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
+        /// except that this merges rather than discarding the arrangement.
+        /// </summary>
+        private const int LayoutVersion = 2;
+
+        /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
         /// every UI scale and does not need the per-scale split that storage uses for ImGui.
         /// </summary>
@@ -60,9 +68,18 @@ namespace ManaVoxel.Code.UI.ManaUi
                 _ => null
             };
 
-            if (!persist || !DockLayout.Load(dock, LayoutPath, Resolve))
+            if (!persist || !DockLayout.Load(dock, LayoutPath, Resolve, out var savedVersion))
             {
                 BuildDefaultLayout(dock, Resolve);
+            }
+            else if (savedVersion != LayoutVersion)
+            {
+                // A saved layout only knows the panels that existed when it was written, so a newly added
+                // one would never appear for anyone who has run the editor before -- exactly what happened
+                // when the voxel palette was added. Merging on a version change keeps the user's
+                // arrangement while still surfacing what is new.
+                MergeMissingPanels(dock, Resolve);
+                TrySaveLayout(dock);
             }
 
             // Enables tear-out and drop-to-dock; the controller subscribes to groups as the tree changes.
@@ -114,6 +131,41 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
         }
 
+        /// <summary>
+        /// Every panel this layout can show, in the order they should be added.
+        /// </summary>
+        private static readonly string[] PanelIds = { "tools", "showcase", "layers", "stats" };
+
+        /// <summary>
+        /// Docks any panel the restored layout did not contain. Only runs when the saved version differs
+        /// from <see cref="LayoutVersion"/>, so a panel the user deliberately closed stays closed until the
+        /// panel set actually changes.
+        /// </summary>
+        private static void MergeMissingPanels(DockHost dock, Func<string, DockItem?> resolve)
+        {
+            var present = dock.AllItems()
+                .Select(item => item.Id)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var id in PanelIds)
+            {
+                if (present.Contains(id))
+                {
+                    continue;
+                }
+
+                // Resolve returns null for a panel that is unavailable in this session, such as the voxel
+                // palette when no editor view model was supplied.
+                var item = resolve(id);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                dock.Dock(item, DockSide.Center, DockHost.FindFirstGroup(dock.RootNode));
+            }
+        }
+
         private static void BuildDefaultLayout(DockHost dock, Func<string, DockItem?> resolve)
         {
             // The ported palette leads, since it is the one panel here that does real work.
@@ -148,7 +200,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             try
             {
-                DockLayout.Save(dock, LayoutPath);
+                DockLayout.Save(dock, LayoutPath, LayoutVersion);
             }
             catch (IOException)
             {
