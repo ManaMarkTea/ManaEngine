@@ -1,6 +1,6 @@
 using ManaUI;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 public static class ScrollAndTextChecks
 {
@@ -234,5 +234,114 @@ public static class ScrollAndTextChecks
         root.UpdateLayout(new Vector2(400, 300));
         var textDraw = root.Render();
         Check("text box renders", textDraw.InstanceCount > 3, $"{textDraw.InstanceCount} instances");
+
+        // ---------------------------------------------------------------- key auto-repeat
+        // Silk's GLFW backend drops the platform's key-repeat action entirely, so holding Backspace
+        // delivered exactly one event and deleted one character. Repeat is synthesised by the router.
+        Console.WriteLine("  -- key repeat --");
+
+        var repeat = new TextBox().Value("abcdefghij").Width(200.0f);
+        root.Content = null;
+        root.Content = repeat;
+        root.UpdateLayout(new Vector2(400, 300));
+        repeat.Focus();
+        root.Input.InjectKeyDown(UiKey.End);
+
+        root.Input.InjectKeyDown(UiKey.Backspace);
+        Check("press deletes one character", repeat.Text == "abcdefghi", repeat.Text);
+
+        // Nothing should repeat before the delay elapses.
+        root.Input.TickKeyRepeat(0.2);
+        Check("no repeat before the delay", repeat.Text == "abcdefghi", repeat.Text);
+
+        // Past the delay, repeats fire. The count is however many the elapsed time owed, not exactly one:
+        // a long frame delivers the repeats it missed rather than dropping them.
+        root.Input.TickKeyRepeat(0.3);
+        Check("repeat starts after the delay", repeat.Text.Length < 9, $"'{repeat.Text}'");
+
+        // Holding through several intervals should delete several more.
+        root.Input.TickKeyRepeat(0.1);
+        Check("repeat continues while held", repeat.Text.Length < 8, $"'{repeat.Text}'");
+
+        // A stalled frame must not fire an unbounded burst; the catch-up loop is capped.
+        var beforeStall = repeat.Text.Length;
+        root.Input.TickKeyRepeat(30.0);
+        Check("a long stall does not fire unbounded repeats",
+            beforeStall - repeat.Text.Length <= 32, $"{beforeStall - repeat.Text.Length} repeats");
+
+        repeat.Text = "abcdefghij";
+        root.Input.InjectKeyDown(UiKey.End);
+        root.Input.TickKeyRepeat(0.5);
+
+        var beforeRelease = repeat.Text;
+        root.Input.InjectKeyUp(UiKey.Backspace);
+        root.Input.TickKeyRepeat(1.0);
+        Check("release stops the repeat", repeat.Text == beforeRelease, repeat.Text);
+
+        // Delete repeats too, from the other direction.
+        var forward = new TextBox().Value("123456").Width(200.0f);
+        root.Content = null;
+        root.Content = forward;
+        root.UpdateLayout(new Vector2(400, 300));
+        forward.Focus();
+        root.Input.InjectKeyDown(UiKey.Home);
+        root.Input.InjectKeyDown(UiKey.Delete);
+        root.Input.TickKeyRepeat(0.5);
+        root.Input.TickKeyRepeat(0.1);
+        Check("delete repeats too", forward.Text.Length < 5, $"'{forward.Text}'");
+        root.Input.InjectKeyUp(UiKey.Delete);
+
+        // Arrows repeat for caret movement.
+        var arrows = new TextBox().Value("abcdefghij").Width(200.0f);
+        root.Content = null;
+        root.Content = arrows;
+        root.UpdateLayout(new Vector2(400, 300));
+        arrows.Focus();
+        root.Input.InjectKeyDown(UiKey.End);
+        root.Input.InjectKeyDown(UiKey.Left);
+        var caretAfterPress = arrows.CaretIndex;
+        root.Input.TickKeyRepeat(0.5);
+        root.Input.TickKeyRepeat(0.1);
+        Check("arrow keys repeat", arrows.CaretIndex < caretAfterPress,
+            $"{caretAfterPress} -> {arrows.CaretIndex}");
+        root.Input.InjectKeyUp(UiKey.Left);
+
+        // The trap: character keys must NOT repeat here, because the platform's character callback
+        // already does. Repeating both would insert every held letter twice.
+        var typed = new TextBox().Width(200.0f);
+        root.Content = null;
+        root.Content = typed;
+        root.UpdateLayout(new Vector2(400, 300));
+        typed.Focus();
+        root.Input.InjectTextInput("x");
+        root.Input.InjectKeyDown(UiKey.A);
+        root.Input.TickKeyRepeat(2.0);
+        Check("character keys do not double-repeat", typed.Text == "x", $"'{typed.Text}'");
+
+        // A non-repeating key cancels a previous hold rather than leaving it running.
+        var cancel = new TextBox().Value("hello").Width(200.0f);
+        root.Content = null;
+        root.Content = cancel;
+        root.UpdateLayout(new Vector2(400, 300));
+        cancel.Focus();
+        root.Input.InjectKeyDown(UiKey.End);
+        root.Input.InjectKeyDown(UiKey.Backspace);
+        root.Input.InjectKeyDown(UiKey.Escape);
+        var afterCancel = cancel.Text;
+        root.Input.TickKeyRepeat(2.0);
+        Check("another key cancels the hold", cancel.Text == afterCancel, cancel.Text);
+
+        // Losing focus mid-hold must not leave a key repeating forever.
+        var blurred = new TextBox().Value("abcdefgh").Width(200.0f);
+        root.Content = null;
+        root.Content = blurred;
+        root.UpdateLayout(new Vector2(400, 300));
+        blurred.Focus();
+        root.Input.InjectKeyDown(UiKey.End);
+        root.Input.InjectKeyDown(UiKey.Backspace);
+        root.FocusManager.Focus(null);
+        var afterBlur = blurred.Text;
+        root.Input.TickKeyRepeat(5.0);
+        Check("focus loss stops the repeat", blurred.Text == afterBlur, blurred.Text);
     }
 }

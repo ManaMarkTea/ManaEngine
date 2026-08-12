@@ -145,7 +145,7 @@ namespace Mana.Code
                 Context.World.DrawImGui();
 
                 // Recorded before the backend draws, so the draw list the GPU submits is this frame's.
-                ManaUi?.Render();
+                ManaUi?.Render(deltaTime);
 
                 ManaGameModeGraphicsBridge.DrawWorld(Context, GraphicsBackend);
                 _ImGui.Render();

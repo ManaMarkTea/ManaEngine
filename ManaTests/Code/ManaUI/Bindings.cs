@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ManaUI;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 /// <summary>A view model exactly as application code would write one: source-generated observables.</summary>
 public partial class DemoViewModel : ObservableObject

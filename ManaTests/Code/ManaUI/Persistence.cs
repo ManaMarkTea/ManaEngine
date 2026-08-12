@@ -1,6 +1,6 @@
 using ManaUI;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 public static class PersistenceChecks
 {

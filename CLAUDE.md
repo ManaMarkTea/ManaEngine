@@ -10,7 +10,7 @@ C# .NET 10 renderer / game engine using Silk.NET. Target platforms are **macOS (
 | `ManaGraphics` | WebGPU + OpenGL backend implementations, WGSL shaders |
 | `Mana` | Engine layer — scene graph, components, renderers, game modes |
 | `ManaUI` | Retained-mode MVVM UI framework (no graphics dependency — headless-testable) |
-| `ManaUITests` | Headless test suite for ManaUI |
+| `ManaTests` | Headless test suite for all systems; suites live in `Code/<System>/` |
 | `ManaVoxel` | Voxel editor app (the main runnable executable) |
 
 **Runnable entry point:** `ManaVoxel`
@@ -21,9 +21,15 @@ C# .NET 10 renderer / game engine using Silk.NET. Target platforms are **macOS (
 dotnet build
 dotnet run --project ManaVoxel
 
-# ManaUI test suite — no GPU or window required; exits non-zero on failure
-dotnet run --project ManaUITests
+# Test suite — no GPU or window required; exits non-zero on failure
+dotnet run --project ManaTests
+
+# One system's suites only
+dotnet run --project ManaTests -- ManaUI
 ```
+
+Add coverage by dropping a suite in `ManaTests/Code/<System>/` and registering it in the `suites` array
+in `ManaTests/Code/Program.cs`.
 
 ## Architecture
 

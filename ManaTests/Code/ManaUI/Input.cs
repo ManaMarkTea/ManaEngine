@@ -1,6 +1,6 @@
 using ManaUI;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 /// <summary>
 /// Headless exercise of the input layer. The point of ManaUI having no graphics dependency: routing,

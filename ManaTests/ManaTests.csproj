@@ -5,7 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>ManaUITests</RootNamespace>
+    <RootNamespace>ManaTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

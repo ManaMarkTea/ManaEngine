@@ -15,8 +15,18 @@ namespace ManaUI
         private readonly DockHost _host;
         private readonly DockDropOverlay _overlay = new();
 
-        private DockItem? _draggingItem;
-        private UiWindow? _floatingWindow;
+        /// <summary>
+        /// Every floating window that came out of the dock tree, with the item it carries.
+        /// <para>
+        /// Registration lasts for the window's lifetime, not for one gesture. Tying it to the tear-out
+        /// drag meant a window could only ever be docked during the single motion that created it --
+        /// letting go and dragging it back later did nothing, because the handlers had already been
+        /// removed.
+        /// </para>
+        /// </summary>
+        private readonly Dictionary<UiWindow, DockItem> _floating = new();
+
+        private UiWindow? _activeWindow;
         private DockDropTarget _target;
 
         public DockDragController(UiRoot root, DockHost host)
@@ -37,7 +47,11 @@ namespace ManaUI
         /// <summary>Size a torn-out panel becomes when it starts floating.</summary>
         public Vector2 FloatingSize { get; set; } = new Vector2(360.0f, 280.0f);
 
-        public bool IsDragging => _draggingItem != null;
+        /// <summary>True while a dockable floating window is being dragged.</summary>
+        public bool IsDragging => _activeWindow != null;
+
+        /// <summary>Floating windows that can be dropped back into the layout.</summary>
+        public IReadOnlyCollection<UiWindow> FloatingWindows => _floating.Keys;
 
         /// <summary>Subscribes to every group in the tree so a tear-out from any of them is caught.</summary>
         private void AttachTo(UiElement? node)
@@ -87,52 +101,97 @@ namespace ManaUI
             // Positioned so the title bar sits under the cursor, which is where the user grabbed it.
             _root.ShowWindow(window, pointer - new Vector2(FloatingSize.X * 0.5f, 12.0f));
 
-            _draggingItem = item;
-            _floatingWindow = window;
-
-            window.Dragging += OnWindowDragging;
-            window.DragEnded += OnWindowDragEnded;
-            window.Closed += OnWindowClosed;
+            RegisterFloating(window, item);
 
             _root.UpdateLayout(_root.Size);
             window.BeginExternalDrag(pointer);
             return window;
         }
 
-        private void OnWindowDragging(object? sender, Vector2 pointer)
+        /// <summary>
+        /// Marks a floating window as dockable, so dragging it over the host docks it. Applies for as long
+        /// as the window exists, however many separate drags that takes.
+        /// </summary>
+        public void RegisterFloating(UiWindow window, DockItem item)
         {
-            if (_draggingItem == null)
+            ArgumentNullException.ThrowIfNull(window);
+            ArgumentNullException.ThrowIfNull(item);
+
+            if (_floating.ContainsKey(window))
             {
                 return;
             }
 
+            _floating[window] = item;
+
+            // DragStarted as well as Dragging: a drag is under way from the moment the title bar is
+            // grabbed, not from the first movement, and a tear-out is already mid-gesture when it arrives.
+            window.DragStarted += OnWindowDragStarted;
+            window.Dragging += OnWindowDragging;
+            window.DragEnded += OnWindowDragEnded;
+            window.Closed += OnWindowClosed;
+        }
+
+        private void Unregister(UiWindow window)
+        {
+            if (!_floating.Remove(window))
+            {
+                return;
+            }
+
+            window.DragStarted -= OnWindowDragStarted;
+            window.Dragging -= OnWindowDragging;
+            window.DragEnded -= OnWindowDragEnded;
+            window.Closed -= OnWindowClosed;
+
+            if (ReferenceEquals(_activeWindow, window))
+            {
+                ClearActiveDrag();
+            }
+        }
+
+        private void OnWindowDragStarted(object? sender, Vector2 pointer)
+        {
+            if (sender is UiWindow window && _floating.ContainsKey(window))
+            {
+                _activeWindow = window;
+            }
+        }
+
+        private void OnWindowDragging(object? sender, Vector2 pointer)
+        {
+            if (sender is not UiWindow window || !_floating.ContainsKey(window))
+            {
+                return;
+            }
+
+            _activeWindow = window;
             _target = DockDropResolver.Resolve(_host, pointer);
             _overlay.Show(_target);
         }
 
         private void OnWindowDragEnded(object? sender, Vector2 pointer)
         {
-            if (_draggingItem == null || _floatingWindow == null)
+            if (sender is not UiWindow window || !_floating.TryGetValue(window, out var item))
             {
                 return;
             }
 
             var target = DockDropResolver.Resolve(_host, pointer);
-            var item = _draggingItem;
-            var window = _floatingWindow;
-
-            EndDrag();
+            ClearActiveDrag();
 
             if (!target.IsValid)
             {
-                // Dropped somewhere that is not the dock host, so it simply stays floating.
+                // Dropped away from the dock host, so it stays floating -- and stays registered, so it can
+                // be dragged back in later.
                 return;
             }
+
+            Unregister(window);
 
             // Detached before docking: the content is about to be re-parented into the tree, and the
             // window must not still be holding it.
             window.Child = null;
-            window.Closed -= OnWindowClosed;
             window.Close();
 
             _host.Dock(item, target.Side, target.Group);
@@ -141,23 +200,15 @@ namespace ManaUI
 
         private void OnWindowClosed(object? sender, EventArgs e)
         {
-            if (ReferenceEquals(sender, _floatingWindow))
+            if (sender is UiWindow window)
             {
-                EndDrag();
+                Unregister(window);
             }
         }
 
-        private void EndDrag()
+        private void ClearActiveDrag()
         {
-            if (_floatingWindow != null)
-            {
-                _floatingWindow.Dragging -= OnWindowDragging;
-                _floatingWindow.DragEnded -= OnWindowDragEnded;
-                _floatingWindow.Closed -= OnWindowClosed;
-            }
-
-            _draggingItem = null;
-            _floatingWindow = null;
+            _activeWindow = null;
             _target = default;
             _overlay.Hide();
         }

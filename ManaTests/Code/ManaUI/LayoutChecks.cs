@@ -1,6 +1,6 @@
 using ManaUI;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 /// <summary>
 /// Layout, text measurement, draw-list recording and invalidation. The oldest checks in the suite --

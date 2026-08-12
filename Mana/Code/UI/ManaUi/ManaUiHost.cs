@@ -66,13 +66,17 @@ namespace Mana.Code.UI.ManaUi
 
         /// <summary>
         /// Lays out and records the frame. Call during the render phase, before the backend submits.
+        /// <paramref name="deltaSeconds"/> drives keyboard auto-repeat.
         /// </summary>
-        public void Render()
+        public void Render(double deltaSeconds = 0.0)
         {
             if (_disposed || !IsEnabled)
             {
                 return;
             }
+
+            // Before layout: a repeat that edits text should be reflected in this frame, not the next.
+            Root.Input.TickKeyRepeat(deltaSeconds);
 
             Root.SetScale(GetFramebufferScale());
             Root.UpdateLayout(LogicalSize);

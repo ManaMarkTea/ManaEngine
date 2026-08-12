@@ -18,6 +18,26 @@ namespace ManaUI
         private readonly List<UiElement> _previousHoverChain = new();
         private readonly List<UiElement> _hoverChain = new();
 
+        /// <summary>
+        /// Keys that auto-repeat when held.
+        /// <para>
+        /// Deliberately excludes anything that produces a character. The platform's own character callback
+        /// already repeats, so repeating those here as well would insert every held letter twice. It also
+        /// excludes keys where repeating means nothing (Home, End) or would be hostile (Enter, Escape, Tab).
+        /// </para>
+        /// </summary>
+        private static readonly UiKey[] RepeatableKeys =
+        {
+            UiKey.Left, UiKey.Right, UiKey.Up, UiKey.Down,
+            UiKey.Backspace, UiKey.Delete,
+            UiKey.PageUp, UiKey.PageDown
+        };
+
+        private UiKey _heldKey = UiKey.None;
+        private UiModifiers _heldModifiers;
+        private double _heldElapsed;
+        private double _nextRepeatAt;
+
         private Vector2 _pointerPosition;
         private double _lastClickTime = double.NegativeInfinity;
         private Vector2 _lastClickPosition;
@@ -40,6 +60,12 @@ namespace ManaUI
 
         /// <summary>Maximum gap between two clicks that still counts as a double-click.</summary>
         public double DoubleClickSeconds { get; set; } = 0.4;
+
+        /// <summary>How long a key must be held before it starts repeating.</summary>
+        public double KeyRepeatDelaySeconds { get; set; } = 0.45;
+
+        /// <summary>Interval between repeats once they start.</summary>
+        public double KeyRepeatIntervalSeconds { get; set; } = 0.033;
 
         /// <summary>
         /// The cursor the UI currently wants. During a capture it comes from the captured element, not
@@ -190,9 +216,75 @@ namespace ManaUI
             Dispatch(target, UiRoutedEventKind.PointerWheel, args);
         }
 
+        /// <summary>
+        /// Advances auto-repeat. Must be called once per frame; without it a held key fires exactly once.
+        /// <para>
+        /// Repeat is synthesised here because Silk.NET's GLFW backend maps only Press and Release onto its
+        /// KeyDown/KeyUp events and discards the platform's repeat action entirely. Its character callback
+        /// does repeat, which is why held letters used to work while Backspace and the arrows did not.
+        /// </para>
+        /// </summary>
+        public void TickKeyRepeat(double deltaSeconds)
+        {
+            if (_heldKey == UiKey.None || deltaSeconds <= 0.0)
+            {
+                return;
+            }
+
+            // Nothing to repeat into. Also guards a key left stuck down when the window lost focus
+            // mid-hold and its release never arrived.
+            if (_root.FocusManager.Focused == null)
+            {
+                ClearHeldKey();
+                return;
+            }
+
+            _heldElapsed += deltaSeconds;
+
+            // A loop rather than a single fire, so a long frame still delivers the repeats it owed
+            // instead of silently dropping them.
+            var guard = 0;
+            while (_heldElapsed >= _nextRepeatAt && guard++ < 32)
+            {
+                InjectKeyDown(_heldKey, _heldModifiers, isRepeat: true);
+                _nextRepeatAt += KeyRepeatIntervalSeconds;
+            }
+        }
+
+        private void ClearHeldKey()
+        {
+            _heldKey = UiKey.None;
+            _heldModifiers = UiModifiers.None;
+            _heldElapsed = 0.0;
+            _nextRepeatAt = 0.0;
+        }
+
+        /// <summary>Drops any held key, e.g. when the window loses focus.</summary>
+        public void ClearKeyboardState()
+        {
+            ClearHeldKey();
+        }
+
         /// <summary>Returns true when the UI consumed the key, so the host should not treat it as a shortcut.</summary>
         public bool InjectKeyDown(UiKey key, UiModifiers modifiers = UiModifiers.None, bool isRepeat = false)
         {
+            // Only a genuine press starts a repeat; the synthesised ones must not restart their own timer.
+            if (!isRepeat)
+            {
+                if (Array.IndexOf(RepeatableKeys, key) >= 0)
+                {
+                    _heldKey = key;
+                    _heldModifiers = modifiers;
+                    _heldElapsed = 0.0;
+                    _nextRepeatAt = KeyRepeatDelaySeconds;
+                }
+                else
+                {
+                    // Pressing a non-repeating key cancels the previous hold, matching the platform.
+                    ClearHeldKey();
+                }
+            }
+
             var focused = _root.FocusManager.Focused;
 
             // Tab is navigation unless the focused element asked for raw keys (a multi-line editor might).
@@ -219,6 +311,11 @@ namespace ManaUI
 
         public bool InjectKeyUp(UiKey key, UiModifiers modifiers = UiModifiers.None)
         {
+            if (_heldKey == key)
+            {
+                ClearHeldKey();
+            }
+
             var focused = _root.FocusManager.Focused;
             if (focused == null)
             {

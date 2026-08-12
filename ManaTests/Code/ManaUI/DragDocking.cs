@@ -1,6 +1,6 @@
 using ManaUI;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 public static class DragDockingChecks
 {
@@ -132,6 +132,47 @@ public static class DragDockingChecks
             $"{root.FloatingLayer.Children.Count}");
         Check("floated item is out of the tree", !host.AllItems().Any(i => i.Title == "Timeline"));
         Check("drag state cleared", !controller.IsDragging);
+
+        // ---------------------------------------------------------------- re-docking a settled window
+        // The reported bug: a window torn out, released, and dragged back later never docked, because the
+        // drag handlers were removed when the tear-out gesture ended. Registration must outlive the
+        // gesture, so this uses a completely separate drag from the one that created the window.
+        var settled = root.FloatingLayer.Children[0] as UiWindow;
+        Check("a settled floating window exists", settled != null, settled?.Title ?? "null");
+        Check("settled window is still dockable",
+            controller.FloatingWindows.Contains(settled!), $"{controller.FloatingWindows.Count} registered");
+
+        // Move it somewhere harmless first, so the new drag starts from a clean position.
+        settled!.Position = new Vector2(500.0f, 500.0f);
+        root.UpdateLayout(new Vector2(1000, 600));
+
+        var titleBar = new Vector2(settled.Bounds.Center.X, settled.Bounds.Y + 10.0f);
+        root.Input.InjectPointerMoved(titleBar);
+        root.Input.InjectPointerPressed(titleBar, PointerButton.Left, 5.0);
+        Check("second drag starts", root.PointerCaptureTarget == settled);
+
+        var backOver = host.Bounds.Center;
+        root.Input.InjectPointerMoved(backOver);
+        Check("second drag resolves a target", controller.CurrentTarget.IsValid,
+            controller.CurrentTarget.Side.ToString());
+
+        var itemsBefore = host.AllItems().Count();
+        root.Input.InjectPointerReleased(backOver, PointerButton.Left);
+        root.UpdateLayout(new Vector2(1000, 600));
+
+        Check("second drag docks the window", host.AllItems().Count() == itemsBefore + 1,
+            $"{itemsBefore} -> {host.AllItems().Count()}");
+        Check("re-docked panel is back in the tree", host.AllItems().Any(i => i.Title == "Timeline"),
+            string.Join(", ", host.AllItems().Select(i => i.Title)));
+        Check("window removed after re-docking", root.FloatingLayer.Children.Count == 0,
+            $"{root.FloatingLayer.Children.Count}");
+        Check("no longer registered as floating", controller.FloatingWindows.Count == 0,
+            $"{controller.FloatingWindows.Count}");
+
+        root.UpdateLayout(new Vector2(1000, 600));
+        var reDocked = host.AllItems().First(i => i.Title == "Timeline");
+        Check("re-docked content has real bounds", reDocked.Content.Bounds.Width > 0.0f,
+            reDocked.Content.Bounds.ToString());
 
         // ---------------------------------------------------------------- overlay
         var overlay = root.OverlayLayer.Children.OfType<DockDropOverlay>().FirstOrDefault();

@@ -1,7 +1,7 @@
 using ManaUI;
 using ManaVoxel.Code.UI.ManaUi;
 
-namespace ManaUITests;
+namespace ManaTests;
 
 /// <summary>
 /// Drives the real showcase view headlessly. This is the substitute for a screenshot: it proves the actual
