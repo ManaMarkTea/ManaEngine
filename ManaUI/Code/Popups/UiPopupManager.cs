@@ -62,6 +62,8 @@ namespace ManaUI
         /// <summary>Closes every popup that does not opt out of light dismissal.</summary>
         public void CloseAll()
         {
+            CancelPendingClose();
+
             for (var i = _open.Count - 1; i >= 0; i--)
             {
                 var popup = _open[i];
@@ -93,6 +95,57 @@ namespace ManaUI
                 _open.RemoveAt(i);
                 open.Close();
             }
+        }
+
+        private UiPopup? _pendingCloseAfter;
+        private double _pendingCloseRemaining;
+
+        /// <summary>
+        /// Grace period before a submenu closes when the pointer moves onto a sibling row.
+        /// <para>
+        /// Without it, travelling diagonally from a parent row to its submenu closes the submenu on the
+        /// way: the direct path crosses the sibling rows in between, and each crossing would dismiss it.
+        /// The delay lets the pointer reach the submenu, which cancels the close.
+        /// </para>
+        /// </summary>
+        public double SubmenuCloseDelaySeconds { get; set; } = 0.35;
+
+        /// <summary>Schedules a deferred <see cref="CloseDeeperThan"/>, replacing any pending one.</summary>
+        public void RequestCloseDeeperThan(UiPopup popup)
+        {
+            if (_open.IndexOf(popup) < 0 || _open.IndexOf(popup) >= _open.Count - 1)
+            {
+                return;
+            }
+
+            _pendingCloseAfter = popup;
+            _pendingCloseRemaining = SubmenuCloseDelaySeconds;
+        }
+
+        /// <summary>Cancels a pending close -- called when the pointer reaches the submenu after all.</summary>
+        public void CancelPendingClose()
+        {
+            _pendingCloseAfter = null;
+            _pendingCloseRemaining = 0.0;
+        }
+
+        /// <summary>Advances the deferred-close timer. Call once per frame.</summary>
+        public void Tick(double deltaSeconds)
+        {
+            if (_pendingCloseAfter == null || deltaSeconds <= 0.0)
+            {
+                return;
+            }
+
+            _pendingCloseRemaining -= deltaSeconds;
+            if (_pendingCloseRemaining > 0.0)
+            {
+                return;
+            }
+
+            var target = _pendingCloseAfter;
+            CancelPendingClose();
+            CloseDeeperThan(target);
         }
 
         /// <summary>

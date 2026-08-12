@@ -75,8 +75,10 @@ namespace Mana.Code.UI.ManaUi
                 return;
             }
 
-            // Before layout: a repeat that edits text should be reflected in this frame, not the next.
+            // Before layout: a repeat that edits text, or a submenu that times out, should be reflected in
+            // this frame rather than the next.
             Root.Input.TickKeyRepeat(deltaSeconds);
+            Root.Popups.Tick(deltaSeconds);
 
             Root.SetScale(GetFramebufferScale());
             Root.UpdateLayout(LogicalSize);

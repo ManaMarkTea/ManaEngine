@@ -110,11 +110,59 @@ public static class MenuChecks
             root.Popups.Topmost!.Bounds.X >= recentRow.Bounds.Right - 1.0f,
             $"{root.Popups.Topmost.Bounds.X} vs {recentRow.Bounds.Right}");
 
-        // Moving back to a sibling collapses the submenu rather than leaving two open.
+        // Reaching a submenu means crossing the sibling rows between the parent row and the submenu's own
+        // rows -- the direct path drops below the parent while still inside the parent menu. Those
+        // crossings must not dismiss it. This is the reported intermittent bug: whether it happens depends
+        // entirely on the path the pointer takes.
+        var siblingBelow = rows[3];
+        var submenuTarget = root.Popups.Topmost!.Bounds.Center;
+
+        void TravelToSubmenu()
+        {
+            // Down onto the sibling first, then across -- how a real pointer overshoots on the way.
+            root.Input.InjectPointerMoved(siblingBelow.Bounds.Center);
+            root.Popups.Tick(0.016);
+            root.UpdateLayout(new Vector2(1000, 700));
+
+            root.Input.InjectPointerMoved(submenuTarget);
+            root.Popups.Tick(0.016);
+            root.UpdateLayout(new Vector2(1000, 700));
+        }
+
+        TravelToSubmenu();
+        Check("travelling across a sibling keeps the submenu open", root.Popups.Open.Count == 2,
+            $"{root.Popups.Open.Count} popups after crossing a sibling");
+
+        // The parent row stays lit while its submenu is open, though the pointer has moved off it.
+        Check("parent row keeps its highlight while the submenu is open",
+            !recentRow.IsPointerOver && root.Popups.Open.Count == 2,
+            "pointer is in the submenu, chain still open");
+
+        // Settling on a sibling does close it, once the grace period elapses.
         root.Input.InjectPointerMoved(rows[0].Bounds.Center);
         root.UpdateLayout(new Vector2(1000, 700));
-        Check("moving to a sibling closes the submenu", root.Popups.Open.Count == 1,
+        Check("sibling hover does not close immediately", root.Popups.Open.Count == 2,
             $"{root.Popups.Open.Count} popups");
+
+        root.Popups.Tick(1.0);
+        root.UpdateLayout(new Vector2(1000, 700));
+        Check("settling on a sibling closes the submenu", root.Popups.Open.Count == 1,
+            $"{root.Popups.Open.Count} popups");
+
+        // Proves the checks above have teeth: with the grace period removed, that very same path closes
+        // the submenu. Without this, a path that never crossed a sibling would pass regardless.
+        root.Input.InjectPointerMoved(recentRow.Bounds.Center);
+        root.UpdateLayout(new Vector2(1000, 700));
+        Check("submenu reopens on the parent", root.Popups.Open.Count == 2, $"{root.Popups.Open.Count}");
+
+        root.Popups.SubmenuCloseDelaySeconds = 0.0;
+        TravelToSubmenu();
+        Check("without the grace period the same path closes it", root.Popups.Open.Count == 1,
+            $"{root.Popups.Open.Count} popups");
+
+        root.Popups.SubmenuCloseDelaySeconds = 0.35;
+        root.Input.InjectPointerMoved(recentRow.Bounds.Center);
+        root.UpdateLayout(new Vector2(1000, 700));
 
         // Invoking inside a submenu closes the whole chain.
         root.Input.InjectPointerMoved(recentRow.Bounds.Center);

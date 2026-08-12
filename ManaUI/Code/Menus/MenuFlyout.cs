@@ -137,14 +137,19 @@ namespace ManaUI
             var enabled = _item.ResolveEnabled();
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
 
-            if (IsPointerOver && enabled)
+            // A row stays highlighted while its own submenu is open, even though the pointer has moved off
+            // it and into that submenu. Otherwise the open chain has nothing lit and the menu looks
+            // inactive while it is being used.
+            var highlighted = enabled && (IsPointerOver || IsSubmenuOpen);
+
+            if (highlighted)
             {
                 drawList.FillRect(Bounds, theme.Accent, new CornerRadius(3.0f));
             }
 
             var foreground = !enabled
                 ? theme.TextDisabled
-                : IsPointerOver ? theme.TextOnAccent : theme.Text;
+                : highlighted ? theme.TextOnAccent : theme.Text;
 
             if (_hasCheckColumn && _item.ResolveChecked())
             {
@@ -182,7 +187,7 @@ namespace ManaUI
                 shortcut.Render(
                     drawList,
                     new UiRect(Bounds.X, Bounds.Y, right - Bounds.X, Bounds.Height),
-                    IsPointerOver && enabled ? theme.TextOnAccent : theme.TextMuted,
+                    highlighted ? theme.TextOnAccent : theme.TextMuted,
                     VerticalAlignment.Center);
             }
 
@@ -207,22 +212,40 @@ namespace ManaUI
         {
             base.OnPointerEntered(e);
 
-            // Any sibling's submenu closes as the pointer moves along the menu, which is what stops two
-            // submenus being open at once.
-            CloseDeeperPopups();
+            // Entering any row cancels a pending submenu close. For a row inside the submenu this is the
+            // whole point -- the pointer arrived, so the close that was scheduled when it crossed a
+            // sibling on the way must not fire.
+            _root.Popups.CancelPendingClose();
 
             if (_item.HasSubmenu && _item.ResolveEnabled())
             {
+                // Opening a different submenu replaces the current one immediately; there is nothing to
+                // travel towards any more.
+                _root.Popups.CloseDeeperThan(_owner);
                 _submenu = MenuFlyout.ShowSubmenu(_root, this, _item.Items);
+                _submenu.Closed += OnSubmenuClosed;
+                InvalidateVisual();
+                return;
             }
+
+            // A plain row only schedules the close, because the pointer may simply be passing over it on
+            // its way to the submenu opened by a row above.
+            _root.Popups.RequestCloseDeeperThan(_owner);
         }
 
-        /// <summary>Closes anything opened after this row's own menu.</summary>
-        private void CloseDeeperPopups()
+        private void OnSubmenuClosed(object? sender, EventArgs e)
         {
-            _root.Popups.CloseDeeperThan(_owner);
+            if (sender is UiPopup popup)
+            {
+                popup.Closed -= OnSubmenuClosed;
+            }
+
             _submenu = null;
+            InvalidateVisual();
         }
+
+        /// <summary>True while this row's own submenu is open.</summary>
+        private bool IsSubmenuOpen => _submenu is { IsOpen: true };
 
         protected override void OnPointerPressed(UiPointerEventArgs e)
         {
