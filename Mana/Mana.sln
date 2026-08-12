@@ -23,6 +23,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaGraphics", "..\ManaGrap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaUI", "..\ManaUI\ManaUI.csproj", "{F26A63AF-F081-4534-B804-B09ED14BA10A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaUITests", "..\ManaUITests\ManaUITests.csproj", "{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -93,6 +95,18 @@ Global
 		{F26A63AF-F081-4534-B804-B09ED14BA10A}.Release|x64.Build.0 = Release|Any CPU
 		{F26A63AF-F081-4534-B804-B09ED14BA10A}.Release|x86.ActiveCfg = Release|Any CPU
 		{F26A63AF-F081-4534-B804-B09ED14BA10A}.Release|x86.Build.0 = Release|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Debug|x64.Build.0 = Debug|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Debug|x86.Build.0 = Debug|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Release|x64.ActiveCfg = Release|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Release|x64.Build.0 = Release|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Release|x86.ActiveCfg = Release|Any CPU
+		{9E31DB32-BBBF-49C0-A382-D8FB8B8E2EDF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
