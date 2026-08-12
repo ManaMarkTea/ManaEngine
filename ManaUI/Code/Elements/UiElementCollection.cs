@@ -153,12 +153,9 @@ namespace ManaUI
         {
             if (ReferenceEquals(item.Parent, _owner))
             {
+                // Setting Parent to null suspends the subtree's bindings, which both unhooks it from any
+                // view model and leaves it able to resume if it is re-added.
                 item.Parent = null;
-
-                // Released here rather than left to the GC: a binding subscribes to the source's
-                // PropertyChanged, so a long-lived view model would otherwise keep every panel ever
-                // removed from the tree alive and still reacting to changes.
-                item.ClearBindings();
             }
         }
 

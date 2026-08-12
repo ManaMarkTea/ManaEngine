@@ -17,11 +17,22 @@ namespace ManaUI
         OneWayToSource
     }
 
-    /// <summary>A live binding. Disposing detaches it from the source.</summary>
+    /// <summary>A live binding. Disposing detaches it from the source permanently.</summary>
     public interface IUiBinding : IDisposable
     {
         /// <summary>Pushes the current source value into the target.</summary>
         void Refresh();
+
+        /// <summary>
+        /// Subscribes or unsubscribes from the source, following the element's attachment to the tree.
+        /// <para>
+        /// This is what lets a binding survive being temporarily removed -- switching dock tabs detaches
+        /// the hidden panel's content and re-attaches it later, and its bindings must come back to life
+        /// rather than having been destroyed. Reactivating also refreshes, so a panel that was hidden
+        /// while its source changed shows the current value the moment it returns.
+        /// </para>
+        /// </summary>
+        void SetActive(bool active);
     }
 
     /// <summary>
@@ -46,6 +57,7 @@ namespace ManaUI
 
         private INotifyPropertyChanged? _observable;
         private bool _suppress;
+        private bool _active;
         private bool _disposed;
 
         public UiBinding(
@@ -74,11 +86,36 @@ namespace ManaUI
                 PushToSource();
             }
 
+            SetActive(true);
+        }
+
+        public void SetActive(bool active)
+        {
+            if (_disposed || _active == active)
+            {
+                return;
+            }
+
+            _active = active;
+
             // OneTime deliberately never subscribes, so a static label costs nothing to keep alive.
-            if (mode is BindingMode.OneWay or BindingMode.TwoWay && source is INotifyPropertyChanged observable)
+            if (_mode is not (BindingMode.OneWay or BindingMode.TwoWay) || _source is not INotifyPropertyChanged observable)
+            {
+                return;
+            }
+
+            if (active)
             {
                 _observable = observable;
                 _observable.PropertyChanged += OnSourcePropertyChanged;
+
+                // The source may have moved on while this was detached.
+                Refresh();
+            }
+            else if (_observable != null)
+            {
+                _observable.PropertyChanged -= OnSourcePropertyChanged;
+                _observable = null;
             }
         }
 
@@ -138,13 +175,8 @@ namespace ManaUI
                 return;
             }
 
+            SetActive(false);
             _disposed = true;
-
-            if (_observable != null)
-            {
-                _observable.PropertyChanged -= OnSourcePropertyChanged;
-                _observable = null;
-            }
         }
     }
 
@@ -164,6 +196,7 @@ namespace ManaUI
         private readonly Action<TValue> _applyToTarget;
         private TValue _last;
         private bool _hasValue;
+        private bool _active = true;
         private bool _disposed;
 
         public UiPolledBinding(Func<TValue> read, Action<TValue> applyToTarget)
@@ -174,9 +207,15 @@ namespace ManaUI
             Refresh();
         }
 
+        /// <summary>A polled binding has nothing to subscribe to, so activation only gates evaluation.</summary>
+        public void SetActive(bool active)
+        {
+            _active = active;
+        }
+
         public void Refresh()
         {
-            if (_disposed)
+            if (_disposed || !_active)
             {
                 return;
             }

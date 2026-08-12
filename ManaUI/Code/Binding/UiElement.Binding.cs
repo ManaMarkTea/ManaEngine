@@ -50,7 +50,32 @@ namespace ManaUI
             }
         }
 
-        /// <summary>Detaches every binding on this element and its subtree.</summary>
+        /// <summary>
+        /// Activates or suspends every binding in this subtree, following attachment to the tree.
+        /// <para>
+        /// Suspending rather than disposing is what lets a subtree be removed and put back -- a dock tab
+        /// switch, a collapsed panel -- without losing its bindings. It also stops a detached subtree from
+        /// being kept alive by a long-lived view model's handler list.
+        /// </para>
+        /// </summary>
+        internal void SetBindingsActive(bool active)
+        {
+            if (_bindings != null)
+            {
+                foreach (var binding in _bindings)
+                {
+                    binding.SetActive(active);
+                }
+            }
+
+            var count = VisualChildCount;
+            for (var i = 0; i < count; i++)
+            {
+                GetVisualChild(i).SetBindingsActive(active);
+            }
+        }
+
+        /// <summary>Disposes every binding on this element and its subtree. Permanent, unlike suspension.</summary>
         public void ClearBindings()
         {
             if (_bindings != null)

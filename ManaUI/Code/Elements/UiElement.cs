@@ -32,7 +32,34 @@ namespace ManaUI
         private UiRect _lastArrangeRect = UiRect.Empty;
 
         public string? Name { get; set; }
-        public UiElement? Parent { get; internal set; }
+
+        private UiElement? _parent;
+
+        public UiElement? Parent
+        {
+            get => _parent;
+            internal set
+            {
+                if (ReferenceEquals(_parent, value))
+                {
+                    return;
+                }
+
+                _parent = value;
+
+                if (value == null)
+                {
+                    // A detached element is nowhere on screen, so it must stop reporting the geometry it
+                    // had when it was -- stale bounds would make hit testing and ScrollIntoView lie about
+                    // something the user cannot see.
+                    Bounds = UiRect.Empty;
+                    IsMeasureValid = false;
+                    IsArrangeValid = false;
+                }
+
+                SetBindingsActive(value != null);
+            }
+        }
 
         /// <summary>Arbitrary payload for application code; the framework never reads it.</summary>
         public object? Tag { get; set; }
