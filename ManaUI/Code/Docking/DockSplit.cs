@@ -87,6 +87,11 @@ namespace ManaUI
             NormalizeWeights();
         }
 
+        /// <summary>
+        /// Sets one pane's share. Weights are renormalised afterwards, so this changes the ratio between
+        /// this pane and the others rather than assigning an absolute fraction -- to restore an exact set
+        /// of proportions, use <see cref="SetWeights"/>.
+        /// </summary>
         public void SetWeight(int index, float weight)
         {
             if (index >= 0 && index < _weights.Count)
@@ -95,6 +100,28 @@ namespace ManaUI
                 NormalizeWeights();
                 InvalidateArrange();
             }
+        }
+
+        /// <summary>
+        /// Replaces every weight at once, normalising a single time.
+        /// <para>
+        /// Necessary for restoring a saved layout: assigning weights one at a time renormalises after each
+        /// call, so each later assignment is measured against ratios the earlier ones already changed and
+        /// the result drifts from what was saved.
+        /// </para>
+        /// </summary>
+        public void SetWeights(IReadOnlyList<float> weights)
+        {
+            ArgumentNullException.ThrowIfNull(weights);
+
+            _weights.Clear();
+            for (var i = 0; i < Children.Count; i++)
+            {
+                _weights.Add(i < weights.Count ? MathF.Max(0.01f, weights[i]) : 1.0f);
+            }
+
+            NormalizeWeights();
+            InvalidateArrange();
         }
 
         /// <summary>

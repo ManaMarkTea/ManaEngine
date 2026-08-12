@@ -118,6 +118,20 @@ namespace ManaUI
             }
         }
 
+        /// <summary>
+        /// Takes over a drag already in progress elsewhere. Used when a tab is pulled out of a dock group:
+        /// the group releases capture mid-gesture and the new floating window has to pick it up without the
+        /// user releasing the button.
+        /// </summary>
+        internal void BeginExternalDrag(Vector2 pointer)
+        {
+            _dragging = true;
+            _dragPointerStart = pointer;
+            _dragOriginStart = Position;
+            CapturePointer();
+            DragStarted?.Invoke(this, pointer);
+        }
+
         public void Close()
         {
             if (Parent is Panel panel)
