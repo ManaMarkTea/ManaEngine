@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using ManaUI;
+using Silk.NET.Input;
 using Silk.NET.Windowing;
 
 namespace Mana.Code.UI.ManaUi
@@ -21,7 +22,7 @@ namespace Mana.Code.UI.ManaUi
         private readonly IWindow _window;
         private bool _disposed;
 
-        public ManaUiHost(IWindow window, UiTheme? theme = null)
+        public ManaUiHost(IWindow window, IInputContext? input = null, UiTheme? theme = null)
         {
             ArgumentNullException.ThrowIfNull(window);
 
@@ -35,10 +36,27 @@ namespace Mana.Code.UI.ManaUi
 
             Root = new UiRoot(Fonts, theme ?? UiTheme.Dark());
             Root.SetScale(GetFramebufferScale());
+
+            if (input != null)
+            {
+                InputBridge = new ManaUiInputBridge(Root, input);
+            }
         }
 
         public UiRoot Root { get; }
         public ManaFontManager Fonts { get; }
+
+        /// <summary>Null when the host was created without an input context (headless use).</summary>
+        public ManaUiInputBridge? InputBridge { get; }
+
+        /// <summary>
+        /// True when the pointer is over ManaUI. Game modes must check this before acting on a click so a
+        /// button press does not also reach the scene behind it.
+        /// </summary>
+        public bool IsPointerOverUi => IsEnabled && Root.Input.IsPointerOverUi;
+
+        /// <summary>True when a focused control is consuming keystrokes, so editor shortcuts should stand down.</summary>
+        public bool IsKeyboardCaptured => IsEnabled && Root.Input.IsKeyboardCaptured;
 
         /// <summary>Set false to skip layout and rendering entirely, e.g. behind a feature flag.</summary>
         public bool IsEnabled { get; set; } = true;
@@ -111,6 +129,7 @@ namespace Mana.Code.UI.ManaUi
             }
 
             _disposed = true;
+            InputBridge?.Dispose();
             Fonts.Dispose();
         }
     }

@@ -14,7 +14,7 @@ namespace ManaUI
     /// and must never touch the public Measure/Arrange, which own the margin and alignment maths.
     /// </para>
     /// </summary>
-    public abstract class UiElement
+    public abstract partial class UiElement
     {
         private Thickness _margin;
         private HorizontalAlignment _horizontalAlignment = HorizontalAlignment.Stretch;
@@ -457,6 +457,17 @@ namespace ManaUI
         // ----- hit testing ---------------------------------------------------------------------------
 
         /// <summary>
+        /// Whether this element can be a hit result in its own right, as opposed to merely routing the test
+        /// to its children.
+        /// <para>
+        /// False by default, so invisible layout scaffolding -- a StackPanel with no background, a bare
+        /// content host -- lets clicks fall through to whatever is behind it, which is nearly always what
+        /// the author meant. Anything that paints or reacts opts in.
+        /// </para>
+        /// </summary>
+        protected virtual bool IsSelfHitTestVisible => false;
+
+        /// <summary>
         /// Returns the topmost hit-testable element under <paramref name="point"/>, or null. Children are
         /// tested in reverse order because later children draw on top.
         /// </summary>
@@ -476,7 +487,7 @@ namespace ManaUI
                 }
             }
 
-            return this;
+            return IsSelfHitTestVisible ? this : null;
         }
 
         /// <summary>True when <paramref name="element"/> is this element or sits beneath it.</summary>

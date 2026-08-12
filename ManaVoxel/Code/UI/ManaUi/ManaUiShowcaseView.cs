@@ -1,5 +1,10 @@
 using ManaUI;
 
+// ManaVoxel has a global `using Silk.NET.Input`, which also defines Button. ManaUI's widget names are
+// unprefixed on purpose (the fluent syntax would be unreadable otherwise), so files that touch both
+// namespaces disambiguate here.
+using Button = ManaUI.Button;
+
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
@@ -58,6 +63,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             body.Children.Add(Divider(theme));
 
+            body.Children.Add(new TextBlock("Interactive") { Foreground = theme.TextMuted, FontSize = theme.FontSizeSmall });
+            body.Children.Add(InteractiveSample(theme));
+
+            body.Children.Add(Divider(theme));
+
             body.Children.Add(new TextBlock("Text wrapping and ellipsis") { Foreground = theme.TextMuted, FontSize = theme.FontSizeSmall });
             body.Children.Add(new TextBlock(
                 "Two-pass layout means an Auto row containing wrapped text sizes correctly, because the "
@@ -92,6 +102,59 @@ namespace ManaVoxel.Code.UI.ManaUi
                 VerticalAlignment = VerticalAlignment.Top,
                 Child = body
             };
+        }
+
+        /// <summary>
+        /// Live controls wired to each other, so hover, press, focus, capture and keyboard all have to be
+        /// working for this to behave -- the counter and the readout make that visible without a debugger.
+        /// </summary>
+        private static UiElement InteractiveSample(UiTheme theme)
+        {
+            var column = new StackPanel { Orientation = Orientation.Vertical, Spacing = theme.Spacing };
+
+            var readout = new TextBlock("Clicked 0 times") { Foreground = theme.TextMuted };
+            var clicks = 0;
+
+            var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = theme.Spacing };
+
+            var primary = new Button("Primary") { Variant = ButtonVariant.Primary };
+            var standard = new Button("Standard");
+            var subtle = new Button("Subtle") { Variant = ButtonVariant.Subtle };
+            var disabled = new Button("Disabled") { IsEnabled = false };
+
+            foreach (var button in new[] { primary, standard, subtle, disabled })
+            {
+                button.Click += (_, _) =>
+                {
+                    clicks++;
+                    readout.Text = $"Clicked {clicks} time{(clicks == 1 ? string.Empty : "s")}";
+                };
+                buttonRow.Children.Add(button);
+            }
+
+            column.Children.Add(buttonRow);
+            column.Children.Add(readout);
+
+            var toggle = new CheckBox("Enable the slider") { IsChecked = true };
+            column.Children.Add(toggle);
+
+            var sliderReadout = new TextBlock("Value: 42") { Foreground = theme.TextMuted };
+            var slider = new Slider
+            {
+                Minimum = 0.0f,
+                Maximum = 100.0f,
+                Value = 42.0f,
+                Step = 1.0f,
+                Width = 320.0f
+            };
+
+            slider.ValueChanged += (_, value) => sliderReadout.Text = $"Value: {value:F0}";
+            toggle.CheckedChanged += (_, isChecked) => slider.IsEnabled = isChecked;
+
+            column.Children.Add(slider);
+            column.Children.Add(sliderReadout);
+
+            return column;
         }
 
         private static UiElement Divider(UiTheme theme)

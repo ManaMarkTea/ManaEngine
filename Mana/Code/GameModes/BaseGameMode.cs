@@ -61,7 +61,7 @@ namespace Mana.Code
 
             if (EnableManaUi)
             {
-                ManaUi = new ManaUiHost(window);
+                ManaUi = new ManaUiHost(window, input);
                 BuildManaUi(ManaUi);
             }
 

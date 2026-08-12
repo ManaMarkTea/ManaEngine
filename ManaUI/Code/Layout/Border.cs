@@ -53,21 +53,8 @@ namespace ManaUI
             drawList.DrawBox(Bounds, _background, _borderColor, _borderThickness, _cornerRadius);
         }
 
-        public override UiElement? HitTest(Vector2 point)
-        {
-            if (Visibility != Visibility.Visible || !IsHitTestVisible || !Bounds.Contains(point))
-            {
-                return null;
-            }
-
-            var hit = Child?.HitTest(point);
-            if (hit != null)
-            {
-                return hit;
-            }
-
-            // Same rule as Panel: an invisible border is layout scaffolding, not a click target.
-            return _background.W > 0.0f || (_borderThickness > 0.0f && _borderColor.W > 0.0f) ? this : null;
-        }
+        /// <summary>Same rule as Panel: an invisible border is layout scaffolding, not a click target.</summary>
+        protected override bool IsSelfHitTestVisible =>
+            _background.W > 0.0f || (_borderThickness > 0.0f && _borderColor.W > 0.0f);
     }
 }

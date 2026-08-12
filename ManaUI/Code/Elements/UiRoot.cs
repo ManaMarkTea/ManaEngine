@@ -22,6 +22,8 @@ namespace ManaUI
 
             Fonts = fonts;
             Theme = theme ?? UiTheme.Dark();
+            FocusManager = new UiFocusManager(this);
+            Input = new UiInputRouter(this);
 
             ContentLayer = new ContentHost();
             FloatingLayer = new Canvas();
@@ -37,6 +39,24 @@ namespace ManaUI
         public ManaFontManager Fonts { get; }
         public ManaGlyphAtlas Atlas => Fonts.Atlas;
         public UiTheme Theme { get; set; }
+
+        /// <summary>Routes platform input into the tree. The host feeds it; widgets never see a windowing API.</summary>
+        public UiInputRouter Input { get; }
+
+        public UiFocusManager FocusManager { get; }
+
+        /// <summary>Element currently receiving all pointer input, or null.</summary>
+        public UiElement? PointerCaptureTarget => Input.PointerCaptureTarget;
+
+        public void CapturePointer(UiElement element)
+        {
+            Input.CapturePointer(element);
+        }
+
+        public void ReleasePointerCapture()
+        {
+            Input.ReleasePointerCapture();
+        }
 
         /// <summary>The docked workspace. Everything an application builds normally lives here.</summary>
         public Decorator ContentLayer { get; }
@@ -133,6 +153,10 @@ namespace ManaUI
             Measure(_size);
             Arrange(new UiRect(Vector2.Zero, _size));
             _layoutDirty = false;
+
+            // The tree may have changed shape since the last frame; anything removed, hidden or disabled
+            // must not still be holding focus and silently eating keystrokes.
+            FocusManager.ValidateFocus();
         }
 
         /// <summary>

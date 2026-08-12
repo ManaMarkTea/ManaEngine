@@ -48,29 +48,7 @@ namespace ManaUI
             }
         }
 
-        /// <summary>
-        /// A panel is only itself a hit target when it has a visible background -- otherwise clicks fall
-        /// through transparent layout scaffolding to whatever is behind it, which is nearly always what the
-        /// author meant.
-        /// </summary>
-        public override UiElement? HitTest(Vector2 point)
-        {
-            if (Visibility != Visibility.Visible || !IsHitTestVisible || !Bounds.Contains(point))
-            {
-                return null;
-            }
-
-            var ordered = Children.PaintOrdered;
-            for (var i = ordered.Count - 1; i >= 0; i--)
-            {
-                var hit = ordered[i].HitTest(point);
-                if (hit != null)
-                {
-                    return hit;
-                }
-            }
-
-            return Background.W > 0.0f ? this : null;
-        }
+        /// <summary>A panel is only a hit target once it actually paints something.</summary>
+        protected override bool IsSelfHitTestVisible => Background.W > 0.0f;
     }
 }
