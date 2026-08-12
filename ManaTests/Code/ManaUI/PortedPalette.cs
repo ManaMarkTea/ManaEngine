@@ -123,10 +123,32 @@ public static class PortedPaletteChecks
         // The swatch follows the colour, which is the whole point of showing it. It reads through a polled
         // binding, so it needs a tick before it can have caught up.
         root.UpdateLayout(new Vector2(420, 900));
-        var swatch = FindAll<Border>(root).FirstOrDefault(b => MathF.Abs(b.Height - 28.0f) < 0.01f);
+        var swatch = FindAll<ColorField>(root).FirstOrDefault();
         Check("swatch tracks the paint colour",
-            swatch != null && MathF.Abs(swatch.Background.Y - 0.9f) < 0.01f,
-            swatch?.Background.ToString() ?? "not found");
+            swatch != null && MathF.Abs(swatch.Color.Y - 0.9f) < 0.01f,
+            swatch?.Color.ToString() ?? "not found");
+
+        // And the other way: the swatch opens a real picker now, and choosing there writes the model that
+        // the ImGui palette and the eyedropper share.
+        if (swatch != null)
+        {
+            swatch.Color = new Vector4(0.1f, 0.2f, 0.8f, 1.0f);
+            Check("picking a colour writes the model",
+                MathF.Abs(vm.PaintVoxelColor.Z - 0.8f) < 0.01f, vm.PaintVoxelColor.ToString());
+
+            // Voxels are opaque, so offering an alpha control there would be a lie.
+            Check("the palette hides alpha", !swatch.ShowAlpha, "opaque voxels");
+
+            root.UpdateLayout(new Vector2(420, 900));
+            root.Input.InjectPointerMoved(swatch.Bounds.Center);
+            root.Input.InjectPointerPressed(swatch.Bounds.Center, PointerButton.Left, 9.0);
+            root.Input.InjectPointerReleased(swatch.Bounds.Center, PointerButton.Left);
+            root.UpdateLayout(new Vector2(420, 900));
+
+            Check("clicking the swatch opens the picker", swatch.IsOpen);
+            swatch.Close();
+            root.UpdateLayout(new Vector2(420, 900));
+        }
 
         // ---------------------------------------------------------------- end to end
         root.UpdateLayout(new Vector2(420, 900));

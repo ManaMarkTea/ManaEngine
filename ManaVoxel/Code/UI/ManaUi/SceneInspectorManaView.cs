@@ -4,8 +4,15 @@ using Mana.Code.Nodes;
 using Mana.Code.UI;
 using ManaUI;
 
+using Mana.Code.ManaShaders;
+using Mana.Code.Materials;
+
 // ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
 using Button = ManaUI.Button;
+
+// Aliased rather than importing Silk.NET.OpenGL wholesale: this file needs exactly one type from it, and
+// the namespace collides with several the UI already uses.
+using UniformType = Silk.NET.OpenGL.UniformType;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
@@ -146,13 +153,10 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static UiElement MeshRenderer(UiTheme theme, MeshRendererComponent meshRenderer)
         {
-            var material = meshRenderer.Material;
-
-            return new Expander()
+            var renderer = new Expander()
                 .Header(ComponentLabel(meshRenderer))
                 .Section(theme.Spacing,
                     Row(theme, "Mesh", ReadOnly(theme, meshRenderer.Mesh?.GetType().Name ?? "none")),
-                    Row(theme, "Material", ReadOnly(theme, Fallback(material?.Name, "unnamed"))),
 
                     new CheckBox().Label("Draw after scene")
                         .Checked(meshRenderer.DrawAfterScene)
@@ -168,6 +172,224 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .Places(2)
                         .Value(meshRenderer.OutlineWidth)
                         .OnChanged(value => meshRenderer.OutlineWidth = value)));
+
+            var material = meshRenderer.Material;
+            if (material == null)
+            {
+                return renderer;
+            }
+
+            // A sibling section rather than a nested one. Materials are shared between renderers, so
+            // burying one inside a component's section implies an ownership that is not there.
+            return new StackPanel().Vertical(theme.Spacing).Children(renderer, Material(theme, material));
+        }
+
+        /// <summary>
+        /// The material section. The PBR channels are shown only for the shader that reads them -- a
+        /// "shader toy" material ignores albedo and roughness entirely, and offering them there is an
+        /// invitation to spend ten minutes wondering why nothing happens.
+        /// </summary>
+        private static UiElement Material(UiTheme theme, ManaMaterial material)
+        {
+            var rows = new StackPanel().Vertical(theme.Spacing).Children(
+                Row(theme, "Name", new TextBox()
+                    .Value(material.Name ?? string.Empty)
+                    .Hint("unnamed")
+                    .OnCommitted(text => material.Name = text)),
+
+                Row(theme, "Shader", ReadOnly(theme, material.Shader?.GetType().Name ?? "none")));
+
+            if (material.Shader is ManaPbrShader)
+            {
+                rows.Children.Add(Row(theme, "Albedo",
+                    Colour(() => material.Albedo.Value, value => material.Albedo.Value = value)));
+                rows.Children.Add(Row(theme, "Emission",
+                    Colour(() => material.Emission.Value, value => material.Emission.Value = value)));
+
+                rows.Children.Add(Row(theme, "Metallic",
+                    Scalar(() => material.Metallic.Value, v => material.Metallic.Value = v, 0.0f, 1.0f)));
+                rows.Children.Add(Row(theme, "Roughness",
+                    Scalar(() => material.Roughness.Value, v => material.Roughness.Value = v, 0.0f, 1.0f)));
+                rows.Children.Add(Row(theme, "Ambient",
+                    Scalar(() => material.Ambient.Value, v => material.Ambient.Value = v, 0.0f, 1.0f)));
+
+                rows.Children.Add(Row(theme, "Normal mix", Scalar(
+                    () => (float)material.NormalSelector,
+                    v => material.NormalSelector = v,
+                    0.0f,
+                    1.0f)));
+
+                rows.Children.Add(Row(theme, "Emissive", Scalar(
+                    () => (float)material.EmissionStrength,
+                    v => material.EmissionStrength = v,
+                    0.0f,
+                    25.0f)));
+
+                rows.Children.Add(new CheckBox().Label("Flat shading")
+                    .Checked(material.FlatShaded)
+                    .OnChanged(value => material.FlatShaded = value));
+            }
+            else
+            {
+                rows.Children.Add(new TextBlock()
+                    .Text("This shader ignores the standard PBR channels. See Shader Uniforms.")
+                    .Wrap()
+                    .Foreground(theme.TextMuted));
+            }
+
+            var uniforms = ShaderUniforms(theme, material);
+            if (uniforms != null)
+            {
+                rows.Children.Add(uniforms);
+            }
+
+            return new Expander().Header("Material").Content(rows);
+        }
+
+        /// <summary>
+        /// The material's custom shader uniforms, one editor per type. Returns null when there are none to
+        /// show, so a PBR material is not given an empty section to scroll past.
+        /// <para>
+        /// Built once, from the uniforms present when the inspector was created. That matches how the panel
+        /// works everywhere else -- selecting a different node rebuilds it -- and a shader's uniform set
+        /// does not change while it is being looked at.
+        /// </para>
+        /// </summary>
+        private static UiElement? ShaderUniforms(UiTheme theme, ManaMaterial material)
+        {
+            material.EnsureShaderMetadataDefaults();
+
+            var editable = material.ShaderUniforms
+                .Where(entry => IsEditable(entry.Value.Type))
+                .OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (editable.Count == 0)
+            {
+                return null;
+            }
+
+            var rows = new StackPanel().Vertical(theme.Spacing);
+            foreach (var (name, value) in editable)
+            {
+                rows.Children.Add(Row(theme, name, UniformEditor(name, value)));
+            }
+
+            // Restores from the snapshot rather than removing keys: some render paths assign buffer slots
+            // by sorting the uniform names, so dropping one would silently shift every other uniform.
+            if (material.DefaultShaderUniforms.Count > 0)
+            {
+                rows.Children.Add(new Button()
+                    .Label("Reset to defaults")
+                    .Variant(ButtonVariant.Subtle)
+                    .OnClick(() =>
+                    {
+                        foreach (var entry in material.DefaultShaderUniforms)
+                        {
+                            material.ShaderUniforms[entry.Key] = entry.Value.Clone();
+                        }
+                    }));
+            }
+
+            return new Expander().Header($"Shader Uniforms ({editable.Count})").Content(rows);
+        }
+
+        private static bool IsEditable(UniformType type)
+        {
+            return type is UniformType.Float
+                or UniformType.FloatVec2
+                or UniformType.FloatVec3
+                or UniformType.FloatVec4
+                or UniformType.Int
+                or UniformType.Bool;
+        }
+
+        /// <summary>
+        /// An editor matched to the uniform's type, and to its name for vectors -- a "colour" or "tint"
+        /// gets a swatch rather than three numbers, which is the same heuristic the ImGui inspector uses so
+        /// the two panels agree about what a uniform is.
+        /// </summary>
+        private static UiElement UniformEditor(string name, ManaMaterialUniformValue value)
+        {
+            var isColour = name.Contains("color", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("colour", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("tint", StringComparison.OrdinalIgnoreCase);
+
+            switch (value.Type)
+            {
+                case UniformType.Bool:
+                    return new CheckBox()
+                        .Checked(value.BoolValue)
+                        .OnChanged(v => value.BoolValue = v);
+
+                case UniformType.Int:
+                {
+                    var box = new NumericBox().Integer().Value(value.IntValue);
+                    box.ValueChanged += (_, v) => value.IntValue = (int)v;
+                    box.BindPolled(b => b.Value, () => value.IntValue);
+                    return box;
+                }
+
+                case UniformType.FloatVec2:
+                {
+                    var box = new VectorBox().Components(2).Step(0.01f).Places(3);
+                    box.Value2 = value.Vector2Value;
+                    box.ValueChanged += (_, v) => value.Vector2Value = new Vector2(v.X, v.Y);
+                    box.BindPolled(b => b.Value2, () => value.Vector2Value);
+                    return box;
+                }
+
+                case UniformType.FloatVec3 when isColour:
+                    return Colour(
+                        () => new Vector4(value.Vector3Value, 1.0f),
+                        v => value.Vector3Value = new Vector3(v.X, v.Y, v.Z));
+
+                case UniformType.FloatVec3:
+                {
+                    var box = new VectorBox().Step(0.01f).Places(3);
+                    box.Value = value.Vector3Value;
+                    box.ValueChanged += (_, v) => value.Vector3Value = new Vector3(v.X, v.Y, v.Z);
+                    box.BindPolled(b => b.Value, () => value.Vector3Value);
+                    return box;
+                }
+
+                case UniformType.FloatVec4 when isColour:
+                    return Colour(() => value.Vector4Value, v => value.Vector4Value = v);
+
+                case UniformType.FloatVec4:
+                {
+                    var box = new VectorBox().Components(4).Step(0.01f).Places(3);
+                    box.Vector = value.Vector4Value;
+                    box.ValueChanged += (_, v) => value.Vector4Value = v;
+                    box.BindPolled(b => b.Vector, () => value.Vector4Value);
+                    return box;
+                }
+
+                default:
+                {
+                    var box = new NumericBox().Step(0.01f).Places(3).Value(value.FloatValue);
+                    box.ValueChanged += (_, v) => value.FloatValue = v;
+                    box.BindPolled(b => b.Value, () => value.FloatValue);
+                    return box;
+                }
+            }
+        }
+
+        /// <summary>A bounded scalar. Bounded, so the field sweeps its range rather than counting steps.</summary>
+        private static NumericBox Scalar(Func<float> read, Action<float> write, float minimum, float maximum)
+        {
+            var box = new NumericBox
+            {
+                Minimum = minimum,
+                Maximum = maximum,
+                Step = (maximum - minimum) / 100.0f,
+                DecimalPlaces = 3
+            };
+
+            box.Value = read();
+            box.ValueChanged += (_, value) => write(value);
+            box.BindPolled(b => b.Value, read);
+            return box;
         }
 
         private static UiElement Light(UiTheme theme, ManaLightSourceComponent light)

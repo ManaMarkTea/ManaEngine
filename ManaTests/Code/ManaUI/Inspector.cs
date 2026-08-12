@@ -229,6 +229,80 @@ public static class InspectorChecks
         Check("re-expanding still renders", root.Render().InstanceCount > 20,
             $"{root.Render().InstanceCount} instances");
 
+        // ---------------------------------------------------------------- material and uniforms
+        // A mesh renderer carries a material, and the material carries whatever uniforms its shader
+        // declares. Both are ported from the ImGui inspector, so the shapes have to agree.
+        var meshNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Meshy" };
+        var mesh = new ManaCube(context, Vector4.One, Vector3.One);
+        var meshRenderer = new MeshRendererComponent(meshNode, mesh);
+        meshNode.Components.Add(meshRenderer);
+        scene.Children.Add(meshNode);
+
+        var material = meshRenderer.Material;
+        material.Name = "Test Material";
+        material.SetShaderUniform("uStrength", 0.5f);
+        material.SetShaderUniform("uTintColor", new Vector3(1.0f, 0.0f, 0.0f));
+        material.SetShaderUniform("uSteps", 4);
+        material.SetShaderUniform("uEnabled", true);
+
+        world.Selection.SelectedNode = meshNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var sections = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("the material gets its own section", sections.Contains("Material"),
+            string.Join(", ", sections));
+        Check("the material is a sibling, not nested in the renderer",
+            sections.IndexOf("Material") > sections.IndexOf("Mesh Renderer"),
+            string.Join(", ", sections));
+
+        var uniformSection = FindAll<Expander>(view)
+            .FirstOrDefault(e => e.Header.StartsWith("Shader Uniforms", StringComparison.Ordinal));
+        Check("editable uniforms get a section", uniformSection != null,
+            string.Join(", ", sections));
+        Check("the section counts them", uniformSection?.Header == "Shader Uniforms (4)",
+            uniformSection?.Header ?? "none");
+
+        // One editor per type, and a name that looks like a colour gets a swatch rather than three numbers
+        // -- the same heuristic the ImGui inspector uses, so the two panels agree about what a uniform is.
+        Check("a bool uniform gets a checkbox", FindAll<CheckBox>(view).Count >= 3,
+            $"{FindAll<CheckBox>(view).Count} checkboxes");
+        Check("a colour-named uniform gets a swatch", FindAll<ColorField>(view).Count >= 1,
+            $"{FindAll<ColorField>(view).Count} colour fields");
+
+        // Editing writes into the uniform the renderer will actually submit.
+        var strengthBox = FindAll<NumericBox>(view)
+            .FirstOrDefault(box => MathF.Abs(box.Value - 0.5f) < 0.001f);
+        Check("a float uniform is shown", strengthBox != null, $"{strengthBox?.Value}");
+
+        if (strengthBox != null)
+        {
+            strengthBox.Value = 0.8f;
+            Check("editing a uniform writes to the material",
+                MathF.Abs(material.ShaderUniforms["uStrength"].FloatValue - 0.8f) < 0.001f,
+                $"{material.ShaderUniforms["uStrength"].FloatValue}");
+        }
+
+        // Reset restores from the snapshot rather than removing keys -- some render paths assign buffer
+        // slots by sorting the uniform names, so a dropped key would shift every other uniform.
+        var keysBefore = material.ShaderUniforms.Count;
+        var reset = FindAll<Button>(view).FirstOrDefault(b => b.Text == "Reset to defaults");
+        Check("a reset button is offered", reset != null);
+
+        // Clicked for real rather than raising the event, so the button's own gesture is covered too.
+        if (reset != null)
+        {
+            root.UpdateLayout(new Vector2(420, 900));
+            root.Input.InjectPointerMoved(reset.Bounds.Center);
+            root.Input.InjectPointerPressed(reset.Bounds.Center, PointerButton.Left, 5.0);
+            root.Input.InjectPointerReleased(reset.Bounds.Center, PointerButton.Left);
+        }
+
+        Check("reset keeps every key", material.ShaderUniforms.Count == keysBefore,
+            $"{material.ShaderUniforms.Count} vs {keysBefore}");
+
+        Check("the material section renders", root.Render().InstanceCount > 40,
+            $"{root.Render().InstanceCount} instances");
+
         // ---------------------------------------------------------------- rebuilt mid-drag
         // The failure this reproduces: drag a position field, something clears the selection, the panel
         // rebuilds, and the element holding pointer capture is torn out of the tree mid-gesture. The

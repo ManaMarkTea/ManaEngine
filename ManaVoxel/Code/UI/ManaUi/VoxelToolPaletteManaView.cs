@@ -66,17 +66,27 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static UiElement BuildColorSection(UiTheme theme, VoxelEditorViewModel vm)
         {
-            // A swatch plus three channel sliders rather than a full colour picker: a picker is a control
-            // in its own right, and this covers the palette's actual job without pretending otherwise.
-            var swatch = new Border()
-                .Rounded(theme.CornerRadius)
-                .Outline(theme.BorderStrong, 1.0f)
-                .Height(28.0f)
-                .BindPolled(b => b.Background, () => vm.PaintVoxelColor);
+            // The swatch opens a real picker now that there is one. Voxel colours are opaque, so the alpha
+            // strip is hidden rather than offering a control that would do nothing.
+            var field = new ColorField
+            {
+                Color = vm.PaintVoxelColor,
+                ShowAlpha = false,
+                Height = 28.0f
+            };
 
+            field.ColorChanged += (_, color) =>
+                vm.PaintVoxelColor = new Vector4(color.X, color.Y, color.Z, vm.PaintVoxelColor.W);
+
+            // Polled as well as written: the palette shares its colour with the ImGui palette and the
+            // eyedropper, and neither announces a change.
+            field.BindPolled(f => f.Color, () => vm.PaintVoxelColor);
+
+            // The sliders stay. A picker is for choosing a colour; a slider is for nudging one channel of
+            // the colour already chosen, and the palette does both.
             return new StackPanel().Vertical(theme.Spacing).Children(
                 Caption("Paint colour", theme),
-                swatch,
+                field,
                 ChannelSlider(theme, "R", () => vm.PaintVoxelColor.X, v => vm.PaintVoxelColor.X = v),
                 ChannelSlider(theme, "G", () => vm.PaintVoxelColor.Y, v => vm.PaintVoxelColor.Y = v),
                 ChannelSlider(theme, "B", () => vm.PaintVoxelColor.Z, v => vm.PaintVoxelColor.Z = v));
