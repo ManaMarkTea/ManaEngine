@@ -599,6 +599,52 @@ namespace ManaUI
             return box;
         }
 
+        // ----- ColorField / ColorPicker ---------------------------------------------------------------
+
+        public static ColorField Value(this ColorField field, Vector4 color)
+        {
+            field.Color = color;
+            return field;
+        }
+
+        public static ColorField WithAlpha(this ColorField field, bool showAlpha = true)
+        {
+            field.ShowAlpha = showAlpha;
+            return field;
+        }
+
+        /// <summary>Drops the hex caption, leaving a bare swatch for a tight column.</summary>
+        public static ColorField SwatchOnly(this ColorField field)
+        {
+            field.ShowHexLabel = false;
+            return field;
+        }
+
+        public static ColorField OnChanged(this ColorField field, Action<Vector4> action)
+        {
+            field.ColorChanged += (_, color) => action(color);
+            return field;
+        }
+
+        /// <summary>Fires only when an edit settles -- for work too expensive to run per drag pixel.</summary>
+        public static ColorField OnCommitted(this ColorField field, Action<Vector4> action)
+        {
+            field.ColorCommitted += (_, color) => action(color);
+            return field;
+        }
+
+        public static ColorPicker Value(this ColorPicker picker, Vector4 color)
+        {
+            picker.Color = color;
+            return picker;
+        }
+
+        public static ColorPicker OnChanged(this ColorPicker picker, Action<Vector4> action)
+        {
+            picker.ColorChanged += (_, color) => action(color);
+            return picker;
+        }
+
         // ----- Expander ------------------------------------------------------------------------------
 
         public static Expander Header(this Expander expander, string header)

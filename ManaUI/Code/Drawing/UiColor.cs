@@ -60,6 +60,80 @@ namespace ManaUI
             return new Vector4(color.X, color.Y, color.Z, alpha);
         }
 
+        /// <summary>
+        /// Hue in degrees (0..360), saturation and value in 0..1. Hue is undefined for a grey, and is
+        /// returned as zero -- callers editing a colour must keep their own hue rather than round-tripping
+        /// through this, or dragging saturation to zero would lose which hue was being edited.
+        /// </summary>
+        public static Vector3 ToHsv(Vector4 color)
+        {
+            var max = MathF.Max(color.X, MathF.Max(color.Y, color.Z));
+            var min = MathF.Min(color.X, MathF.Min(color.Y, color.Z));
+            var chroma = max - min;
+
+            var hue = 0.0f;
+            if (chroma > 0.00001f)
+            {
+                if (max == color.X)
+                {
+                    hue = (color.Y - color.Z) / chroma % 6.0f;
+                }
+                else if (max == color.Y)
+                {
+                    hue = (color.Z - color.X) / chroma + 2.0f;
+                }
+                else
+                {
+                    hue = (color.X - color.Y) / chroma + 4.0f;
+                }
+
+                hue *= 60.0f;
+                if (hue < 0.0f)
+                {
+                    hue += 360.0f;
+                }
+            }
+
+            return new Vector3(hue, max <= 0.0f ? 0.0f : chroma / max, max);
+        }
+
+        /// <summary>Hue in degrees, saturation and value in 0..1, back to RGB.</summary>
+        public static Vector4 FromHsv(float hue, float saturation, float value, float alpha = 1.0f)
+        {
+            hue = ((hue % 360.0f) + 360.0f) % 360.0f;
+            saturation = Math.Clamp(saturation, 0.0f, 1.0f);
+            value = Math.Clamp(value, 0.0f, 1.0f);
+
+            var chroma = value * saturation;
+            var sector = hue / 60.0f;
+            var second = chroma * (1.0f - MathF.Abs(sector % 2.0f - 1.0f));
+            var match = value - chroma;
+
+            var rgb = (int)sector switch
+            {
+                0 => new Vector3(chroma, second, 0.0f),
+                1 => new Vector3(second, chroma, 0.0f),
+                2 => new Vector3(0.0f, chroma, second),
+                3 => new Vector3(0.0f, second, chroma),
+                4 => new Vector3(second, 0.0f, chroma),
+                _ => new Vector3(chroma, 0.0f, second)
+            };
+
+            return new Vector4(rgb.X + match, rgb.Y + match, rgb.Z + match, alpha);
+        }
+
+        /// <summary>
+        /// "#RRGGBB", or "#RRGGBBAA" when the colour is not fully opaque -- a trailing "FF" on every value
+        /// is noise in a field people read at a glance.
+        /// </summary>
+        public static string ToHex(Vector4 color, bool includeAlpha = false)
+        {
+            static int Channel(float value) => (int)(Math.Clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+
+            var hex = $"#{Channel(color.X):X2}{Channel(color.Y):X2}{Channel(color.Z):X2}";
+            return includeAlpha || color.W < 1.0f ? hex + $"{Channel(color.W):X2}" : hex;
+        }
+
         public static Vector4 Lerp(Vector4 from, Vector4 to, float amount)
         {
             return Vector4.Lerp(from, to, Math.Clamp(amount, 0.0f, 1.0f));

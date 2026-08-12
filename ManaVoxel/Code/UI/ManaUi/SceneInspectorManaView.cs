@@ -194,25 +194,19 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                     Row(theme, "Direction", direction),
 
-                    Row(theme, "Colour", Swatch(theme, light)));
+                    Row(theme, "Colour", Colour(() => light.Color, value => light.Color = value)));
         }
 
         /// <summary>
-        /// A read-only colour preview. There is no colour picker in the library yet, so this shows the
-        /// value honestly rather than pretending to be editable.
+        /// A colour swatch that opens a picker. Polled as well as written, for the same reason the transform
+        /// editors are: nothing on the engine side announces a change.
         /// </summary>
-        private static UiElement Swatch(UiTheme theme, ManaLightSourceComponent light)
+        private static ColorField Colour(Func<Vector4> read, Action<Vector4> write)
         {
-            var swatch = new Border().Rounded(theme.CornerRadius).Size(28.0f, 16.0f).CenterV();
-            swatch.BindPolled(border => border.Background, () => light.Color);
-
-            return new StackPanel().Horizontal(theme.Spacing).Children(
-                swatch,
-                new TextBlock()
-                    .BindTextPolled(() =>
-                        $"{light.Color.X:F2}, {light.Color.Y:F2}, {light.Color.Z:F2}")
-                    .Foreground(theme.TextMuted)
-                    .CenterV());
+            var field = new ColorField { Color = read() };
+            field.ColorChanged += (_, value) => write(value);
+            field.BindPolled(f => f.Color, read);
+            return field;
         }
 
         // ----- shared bits --------------------------------------------------------------------------

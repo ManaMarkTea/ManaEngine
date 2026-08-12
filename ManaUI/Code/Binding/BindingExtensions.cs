@@ -193,6 +193,52 @@ namespace ManaUI
             return vectorBox;
         }
 
+        public static ColorField BindColor<TSource>(
+            this ColorField field,
+            TSource source,
+            Expression<Func<TSource, Vector4>> sourceProperty,
+            BindingMode mode = BindingMode.TwoWay)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, Vector4>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => field.Color = value,
+                () => field.Color,
+                mode);
+
+            field.ColorChanged += (_, _) => binding.PushToSource();
+            field.AddBinding(binding);
+            return field;
+        }
+
+        public static ColorPicker BindColor<TSource>(
+            this ColorPicker picker,
+            TSource source,
+            Expression<Func<TSource, Vector4>> sourceProperty,
+            BindingMode mode = BindingMode.TwoWay)
+            where TSource : class
+        {
+            var origin = PropertyPath.Resolve(sourceProperty);
+
+            var binding = new UiBinding<TSource, Vector4>(
+                source,
+                origin.Getter,
+                origin.Setter,
+                origin.Name,
+                value => picker.Color = value,
+                () => picker.Color,
+                mode);
+
+            picker.ColorChanged += (_, _) => binding.PushToSource();
+            picker.AddBinding(binding);
+            return picker;
+        }
+
         public static Expander BindIsExpanded<TSource>(
             this Expander expander,
             TSource source,
