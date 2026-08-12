@@ -65,6 +65,16 @@ namespace ManaUI
 
         public bool IsReadOnly { get; set; }
 
+        /// <summary>
+        /// Floor for the field's height, defaulting to the theme's control height so fields line up with
+        /// the buttons beside them. Lower it for a dense form, where matching every other control matters
+        /// less than fitting more rows on screen.
+        /// </summary>
+        public float MinimumFieldHeight { get; set; } = float.NaN;
+
+        private float ResolvedMinimumFieldHeight =>
+            LayoutHelper.IsAuto(MinimumFieldHeight) ? Theme.ControlHeight : MinimumFieldHeight;
+
         /// <summary>Optional filter; return false to reject a character. Used for numeric-only fields.</summary>
         public Func<char, bool>? CharacterFilter { get; set; }
 
@@ -109,7 +119,9 @@ namespace ManaUI
             var inset = ContentInset;
             var width = float.IsInfinity(availableSize.X) ? 160.0f : availableSize.X;
 
-            return new Vector2(width, MathF.Max(Theme.ControlHeight, font.LineHeight + inset.Vertical));
+            return new Vector2(
+                width,
+                MathF.Max(ResolvedMinimumFieldHeight, font.LineHeight + inset.Vertical));
         }
 
         // ----- rendering ------------------------------------------------------------------------------

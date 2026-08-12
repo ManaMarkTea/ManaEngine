@@ -2,6 +2,23 @@ using System.Globalization;
 
 namespace ManaUI
 {
+    /// <summary>Where a <see cref="NumericBox"/> puts the part of itself that scrubs.</summary>
+    public enum NumericDragHandle
+    {
+        /// <summary>A strip along the bottom edge. Full width, at the cost of a few pixels of height.</summary>
+        Strip,
+
+        /// <summary>
+        /// A coloured chip on the leading edge, carrying <see cref="NumericBox.ChipText"/>. Costs width
+        /// rather than height, which is what a dense inspector has to spare -- and the chip doubles as the
+        /// field's label, so the row needs no separate one.
+        /// </summary>
+        Leading,
+
+        /// <summary>No drag at all; the field is typed into only.</summary>
+        None
+    }
+
     /// <summary>
     /// A numeric field that is both a drag and a text box, which is the ergonomic the editor's ImGui
     /// inspector relies on everywhere: sweep to scrub the value, type an exact one.
@@ -138,36 +155,73 @@ namespace ManaUI
         private float SweepDistance => MathF.Max(60.0f, Bounds.Width);
 
         /// <summary>
-        /// Height of the drag strip along the bottom edge. Tall enough to aim at without the field turning
-        /// into a slider with a caption; set to zero for a field that should only ever be typed into.
+        /// Height of the drag strip along the bottom edge, when <see cref="DragHandle"/> is
+        /// <see cref="NumericDragHandle.Strip"/>. Tall enough to aim at without the field turning into a
+        /// slider with a caption.
         /// </summary>
         public float DragStripHeight { get; set; } = 7.0f;
 
-        /// <summary>The strip, which is the only part of the control a drag starts from.</summary>
-        public UiRect DragStripRect => DragStripHeight <= 0.0f
-            ? UiRect.Empty
-            : new UiRect(
-                Bounds.X,
-                Bounds.Bottom - DragStripHeight,
-                Bounds.Width,
-                DragStripHeight);
+        /// <summary>
+        /// Width of the leading chip, when <see cref="DragHandle"/> is
+        /// <see cref="NumericDragHandle.Leading"/>. Sized for one or two characters.
+        /// </summary>
+        public float DragChipWidth { get; set; } = 20.0f;
 
-        private bool IsScrubbable => DragStripHeight > 0.0f && IsEffectivelyEnabled && !IsReadOnly;
+        /// <summary>Where the drag gesture lives. See <see cref="NumericDragHandle"/>.</summary>
+        public NumericDragHandle DragHandle { get; set; } = NumericDragHandle.Strip;
+
+        /// <summary>Text on the leading chip -- an axis letter, or a short property name.</summary>
+        public string ChipText { get; set; } = string.Empty;
 
         /// <summary>
-        /// Reserves the strip, so the text lays out above it rather than through it. Caret hit-testing reads
-        /// the same inset, which is what keeps clicking a digit landing on that digit.
+        /// Chip background. Transparent falls back to the theme's raised surface, so a chip is visible
+        /// without every caller having to pick a colour.
+        /// </summary>
+        public Vector4 ChipColor { get; set; }
+
+        /// <summary>
+        /// The part of the control a drag starts from -- the bottom strip or the leading chip. Empty when
+        /// the field is typed into only.
+        /// </summary>
+        public UiRect DragStripRect
+        {
+            get
+            {
+                return DragHandle switch
+                {
+                    NumericDragHandle.Strip when DragStripHeight > 0.0f => new UiRect(
+                        Bounds.X, Bounds.Bottom - DragStripHeight, Bounds.Width, DragStripHeight),
+
+                    NumericDragHandle.Leading when DragChipWidth > 0.0f => new UiRect(
+                        Bounds.X, Bounds.Y, DragChipWidth, Bounds.Height),
+
+                    _ => UiRect.Empty
+                };
+            }
+        }
+
+        private bool IsScrubbable => !DragStripRect.IsEmpty && IsEffectivelyEnabled && !IsReadOnly;
+
+        /// <summary>
+        /// Reserves the handle, so the text lays out beside or above it rather than through it. Caret hit
+        /// testing reads the same inset, which is what keeps clicking a digit landing on that digit.
         /// </summary>
         protected override Thickness ContentInset
         {
             get
             {
                 var inset = base.ContentInset;
-                return new Thickness(
-                    inset.Left,
-                    inset.Top,
-                    inset.Right,
-                    inset.Bottom + (DragStripHeight > 0.0f ? DragStripHeight : 0.0f));
+
+                return DragHandle switch
+                {
+                    NumericDragHandle.Strip when DragStripHeight > 0.0f => new Thickness(
+                        inset.Left, inset.Top, inset.Right, inset.Bottom + DragStripHeight),
+
+                    NumericDragHandle.Leading when DragChipWidth > 0.0f => new Thickness(
+                        inset.Left + DragChipWidth, inset.Top, inset.Right, inset.Bottom),
+
+                    _ => inset
+                };
             }
         }
 
@@ -533,15 +587,22 @@ namespace ManaUI
 
         protected override Vector2 MeasureOverride(Vector2 availableSize)
         {
-            // The strip is extra height on top of whatever the text needs, not a slice taken out of it --
-            // otherwise a numeric field would sit shorter than the text box beside it in the same row.
             var size = base.MeasureOverride(availableSize);
-            return new Vector2(size.X, size.Y + (DragStripHeight > 0.0f ? DragStripHeight : 0.0f));
+
+            // A bottom strip is extra height on top of whatever the text needs, not a slice taken out of
+            // it -- otherwise a numeric field would sit shorter than the text box beside it in the same
+            // row. A leading chip costs nothing vertically, which is the whole reason to prefer it.
+            if (DragHandle == NumericDragHandle.Strip && DragStripHeight > 0.0f)
+            {
+                return new Vector2(size.X, size.Y + DragStripHeight);
+            }
+
+            return size;
         }
 
         /// <summary>
-        /// The cursor changes at the strip's edge, which is how the two halves announce themselves: an
-        /// I-beam over the text that selects, resize arrows over the strip that scrubs.
+        /// The cursor changes at the handle's edge, which is how the two halves announce themselves: an
+        /// I-beam over the text that selects, resize arrows over the handle that scrubs.
         /// </summary>
         public override UiCursor GetCursor(Vector2 point)
         {
@@ -550,9 +611,7 @@ namespace ManaUI
                 return UiCursor.Arrow;
             }
 
-            return DragStripHeight > 0.0f && DragStripRect.Contains(point)
-                ? UiCursor.SizeWE
-                : UiCursor.IBeam;
+            return DragStripRect.Contains(point) ? UiCursor.SizeWE : UiCursor.IBeam;
         }
 
         protected override void OnRender(ManaUiDrawList drawList)
@@ -562,13 +621,19 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// The strip: a recessed track along the bottom edge, filled to the value's position when the field
-        /// is bounded. Bounded or not, it has to be visible -- it is the only part of the control that
-        /// responds to a drag, and an invisible drag target is one nobody finds.
+        /// The handle. A leading chip carries its own label and colour; a bottom strip is a recessed track
+        /// filled to the value's position. Either way it has to be visible -- it is the only part of the
+        /// control that responds to a drag, and an invisible drag target is one nobody finds.
         /// </summary>
         private void RenderDragStrip(ManaUiDrawList drawList)
         {
-            if (DragStripHeight <= 0.0f)
+            if (DragHandle == NumericDragHandle.Leading)
+            {
+                RenderDragChip(drawList);
+                return;
+            }
+
+            if (DragHandle != NumericDragHandle.Strip || DragStripHeight <= 0.0f)
             {
                 return;
             }
@@ -614,6 +679,63 @@ namespace ManaUI
                 new UiRect(strip.Center.X - mark * 0.5f, strip.Y, mark, strip.Height),
                 tint,
                 corners);
+        }
+
+        /// <summary>
+        /// The leading chip: a coloured square carrying its letter, which is both the drag handle and the
+        /// field's label. Costs width instead of height, which is the trade a dense inspector wants.
+        /// </summary>
+        private void RenderDragChip(ManaUiDrawList drawList)
+        {
+            var root = Root;
+            if (root == null || DragChipWidth <= 0.0f)
+            {
+                return;
+            }
+
+            var theme = Theme;
+            var chip = DragStripRect.Deflate(new Thickness(1.0f));
+            if (chip.Width <= 0.0f || chip.Height <= 0.0f)
+            {
+                return;
+            }
+
+            var enabled = IsScrubbable;
+            var active = IsDragging || (enabled && chip.Contains(root.Input.PointerPosition));
+
+            var fill = ChipColor.W > 0.0f ? ChipColor : theme.SurfaceRaised;
+            if (!enabled)
+            {
+                fill = theme.Surface;
+            }
+            else if (active)
+            {
+                fill = Composite(fill, theme.Hover);
+            }
+
+            drawList.FillRect(chip, fill, new CornerRadius(theme.CornerRadius.TopLeft));
+
+            if (ChipText.Length == 0)
+            {
+                return;
+            }
+
+            // Centred by the glyph's own metrics rather than by a text layout: the chip holds one or two
+            // characters, and a layout pass per field per frame is not worth it in a panel full of them.
+            var font = root.Fonts.Get(theme.FontFamilyMedium, theme.FontSizeSmall, root.Scale);
+            var width = font.MeasureWidth(ChipText);
+            var color = enabled ? theme.TextOnAccent : theme.TextDisabled;
+
+            new TextLayout
+            {
+                Font = font,
+                Text = ChipText,
+                MaxWidth = MathF.Max(width, chip.Width)
+            }.Render(
+                drawList,
+                new UiRect(chip.Center.X - width * 0.5f, chip.Y, width, chip.Height),
+                color,
+                VerticalAlignment.Center);
         }
 
         /// <summary>Text set from outside is still the source of truth for the number it spells.</summary>

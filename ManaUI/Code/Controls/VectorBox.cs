@@ -14,7 +14,6 @@ namespace ManaUI
         private static readonly string[] AxisLabels = { "X", "Y", "Z", "W" };
 
         private readonly NumericBox[] _fields = new NumericBox[4];
-        private readonly TextBlock[] _labels = new TextBlock[4];
         private readonly Grid _grid = new();
 
         private Vector4 _vector;
@@ -22,15 +21,30 @@ namespace ManaUI
 
         public VectorBox()
         {
+            // As tall as its fields and as wide as it is given. Stretching vertically would make a row in a
+            // one-row grid claim the whole cell, which is the opposite of what a compact editor wants.
+            HorizontalAlignment = HorizontalAlignment.Stretch;
+            VerticalAlignment = VerticalAlignment.Top;
+
             for (var i = 0; i < _fields.Length; i++)
             {
                 var index = i;
 
-                _labels[i] = new TextBlock()
-                    .Text(AxisLabels[i])
-                    .CenterV();
+                // The axis letter is the drag handle, not a label sitting next to one. That is the whole
+                // saving: no separate label column, and no strip under the field, so a transform section
+                // costs three short rows instead of three tall ones.
+                _fields[i] = new NumericBox
+                {
+                    DragHandle = NumericDragHandle.Leading,
+                    ChipText = AxisLabels[i],
 
-                _fields[i] = new NumericBox();
+                    // Dropped below the theme's control height on purpose. A transform section is three of
+                    // these stacked, and in an inspector vertical space is the scarce one -- lining up with
+                    // the buttons elsewhere matters less than fitting the next section on screen.
+                    MinimumFieldHeight = 0.0f,
+                    Padding = new Thickness(6.0f, 1.0f)
+                };
+
                 _fields[i].ValueChanged += (_, value) => OnFieldChanged(index, value);
                 _fields[i].ValueCommitted += (_, _) => ValueCommitted?.Invoke(this, _vector);
             }
@@ -219,20 +233,13 @@ namespace ManaUI
         private void RebuildColumns()
         {
             _grid.Children.Clear();
-
-            var definition = string.Join(", ", Enumerable.Repeat(ShowLabels ? "Auto, *" : "*", _components));
-            _grid.SetColumns(definition);
+            _grid.SetColumns(string.Join(", ", Enumerable.Repeat("*", _components)));
             _grid.SetRows("Auto");
 
-            var column = 0;
             for (var i = 0; i < _components; i++)
             {
-                if (ShowLabels)
-                {
-                    _grid.Children.Add(_labels[i].GridColumn(column++));
-                }
-
-                _grid.Children.Add(_fields[i].GridColumn(column++));
+                _fields[i].DragHandle = ShowLabels ? NumericDragHandle.Leading : NumericDragHandle.Strip;
+                _grid.Children.Add(_fields[i].GridColumn(i));
             }
 
             InvalidateMeasure();
@@ -262,10 +269,9 @@ namespace ManaUI
                 return;
             }
 
-            for (var i = 0; i < _labels.Length; i++)
+            for (var i = 0; i < _fields.Length; i++)
             {
-                _labels[i].Foreground = theme.AxisColor(i);
-                _labels[i].Margin = new Thickness(i == 0 ? 0.0f : 2.0f, 0.0f, 4.0f, 0.0f);
+                _fields[i].ChipColor = theme.AxisColor(i);
             }
         }
     }

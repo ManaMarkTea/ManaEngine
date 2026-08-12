@@ -42,16 +42,85 @@ public static class ShowcaseChecks
             dockRoot.Content = dockHostElement;
             dockRoot.UpdateLayout(new Vector2(1920, 1080));
 
-            var docked = FindFirst<DockHost>(dockRoot, _ => true);
-            Check("docked layout builds", docked?.RootNode != null, docked?.RootNode?.GetType().Name ?? "null");
-            Check("default layout has all panels", docked!.AllItems().Count() == 3,
-                string.Join(", ", docked.AllItems().Select(i => i.Title)));
-            Check("dock host anchored to the right",
-                MathF.Abs(docked.Bounds.Right - 1920.0f) < 1.0f, docked.Bounds.ToString());
-            Check("dock host leaves the viewport visible",
-                docked.Bounds.Width < 500.0f, $"{docked.Bounds.Width}");
+            // Two columns now, left and right, each in its own resizable panel.
+            var columns = FindAll<DockHost>(dockRoot);
+            Check("the workspace has two columns", columns.Count == 2, $"{columns.Count} dock hosts");
+
+            var left = columns[0];
+            var right = columns[1];
+
+            Check("docked layout builds", right.RootNode != null, right.RootNode?.GetType().Name ?? "null");
+            Check("the default preset puts every panel in one column",
+                right.AllItems().Count() == 3 && !left.AllItems().Any(),
+                $"left [{string.Join(", ", left.AllItems().Select(i => i.Title))}] "
+                + $"right [{string.Join(", ", right.AllItems().Select(i => i.Title))}]");
+
+            Check("the right column is anchored to the right",
+                MathF.Abs(right.Bounds.Right - 1920.0f) < 1.0f, right.Bounds.ToString());
+            Check("the columns leave the viewport visible",
+                right.Bounds.Width < 500.0f, $"{right.Bounds.Width}");
+
+            // An empty column collapses rather than leaving a resize handle against nothing.
+            var panels = FindAll<ResizablePanel>(dockRoot);
+            Check("each column is resizable", panels.Count == 2, $"{panels.Count} resizable panels");
+            Check("an empty column is collapsed",
+                panels[0].Visibility == Visibility.Collapsed, panels[0].Visibility.ToString());
+
+            // Dragging the handle widens the column, which is the point of the whole exercise.
+            var rightPanel = panels[1];
+            var widthBefore = rightPanel.Size;
+            var grab = rightPanel.HandleRect.Center;
+
+            dockRoot.Input.InjectPointerMoved(grab);
+            Check("the handle asks for a resize cursor", dockRoot.RequestedCursor == UiCursor.SizeWE,
+                dockRoot.RequestedCursor.ToString());
+
+            dockRoot.Input.InjectPointerPressed(grab, PointerButton.Left, 0.0);
+            dockRoot.Input.InjectPointerMoved(grab - new Vector2(120.0f, 0.0f));
+            dockRoot.UpdateLayout(new Vector2(1920, 1080));
+            Check("dragging the handle widens the column",
+                MathF.Abs(rightPanel.Size - (widthBefore + 120.0f)) < 1.0f,
+                $"{widthBefore} -> {rightPanel.Size}");
+            Check("the dock host follows the column",
+                right.Bounds.Width > 300.0f, $"{right.Bounds.Width:F0}px");
+            dockRoot.Input.InjectPointerReleased(grab - new Vector2(120.0f, 0.0f), PointerButton.Left);
+
             Check("docked layout renders", dockRoot.Render().InstanceCount > 50,
                 $"{dockRoot.Render().InstanceCount} instances");
+
+            // ---------------------------------------------------------------- presets
+            // Driven through the real menu rather than a back door, so the wiring is covered too.
+            var menu = FindFirst<MenuBar>(dockRoot, _ => true);
+            var layoutMenu = menu?.Menus.FirstOrDefault(item => item.Text == "Layout");
+            Check("the layout menu exists", layoutMenu != null,
+                string.Join(", ", menu?.Menus.Select(i => i.Text) ?? Array.Empty<string>()));
+
+            var unity = layoutMenu?.Items.FirstOrDefault(item => item.Text == "Unity");
+            Check("Unity is offered as a preset", unity != null,
+                string.Join(", ", layoutMenu?.Items.Select(i => i.Text) ?? Array.Empty<string>()));
+
+            unity?.Invoked?.Invoke();
+            dockRoot.UpdateLayout(new Vector2(1920, 1080));
+
+            Check("choosing a preset moves panels between columns",
+                left.AllItems().Any() && right.AllItems().Any(),
+                $"left [{string.Join(", ", left.AllItems().Select(i => i.Title))}] "
+                + $"right [{string.Join(", ", right.AllItems().Select(i => i.Title))}]");
+            Check("no panel is lost in the move",
+                left.AllItems().Count() + right.AllItems().Count() == 3,
+                $"{left.AllItems().Count() + right.AllItems().Count()} panels");
+            Check("the now-filled column shows itself",
+                panels[0].Visibility == Visibility.Visible, panels[0].Visibility.ToString());
+            Check("the chosen preset is ticked", unity!.IsCheckedProvider?.Invoke() == true, "Unity checked");
+
+            var rightColumnPreset = layoutMenu!.Items.First(item => item.Text == "Right column");
+            rightColumnPreset.Invoked?.Invoke();
+            dockRoot.UpdateLayout(new Vector2(1920, 1080));
+            Check("switching back empties the left column again", !left.AllItems().Any(),
+                string.Join(", ", left.AllItems().Select(i => i.Title)));
+
+            Check("the workspace still renders after a preset change",
+                dockRoot.Render().InstanceCount > 50, $"{dockRoot.Render().InstanceCount} instances");
         }
         catch (Exception ex)
         {
@@ -156,5 +225,27 @@ public static class ShowcaseChecks
         }
 
         return null;
+    }
+
+    /// <summary>Every element of a type beneath a root, in visual order.</summary>
+    private static List<T> FindAll<T>(UiElement element) where T : UiElement
+    {
+        var found = new List<T>();
+        Collect(element, found);
+        return found;
+    }
+
+    private static void Collect<T>(UiElement element, List<T> found) where T : UiElement
+    {
+        if (element is T typed)
+        {
+            found.Add(typed);
+        }
+
+        var count = element.VisualChildCount;
+        for (var i = 0; i < count; i++)
+        {
+            Collect(element.GetVisualChild(i), found);
+        }
     }
 }

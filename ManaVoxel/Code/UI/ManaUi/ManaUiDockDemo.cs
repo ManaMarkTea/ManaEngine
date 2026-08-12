@@ -7,26 +7,30 @@ using Button = ManaUI.Button;
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
-    /// A working docked layout: panels that can be tabbed, split, torn out into floating windows, dropped
-    /// back, and whose arrangement survives a restart.
+    /// The editor's ManaUI workspace: two resizable columns of dockable panels, arranged from a named
+    /// preset and remembered across restarts.
     /// <para>
-    /// Anchored to the right of the screen rather than filling it, deliberately. ManaUI is still being
-    /// built out alongside the existing ImGui editor, and a full-screen dock host would cover both the
-    /// viewport and the panels people actually use today.
+    /// Two columns rather than one full-screen dock host, because ManaUI is still being built out alongside
+    /// the existing ImGui editor -- a host that filled the window would cover both the viewport and the
+    /// panels people actually use today. Columns leave the middle clear, which is also what makes the
+    /// Unity- and Unreal-shaped presets possible.
     /// </para>
     /// </summary>
     public static class ManaUiDockDemo
     {
-        private const float PanelWidth = 400.0f;
         private const float TopOffset = 60.0f;
+        private const float MenuBarHeight = 32.0f;
+
+        private const float DefaultLeftWidth = 300.0f;
+        private const float DefaultRightWidth = 380.0f;
 
         /// <summary>
-        /// Bump when a panel is added, removed or renamed. A saved layout carrying an older version has
+        /// Bump when a panel is added, removed or renamed. A saved workspace carrying an older version has
         /// missing panels merged into it on the next run; one carrying this version is taken as-is, so a
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 4;
+        private const int LayoutVersion = 5;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -34,13 +38,18 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private static string LayoutPath => ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
+        /// <summary>Every panel the workspace can show.</summary>
+        private static readonly string[] PanelIds =
+            { "tools", "outliner", "inspector", "showcase", "layers", "stats" };
+
         /// <summary>
-        /// Takes the <see cref="UiRoot"/> rather than the windowing host, so the whole layout can be built
-        /// and exercised headlessly.
-        /// </summary>
-        /// <summary>
-        /// <paramref name="editor"/> is the editor's real view model. When supplied, the ported voxel tool
-        /// palette is docked alongside the demo panels and drives the same state the ImGui palette does.
+        /// Builds the workspace over a <see cref="UiRoot"/> rather than the windowing host, so the whole
+        /// thing can be constructed and exercised headlessly.
+        /// <para>
+        /// <paramref name="editor"/> and <paramref name="world"/> are the editor's real state. Panels that
+        /// need one and are not given it simply do not appear, which is what lets the same workspace be
+        /// built in a test with neither.
+        /// </para>
         /// </summary>
         public static UiElement Attach(
             UiRoot root,
@@ -51,7 +60,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             global::Mana.ManaWorld? world = null)
         {
             var theme = root.Theme;
-            var dock = new DockHost();
+            var left = new DockHost();
+            var right = new DockHost();
 
             // The factory is what makes a saved layout restorable: content is application-owned and cannot
             // come out of a file, so persistence stores ids and asks for the panel back by name.
@@ -77,48 +87,301 @@ namespace ManaVoxel.Code.UI.ManaUi
                 _ => null
             };
 
-            if (!persist || !DockLayout.Load(dock, LayoutPath, Resolve, out var savedVersion))
+            var saved = persist ? ManaUiWorkspaceLayout.Load(LayoutPath) : null;
+            var state = new WorkspaceState
             {
-                BuildDefaultLayout(dock, Resolve);
+                Preset = saved?.Preset ?? WorkspacePreset.RightColumn
+            };
+
+            // Non-short-circuiting on purpose: both columns must be restored, and && would skip the right
+            // one whenever the left was empty.
+            var restored = saved != null
+                && (DockLayout.Apply(left, saved.Left, Resolve) | DockLayout.Apply(right, saved.Right, Resolve));
+
+            if (!restored)
+            {
+                ApplyPreset(state.Preset, left, right, Resolve);
             }
-            else if (savedVersion != LayoutVersion)
+            else if (saved!.Version != LayoutVersion)
             {
-                // A saved layout only knows the panels that existed when it was written, so a newly added
-                // one would never appear for anyone who has run the editor before -- exactly what happened
-                // when the voxel palette was added. Merging on a version change keeps the user's
+                // A saved workspace only knows the panels that existed when it was written, so a newly
+                // added one would never appear for anyone who has run the editor before -- exactly what
+                // happened when the voxel palette was added. Merging on a version change keeps the user's
                 // arrangement while still surfacing what is new.
-                MergeMissingPanels(dock, Resolve);
-                TrySaveLayout(dock);
+                MergeMissingPanels(left, right, Resolve);
             }
 
-            // Enables tear-out and drop-to-dock; the controller subscribes to groups as the tree changes.
-            _ = new DockDragController(root, dock);
+            // One controller per host: tear-out and drop-to-dock work within a column. Dragging a tab from
+            // one column into the other is not wired up yet -- a controller binds to a single host's tree.
+            _ = new DockDragController(root, left);
+            _ = new DockDragController(root, right);
 
-            if (persist)
+            var leftPanel = new ResizablePanel
             {
-                dock.LayoutChanged += (_, _) => TrySaveLayout(dock);
+                Edge = Dock.Left,
+                Size = saved is { LeftWidth: > 0.0f } ? saved.LeftWidth : DefaultLeftWidth,
+                MinimumSize = 200.0f,
+                Child = left
+            };
+
+            var rightPanel = new ResizablePanel
+            {
+                Edge = Dock.Right,
+                Size = saved is { RightWidth: > 0.0f } ? saved.RightWidth : DefaultRightWidth,
+                MinimumSize = 220.0f,
+                Child = right
+            };
+
+            void Save()
+            {
+                if (!persist)
+                {
+                    return;
+                }
+
+                new ManaUiWorkspaceLayout
+                {
+                    Version = LayoutVersion,
+                    Preset = state.Preset,
+                    LeftWidth = leftPanel.Size,
+                    RightWidth = rightPanel.Size,
+                    Left = DockLayout.Capture(left),
+                    Right = DockLayout.Capture(right)
+                }.Save(LayoutPath);
             }
 
-            // The menu bar sits above the dock host in the same column, so both stay clear of the viewport.
+            // An empty column would leave a resize handle floating against nothing, so it hides itself
+            // until it has something to hold.
+            void SyncColumnVisibility()
+            {
+                leftPanel.Visibility = left.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
+                rightPanel.Visibility = right.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
+            }
+
+            left.LayoutChanged += (_, _) =>
+            {
+                SyncColumnVisibility();
+                Save();
+            };
+
+            right.LayoutChanged += (_, _) =>
+            {
+                SyncColumnVisibility();
+                Save();
+            };
+
+            // Committed, not every pixel of the drag: a resize would otherwise rewrite the file on every
+            // frame it moved.
+            leftPanel.SizeCommitted += (_, _) => Save();
+            rightPanel.SizeCommitted += (_, _) => Save();
+
+            SyncColumnVisibility();
+
+            void Choose(WorkspacePreset preset)
+            {
+                state.Preset = preset;
+                ApplyPreset(preset, left, right, Resolve);
+                SyncColumnVisibility();
+                Save();
+            }
+
+            // The menu bar rides above the right column, both anchored clear of ImGui's own chrome.
             return new Canvas().Children(
+                leftPanel.Anchor(top: TopOffset, left: 0.0f, bottom: 0.0f),
+
                 new Border()
                     .Fill(theme.Surface)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm))
-                    .Anchor(top: TopOffset - 32.0f, right: 0.0f)
-                    .Width(PanelWidth),
+                    .Content(BuildMenuBar(vm, state, Choose))
+                    .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
+                    .Width(rightPanel.Size),
 
-                dock.Anchor(top: TopOffset, right: 0.0f, bottom: 0.0f).Width(PanelWidth));
+                rightPanel.Anchor(top: TopOffset, right: 0.0f, bottom: 0.0f));
         }
+
+        /// <summary>Mutable bits the menu and the save hook both need to see.</summary>
+        private sealed class WorkspaceState
+        {
+            public WorkspacePreset Preset { get; set; }
+        }
+
+        // ----- presets ------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Rebuilds both columns from scratch. Presets are starting points rather than modes, so this runs
+        /// only when one is chosen -- everything the user does afterwards is saved over the top of it.
+        /// </summary>
+        private static void ApplyPreset(
+            WorkspacePreset preset,
+            DockHost left,
+            DockHost right,
+            Func<string, DockItem?> resolve)
+        {
+            left.RootNode = null;
+            right.RootNode = null;
+
+            switch (preset)
+            {
+                case WorkspacePreset.Unity:
+                    BuildUnity(left, right, resolve);
+                    break;
+                case WorkspacePreset.Unreal:
+                    BuildUnreal(left, right, resolve);
+                    break;
+                case WorkspacePreset.Split:
+                    BuildSplit(left, right, resolve);
+                    break;
+                default:
+                    BuildRightColumn(right, resolve);
+                    break;
+            }
+        }
+
+        /// <summary>Everything in one column, which is how these panels started out.</summary>
+        private static void BuildRightColumn(DockHost right, Func<string, DockItem?> resolve)
+        {
+            var tools = Place(right, resolve, "tools", DockSide.Center);
+            var outliner = Place(right, resolve, "outliner", DockSide.Bottom, tools);
+
+            // Tabbed with the outliner: master and detail, and side by side in one column would leave
+            // neither enough width for a transform row.
+            Place(right, resolve, "inspector", DockSide.Center, outliner);
+            Place(right, resolve, "showcase", DockSide.Center, tools);
+
+            var layers = Place(right, resolve, "layers", DockSide.Bottom);
+            Place(right, resolve, "stats", DockSide.Center, layers);
+        }
+
+        /// <summary>Tools on the left; hierarchy above inspector on the right, as Unity stacks them.</summary>
+        private static void BuildUnity(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        {
+            var tools = Place(left, resolve, "tools", DockSide.Center);
+            Place(left, resolve, "showcase", DockSide.Center, tools);
+
+            var outliner = Place(right, resolve, "outliner", DockSide.Center);
+            var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
+
+            Place(right, resolve, "layers", DockSide.Center, inspector);
+            Place(right, resolve, "stats", DockSide.Center, inspector);
+        }
+
+        /// <summary>
+        /// Tools left; outliner as a shallow band top-right with the details panel filling the space
+        /// beneath it, which is roughly the proportion Unreal gives them.
+        /// </summary>
+        private static void BuildUnreal(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        {
+            var tools = Place(left, resolve, "tools", DockSide.Center);
+            Place(left, resolve, "layers", DockSide.Center, tools);
+            Place(left, resolve, "showcase", DockSide.Bottom);
+
+            var outliner = Place(right, resolve, "outliner", DockSide.Center);
+            var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
+            Place(right, resolve, "stats", DockSide.Center, inspector);
+
+            // The outliner is a list and the inspector is a form, so the space is not split evenly.
+            if (right.RootNode is DockSplit split && split.Children.Count == 2)
+            {
+                split.SetWeights(new[] { 0.35f, 0.65f });
+            }
+        }
+
+        /// <summary>Outliner far left, inspector far right, viewport clear between them.</summary>
+        private static void BuildSplit(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        {
+            var outliner = Place(left, resolve, "outliner", DockSide.Center);
+            Place(left, resolve, "tools", DockSide.Center, outliner);
+
+            var inspector = Place(right, resolve, "inspector", DockSide.Center);
+            Place(right, resolve, "showcase", DockSide.Center, inspector);
+            var layers = Place(right, resolve, "layers", DockSide.Bottom);
+            Place(right, resolve, "stats", DockSide.Center, layers);
+        }
+
+        /// <summary>
+        /// Docks a panel by id, or does nothing when it is unavailable in this session -- the voxel palette
+        /// with no editor view model, the outliner with no world. Returns the node it landed in so the next
+        /// panel can be placed relative to it.
+        /// </summary>
+        private static DockNode? Place(
+            DockHost host,
+            Func<string, DockItem?> resolve,
+            string id,
+            DockSide side,
+            DockNode? target = null)
+        {
+            var item = resolve(id);
+            if (item == null)
+            {
+                return null;
+            }
+
+            // Center with no target lands in the first group rather than beside the panel it was meant to
+            // join, which silently reshuffles a preset whenever an earlier panel was unavailable. Splitting
+            // instead keeps the shape recognisable.
+            if (target == null && host.RootNode != null && side == DockSide.Center)
+            {
+                side = DockSide.Bottom;
+            }
+
+            return host.Dock(item, side, target);
+        }
+
+        /// <summary>
+        /// Docks any panel neither column contains. Only runs when the saved version differs from
+        /// <see cref="LayoutVersion"/>, so a panel the user deliberately closed stays closed until the
+        /// panel set actually changes.
+        /// </summary>
+        private static void MergeMissingPanels(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        {
+            var present = left.AllItems().Concat(right.AllItems())
+                .Select(item => item.Id)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var id in PanelIds)
+            {
+                if (present.Contains(id))
+                {
+                    continue;
+                }
+
+                var item = resolve(id);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                // Into whichever column already exists, preferring the right -- that is where a
+                // single-column workspace keeps everything.
+                var host = right.RootNode != null ? right : left;
+                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
+            }
+        }
+
+        // ----- menu ---------------------------------------------------------------------------------
 
         /// <summary>
         /// A ManaUI menu bar running beside ImGui's own. Not a replacement yet -- it drives the demo view
         /// model rather than the editor -- but it is the shape the real one will take.
         /// </summary>
-        private static MenuBar BuildMenuBar(ManaUiShowcaseViewModel vm)
+        private static MenuBar BuildMenuBar(
+            ManaUiShowcaseViewModel vm,
+            WorkspaceState state,
+            Action<WorkspacePreset> choose)
         {
             return new MenuBar().AddRange(
+                new MenuItem("Layout").WithItems(
+                    PresetItem("Right column", WorkspacePreset.RightColumn, state, choose),
+                    PresetItem("Unity", WorkspacePreset.Unity, state, choose),
+                    PresetItem("Unreal", WorkspacePreset.Unreal, state, choose),
+                    PresetItem("Split", WorkspacePreset.Split, state, choose),
+                    MenuItem.Separator(),
+
+                    // Reapplies the preset already chosen, which is what "reset" means here: put the
+                    // panels back where this arrangement started.
+                    new MenuItem("Reset panels", () => choose(state.Preset))),
+
                 new MenuItem("Layers").WithItems(
                     new MenuItem("Add layer") { Command = vm.AddLayerCommand }.WithShortcut("Ctrl+N"),
                     new MenuItem("Remove layer") { Command = vm.RemoveLayerCommand },
@@ -140,97 +403,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
         }
 
-        /// <summary>
-        /// Every panel this layout can show, in the order they should be added.
-        /// </summary>
-        private static readonly string[] PanelIds =
-            { "tools", "outliner", "inspector", "showcase", "layers", "stats" };
-
-        /// <summary>
-        /// Docks any panel the restored layout did not contain. Only runs when the saved version differs
-        /// from <see cref="LayoutVersion"/>, so a panel the user deliberately closed stays closed until the
-        /// panel set actually changes.
-        /// </summary>
-        private static void MergeMissingPanels(DockHost dock, Func<string, DockItem?> resolve)
+        private static MenuItem PresetItem(
+            string label,
+            WorkspacePreset preset,
+            WorkspaceState state,
+            Action<WorkspacePreset> choose)
         {
-            var present = dock.AllItems()
-                .Select(item => item.Id)
-                .ToHashSet(StringComparer.Ordinal);
-
-            foreach (var id in PanelIds)
-            {
-                if (present.Contains(id))
-                {
-                    continue;
-                }
-
-                // Resolve returns null for a panel that is unavailable in this session, such as the voxel
-                // palette when no editor view model was supplied.
-                var item = resolve(id);
-                if (item == null)
-                {
-                    continue;
-                }
-
-                dock.Dock(item, DockSide.Center, DockHost.FindFirstGroup(dock.RootNode));
-            }
+            return new MenuItem(label, () => choose(preset))
+                .Checkable(() => state.Preset == preset);
         }
 
-        private static void BuildDefaultLayout(DockHost dock, Func<string, DockItem?> resolve)
-        {
-            // The ported panels lead, since they are the ones here that do real work.
-            var tools = resolve("tools");
-            if (tools != null)
-            {
-                dock.Dock(tools, DockSide.Center);
-            }
-
-            var outliner = resolve("outliner");
-            if (outliner != null)
-            {
-                dock.Dock(outliner, tools == null ? DockSide.Center : DockSide.Bottom, tools?.Owner);
-            }
-
-            // Tabbed with the outliner: the two are a master/detail pair, and side by side in a panel this
-            // narrow would leave neither enough width for a transform row.
-            var inspector = resolve("inspector");
-            if (inspector != null)
-            {
-                dock.Dock(inspector, DockSide.Center, outliner?.Owner);
-            }
-
-            // Tabbed with the palette when there is one, otherwise it becomes the first panel itself.
-            var showcase = resolve("showcase");
-            if (showcase != null)
-            {
-                dock.Dock(showcase, DockSide.Center, tools?.Owner);
-            }
-
-            var layers = resolve("layers");
-            if (layers != null)
-            {
-                dock.Dock(layers, DockSide.Bottom);
-            }
-
-            var stats = resolve("stats");
-            if (stats != null)
-            {
-                // Tabbed with Layers rather than given its own pane, so the default layout is not cramped.
-                dock.Dock(stats, DockSide.Center, layers?.Owner);
-            }
-        }
-
-        private static void TrySaveLayout(DockHost dock)
-        {
-            try
-            {
-                DockLayout.Save(dock, LayoutPath, LayoutVersion);
-            }
-            catch (IOException)
-            {
-                // A layout that cannot be written is not worth interrupting the editor for.
-            }
-        }
+        // ----- demo panels --------------------------------------------------------------------------
 
         private static UiElement BuildLayers(UiTheme theme, ManaUiShowcaseViewModel vm)
         {

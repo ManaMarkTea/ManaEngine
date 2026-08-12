@@ -295,6 +295,44 @@ public static class EditorChecks
         root.UpdateLayout(new Vector2(600, 200));
 
         Check("three fields by default", vector.Components == 3, $"{vector.Components}");
+
+        // The axis letter is the drag handle, not a label beside one. That removes the label column and the
+        // strip under each field, which is what buys back the vertical space a transform section eats.
+        Check("the axis letter is the handle",
+            vector.Field(0).DragHandle == NumericDragHandle.Leading, vector.Field(0).DragHandle.ToString());
+        Check("the chip carries the axis letter", vector.Field(0).ChipText == "X", vector.Field(0).ChipText);
+        Check("dragging starts from the chip",
+            vector.Field(0).DragStripRect.X == vector.Field(0).Bounds.X
+            && vector.Field(0).DragStripRect.Width < vector.Field(0).Bounds.Width * 0.5f,
+            vector.Field(0).DragStripRect.ToString());
+
+        var strippedField = new NumericBox { DragHandle = NumericDragHandle.Strip, Width = 120.0f };
+        var chippedField = new NumericBox { DragHandle = NumericDragHandle.Leading, ChipText = "X", Width = 120.0f };
+        root.Content = null;
+        root.Content = new StackPanel().Vertical().Children(strippedField, chippedField);
+        root.UpdateLayout(new Vector2(400, 200));
+
+        Check("a chipped field is shorter than a stripped one",
+            chippedField.Bounds.Height < strippedField.Bounds.Height,
+            $"{chippedField.Bounds.Height:F1}px vs {strippedField.Bounds.Height:F1}px");
+
+        root.Content = null;
+        root.Content = vector;
+        root.UpdateLayout(new Vector2(600, 200));
+
+        // Three of these stacked is a transform section, so the per-row saving is what matters.
+        Check("a vector row is compact", vector.Bounds.Height < 24.0f, $"{vector.Bounds.Height:F1}px tall");
+
+        // The text half still has to be usable at that height.
+        Check("the text area survives the squeeze",
+            vector.Field(0).Bounds.Width - vector.Field(0).DragStripRect.Width > 40.0f,
+            $"{vector.Field(0).Bounds.Width - vector.Field(0).DragStripRect.Width:F1}px of text");
+        Check("the chip advertises the drag",
+            vector.Field(0).GetCursor(vector.Field(0).DragStripRect.Center) == UiCursor.SizeWE,
+            vector.Field(0).GetCursor(vector.Field(0).DragStripRect.Center).ToString());
+        Check("the text advertises selection",
+            vector.Field(0).GetCursor(vector.Field(0).Bounds.Center) == UiCursor.IBeam,
+            vector.Field(0).GetCursor(vector.Field(0).Bounds.Center).ToString());
         Check("components reach their fields",
             vector.Field(0).Value == 1.0f && vector.Field(1).Value == 2.0f && vector.Field(2).Value == 3.0f,
             $"{vector.Field(0).Text}, {vector.Field(1).Text}, {vector.Field(2).Text}");
