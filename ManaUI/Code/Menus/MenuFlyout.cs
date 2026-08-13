@@ -54,13 +54,46 @@ namespace ManaUI
 
             foreach (var item in items)
             {
-                list.Children.Add(item.IsSeparator
-                    ? BuildSeparator(theme)
-                    : new MenuRow(root, popup, item, hasCheckColumn, hasSubmenus));
+                if (item.IsSeparator)
+                {
+                    list.Children.Add(BuildSeparator(theme));
+                    continue;
+                }
+
+                // A hosted control keeps the menu open and handles its own input, so it is added as
+                // itself rather than wrapped in a row that would swallow the click.
+                if (item.HasContent)
+                {
+                    list.Children.Add(BuildContentRow(theme, item));
+                    continue;
+                }
+
+                list.Children.Add(new MenuRow(root, popup, item, hasCheckColumn, hasSubmenus));
             }
 
             show(popup);
             return popup;
+        }
+
+        /// <summary>
+        /// A hosted control, indented to the same place a label starts so it lines up with the rows
+        /// around it.
+        /// </summary>
+        private static UiElement BuildContentRow(UiTheme theme, MenuItem item)
+        {
+            var content = item.Content!;
+
+            if (string.IsNullOrEmpty(item.Text))
+            {
+                return content.Margin(MenuRow.LabelIndent, 2.0f, 8.0f, 2.0f);
+            }
+
+            return new StackPanel()
+                .Vertical(2.0f)
+                .Margin(MenuRow.LabelIndent, 3.0f, 8.0f, 3.0f)
+                .Children(
+                    new TextBlock().Text(item.Text).Foreground(theme.TextMuted).FontSize(theme.FontSizeSmall),
+                    content);
         }
 
         private static UiElement BuildSeparator(UiTheme theme)
@@ -82,6 +115,9 @@ namespace ManaUI
     /// </summary>
     internal sealed class MenuRow : Control
     {
+        /// <summary>Where a row's text starts, so hosted content can line up with it.</summary>
+        internal const float LabelIndent = 26.0f;
+
         private const float CheckColumnWidth = 20.0f;
         private const float ArrowColumnWidth = 16.0f;
         private const float ShortcutGap = 24.0f;
@@ -105,6 +141,7 @@ namespace ManaUI
             Focusable = false;
             HorizontalAlignment = HorizontalAlignment.Stretch;
             IsEnabled = item.ResolveEnabled();
+            Tooltip = item.Tooltip;
         }
 
         private float LeftInset => _hasCheckColumn ? CheckColumnWidth : 10.0f;
@@ -117,9 +154,10 @@ namespace ManaUI
 
             var width = LeftInset + font.MeasureWidth(_item.Text) + 12.0f;
 
-            if (!string.IsNullOrEmpty(_item.Shortcut))
+            var shortcut = _item.ResolveShortcut();
+            if (!string.IsNullOrEmpty(shortcut))
             {
-                width += ShortcutGap + font.MeasureWidth(_item.Shortcut);
+                width += ShortcutGap + font.MeasureWidth(shortcut);
             }
 
             if (_hasSubmenuColumn)
@@ -134,7 +172,7 @@ namespace ManaUI
         {
             var root = Root ?? _root;
             var theme = root.Theme;
-            var enabled = _item.ResolveEnabled();
+            var enabled = _item.ResolveEnabled() && !_item.IsLabel;
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
 
             // A row stays highlighted while its own submenu is open, even though the pointer has moved off
@@ -173,12 +211,13 @@ namespace ManaUI
                 foreground,
                 VerticalAlignment.Center);
 
-            if (!string.IsNullOrEmpty(_item.Shortcut))
+            var shortcutText = _item.ResolveShortcut();
+            if (!string.IsNullOrEmpty(shortcutText))
             {
                 var shortcut = new TextLayout
                 {
                     Font = font,
-                    Text = _item.Shortcut,
+                    Text = shortcutText,
                     Alignment = TextAlignment.Right
                 };
 
@@ -251,8 +290,9 @@ namespace ManaUI
                 return;
             }
 
+            // A label is text, not a command: it must not highlight, close the menu, or do anything.
             // A parent row only opens its submenu; it has no action of its own.
-            if (_item.HasSubmenu || !_item.ResolveEnabled())
+            if (_item.IsLabel || _item.HasSubmenu || !_item.ResolveEnabled())
             {
                 e.Handled = true;
                 return;

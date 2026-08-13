@@ -54,6 +54,51 @@ namespace ManaUI
 
         public static MenuItem Separator() => new() { IsSeparator = true };
 
+        /// <summary>
+        /// A control living in the menu rather than a row that closes it -- a slider for a value you want
+        /// to nudge while watching the result, which is a menu's job as much as a list of commands is.
+        /// </summary>
+        public UiElement? Content { get; set; }
+
+        public bool HasContent => Content != null;
+
+        /// <summary>A row that hosts a control instead of behaving like a command.</summary>
+        public static MenuItem Custom(UiElement content) => new() { Content = content };
+
+        /// <summary>
+        /// A line of text that does nothing: a count, a hint, the state of something. Not the same as a
+        /// disabled command, which looks like something you could have clicked at a better moment.
+        /// </summary>
+        public static MenuItem Label(string text) => new(text) { IsLabel = true };
+
+        public bool IsLabel { get; set; }
+
+        /// <summary>
+        /// Text shown when the pointer rests on the row. For the reason behind a command rather than its
+        /// name, which a menu has no room for.
+        /// </summary>
+        public string? Tooltip { get; set; }
+
+        public MenuItem WithTooltip(string tooltip)
+        {
+            Tooltip = tooltip;
+            return this;
+        }
+
+        /// <summary>
+        /// A live right-hand column. Shortcuts are the usual occupant, but it is equally the place for a
+        /// word about the row's state -- "Loading..." beside a thing being fetched.
+        /// </summary>
+        public Func<string>? ShortcutProvider { get; set; }
+
+        public MenuItem ShortcutFrom(Func<string> shortcut)
+        {
+            ShortcutProvider = shortcut;
+            return this;
+        }
+
+        public string ResolveShortcut() => ShortcutProvider?.Invoke() ?? Shortcut ?? string.Empty;
+
         /// <summary>Fluent helper for building a submenu inline.</summary>
         public MenuItem WithItems(params MenuItem[] items)
         {
@@ -80,7 +125,12 @@ namespace ManaUI
             return this;
         }
 
-        internal bool ResolveEnabled()
+        /// <summary>
+        /// Whether the row is available right now, from its provider if it has one. Public because it is
+        /// what the row actually means -- a host testing or driving a menu needs the same answer the
+        /// renderer uses, not the value that happened to be set when the menu was built.
+        /// </summary>
+        public bool ResolveEnabled()
         {
             if (IsEnabledProvider != null)
             {
@@ -95,12 +145,17 @@ namespace ManaUI
             return IsEnabled;
         }
 
-        internal bool ResolveChecked()
+        /// <summary>Whether the row's tick is showing right now, from its provider if it has one.</summary>
+        public bool ResolveChecked()
         {
             return IsCheckedProvider?.Invoke() ?? IsChecked;
         }
 
-        internal void Invoke()
+        /// <summary>
+        /// Runs the row's action and command. Public for the same reason as the resolvers: a host driving
+        /// a menu from a shortcut or a test should go through exactly what a click does.
+        /// </summary>
+        public void Invoke()
         {
             Invoked?.Invoke();
 
