@@ -30,7 +30,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 5;
+        private const int LayoutVersion = 6;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -113,6 +113,22 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "tools" when editor != null => new DockItem(
                     "Voxel Tools",
                     VoxelToolPaletteManaView.Build(theme, editor).Scrollable()) { Id = "tools" },
+
+                // One panel per subject rather than one with a tab bar: the dock already tabs anything
+                // sharing a slot, so this gives the same arrangement by default and lets them be pulled
+                // apart.
+                "placement" when editor != null => new DockItem(
+                    "Placement",
+                    VoxelEditorPanelsManaView.BuildPlacement(theme, editor)) { Id = "placement" },
+                "physics" when editor != null => new DockItem(
+                    "Physics",
+                    VoxelEditorPanelsManaView.BuildPhysics(theme, editor)) { Id = "physics" },
+                "voxelstats" when editor != null => new DockItem(
+                    "Voxel Stats",
+                    VoxelEditorPanelsManaView.BuildStats(theme, editor)) { Id = "voxelstats" },
+                "voxeldebug" when editor != null => new DockItem(
+                    "Debug",
+                    VoxelEditorPanelsManaView.BuildDebug(theme, editor)) { Id = "voxeldebug" },
                 // world.Selection rather than a separately supplied instance: it is the same object the
                 // ImGui outliner and the viewport already use, so the two outliners cannot drift apart.
                 "outliner" when world != null => new DockItem(
@@ -341,6 +357,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             // neither enough width for a transform row.
             Place(right, resolve, "inspector", DockSide.Center, outliner);
             Place(right, resolve, "showcase", DockSide.Center, tools);
+            Place(right, resolve, "placement", DockSide.Center, tools);
+            Place(right, resolve, "physics", DockSide.Center, tools);
+            Place(right, resolve, "voxelstats", DockSide.Center, tools);
+            Place(right, resolve, "voxeldebug", DockSide.Center, tools);
 
             var layers = Place(right, resolve, "layers", DockSide.Bottom);
             Place(right, resolve, "stats", DockSide.Center, layers);
@@ -351,6 +371,10 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var tools = Place(left, resolve, "tools", DockSide.Center);
             Place(left, resolve, "showcase", DockSide.Center, tools);
+            Place(left, resolve, "placement", DockSide.Center, tools);
+            Place(left, resolve, "physics", DockSide.Center, tools);
+            Place(left, resolve, "voxelstats", DockSide.Center, tools);
+            Place(left, resolve, "voxeldebug", DockSide.Center, tools);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
             var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
@@ -367,6 +391,10 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var tools = Place(left, resolve, "tools", DockSide.Center);
             Place(left, resolve, "layers", DockSide.Center, tools);
+            Place(left, resolve, "placement", DockSide.Center, tools);
+            Place(left, resolve, "physics", DockSide.Center, tools);
+            Place(left, resolve, "voxelstats", DockSide.Center, tools);
+            Place(left, resolve, "voxeldebug", DockSide.Center, tools);
             Place(left, resolve, "showcase", DockSide.Bottom);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
@@ -384,7 +412,11 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static void BuildSplit(DockHost left, DockHost right, Func<string, DockItem?> resolve)
         {
             var outliner = Place(left, resolve, "outliner", DockSide.Center);
-            Place(left, resolve, "tools", DockSide.Center, outliner);
+            var splitTools = Place(left, resolve, "tools", DockSide.Center, outliner);
+            Place(left, resolve, "placement", DockSide.Center, splitTools);
+            Place(left, resolve, "physics", DockSide.Center, splitTools);
+            Place(left, resolve, "voxelstats", DockSide.Center, splitTools);
+            Place(left, resolve, "voxeldebug", DockSide.Center, splitTools);
 
             var inspector = Place(right, resolve, "inspector", DockSide.Center);
             Place(right, resolve, "showcase", DockSide.Center, inspector);

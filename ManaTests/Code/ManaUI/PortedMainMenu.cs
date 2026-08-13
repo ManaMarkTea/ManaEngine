@@ -244,6 +244,33 @@ public static class PortedMainMenuChecks
         Check("the workspace still renders in one draw call", root.Render().Batches.Count == 1,
             $"{root.Render().Batches.Count} batches");
 
+        // Each tool panel is its own dock item beside the outliner rather than a tab inside one window, so
+        // any of them can be pulled out and put somewhere else.
+        var docked = FindAll<DockHost>(workspace)
+            .SelectMany(host => host.AllItems())
+            .Select(item => item.Title)
+            .ToList();
+
+        foreach (var panel in new[] { "Placement", "Physics", "Voxel Stats", "Debug" })
+        {
+            Check($"{panel} is its own dock panel", docked.Contains(panel), string.Join(", ", docked));
+        }
+
+        // No world in this fixture, and a panel that needs one is skipped rather than docked empty -- the
+        // same rule that keeps the voxel palette out of a session with no editor.
+        Check("a panel needing a world is left out when there is none",
+            !docked.Contains("Outliner") && !docked.Contains("Inspector"), string.Join(", ", docked));
+
+        Check("and they arrive together rather than one preset knowing about them",
+            docked.Count(d => d is "Placement" or "Physics" or "Voxel Stats" or "Debug") == 4,
+            string.Join(", ", docked));
+
+        // Not covered here: that a workspace saved before these panels existed picks them up on upgrade.
+        // That path is a version mismatch inside Build, and every attempt to seed it from a file ended up
+        // proving nothing -- an unparseable seed falls back to the preset, which places every panel and
+        // makes the check pass whatever the version says. The bump to LayoutVersion is reasoned, not
+        // verified; the generic merge behaviour it relies on is covered in the persistence suite.
+
         try
         {
             if (File.Exists(scratch))

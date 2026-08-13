@@ -8,7 +8,13 @@ using Button = ManaUI.Button;
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
-    /// The editor's tool panel in ManaUI: the live header, session counters, and the tabs.
+    /// The editor's tool panels in ManaUI, one per subject rather than one panel with a tab bar.
+    /// <para>
+    /// ImGui's version was a single window with its own tabs because that is what it had. Here the dock
+    /// already tabs anything sharing a slot, so separate panels give the same arrangement by default and
+    /// let them be pulled apart -- physics tuning beside the viewport while the placement readout stays
+    /// where it was, which one tab bar could not do.
+    /// </para>
     /// <para>
     /// Import is not here yet. It is a mesh-asset tree with format filters and drag-to-spawn, which is a
     /// piece of work in its own right and crosses from the panel into the viewport; the tab is deliberately
@@ -23,7 +29,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private const int FrameHistory = 120;
 
-        public static UiElement Build(UiTheme theme, VoxelEditorViewModel viewModel)
+        /// <summary>Frame rate, mode, and the session counters.</summary>
+        public static UiElement BuildStats(UiTheme theme, VoxelEditorViewModel viewModel)
         {
             var frames = new float[FrameHistory];
             var next = 0;
@@ -54,15 +61,27 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return $"{ManaTime.GlobalTime.FramesPerSecondAvg:0} fps average, {frames[(next + frames.Length - 1) % frames.Length]:0.0} ms last frame";
             });
 
-            var tabs = new TabView().AddRange(
-                new TabItem("Editor", EditorTab(theme, viewModel)),
-                new TabItem("Physics", PhysicsTab(theme, viewModel)),
-                new TabItem("Debug", DebugTab(theme, viewModel)));
+            return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
+                Header(theme, viewModel, graph),
+                SessionStats(theme, viewModel)).Scrollable();
+        }
 
-            return new Grid().Rows("Auto, Auto, *").Columns("*").Padding(8.0f).Children(
-                Header(theme, viewModel, graph).GridRow(0),
-                SessionStats(theme, viewModel).GridRow(1),
-                tabs.GridRow(2));
+        /// <summary>The active node and what the pointer is over.</summary>
+        public static UiElement BuildPlacement(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
+            return EditorTab(theme, viewModel);
+        }
+
+        /// <summary>Explosion and reassembly tuning, and the bake actions.</summary>
+        public static UiElement BuildPhysics(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
+            return PhysicsTab(theme, viewModel);
+        }
+
+        /// <summary>Memory over time and the developer toggles.</summary>
+        public static UiElement BuildDebug(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
+            return DebugTab(theme, viewModel);
         }
 
         private static UiElement Header(UiTheme theme, VoxelEditorViewModel viewModel, Sparkline graph)

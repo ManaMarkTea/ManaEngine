@@ -171,8 +171,9 @@ public static class PortedPaletteChecks
     }
 
     /// <summary>
-    /// The editor's tool panel, ported. The header and counters are live against the same view model the
-    /// ImGui panel read, and the tabs keep their contents rather than rebuilding on every switch.
+    /// The editor's tool panels, ported. One per subject rather than one panel with a tab bar, because the
+    /// dock already tabs anything sharing a slot -- so this gives the same arrangement by default and lets
+    /// them be pulled apart.
     /// </summary>
     public static void ToolPanel(ManaFontManager fonts, Action<string, bool, string> check)
     {
@@ -181,52 +182,63 @@ public static class PortedPaletteChecks
         var root = new UiRoot(fonts);
         var vm = new VoxelEditorViewModel();
 
-        UiElement? panel = null;
+        UiElement? stats = null;
+        UiElement? placement = null;
+        UiElement? physics = null;
+        UiElement? debug = null;
+
         try
         {
-            panel = VoxelEditorPanelsManaView.Build(root.Theme, vm);
-            Check("the ported tool panel constructs", true);
+            stats = VoxelEditorPanelsManaView.BuildStats(root.Theme, vm);
+            placement = VoxelEditorPanelsManaView.BuildPlacement(root.Theme, vm);
+            physics = VoxelEditorPanelsManaView.BuildPhysics(root.Theme, vm);
+            debug = VoxelEditorPanelsManaView.BuildDebug(root.Theme, vm);
+            Check("the ported tool panels construct", true);
         }
         catch (Exception ex)
         {
-            Check("the ported tool panel constructs", false, ex.Message);
+            Check("the ported tool panels construct", false, ex.Message);
             return;
         }
 
-        root.Content = panel;
-        root.UpdateLayout(new Vector2(420, 900));
-
-        Check("it renders", root.Render().InstanceCount > 40, $"{root.Render().InstanceCount} instances");
-        Check("in one draw call", root.Render().Batches.Count == 1, $"{root.Render().Batches.Count} batches");
-
-        var tabs = FindAll<TabView>(panel).FirstOrDefault();
-        Check("it has a tab strip", tabs != null);
-
-        if (tabs == null)
+        // Each stands on its own, which is the point of splitting them: any of these can be the only thing
+        // in a dock slot.
+        foreach (var (name, panel) in new (string, UiElement)[]
         {
-            return;
+            ("Voxel Stats", stats),
+            ("Placement", placement),
+            ("Physics", physics),
+            ("Debug", debug)
+        })
+        {
+            root.Content = null;
+            root.Content = panel;
+            root.UpdateLayout(new Vector2(420, 900));
+
+            Check($"{name} renders on its own", root.Render().InstanceCount > 5,
+                $"{root.Render().InstanceCount} instances");
+            Check($"and {name} is one draw call", root.Render().Batches.Count == 1,
+                $"{root.Render().Batches.Count} batches");
         }
 
-        // Import is deliberately absent rather than present and empty: it is a mesh tree with filters and
-        // drag-to-spawn, and a tab that opens onto nothing looks like a bug rather than unfinished work.
-        var headers = tabs.Tabs.Select(t => t.Header).ToList();
-        Check("with the tabs that are ported", headers.SequenceEqual(new[] { "Editor", "Physics", "Debug" }),
-            string.Join(", ", headers));
-
-        // ---------------------------------------------------------------- live header
-        Check("the session counters are shown",
-            FindAll<Expander>(panel).Any(e => e.Header == "Session Stats"),
-            string.Join(", ", FindAll<Expander>(panel).Select(e => e.Header)));
-
-        var graphs = FindAll<Sparkline>(panel).ToList();
-        Check("the frame graph is in the header", graphs.Count >= 1, $"{graphs.Count} graphs");
-
-        // ---------------------------------------------------------------- physics tuning
-        tabs.SelectByHeader("Physics");
+        // ---------------------------------------------------------------- stats
+        root.Content = null;
+        root.Content = stats;
         root.UpdateLayout(new Vector2(420, 900));
 
-        var sliders = FindAll<SliderBox>(panel).Where(s => s.Bounds.Width > 0.0f).ToList();
-        Check("the physics tab has its tuning sliders", sliders.Count >= 8, $"{sliders.Count} sliders");
+        Check("stats shows the session counters",
+            FindAll<Expander>(stats).Any(e => e.Header == "Session Stats"),
+            string.Join(", ", FindAll<Expander>(stats).Select(e => e.Header)));
+
+        Check("and a frame graph", FindAll<Sparkline>(stats).Any(), "sparkline present");
+
+        // ---------------------------------------------------------------- physics
+        root.Content = null;
+        root.Content = physics;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var sliders = FindAll<SliderBox>(physics).Where(s => s.Bounds.Width > 0.0f).ToList();
+        Check("physics has its tuning sliders", sliders.Count >= 8, $"{sliders.Count} sliders");
 
         var strength = sliders.FirstOrDefault(s => MathF.Abs(s.Value - vm.BakeExplosionStrength) < 0.001f);
         if (strength != null)
@@ -234,35 +246,20 @@ public static class PortedPaletteChecks
             var before = vm.BakeExplosionStrength;
             strength.Value = before + 5.0f;
             Check("and dragging one writes to the editor",
-                MathF.Abs(vm.BakeExplosionStrength - (before + 5.0f)) < 0.01f,
-                $"{vm.BakeExplosionStrength}");
+                MathF.Abs(vm.BakeExplosionStrength - (before + 5.0f)) < 0.01f, $"{vm.BakeExplosionStrength}");
         }
 
-        // Actions that need baked voxels say so rather than failing when pressed.
-        var explode = FindAll<Button>(panel).FirstOrDefault(b => b.Text == "Explode All Baked Voxels");
+        var explode = FindAll<Button>(physics).FirstOrDefault(b => b.Text == "Explode All Baked Voxels");
         Check("an action needing baked voxels is disabled without them",
             explode != null && !explode.IsEnabled, $"{explode?.IsEnabled}");
 
-        // ---------------------------------------------------------------- tabs keep their state
-        tabs.SelectByHeader("Debug");
-        root.UpdateLayout(new Vector2(420, 900));
-        tabs.SelectByHeader("Physics");
-        root.UpdateLayout(new Vector2(420, 900));
-
-        var again = FindAll<SliderBox>(panel).FirstOrDefault(s => MathF.Abs(s.Value - vm.BakeExplosionStrength) < 0.01f);
-        Check("switching tabs does not rebuild their contents",
-            again != null && ReferenceEquals(again, strength), "same instance");
-
-        // ---------------------------------------------------------------- placement readout
-        tabs.SelectByHeader("Editor");
+        // ---------------------------------------------------------------- placement
+        root.Content = null;
+        root.Content = placement;
         root.UpdateLayout(new Vector2(420, 900));
 
         Check("with nothing hovered the placement readout says so",
-            FindAll<TextBlock>(panel).Any(t => t.Text == "No hovered voxel"),
-            "placement empty state");
-
-        Check("the panel still renders in one draw call", root.Render().Batches.Count == 1,
-            $"{root.Render().Batches.Count} batches");
+            FindAll<TextBlock>(placement).Any(t => t.Text == "No hovered voxel"), "empty state");
     }
 
     private static IEnumerable<T> FindAll<T>(UiElement element) where T : UiElement
