@@ -120,6 +120,48 @@ namespace ManaUI
             Add(rect, corners, color, UiColor.Transparent, 0.0f, Vector4.Zero, ManaUiInstanceFlags.None);
         }
 
+        /// <summary>
+        /// A vertical gradient fill, top colour to bottom. Still one instance -- the second colour rides
+        /// on the same box rather than costing a second draw.
+        /// </summary>
+        public void FillRect(UiRect rect, Vector4 top, Vector4 bottom, CornerRadius corners)
+        {
+            if (top.W <= 0.0f && bottom.W <= 0.0f)
+            {
+                return;
+            }
+
+            Add(rect, corners, top, UiColor.Transparent, 0.0f, Vector4.Zero, ManaUiInstanceFlags.None, bottom);
+        }
+
+        /// <summary>Fill, gradient and inset border in one instance.</summary>
+        public void DrawBox(
+            UiRect rect,
+            Vector4 top,
+            Vector4 bottom,
+            Vector4 border,
+            float borderThickness,
+            CornerRadius corners)
+        {
+            var hasFill = top.W > 0.0f || bottom.W > 0.0f;
+            var hasBorder = borderThickness > 0.0f && border.W > 0.0f;
+
+            if (!hasFill && !hasBorder)
+            {
+                return;
+            }
+
+            Add(
+                rect,
+                corners,
+                top,
+                hasBorder ? border : UiColor.Transparent,
+                hasBorder ? borderThickness : 0.0f,
+                Vector4.Zero,
+                ManaUiInstanceFlags.None,
+                bottom);
+        }
+
         /// <summary>Draws an inset border only, leaving the interior untouched.</summary>
         public void DrawBorder(UiRect rect, Vector4 color, float thickness, CornerRadius corners)
         {
@@ -214,7 +256,8 @@ namespace ManaUI
             Vector4 border,
             float borderWidth,
             Vector4 uv,
-            ManaUiInstanceFlags flags)
+            ManaUiInstanceFlags flags,
+            Vector4? gradientTo = null)
         {
             // Cheap rejection before the instance is ever built. Shadows are exempt: their quad is inflated
             // past the clip on purpose and the falloff inside it is still visible.
@@ -228,10 +271,23 @@ namespace ManaUI
                 Array.Resize(ref _instances, _instances.Length * 2);
             }
 
+            var gradient = gradientTo;
+
             if (_opacity < 1.0f)
             {
                 fill.W *= _opacity;
                 border.W *= _opacity;
+
+                if (gradient is { } fading)
+                {
+                    fading.W *= _opacity;
+                    gradient = fading;
+                }
+            }
+
+            if (gradient != null)
+            {
+                flags |= ManaUiInstanceFlags.Gradient;
             }
 
             _instances[_instanceCount++] = new ManaUiInstance
@@ -243,7 +299,8 @@ namespace ManaUI
                 FillColor = UiColor.Pack(fill),
                 BorderColor = UiColor.Pack(border),
                 BorderWidth = borderWidth,
-                Flags = (uint)flags
+                Flags = (uint)flags,
+                GradientColor = UiColor.Pack(gradient ?? fill)
             };
         }
 

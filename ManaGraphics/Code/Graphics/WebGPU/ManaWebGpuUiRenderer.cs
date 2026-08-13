@@ -20,7 +20,9 @@ namespace ManaGraphics.Code.Graphics
     /// </summary>
     internal unsafe sealed class ManaWebGpuUiRenderer : IDisposable
     {
-        private const int InstanceStride = 80;
+        // Must match sizeof(ManaUiInstance). Checked at start-up rather than trusted, because a mismatch
+        // reads every instance at the wrong offset and produces a frame of noise rather than an error.
+        private const int InstanceStride = 84;
 
         private readonly WebGPU _api;
         private readonly Device* _device;
@@ -522,7 +524,7 @@ namespace ManaGraphics.Code.Graphics
         private RenderPipeline* CreatePipeline(TextureFormat surfaceFormat)
         {
             // One instance-stepped buffer; the quad's own corners come from @builtin(vertex_index).
-            var attributes = stackalloc VertexAttribute[8];
+            var attributes = stackalloc VertexAttribute[9];
             attributes[0] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 0, ShaderLocation = 0 };
             attributes[1] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 16, ShaderLocation = 1 };
             attributes[2] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 32, ShaderLocation = 2 };
@@ -531,12 +533,13 @@ namespace ManaGraphics.Code.Graphics
             attributes[5] = new VertexAttribute { Format = VertexFormat.Uint32, Offset = 68, ShaderLocation = 5 };
             attributes[6] = new VertexAttribute { Format = VertexFormat.Float32, Offset = 72, ShaderLocation = 6 };
             attributes[7] = new VertexAttribute { Format = VertexFormat.Uint32, Offset = 76, ShaderLocation = 7 };
+            attributes[8] = new VertexAttribute { Format = VertexFormat.Uint32, Offset = 80, ShaderLocation = 8 };
 
             var vertexBufferLayout = new VertexBufferLayout
             {
                 ArrayStride = InstanceStride,
                 StepMode = VertexStepMode.Instance,
-                AttributeCount = 8,
+                AttributeCount = 9,
                 Attributes = attributes
             };
 

@@ -127,7 +127,29 @@ namespace ManaUI
 
             var (fill, border, thickness) = ResolveColors(theme, enabled);
 
-            drawList.DrawBox(Bounds, ApplyStateOverlay(fill), border, thickness, corners);
+            // A button is the thing a gradient is for: the shading reads as a raised surface, and a flat
+            // one beside it reads as disabled. Transparent fills stay flat -- shading nothing is still
+            // nothing, and a subtle button should not acquire an edge just by existing.
+            var shaded = ApplyStateOverlay(fill);
+
+            if (shaded.W > 0.0f && theme.AccentGradient > 0.0f)
+            {
+                var strength = _variant is ButtonVariant.Primary or ButtonVariant.Danger
+                    ? theme.AccentGradient
+                    : theme.SurfaceGradient;
+
+                drawList.DrawBox(
+                    Bounds,
+                    theme.GradientTop(shaded, strength),
+                    theme.GradientBottom(shaded, strength),
+                    border,
+                    thickness,
+                    corners);
+            }
+            else
+            {
+                drawList.DrawBox(Bounds, shaded, border, thickness, corners);
+            }
             RenderFocusRing(drawList, Bounds, corners);
 
             if (_label != null)

@@ -55,6 +55,25 @@ namespace ManaUI
         /// </summary>
         public Vector4 RowAlternate { get; set; } = UiColor.FromHex("#22262E");
 
+        /// <summary>
+        /// How far a raised surface lightens at the top and darkens at the bottom, as a fraction.
+        /// <para>
+        /// One number rather than a second colour per token: a gradient here is a light source overhead,
+        /// so every raised thing wants the same shading and only the base colour differs. Zero gives the
+        /// flat look back, which is what a theme that does not want this should set.
+        /// </para>
+        /// </summary>
+        public float SurfaceGradient { get; set; } = 0.04f;
+
+        /// <summary>The same, for the accent -- buttons carry it more strongly than panels do.</summary>
+        public float AccentGradient { get; set; } = 0.10f;
+
+        /// <summary>The top of a gradient over <paramref name="color"/>.</summary>
+        public Vector4 GradientTop(Vector4 color, float strength) => UiColor.Lighten(color, strength * 0.5f);
+
+        /// <summary>The bottom of a gradient over <paramref name="color"/>.</summary>
+        public Vector4 GradientBottom(Vector4 color, float strength) => UiColor.Darken(color, strength * 0.5f);
+
         public Vector4 Accent { get; set; } = UiColor.FromHex("#4A88E8");
         public Vector4 AccentHover { get; set; } = UiColor.FromHex("#5D97F0");
         public Vector4 AccentPressed { get; set; } = UiColor.FromHex("#3A72CC");
@@ -183,6 +202,9 @@ namespace ManaUI
                 Border = UiColor.FromHex("#C3CDDB"),
                 BorderStrong = UiColor.FromHex("#A3B0C2"),
                 Divider = UiColor.FromHex("#D3DBE6"),
+
+                SurfaceGradient = 0.06f,
+                AccentGradient = 0.14f,
 
                 Accent = UiColor.FromHex("#2C6FD6"),
                 AccentHover = UiColor.FromHex("#3D80E6"),

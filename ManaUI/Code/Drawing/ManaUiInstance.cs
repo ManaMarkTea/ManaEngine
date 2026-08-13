@@ -14,7 +14,16 @@ namespace ManaUI
         Texture = 1 << 1,
 
         /// <summary>Render an outer drop shadow of the box instead of the box itself.</summary>
-        Shadow = 1 << 2
+        Shadow = 1 << 2,
+
+        /// <summary>
+        /// Fill with a vertical gradient from FillColor at the top to GradientColor at the bottom.
+        /// <para>
+        /// Vertical only, and deliberately: every gradient a UI actually wants is a light source overhead.
+        /// An angle would cost another field on every instance in the frame to serve the rare case.
+        /// </para>
+        /// </summary>
+        Gradient = 1 << 3
     }
 
     /// <summary>
@@ -25,7 +34,7 @@ namespace ManaUI
     /// via scissor for the same reason: a scissor change would force a draw-call split, and rounded clips
     /// (scroll viewers with rounded corners) are not expressible as a scissor rect at all.
     /// </para>
-    /// 80 bytes; field order and padding must match the WGSL/GLSL instance struct exactly.
+    /// 84 bytes; field order and padding must match the WGSL/GLSL instance struct exactly.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public struct ManaUiInstance
@@ -49,6 +58,9 @@ namespace ManaUI
         public float BorderWidth;
 
         public uint Flags;
+
+        /// <summary>The bottom colour when Flags has Gradient. Ignored otherwise.</summary>
+        public uint GradientColor;
     }
 
     /// <summary>

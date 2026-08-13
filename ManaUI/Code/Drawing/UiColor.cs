@@ -134,6 +134,28 @@ namespace ManaUI
             return includeAlpha || color.W < 1.0f ? hex + $"{Channel(color.W):X2}" : hex;
         }
 
+        /// <summary>
+        /// Toward white by <paramref name="amount"/>, alpha untouched. Used for the top of a gradient,
+        /// where mixing toward white keeps the hue rather than washing it out the way raising every
+        /// channel equally would.
+        /// </summary>
+        public static Vector4 Lighten(Vector4 color, float amount)
+        {
+            var t = Math.Clamp(amount, 0.0f, 1.0f);
+            return new Vector4(
+                color.X + (1.0f - color.X) * t,
+                color.Y + (1.0f - color.Y) * t,
+                color.Z + (1.0f - color.Z) * t,
+                color.W);
+        }
+
+        /// <summary>Toward black by <paramref name="amount"/>, alpha untouched.</summary>
+        public static Vector4 Darken(Vector4 color, float amount)
+        {
+            var t = 1.0f - Math.Clamp(amount, 0.0f, 1.0f);
+            return new Vector4(color.X * t, color.Y * t, color.Z * t, color.W);
+        }
+
         public static Vector4 Lerp(Vector4 from, Vector4 to, float amount)
         {
             return Vector4.Lerp(from, to, Math.Clamp(amount, 0.0f, 1.0f));

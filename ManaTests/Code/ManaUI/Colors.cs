@@ -352,3 +352,94 @@ public static class ThemeContrastChecks
     private static string Hex(Vector4 c) =>
         $"#{(int)(c.X * 255):X2}{(int)(c.Y * 255):X2}{(int)(c.Z * 255):X2}";
 }
+
+/// <summary>
+/// Gradients. The UI has one primitive, so a gradient is a second colour riding on the same instance
+/// rather than a second draw -- which is what keeps a frame at one draw call.
+/// </summary>
+public static class GradientChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        // The renderers read instances at fixed byte offsets. A struct that grows without both renderers
+        // agreeing does not fail -- it reads every field at the wrong place and draws a frame of noise.
+        var stride = System.Runtime.InteropServices.Marshal.SizeOf<ManaUiInstance>();
+        Check("the instance is the size both renderers expect", stride == 84, $"{stride} bytes");
+
+        var root = new UiRoot(fonts);
+
+        var flat = new Border().Fill(UiColor.FromHex("#404040")).Size(100.0f, 40.0f);
+        var graded = new Border()
+            .Fill(UiColor.FromHex("#606060"), UiColor.FromHex("#202020"))
+            .Size(100.0f, 40.0f);
+
+        root.Content = new Canvas().Children(flat.At(10.0f, 10.0f), graded.At(10.0f, 80.0f));
+        root.UpdateLayout(new Vector2(400, 200));
+
+        var drawn = root.Render();
+        Check("a gradient is still one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
+
+        var instances = drawn.Instances.ToArray();
+        var flatInstance = instances.FirstOrDefault(i => MathF.Abs(i.Rect.Y - 10.0f) < 1.0f);
+        var gradedInstance = instances.FirstOrDefault(i => MathF.Abs(i.Rect.Y - 80.0f) < 1.0f);
+
+        Check("a flat fill carries no gradient flag",
+            (flatInstance.Flags & (uint)ManaUiInstanceFlags.Gradient) == 0, $"flags {flatInstance.Flags}");
+
+        Check("and a gradient one does",
+            (gradedInstance.Flags & (uint)ManaUiInstanceFlags.Gradient) != 0, $"flags {gradedInstance.Flags}");
+
+        Check("with two different colours on the same instance",
+            gradedInstance.FillColor != gradedInstance.GradientColor,
+            $"{gradedInstance.FillColor:X8} to {gradedInstance.GradientColor:X8}");
+
+        // It is one instance, not two stacked boxes -- which is the entire reason to put it in the shader.
+        Check("and it costs no extra instance",
+            instances.Count(i => MathF.Abs(i.Rect.Y - 80.0f) < 1.0f) == 1,
+            $"{instances.Count(i => MathF.Abs(i.Rect.Y - 80.0f) < 1.0f)} instances");
+
+        // A theme with no gradient strength gives the flat look back, which is what a theme that does not
+        // want this should be able to say.
+        var theme = UiTheme.Light();
+        Check("a light theme asks for gradients", theme.SurfaceGradient > 0.0f, $"{theme.SurfaceGradient}");
+
+        var top = theme.GradientTop(theme.Accent, theme.AccentGradient);
+        var bottom = theme.GradientBottom(theme.Accent, theme.AccentGradient);
+
+        Check("the top of a gradient is lighter than the bottom",
+            top.X + top.Y + top.Z > bottom.X + bottom.Y + bottom.Z,
+            $"{top.X + top.Y + top.Z:F2} vs {bottom.X + bottom.Y + bottom.Z:F2}");
+
+        // Toward white rather than by raising every channel, so the hue survives.
+        Check("and lightening keeps the hue",
+            top.Z > top.X, $"blue {top.Z:F2} still above red {top.X:F2}");
+
+        Check("alpha is untouched by shading",
+            MathF.Abs(top.W - theme.Accent.W) < 0.001f && MathF.Abs(bottom.W - theme.Accent.W) < 0.001f,
+            $"{top.W} / {bottom.W}");
+
+        // A button is where this shows most, and a transparent one must stay flat rather than acquiring an
+        // edge just by existing.
+        var subtle = new Button().Label("Subtle").Variant(ButtonVariant.Subtle);
+        var primary = new Button().Label("Primary").Variant(ButtonVariant.Primary);
+
+        root.Content = null;
+        root.Content = new Canvas().Children(subtle.At(10.0f, 10.0f), primary.At(150.0f, 10.0f));
+        root.UpdateLayout(new Vector2(400, 200));
+
+        var buttons = root.Render().Instances.ToArray();
+
+        var primaryBox = buttons.FirstOrDefault(i => i.Rect.X >= 149.0f && i.Rect.Z - i.Rect.X > 20.0f);
+        Check("a filled button is shaded",
+            (primaryBox.Flags & (uint)ManaUiInstanceFlags.Gradient) != 0, $"flags {primaryBox.Flags}");
+
+        var subtleShaded = buttons.Any(i =>
+            i.Rect.X < 149.0f
+            && (i.Flags & (uint)ManaUiInstanceFlags.Gradient) != 0
+            && i.Rect.Z - i.Rect.X > 20.0f);
+
+        Check("a transparent one is not", !subtleShaded, "stays flat");
+    }
+}

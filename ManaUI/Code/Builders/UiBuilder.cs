@@ -356,6 +356,14 @@ namespace ManaUI
 
         // ----- Border --------------------------------------------------------------------------------
 
+        /// <summary>A vertical gradient fill, top to bottom.</summary>
+        public static Border Fill(this Border border, Vector4 top, Vector4 bottom)
+        {
+            border.Background = top;
+            border.BackgroundGradientTo = bottom;
+            return border;
+        }
+
         public static Border Fill(this Border border, Vector4 color)
         {
             border.Background = color;

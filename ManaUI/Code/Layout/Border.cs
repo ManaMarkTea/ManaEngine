@@ -36,6 +36,17 @@ namespace ManaUI
             set => SetVisualProperty(ref _cornerRadius, value);
         }
 
+        /// <summary>
+        /// Bottom colour of a vertical gradient, or null for a flat fill. Background is the top.
+        /// </summary>
+        public Vector4? BackgroundGradientTo
+        {
+            get => _backgroundGradientTo;
+            set => SetVisualProperty(ref _backgroundGradientTo, value);
+        }
+
+        private Vector4? _backgroundGradientTo;
+
         /// <summary>Optional drop shadow blur radius; 0 disables it.</summary>
         public float ShadowBlur { get; set; }
 
@@ -50,11 +61,19 @@ namespace ManaUI
                 drawList.DrawShadow(Bounds, ShadowColor, ShadowBlur, _cornerRadius);
             }
 
+            if (_backgroundGradientTo is { } bottom)
+            {
+                drawList.DrawBox(Bounds, _background, bottom, _borderColor, _borderThickness, _cornerRadius);
+                return;
+            }
+
             drawList.DrawBox(Bounds, _background, _borderColor, _borderThickness, _cornerRadius);
         }
 
         /// <summary>Same rule as Panel: an invisible border is layout scaffolding, not a click target.</summary>
         protected override bool IsSelfHitTestVisible =>
-            _background.W > 0.0f || (_borderThickness > 0.0f && _borderColor.W > 0.0f);
+            _background.W > 0.0f
+            || _backgroundGradientTo is { W: > 0.0f }
+            || (_borderThickness > 0.0f && _borderColor.W > 0.0f);
     }
 }

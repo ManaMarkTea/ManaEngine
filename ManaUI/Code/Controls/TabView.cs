@@ -224,7 +224,20 @@ namespace ManaUI
                 : IsPointerOver && enabled ? theme.SurfaceAlt
                 : UiColor.Transparent;
 
-            drawList.FillRect(Bounds, fill, new CornerRadius(theme.CornerRadius.TopLeft, theme.CornerRadius.TopLeft, 0.0f, 0.0f));
+            var corners = new CornerRadius(theme.CornerRadius.TopLeft, theme.CornerRadius.TopLeft, 0.0f, 0.0f);
+
+            if (selected && theme.SurfaceGradient > 0.0f)
+            {
+                drawList.FillRect(
+                    Bounds,
+                    theme.GradientTop(fill, theme.SurfaceGradient),
+                    theme.GradientBottom(fill, theme.SurfaceGradient),
+                    corners);
+            }
+            else
+            {
+                drawList.FillRect(Bounds, fill, corners);
+            }
 
             if (selected)
             {

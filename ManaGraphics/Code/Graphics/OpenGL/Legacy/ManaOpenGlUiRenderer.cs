@@ -16,7 +16,9 @@ namespace Mana.Code.Graphics
     /// </summary>
     internal sealed unsafe class ManaOpenGlUiRenderer : IDisposable
     {
-        private const int InstanceStride = 80;
+        // Must match sizeof(ManaUiInstance). A mismatch reads every instance at the wrong offset, which
+        // produces a frame of noise rather than an error.
+        private const int InstanceStride = 84;
 
         private const string VertexShaderSource = @"#version 330 core
 
@@ -28,6 +30,7 @@ layout(location = 4) in uint aFillColor;
 layout(location = 5) in uint aBorderColor;
 layout(location = 6) in float aBorderWidth;
 layout(location = 7) in uint aFlags;
+layout(location = 8) in uint aGradientColor;
 
 uniform vec2 uViewportSize;
 
@@ -48,6 +51,7 @@ flat out vec4 vFill;
 flat out vec4 vBorder;
 flat out float vBorderWidth;
 flat out uint vFlags;
+flat out vec4 vGradient;
 flat out vec4 vSourceRect;
 
 vec4 unpackRgba(uint value)
@@ -95,6 +99,7 @@ void main()
     vFill = toTargetSpace(unpackRgba(aFillColor));
     vBorder = toTargetSpace(unpackRgba(aBorderColor));
     vBorderWidth = aBorderWidth;
+    vGradient = toTargetSpace(unpackRgba(aGradientColor));
     vFlags = aFlags;
     vSourceRect = aUv;
 }
@@ -108,6 +113,7 @@ flat in vec4 vRect;
 flat in vec4 vCorners;
 flat in vec4 vClip;
 flat in vec4 vFill;
+flat in vec4 vGradient;
 flat in vec4 vBorder;
 flat in float vBorderWidth;
 flat in uint vFlags;
@@ -121,6 +127,7 @@ out vec4 fragColor;
 const uint FLAG_GLYPH = 1u;
 const uint FLAG_TEXTURE = 2u;
 const uint FLAG_SHADOW = 4u;
+const uint FLAG_GRADIENT = 8u;
 
 float cornerRadius(vec2 p, vec4 corners)
 {
@@ -197,7 +204,15 @@ void main()
         discard;
     }
 
+    // Interpolated down the box, in whatever space this target wants -- the colours were converted on
+    // the way in, so mixing here matches what the WebGPU path does.
     vec4 fill = vFill;
+    if ((vFlags & FLAG_GRADIENT) != 0u)
+    {
+        float height = max(vRect.w - vRect.y, 0.0001);
+        fill = mix(vFill, vGradient, clamp((p.y - vRect.y) / height, 0.0, 1.0));
+    }
+
     if ((vFlags & FLAG_TEXTURE) != 0u)
     {
         fill *= texture(uImageAtlas, vUv);
@@ -503,6 +518,7 @@ void main()
             SetIntegerAttribute(5, baseOffset + 68);
             SetFloatAttribute(6, 1, baseOffset + 72);
             SetIntegerAttribute(7, baseOffset + 76);
+            SetIntegerAttribute(8, baseOffset + 80);
         }
 
         private void SetFloatAttribute(uint index, int components, int offset)

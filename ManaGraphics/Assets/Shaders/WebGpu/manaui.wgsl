@@ -22,6 +22,7 @@ struct Uniforms {
 const FLAG_GLYPH  : u32 = 1u;
 const FLAG_TEXTURE: u32 = 2u;
 const FLAG_SHADOW : u32 = 4u;
+const FLAG_GRADIENT : u32 = 8u;
 
 struct InstanceInput {
     @location(0) rect : vec4<f32>,          // minX, minY, maxX, maxY
@@ -32,6 +33,7 @@ struct InstanceInput {
     @location(5) border_color : u32,
     @location(6) border_width : f32,        // doubles as shadow blur radius
     @location(7) flags : u32,
+    @location(8) gradient_color : u32,
 };
 
 struct VertexOutput {
@@ -45,6 +47,7 @@ struct VertexOutput {
     @location(6) @interpolate(flat) border_color : vec4<f32>,
     @location(7) @interpolate(flat) border_width : f32,
     @location(8) @interpolate(flat) flags : u32,
+    @location(10) @interpolate(flat) gradient_color : vec4<f32>,
     // The unmodified instance uv. Distinct from the interpolated `uv` above because the shadow path needs
     // the source box as a whole rather than this fragment's position within it.
     @location(9) @interpolate(flat) source_rect : vec4<f32>,
@@ -111,6 +114,7 @@ fn vs_main(
     output.border_color = srgb_to_linear(unpack_rgba(instance.border_color));
     output.border_width = instance.border_width;
     output.flags = instance.flags;
+    output.gradient_color = srgb_to_linear(unpack_rgba(instance.gradient_color));
     output.source_rect = instance.uv;
     return output;
 }
@@ -185,6 +189,15 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(input.fill_color.rgb * alpha, alpha);
     }
 
+    // Interpolated down the box. Mixed in linear space, which is the whole reason the colours were
+    // converted on the way in: a gradient blended in sRGB darkens through the middle.
+    var base_fill = input.fill_color;
+    if ((input.flags & FLAG_GRADIENT) != 0u) {
+        let height = max(input.rect.w - input.rect.y, 0.0001);
+        let t = clamp((p.y - input.rect.y) / height, 0.0, 1.0);
+        base_fill = mix(input.fill_color, input.gradient_color, t);
+    }
+
     let distance = sd_rounded_box(p - centre, half_size, input.corners);
     let outer = coverage(distance);
     if (outer <= 0.0) {
@@ -200,7 +213,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let inner = coverage(distance + input.border_width);
         let ring = max(outer - inner, 0.0);
 
-        var fill = input.fill_color;
+        var fill = base_fill;
         if ((input.flags & FLAG_TEXTURE) != 0u) {
             fill = fill * textureSample(image_atlas, atlas_sampler, input.uv);
         }
@@ -208,7 +221,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         rgb = fill.rgb * fill.a * inner + input.border_color.rgb * input.border_color.a * ring;
         alpha = fill.a * inner + input.border_color.a * ring;
     } else {
-        var fill = input.fill_color;
+        var fill = base_fill;
         if ((input.flags & FLAG_TEXTURE) != 0u) {
             fill = fill * textureSample(image_atlas, atlas_sampler, input.uv);
         }
