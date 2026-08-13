@@ -313,14 +313,21 @@ namespace ManaUI
             var font = _font!;
             var previous = 0;
 
-            foreach (var codepoint in new CodepointEnumerator(_text.AsSpan(line.Start, line.Length)))
+            var span = _text.AsSpan(line.Start, line.Length);
+            var enumerator = new CodepointEnumerator(span);
+
+            while (enumerator.MoveNext())
             {
+                var codepoint = enumerator.Current;
+
                 if (previous != 0)
                 {
                     penX += font.GetKerning(previous, codepoint);
                 }
 
-                var glyph = font.GetGlyph(codepoint);
+                // A trailing U+FE0F is the difference between a black dingbat and a red heart, so the
+                // decision needs the character after this one rather than this one alone.
+                var glyph = font.GetGlyph(codepoint, ManaFont.HasEmojiSelector(span, enumerator.Position));
                 if (glyph.HasPixels)
                 {
                     var quad = new UiRect(

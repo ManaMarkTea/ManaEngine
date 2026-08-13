@@ -55,6 +55,12 @@ namespace Mana.Code.UI.ManaUi
                 _keyboard.KeyDown += OnKeyDown;
                 _keyboard.KeyUp += OnKeyUp;
                 _keyboard.KeyChar += OnKeyChar;
+
+                // ManaUI's clipboard is a plain static string, because the library has no windowing
+                // dependency and so no way to reach the real one. Connecting it is this adapter's job --
+                // without it, copy and paste worked only between two ManaUI fields and looked broken from
+                // everywhere else.
+                ManaUiClipboard.Attach(_keyboard);
             }
         }
 

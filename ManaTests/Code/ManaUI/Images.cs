@@ -211,6 +211,62 @@ public static class ImageChecks
             Check("and they are in colour, not greyscale", coloured > 10,
                 $"{coloured} texels with unequal channels");
 
+            // ------------------------------------------------------------ invisible codepoints
+            // An emoji is rarely one codepoint. A heart pasted from Windows is U+2764 followed by U+FE0F,
+            // the variation selector that asks for the emoji form -- and a selector left to the normal
+            // path rasterises as .notdef, which is the box that appeared after every heart.
+            Check("a variation selector is recognised as ignorable",
+                ManaFont.IsDefaultIgnorable(0xFE0F), "U+FE0F");
+            Check("so is the zero-width joiner", ManaFont.IsDefaultIgnorable(0x200D), "U+200D");
+            Check("an ordinary character is not",
+                !ManaFont.IsDefaultIgnorable('A') && !ManaFont.IsDefaultIgnorable(0x1F600), "A, U+1F600");
+
+            var selector = emoji.GetGlyph(0xFE0F);
+            Check("a variation selector draws nothing", !selector.HasPixels, "no quad");
+            Check("and takes no space", selector.Advance == 0.0f, $"{selector.Advance}");
+            Check("and is not reported missing", !selector.IsMissing, "invisible, not absent");
+
+            // The sequence as Windows actually delivers it.
+            var heartRoot = new UiRoot(fonts);
+            heartRoot.Content = new TextBlock().Text("❤️");
+            heartRoot.UpdateLayout(new Vector2(200, 60));
+            var hearts = heartRoot.Render();
+
+            Check("a heart emoji is one glyph, not two", hearts.InstanceCount == 1,
+                $"{hearts.InstanceCount} instances");
+
+            // ------------------------------------------------------------ text wins by default
+            // An emoji font claims far more than a UI wants it to draw. Noto maps the ASCII digits and the
+            // asterisk and hash, because they are the bases of the keycap sequences -- so with colour
+            // tried first, every number in the interface became a coloured tile and a tree's collapsed
+            // arrow became a play button.
+            Check("the emoji font really does claim the digits",
+                emojiTable.TryGetGlyphIndex('7', out _), "U+0037 is in its cmap");
+            Check("and the play button triangle",
+                emojiTable.TryGetGlyphIndex(0x25B6, out _), "U+25B6 is in its cmap");
+
+            var digit = emoji.GetGlyph('7');
+            Check("a digit stays text", !digit.IsColor, digit.IsColor ? "coloured tile" : "outline");
+
+            var arrow = emoji.GetGlyph(0x25B6);
+            Check("a triangle a tree view wants stays text", !arrow.IsColor,
+                arrow.IsColor ? "play button" : "outline");
+
+            // The supplementary planes are emoji and nothing else, so those need no selector.
+            Check("a supplementary-plane emoji is colour without asking", grin.IsColor, "U+1F600");
+            Check("and the BMP is not assumed to be",
+                !ManaFont.IsEmojiPresentation(0x2764) && ManaFont.IsEmojiPresentation(0x1F600),
+                "U+2764 text, U+1F600 emoji");
+
+            // Which is what the variation selector is for: it asks for the colour form explicitly.
+            var textHeart = emoji.GetGlyph(0x2764);
+            var colorHeart = emoji.GetGlyph(0x2764, preferColor: true);
+            Check("a bare heart is the text form", !textHeart.IsColor, "dingbat");
+            Check("a selector asks for the colour form", colorHeart.IsColor,
+                colorHeart.IsColor ? "colour" : "still text");
+            Check("the selector is detected in a string",
+                ManaFont.HasEmojiSelector("❤️".AsSpan(), 1), "U+FE0F follows");
+
             // A mixed line is still one draw call, because both atlases are bound at once.
             var mixedRoot = new UiRoot(fonts);
             mixedRoot.Content = new TextBlock().Text("Hi 😀 there");

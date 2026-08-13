@@ -68,6 +68,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                     Divider(theme),
 
+                    Caption("Colour emoji (CBDT bitmaps, same draw call as the text)", theme),
+                    EmojiSample(theme),
+
+                    Divider(theme),
+
                     Caption("Inspector editors (drag to scrub, click to type)", theme),
                     EditorSample(theme, vm),
 
@@ -159,6 +164,37 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// readouts beneath them, so a drag that moves the label is proof the write-back happened rather
         /// than the field repainting itself.
         /// </summary>
+        /// <summary>
+        /// Emoji drawn from the colour atlas, beside the text they share a line with.
+        /// <para>
+        /// The mixed rows are the interesting ones: an emoji is an image and a letter is coverage, drawn
+        /// from two different atlases, and they still go out as one instanced draw call because both are
+        /// bound at once. Turn on Debug > Stats and the batch count stays at one.
+        /// </para>
+        /// </summary>
+        private static UiElement EmojiSample(UiTheme theme)
+        {
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new TextBlock().Text("😀 🚀 🎨 📦 🔧 🧪")
+                    .FontSize(theme.FontSizeHeading),
+
+                new TextBlock().Text("🌍 🌋 🌲 🌊 🔥 💧")
+                    .FontSize(theme.FontSizeHeading),
+
+                // Mixed with text, which is the case worth proving.
+                new TextBlock().Text("Build 🔨 · Paint 🎨 · Ship 🚀"),
+
+                // A trailing U+FE0F asks for the emoji form of a character that also has a text form. The
+                // selector itself is invisible; without that it drew a tofu box after every heart.
+                new TextBlock().Text("Variation selectors: ❤️ ⭐️ ⚡️"),
+
+                new TextBlock()
+                    .Text("Digits stay text: 0123456789 -- an emoji font maps them as keycap bases.")
+                    .Wrap()
+                    .Foreground(theme.TextMuted)
+                    .FontSize(theme.FontSizeSmall));
+        }
+
         private static UiElement EditorSample(UiTheme theme, ManaUiShowcaseViewModel vm)
         {
             return new Expander()

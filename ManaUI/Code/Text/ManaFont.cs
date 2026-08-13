@@ -18,6 +18,7 @@ namespace ManaUI
         private readonly StbTrueType.stbtt_fontinfo _info;
         private readonly ManaGlyphAtlas _atlas;
         private readonly Dictionary<int, ManaGlyph> _glyphs = new();
+        private readonly Dictionary<int, ManaGlyph> _colorGlyphs = new();
         private readonly float _scale;
 
         private readonly List<ManaFont> _fallbacks = new();
@@ -127,22 +128,64 @@ namespace ManaUI
 
         public ManaGlyph GetGlyph(int codepoint)
         {
+            return GetGlyph(codepoint, preferColor: false);
+        }
+
+        /// <summary>
+        /// The glyph for a codepoint, from this font, its fallbacks, or the colour emoji source.
+        /// <para>
+        /// The order matters more than it looks. Colour was tried first at one point, and an emoji font
+        /// claims a great deal it has no business drawing in a UI: Noto Color Emoji maps the ASCII digits
+        /// and the asterisk and hash -- they are the bases of the keycap sequences -- so every number in
+        /// the interface turned into a coloured tile, and U+25B6 turned a tree's collapsed arrow into a
+        /// play button. The text font gets first refusal now.
+        /// </para>
+        /// <para>
+        /// <paramref name="preferColor"/> is how a caller says the colour form was explicitly asked for:
+        /// a trailing U+FE0F, which is exactly what distinguishes a red heart emoji from the black
+        /// dingbat sharing its codepoint.
+        /// </para>
+        /// </summary>
+        public ManaGlyph GetGlyph(int codepoint, bool preferColor)
+        {
             // A reset atlas invalidates every cached UV, so the whole cache goes with it.
             if (_atlasGeneration != _atlas.Generation)
             {
                 _glyphs.Clear();
+                _colorGlyphs.Clear();
                 _atlasGeneration = _atlas.Generation;
+            }
+
+            // Invisible by definition, and no font is obliged to have them -- so left to the normal path
+            // they rasterise as .notdef and put a tofu box on screen. That is what turned a pasted heart
+            // emoji into a heart followed by a box: U+2764 then U+FE0F, and the selector is not a
+            // character anyone meant to see.
+            if (IsDefaultIgnorable(codepoint))
+            {
+                var ignorable = ManaGlyph.Blank(0.0f);
+                _glyphs[codepoint] = ignorable;
+                return ignorable;
+            }
+
+            // Colour is the right answer when it was asked for, when the codepoint lives in a plane that
+            // is emoji and nothing else, or when no text font in the chain can draw it at all.
+            if (preferColor || IsEmojiPresentation(codepoint) || !CanRender(codepoint))
+            {
+                if (_colorGlyphs.TryGetValue(codepoint, out var cachedColor))
+                {
+                    return cachedColor;
+                }
+
+                if (TryRasterizeColor(codepoint, out var colorGlyph))
+                {
+                    _colorGlyphs[codepoint] = colorGlyph;
+                    return colorGlyph;
+                }
             }
 
             if (_glyphs.TryGetValue(codepoint, out var cached))
             {
                 return cached;
-            }
-
-            if (TryRasterizeColor(codepoint, out var colorGlyph))
-            {
-                _glyphs[codepoint] = colorGlyph;
-                return colorGlyph;
             }
 
             // A codepoint this font lacks is rasterised by whichever fallback has it, into the same atlas
@@ -170,6 +213,31 @@ namespace ManaUI
             return glyph;
         }
 
+        /// <summary>
+        /// Whether the codepoint starting at <paramref name="index"/> is U+FE0F, the selector that asks
+        /// for the emoji form of whatever precedes it. Windows inserts one after every emoji its picker
+        /// produces, which is how a pasted heart arrives as two codepoints.
+        /// </summary>
+        public static bool HasEmojiSelector(ReadOnlySpan<char> text, int index)
+        {
+            return index < text.Length && text[index] == '️';
+        }
+
+        /// <summary>
+        /// Codepoints that are emoji and nothing else, so the colour form is always the intended one.
+        /// <para>
+        /// Deliberately only the supplementary planes. The BMP is full of characters that are emoji in one
+        /// context and typography in another -- U+2764 is both a red heart and a dingbat, U+25B6 both a
+        /// play button and a triangle a tree view wants -- and guessing wrong there is what produced the
+        /// coloured digits. Those need a variation selector to ask for colour, and get the text form
+        /// otherwise.
+        /// </para>
+        /// </summary>
+        public static bool IsEmojiPresentation(int codepoint)
+        {
+            return codepoint >= 0x1F000 && codepoint <= 0x1FAFF;
+        }
+
         public float GetKerning(int left, int right)
         {
             return StbTrueType.stbtt_GetCodepointKernAdvance(_info, left, right) * _scale / RenderScale;
@@ -181,18 +249,61 @@ namespace ManaUI
             var width = 0.0f;
             var previous = 0;
 
-            foreach (var codepoint in new CodepointEnumerator(text))
+            var enumerator = new CodepointEnumerator(text);
+            while (enumerator.MoveNext())
             {
+                var codepoint = enumerator.Current;
+
                 if (previous != 0)
                 {
                     width += GetKerning(previous, codepoint);
                 }
 
-                width += GetGlyph(codepoint).Advance;
+                // Measured with the same colour decision the renderer will make, or an emoji would be
+                // laid out at the text form's advance and then drawn at the emoji's.
+                width += GetGlyph(codepoint, HasEmojiSelector(text, enumerator.Position)).Advance;
                 previous = codepoint;
             }
 
             return width;
+        }
+
+        /// <summary>
+        /// Codepoints that carry meaning but no ink: variation selectors, joiners, directional marks.
+        /// <para>
+        /// Unicode calls these Default_Ignorable_Code_Point and says a renderer should draw nothing for
+        /// them rather than fall back to a missing-glyph box. Emoji are full of them -- the difference
+        /// between an emoji and its plain text form is a trailing U+FE0F, and every multi-part emoji is
+        /// held together with U+200D.
+        /// </para>
+        /// <para>
+        /// This is the list, not a full Unicode property table: the ranges below are the ones that turn up
+        /// in text a UI actually receives.
+        /// </para>
+        /// </summary>
+        public static bool IsDefaultIgnorable(int codepoint)
+        {
+            return codepoint switch
+            {
+                0x00AD => true,                             // soft hyphen
+                0x034F => true,                             // combining grapheme joiner
+                0x061C => true,                             // Arabic letter mark
+                >= 0x115F and <= 0x1160 => true,            // Hangul fillers
+                0x17B4 or 0x17B5 => true,                   // Khmer inherent vowels
+                >= 0x180B and <= 0x180F => true,            // Mongolian selectors and separator
+                >= 0x200B and <= 0x200F => true,            // zero-width space, joiners, bidi marks
+                >= 0x202A and <= 0x202E => true,            // bidi embedding and override
+                >= 0x2060 and <= 0x206F => true,            // word joiner, invisible operators, deprecated
+                0x3164 => true,                             // Hangul filler
+                >= 0xFE00 and <= 0xFE0F => true,            // variation selectors 1-16
+                0xFEFF => true,                             // zero-width no-break space
+                0xFFA0 => true,                             // halfwidth Hangul filler
+                >= 0xFFF0 and <= 0xFFF8 => true,            // unassigned, specified ignorable
+                >= 0x1BCA0 and <= 0x1BCA3 => true,          // shorthand format controls
+                >= 0x1D173 and <= 0x1D17A => true,          // musical format controls
+                >= 0xE0000 and <= 0xE0FFF => true,          // tags and variation selectors supplement
+                _ => false
+            };
         }
 
         /// <summary>

@@ -409,10 +409,32 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Clipboard contents. Static and in-process: ManaUI has no windowing dependency and so no access
-        /// to the OS clipboard. The host can point this at the real one.
+        /// Clipboard contents. In-process by default: ManaUI has no windowing dependency and so no access
+        /// to the OS clipboard, which is what keeps the text controls testable headlessly.
+        /// <para>
+        /// A host with a real clipboard sets <see cref="ClipboardRead"/> and <see cref="ClipboardWrite"/>,
+        /// after which this becomes a view onto the platform's. Reading through a hook rather than
+        /// mirroring into the static matters: the OS clipboard changes without telling anyone, and a copy
+        /// made in another application has to be visible here on the next paste.
+        /// </para>
         /// </summary>
-        public static string Clipboard { get; set; } = string.Empty;
+        public static string Clipboard
+        {
+            get => ClipboardRead?.Invoke() ?? _clipboard;
+            set
+            {
+                _clipboard = value ?? string.Empty;
+                ClipboardWrite?.Invoke(_clipboard);
+            }
+        }
+
+        private static string _clipboard = string.Empty;
+
+        /// <summary>Set by a host to read the platform clipboard; null falls back to the in-process one.</summary>
+        public static Func<string>? ClipboardRead { get; set; }
+
+        /// <summary>Set by a host to write the platform clipboard.</summary>
+        public static Action<string>? ClipboardWrite { get; set; }
 
         protected override void OnLostFocus()
         {
