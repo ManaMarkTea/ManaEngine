@@ -264,7 +264,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // One controller over both columns, so a panel torn out of either can be dropped into either.
             // A controller per host could not do that: each only resolved drops inside its own tree.
-            _ = new DockDragController(root, new[] { left, right });
+            var dragController = new DockDragController(root, new[] { left, right });
 
             // Backgrounds matter here because the columns sit over the viewport: the handle gutter and the
             // seams between panes are part of the column but not part of any panel's content, so without a
@@ -397,12 +397,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             // and what makes a newly added panel findable without waiting for a version merge.
             void TogglePanel(string id)
             {
-                var existing = left.AllItems().Concat(right.AllItems())
+                // Floating windows count. Without them a panel torn out of the dock reads as closed, and
+                // opening it again builds a second copy of something already on screen.
+                if (dragController.FindFloating(id) is { } floating)
+                {
+                    floating.BringToFront();
+                    floating.Flash();
+                    return;
+                }
+
+                var docked = left.AllItems().Concat(right.AllItems())
                     .FirstOrDefault(item => item.Id == id);
 
-                if (existing != null)
+                if (docked != null)
                 {
-                    existing.Owner?.Remove(existing);
+                    docked.Owner?.Remove(docked);
                     return;
                 }
 
@@ -417,7 +426,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             bool IsPanelOpen(string id) =>
-                left.AllItems().Concat(right.AllItems()).Any(item => item.Id == id);
+                left.AllItems().Concat(right.AllItems()).Any(item => item.Id == id)
+                || dragController.FindFloating(id) != null;
 
             void Choose(WorkspacePreset preset)
             {

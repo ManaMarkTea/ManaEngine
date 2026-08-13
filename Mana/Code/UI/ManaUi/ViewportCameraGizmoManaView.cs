@@ -46,8 +46,13 @@ namespace Mana.Code.UI.ManaUi
             return new Canvas().Width(GizmoSize).Height(GizmoSize).Children(
                 // The gizmo sits directly on the scene, which is the case backdrop blur exists for: it can
                 // stay light enough to see what is under it and still be readable against anything.
+                // Much lighter than the docked chrome when blurred. A panel has text all over it and needs
+                // a solid ground; this is six buttons over a blur, and 0.84 of a surface colour on top of
+                // it left almost none of the effect showing.
                 new Border()
-                    .Fill(theme.Frosted(theme.Surface with { W = 0.84f }))
+                    .Fill(theme.BackdropBlur > 0.0f
+                        ? theme.Surface with { W = 0.30f }
+                        : theme.Surface with { W = 0.84f })
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(10.0f)

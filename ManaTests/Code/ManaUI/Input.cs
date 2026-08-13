@@ -250,3 +250,64 @@ public static class InputChecks
         Check("hover moved to sibling", childB.IsPointerOver && !childA.IsPointerOver);
     }
 }
+
+/// <summary>
+/// Wheel routing. Scrolling moves what is under the pointer without moving the pointer, which is the one
+/// case a hover cache cannot notice on its own.
+/// </summary>
+public static class WheelChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var root = new UiRoot(fonts);
+
+        var items = Enumerable.Range(0, 200).Select(i => (object)$"Row {i}").ToList();
+
+        var tree = new TreeView
+        {
+            ItemsSource = items,
+            ItemTemplate = item => new TextBlock().Text(item.ToString() ?? string.Empty)
+        };
+
+        var viewer = tree.Scrollable();
+        root.Content = viewer;
+        root.UpdateLayout(new Vector2(300, 200));
+        root.Render();
+
+        var point = new Vector2(150.0f, 100.0f);
+        root.Input.InjectPointerMoved(point);
+
+        var start = viewer.Offset.Y;
+
+        root.Input.InjectPointerWheel(new Vector2(0.0f, -1.0f));
+        root.UpdateLayout(new Vector2(300, 200));
+        root.Render();
+
+        var afterFirst = viewer.Offset.Y;
+        Check("a wheel notch scrolls", afterFirst > start, $"{start:0} -> {afterFirst:0}");
+
+        // The pointer has not moved, so the hover is never recomputed -- and a virtualizing list has just
+        // recycled the row that was hovered. The second notch used to dispatch into a detached element and
+        // do nothing until the mouse was nudged a pixel.
+        root.Input.InjectPointerWheel(new Vector2(0.0f, -1.0f));
+        root.UpdateLayout(new Vector2(300, 200));
+        root.Render();
+
+        var afterSecond = viewer.Offset.Y;
+        Check("and so does the next one without moving the mouse",
+            afterSecond > afterFirst, $"{afterFirst:0} -> {afterSecond:0}");
+
+        // Several in a row, because one extra notch could pass on a stale hover that happened to survive.
+        for (var i = 0; i < 5; i++)
+        {
+            root.Input.InjectPointerWheel(new Vector2(0.0f, -1.0f));
+            root.UpdateLayout(new Vector2(300, 200));
+            root.Render();
+        }
+
+        Check("and it keeps scrolling", viewer.Offset.Y > afterSecond,
+            $"{afterSecond:0} -> {viewer.Offset.Y:0}");
+    }
+}

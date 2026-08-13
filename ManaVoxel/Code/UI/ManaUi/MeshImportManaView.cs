@@ -356,6 +356,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private Vector2 _pressedAt;
         private bool _pressed;
+        private bool _dragging;
 
         public MeshAssetRow(MeshAssetEntry entry)
         {
@@ -391,8 +392,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return;
             }
 
-            _pressed = false;
-            ReleasePointerCapture();
+            // Capture is kept for the rest of the gesture rather than released here. Released, this row
+            // never sees the button come up, so a drag that ended anywhere the game mode did not recognise
+            // as a drop left the request set forever -- and every later drag was ignored because something
+            // was already being dragged. That is the drag silently dying after a while.
+            _dragging = true;
             MeshImportRequests.RequestDrag(_entry.PrimaryPath);
         }
 
@@ -400,10 +404,21 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             base.OnPointerReleased(e);
 
-            if (_pressed)
+            if (!_pressed && !_dragging)
             {
-                _pressed = false;
-                ReleasePointerCapture();
+                return;
+            }
+
+            _pressed = false;
+            ReleasePointerCapture();
+
+            if (_dragging)
+            {
+                _dragging = false;
+
+                // Whatever wanted the drop has had every frame since the pointer moved to take it. Anything
+                // still sitting here was never claimed, and leaving it would block the next drag.
+                MeshImportRequests.TakeDrag();
             }
         }
     }

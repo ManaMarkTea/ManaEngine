@@ -280,6 +280,12 @@ namespace ManaUI
 
         public void InjectPointerWheel(Vector2 delta, UiModifiers modifiers = UiModifiers.None)
         {
+            // Hit-tested afresh rather than reusing the hover, which is only recomputed when the pointer
+            // moves. Scrolling changes what is under the pointer without moving it, and a virtualizing list
+            // recycles the very element that was hovered -- so the second notch of a wheel dispatched into
+            // a detached row and did nothing until the mouse was nudged a pixel to re-establish the hover.
+            UpdateHover(_pointerPosition, modifiers);
+
             var target = PointerCaptureTarget ?? HoveredElement;
             if (target == null)
             {

@@ -92,6 +92,27 @@ namespace ManaUI
         /// <summary>Floating windows that can be dropped back into the layout.</summary>
         public IReadOnlyCollection<UiWindow> FloatingWindows => _floating.Keys;
 
+        /// <summary>
+        /// The panels currently floating rather than docked. A caller asking whether a panel is open has to
+        /// count these, or a panel torn out of the dock reads as closed -- and opening it again makes a
+        /// second copy of something already on screen.
+        /// </summary>
+        public IEnumerable<DockItem> FloatingItems => _floating.Values;
+
+        /// <summary>The window holding a floating panel, or null when it is docked or not open at all.</summary>
+        public UiWindow? FindFloating(string id)
+        {
+            foreach (var pair in _floating)
+            {
+                if (pair.Value.Id == id)
+                {
+                    return pair.Key;
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>Subscribes to every group in the tree so a tear-out from any of them is caught.</summary>
         private void AttachTo(UiElement? node)
         {

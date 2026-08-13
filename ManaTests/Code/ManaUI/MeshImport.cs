@@ -266,6 +266,23 @@ public static class MeshImportChecks
         root.Input.InjectPointerMoved(start + new Vector2(40.0f, 20.0f));
         Check("moving out of the panel is", MeshImportRequests.Dragging != null, MeshImportRequests.Dragging ?? "none");
 
+        // Releasing has to clear an unclaimed request. It used to release the pointer capture the moment
+        // the drag began, so this row never saw the button come up -- a drag that ended anywhere the game
+        // mode did not treat as a drop left the request set forever, and every later drag was ignored
+        // because something was already being dragged. That is dragging silently dying after a while.
+        root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
+
+        Check("releasing clears a drag nobody took", MeshImportRequests.Dragging == null,
+            MeshImportRequests.Dragging ?? "cleared");
+
+        // And the next drag works, which is the thing that actually broke.
+        root.Input.InjectPointerMoved(start);
+        root.Input.InjectPointerPressed(start, PointerButton.Left, 0.0);
+        root.Input.InjectPointerMoved(start + new Vector2(40.0f, 20.0f));
+
+        Check("so a second drag still starts", MeshImportRequests.Dragging != null,
+            MeshImportRequests.Dragging ?? "none");
+
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
         MeshImportRequests.Clear();
     }

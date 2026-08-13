@@ -114,6 +114,24 @@ namespace ManaUI
         }
 
         /// <summary>Raises the window above its siblings.</summary>
+        /// <summary>
+        /// Draws attention to this window for a moment.
+        /// <para>
+        /// For when something is asked for that is already open. Bringing it to the front alone is easy to
+        /// miss when the window was never hidden -- nothing appears to happen, which reads as the command
+        /// having failed, and the obvious next move is to ask for it again.
+        /// </para>
+        /// </summary>
+        public void Flash(float seconds = 0.9f)
+        {
+            _flashUntilMs = Environment.TickCount64 + (long)(seconds * 1000.0f);
+            _flashStartedMs = Environment.TickCount64;
+            InvalidateVisual();
+        }
+
+        private long _flashUntilMs;
+        private long _flashStartedMs;
+
         public void BringToFront()
         {
             if (Parent is not Panel panel)
@@ -161,6 +179,39 @@ namespace ManaUI
 
         // ----- rendering -----------------------------------------------------------------------------
 
+        /// <summary>
+        /// The attention ring, fading out. Drawn outside the window's own edge so it reads as something
+        /// happening to the window rather than as a change to its border.
+        /// </summary>
+        private void RenderFlash(ManaUiDrawList drawList, UiTheme theme, CornerRadius corners)
+        {
+            if (_flashUntilMs <= 0)
+            {
+                return;
+            }
+
+            var now = Environment.TickCount64;
+            if (now >= _flashUntilMs)
+            {
+                _flashUntilMs = 0;
+                return;
+            }
+
+            var span = MathF.Max(1.0f, _flashUntilMs - _flashStartedMs);
+            var remaining = Math.Clamp((_flashUntilMs - now) / span, 0.0f, 1.0f);
+
+            var ring = Bounds.Inflate(new Thickness(3.0f));
+            drawList.DrawBorder(
+                ring,
+                theme.Accent with { W = remaining },
+                2.0f,
+                new CornerRadius(corners.TopLeft + 3.0f));
+
+            // Keeps itself animating: nothing else knows this is running, and a fade that only advanced when
+            // something else happened to invalidate would stick at whatever step it reached.
+            InvalidateVisual();
+        }
+
         protected override void OnRender(ManaUiDrawList drawList)
         {
             var theme = Root?.Theme;
@@ -173,6 +224,8 @@ namespace ManaUI
 
             drawList.DrawShadow(Bounds, new Vector4(0.0f, 0.0f, 0.0f, 0.4f), 20.0f, corners);
             drawList.DrawBox(Bounds, theme.Surface, theme.BorderStrong, 1.0f, corners);
+
+            RenderFlash(drawList, theme, corners);
 
             var titleBar = TitleBarRect();
 
