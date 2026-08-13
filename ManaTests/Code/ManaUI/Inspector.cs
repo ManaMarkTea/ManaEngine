@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
+using Mana.Code.UI.ManaUi;
 using ManaUI;
 using ManaVoxel.Code.UI.ManaUi;
 
@@ -303,6 +304,84 @@ public static class InspectorChecks
         Check("the material section renders", root.Render().InstanceCount > 40,
             $"{root.Render().InstanceCount} instances");
 
+        // ---------------------------------------------------------------- texture channels
+        // A material with no maps must not get an empty section to scroll past.
+        Check("a flat material has no textures section",
+            !FindAll<Expander>(view).Any(e => e.Header.StartsWith("Textures", StringComparison.Ordinal)),
+            string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
+
+        // A thumbnail is built from CPU pixels, so one is supplied the way a loader would.
+        var map = new ManaTexture(context)
+        {
+            OriginalFilename = "albedo.png",
+            Width = 4,
+            Height = 4,
+            PixelData = CheckerPixels(4, 4)
+        };
+
+        // Probed before the row exists, so the cache is known-good by the time the row asks. If the row
+        // still shows nothing after this, the row is the problem rather than the thumbnail.
+        var direct = ManaUiTexturePreviews.TryGet(root.Images, map, out var directPreview);
+        Check("a thumbnail can be built from CPU pixels", direct,
+            direct ? $"{directPreview.Size.X}x{directPreview.Size.Y}" : "TryGet returned false");
+
+        material.Albedo.TextureValue = map;
+        world.Selection.SelectedNode = null;
+        root.UpdateLayout(new Vector2(420, 900));
+        world.Selection.SelectedNode = meshNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        // A second pass on purpose. DynamicContent rebuilds the subtree from inside the polled refresh, so
+        // the elements it creates are not in the list being refreshed -- their bindings first evaluate on
+        // the following frame. Invisible at ninety frames a second; not invisible to a check that looks
+        // immediately.
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var textureSection = FindAll<Expander>(view)
+            .FirstOrDefault(e => e.Header.StartsWith("Textures", StringComparison.Ordinal));
+        Check("a material with a map gets a textures section", textureSection != null,
+            string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
+        Check("the section counts the maps", textureSection?.Header == "Textures (1)",
+            textureSection?.Header ?? "none");
+
+        var previews = FindAll<UiImage>(view);
+        Check("the map gets a preview", previews.Count == 1, $"{previews.Count} images");
+
+        if (previews.Count == 1)
+        {
+            Check("the preview points at the colour atlas",
+                previews[0].HasSource && previews[0].SourceSize.X > 0.0f,
+                $"{previews[0].SourceSize} from {previews[0].SourceUv}");
+
+            // The thumbnail is real pixels, not a plausible UV over blank atlas.
+            var uv = previews[0].SourceUv;
+            var px = (int)MathF.Round(uv.X * root.Images.Width);
+            var py = (int)MathF.Round(uv.Y * root.Images.Height);
+            var offset = (py * root.Images.Width + px) * 4;
+            Check("the atlas holds the thumbnail", root.Images.Pixels[offset + 3] > 0,
+                $"alpha {root.Images.Pixels[offset + 3]}");
+        }
+
+        // Decoding is expensive, so the result is cached rather than rebuilt on every rebuild of the panel.
+        var before = root.Images.Pixels.Length;
+        var firstUv = previews.Count == 1 ? previews[0].SourceUv : Vector4.Zero;
+        world.Selection.SelectedNode = null;
+        root.UpdateLayout(new Vector2(420, 900));
+        world.Selection.SelectedNode = meshNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        // Again the extra pass: the rebuild happens inside the refresh, so the elements it creates
+        // evaluate on the following one.
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var rebuiltPreview = FindAll<UiImage>(view).FirstOrDefault();
+        Check("rebuilding reuses the cached thumbnail",
+            rebuiltPreview != null && rebuiltPreview.SourceUv == firstUv,
+            "same atlas region");
+        Check("and packs nothing new", root.Images.Pixels.Length == before, "atlas unchanged");
+
+        material.Albedo.TextureValue = null;
+
         // ---------------------------------------------------------------- rebuilt mid-drag
         // The failure this reproduces: drag a position field, something clears the selection, the panel
         // rebuilds, and the element holding pointer capture is torn out of the tree mid-gesture. The
@@ -345,6 +424,28 @@ public static class InspectorChecks
     }
 
     /// <summary>Every element of a type beneath a root, in visual order.</summary>
+    /// <summary>A tiny RGBA checkerboard, so a thumbnail has something recognisable in it.</summary>
+    private static byte[] CheckerPixels(int width, int height)
+    {
+        var pixels = new byte[width * height * 4];
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var offset = (y * width + x) * 4;
+                var light = (x + y) % 2 == 0;
+
+                pixels[offset] = light ? (byte)220 : (byte)40;
+                pixels[offset + 1] = light ? (byte)120 : (byte)60;
+                pixels[offset + 2] = light ? (byte)40 : (byte)200;
+                pixels[offset + 3] = 255;
+            }
+        }
+
+        return pixels;
+    }
+
     private static List<T> FindAll<T>(UiElement? element) where T : UiElement
     {
         var found = new List<T>();

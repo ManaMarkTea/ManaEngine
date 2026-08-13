@@ -58,6 +58,17 @@ namespace ManaUI
                 }
 
                 SetBindingsActive(value != null);
+
+                // Attaching can bring polled bindings with it. A subtree is built detached -- every
+                // template does this -- so the bindings added while it was being constructed had no root
+                // to tell, and the root's flat list is only rebuilt when it knows something changed.
+                // Without this the whole subtree's polled bindings sit unevaluated until an unrelated
+                // layout change happens to trigger a rescan, which is the sort of bug that looks like
+                // "it updates when I resize the window".
+                if (value != null)
+                {
+                    Root?.NotifyPolledBindingsChanged();
+                }
             }
         }
 

@@ -5,6 +5,7 @@ using Mana.Code.UI;
 using ManaUI;
 
 using Mana.Code.ManaShaders;
+using Mana.Code.UI.ManaUi;
 using Mana.Code.Materials;
 
 // ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
@@ -236,6 +237,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Foreground(theme.TextMuted));
             }
 
+            var textures = TextureChannels(theme, material);
+            if (textures != null)
+            {
+                rows.Children.Add(textures);
+            }
+
             var uniforms = ShaderUniforms(theme, material);
             if (uniforms != null)
             {
@@ -243,6 +250,104 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             return new Expander().Header("Material").Content(rows);
+        }
+
+        /// <summary>
+        /// The maps a material is wearing, with a thumbnail each. Returns null when it wears none, so a
+        /// flat-coloured material is not given an empty section to scroll past.
+        /// </summary>
+        private static UiElement? TextureChannels(UiTheme theme, ManaMaterial material)
+        {
+            var channels = new (string Name, ManaTexture? Texture)[]
+            {
+                ("Albedo", material.Albedo?.TextureValue),
+                ("Normal", material.Normal?.TextureValue),
+                ("Emission", material.Emission?.TextureValue),
+                ("Metallic", material.Metallic?.TextureValue),
+                ("Roughness", material.Roughness?.TextureValue),
+                ("Ambient", material.Ambient?.TextureValue)
+            };
+
+            var present = channels.Where(c => c.Texture != null).ToList();
+            if (present.Count == 0)
+            {
+                return null;
+            }
+
+            var rows = new StackPanel().Vertical(theme.Spacing);
+            foreach (var (name, texture) in present)
+            {
+                rows.Children.Add(TextureRow(theme, name, texture!));
+            }
+
+            return new Expander().Header($"Textures ({present.Count})").Content(rows);
+        }
+
+        /// <summary>
+        /// One map: a thumbnail, the channel it fills, and where it came from.
+        /// <para>
+        /// The thumbnail is built on the first frame the row is shown, which means decoding the image --
+        /// several thousand pixels square for a scanned asset. It is cached from then on, so the cost lands
+        /// once per texture rather than on every rebuild.
+        /// </para>
+        /// </summary>
+        private static UiElement TextureRow(UiTheme theme, string channel, ManaTexture texture)
+        {
+            var preview = new UiImage { Fit = UiImageFit.Contain }.Size(44.0f, 44.0f);
+
+            // Polled, because the pixels may not exist yet: a texture uploaded straight to the GPU has no
+            // CPU copy until something asks, and the atlas it lands in belongs to the root rather than to
+            // anything reachable when this row is built.
+            preview.BindPolled(image => image.SourceUv, () => Resolve(image: preview, texture).Uv);
+            preview.BindPolled(image => image.SourceSize, () => Resolve(image: preview, texture).Size);
+
+            var detail = new TextBlock()
+                .BindTextPolled(() =>
+                {
+                    var found = ManaUiTexturePreviews.TryGet(preview.Root?.Images!, texture, out var p);
+                    return found ? $"{p.SourceWidth} x {p.SourceHeight}" : "not loaded";
+                })
+                .Foreground(theme.TextMuted)
+                .FontSize(theme.FontSizeSmall);
+
+            return new Grid().Columns("44, *", theme.Spacing).Rows("Auto").Children(
+                new Border()
+                    .Fill(theme.SurfaceAlt)
+                    .Outline(theme.Border, 1.0f)
+                    .Rounded(theme.CornerRadius)
+                    .Size(44.0f, 44.0f)
+                    .Content(preview)
+                    .GridColumn(0),
+
+                new StackPanel().Vertical(1.0f).CenterV().GridColumn(1).Children(
+                    new TextBlock().Text(channel).FontFamily(theme.FontFamilyMedium),
+                    new TextBlock()
+                        .Text(FileNameOf(texture))
+                        .Foreground(theme.TextMuted)
+                        .FontSize(theme.FontSizeSmall)
+                        .Ellipsis(),
+                    detail));
+        }
+
+        /// <summary>
+        /// Looks the thumbnail up through the element's own root, which is the only way to reach the atlas
+        /// the renderer uploads. Cheap after the first call.
+        /// </summary>
+        private static ManaUiTexturePreview Resolve(UiImage image, ManaTexture texture)
+        {
+            var atlas = image.Root?.Images;
+            if (atlas == null || !ManaUiTexturePreviews.TryGet(atlas, texture, out var preview))
+            {
+                return default;
+            }
+
+            return preview;
+        }
+
+        private static string FileNameOf(ManaTexture texture)
+        {
+            var name = texture.OriginalFilename;
+            return string.IsNullOrWhiteSpace(name) ? "embedded" : Path.GetFileName(name);
         }
 
         /// <summary>
