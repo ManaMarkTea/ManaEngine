@@ -120,7 +120,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     SceneOutlinerManaView.Build(theme, world, world.Selection)) { Id = "outliner" },
                 "inspector" when world != null => new DockItem(
                     "Inspector",
-                    SceneInspectorManaView.Build(theme, world.Selection)) { Id = "inspector" },
+                    SceneInspectorManaView.Build(theme, world.Selection, world.Context)) { Id = "inspector" },
                 _ => null
             };
 

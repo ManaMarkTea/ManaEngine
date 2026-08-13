@@ -14,8 +14,17 @@ namespace ManaUI
     /// </summary>
     internal static class PropertyPath
     {
-        private static readonly ConcurrentDictionary<PropertyInfo, object> GetterCache = new();
-        private static readonly ConcurrentDictionary<PropertyInfo, object?> SetterCache = new();
+        /// <summary>
+        /// Keyed on the source type as well as the property, not the property alone.
+        /// <para>
+        /// An inherited property has one PropertyInfo no matter which subclass binds it, so keying on that
+        /// made the first caller win: binding Visibility on a StackPanel and then on a Button handed the
+        /// second one a Func&lt;StackPanel, Visibility&gt; and threw on the cast. Type-specific properties
+        /// hid it -- Text, Value and IsChecked are each declared on exactly one control.
+        /// </para>
+        /// </summary>
+        private static readonly ConcurrentDictionary<(PropertyInfo Property, Type Source), object> GetterCache = new();
+        private static readonly ConcurrentDictionary<(PropertyInfo Property, Type Source), object?> SetterCache = new();
 
         /// <summary>
         /// Resolves a direct property access such as <c>x =&gt; x.Name</c>.
@@ -46,13 +55,15 @@ namespace ManaUI
                     nameof(expression));
             }
 
+            var key = (property, typeof(TSource));
+
             var getter = (Func<TSource, TValue>)GetterCache.GetOrAdd(
-                property,
+                key,
                 _ => expression.Compile());
 
             var setter = (Action<TSource, TValue>?)SetterCache.GetOrAdd(
-                property,
-                key => BuildSetter<TSource, TValue>((PropertyInfo)key));
+                key,
+                k => BuildSetter<TSource, TValue>(k.Property));
 
             return (getter, setter, property.Name);
         }

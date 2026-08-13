@@ -29,7 +29,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class SceneInspectorManaView
     {
-        public static UiElement Build(UiTheme theme, SceneSelectionState selection)
+        public static UiElement Build(UiTheme theme, SceneSelectionState selection, ManaContext? context = null)
         {
             // The tree is retained, so the panel cannot simply re-run when the selection changes -- it has
             // to notice. DynamicContent polls the selection and rebuilds only on an actual change, which is
@@ -37,7 +37,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             var content = new DynamicContent()
                 .Showing<ManaSceneNode>(
                     () => selection.SelectedNode,
-                    node => BuildNodeInspector(theme, node, selection))
+                    node => BuildNodeInspector(theme, node, selection, context))
                 .Empty(EmptyState(theme));
 
             return new Grid().Rows("*").Columns("*").Padding(8.0f).Children(
@@ -52,7 +52,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Margin(4.0f);
         }
 
-        private static UiElement BuildNodeInspector(UiTheme theme, ManaSceneNode node, SceneSelectionState selection)
+        private static UiElement BuildNodeInspector(
+            UiTheme theme,
+            ManaSceneNode node,
+            SceneSelectionState selection,
+            ManaContext? context)
         {
             var sections = new StackPanel().Vertical(theme.Spacing).Children(
                 Identity(theme, node),
@@ -63,13 +67,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             var selected = selection.SelectedComponent;
             if (selected != null && node.Components.Contains(selected))
             {
-                sections.Children.Add(ComponentSection(theme, selected));
+                sections.Children.Add(ComponentSection(theme, selected, context));
                 return sections;
             }
 
             foreach (var component in node.Components)
             {
-                sections.Children.Add(ComponentSection(theme, component));
+                sections.Children.Add(ComponentSection(theme, component, context));
             }
 
             return sections;
@@ -140,11 +144,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             return box;
         }
 
-        private static UiElement ComponentSection(UiTheme theme, ManaComponent component)
+        private static UiElement ComponentSection(UiTheme theme, ManaComponent component, ManaContext? context)
         {
             return component switch
             {
-                MeshRendererComponent meshRenderer => MeshRenderer(theme, meshRenderer),
+                MeshRendererComponent meshRenderer => MeshRenderer(theme, meshRenderer, context),
                 ManaLightSourceComponent light => Light(theme, light),
                 _ => new Expander()
                     .Header(ComponentLabel(component))
@@ -152,7 +156,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
         }
 
-        private static UiElement MeshRenderer(UiTheme theme, MeshRendererComponent meshRenderer)
+        private static UiElement MeshRenderer(UiTheme theme, MeshRendererComponent meshRenderer, ManaContext? context)
         {
             var renderer = new Expander()
                 .Header(ComponentLabel(meshRenderer))
@@ -181,7 +185,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // A sibling section rather than a nested one. Materials are shared between renderers, so
             // burying one inside a component's section implies an ownership that is not there.
-            return new StackPanel().Vertical(theme.Spacing).Children(renderer, Material(theme, material));
+            return new StackPanel().Vertical(theme.Spacing).Children(renderer, Material(theme, material, context));
         }
 
         /// <summary>
@@ -189,7 +193,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// "shader toy" material ignores albedo and roughness entirely, and offering them there is an
         /// invitation to spend ten minutes wondering why nothing happens.
         /// </summary>
-        private static UiElement Material(UiTheme theme, ManaMaterial material)
+        private static UiElement Material(UiTheme theme, ManaMaterial material, ManaContext? context)
         {
             var rows = new StackPanel().Vertical(theme.Spacing).Children(
                 Row(theme, "Name", new TextBox()
@@ -237,7 +241,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Foreground(theme.TextMuted));
             }
 
-            var textures = TextureChannels(theme, material);
+            var textures = TextureChannels(theme, material, context);
             if (textures != null)
             {
                 rows.Children.Add(textures);
@@ -253,87 +257,230 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         /// <summary>
-        /// The maps a material is wearing, with a thumbnail each. Returns null when it wears none, so a
-        /// flat-coloured material is not given an empty section to scroll past.
+        /// The material's PBR maps, one row per channel whether or not it is filled.
+        /// <para>
+        /// Empty channels are listed too, which is the difference between showing what a material wears and
+        /// letting someone dress it: an empty slot is where you click to assign a texture.
+        /// </para>
         /// </summary>
-        private static UiElement? TextureChannels(UiTheme theme, ManaMaterial material)
+        private static UiElement? TextureChannels(UiTheme theme, ManaMaterial material, ManaContext? context)
         {
-            var channels = new (string Name, ManaTexture? Texture)[]
-            {
-                ("Albedo", material.Albedo?.TextureValue),
-                ("Normal", material.Normal?.TextureValue),
-                ("Emission", material.Emission?.TextureValue),
-                ("Metallic", material.Metallic?.TextureValue),
-                ("Roughness", material.Roughness?.TextureValue),
-                ("Ambient", material.Ambient?.TextureValue)
-            };
-
-            var present = channels.Where(c => c.Texture != null).ToList();
-            if (present.Count == 0)
+            // Only the shader that reads them. A material whose shader ignores the PBR channels would take
+            // an assignment and quietly do nothing with it.
+            if (material.Shader is not ManaPbrShader)
             {
                 return null;
             }
 
-            var rows = new StackPanel().Vertical(theme.Spacing);
-            foreach (var (name, texture) in present)
+            var channels = new (string Name, Func<ManaTexture?> Read, Action<ManaTexture?> Write)[]
             {
-                rows.Children.Add(TextureRow(theme, name, texture!));
+                ("Albedo", () => material.Albedo?.TextureValue, t => SetChannel(material.Albedo, t)),
+                ("Normal", () => material.Normal?.TextureValue, t => SetChannel(material.Normal, t)),
+                ("Emission", () => material.Emission?.TextureValue, t => SetChannel(material.Emission, t)),
+                ("Metallic", () => material.Metallic?.TextureValue, t => SetChannel(material.Metallic, t)),
+                ("Roughness", () => material.Roughness?.TextureValue, t => SetChannel(material.Roughness, t)),
+                ("Ambient", () => material.Ambient?.TextureValue, t => SetChannel(material.Ambient, t))
+            };
+
+            var rows = new StackPanel().Vertical(theme.Spacing);
+            foreach (var (name, read, write) in channels)
+            {
+                rows.Children.Add(TextureRow(theme, name, read, write, context));
             }
 
-            return new Expander().Header($"Textures ({present.Count})").Content(rows);
+            var filled = channels.Count(c => c.Read() != null);
+            return new Expander().Header($"Textures ({filled} of {channels.Length})").Content(rows);
+        }
+
+        /// <summary>Assigns a channel's map, tolerating a channel the material never created.</summary>
+        private static void SetChannel(ManaTextureDynamic? channel, ManaTexture? texture)
+        {
+            if (channel != null)
+            {
+                channel.TextureValue = texture;
+            }
         }
 
         /// <summary>
-        /// One map: a thumbnail, the channel it fills, and where it came from.
+        /// One channel: a preview that opens a picker, the channel name, and what is in it.
         /// <para>
-        /// The thumbnail is built on the first frame the row is shown, which means decoding the image --
-        /// several thousand pixels square for a scanned asset. It is cached from then on, so the cost lands
-        /// once per texture rather than on every rebuild.
+        /// The thumbnail is built the first frame the row is shown, which means decoding the image. It is
+        /// cached from then on, so the cost lands once per texture rather than on every rebuild.
         /// </para>
         /// </summary>
-        private static UiElement TextureRow(UiTheme theme, string channel, ManaTexture texture)
+        private static UiElement TextureRow(
+            UiTheme theme,
+            string channel,
+            Func<ManaTexture?> read,
+            Action<ManaTexture?> write,
+            ManaContext? context)
         {
-            var preview = new UiImage { Fit = UiImageFit.Contain }.Size(44.0f, 44.0f);
+            var preview = new UiImage { Fit = UiImageFit.Contain }.Size(40.0f, 40.0f);
 
-            // Polled, because the pixels may not exist yet: a texture uploaded straight to the GPU has no
-            // CPU copy until something asks, and the atlas it lands in belongs to the root rather than to
-            // anything reachable when this row is built.
-            preview.BindPolled(image => image.SourceUv, () => Resolve(image: preview, texture).Uv);
-            preview.BindPolled(image => image.SourceSize, () => Resolve(image: preview, texture).Size);
+            // Polled, because the pixels may not exist yet -- a texture uploaded straight to the GPU has no
+            // CPU copy until something asks -- and because the channel can be reassigned underneath.
+            preview.BindPolled(image => image.SourceUv, () => Resolve(preview, read()).Uv);
+            preview.BindPolled(image => image.SourceSize, () => Resolve(preview, read()).Size);
+
+            var slot = new Button()
+                .Variant(ButtonVariant.Subtle)
+                .Size(44.0f, 44.0f)
+                .Configure(button => button.Child = preview);
+
+            slot.OnClick(() => OpenTexturePicker(theme, slot, channel, write, context));
 
             var detail = new TextBlock()
                 .BindTextPolled(() =>
                 {
-                    var found = ManaUiTexturePreviews.TryGet(preview.Root?.Images!, texture, out var p);
-                    return found ? $"{p.SourceWidth} x {p.SourceHeight}" : "not loaded";
+                    var texture = read();
+                    if (texture == null)
+                    {
+                        return "empty, click to assign";
+                    }
+
+                    var atlas = preview.Root?.Images;
+                    return atlas != null && ManaUiTexturePreviews.TryGet(atlas, texture, out var found)
+                        ? $"{found.SourceWidth} x {found.SourceHeight}"
+                        : "not loaded";
                 })
                 .Foreground(theme.TextMuted)
-                .FontSize(theme.FontSizeSmall);
+                .FontSize(theme.FontSizeSmall)
+                .Ellipsis();
 
-            return new Grid().Columns("44, *", theme.Spacing).Rows("Auto").Children(
-                new Border()
-                    .Fill(theme.SurfaceAlt)
-                    .Outline(theme.Border, 1.0f)
-                    .Rounded(theme.CornerRadius)
-                    .Size(44.0f, 44.0f)
-                    .Content(preview)
-                    .GridColumn(0),
+            var clear = new Button()
+                .Label("Clear")
+                .Variant(ButtonVariant.Subtle)
+                .CenterV()
+                .OnClick(() => write(null));
+
+            // Hidden rather than disabled on an empty channel: a control that can do nothing is noise in a
+            // column of six.
+            clear.BindPolled(
+                button => button.Visibility,
+                () => read() == null ? Visibility.Collapsed : Visibility.Visible);
+
+            return new Grid().Columns("44, *, Auto", theme.Spacing).Rows("Auto").Children(
+                slot.GridColumn(0),
 
                 new StackPanel().Vertical(1.0f).CenterV().GridColumn(1).Children(
                     new TextBlock().Text(channel).FontFamily(theme.FontFamilyMedium),
                     new TextBlock()
-                        .Text(FileNameOf(texture))
+                        .BindTextPolled(() => FileNameOf(read()))
                         .Foreground(theme.TextMuted)
                         .FontSize(theme.FontSizeSmall)
                         .Ellipsis(),
-                    detail));
+                    detail),
+
+                clear.GridColumn(2));
+        }
+
+        /// <summary>
+        /// Every texture in the project, in a popup. Choosing one assigns it to the channel.
+        /// <para>
+        /// Thumbnails come from the file rather than from a loaded texture, decoded at a fraction of full
+        /// resolution: the picker needs dozens at once, and decoding them whole would stall on opening.
+        /// </para>
+        /// </summary>
+        private static void OpenTexturePicker(
+            UiTheme theme,
+            UiElement anchor,
+            string channel,
+            Action<ManaTexture?> write,
+            ManaContext? context)
+        {
+            var root = anchor.Root;
+            if (root == null || context == null)
+            {
+                return;
+            }
+
+            UiPopup? popup = null;
+            var list = new StackPanel().Vertical(3.0f);
+
+            list.Children.Add(new Button()
+                .Label("None")
+                .Variant(ButtonVariant.Subtle)
+                .OnClick(() =>
+                {
+                    write(null);
+                    popup?.Close();
+                }));
+
+            foreach (var asset in ManaUiTextureLibrary.Assets)
+            {
+                var entry = asset;
+
+                list.Children.Add(TextureOption(theme, root, entry, () =>
+                {
+                    // Pointed at a relative path, so a scene saved with this material still resolves it on
+                    // another machine.
+                    write(new ManaTexture(context) { OriginalFilename = entry.RelativePath });
+                    popup?.Close();
+                }));
+            }
+
+            var body = new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
+                new TextBlock()
+                    .Text($"{channel}: {ManaUiTextureLibrary.Assets.Count} textures")
+                    .Foreground(theme.TextMuted)
+                    .FontSize(theme.FontSizeSmall),
+
+                list.Scrollable().Configure(viewer => viewer.MaxHeight = 360.0f));
+
+            popup = new UiPopup
+            {
+                Placement = PopupPlacement.Bottom,
+                Child = new Border()
+                    .Fill(theme.SurfaceRaised)
+                    .Outline(theme.BorderStrong, 1.0f)
+                    .Rounded(theme.CornerRadius)
+                    .Shadow(16.0f)
+                    .Width(300.0f)
+                    .Content(body)
+            };
+
+            root.Popups.Show(popup, anchor);
+        }
+
+        private static UiElement TextureOption(
+            UiTheme theme,
+            UiRoot root,
+            ManaUiTextureAsset asset,
+            Action choose)
+        {
+            var thumb = new UiImage { Fit = UiImageFit.Cover }.Size(30.0f, 30.0f);
+
+            if (ManaUiTexturePreviews.TryGetForFile(root.Images, asset.Path, out var preview))
+            {
+                thumb.SetSource(preview.Uv, preview.Size);
+            }
+
+            var button = new Button().Variant(ButtonVariant.Subtle).OnClick(choose);
+
+            button.Child = new Grid().Columns("30, *", theme.Spacing).Rows("Auto").Children(
+                new Border()
+                    .Fill(theme.SurfaceAlt)
+                    .Rounded(2.0f)
+                    .Size(30.0f, 30.0f)
+                    .Content(thumb)
+                    .GridColumn(0),
+
+                new StackPanel().Vertical(0.0f).CenterV().GridColumn(1).Children(
+                    new TextBlock().Text(asset.Name).Ellipsis().FontSize(theme.FontSizeSmall),
+                    new TextBlock()
+                        .Text(asset.Folder)
+                        .Foreground(theme.TextMuted)
+                        .FontSize(theme.FontSizeSmall)
+                        .Ellipsis()));
+
+            return button;
         }
 
         /// <summary>
         /// Looks the thumbnail up through the element's own root, which is the only way to reach the atlas
         /// the renderer uploads. Cheap after the first call.
         /// </summary>
-        private static ManaUiTexturePreview Resolve(UiImage image, ManaTexture texture)
+        private static ManaUiTexturePreview Resolve(UiImage image, ManaTexture? texture)
         {
             var atlas = image.Root?.Images;
             if (atlas == null || !ManaUiTexturePreviews.TryGet(atlas, texture, out var preview))
@@ -344,8 +491,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             return preview;
         }
 
-        private static string FileNameOf(ManaTexture texture)
+        private static string FileNameOf(ManaTexture? texture)
         {
+            if (texture == null)
+            {
+                return "none";
+            }
+
             var name = texture.OriginalFilename;
             return string.IsNullOrWhiteSpace(name) ? "embedded" : Path.GetFileName(name);
         }

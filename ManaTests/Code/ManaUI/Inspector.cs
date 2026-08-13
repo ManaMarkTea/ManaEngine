@@ -32,7 +32,8 @@ public static class InspectorChecks
 
         var root = new UiRoot(fonts);
         var world = new ManaWorld();
-        var context = new ManaContext(null!, null!, world);
+        // Uploads deferred, so shader construction stops short of touching a GPU that is not there.
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
 
         var scene = new ManaScene(context) { Name = "Default Scene" };
         var first = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "First" };
@@ -53,7 +54,7 @@ public static class InspectorChecks
         UiElement? view = null;
         try
         {
-            view = SceneInspectorManaView.Build(root.Theme, world.Selection);
+            view = SceneInspectorManaView.Build(root.Theme, world.Selection, context);
             Check("inspector constructs over a real world", true);
         }
         catch (Exception ex)
@@ -241,6 +242,16 @@ public static class InspectorChecks
 
         var material = meshRenderer.Material;
         material.Name = "Test Material";
+
+        // The PBR channels are only offered for the shader that reads them, so the fixture needs one.
+        try
+        {
+            material.Shader = new Mana.Code.ManaPbrShader(context);
+        }
+        catch (Exception ex)
+        {
+            Check("a PBR shader can be constructed headlessly", false, ex.Message);
+        }
         material.SetShaderUniform("uStrength", 0.5f);
         material.SetShaderUniform("uTintColor", new Vector3(1.0f, 0.0f, 0.0f));
         material.SetShaderUniform("uSteps", 4);
@@ -305,10 +316,13 @@ public static class InspectorChecks
             $"{root.Render().InstanceCount} instances");
 
         // ---------------------------------------------------------------- texture channels
-        // A material with no maps must not get an empty section to scroll past.
-        Check("a flat material has no textures section",
-            !FindAll<Expander>(view).Any(e => e.Header.StartsWith("Textures", StringComparison.Ordinal)),
-            string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
+        // Every PBR channel is listed whether or not it is filled -- an empty slot is where you click to
+        // assign one, which is the difference between showing a material and being able to dress it.
+        var textureSectionBefore = FindAll<Expander>(view)
+            .FirstOrDefault(e => e.Header.StartsWith("Textures", StringComparison.Ordinal));
+
+        Check("empty channels are listed too", textureSectionBefore?.Header == "Textures (0 of 6)",
+            textureSectionBefore?.Header ?? "no section");
 
         // A thumbnail is built from CPU pixels, so one is supplied the way a loader would.
         var map = new ManaTexture(context)
@@ -339,19 +353,21 @@ public static class InspectorChecks
 
         var textureSection = FindAll<Expander>(view)
             .FirstOrDefault(e => e.Header.StartsWith("Textures", StringComparison.Ordinal));
-        Check("a material with a map gets a textures section", textureSection != null,
-            string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
-        Check("the section counts the maps", textureSection?.Header == "Textures (1)",
+        Check("the section counts what is filled", textureSection?.Header == "Textures (1 of 6)",
             textureSection?.Header ?? "none");
 
+        // One preview slot per channel, filled or not.
         var previews = FindAll<UiImage>(view);
-        Check("the map gets a preview", previews.Count == 1, $"{previews.Count} images");
+        Check("every channel has a preview slot", previews.Count == 6, $"{previews.Count} images");
 
-        if (previews.Count == 1)
+        if (previews.Count == 6)
         {
-            Check("the preview points at the colour atlas",
+            Check("the filled channel points at the colour atlas",
                 previews[0].HasSource && previews[0].SourceSize.X > 0.0f,
                 $"{previews[0].SourceSize} from {previews[0].SourceUv}");
+
+            Check("an empty channel shows nothing", !previews[1].HasSource,
+                previews[1].SourceSize.ToString());
 
             // The thumbnail is real pixels, not a plausible UV over blank atlas.
             var uv = previews[0].SourceUv;
@@ -364,7 +380,7 @@ public static class InspectorChecks
 
         // Decoding is expensive, so the result is cached rather than rebuilt on every rebuild of the panel.
         var before = root.Images.Pixels.Length;
-        var firstUv = previews.Count == 1 ? previews[0].SourceUv : Vector4.Zero;
+        var firstUv = previews.Count > 0 ? previews[0].SourceUv : Vector4.Zero;
         world.Selection.SelectedNode = null;
         root.UpdateLayout(new Vector2(420, 900));
         world.Selection.SelectedNode = meshNode;
@@ -379,6 +395,32 @@ public static class InspectorChecks
             rebuiltPreview != null && rebuiltPreview.SourceUv == firstUv,
             "same atlas region");
         Check("and packs nothing new", root.Images.Pixels.Length == before, "atlas unchanged");
+
+        // ---------------------------------------------------------------- assigning a texture
+        // The picker writes straight to the channel, which is what makes a plain box wearable.
+        material.Albedo.TextureValue = null;
+        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(420, 900));
+
+        Check("clearing a channel empties its slot",
+            FindAll<UiImage>(view)[0].HasSource == false, "no source");
+
+        material.Albedo.TextureValue = map;
+        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(420, 900));
+
+        Check("assigning fills it again without a rebuild",
+            FindAll<UiImage>(view)[0].HasSource, "polled, so the row follows the channel");
+
+        // The library is what the picker offers. Scanned from the project rather than a file dialog, so a
+        // material cannot end up pointing at something outside it.
+        // Relative to the working directory, which for the suite is its own output folder -- where the
+        // engine's assets are copied. Reported rather than assumed, so a checkout without them says so.
+        Check("the texture library scans the project", ManaUiTextureLibrary.Assets.Count > 0,
+            $"{ManaUiTextureLibrary.Assets.Count} textures under {Directory.GetCurrentDirectory()}");
+        Check("and stores relative paths",
+            ManaUiTextureLibrary.Assets.All(a => !Path.IsPathRooted(a.RelativePath)),
+            "portable across machines");
 
         material.Albedo.TextureValue = null;
 

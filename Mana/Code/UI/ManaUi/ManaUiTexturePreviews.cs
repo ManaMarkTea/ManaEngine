@@ -1,5 +1,6 @@
 using ManaUI;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
@@ -46,6 +47,7 @@ namespace Mana.Code.UI.ManaUi
         private const int ThumbnailSize = 64;
 
         private static readonly Dictionary<(ManaTexture Texture, int Generation), ManaUiTexturePreview?> Cache = new();
+        private static readonly Dictionary<(string Path, int Generation), ManaUiTexturePreview?> FileCache = new();
 
         /// <summary>
         /// A thumbnail for a texture, decoding and packing it on first request. Returns false for a texture
@@ -85,6 +87,85 @@ namespace Mana.Code.UI.ManaUi
 
             preview = built.Value;
             return true;
+        }
+
+        /// <summary>
+        /// A thumbnail straight from a file, for the picker -- which needs dozens at once and cannot wait
+        /// for each to be decoded at full size.
+        /// <para>
+        /// Decoded with a target size, so a JPEG comes off disk at a fraction of its real resolution
+        /// rather than being decoded whole and then thrown away. That is the difference between a picker
+        /// that opens and one that stalls.
+        /// </para>
+        /// </summary>
+        public static bool TryGetForFile(ManaImageAtlas atlas, string path, out ManaUiTexturePreview preview)
+        {
+            preview = default;
+
+            if (atlas == null || string.IsNullOrWhiteSpace(path))
+            {
+                return false;
+            }
+
+            var key = (path, atlas.Generation);
+
+            if (!FileCache.TryGetValue(key, out var cached))
+            {
+                cached = BuildFromFile(atlas, path);
+                FileCache[key] = cached;
+            }
+
+            if (cached == null)
+            {
+                return false;
+            }
+
+            preview = cached.Value;
+            return true;
+        }
+
+        private static ManaUiTexturePreview? BuildFromFile(ManaImageAtlas atlas, string path)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                var options = new DecoderOptions
+                {
+                    TargetSize = new Size(ThumbnailSize * 2, ThumbnailSize * 2)
+                };
+
+                using var image = Image.Load<Rgba32>(options, path);
+
+                var sourceWidth = (uint)image.Width;
+                var sourceHeight = (uint)image.Height;
+
+                var scale = ThumbnailSize / (float)Math.Max(image.Width, image.Height);
+                var width = Math.Max(1, (int)MathF.Round(image.Width * MathF.Min(1.0f, scale)));
+                var height = Math.Max(1, (int)MathF.Round(image.Height * MathF.Min(1.0f, scale)));
+
+                image.Mutate(context => context.Resize(width, height));
+
+                var pixels = new byte[width * height * 4];
+                image.CopyPixelDataTo(pixels);
+
+                var uv = atlas.Add(pixels, width, height);
+                if (uv == null)
+                {
+                    return null;
+                }
+
+                // The decoder may already have downscaled, so the reported source size is what the file
+                // says rather than what came back -- worth being honest about in a picker.
+                return new ManaUiTexturePreview(uv.Value, new Vector2(width, height), sourceWidth, sourceHeight);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         private static ManaUiTexturePreview? Build(ManaImageAtlas atlas, ManaTexture texture)
@@ -153,6 +234,7 @@ namespace Mana.Code.UI.ManaUi
         public static void Clear()
         {
             Cache.Clear();
+            FileCache.Clear();
         }
     }
 }
