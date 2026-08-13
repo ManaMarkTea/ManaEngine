@@ -16,6 +16,19 @@ uniform vec3 emissionColor;
 uniform float emissionStrength;
 uniform float normalMapSelection = 0.0;
 
+// Brought up to what the WebGPU path already reads. These were missing entirely: metallic, roughness and
+// occlusion came from their maps alone, so a material with no map got whatever the fallback texture held
+// and the sliders did nothing at all.
+uniform vec4 albedoColor = vec4(1.0);
+// x metallic, y roughness, z occlusion, w alpha cutoff.
+uniform vec4 materialFactors = vec4(0.0, 1.0, 1.0, 0.5);
+uniform sampler2D opacityMap;
+uniform float opacityFactor = 1.0;
+// Matches ManaOpacityMode: 1 opaque, 2 cutout, 3 blend.
+uniform float opacityMode = 1.0;
+// Texture coordinate scale in xy, offset in zw. Applies to every map.
+uniform vec4 uvTransform = vec4(1.0, 1.0, 0.0, 0.0);
+
 // IBL
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
@@ -36,14 +49,15 @@ const float PI = 3.14159265359;
 // Don't worry if you don't get what's going on; you generally want to do normal 
 // mapping the usual way for performance anyways; I do plan make a note of this 
 // technique somewhere later in the normal mapping tutorial.
-vec3 getNormalFromMap()
+vec3 getNormalFromMap(vec2 uv)
 {
-    vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
+    vec3 tangentNormal = texture(normalMap, uv).xyz * 2.0 - 1.0;
 
     vec3 Q1  = dFdx(WorldPos);
     vec3 Q2  = dFdy(WorldPos);
-    vec2 st1 = dFdx(TexCoords);
-    vec2 st2 = dFdy(TexCoords);
+    // Derivatives of the transformed coordinate, so a tiled material's tangent frame tiles with it.
+    vec2 st1 = dFdx(uv);
+    vec2 st2 = dFdy(uv);
 
     vec3 N   = normalize(Normal);
     vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
@@ -100,19 +114,27 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 // ----------------------------------------------------------------------------
 void main()
 {		
+    vec2 uv = TexCoords * uvTransform.xy + uvTransform.zw;
+
     vec3 tint = pow(Color.rgb, vec3(2.2));
-    // material properties
-    //vec3 albedo = pow(texture(albedoMap, TexCoords).rgb * Color.rgb, vec3(2.2));
-    vec3 albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.2));
+
+    vec4 albedoSample = texture(albedoMap, uv);
+    vec3 albedo = pow(albedoSample.rgb, vec3(2.2)) * pow(max(albedoColor.rgb, vec3(0.0)), vec3(2.2));
 
     albedo *= tint;
 
-    float metallic = texture(metallicMap, TexCoords).r;
-    float roughness = texture(roughnessMap, TexCoords).r;
-    float ao = texture(aoMap, TexCoords).r;
+    // Channels follow the glTF packing: occlusion in R, roughness in G, metallic in B, all one texture.
+    // A standalone greyscale map holds the same value in every channel, so this is right for both --
+    // whereas reading R everywhere gave the packed map's unused channel and made every loaded model
+    // fully metallic and fully rough.
+    float metallic = clamp(materialFactors.x * texture(metallicMap, uv).b, 0.0, 1.0);
+    float roughness = clamp(materialFactors.y * texture(roughnessMap, uv).g, 0.0, 1.0);
+    float ao = clamp(materialFactors.z * texture(aoMap, uv).r, 0.0, 1.0);
+
+    float alpha = Color.a * albedoSample.a * albedoColor.a * opacityFactor * texture(opacityMap, uv).r;
        
     // input lighting data
-    vec3 N = normalize(mix(getNormalFromMap(), normalize(Normal), normalMapSelection));
+    vec3 N = normalize(mix(getNormalFromMap(uv), normalize(Normal), normalMapSelection));
 
     // There seems to be a bug in get from normal map, that results in noise instead on flat normals
     if (normalMapSelection >= 0.999)
@@ -267,5 +289,13 @@ void main()
         return;
     }
 
-    FragColor = vec4(color, 1.0);
+    // Cutout discards below the threshold and is otherwise solid; blend keeps the alpha for the blend
+    // state; opaque throws it away. The discard sits last so every derivative above it has been taken.
+    int mode = int(opacityMode + 0.5);
+    if (mode == 2 && alpha < materialFactors.w)
+    {
+        discard;
+    }
+
+    FragColor = vec4(color, mode == 3 ? alpha : 1.0);
 }

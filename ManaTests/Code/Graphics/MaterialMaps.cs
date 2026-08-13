@@ -16,6 +16,80 @@ namespace ManaTests;
 public static class MaterialMapChecks
 {
     /// <summary>
+    /// The OpenGL path held to the same contract as the WebGPU one. It is the fallback backend, so it is
+    /// the one that quietly drifts: nothing here fails a build, and a missing uniform simply does nothing.
+    /// </summary>
+    private static void CheckOpenGl(Action<string, bool, string> Check)
+    {
+        var path = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }
+            .Select(root => Path.Combine(root, "Assets", "Shaders", "LearnSpecularTextured", "pbr.frag"))
+            .FirstOrDefault(File.Exists);
+
+        if (path == null)
+        {
+            Check("the OpenGL PBR shader is beside the tests", false, AppContext.BaseDirectory);
+            return;
+        }
+
+        var frag = File.ReadAllText(path);
+
+        // The same packing bug the WebGPU shader had, and for the same reason: one texture holds all
+        // three, so reading R everywhere gives the unused channel.
+        Check("GL metallic reads blue", frag.Contains("texture(metallicMap, uv).b", StringComparison.Ordinal),
+            "glTF packs metallic in B");
+        Check("GL roughness reads green", frag.Contains("texture(roughnessMap, uv).g", StringComparison.Ordinal),
+            "glTF packs roughness in G");
+        Check("GL occlusion reads red", frag.Contains("texture(aoMap, uv).r", StringComparison.Ordinal),
+            "glTF packs occlusion in R");
+
+        // These were absent entirely, so the maps were the only source and every slider was inert.
+        foreach (var uniform in new[] { "albedoColor", "materialFactors", "opacityMap", "opacityFactor", "opacityMode", "uvTransform" })
+        {
+            Check($"GL declares {uniform}",
+                frag.Contains($" {uniform} =", StringComparison.Ordinal)
+                    || frag.Contains($" {uniform};", StringComparison.Ordinal),
+                uniform);
+        }
+
+        Check("GL applies the uv transform once",
+            frag.Contains("vec2 uv = TexCoords * uvTransform.xy + uvTransform.zw;", StringComparison.Ordinal),
+            "one coordinate for every map");
+
+        // The tangent frame has to tile with the material or a repeated normal map lights the wrong way.
+        Check("and its tangent frame follows the transformed coordinate",
+            frag.Contains("st1 = dFdx(uv)", StringComparison.Ordinal), "derivatives of uv");
+
+        Check("GL cuts out below the threshold",
+            frag.Contains("alpha < materialFactors.w", StringComparison.Ordinal)
+                && frag.Contains("discard", StringComparison.Ordinal), "cutout implemented");
+
+        // Was hardcoded to 1.0, so nothing the shader computed about alpha could ever reach the blend.
+        Check("and blend keeps its alpha",
+            frag.Contains("mode == 3 ? alpha : 1.0", StringComparison.Ordinal), "no longer hardcoded");
+
+        // The C# half has to actually send them.
+        var shaderSource = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }
+            .Select(root => Path.Combine(root, "..", "..", "..", "..", "Mana", "Code", "ManaShaders", "ManaPbrShader.cs"))
+            .Select(Path.GetFullPath)
+            .FirstOrDefault(File.Exists);
+
+        if (shaderSource == null)
+        {
+            return;
+        }
+
+        var binder = File.ReadAllText(shaderSource);
+        foreach (var uniform in new[] { "albedoColor", "materialFactors", "opacityFactor", "opacityMode", "uvTransform" })
+        {
+            Check($"and the binder sets {uniform}",
+                binder.Contains($"FindUniform(\"{uniform}\")", StringComparison.Ordinal), uniform);
+        }
+
+        Check("and binds the opacity map",
+            binder.Contains("material.Opacity.Bind(9)", StringComparison.Ordinal), "slot 9");
+    }
+
+    /// <summary>
     /// The FlightHelmet, loaded for real. An integration check rather than a unit one: what a glTF says
     /// and what Assimp reports it as are two different things, and the mapping between them is where this
     /// went wrong -- alpha mode never read, and the occlusion map arriving as a lightmap that nothing
@@ -113,6 +187,7 @@ public static class MaterialMapChecks
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
         CheckLoadedGltf(Check);
+        CheckOpenGl(Check);
 
         // Both roots: `dotnet run` leaves the working directory at the repository, while the built output
         // is where the shaders are actually copied. Searching one alone finds nothing in the other.

@@ -325,11 +325,62 @@ namespace Mana.Code.Materials
                 }
             }
 
+            ApplyBlendState();
+
             Shader?.BindShader(this, objectMatrix, Context.World.MainCamera, owner);
         }
 
+        /// <summary>
+        /// Turns on alpha blending for a material that asked for it, and puts the state back afterwards.
+        /// <para>
+        /// Cutout needs none of this -- it discards in the shader and stays in the opaque pass, which is
+        /// the whole reason to prefer it. Blend does: without it the shader's alpha reaches a blend
+        /// function of one/zero and is simply thrown away.
+        /// </para>
+        /// <para>
+        /// Depth writes are disabled with it, so a blended surface does not occlude what is behind it.
+        /// Draw order is still whatever the scene graph produces, so several overlapping blended surfaces
+        /// will not composite correctly -- that needs back-to-front sorting, which the renderer does not
+        /// do yet on either backend.
+        /// </para>
+        /// </summary>
+        private void ApplyBlendState()
+        {
+            var gl = Context.OpenGl;
+            if (gl == null)
+            {
+                return;
+            }
+
+            _blendStateApplied = EffectiveOpacityMode == ManaOpacityMode.Blend
+                || (Shader?.IsTransparent ?? false);
+
+            if (!_blendStateApplied)
+            {
+                return;
+            }
+
+            gl.Enable(EnableCap.Blend);
+            gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            gl.DepthMask(false);
+        }
+
+        private bool _blendStateApplied;
+
         public void UnBind()
         {
+            if (_blendStateApplied)
+            {
+                var gl = Context.OpenGl;
+                if (gl != null)
+                {
+                    gl.DepthMask(true);
+                    gl.Disable(EnableCap.Blend);
+                }
+
+                _blendStateApplied = false;
+            }
+
             int i = 0;
             foreach (var texture in Channels)
             {

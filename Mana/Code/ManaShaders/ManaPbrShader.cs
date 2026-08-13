@@ -82,6 +82,7 @@ namespace Mana.Code
                 CompiledShader.FindUniform("metallicMap")?.SetValue(6);
                 CompiledShader.FindUniform("roughnessMap")?.SetValue(7);
                 CompiledShader.FindUniform("aoMap")?.SetValue(8);
+                CompiledShader.FindUniform("opacityMap")?.SetValue(9);
 
                 renderer.ApplyLights(this);
                 CompiledShader.FindUniform("exposure")?.SetValue(renderer.PbrExposure);
@@ -98,6 +99,26 @@ namespace Mana.Code
             material.Metallic.Bind(6);
             material.Roughness.Bind(7);
             material.Occlusion.Bind(8);
+            material.Opacity.Bind(9);
+
+            // The scalars beside each map. Without these the maps were the only source, so a material with
+            // no map took whatever the fallback texture held and every slider in the inspector was inert.
+            CompiledShader.FindUniform("albedoColor")?.SetValue(material.Albedo.Value);
+
+            CompiledShader.FindUniform("materialFactors")?.SetValue(new Vector4(
+                (float)material.Metallic.Value,
+                (float)material.Roughness.Value,
+                (float)material.Occlusion.Value,
+                (float)material.AlphaCutoff));
+
+            CompiledShader.FindUniform("opacityFactor")?.SetValue((float)material.Opacity.Value);
+            CompiledShader.FindUniform("opacityMode")?.SetValue((float)material.EffectiveOpacityMode);
+
+            CompiledShader.FindUniform("uvTransform")?.SetValue(new Vector4(
+                material.UvScale.X,
+                material.UvScale.Y,
+                material.UvOffset.X,
+                material.UvOffset.Y));
 
             CompiledShader.FindUniform("normalMapSelection")?.SetValue(material.NormalSelector);
             CompiledShader.FindUniform("emissionColor")?.SetValue(material.Emission.Value.X, material.Emission.Value.Y, material.Emission.Value.Z);
