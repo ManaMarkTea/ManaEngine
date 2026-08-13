@@ -139,6 +139,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             var left = new DockHost();
             var right = new DockHost();
 
+            // Read each frame rather than captured: the main camera is replaced when a scene loads, and an
+            // overlay still drawing the old one would silently drift from the view.
+            global::Mana.CameraComponent? camera() => world?.MainCamera;
+
             // The factory is what makes a saved layout restorable: content is application-owned and cannot
             // come out of a file, so persistence stores ids and asks for the panel back by name.
             DockItem? Resolve(string id) => id switch
@@ -340,7 +344,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             // The menu bar rides above the right column, both anchored clear of ImGui's own chrome. The
             // performance strip sits at the far left of that same band: it is a glance, not a panel, so it
             // wants somewhere permanent and small rather than a column of its own.
+            //
+            // The overlay layer goes in first, so the columns draw over it: it spans the whole window and
+            // works out the viewport itself from what the columns are covering.
             return new Canvas().Children(
+                new ViewportOverlayLayer(theme, leftPanel, rightPanel, TopOffset, camera, editor)
+                    .Anchor(left: 0.0f, top: 0.0f, right: 0.0f, bottom: 0.0f),
+
                 leftPanel.Anchor(top: TopOffset, left: 0.0f, bottom: 0.0f),
 
                 ManaUiPerformanceStrip.Build(theme)

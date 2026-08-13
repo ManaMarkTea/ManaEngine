@@ -41,8 +41,6 @@ namespace Mana.Code.GameModes
         private readonly PlaceSearchNavigator _navigator = new();
         private readonly VoxelEditorAboutPanelView _aboutPanelView = new();
         private readonly VoxelSearchPanelView _searchPanelView = new();
-        private readonly ViewportCameraGizmoView _cameraGizmoView = new();
-        private readonly VoxelPlacementDepthOverlayView _placementDepthOverlayView = new();
         private readonly VoxelToolController _toolController = new();
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
@@ -1708,14 +1706,12 @@ namespace Mana.Code.GameModes
 
             _toolPaletteView.Draw(_viewModel);
 
-            bool gizmoCapturesMouse = _cameraGizmoView.Draw(Context.World.MainCamera, sceneMin, sceneMax);
-            bool uiCapturesMouse = UiWantsMouse || gizmoCapturesMouse;
-
-            UpdateVoxelPointerInteraction(uiCapturesMouse);
+            // The gizmo used to have to report back whether it was under the pointer, because an ImGui
+            // window drawn over the scene is invisible to the scene. As part of the ManaUI tree it is
+            // hit-tested like anything else, and UiWantsMouse already knows.
+            UpdateVoxelPointerInteraction(UiWantsMouse);
             UpdateFrameSelectedShortcut();
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
-
-            _placementDepthOverlayView.Draw(Context.World.MainCamera, sceneMin, sceneMax, _viewModel);
 
             if (_viewModel.ShowImGuiDemoWindow)
             {
