@@ -52,6 +52,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// part of how the workspace looks and belongs with the rest of it.</summary>
         public UiThemeKind Theme { get; set; } = UiThemeKind.Dark;
 
+        /// <summary>UI font family, or null for the theme's default.</summary>
+        public string? FontFamily { get; set; }
+
         public float LeftWidth { get; set; }
 
         public float RightWidth { get; set; }

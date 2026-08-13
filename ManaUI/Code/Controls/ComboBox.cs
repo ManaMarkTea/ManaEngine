@@ -160,7 +160,8 @@ namespace ManaUI
                 drawList,
                 box,
                 IsDropDownOpen ? UiIconDirection.Up : UiIconDirection.Down,
-                color);
+                color,
+                font);
         }
 
         // ----- drop down ------------------------------------------------------------------------------

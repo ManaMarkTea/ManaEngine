@@ -598,7 +598,8 @@ namespace ManaUI
                 drawList,
                 box,
                 _owner.IsExpanded(_item) ? UiIconDirection.Down : UiIconDirection.Right,
-                theme.TextMuted);
+                theme.TextMuted,
+                root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale));
         }
 
         /// <summary>The expander's hit area, which is deliberately the full row height for an easy target.</summary>

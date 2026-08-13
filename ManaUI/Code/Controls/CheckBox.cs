@@ -115,7 +115,9 @@ namespace ManaUI
         /// </summary>
         private void DrawTick(ManaUiDrawList drawList, UiRect box, Vector4 color)
         {
-            UiIcons.Check(drawList, box.Deflate(new Thickness(2.0f)), color);
+            var root = Root;
+            var font = root?.Fonts.Get(root.Theme.FontFamily, BoxSize, root.Scale);
+            UiIcons.Check(drawList, box.Deflate(new Thickness(2.0f)), color, font);
         }
 
         protected override void OnPointerPressed(UiPointerEventArgs e)

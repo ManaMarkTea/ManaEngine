@@ -30,6 +30,64 @@ namespace ManaUI
 
         public float DefaultPixelSize { get; set; } = 15.0f;
 
+        /// <summary>
+        /// Families consulted, in order, for codepoints the requested font does not have.
+        /// <para>
+        /// This is how the library gets arrows and symbols without shipping a font for them: Roboto covers
+        /// Latin and nothing else, so a glyph like U+25B6 comes from whichever of these has it. Entries
+        /// that cannot be resolved are skipped silently -- the list is a preference, and a machine without
+        /// a given font should fall through rather than fail.
+        /// </para>
+        /// </summary>
+        public List<string> FallbackFamilies { get; } = new()
+        {
+            // Windows. Segoe UI Symbol carries the geometric shapes and dingbats; Segoe UI itself covers a
+            // good deal more than Roboto on its own.
+            "seguisym",
+            "segoeui",
+
+            // macOS.
+            "Apple Symbols",
+            "SFNSMono",
+
+            // Common Linux packages.
+            "DejaVuSans",
+            "NotoSansSymbols2-Regular"
+        };
+
+        /// <summary>
+        /// Family names that resolve to a real file, for a font picker to offer.
+        /// <para>
+        /// Filtered to families that actually load: the search path includes the system font folder, which
+        /// on any machine holds a pile of files stb cannot read, and offering one that fails when chosen is
+        /// worse than not offering it.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<string> AvailableFamilies(IEnumerable<string> candidates)
+        {
+            var available = new List<string>();
+
+            foreach (var family in candidates)
+            {
+                if (ResolveCachedPath(family) == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    Get(family, DefaultPixelSize);
+                    available.Add(family);
+                }
+                catch (Exception)
+                {
+                    // Resolvable but unreadable -- a bitmap-only font, or one stb does not support.
+                }
+            }
+
+            return available;
+        }
+
         /// <summary>Directories are searched in the order added; later additions are lower priority.</summary>
         public void AddSearchDirectory(string directory)
         {
@@ -91,9 +149,57 @@ namespace ManaUI
                 rounded,
                 Atlas,
                 quantisedScale / 4.0f);
+
+            // Cached before the chain is built, because a fallback is itself a font from this manager and
+            // resolving one re-enters here. Without this a cycle in the fallback list would recurse
+            // forever; with it, the second visit finds the entry already present.
             _fonts[key] = font;
+            AttachFallbacks(font, path, rounded, quantisedScale);
             return font;
         }
+
+        /// <summary>
+        /// Resolves each fallback family at the same size and scale and hangs it off the font. Families
+        /// that do not exist on this machine are skipped -- the list spans three operating systems, so most
+        /// of it is expected to miss.
+        /// </summary>
+        private void AttachFallbacks(ManaFont font, string primaryPath, int size, int quantisedScale)
+        {
+            if (_resolvingFallbacks)
+            {
+                return;
+            }
+
+            _resolvingFallbacks = true;
+
+            try
+            {
+                foreach (var family in FallbackFamilies)
+                {
+                    var path = ResolveCachedPath(family);
+                    if (path == null || string.Equals(path, primaryPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        font.AddFallback(Get(path, size, quantisedScale / 4.0f));
+                    }
+                    catch (Exception)
+                    {
+                        // A font file that stb cannot read is not worth failing a UI over; the next
+                        // fallback, or the tofu box, will do.
+                    }
+                }
+            }
+            finally
+            {
+                _resolvingFallbacks = false;
+            }
+        }
+
+        private bool _resolvingFallbacks;
 
         /// <summary>
         /// Family name to file path, resolved once and remembered.

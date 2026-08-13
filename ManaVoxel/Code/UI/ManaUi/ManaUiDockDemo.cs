@@ -68,6 +68,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 root.Theme = UiTheme.Create(saved.Theme);
             }
 
+            if (saved?.FontFamily is { Length: > 0 } savedFont)
+            {
+                root.Theme.FontFamily = savedFont;
+            }
+
             // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
             var shell = new ContentHost();
             shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
@@ -174,6 +179,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Version = LayoutVersion,
                     Preset = state.Preset,
                     Theme = root.Theme.Kind,
+                    FontFamily = root.Theme.FontFamily,
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
                     Left = DockLayout.Capture(left),
@@ -224,6 +230,23 @@ namespace ManaVoxel.Code.UI.ManaUi
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
             }
 
+            void ChooseFont(string family)
+            {
+                if (root.Theme.FontFamily == family)
+                {
+                    return;
+                }
+
+                root.Theme.FontFamily = family;
+
+                // Every measured width in the tree was computed with the old face, so this is a full
+                // relayout rather than a repaint -- and the workspace is rebuilt for the same reason a
+                // theme change rebuilds it.
+                root.InvalidateAll();
+                Save();
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
+            }
+
             void Choose(WorkspacePreset preset)
             {
                 state.Preset = preset;
@@ -240,7 +263,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Fill(theme.Surface)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme))
+                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont))
                     .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
                     .Width(rightPanel.Size),
 
@@ -418,7 +441,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             Action<WorkspacePreset> choose,
             UiDebugOverlay debug,
             UiRoot root,
-            Action<UiThemeKind> chooseTheme)
+            Action<UiThemeKind> chooseTheme,
+            Action<string> chooseFont)
         {
             return new MenuBar().AddRange(
                 new MenuItem("Debug").WithItems(
@@ -459,6 +483,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Dark),
                         new MenuItem("Light", () => chooseTheme(UiThemeKind.Light))
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Light)),
+
+                    new MenuItem("Font").WithItems(
+                        root.Fonts.AvailableFamilies(FontChoices)
+                            .Select(family => new MenuItem(FontLabel(family), () => chooseFont(family))
+                                .Checkable(() => root.Theme.FontFamily == family))
+                            .ToArray()),
                     MenuItem.Separator(),
                     new MenuItem("Wireframe", () => vm.ShowWireframe = !vm.ShowWireframe)
                         .Checkable(() => vm.ShowWireframe),
@@ -466,6 +496,47 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
+        }
+
+        /// <summary>
+        /// Fonts offered in the Font menu. Filtered at build time to whichever are actually installed, so
+        /// the list spans platforms without offering a Windows face on a Mac.
+        /// </summary>
+        private static readonly string[] FontChoices =
+        {
+            "Roboto",
+            "BarlowCondensed-Regular",
+            "segoeui",
+            "SegoeUI",
+            "bahnschrift",
+            "calibri",
+            "verdana",
+            "tahoma",
+            "trebuc",
+            "consola",
+            "CascadiaMono",
+            "Helvetica",
+            "SFNSDisplay",
+            "DejaVuSans"
+        };
+
+        /// <summary>Turns a file stem into something worth reading in a menu.</summary>
+        private static string FontLabel(string family)
+        {
+            return family switch
+            {
+                "segoeui" or "SegoeUI" => "Segoe UI",
+                "bahnschrift" => "Bahnschrift",
+                "calibri" => "Calibri",
+                "verdana" => "Verdana",
+                "tahoma" => "Tahoma",
+                "trebuc" => "Trebuchet MS",
+                "consola" => "Consolas",
+                "BarlowCondensed-Regular" => "Barlow Condensed",
+                "SFNSDisplay" => "SF Pro",
+                "DejaVuSans" => "DejaVu Sans",
+                _ => family
+            };
         }
 
         /// <summary>One toggle per debug flag, so they can be combined rather than being a single mode.</summary>

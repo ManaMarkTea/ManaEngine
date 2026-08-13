@@ -181,6 +181,28 @@ public static class ShowcaseChecks
 
             Check("the workspace renders in light mode",
                 dockRoot.Render().InstanceCount > 50, $"{dockRoot.Render().InstanceCount} instances");
+
+            // ---------------------------------------------------------------- font
+            var fontMenu = viewMenu.Items.First(item => item.Text == "Font");
+            Check("the font menu offers what is installed", fontMenu.Items.Count > 0,
+                string.Join(", ", fontMenu.Items.Select(i => i.Text)));
+            Check("the current font is ticked",
+                fontMenu.Items.Any(i => i.IsCheckedProvider?.Invoke() == true),
+                dockRoot.Theme.FontFamily);
+
+            var otherFont = fontMenu.Items.FirstOrDefault(i => i.IsCheckedProvider?.Invoke() != true);
+            if (otherFont != null)
+            {
+                otherFont.Invoked?.Invoke();
+                dockRoot.UpdateLayout(new Vector2(1920, 1080));
+
+                Check("choosing a font changes it", otherFont.IsCheckedProvider?.Invoke() == true,
+                    dockRoot.Theme.FontFamily);
+
+                // Every measured width was computed with the old face, so this has to be a relayout.
+                Check("the workspace renders in the new font",
+                    dockRoot.Render().InstanceCount > 50, $"{dockRoot.Render().InstanceCount} instances");
+            }
         }
         catch (Exception ex)
         {

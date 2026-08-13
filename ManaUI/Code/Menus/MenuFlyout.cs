@@ -162,7 +162,8 @@ namespace ManaUI
                         Bounds.Center.Y - tickSize * 0.5f,
                         tickSize,
                         tickSize),
-                    foreground);
+                    foreground,
+                    font);
             }
 
             var label = new TextLayout { Font = font, Text = _item.Text };
@@ -199,7 +200,8 @@ namespace ManaUI
                         6.0f,
                         8.0f),
                     UiIconDirection.Right,
-                    foreground);
+                    foreground,
+                    font);
             }
         }
 

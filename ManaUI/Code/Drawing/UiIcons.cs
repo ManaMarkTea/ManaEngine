@@ -28,6 +28,90 @@ namespace ManaUI
         /// <summary>Rows in a triangle. More is smoother and costs one instance each.</summary>
         private const int TriangleSteps = 7;
 
+        /// <summary>The character each icon prefers, when a font in the chain can actually draw it.</summary>
+        private static int TriangleCodepoint(UiIconDirection direction)
+        {
+            return direction switch
+            {
+                UiIconDirection.Up => 0x25B2,
+                UiIconDirection.Down => 0x25BC,
+                UiIconDirection.Left => 0x25C0,
+                _ => 0x25B6
+            };
+        }
+
+        /// <summary>
+        /// A triangle, using the font's own glyph when one is reachable and falling back to the drawn
+        /// staircase when it is not.
+        /// <para>
+        /// A real glyph is hinted and properly antialiased, so it looks better than seven stacked rows ever
+        /// will. The staircase stays as the guarantee: on a machine with no symbol font the arrow is still
+        /// an arrow rather than a tofu box, which is what it used to be.
+        /// </para>
+        /// </summary>
+        public static void Triangle(
+            ManaUiDrawList drawList,
+            UiRect box,
+            UiIconDirection direction,
+            Vector4 color,
+            ManaFont? font)
+        {
+            if (font != null && TryGlyph(drawList, box, TriangleCodepoint(direction), color, font))
+            {
+                return;
+            }
+
+            Triangle(drawList, box, direction, color);
+        }
+
+        /// <summary>A check mark, preferring U+2713 when the font chain has it.</summary>
+        public static void Check(
+            ManaUiDrawList drawList,
+            UiRect box,
+            Vector4 color,
+            ManaFont? font,
+            float thickness = 2.0f)
+        {
+            if (font != null && TryGlyph(drawList, box, 0x2713, color, font))
+            {
+                return;
+            }
+
+            Check(drawList, box, color, thickness);
+        }
+
+        /// <summary>
+        /// Draws a codepoint centred in the box, or reports false when nothing in the chain has it.
+        /// Scaled down if the glyph is larger than the box, so an icon never overruns its slot.
+        /// </summary>
+        private static bool TryGlyph(
+            ManaUiDrawList drawList,
+            UiRect box,
+            int codepoint,
+            Vector4 color,
+            ManaFont font)
+        {
+            var glyph = font.GetGlyph(codepoint);
+            if (!glyph.IsDrawable || glyph.Size.X <= 0.0f || glyph.Size.Y <= 0.0f)
+            {
+                return false;
+            }
+
+            var scale = MathF.Min(1.0f, MathF.Min(box.Width / glyph.Size.X, box.Height / glyph.Size.Y));
+            var size = glyph.Size * scale;
+
+            drawList.DrawGlyph(
+                new UiRect(
+                    font.SnapToPixel(box.Center.X - size.X * 0.5f),
+                    font.SnapToPixel(box.Center.Y - size.Y * 0.5f),
+                    size.X,
+                    size.Y),
+                glyph.AtlasUv,
+                color);
+
+            return true;
+        }
+
         /// <summary>
         /// A solid triangle filling <paramref name="box"/>, pointing whichever way is asked. Sized from the
         /// box rather than centred in it, so callers control the icon's weight by the rect they pass.

@@ -75,6 +75,38 @@ public static class GlyphChecks
             Check($"{family} covers ASCII", other.HasGlyph('A') && other.HasGlyph('9'), family);
         }
 
+        // ---------------------------------------------------------------- fallback chain
+        // Roboto covers Latin and nothing else, so symbols come from a fallback font at the same size and
+        // into the same atlas. Whether any given machine has one is not guaranteed, so these report what
+        // was found rather than demanding a particular font.
+        Check("the font has a fallback chain", font.Fallbacks.Count > 0,
+            string.Join(", ", font.Fallbacks.Select(f => f.Name)));
+
+        foreach (var (codepoint, description) in new[]
+                 {
+                     (0x25B6, "submenu arrow"),
+                     (0x25BC, "combo box arrow"),
+                     (0x2713, "check mark")
+                 })
+        {
+            var source = font.FindFontFor(codepoint);
+            Check($"U+{codepoint:X4} resolves for the {description}",
+                source != null,
+                source == null ? "no font on this machine has it" : $"from {source.Name}");
+
+            if (source != null)
+            {
+                // The borrowed glyph has to be a real one, not the fallback's own .notdef.
+                var borrowed = font.GetGlyph(codepoint);
+                Check($"U+{codepoint:X4} comes back drawable", borrowed.IsDrawable && !borrowed.IsMissing,
+                    $"{borrowed.Size.X:F1}x{borrowed.Size.Y:F1}px");
+            }
+        }
+
+        // A fallback must not change the primary font's own metrics.
+        Check("the primary font still measures its own text",
+            font.MeasureWidth("Hello") > 10.0f, $"{font.MeasureWidth("Hello"):F1}px");
+
         // ---------------------------------------------------------------- drawn icons
         // The arrows and ticks the font cannot supply. These are the characters that used to render as
         // boxes, so the checks are that the drawn versions put ink on screen where the glyphs did not.

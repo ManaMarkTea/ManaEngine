@@ -19,6 +19,8 @@ namespace ManaUI
         private readonly Dictionary<int, ManaGlyph> _glyphs = new();
         private readonly float _scale;
 
+        private readonly List<ManaFont> _fallbacks = new();
+
         private GCHandle _dataPin;
         private int _atlasGeneration;
         private bool _disposed;
@@ -115,6 +117,24 @@ namespace ManaUI
                 return cached;
             }
 
+            // A codepoint this font lacks is rasterised by whichever fallback has it, into the same atlas
+            // at the same size -- so the caller gets a real glyph rather than a tofu box and never has to
+            // know which file it came from.
+            if (!HasGlyph(codepoint))
+            {
+                foreach (var fallback in _fallbacks)
+                {
+                    if (!fallback.HasGlyph(codepoint))
+                    {
+                        continue;
+                    }
+
+                    var borrowed = fallback.GetGlyph(codepoint);
+                    _glyphs[codepoint] = borrowed;
+                    return borrowed;
+                }
+            }
+
             var glyph = Rasterize(codepoint);
             _glyphs[codepoint] = glyph;
             return glyph;
@@ -153,6 +173,53 @@ namespace ManaUI
         public bool HasGlyph(int codepoint)
         {
             return StbTrueType.stbtt_FindGlyphIndex(_info, codepoint) != 0;
+        }
+
+        /// <summary>
+        /// Fonts consulted, in order, for codepoints this one does not have. Same pixel size and same
+        /// atlas, so a fallback glyph is indistinguishable downstream from a native one.
+        /// </summary>
+        public IReadOnlyList<ManaFont> Fallbacks => _fallbacks;
+
+        /// <summary>
+        /// Adds a fallback. Set up by <see cref="ManaFontManager"/> when the font is created, because the
+        /// chain has to be complete before anything asks for a glyph -- a font that cached a .notdef for a
+        /// codepoint would keep returning it after the fallback arrived.
+        /// </summary>
+        internal void AddFallback(ManaFont fallback)
+        {
+            if (fallback == null || ReferenceEquals(fallback, this) || _fallbacks.Contains(fallback))
+            {
+                return;
+            }
+
+            _fallbacks.Add(fallback);
+            _glyphs.Clear();
+        }
+
+        /// <summary>This font or the first fallback that has the codepoint; null when nothing does.</summary>
+        public ManaFont? FindFontFor(int codepoint)
+        {
+            if (HasGlyph(codepoint))
+            {
+                return this;
+            }
+
+            foreach (var fallback in _fallbacks)
+            {
+                if (fallback.HasGlyph(codepoint))
+                {
+                    return fallback;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>True when this font or any of its fallbacks can draw the codepoint.</summary>
+        public bool CanRender(int codepoint)
+        {
+            return FindFontFor(codepoint) != null;
         }
 
         private ManaGlyph Rasterize(int codepoint)
