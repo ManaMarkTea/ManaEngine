@@ -35,6 +35,8 @@ namespace ManaGraphics.Code.Graphics
 
         private Texture* _glyphTexture;
         private TextureView* _glyphTextureView;
+        private int _imageAtlasWidth;
+        private int _imageAtlasHeight;
         private Texture* _imageTexture;
         private TextureView* _imageTextureView;
         private BindGroup* _bindGroup;
@@ -74,6 +76,7 @@ namespace ManaGraphics.Code.Graphics
             RenderPassEncoder* renderPass,
             ManaUiDrawList drawList,
             ManaGlyphAtlas atlas,
+            ManaImageAtlas? images,
             Vector2 logicalSize,
             uint framebufferWidth,
             uint framebufferHeight)
@@ -89,6 +92,11 @@ namespace ManaGraphics.Code.Graphics
             }
 
             SyncGlyphAtlas(atlas);
+
+            if (images != null)
+            {
+                SyncImageAtlas(images);
+            }
 
             if (_bindGroup == null)
             {
@@ -160,6 +168,124 @@ namespace ManaGraphics.Code.Graphics
             var (_, minY, _, maxY) = atlas.DirtyRegion;
             UploadGlyphRegion(atlas, minY, maxY);
             atlas.ClearDirty();
+        }
+
+        /// <summary>
+        /// The colour atlas, uploaded the same way as the glyph one. Replaces the 1x1 white placeholder the
+        /// binding was created with, the first time anything actually puts an image in it.
+        /// </summary>
+        private void SyncImageAtlas(ManaImageAtlas atlas)
+        {
+            if (_imageTexture == null || _imageAtlasWidth != atlas.Width || _imageAtlasHeight != atlas.Height)
+            {
+                ReleaseImageTexture();
+                CreateImageTexture(atlas.Width, atlas.Height);
+                CreateBindGroup();
+
+                UploadImageRegion(atlas, 0, atlas.Height);
+                atlas.ClearDirty();
+                return;
+            }
+
+            if (!atlas.IsDirty)
+            {
+                return;
+            }
+
+            var (_, minY, _, maxY) = atlas.DirtyRegion;
+            UploadImageRegion(atlas, minY, maxY);
+            atlas.ClearDirty();
+        }
+
+        private void CreateImageTexture(int width, int height)
+        {
+            var descriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = (uint)width, Height = (uint)height, DepthOrArrayLayers = 1 },
+                Format = TextureFormat.Rgba8Unorm,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+
+            _imageTexture = _api.DeviceCreateTexture(_device, &descriptor);
+
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = TextureFormat.Rgba8Unorm,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+
+            _imageTextureView = _api.TextureCreateView(_imageTexture, &viewDescriptor);
+            _imageAtlasWidth = width;
+            _imageAtlasHeight = height;
+        }
+
+        private void ReleaseImageTexture()
+        {
+            if (_imageTextureView != null)
+            {
+                _api.TextureViewRelease(_imageTextureView);
+                _imageTextureView = null;
+            }
+
+            if (_imageTexture != null)
+            {
+                _api.TextureRelease(_imageTexture);
+                _imageTexture = null;
+            }
+
+            _imageAtlasWidth = 0;
+            _imageAtlasHeight = 0;
+        }
+
+        private void UploadImageRegion(ManaImageAtlas atlas, int startRow, int endRow)
+        {
+            startRow = Math.Clamp(startRow, 0, atlas.Height);
+            endRow = Math.Clamp(endRow, startRow, atlas.Height);
+
+            var rowCount = endRow - startRow;
+            if (rowCount <= 0)
+            {
+                return;
+            }
+
+            var destination = new ImageCopyTexture
+            {
+                Texture = _imageTexture,
+                MipLevel = 0,
+                Origin = new Origin3D { X = 0, Y = (uint)startRow, Z = 0 },
+                Aspect = TextureAspect.All
+            };
+
+            var layout = new TextureDataLayout
+            {
+                Offset = 0,
+                BytesPerRow = (uint)(atlas.Width * 4),
+                RowsPerImage = (uint)rowCount
+            };
+
+            var extent = new Extent3D
+            {
+                Width = (uint)atlas.Width,
+                Height = (uint)rowCount,
+                DepthOrArrayLayers = 1
+            };
+
+            fixed (byte* pixels = &atlas.Pixels[startRow * atlas.Width * 4])
+            {
+                _api.QueueWriteTexture(
+                    _queue,
+                    &destination,
+                    pixels,
+                    (nuint)(rowCount * atlas.Width * 4),
+                    &layout,
+                    &extent);
+            }
         }
 
         /// <summary>

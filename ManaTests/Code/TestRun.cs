@@ -67,6 +67,7 @@ public static class TestRunner
         ("ManaUI", "numeric, vector and expander editors", EditorChecks.Run),
         ("ManaUI", "colour conversion and picking", ColorChecks.Run),
         ("ManaUI", "debug overlay", DebugOverlayChecks.Run),
+        ("ManaUI", "colour atlas and images", ImageChecks.Run),
         ("ManaUI", "floating windows", WindowChecks.Run),
         ("ManaUI", "docking", DockingChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),

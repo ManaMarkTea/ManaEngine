@@ -272,6 +272,7 @@ namespace ManaGraphics.Code.Graphics
                 renderPass,
                 root.DrawList,
                 root.Atlas,
+                root.Images,
                 root.Size,
                 (uint)Math.Max(0, framebufferSize.X),
                 (uint)Math.Max(0, framebufferSize.Y));
