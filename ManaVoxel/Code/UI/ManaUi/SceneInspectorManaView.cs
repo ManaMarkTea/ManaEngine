@@ -166,12 +166,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .Checked(meshRenderer.OutlineEnabled)
                         .OnChanged(value => meshRenderer.OutlineEnabled = value),
 
-                    Row(theme, "Width", new NumericBox()
-                        .Step(0.1f)
-                        .Range(1.0f, 4.0f)
-                        .Places(2)
-                        .Value(meshRenderer.OutlineWidth)
-                        .OnChanged(value => meshRenderer.OutlineWidth = value)));
+                    Row(theme, "Width", Scalar(
+                        () => meshRenderer.OutlineWidth,
+                        value => meshRenderer.OutlineWidth = value,
+                        1.0f,
+                        4.0f)));
 
             var material = meshRenderer.Material;
             if (material == null)
@@ -375,21 +374,25 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
         }
 
-        /// <summary>A bounded scalar. Bounded, so the field sweeps its range rather than counting steps.</summary>
-        private static NumericBox Scalar(Func<float> read, Action<float> write, float minimum, float maximum)
+        /// <summary>
+        /// A ranged scalar: a slider with the number beside it. The range is soft, so a value typed past
+        /// either end widens the slider rather than being clamped -- an emissive strength offering 0..25
+        /// still accepts 200 and rescales around it.
+        /// </summary>
+        private static SliderBox Scalar(Func<float> read, Action<float> write, float minimum, float maximum)
         {
-            var box = new NumericBox
+            var slider = new SliderBox
             {
                 Minimum = minimum,
                 Maximum = maximum,
-                Step = (maximum - minimum) / 100.0f,
+                Step = (maximum - minimum) / 200.0f,
                 DecimalPlaces = 3
             };
 
-            box.Value = read();
-            box.ValueChanged += (_, value) => write(value);
-            box.BindPolled(b => b.Value, read);
-            return box;
+            slider.Value = read();
+            slider.ValueChanged += (_, value) => write(value);
+            slider.BindPolled(s => s.Value, read);
+            return slider;
         }
 
         private static UiElement Light(UiTheme theme, ManaLightSourceComponent light)
@@ -407,12 +410,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .Checked(light.Enabled)
                         .OnChanged(value => light.Enabled = value),
 
-                    Row(theme, "Intensity", new NumericBox()
-                        .Step(0.05f)
-                        .Range(0.0f, 20.0f)
-                        .Places(2)
-                        .Value(light.Intensity)
-                        .OnChanged(value => light.Intensity = value)),
+                    Row(theme, "Intensity", Scalar(
+                        () => light.Intensity,
+                        value => light.Intensity = value,
+                        0.0f,
+                        20.0f)),
 
                     Row(theme, "Direction", direction),
 

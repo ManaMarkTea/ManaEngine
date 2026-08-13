@@ -56,6 +56,31 @@ namespace ManaUI
         /// <summary>Pixels scrolled per wheel notch.</summary>
         public float WheelStep { get; set; } = 48.0f;
 
+        /// <summary>
+        /// Whether a visible bar takes its width out of the content area rather than sitting over it. On by
+        /// default: the bar is drawn on top and also swallows presses, so overlaid content is both
+        /// unreadable and unclickable. Turn it off for a pane where the extra pixels matter more than the
+        /// last few characters of a row.
+        /// </summary>
+        public bool ReserveScrollBarSpace
+        {
+            get => _reserveScrollBarSpace;
+            set
+            {
+                if (_reserveScrollBarSpace == value)
+                {
+                    return;
+                }
+
+                _reserveScrollBarSpace = value;
+
+                // Measure, not just visual: this changes how much width the content is given.
+                InvalidateMeasure();
+            }
+        }
+
+        private bool _reserveScrollBarSpace = true;
+
         /// <summary>Current scroll position, clamped to the scrollable range.</summary>
         public Vector2 Offset
         {
@@ -156,11 +181,67 @@ namespace ManaUI
             Child.Measure(childConstraint);
             _extent = Child.DesiredSize;
 
+            // Measured twice when a bar will be shown, because the bar is drawn over the content and the
+            // first pass had no way to know it was coming. Without this the last few characters of every
+            // row sit underneath the thumb.
+            //
+            // Safe from oscillation on the vertical axis: narrowing content can only make it taller or
+            // leave it alone, so a bar that was needed stays needed. The horizontal axis is not symmetric
+            // that way, which is why only the vertical reservation feeds back into the child's width.
+            var reserved = ReservedGutter(inner);
+            if (reserved.X > 0.0f || reserved.Y > 0.0f)
+            {
+                _viewport = new Vector2(
+                    MathF.Max(0.0f, _viewport.X - reserved.X),
+                    MathF.Max(0.0f, _viewport.Y - reserved.Y));
+
+                Child.Measure(new Vector2(
+                    float.IsInfinity(childConstraint.X) ? childConstraint.X : MathF.Max(0.0f, childConstraint.X - reserved.X),
+                    float.IsInfinity(childConstraint.Y) ? childConstraint.Y : MathF.Max(0.0f, childConstraint.Y - reserved.Y)));
+
+                _extent = Child.DesiredSize;
+            }
+
             // The viewport takes whatever it is offered rather than the content's size; a scroll viewer
             // that grew to fit its content would never scroll.
             return new Vector2(
                 float.IsInfinity(availableSize.X) ? _extent.X + inset.Horizontal : availableSize.X,
                 float.IsInfinity(availableSize.Y) ? _extent.Y + inset.Vertical : availableSize.Y);
+        }
+
+        /// <summary>
+        /// How much room the visible bars take out of the content area.
+        /// <para>
+        /// Reserved rather than overlaid, because the bars are drawn on top of the content and content
+        /// running underneath a thumb is unreadable -- and unclickable, since the viewer now claims presses
+        /// over the bar. <see cref="ScrollBarVisibility.Hidden"/> reserves nothing, which is what makes it
+        /// the setting for a pane that scrolls without showing anything.
+        /// </para>
+        /// </summary>
+        private Vector2 ReservedGutter(Vector2 viewport)
+        {
+            if (!ReserveScrollBarSpace)
+            {
+                return Vector2.Zero;
+            }
+
+            var thickness = Root?.Theme.ScrollBarThickness ?? 10.0f;
+
+            var vertical = VerticalScrollBar switch
+            {
+                ScrollBarVisibility.Visible => thickness,
+                ScrollBarVisibility.Auto when _extent.Y > viewport.Y => thickness,
+                _ => 0.0f
+            };
+
+            var horizontal = HorizontalScrollBar switch
+            {
+                ScrollBarVisibility.Visible => thickness,
+                ScrollBarVisibility.Auto when _extent.X > viewport.X => thickness,
+                _ => 0.0f
+            };
+
+            return new Vector2(vertical, horizontal);
         }
 
         protected override Vector2 ArrangeOverride(Vector2 finalSize)
@@ -173,17 +254,24 @@ namespace ManaUI
                 return finalSize;
             }
 
+            // The same reservation the measure pass made, so the child is arranged into the area it was
+            // measured for rather than back under the bar.
+            var reserved = ReservedGutter(content.Size);
+            _viewport = new Vector2(
+                MathF.Max(0.0f, content.Width - reserved.X),
+                MathF.Max(0.0f, content.Height - reserved.Y));
+
             // Re-clamped here because the viewport size is only known now, and a window resize can make a
             // previously valid offset overscroll.
             _offset = ClampOffset(_offset);
 
             var width = HorizontalScrollBar == ScrollBarVisibility.Disabled
-                ? content.Width
-                : MathF.Max(content.Width, _extent.X);
+                ? _viewport.X
+                : MathF.Max(_viewport.X, _extent.X);
 
             var height = VerticalScrollBar == ScrollBarVisibility.Disabled
-                ? content.Height
-                : MathF.Max(content.Height, _extent.Y);
+                ? _viewport.Y
+                : MathF.Max(_viewport.Y, _extent.Y);
 
             Child.Arrange(new UiRect(content.X - _offset.X, content.Y - _offset.Y, width, height));
             return finalSize;

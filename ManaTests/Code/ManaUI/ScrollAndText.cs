@@ -164,13 +164,48 @@ public static class ScrollAndTextChecks
             $"scrollable {overBars.ScrollableSize.Y:F0}");
 
         // A point on the thumb, which sits directly over a row that would otherwise take the click.
-        var thumbPoint = new Vector2(
+        Vector2 thumbPoint = new Vector2(
             overBars.Bounds.Right - root.Theme.ScrollBarThickness * 0.5f,
             overBars.Bounds.Y + 10.0f);
 
-        // The precondition for the bug: the hit test finds the tree, not the viewer, so on the way back up
-        // the tree would claim the press first.
-        Check("the tree lies under the thumb", root.HitTest(thumbPoint) is not ScrollViewer,
+        // The bar is drawn over the content and swallows presses over itself, so content laid out beneath
+        // it is both unreadable and unclickable. A visible bar takes its width out of the content area
+        // rather than sitting on top of it.
+        Check("a visible bar is reserved out of the viewport",
+            overBars.Viewport.X <= overBars.Bounds.Width - root.Theme.ScrollBarThickness + 0.5f,
+            $"viewport {overBars.Viewport.X:F1} of {overBars.Bounds.Width:F1}");
+        Check("the content stops short of the bar",
+            overBarTree.Bounds.Right <= overBars.Bounds.Right - root.Theme.ScrollBarThickness + 0.5f,
+            $"content ends at {overBarTree.Bounds.Right:F1}, viewer at {overBars.Bounds.Right:F1}");
+
+        // Nothing to reserve when nothing is shown, or a pane that fits would lose width for no reason.
+        var noBars = new ScrollViewer { Child = new Border().Fill(UiColor.White).Height(20.0f) };
+        root.Content = null;
+        root.Content = new Grid().Rows("*").Columns("*").Children(noBars);
+        root.UpdateLayout(new Vector2(300, 200));
+        Check("content that fits keeps the full width",
+            MathF.Abs(noBars.Viewport.X - noBars.Bounds.Width) < 0.5f,
+            $"viewport {noBars.Viewport.X:F1} of {noBars.Bounds.Width:F1}");
+
+        root.Content = null;
+        root.Content = barHost;
+        root.UpdateLayout(new Vector2(300, 200));
+
+        // Reserving the gutter means content no longer reaches the thumb at all, which is the better fix.
+        // The tunnel-phase grab still has to work for a viewer that overlays instead -- so the rest of this
+        // section turns reservation off and checks the case it was written for.
+        Check("reserving keeps the content clear of the thumb",
+            root.HitTest(thumbPoint) is ScrollViewer,
+            root.HitTest(thumbPoint)?.GetType().Name ?? "null");
+
+        overBars.ReserveScrollBarSpace = false;
+        root.UpdateLayout(new Vector2(300, 200));
+        thumbPoint = new Vector2(
+            overBars.Bounds.Right - root.Theme.ScrollBarThickness * 0.5f,
+            overBars.Bounds.Y + 10.0f);
+
+        Check("an overlaid bar has the tree underneath it",
+            root.HitTest(thumbPoint) is not ScrollViewer,
             root.HitTest(thumbPoint)?.GetType().Name ?? "null");
 
         root.Input.InjectPointerMoved(thumbPoint);

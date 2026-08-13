@@ -409,6 +409,73 @@ public static class EditorChecks
         Check("still one draw call", root.Render().Batches.Count == 1,
             $"{root.Render().Batches.Count} batches");
 
+        // ============================================================ SliderBox
+        Console.WriteLine("  -- slider box --");
+
+        // A slider asks nothing of the user: the thumb is where the value is, and dragging does what it
+        // looks like. The drag strip is a gesture people have to learn, which is the wrong trade for a
+        // value that has a visible range.
+        var ranged = new SliderBox { Minimum = 0.0f, Maximum = 100.0f, Step = 0.5f, Width = 260.0f };
+        root.Content = null;
+        root.Content = ranged;
+        root.UpdateLayout(new Vector2(400, 200));
+
+        Check("the slider spans the soft range",
+            ranged.Slider.Minimum == 0.0f && ranged.Slider.Maximum == 100.0f,
+            $"{ranged.Slider.Minimum}..{ranged.Slider.Maximum}");
+        Check("the field has no drag strip of its own",
+            ranged.Field.DragHandle == NumericDragHandle.None, ranged.Field.DragHandle.ToString());
+
+        ranged.Value = 25.0f;
+        Check("setting the value moves the slider",
+            MathF.Abs(ranged.Slider.Value - 25.0f) < 0.001f, $"{ranged.Slider.Value}");
+        // "25.0", not "25": the step is 0.5, and the field never trims below its step's precision.
+        Check("and the field", ranged.Field.Text == "25.0", ranged.Field.Text);
+
+        // Dragging the slider drives the number.
+        var sliderChanges = 0;
+        ranged.ValueChanged += (_, _) => sliderChanges++;
+        ranged.Slider.Value = 60.0f;
+        Check("dragging the slider updates the value",
+            MathF.Abs(ranged.Value - 60.0f) < 0.001f, $"{ranged.Value}");
+        Check("the change is raised once", sliderChanges == 1, $"{sliderChanges}");
+
+        // ---------------------------------------------------------------- soft range
+        // Typing past the end widens the range rather than clamping. A control offering 0..100 has to
+        // accept 1000 -- the range is a suggestion about the usual case, not a rule about validity.
+        ranged.Field.Text = "400";
+        ranged.Field.Focus();
+        root.Input.InjectKeyDown(UiKey.Enter);
+
+        Check("typing past the end keeps the value", MathF.Abs(ranged.Value - 400.0f) < 0.001f,
+            $"{ranged.Value}");
+        Check("and widens the slider to reach it", ranged.Slider.Maximum >= 400.0f,
+            $"maximum is now {ranged.Slider.Maximum}");
+        Check("the thumb is no longer pinned at the end",
+            ranged.Slider.NormalizedValue < 1.0f, $"{ranged.Slider.NormalizedValue:F3}");
+        Check("the lower end is left alone", ranged.Slider.Minimum == 0.0f, $"{ranged.Slider.Minimum}");
+        root.FocusManager.Focus(null);
+
+        // Rounded outwards to something legible rather than to the exact number typed.
+        Check("the new end is a round number",
+            ranged.Slider.Maximum == 400.0f || ranged.Slider.Maximum == 500.0f,
+            $"{ranged.Slider.Maximum}");
+
+        // A hard limit is different, and still binds.
+        var clamped = new SliderBox { Minimum = 0.0f, Maximum = 1.0f, HardMaximum = 2.0f };
+        root.Content = null;
+        root.Content = clamped;
+        root.UpdateLayout(new Vector2(400, 200));
+
+        clamped.Field.Text = "50";
+        clamped.Field.Focus();
+        root.Input.InjectKeyDown(UiKey.Enter);
+        Check("a hard limit still clamps", MathF.Abs(clamped.Value - 2.0f) < 0.001f, $"{clamped.Value}");
+        root.FocusManager.Focus(null);
+
+        Check("the slider box renders", root.Render().InstanceCount > 5,
+            $"{root.Render().InstanceCount} instances");
+
         // ============================================================ Expander
         Console.WriteLine("  -- expander --");
 

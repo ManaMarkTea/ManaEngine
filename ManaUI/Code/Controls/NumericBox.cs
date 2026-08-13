@@ -43,6 +43,8 @@ namespace ManaUI
         private float _value;
         private float _minimum = float.NegativeInfinity;
         private float _maximum = float.PositiveInfinity;
+        private float _softMinimum = float.NaN;
+        private float _softMaximum = float.NaN;
         private float _step = 0.01f;
         private int _decimalPlaces = 3;
         private bool _isInteger;
@@ -92,6 +94,11 @@ namespace ManaUI
             }
         }
 
+        /// <summary>
+        /// Lower limit the value can never pass. Defaults to unbounded; set it only for a value that is
+        /// genuinely invalid below it, such as a radius that cannot be negative. For "usually within this
+        /// range" use <see cref="SoftMinimum"/> instead.
+        /// </summary>
         public float Minimum
         {
             get => _minimum;
@@ -100,6 +107,102 @@ namespace ManaUI
                 _minimum = value;
                 Value = _value;
             }
+        }
+
+        /// <summary>
+        /// Lower end of the range a drag sweeps, and of any slider driven from this field. Unlike
+        /// <see cref="Minimum"/> it is only a suggestion: typing a value beyond it widens the range to
+        /// include it, so a field offering 0..100 still accepts 1000 and rescales around it afterwards.
+        /// <para>
+        /// NaN falls back to the hard limit, which is what makes a field with only Minimum and Maximum set
+        /// behave exactly as it did before soft ranges existed.
+        /// </para>
+        /// </summary>
+        public float SoftMinimum
+        {
+            get => _softMinimum;
+            set
+            {
+                _softMinimum = value;
+                InvalidateVisual();
+                SoftRangeChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>Upper end of the swept range. See <see cref="SoftMinimum"/>.</summary>
+        public float SoftMaximum
+        {
+            get => _softMaximum;
+            set
+            {
+                _softMaximum = value;
+                InvalidateVisual();
+                SoftRangeChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>Raised when the soft range moves, so a paired slider can rescale with it.</summary>
+        public event EventHandler? SoftRangeChanged;
+
+        /// <summary>The lower end actually swept: the soft bound when set, otherwise the hard one.</summary>
+        public float EffectiveMinimum => LayoutHelper.IsAuto(_softMinimum) ? _minimum : _softMinimum;
+
+        /// <summary>The upper end actually swept: the soft bound when set, otherwise the hard one.</summary>
+        public float EffectiveMaximum => LayoutHelper.IsAuto(_softMaximum) ? _maximum : _softMaximum;
+
+        /// <summary>
+        /// Widens the soft range so it contains <paramref name="value"/>, rounded outwards to something
+        /// legible rather than to the exact number typed -- a field asked to hold 1000 should offer 0..1000,
+        /// not 0..1000.0001.
+        /// </summary>
+        private void GrowSoftRangeFor(float value)
+        {
+            if (LayoutHelper.IsAuto(_softMinimum) && LayoutHelper.IsAuto(_softMaximum))
+            {
+                return;
+            }
+
+            var changed = false;
+
+            if (!LayoutHelper.IsAuto(_softMaximum) && value > _softMaximum)
+            {
+                _softMaximum = MathF.Max(RoundOutwards(value), _softMaximum);
+                changed = true;
+            }
+
+            if (!LayoutHelper.IsAuto(_softMinimum) && value < _softMinimum)
+            {
+                _softMinimum = MathF.Min(-RoundOutwards(-value), _softMinimum);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                InvalidateVisual();
+                SoftRangeChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>Rounds up to one, two or five times a power of ten -- the steps an axis label uses.</summary>
+        private static float RoundOutwards(float value)
+        {
+            if (value <= 0.0f)
+            {
+                return 0.0f;
+            }
+
+            var magnitude = MathF.Pow(10.0f, MathF.Floor(MathF.Log10(value)));
+            var normalised = value / magnitude;
+
+            var step = normalised switch
+            {
+                <= 1.0f => 1.0f,
+                <= 2.0f => 2.0f,
+                <= 5.0f => 5.0f,
+                _ => 10.0f
+            };
+
+            return step * magnitude;
         }
 
         public float Maximum
@@ -144,9 +247,9 @@ namespace ManaUI
         /// there is nothing to map travel onto and it counts steps instead.
         /// </para>
         /// </summary>
-        public bool SweepsRange => !float.IsInfinity(_minimum)
-            && !float.IsInfinity(_maximum)
-            && _maximum > _minimum;
+        public bool SweepsRange => !float.IsInfinity(EffectiveMinimum)
+            && !float.IsInfinity(EffectiveMaximum)
+            && EffectiveMaximum > EffectiveMinimum;
 
         /// <summary>
         /// Travel that sweeps the full range, for a bounded field. Its own width, so the gesture matches
@@ -365,6 +468,9 @@ namespace ManaUI
         {
             if (TryParseText(out var parsed))
             {
+                // Widened before the write, so a typed value outside the suggested range rescales the
+                // range rather than being clamped back into it.
+                GrowSoftRangeFor(parsed);
                 Value = parsed;
             }
             else
@@ -443,7 +549,7 @@ namespace ManaUI
         private float ValueAt(float x)
         {
             var fraction = (x - Bounds.X) / MathF.Max(1.0f, Bounds.Width);
-            return _minimum + Math.Clamp(fraction, 0.0f, 1.0f) * (_maximum - _minimum);
+            return EffectiveMinimum + Math.Clamp(fraction, 0.0f, 1.0f) * (EffectiveMaximum - EffectiveMinimum);
         }
 
         protected override void OnPointerMoved(UiPointerEventArgs e)
@@ -497,7 +603,7 @@ namespace ManaUI
                     // Relative from the anchor: absolute positioning has no room for precision, since the
                     // whole range is one field width wide.
                     var travel = (e.Position.X - _sweepAnchorX) / SweepDistance * sensitivity;
-                    target = _sweepAnchorValue + travel * (_maximum - _minimum);
+                    target = _sweepAnchorValue + travel * (EffectiveMaximum - EffectiveMinimum);
                 }
                 else
                 {
@@ -662,7 +768,8 @@ namespace ManaUI
             if (SweepsRange)
             {
                 // Filled from the left, so the strip reads as the position it actually is.
-                var progress = Math.Clamp((_value - _minimum) / (_maximum - _minimum), 0.0f, 1.0f);
+                var progress = Math.Clamp(
+                    (_value - EffectiveMinimum) / (EffectiveMaximum - EffectiveMinimum), 0.0f, 1.0f);
                 var width = strip.Width * progress;
                 if (width > 0.0f)
                 {
