@@ -4,6 +4,16 @@ using ManaUI;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
+    /// <summary>Where in the viewport an overlay sits.</summary>
+    public enum ViewportSlot
+    {
+        /// <summary>The whole viewport. For overlays that draw in projected screen coordinates.</summary>
+        Fill,
+
+        TopRight,
+        BottomLeft
+    }
+
     /// <summary>
     /// The things drawn over the scene rather than in a panel: the camera gizmo, the axis tripod, and the
     /// placement readout.
@@ -17,23 +27,24 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public sealed class ViewportOverlayLayer : Panel
     {
-        private readonly UiElement _left;
-        private readonly UiElement _right;
+        private readonly Func<float> _leftWidth;
+        private readonly Func<float> _rightWidth;
         private readonly float _topOffset;
 
-        private readonly UiElement? _gizmo;
-        private readonly UiElement? _tripod;
+        private readonly List<Slot> _slots = new();
+
+        private UiRect _arrangedAgainst;
 
         public ViewportOverlayLayer(
             UiTheme theme,
-            UiElement left,
-            UiElement right,
+            Func<float> leftWidth,
+            Func<float> rightWidth,
             float topOffset,
             Func<CameraComponent?> camera,
             VoxelEditorViewModel? editor)
         {
-            _left = left;
-            _right = right;
+            _leftWidth = leftWidth;
+            _rightWidth = rightWidth;
             _topOffset = topOffset;
 
             // The layer itself is transparent to the pointer; the gizmo's own buttons are not. That is what
@@ -43,17 +54,30 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             if (camera() is { } initial)
             {
-                _gizmo = ViewportCameraGizmoManaView.Build(theme, initial);
-                _tripod = ViewportCameraGizmoManaView.BuildTripod(theme, initial);
+                Add(
+                    ViewportCameraGizmoManaView.Build(theme, initial),
+                    ViewportSlot.TopRight,
+                    new Vector2(ViewportCameraGizmoManaView.GizmoSize),
+                    ViewportCameraGizmoManaView.FitsIn);
 
-                Children.Add(_gizmo);
-                Children.Add(_tripod);
+                Add(
+                    ViewportCameraGizmoManaView.BuildTripod(theme, initial),
+                    ViewportSlot.BottomLeft,
+                    new Vector2(ViewportCameraGizmoManaView.TripodSize),
+                    ViewportCameraGizmoManaView.TripodFitsIn);
             }
 
             if (editor != null)
             {
-                Children.Add(new VoxelPlacementDepthOverlay(editor, camera));
+                Add(new VoxelPlacementDepthOverlay(editor, camera), ViewportSlot.Fill);
             }
+
+            // The columns are siblings, and this layer is arranged before them so that they draw over it --
+            // which means their bounds are a frame stale, and zero on the first frame. Reading their widths
+            // from the values that own them instead, and re-arranging whenever the answer changes, is what
+            // makes the overlays follow a resize. Without it the gizmo stays where the very first layout put
+            // it: the top-right of the whole window, underneath the right column, invisible.
+            this.BindPolled(l => l.ViewportTracker, () => Viewport);
         }
 
         /// <summary>What is left of the window once the docked columns have taken their share.</summary>
@@ -61,18 +85,40 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             get
             {
-                var left = _left.Visibility == Visibility.Collapsed ? 0.0f : _left.Bounds.Width;
-                var right = _right.Visibility == Visibility.Collapsed ? 0.0f : _right.Bounds.Width;
-
                 // A window narrower than its own columns gives a right edge left of the left one. UiRect
                 // clamps that to a zero-width rect at the left edge, which is the answer wanted: no
                 // viewport, rather than one overlapping the panel that took the space.
                 return UiRect.FromEdges(
-                    Bounds.X + left,
+                    Bounds.X + MathF.Max(0.0f, _leftWidth()),
                     Bounds.Y + _topOffset,
-                    Bounds.Right - right,
+                    Bounds.Right - MathF.Max(0.0f, _rightWidth()),
                     Bounds.Bottom);
             }
+        }
+
+        /// <summary>
+        /// Binding target only. Its whole job is to notice the viewport moving and invalidate the arrange
+        /// that depends on it; nothing reads the value back.
+        /// </summary>
+        public UiRect ViewportTracker
+        {
+            get => _arrangedAgainst;
+            set
+            {
+                if (_arrangedAgainst.Equals(value))
+                {
+                    return;
+                }
+
+                _arrangedAgainst = value;
+                InvalidateArrange();
+            }
+        }
+
+        public void Add(UiElement child, ViewportSlot slot, Vector2 size = default, Func<Vector2, bool>? fits = null)
+        {
+            _slots.Add(new Slot(child, slot, size, fits));
+            Children.Add(child);
         }
 
         protected override Vector2 MeasureOverride(Vector2 availableSize)
@@ -88,57 +134,49 @@ namespace ManaVoxel.Code.UI.ManaUi
         protected override Vector2 ArrangeOverride(Vector2 finalSize)
         {
             var viewport = Viewport;
+            _arrangedAgainst = viewport;
+
             var size = new Vector2(viewport.Width, viewport.Height);
 
             const float margin = ViewportCameraGizmoManaView.GizmoMargin;
 
-            foreach (var child in Children)
+            foreach (var slot in _slots)
             {
-                switch (child)
+                // Hidden rather than clipped when there is not room: half a gizmo is worse than none, and it
+                // would be sitting on top of the scene.
+                if (slot.Fits != null && !slot.Fits(size))
                 {
-                    case var _ when ReferenceEquals(child, _gizmo):
-                    {
-                        // Top-right of the viewport, and hidden rather than clipped when there is not room:
-                        // half a gizmo is worse than none, and it would be sitting on top of the scene.
-                        if (!ViewportCameraGizmoManaView.FitsIn(size))
-                        {
-                            child.Arrange(UiRect.Empty);
-                            break;
-                        }
-
-                        child.Arrange(new UiRect(
-                            viewport.Right - ViewportCameraGizmoManaView.GizmoSize - margin,
-                            viewport.Y + margin,
-                            ViewportCameraGizmoManaView.GizmoSize,
-                            ViewportCameraGizmoManaView.GizmoSize));
-                        break;
-                    }
-
-                    case var _ when ReferenceEquals(child, _tripod):
-                    {
-                        if (!ViewportCameraGizmoManaView.TripodFitsIn(size))
-                        {
-                            child.Arrange(UiRect.Empty);
-                            break;
-                        }
-
-                        child.Arrange(new UiRect(
-                            viewport.X + margin,
-                            viewport.Bottom - ViewportCameraGizmoManaView.TripodSize - margin,
-                            ViewportCameraGizmoManaView.TripodSize,
-                            ViewportCameraGizmoManaView.TripodSize));
-                        break;
-                    }
-
-                    default:
-                        // The placement readout draws in projected screen coordinates, so its bounds are the
-                        // viewport itself -- which is also what it clips against.
-                        child.Arrange(viewport);
-                        break;
+                    slot.Child.Arrange(UiRect.Empty);
+                    continue;
                 }
+
+                slot.Child.Arrange(slot.Placement switch
+                {
+                    ViewportSlot.TopRight => new UiRect(
+                        viewport.Right - slot.Size.X - margin,
+                        viewport.Y + margin,
+                        slot.Size.X,
+                        slot.Size.Y),
+
+                    ViewportSlot.BottomLeft => new UiRect(
+                        viewport.X + margin,
+                        viewport.Bottom - slot.Size.Y - margin,
+                        slot.Size.X,
+                        slot.Size.Y),
+
+                    // Fill: an overlay drawing in projected screen coordinates wants the viewport itself,
+                    // which is also what it clips against.
+                    _ => viewport
+                });
             }
 
             return finalSize;
         }
+
+        private readonly record struct Slot(
+            UiElement Child,
+            ViewportSlot Placement,
+            Vector2 Size,
+            Func<Vector2, bool>? Fits);
     }
 }

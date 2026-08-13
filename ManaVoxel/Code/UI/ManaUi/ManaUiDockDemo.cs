@@ -348,7 +348,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             // The overlay layer goes in first, so the columns draw over it: it spans the whole window and
             // works out the viewport itself from what the columns are covering.
             return new Canvas().Children(
-                new ViewportOverlayLayer(theme, leftPanel, rightPanel, TopOffset, camera, editor)
+                new ViewportOverlayLayer(
+                    theme,
+                    () => leftPanel.Visibility == Visibility.Collapsed ? 0.0f : leftPanel.Size,
+                    () => rightPanel.Visibility == Visibility.Collapsed ? 0.0f : rightPanel.Size,
+                    TopOffset,
+                    camera,
+                    editor)
                     .Anchor(left: 0.0f, top: 0.0f, right: 0.0f, bottom: 0.0f),
 
                 leftPanel.Anchor(top: TopOffset, left: 0.0f, bottom: 0.0f),

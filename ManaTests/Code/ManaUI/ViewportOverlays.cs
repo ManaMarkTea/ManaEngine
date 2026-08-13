@@ -76,10 +76,20 @@ public static class ViewportOverlayChecks
         // wrong puts the gizmo underneath a panel, where it is unreachable.
         var root = new UiRoot(fonts);
 
-        var left = new Border().Fill(UiColor.White).Width(200.0f);
-        var right = new Border().Fill(UiColor.White).Width(300.0f);
+        var leftWidth = 200.0f;
+        var rightWidth = 300.0f;
 
-        var layer = new ViewportOverlayLayer(root.Theme, left, right, topOffset: 40.0f, () => null, null);
+        var left = new Border().Fill(UiColor.White).Width(leftWidth);
+        var right = new Border().Fill(UiColor.White).Width(rightWidth);
+
+        var layer = new ViewportOverlayLayer(
+            root.Theme, () => leftWidth, () => rightWidth, topOffset: 40.0f, () => null, null);
+
+        // Stands in for the gizmo, which needs a camera and so cannot be built here. Same slot, same
+        // placement -- what is being checked is where the layer puts a top-right overlay, not what it is.
+        var marker = new Border().Fill(UiColor.White);
+        layer.Add(marker, ViewportSlot.TopRight, new Vector2(ViewportCameraGizmoManaView.GizmoSize),
+            ViewportCameraGizmoManaView.FitsIn);
 
         root.Content = new Canvas().Children(
             layer.Anchor(left: 0.0f, top: 0.0f, right: 0.0f, bottom: 0.0f),
@@ -98,7 +108,32 @@ public static class ViewportOverlayChecks
         Check("below the menu band", MathF.Abs(viewport.Y - 40.0f) < 0.5f, $"{viewport.Y:0}");
         Check("to the bottom of the window", MathF.Abs(viewport.Bottom - 800.0f) < 0.5f, $"{viewport.Bottom:0}");
 
+        // Where an overlay is actually put, not just what Viewport computes. The layer is arranged before
+        // the columns are -- it has to be, so they draw over it -- so anything read from their bounds is a
+        // frame stale and zero on the first frame. That put the gizmo at the top-right of the whole window,
+        // underneath the right column, where it was simply never seen.
+        Check("a top-right overlay lands inside the viewport",
+            marker.Bounds.Right <= viewport.Right + 0.5f && marker.Bounds.X >= viewport.X - 0.5f,
+            $"{marker.Bounds} in {viewport}");
+
+        Check("clear of the right column",
+            marker.Bounds.Right < right.Bounds.X, $"ends at {marker.Bounds.Right:0}, column at {right.Bounds.X:0}");
+
+        // And it has to follow a resize, or it is correct exactly once.
+        rightWidth = 500.0f;
+        right.Width = rightWidth;
+        root.UpdateLayout(new Vector2(1200, 800));
+
+        Check("and follows the column being resized",
+            MathF.Abs(marker.Bounds.Right - (700.0f - ViewportCameraGizmoManaView.GizmoMargin)) < 0.5f,
+            $"ends at {marker.Bounds.Right:0}");
+
+        rightWidth = 300.0f;
+        right.Width = rightWidth;
+        root.UpdateLayout(new Vector2(1200, 800));
+
         // A collapsed column gives its space back, which is what a workspace with one column emptied does.
+        leftWidth = 0.0f;
         left.Visibility = Visibility.Collapsed;
         root.UpdateLayout(new Vector2(1200, 800));
 
@@ -106,6 +141,7 @@ public static class ViewportOverlayChecks
             MathF.Abs(layer.Viewport.X) < 0.5f, $"{layer.Viewport.X:0}");
 
         // Both gone is the whole window, not a negative rectangle.
+        rightWidth = 0.0f;
         right.Visibility = Visibility.Collapsed;
         root.UpdateLayout(new Vector2(1200, 800));
 
@@ -117,6 +153,8 @@ public static class ViewportOverlayChecks
         // panel that took the space, which would read as valid while the overlays drew under it.
         left.Visibility = Visibility.Visible;
         right.Visibility = Visibility.Visible;
+        leftWidth = 200.0f;
+        rightWidth = 300.0f;
         root.UpdateLayout(new Vector2(300, 800));
 
         Check("a viewport is never inside out", layer.Viewport.Width >= 0.0f, $"{layer.Viewport.Width:0}px");
