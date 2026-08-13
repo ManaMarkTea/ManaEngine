@@ -12,7 +12,8 @@ namespace ManaUI
     public sealed class DockDragController
     {
         private readonly UiRoot _root;
-        private readonly DockHost _host;
+        private readonly List<DockHost> _hosts = new();
+
         private readonly DockDropOverlay _overlay = new();
 
         /// <summary>
@@ -30,18 +31,56 @@ namespace ManaUI
         private DockDropTarget _target;
 
         public DockDragController(UiRoot root, DockHost host)
+            : this(root, new[] { host })
+        {
+        }
+
+        /// <summary>
+        /// One controller over several hosts, which is what lets a panel be dragged from one column into
+        /// another. A controller per host cannot do it: each only resolves drops inside its own tree, so a
+        /// tab torn out of the left column had nowhere to land but the left column.
+        /// </summary>
+        public DockDragController(UiRoot root, IReadOnlyList<DockHost> hosts)
         {
             ArgumentNullException.ThrowIfNull(root);
-            ArgumentNullException.ThrowIfNull(host);
+            ArgumentNullException.ThrowIfNull(hosts);
+
+            if (hosts.Count == 0)
+            {
+                throw new ArgumentException("A dock drag controller needs at least one host.", nameof(hosts));
+            }
 
             _root = root;
-            _host = host;
+            _hosts.AddRange(hosts);
 
             _root.OverlayLayer.Children.Add(_overlay);
             _overlay.Visibility = Visibility.Collapsed;
 
-            AttachTo(host.RootNode);
-            host.LayoutChanged += (_, _) => AttachTo(host.RootNode);
+            foreach (var host in _hosts)
+            {
+                AttachTo(host.RootNode);
+
+                var owner = host;
+                owner.LayoutChanged += (_, _) => AttachTo(owner.RootNode);
+            }
+        }
+
+        /// <summary>
+        /// The first host that claims the pointer. Hosts do not overlap, so at most one can, and a pointer
+        /// over none of them means the panel stays floating.
+        /// </summary>
+        private (DockHost? Host, DockDropTarget Target) ResolveAcrossHosts(Vector2 pointer)
+        {
+            foreach (var host in _hosts)
+            {
+                var candidate = DockDropResolver.Resolve(host, pointer);
+                if (candidate.IsValid)
+                {
+                    return (host, candidate);
+                }
+            }
+
+            return (null, default);
         }
 
         /// <summary>Size a torn-out panel becomes when it starts floating.</summary>
@@ -89,7 +128,12 @@ namespace ManaUI
             ArgumentNullException.ThrowIfNull(item);
 
             item.Owner?.Remove(item);
-            _host.Prune();
+
+            // Every host, because the item could have come out of any of them.
+            foreach (var host in _hosts)
+            {
+                host.Prune();
+            }
 
             var window = new UiWindow(item.Title)
             {
@@ -166,7 +210,10 @@ namespace ManaUI
             }
 
             _activeWindow = window;
-            _target = DockDropResolver.Resolve(_host, pointer);
+
+            // The host is resolved again on drop rather than remembered: the pointer can leave one column
+            // and enter another between the last move and the release.
+            _target = ResolveAcrossHosts(pointer).Target;
             _overlay.Show(_target);
         }
 
@@ -177,7 +224,7 @@ namespace ManaUI
                 return;
             }
 
-            var target = DockDropResolver.Resolve(_host, pointer);
+            var (host, target) = ResolveAcrossHosts(pointer);
             ClearActiveDrag();
 
             if (!target.IsValid)
@@ -194,7 +241,7 @@ namespace ManaUI
             window.Child = null;
             window.Close();
 
-            _host.Dock(item, target.Side, target.Group);
+            host!.Dock(item, target.Side, target.Group);
             _root.UpdateLayout(_root.Size);
         }
 

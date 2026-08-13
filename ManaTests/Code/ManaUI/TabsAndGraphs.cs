@@ -1,4 +1,5 @@
 using ManaUI;
+using ManaVoxel.Code.UI.ManaUi;
 
 namespace ManaTests;
 
@@ -15,6 +16,7 @@ public static class TabsAndGraphChecks
         Tabs(fonts, Check);
         Graphs(fonts, Check);
         HostedMenuContent(fonts, Check);
+        PerformanceStrip(fonts, Check);
     }
 
     private static void Tabs(ManaFontManager fonts, Action<string, bool, string> Check)
@@ -176,6 +178,62 @@ public static class TabsAndGraphChecks
         // Still the same control, so whatever it was showing is what it still shows.
         Check("and it keeps its value across reopening",
             MathF.Abs(slider.Value - 3.0f) < 0.001f, $"{slider.Value}");
+
+        root.Popups.CloseAll();
+    }
+
+    /// <summary>
+    /// The performance strip: a glance that stays put, with the graphs behind a hover so they cost nothing
+    /// until wanted.
+    /// </summary>
+    private static void PerformanceStrip(ManaFontManager fonts, Action<string, bool, string> Check)
+    {
+        var root = new UiRoot(fonts);
+        var strip = ManaUiPerformanceStrip.Build(root.Theme);
+
+        root.Content = new Canvas().Children(strip.At(20.0f, 20.0f));
+        root.UpdateLayout(new Vector2(900, 500));
+
+        Check("the strip renders", root.Render().InstanceCount > 3, $"{root.Render().InstanceCount} instances");
+
+        var readout = FindAll<TextBlock>(strip).FirstOrDefault();
+        Check("it reads out fps, frame time and memory",
+            readout != null && readout.Text.Contains("fps") && readout.Text.Contains("ms") && readout.Text.Contains("MB"),
+            readout?.Text ?? "no text");
+
+        // No graphs on screen until asked for: that is the whole point of putting them behind a hover.
+        Check("the graphs are not there until hovered",
+            !FindAll<Sparkline>(root).Any(g => g.Bounds.Width > 0.0f), "nothing shown");
+
+        var before = root.Popups.Open.Count;
+        root.Input.InjectPointerMoved(strip.Bounds.Center);
+        root.UpdateLayout(new Vector2(900, 500));
+
+        Check("hovering reveals them", root.Popups.Open.Count == before + 1,
+            $"{root.Popups.Open.Count} popups");
+
+        var revealed = root.Popups.Open.LastOrDefault();
+        var graphs = revealed?.Child == null ? new List<Sparkline>() : FindAll<Sparkline>(revealed.Child);
+        Check("both graphs, frame time and memory", graphs.Count == 2, $"{graphs.Count} graphs");
+
+        // Immediately, not after a dwell -- this is not a tooltip.
+        Check("without waiting for a dwell", revealed != null, "shown on enter");
+
+        // Moving onto the graphs must not count as leaving the strip, or they would flicker forever.
+        Check("and they do not take the pointer",
+            revealed?.IsHitTestVisible == false, $"{revealed?.IsHitTestVisible}");
+
+        root.Input.InjectPointerMoved(new Vector2(800.0f, 400.0f));
+        root.UpdateLayout(new Vector2(900, 500));
+
+        Check("moving away takes them back", root.Popups.Open.Count == before,
+            $"{root.Popups.Open.Count} popups");
+
+        // Re-entering has to work: the detail is one element that the last popup was holding.
+        root.Input.InjectPointerMoved(strip.Bounds.Center);
+        root.UpdateLayout(new Vector2(900, 500));
+        Check("and hovering again still works", root.Popups.Open.Count == before + 1,
+            $"{root.Popups.Open.Count} popups");
 
         root.Popups.CloseAll();
     }

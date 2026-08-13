@@ -165,10 +165,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 MergeMissingPanels(left, right, Resolve);
             }
 
-            // One controller per host: tear-out and drop-to-dock work within a column. Dragging a tab from
-            // one column into the other is not wired up yet -- a controller binds to a single host's tree.
-            _ = new DockDragController(root, left);
-            _ = new DockDragController(root, right);
+            // One controller over both columns, so a panel torn out of either can be dropped into either.
+            // A controller per host could not do that: each only resolved drops inside its own tree.
+            _ = new DockDragController(root, new[] { left, right });
 
             // Backgrounds matter here because the columns sit over the viewport: the handle gutter and the
             // seams between panes are part of the column but not part of any panel's content, so without a
@@ -282,9 +281,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Save();
             }
 
-            // The menu bar rides above the right column, both anchored clear of ImGui's own chrome.
+            // The menu bar rides above the right column, both anchored clear of ImGui's own chrome. The
+            // performance strip sits at the far left of that same band: it is a glance, not a panel, so it
+            // wants somewhere permanent and small rather than a column of its own.
             return new Canvas().Children(
                 leftPanel.Anchor(top: TopOffset, left: 0.0f, bottom: 0.0f),
+
+                ManaUiPerformanceStrip.Build(theme)
+                    .Anchor(top: TopOffset - MenuBarHeight, left: 0.0f),
 
                 new Border()
                     .Fill(theme.Surface)

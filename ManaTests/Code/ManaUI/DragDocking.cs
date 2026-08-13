@@ -189,5 +189,93 @@ public static class DragDockingChecks
         overlay.Hide();
 
         Check("everything still one draw call", root.Render().Batches.Count == 1);
+
+        AcrossColumns(fonts, check);
+    }
+
+    /// <summary>
+    /// Dragging a panel from one column into another. A controller per host cannot do this -- each only
+    /// resolves drops inside its own tree, so a tab torn out of the left column had nowhere to land but
+    /// the left column, which is what "it would only dock into the left" looks like.
+    /// </summary>
+    public static void AcrossColumns(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        static DockItem Item(string title) => new(title, new TextBlock().Text(title)) { Id = title };
+
+        var root = new UiRoot(fonts);
+
+        var left = new DockHost();
+        var right = new DockHost();
+
+        var stats = Item("Stats");
+        left.Dock(Item("Tools"), DockSide.Center);
+        left.Dock(stats, DockSide.Center, DockHost.FindFirstGroup(left.RootNode)!);
+        right.Dock(Item("Outliner"), DockSide.Center);
+
+        // Side by side, the way the workspace lays its columns out.
+        root.Content = new Grid().Columns("*, *").Rows("*").Children(
+            left.GridColumn(0),
+            right.GridColumn(1));
+
+        root.UpdateLayout(new Vector2(1200, 700));
+
+        var controller = new DockDragController(root, new[] { left, right });
+
+        Check("the left column starts with both panels",
+            left.AllItems().Count() == 2 && right.AllItems().Count() == 1,
+            $"left {left.AllItems().Count()}, right {right.AllItems().Count()}");
+
+        var group = DockHost.FindFirstGroup(left.RootNode)!;
+        var tab = group.TabRect(group.Items.ToList().IndexOf(stats));
+
+        root.Input.InjectPointerMoved(tab.Center);
+        root.Input.InjectPointerPressed(tab.Center, PointerButton.Left, 0.0);
+        root.Input.InjectPointerMoved(tab.Center + new Vector2(0.0f, 140.0f));
+        root.UpdateLayout(new Vector2(1200, 700));
+
+        Check("tearing it out starts a drag", controller.IsDragging, $"{controller.IsDragging}");
+
+        // Carry it over the other column and drop it there.
+        var overRight = DockHost.FindFirstGroup(right.RootNode)!.Bounds.Center;
+        root.Input.InjectPointerMoved(overRight);
+        root.UpdateLayout(new Vector2(1200, 700));
+
+        Check("the other column offers a drop target",
+            DockDropResolver.Resolve(right, overRight).IsValid, "resolved across hosts");
+
+        root.Input.InjectPointerReleased(overRight, PointerButton.Left);
+        root.UpdateLayout(new Vector2(1200, 700));
+
+        var leftTitles = left.AllItems().Select(i => i.Title).ToList();
+        var rightTitles = right.AllItems().Select(i => i.Title).ToList();
+
+        Check("the panel lands in the column it was dropped on", rightTitles.Contains("Stats"),
+            string.Join(", ", rightTitles));
+
+        Check("and leaves the one it came from", !leftTitles.Contains("Stats"),
+            string.Join(", ", leftTitles));
+
+        Check("without losing anything else",
+            leftTitles.Count + rightTitles.Count == 3, $"{leftTitles.Count} + {rightTitles.Count}");
+
+        // And back again, since a one-way trip would be its own kind of broken.
+        var backGroup = DockHost.FindFirstGroup(right.RootNode)!;
+        var backTab = backGroup.TabRect(backGroup.Items.ToList().FindIndex(i => i.Title == "Stats"));
+
+        root.Input.InjectPointerMoved(backTab.Center);
+        root.Input.InjectPointerPressed(backTab.Center, PointerButton.Left, 1.0);
+        root.Input.InjectPointerMoved(backTab.Center + new Vector2(0.0f, 140.0f));
+        root.UpdateLayout(new Vector2(1200, 700));
+
+        var overLeft = DockHost.FindFirstGroup(left.RootNode)!.Bounds.Center;
+        root.Input.InjectPointerMoved(overLeft);
+        root.Input.InjectPointerReleased(overLeft, PointerButton.Left);
+        root.UpdateLayout(new Vector2(1200, 700));
+
+        Check("and it can be dragged back",
+            left.AllItems().Any(i => i.Title == "Stats"),
+            string.Join(", ", left.AllItems().Select(i => i.Title)));
     }
 }
