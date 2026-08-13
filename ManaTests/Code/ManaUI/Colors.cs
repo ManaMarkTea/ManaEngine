@@ -285,3 +285,70 @@ public static class ColorChecks
         }
     }
 }
+
+/// <summary>
+/// Theme tokens that have to differ from each other to do their job. A colour that reads correctly in one
+/// theme and vanishes in the other is the failure mode here, so both are checked.
+/// </summary>
+public static class ThemeContrastChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        foreach (var (name, theme) in new (string, UiTheme)[] { ("dark", UiTheme.Dark()), ("light", UiTheme.Light()) })
+        {
+            // The one that was broken: SurfaceRaised is lighter than the surface in a dark theme and the
+            // same white in a light one, so a stripe drawn with it was invisible in light mode.
+            Check($"{name}: an alternating row is visible against the surface",
+                Distance(theme.RowAlternate, theme.Surface) > 0.01f,
+                $"{Hex(theme.RowAlternate)} vs {Hex(theme.Surface)}");
+
+            Check($"{name}: and against the panel background",
+                Distance(theme.RowAlternate, theme.Background) > 0.005f,
+                $"{Hex(theme.RowAlternate)} vs {Hex(theme.Background)}");
+
+            // A heading row has to be distinguishable from both the stripe and the plain rows.
+            Check($"{name}: a table heading stands apart from the rows",
+                Distance(theme.SurfaceAlt, theme.RowAlternate) > 0.005f,
+                $"{Hex(theme.SurfaceAlt)} vs {Hex(theme.RowAlternate)}");
+
+            Check($"{name}: text is readable on the surface",
+                Distance(theme.Text, theme.Surface) > 0.3f, $"{Hex(theme.Text)} on {Hex(theme.Surface)}");
+
+            Check($"{name}: muted text is still readable",
+                Distance(theme.TextMuted, theme.Surface) > 0.15f,
+                $"{Hex(theme.TextMuted)} on {Hex(theme.Surface)}");
+
+            Check($"{name}: borders are visible against the surface",
+                Distance(theme.Border, theme.Surface) > 0.01f, $"{Hex(theme.Border)} vs {Hex(theme.Surface)}");
+
+            Check($"{name}: text on the accent is readable",
+                Distance(theme.TextOnAccent, theme.Accent) > 0.3f,
+                $"{Hex(theme.TextOnAccent)} on {Hex(theme.Accent)}");
+        }
+
+        // The light theme is meant to read as a tool rather than a document, which means every surface
+        // carries a little blue rather than being neutral grey.
+        var light = UiTheme.Light();
+        Check("the light theme is cool rather than neutral",
+            light.Background.Z > light.Background.X + 0.01f,
+            $"{Hex(light.Background)} has more blue than red");
+
+        Check("and its accent is a saturated version of that, not a separate hue",
+            light.Accent.Z > light.Accent.X + 0.2f, Hex(light.Accent));
+    }
+
+    /// <summary>Straight RGB distance. Crude next to a perceptual metric, and enough to catch a token
+    /// that is literally the same colour as what it sits on.</summary>
+    private static float Distance(Vector4 a, Vector4 b)
+    {
+        var dr = a.X - b.X;
+        var dg = a.Y - b.Y;
+        var db = a.Z - b.Z;
+        return MathF.Sqrt((dr * dr) + (dg * dg) + (db * db));
+    }
+
+    private static string Hex(Vector4 c) =>
+        $"#{(int)(c.X * 255):X2}{(int)(c.Y * 255):X2}{(int)(c.Z * 255):X2}";
+}

@@ -125,7 +125,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // The heading gets the stronger fill, so a long section still says what its columns are when
             // the top of it has scrolled away.
             var background = heading ? theme.SurfaceAlt
-                : striped ? theme.SurfaceRaised
+                : striped ? theme.RowAlternate
                 : UiColor.Transparent;
 
             return new Border().Fill(background).Content(grid);

@@ -45,6 +45,16 @@ namespace ManaUI
 
         // ----- accent --------------------------------------------------------------------------------
 
+        /// <summary>
+        /// The band on every other row of a table.
+        /// <para>
+        /// A token of its own rather than a reuse of SurfaceRaised, which is lighter than the surface in a
+        /// dark theme and identical to it in a light one -- so a stripe drawn with it was white on white
+        /// and the banding simply did not exist in light mode.
+        /// </para>
+        /// </summary>
+        public Vector4 RowAlternate { get; set; } = UiColor.FromHex("#22262E");
+
         public Vector4 Accent { get; set; } = UiColor.FromHex("#4A88E8");
         public Vector4 AccentHover { get; set; } = UiColor.FromHex("#5D97F0");
         public Vector4 AccentPressed { get; set; } = UiColor.FromHex("#3A72CC");
@@ -154,22 +164,33 @@ namespace ManaUI
             {
                 Kind = UiThemeKind.Light,
 
-                Background = UiColor.FromHex("#F2F3F5"),
-                Surface = UiColor.FromHex("#FFFFFF"),
-                SurfaceAlt = UiColor.FromHex("#EDEEF0"),
+                // Cool rather than neutral grey, which is what makes ImGui's light style read as a tool
+                // and not a document: every surface carries a little blue, and the accent is the same blue
+                // saturated rather than a separate hue dropped on top.
+                Background = UiColor.FromHex("#E8ECF2"),
+                Surface = UiColor.FromHex("#F7F9FC"),
+                SurfaceAlt = UiColor.FromHex("#DCE3ED"),
                 SurfaceRaised = UiColor.FromHex("#FFFFFF"),
 
-                Text = UiColor.FromHex("#1F2024"),
-                TextMuted = UiColor.FromHex("#5C5F66"),
-                TextDisabled = UiColor.FromHex("#A2A5AC"),
+                // Darker than the surface, where the dark theme's is lighter. A stripe has to move away
+                // from the background, and which way that is depends on the theme.
+                RowAlternate = UiColor.FromHex("#DFE6F0"),
 
-                Border = UiColor.FromHex("#D6D8DC"),
-                BorderStrong = UiColor.FromHex("#BCBFC5"),
-                Divider = UiColor.FromHex("#E4E6E9"),
+                Text = UiColor.FromHex("#12161C"),
+                TextMuted = UiColor.FromHex("#54606F"),
+                TextDisabled = UiColor.FromHex("#9AA4B2"),
 
-                Hover = new Vector4(0.0f, 0.0f, 0.0f, 0.05f),
-                Pressed = new Vector4(0.0f, 0.0f, 0.0f, 0.10f),
-                Selected = UiColor.FromHex("#CFE0FA")
+                Border = UiColor.FromHex("#C3CDDB"),
+                BorderStrong = UiColor.FromHex("#A3B0C2"),
+                Divider = UiColor.FromHex("#D3DBE6"),
+
+                Accent = UiColor.FromHex("#2C6FD6"),
+                AccentHover = UiColor.FromHex("#3D80E6"),
+                AccentPressed = UiColor.FromHex("#215BB5"),
+
+                Hover = new Vector4(0.06f, 0.20f, 0.40f, 0.07f),
+                Pressed = new Vector4(0.06f, 0.20f, 0.40f, 0.14f),
+                Selected = UiColor.FromHex("#BBD4F5")
             };
         }
     }

@@ -75,6 +75,7 @@ public static class TestRunner
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),
         ("ManaUI", "ported scene outliner", OutlinerChecks.Run),
+        ("ManaUI", "theme contrast", ThemeContrastChecks.Run),
         ("ManaUI", "tabs and graphs", TabsAndGraphChecks.Run),
         ("ManaUI", "ported main menu", PortedMainMenuChecks.Run),
         ("ManaUI", "ported scene inspector", InspectorChecks.Run),
