@@ -102,6 +102,19 @@ namespace ManaUI
             return panel;
         }
 
+        /// <summary>Per-edge padding, for the cases where the two-value form is not asymmetric enough.</summary>
+        public static TPanel Padding<TPanel>(
+            this TPanel panel,
+            float left,
+            float top,
+            float right,
+            float bottom)
+            where TPanel : Panel
+        {
+            panel.Padding = new Thickness(left, top, right, bottom);
+            return panel;
+        }
+
         public static TDecorator PaddingOf<TDecorator>(this TDecorator decorator, float uniform)
             where TDecorator : Decorator
         {

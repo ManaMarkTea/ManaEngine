@@ -44,7 +44,12 @@ public static class TestRunnerWindow
                     {
                         context.UiRoot = host.Root;
                     }
-                }).Run();
+                },
+
+                // Tall and narrow, because that is the shape of the data: a list of check names wants a
+                // column. The default 1920x1080 left most of every row empty and pushed the failures
+                // further apart than a screen could hold.
+                windowSize: new Silk.NET.Maths.Vector2D<int>(760, 940)).Run();
         }
         catch (Exception ex)
         {

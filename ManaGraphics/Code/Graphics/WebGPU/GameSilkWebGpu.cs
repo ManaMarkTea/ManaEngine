@@ -28,9 +28,11 @@ namespace ManaGraphics.Code.Graphics
             Action<IWindow, IInputContext>? inputReady = null,
             Action<double>? beforeRender = null,
             Action<double>? onRenderImGui = null,
-            Action<ManaWebGpuContext, IInputContext>? webGpuReady = null)
+            Action<ManaWebGpuContext, IInputContext>? webGpuReady = null,
+            Vector2D<int>? windowSize = null)
         {
             _title = title;
+            _windowSize = windowSize ?? new Vector2D<int>(1920, 1080);
             _requestedBackend = requestedBackend;
             _renderSceneProvider = renderSceneProvider;
             _inputReady = inputReady;
@@ -39,13 +41,15 @@ namespace ManaGraphics.Code.Graphics
             _webGpuReady = webGpuReady;
         }
 
+        private readonly Vector2D<int> _windowSize;
+
         public void Run()
         {
             ManaConsole.WriteDiagnostic("Creating WebGPU Silk window.");
             var options = WindowOptions.Default;
             options.API = new GraphicsAPI(ContextAPI.None, new APIVersion(0, 0));
             options.Title = _title;
-            options.Size = new Vector2D<int>(1920, 1080);
+            options.Size = _windowSize;
             options.WindowState = WindowState.Normal;
             options.FramesPerSecond = 90;
             options.UpdatesPerSecond = 90;

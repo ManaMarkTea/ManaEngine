@@ -17,6 +17,20 @@ public partial class TestSectionViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasFailures;
 
+    [ObservableProperty]
+    private int _failed;
+
+    [ObservableProperty]
+    private int _total;
+
+    [ObservableProperty]
+    private double _milliseconds;
+
+    /// <summary>Open when something in it failed. A passing suite is one line until you ask for more.</summary>
+    public bool StartsExpanded => HasFailures;
+
+    public string Icon => HasFailures ? "❌" : "✅";
+
     public ObservableCollection<TestCheckViewModel> Checks { get; } = new();
 }
 
@@ -34,6 +48,8 @@ public partial class TestCheckViewModel : ObservableObject
     public string Detail { get; }
 
     public string Label => Detail.Length > 0 ? $"{Name}  —  {Detail}" : Name;
+
+    public string Icon => Passed ? "✅" : "❌";
 }
 
 /// <summary>
@@ -67,6 +83,20 @@ public partial class TestRunnerViewModel : ObservableObject
     [ObservableProperty]
     private string _search = string.Empty;
 
+    [ObservableProperty]
+    private int _passedCount;
+
+    [ObservableProperty]
+    private int _failedCount;
+
+    [ObservableProperty]
+    private string _headline = "Not run yet";
+
+    /// <summary>The banner emoji, which is the one thing readable from across the room.</summary>
+    public string StatusIcon => AllPassed ? "🎉" : "💥";
+
+    partial void OnAllPassedChanged(bool value) => OnPropertyChanged(nameof(StatusIcon));
+
     public ObservableCollection<TestSectionViewModel> Sections { get; } = new();
 
     partial void OnFailuresOnlyChanged(bool value) => Rebuild();
@@ -78,13 +108,29 @@ public partial class TestRunnerViewModel : ObservableObject
     {
         // Synchronous on purpose. The whole suite is well under a second, and running it off-thread would
         // mean the view models it mutates were being touched from somewhere other than the UI thread.
-        _lastRun = TestRunner.Run(_fonts, _systemFilter);
+        Load(TestRunner.Run(_fonts, _systemFilter));
+    }
+
+    /// <summary>
+    /// Shows a run this view model did not perform.
+    /// <para>
+    /// Separate from <see cref="RunTests"/> so the view can be exercised against results without executing
+    /// anything -- which the suite's own coverage of this view needs, since a check that ran the suite
+    /// would run itself.
+    /// </para>
+    /// </summary>
+    public void Load(TestRun run)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        _lastRun = run;
 
         AllPassed = _lastRun.Success;
-        Summary = _lastRun.Success
-            ? $"All {_lastRun.Total} checks passed"
-            : $"{_lastRun.Failed} of {_lastRun.Total} checks failed";
-        Timing = $"{_lastRun.Sections.Count} suites in {_lastRun.Duration.TotalMilliseconds:F0} ms";
+        PassedCount = _lastRun.Passed;
+        FailedCount = _lastRun.Failed;
+
+        Headline = _lastRun.Success ? "All checks passed" : $"{_lastRun.Failed} failed";
+        Summary = $"{_lastRun.Total} checks in {_lastRun.Sections.Count} suites";
+        Timing = $"{_lastRun.Duration.TotalMilliseconds:F0} ms";
 
         Rebuild();
     }
@@ -111,9 +157,12 @@ public partial class TestRunnerViewModel : ObservableObject
             {
                 Header = section.Title,
                 Summary = section.HasFailures
-                    ? $"{section.Failed} failed / {section.Checks.Count}"
-                    : $"{section.Checks.Count} passed  ·  {section.Duration.TotalMilliseconds:F0} ms",
-                HasFailures = section.HasFailures
+                    ? $"{section.Failed} of {section.Checks.Count} failed"
+                    : $"{section.Checks.Count} · {section.Duration.TotalMilliseconds:F0} ms",
+                HasFailures = section.HasFailures,
+                Failed = section.Failed,
+                Total = section.Checks.Count,
+                Milliseconds = section.Duration.TotalMilliseconds
             };
 
             foreach (var check in visible)

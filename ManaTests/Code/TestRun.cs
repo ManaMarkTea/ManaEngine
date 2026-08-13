@@ -75,7 +75,11 @@ public static class TestRunner
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),
         ("ManaUI", "ported scene outliner", OutlinerChecks.Run),
-        ("ManaUI", "ported scene inspector", InspectorChecks.Run)
+        ("ManaUI", "ported scene inspector", InspectorChecks.Run),
+
+        // Last on purpose: it runs a filtered suite of its own, and being last keeps that nesting to one
+        // level rather than having a later suite run inside it too.
+        ("ManaUI", "gui test runner", RunnerChecks.Run)
     };
 
     /// <summary>
