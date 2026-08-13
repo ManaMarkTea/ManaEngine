@@ -136,6 +136,16 @@ namespace ManaUI
         }
 
         /// <summary>
+        /// The largest blur radius a backend can actually deliver.
+        /// <para>
+        /// The blur is a mip chain and the radius selects a level as log2 of it, so this is 2^(levels - 1).
+        /// Asking for more does not fail -- it clamps to the last level, silently, which looks like the blur
+        /// simply stopped getting stronger. Both backends cap their chain to match.
+        /// </para>
+        /// </summary>
+        public const float MaxBackdropBlur = 32.0f;
+
+        /// <summary>
         /// True when anything in this frame asked for a blurred backdrop.
         /// <para>
         /// The backend reads this to decide whether to snapshot and blur the frame at all. Blurring

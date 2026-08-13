@@ -576,5 +576,21 @@ public static class BackdropChecks
             sharpRoot.Render().Instances.ToArray()
                 .All(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) == 0),
             "no backdrop");
+
+        // ---------------------------------------------------------------- radii the backend can reach
+        // The radius selects a level of a mip chain as log2 of it, so a chain of N levels tops out at
+        // 2^(N-1). Past that it does not fail -- it clamps, silently, and the blur just stops getting
+        // stronger. That is exactly how the first attempt at this shipped looking like it did nothing: the
+        // sampler it borrowed clamped LOD to 1, so every radius resolved to a single halving.
+        Check("every offered blur is one the backend can reach",
+            ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices
+                .All(blur => blur <= ManaUiDrawList.MaxBackdropBlur),
+            string.Join(", ", ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices));
+
+        // And the largest is worth offering -- a menu whose strongest setting is a quarter of what the
+        // chain can do is leaving the effect on the table.
+        Check("and the strongest one uses the whole chain",
+            ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices.Max() == ManaUiDrawList.MaxBackdropBlur,
+            $"{ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices.Max()} of {ManaUiDrawList.MaxBackdropBlur}");
     }
 }

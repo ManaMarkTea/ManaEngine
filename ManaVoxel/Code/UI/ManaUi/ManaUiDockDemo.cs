@@ -694,7 +694,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Blur radii offered. Powers of two because the blur is a mip chain -- each level is twice the
         /// radius of the last, so anything between them is interpolated rather than distinct.
         /// </summary>
-        private static readonly float[] BlurChoices = { 0.0f, 4.0f, 8.0f, 16.0f, 32.0f };
+        public static readonly float[] BlurChoices = { 0.0f, 4.0f, 8.0f, 16.0f, 32.0f };
 
         private static string BlurLabel(float blur) => blur <= 0.0f ? "Off" : $"{blur:0} px";
 

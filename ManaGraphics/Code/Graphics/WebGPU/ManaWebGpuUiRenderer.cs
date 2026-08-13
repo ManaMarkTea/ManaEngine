@@ -62,6 +62,7 @@ namespace ManaGraphics.Code.Graphics
             _shaderModule = CreateShaderModule(
                 Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", "manaui.wgsl"));
             _sampler = CreateSampler();
+            _backdropSampler = CreateBackdropSampler();
             _bindGroupLayout = CreateBindGroupLayout();
             _pipelineLayout = CreatePipelineLayout();
             _uniformBuffer = CreateUniformBuffer();
@@ -454,10 +455,34 @@ namespace ManaGraphics.Code.Graphics
         }
 
         private TextureView* _backdropTextureView;
+        private Sampler* _backdropSampler;
+
+        /// <summary>
+        /// The backdrop's sampler. Separate from the atlas one, which clamps LOD to 1 so a glyph can never
+        /// land on a mip -- the backdrop is a chain of mips and needs the whole range.
+        /// </summary>
+        private Sampler* CreateBackdropSampler()
+        {
+            var descriptor = new SamplerDescriptor
+            {
+                AddressModeU = AddressMode.ClampToEdge,
+                AddressModeV = AddressMode.ClampToEdge,
+                AddressModeW = AddressMode.ClampToEdge,
+                MagFilter = FilterMode.Linear,
+                MinFilter = FilterMode.Linear,
+                MipmapFilter = MipmapFilterMode.Linear,
+                LodMinClamp = 0.0f,
+                LodMaxClamp = 32.0f,
+                Compare = CompareFunction.Undefined,
+                MaxAnisotropy = 1
+            };
+
+            return _api.DeviceCreateSampler(_device, &descriptor);
+        }
 
         private BindGroupLayout* CreateBindGroupLayout()
         {
-            var entries = stackalloc BindGroupLayoutEntry[5];
+            var entries = stackalloc BindGroupLayoutEntry[6];
 
             entries[0] = new BindGroupLayoutEntry
             {
@@ -509,7 +534,17 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var descriptor = new BindGroupLayoutDescriptor { EntryCount = 5, Entries = entries };
+            // The backdrop needs a sampler of its own. The atlas one clamps LOD to 1 because a glyph must
+            // never sample a mip, and the backdrop is nothing but mips -- shared, it clamps a level-4 blur
+            // to level 1, which is a single halving and looks like no blur at all.
+            entries[5] = new BindGroupLayoutEntry
+            {
+                Binding = 5,
+                Visibility = ShaderStage.Fragment,
+                Sampler = new SamplerBindingLayout { Type = SamplerBindingType.Filtering }
+            };
+
+            var descriptor = new BindGroupLayoutDescriptor { EntryCount = 6, Entries = entries };
             return _api.DeviceCreateBindGroupLayout(_device, &descriptor);
         }
 
@@ -738,7 +773,7 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var entries = stackalloc BindGroupEntry[5];
+            var entries = stackalloc BindGroupEntry[6];
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = _uniformBuffer, Offset = 0, Size = 16 };
             entries[1] = new BindGroupEntry { Binding = 1, Sampler = _sampler };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = _glyphTextureView };
@@ -752,10 +787,12 @@ namespace ManaGraphics.Code.Graphics
                 TextureView = _backdropTextureView != null ? _backdropTextureView : _imageTextureView
             };
 
+            entries[5] = new BindGroupEntry { Binding = 5, Sampler = _backdropSampler };
+
             var descriptor = new BindGroupDescriptor
             {
                 Layout = _bindGroupLayout,
-                EntryCount = 5,
+                EntryCount = 6,
                 Entries = entries
             };
 
@@ -835,6 +872,11 @@ namespace ManaGraphics.Code.Graphics
             if (_sampler != null)
             {
                 _api.SamplerRelease(_sampler);
+            }
+
+            if (_backdropSampler != null)
+            {
+                _api.SamplerRelease(_backdropSampler);
             }
 
             if (_shaderModule != null)

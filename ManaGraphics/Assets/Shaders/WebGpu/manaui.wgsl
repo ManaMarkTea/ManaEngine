@@ -23,6 +23,10 @@ struct Uniforms {
 // it, so the layout never changes and the pipeline is built once.
 @group(0) @binding(4) var backdrop : texture_2d<f32>;
 
+// Its own sampler: atlas_sampler clamps LOD to 1 so a glyph can never land on a mip, and the backdrop is
+// nothing but mips. Shared, a level-4 blur samples level 1 and looks like no blur at all.
+@group(0) @binding(5) var backdrop_sampler : sampler;
+
 const FLAG_GLYPH  : u32 = 1u;
 const FLAG_TEXTURE: u32 = 2u;
 const FLAG_SHADOW : u32 = 4u;
@@ -233,7 +237,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         // Levels of the blur chain are progressively blurrier, so the radius picks one.
         let level = clamp(log2(max(input.backdrop_blur, 1.0)), 0.0, f32(textureNumLevels(backdrop) - 1u));
         let sample_uv = p / uniforms.viewport_size;
-        behind = textureSampleLevel(backdrop, atlas_sampler, sample_uv, level);
+        behind = textureSampleLevel(backdrop, backdrop_sampler, sample_uv, level);
     }
 
     if ((input.flags & FLAG_GRADIENT) != 0u) {
