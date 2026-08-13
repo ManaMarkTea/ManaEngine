@@ -227,13 +227,28 @@ namespace Mana.Code.UI.ManaUi
             foreach (var axis in axes)
             {
                 var end = centre + axis.Offset;
-                var faded = axis.Color with { W = axis.Depth < 0.0f ? 0.72f : 1.0f };
+                var faded = axis.Color with { W = axis.PointsAtCamera ? 1.0f : 0.72f };
 
-                drawList.DrawLine(centre, end, faded, 2.2f);
-                drawList.FillRect(
-                    new UiRect(end.X - 4.0f, end.Y - 4.0f, 8.0f, 8.0f),
-                    faded,
-                    new CornerRadius(4.0f));
+                // Nothing to draw a line along when the axis is aimed at the viewer, and a 1px smear where
+                // the tip already is reads as dirt rather than as a spoke.
+                if (axis.Offset.LengthSquared() > 4.0f)
+                {
+                    drawList.DrawLine(centre, end, faded, 2.2f);
+                }
+
+                var tip = new UiRect(end.X - 4.0f, end.Y - 4.0f, 8.0f, 8.0f);
+
+                // Filled toward the viewer, hollow away from it. With honest foreshortening the spoke length
+                // no longer distinguishes the two -- an axis pointing at you and one pointing directly away
+                // project to the same stub -- so the tip has to.
+                if (axis.PointsAtCamera)
+                {
+                    drawList.FillRect(tip, faded, new CornerRadius(4.0f));
+                }
+                else
+                {
+                    drawList.DrawBox(tip, theme.Surface with { W = 0.9f }, faded, 1.6f, new CornerRadius(4.0f));
+                }
 
                 Label(drawList, theme, axis, end, faded);
             }
@@ -253,7 +268,9 @@ namespace Mana.Code.UI.ManaUi
             }
 
             var font = root.Fonts.Get(theme.FontFamilyMedium, theme.FontSizeSmall, root.Scale);
-            var direction = axis.Offset.LengthSquared() > 0.0001f
+            // A foreshortened axis has no direction worth pushing its label along, so it goes straight up
+            // off the tip -- which is where there is room, the other labels being out along their spokes.
+            var direction = axis.Offset.LengthSquared() > 4.0f
                 ? Vector2.Normalize(axis.Offset)
                 : new Vector2(0.0f, -1.0f);
 
@@ -281,8 +298,20 @@ namespace Mana.Code.UI.ManaUi
             Project(label, axis, _camera._ViewMatrix, color);
 
         /// <summary>
-        /// A world axis in screen terms. The projected length shortens as an axis turns toward the camera,
-        /// which is what makes the tripod read as three dimensional rather than as three fixed spokes.
+        /// A world axis in screen terms: simply where it points, foreshortened by how much of it is aimed at
+        /// the camera. Y is negated because screen space grows downward and world space does not.
+        /// <para>
+        /// The projection is used as it comes, rather than being normalised and re-scaled to a floored
+        /// length. That floor is what made the tripod lie: an axis pointing near enough along the view
+        /// direction projects to almost nothing, so its direction is decided by the rounding, and rescaling
+        /// that to a quarter-length spoke pointed it somewhere definite and wrong. Looking down an axis and
+        /// tilting a fiftieth of a radian flipped it end to end.
+        /// </para>
+        /// <para>
+        /// Unscaled, such an axis collapses to a stub at the hub -- which is what it looks like, and what
+        /// <see cref="AxisLine.PointsAtCamera"/> is for: the tip says toward or away where a spoke no longer
+        /// can.
+        /// </para>
         /// <para>
         /// Takes a view matrix rather than a camera so it can be checked: a CameraComponent subscribes to
         /// the window's resize event as it is built, so one cannot exist without a window.
@@ -291,19 +320,22 @@ namespace Mana.Code.UI.ManaUi
         public static AxisLine Project(string label, Vector3 axis, Matrix4x4 view, Vector4 color)
         {
             var viewAxis = Vector3.TransformNormal(axis, view);
-            var projected = MathF.Sqrt(viewAxis.X * viewAxis.X + viewAxis.Y * viewAxis.Y);
 
-            // An axis pointing almost straight at the camera projects to nearly nothing, so the length is
-            // floored: a spoke that vanished would read as an axis that stopped existing. Y is negated
-            // because screen space grows downward and world space does not.
-            var direction = projected > 0.0001f
-                ? new Vector2(viewAxis.X, -viewAxis.Y) / projected
-                : new Vector2(0.0f, -1.0f);
-
-            return new AxisLine(label, direction * (AxisLength * MathF.Max(0.28f, projected)), viewAxis.Z, color);
+            return new AxisLine(
+                label,
+                new Vector2(viewAxis.X, -viewAxis.Y) * AxisLength,
+                viewAxis.Z,
+                color);
         }
 
         /// <summary>One axis, ready to draw. Depth is the view-space Z, which is what orders them.</summary>
-        public readonly record struct AxisLine(string Label, Vector2 Offset, float Depth, Vector4 Color);
+        public readonly record struct AxisLine(string Label, Vector2 Offset, float Depth, Vector4 Color)
+        {
+            /// <summary>
+            /// True when the axis comes toward the viewer. View space looks down -Z, so a positive Z is
+            /// out of the screen.
+            /// </summary>
+            public bool PointsAtCamera => Depth >= 0.0f;
+        }
     }
 }

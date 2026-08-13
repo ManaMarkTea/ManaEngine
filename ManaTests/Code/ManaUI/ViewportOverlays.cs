@@ -67,9 +67,51 @@ public static class ViewportOverlayChecks
             z.Depth > x.Depth && z.Depth > y.Depth,
             $"z {z.Depth:0.00}, x {x.Depth:0.00}, y {y.Depth:0.00}");
 
-        // An axis pointing straight at the camera would otherwise collapse to a point and read as an axis
-        // that had stopped existing.
-        Check("and still has a visible spoke", z.Offset.Length() > 5.0f, $"{z.Offset.Length():0.0}px");
+        // Foreshortening is honest, so an axis aimed at the viewer is a stub rather than a spoke. The tip
+        // is what says which way it goes, filled toward and hollow away.
+        Check("an axis aimed at the viewer is a stub", z.Offset.Length() < 2.0f, $"{z.Offset.Length():0.00}px");
+        // Compared against an axis genuinely pointing away, not against X -- X lies exactly in the screen
+        // plane here, which is the boundary between the two and belongs to neither.
+        var away = AxisTripod.Project("-Z", -Vector3.UnitZ, view, UiColor.White);
+        Check("and its tip says so", z.PointsAtCamera && !away.PointsAtCamera, "filled toward, hollow away");
+
+        // ---------------------------------------------------------------- looking down an axis
+        // The tripod used to lie here. Projecting an axis that points along the view direction gives almost
+        // nothing, so its direction is decided by the rounding -- and the old code normalised that and
+        // rescaled it to a floored quarter-length spoke, which pointed it somewhere definite and wrong.
+        // Tilting a fiftieth of a radian swung world X from nine pixels down to nine pixels up.
+        static Matrix4x4 LookingDownX(float tilt) => Matrix4x4.CreateLookAt(
+            new Vector3(-10.0f, MathF.Sin(tilt) * 10.0f, 0.0f), Vector3.Zero, Vector3.UnitY);
+
+        var tiltedDown = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(-0.02f), UiColor.White);
+        var level = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(0.0f), UiColor.White);
+        var tiltedUp = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(0.02f), UiColor.White);
+
+        Check("looking down an axis leaves it a stub",
+            level.Offset.Length() < 2.0f, $"{level.Offset.Length():0.00}px");
+
+        // The real defect: a tiny camera movement must produce a tiny change on screen. It swung 19px.
+        Check("and a small tilt moves it a small amount",
+            Vector2.Distance(tiltedDown.Offset, tiltedUp.Offset) < 3.0f,
+            $"{Vector2.Distance(tiltedDown.Offset, tiltedUp.Offset):0.00}px apart");
+
+        // Tilting the camera up must not send the axis the other way -- which is exactly how it read.
+        Check("without flipping end to end",
+            MathF.Abs(tiltedDown.Offset.Y) < 2.0f && MathF.Abs(tiltedUp.Offset.Y) < 2.0f,
+            $"{tiltedDown.Offset.Y:+0.00;-0.00} -> {tiltedUp.Offset.Y:+0.00;-0.00}");
+
+        // It is still pointing away from the viewer throughout, which is the thing that has not changed.
+        Check("and still reading as pointing away",
+            !tiltedDown.PointsAtCamera && !level.PointsAtCamera && !tiltedUp.PointsAtCamera,
+            "away");
+
+        // Foreshortening has to be proportional, or the tripod is not showing an angle at all: an axis
+        // halfway between the screen plane and the view direction is about seven tenths of a full spoke.
+        var oblique = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(0.0f), UiColor.White);
+        var across = AxisTripod.Project("Z", Vector3.UnitZ, LookingDownX(0.0f), UiColor.White);
+
+        Check("an axis across the view is full length",
+            across.Offset.Length() > 30.0f, $"{across.Offset.Length():0.0}px vs stub {oblique.Offset.Length():0.0}px");
 
         // ---------------------------------------------------------------- the viewport rectangle
         // The viewport is not stored anywhere -- it is whatever the columns have not taken. Getting this
