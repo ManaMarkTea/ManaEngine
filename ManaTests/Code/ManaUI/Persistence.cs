@@ -275,7 +275,7 @@ public static class PersistenceChecks
                 themeRoot.Theme.Kind.ToString());
 
             var themeMenu = FindFirst<MenuBar>(themeRoot)!
-                .Menus.First(m => m.Text == "View")
+                .Menus.First(m => m.Text == "Appearance")
                 .Items.First(i => i.Text == "Theme");
 
             themeMenu.Items.First(i => i.Text == "Light").Invoked?.Invoke();
@@ -299,7 +299,7 @@ public static class PersistenceChecks
             // And back again, which is the direction that was stuck: every switch wrote the outgoing
             // theme, so choosing dark saved light and the next run was light again.
             var reopenedTheme = FindFirst<MenuBar>(reopened)!
-                .Menus.First(m => m.Text == "View")
+                .Menus.First(m => m.Text == "Appearance")
                 .Items.First(i => i.Text == "Theme");
 
             reopenedTheme.Items.First(i => i.Text == "Dark").Invoked?.Invoke();

@@ -152,7 +152,7 @@ public static class ShowcaseChecks
                 dockRoot.Render().InstanceCount > 50, $"{dockRoot.Render().InstanceCount} instances");
 
             // ---------------------------------------------------------------- theme
-            var viewMenu = menu!.Menus.First(item => item.Text == "View");
+            var viewMenu = menu!.Menus.First(item => item.Text == "Appearance");
             var themeMenu = viewMenu.Items.First(item => item.Text == "Theme");
             var light = themeMenu.Items.First(item => item.Text == "Light");
 

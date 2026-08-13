@@ -173,6 +173,87 @@ public static class PortedMainMenuChecks
 
             root.Popups.CloseAll();
         }
+
+        InWorkspace(fonts, check);
+    }
+
+    /// <summary>
+    /// The menu as the editor actually gets it: dropped into the workspace bar beside the workspace's own
+    /// chrome, rather than living in a second bar of its own.
+    /// </summary>
+    public static void InWorkspace(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var root = new UiRoot(fonts);
+        var vm = new VoxelEditorViewModel();
+        var showcase = new ManaUiShowcaseViewModel();
+
+        // Not persisted: this must not write over the workspace the user actually has.
+        var scratch = Path.Combine(Path.GetTempPath(), $"mana-menu-{Guid.NewGuid():N}.json");
+
+        UiElement? workspace = null;
+        try
+        {
+            workspace = ManaUiDockDemo.Attach(root, showcase, null, persist: false, editor: vm, layoutPath: scratch);
+        }
+        catch (Exception ex)
+        {
+            Check("the workspace builds with the editor menus in it", false, ex.Message);
+            return;
+        }
+
+        root.Content = workspace;
+        root.UpdateLayout(new Vector2(1600, 900));
+
+        var bars = FindAll<MenuBar>(workspace);
+        Check("the workspace has a menu bar", bars.Count == 1, $"{bars.Count} bars");
+
+        if (bars.Count != 1)
+        {
+            return;
+        }
+
+        var headings = bars[0].Menus.Select(m => m.Text).ToList();
+
+        Check("the editor's menus are in it",
+            headings.Contains("File") && headings.Contains("Character") && headings.Contains("View"),
+            string.Join(", ", headings));
+
+        // The workspace's own chrome is still there: one bar, not two competing ones.
+        Check("alongside the workspace's own",
+            headings.Contains("Layout") && headings.Contains("Debug"), string.Join(", ", headings));
+
+        Check("and the editor's come first", headings.IndexOf("File") < headings.IndexOf("Layout"),
+            string.Join(", ", headings));
+
+        // Two menus with one name is a coin toss for whoever is looking for something -- and merging two
+        // bars is exactly how that happens.
+        var duplicates = headings.GroupBy(h => h).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        Check("no two menus share a name", duplicates.Count == 0, string.Join(", ", duplicates));
+
+        // Live against the same view model the ImGui menu drives, through the real workspace.
+        var view = bars[0].Menus.First(m => m.Text == "View");
+        var water = view.Items.First(i => i.Text == "Show Water");
+        var before = vm.ShowWater;
+
+        water.Invoke();
+        Check("choosing a row through the workspace reaches the editor", vm.ShowWater != before, $"{vm.ShowWater}");
+        water.Invoke();
+
+        Check("the workspace still renders in one draw call", root.Render().Batches.Count == 1,
+            $"{root.Render().Batches.Count} batches");
+
+        try
+        {
+            if (File.Exists(scratch))
+            {
+                File.Delete(scratch);
+            }
+        }
+        catch (IOException)
+        {
+        }
     }
 
     private static List<T> FindAll<T>(UiElement? element) where T : UiElement

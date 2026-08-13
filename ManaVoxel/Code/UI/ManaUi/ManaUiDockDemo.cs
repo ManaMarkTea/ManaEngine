@@ -274,7 +274,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Fill(theme.Surface)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont))
+                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, editor))
                     .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
                     .Width(rightPanel.Size),
 
@@ -465,9 +465,23 @@ namespace ManaVoxel.Code.UI.ManaUi
             UiDebugOverlay debug,
             UiRoot root,
             Action<UiThemeKind> chooseTheme,
-            Action<string> chooseFont)
+            Action<string> chooseFont,
+            VoxelEditorViewModel? editor)
         {
-            return new MenuBar().AddRange(
+            var bar = new MenuBar();
+
+            // The editor's own menus come first, so the bar reads the way the ImGui one does. They are
+            // added rather than built into this method because they belong to the editor, not to the
+            // workspace chrome -- the workspace outlives any particular application's menus.
+            if (editor != null)
+            {
+                foreach (var menu in VoxelEditorMainMenuManaView.BuildMenus(editor))
+                {
+                    bar.Add(menu);
+                }
+            }
+
+            return bar.AddRange(
                 new MenuItem("Debug").WithItems(
                     DebugItem("Element bounds", UiDebugFlags.ElementBounds, debug),
                     DebugItem("Clip rects", UiDebugFlags.ClipRects, debug),
@@ -500,7 +514,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                         }
                     })),
 
-                new MenuItem("View").WithItems(
+                // "Appearance" rather than "View": the editor's own View menu now sits in this same bar,
+                // and two menus with one name is a coin toss for whoever is looking for something.
+                new MenuItem("Appearance").WithItems(
                     new MenuItem("Theme").WithItems(
                         new MenuItem("Dark", () => chooseTheme(UiThemeKind.Dark))
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Dark),

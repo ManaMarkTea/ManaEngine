@@ -23,10 +23,21 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         public static MenuBar Build(VoxelEditorViewModel viewModel, BaseGameMode? host = null)
         {
-            return new MenuBar().AddRange(
+            return new MenuBar().AddRange(BuildMenus(viewModel, host));
+        }
+
+        /// <summary>
+        /// The menus alone, for a bar that carries other things too -- the workspace's own chrome sits
+        /// beside these rather than in a second bar.
+        /// </summary>
+        public static MenuItem[] BuildMenus(VoxelEditorViewModel viewModel, BaseGameMode? host = null)
+        {
+            return new[]
+            {
                 File(viewModel),
                 Character(viewModel),
-                View(viewModel, host));
+                View(viewModel, host)
+            };
         }
 
         private static MenuItem File(VoxelEditorViewModel viewModel)
