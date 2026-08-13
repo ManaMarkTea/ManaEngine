@@ -83,6 +83,12 @@ namespace ManaUI
         {
             var content = item.Content!;
 
+            // A flyout is built fresh every time the menu opens, but the hosted control is one element
+            // owned by the MenuItem -- it has to leave the popup that held it last time. Without this the
+            // second open of a menu with a hosted control throws, which is exactly what happened the first
+            // time anyone opened the View menu twice.
+            content.RemoveFromParent();
+
             if (string.IsNullOrEmpty(item.Text))
             {
                 return content.Margin(MenuRow.LabelIndent, 2.0f, 8.0f, 2.0f);

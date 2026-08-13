@@ -14,6 +14,7 @@ public static class TabsAndGraphChecks
 
         Tabs(fonts, Check);
         Graphs(fonts, Check);
+        HostedMenuContent(fonts, Check);
     }
 
     private static void Tabs(ManaFontManager fonts, Action<string, bool, string> Check)
@@ -109,6 +110,74 @@ public static class TabsAndGraphChecks
 
         Check("a tab view is still one draw call", root.Render().Batches.Count == 1,
             $"{root.Render().Batches.Count} batches");
+    }
+
+    /// <summary>
+    /// A control living in a menu. The flyout is rebuilt every time the menu opens, but the control is one
+    /// element owned by the item -- so it has to leave the popup that held it last time.
+    /// </summary>
+    private static void HostedMenuContent(ManaFontManager fonts, Action<string, bool, string> Check)
+    {
+        var root = new UiRoot(fonts);
+
+        var slider = new SliderBox { Minimum = 0.0f, Maximum = 10.0f, Value = 3.0f, Width = 120.0f };
+        var hosted = new MenuItem("Length") { Content = slider };
+
+        var bar = new MenuBar().AddRange(
+            new MenuItem("View").WithItems(
+                new MenuItem("Something", () => { }),
+                hosted));
+
+        root.Content = new Grid().Rows("Auto, *").Columns("*").Children(bar.GridRow(0));
+        root.UpdateLayout(new Vector2(800, 600));
+
+        var heading = FindAll<UiElement>(bar).FirstOrDefault(e => e.GetType().Name == "MenuBarHeading");
+        Check("the menu has a heading to click", heading != null, string.Empty);
+
+        if (heading == null)
+        {
+            return;
+        }
+
+        void ClickHeading(double time)
+        {
+            root.Input.InjectPointerMoved(heading.Bounds.Center);
+            root.Input.InjectPointerPressed(heading.Bounds.Center, PointerButton.Left, time);
+            root.Input.InjectPointerReleased(heading.Bounds.Center, PointerButton.Left);
+            root.UpdateLayout(new Vector2(800, 600));
+        }
+
+        try
+        {
+            ClickHeading(1.0);
+            Check("opening a menu with a hosted control works", root.Popups.HasOpenPopups,
+                $"{root.Popups.Open.Count} popups");
+
+            // Closes it, then opens it again. This is the sequence that threw: the second build tried to
+            // re-parent a control the first build had already placed.
+            ClickHeading(2.0);
+            ClickHeading(3.0);
+
+            Check("and opening it a second time does too", root.Popups.HasOpenPopups,
+                $"{root.Popups.Open.Count} popups");
+
+            Check("the control came with it", slider.Root != null && slider.Parent != null,
+                slider.Parent?.GetType().Name ?? "detached");
+        }
+        catch (Exception ex)
+        {
+            Check("opening a menu with a hosted control twice does not throw", false,
+                ex.GetType().Name + ": " + ex.Message);
+            return;
+        }
+
+        Check("opening a menu with a hosted control twice does not throw", true, "reopened cleanly");
+
+        // Still the same control, so whatever it was showing is what it still shows.
+        Check("and it keeps its value across reopening",
+            MathF.Abs(slider.Value - 3.0f) < 0.001f, $"{slider.Value}");
+
+        root.Popups.CloseAll();
     }
 
     private static void Graphs(ManaFontManager fonts, Action<string, bool, string> Check)

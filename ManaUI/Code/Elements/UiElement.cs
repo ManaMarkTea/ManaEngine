@@ -72,6 +72,29 @@ namespace ManaUI
             }
         }
 
+        /// <summary>
+        /// Takes this element out of whatever currently holds it, so it can be put somewhere else.
+        /// <para>
+        /// Re-parenting is refused rather than done silently, which is the right default -- an element in
+        /// two trees is a bug that shows up much later as a layout that will not settle. But something
+        /// that genuinely moves needs a way to say so, and doing it by hand means knowing whether the
+        /// parent keeps a list or a single child.
+        /// </para>
+        /// </summary>
+        public void RemoveFromParent()
+        {
+            switch (_parent)
+            {
+                case Panel panel:
+                    panel.Children.Remove(this);
+                    break;
+
+                case Decorator decorator when ReferenceEquals(decorator.Child, this):
+                    decorator.Child = null;
+                    break;
+            }
+        }
+
         /// <summary>Arbitrary payload for application code; the framework never reads it.</summary>
         public object? Tag { get; set; }
 
