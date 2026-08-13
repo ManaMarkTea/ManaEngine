@@ -532,5 +532,49 @@ public static class BackdropChecks
         // ---------------------------------------------------------------- the theme
         var theme = UiTheme.Dark();
         Check("blur is off unless asked for", theme.BackdropBlur == 0.0f, $"{theme.BackdropBlur}");
+
+        // Frosting only makes sense with a blur behind it. A translucent panel over a sharp scene is not a
+        // style, it is a panel that is hard to read.
+        var opaque = theme.Frosted(theme.Surface);
+        Check("a surface stays solid with blur off",
+            MathF.Abs(opaque.W - theme.Surface.W) < 0.001f, $"{opaque.W:0.00}");
+
+        theme.BackdropBlur = 16.0f;
+        var frostedFill = theme.Frosted(theme.Surface);
+
+        Check("and goes translucent with blur on", frostedFill.W < theme.Surface.W, $"{frostedFill.W:0.00}");
+        Check("but stays readable", frostedFill.W > 0.5f, $"{frostedFill.W:0.00}");
+
+        // Applied to an already-translucent surface it scales rather than replaces, so a gizmo backdrop
+        // that was deliberately light does not become opaque on its way through.
+        var alreadyLight = theme.Frosted(theme.Surface with { W = 0.5f });
+        Check("and scales a surface that was already light",
+            alreadyLight.W < 0.5f, $"{alreadyLight.W:0.00}");
+
+        // ---------------------------------------------------------------- the things over the scene
+        // The performance strip floats on the viewport, which is the case this exists for. The camera gizmo
+        // does too but needs a CameraComponent, which subscribes to the window's resize event as it is
+        // built and so cannot exist here -- it takes the same two lines through the same theme rule.
+        var blurredTheme = UiTheme.Dark();
+        blurredTheme.BackdropBlur = 16.0f;
+
+        var stripRoot = new UiRoot(fonts) { Theme = blurredTheme };
+        stripRoot.Content = ManaVoxel.Code.UI.ManaUi.ManaUiPerformanceStrip.Build(blurredTheme);
+        stripRoot.UpdateLayout(new Vector2(600, 200));
+
+        var stripDrawn = stripRoot.Render().Instances.ToArray();
+        Check("the performance strip frosts over the scene",
+            stripDrawn.Any(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0),
+            $"{stripDrawn.Count(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0)} of {stripDrawn.Length}");
+
+        var sharpTheme = UiTheme.Dark();
+        var sharpRoot = new UiRoot(fonts) { Theme = sharpTheme };
+        sharpRoot.Content = ManaVoxel.Code.UI.ManaUi.ManaUiPerformanceStrip.Build(sharpTheme);
+        sharpRoot.UpdateLayout(new Vector2(600, 200));
+
+        Check("and stays solid when blur is off",
+            sharpRoot.Render().Instances.ToArray()
+                .All(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) == 0),
+            "no backdrop");
     }
 }

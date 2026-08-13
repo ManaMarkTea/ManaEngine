@@ -78,6 +78,17 @@ namespace ManaUI
         /// </summary>
         public float BackdropBlur { get; set; }
 
+        /// <summary>How much of a frosted surface's own colour survives. Enough to read text against.</summary>
+        public float FrostedOpacity { get; set; } = 0.82f;
+
+        /// <summary>
+        /// The fill for a surface floating over the scene. Translucent only when there is a blur behind it
+        /// to be seen through -- an opaque panel over a blurred snapshot is an opaque panel that made the
+        /// GPU work for nothing, and a translucent one with no blur is just hard to read.
+        /// </summary>
+        public Vector4 Frosted(Vector4 surface) =>
+            BackdropBlur > 0.0f ? surface with { W = surface.W * FrostedOpacity } : surface;
+
         /// <summary>The top of a gradient over <paramref name="color"/>.</summary>
         public Vector4 GradientTop(Vector4 color, float strength) => UiColor.Lighten(color, strength * 0.5f);
 

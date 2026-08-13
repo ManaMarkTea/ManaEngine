@@ -213,7 +213,13 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             var box = new UiRect(position.X, position.Y, size.X, size.Y);
 
-            drawList.DrawBox(box, theme.Surface with { W = 0.88f }, theme.Border, 1.0f, new CornerRadius(5.0f));
+            drawList.DrawBox(
+                box,
+                theme.Frosted(theme.Surface with { W = 0.88f }),
+                theme.Border,
+                1.0f,
+                new CornerRadius(5.0f),
+                theme.BackdropBlur);
             layout.Render(drawList, box.Deflate(new Thickness(padding.X, padding.Y)), theme.Text);
         }
 

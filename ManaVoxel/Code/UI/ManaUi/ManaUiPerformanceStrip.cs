@@ -57,7 +57,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             // The graphs live in a popup so they take no room until asked for. Anchored under the strip,
             // which is where the pointer already is.
             var detail = new Border()
-                .Fill(theme.SurfaceRaised)
+                .Fill(theme.Frosted(theme.SurfaceRaised))
+                .Blur(theme.BackdropBlur)
                 .Outline(theme.BorderStrong, 1.0f)
                 .Rounded(theme.CornerRadius)
                 .Shadow(16.0f)
@@ -68,8 +69,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Titled(theme, "Managed memory", memoryGraph, () =>
                         $"{GC.GetTotalMemory(false) / (1024.0 * 1024.0):0.0} MB")));
 
+            // Frosted rather than solid: the strip sits over the viewport, and it is small enough that an
+            // opaque bar reads as a chip stuck to the scene rather than as part of the chrome.
             var strip = new Border()
-                .Fill(theme.Surface)
+                .Fill(theme.Frosted(theme.Surface))
+                .Blur(theme.BackdropBlur)
                 .Outline(theme.Border, 1.0f)
                 .Rounded(theme.CornerRadius)
                 .PaddingOf(8.0f, 2.0f)

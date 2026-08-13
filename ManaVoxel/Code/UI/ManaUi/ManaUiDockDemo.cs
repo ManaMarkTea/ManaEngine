@@ -54,15 +54,6 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         public static PlaceSearchModel PlaceSearch { get; } = new();
 
-        /// <summary>
-        /// How much of a surface survives when the backdrop is blurred behind it. Enough to read text
-        /// against; much less and the panel stops being a panel.
-        /// </summary>
-        private const float SurfaceOpacity = 0.82f;
-
-        private static Vector4 ChromeFill(UiTheme theme) =>
-            theme.BackdropBlur > 0.0f ? theme.Background with { W = SurfaceOpacity } : theme.Background;
-
         /// <summary>Every panel the workspace can show.</summary>
         /// <summary>
         /// Every panel this workspace can build, in the order a merge should add them.
@@ -255,7 +246,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 // Translucent only when there is a blur to see through it to. An opaque column over a
                 // blurred snapshot is just an opaque column that made the GPU work for nothing.
-                Background = ChromeFill(theme),
+                Background = theme.Frosted(theme.Background),
                 BackdropBlur = theme.BackdropBlur,
                 Child = left
             };
@@ -265,7 +256,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Edge = Dock.Right,
                 Size = saved is { RightWidth: > 0.0f } ? saved.RightWidth : DefaultRightWidth,
                 MinimumSize = 220.0f,
-                Background = ChromeFill(theme),
+                Background = theme.Frosted(theme.Background),
                 BackdropBlur = theme.BackdropBlur,
                 Child = right
             };
@@ -400,7 +391,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Anchor(top: TopOffset - MenuBarHeight, left: 0.0f),
 
                 new Border()
-                    .Fill(theme.BackdropBlur > 0.0f ? theme.Surface with { W = SurfaceOpacity } : theme.Surface)
+                    .Fill(theme.Frosted(theme.Surface))
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)

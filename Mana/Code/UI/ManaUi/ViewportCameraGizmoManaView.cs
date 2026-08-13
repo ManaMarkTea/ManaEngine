@@ -44,8 +44,11 @@ namespace Mana.Code.UI.ManaUi
             projection.BindPolled(b => b.Text, () => camera.OrthoGraphic ? "ORTHO" : "PERSP");
 
             return new Canvas().Width(GizmoSize).Height(GizmoSize).Children(
+                // The gizmo sits directly on the scene, which is the case backdrop blur exists for: it can
+                // stay light enough to see what is under it and still be readable against anything.
                 new Border()
-                    .Fill(theme.Surface with { W = 0.84f })
+                    .Fill(theme.Frosted(theme.Surface with { W = 0.84f }))
+                    .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(10.0f)
                     .Shadow(10.0f)
@@ -290,7 +293,13 @@ namespace Mana.Code.UI.ManaUi
 
             var box = new UiRect(position.X, position.Y, boxSize.X, boxSize.Y);
 
-            drawList.DrawBox(box, theme.Surface with { W = 0.88f }, theme.Border, 1.0f, new CornerRadius(4.0f));
+            drawList.DrawBox(
+                box,
+                theme.Frosted(theme.Surface with { W = 0.88f }),
+                theme.Border,
+                1.0f,
+                new CornerRadius(4.0f),
+                theme.BackdropBlur);
             layout.Render(drawList, box.Deflate(new Thickness(padding.X, padding.Y)), color);
         }
 
