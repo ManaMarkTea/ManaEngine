@@ -39,47 +39,45 @@ public static class RunnerChecks
 
         // ---------------------------------------------------------------- clipboard isolation
         // The text box checks copy, paste and cut, and TextBox.Clipboard is a static. Harmless while it is
-        // the library's own string; not harmless once the GUI runner has pointed it at the platform's,
-        // which is how running the suite replaced whatever the user had copied with the leftovers of a cut
-        // test. The runner detaches it for the duration of a run.
+        // an in-memory one; not harmless once the GUI runner has replaced it with the platform's, which is
+        // how running the suite replaced whatever the user had copied with the leftovers of a cut test.
         // Asserted from inside a run, which is the only place it can be: the question is not whether the
         // isolation works when called, but whether the runner calls it.
-        Check("the runner isolates the clipboard for a run", ClipboardIsolation.IsActive,
-            "active while this check runs");
+        Check("a run never holds the platform clipboard", TextBox.Clipboard is UiMemoryClipboard,
+            TextBox.Clipboard.GetType().Name);
 
-        var platformClipboard = "something the user copied";
-        var written = new List<string>();
-
-        TextBox.ClipboardRead = () => platformClipboard;
-        TextBox.ClipboardWrite = value =>
-        {
-            platformClipboard = value;
-            written.Add(value);
-        };
+        var platform = new RecordingClipboard { Stored = "something the user copied" };
+        var hostClipboard = TextBox.Clipboard;
+        TextBox.Clipboard = platform;
 
         try
         {
             using (ClipboardIsolation.Begin())
             {
-                Check("isolation detaches the platform hooks",
-                    TextBox.ClipboardRead == null && TextBox.ClipboardWrite == null, "detached");
+                Check("isolation swaps the platform clipboard out",
+                    TextBox.Clipboard is UiMemoryClipboard, TextBox.Clipboard.GetType().Name);
 
-                TextBox.Clipboard = "SeaSea";
+                TextBox.Clipboard.Text = "SeaSea";
                 Check("a check writing the clipboard stays in process",
-                    TextBox.Clipboard == "SeaSea" && written.Count == 0,
-                    $"{written.Count} writes reached the platform");
+                    TextBox.Clipboard.Text == "SeaSea" && platform.Writes == 0,
+                    $"{platform.Writes} writes reached the platform");
             }
 
-            Check("the hooks come back", TextBox.ClipboardRead != null && TextBox.ClipboardWrite != null,
-                "reattached");
-            Check("and the user keeps what they had",
-                TextBox.Clipboard == "something the user copied", TextBox.Clipboard);
+            Check("the platform clipboard comes back", ReferenceEquals(TextBox.Clipboard, platform),
+                TextBox.Clipboard.GetType().Name);
+
+            // Never touched, not merely left holding the same value. Isolation used to save the contents
+            // and write them back, which looked harmless while the clipboard held text -- it put the same
+            // string back. But the value it round-tripped was text, and a clipboard holding an image reads
+            // as empty, so the write emptied it. That is what was erasing screenshots.
+            Check("and the user's clipboard was neither read nor written",
+                platform.Stored == "something the user copied" && platform.Reads == 0
+                && platform.Writes == 0,
+                $"{platform.Reads} reads, {platform.Writes} writes");
         }
         finally
         {
-            TextBox.ClipboardRead = null;
-            TextBox.ClipboardWrite = null;
-            TextBox.Clipboard = string.Empty;
+            TextBox.Clipboard = hostClipboard;
         }
 
         // ---------------------------------------------------------------- fits the narrow window
@@ -161,6 +159,35 @@ public static class RunnerChecks
         root.UpdateLayout(new Vector2(760, 940));
         Check("the empty state still renders", root.Render().InstanceCount > 5,
             $"{root.Render().InstanceCount} instances");
+    }
+
+    /// <summary>
+    /// Stands in for the platform clipboard, counting access rather than only holding a value. Isolation
+    /// is meant to leave it strictly alone, and "unchanged" is a weaker claim than "untouched" -- a
+    /// round-trip that writes the same string back would satisfy the first and not the second.
+    /// </summary>
+    private sealed class RecordingClipboard : IUiClipboard
+    {
+        /// <summary>Read directly by checks, so asserting does not count as access.</summary>
+        public string Stored = string.Empty;
+
+        public int Reads;
+        public int Writes;
+
+        public string Text
+        {
+            get
+            {
+                Reads++;
+                return Stored;
+            }
+
+            set
+            {
+                Writes++;
+                Stored = value;
+            }
+        }
     }
 
     /// <summary>

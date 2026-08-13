@@ -163,6 +163,13 @@ namespace ManaUI
         }
 
         /// <summary>The two halves, for anything needing to reach past this control's own surface.</summary>
+        /// <summary>See <see cref="ManaUI.Slider.IsLogarithmic"/>.</summary>
+        public bool IsLogarithmic
+        {
+            get => _slider.IsLogarithmic;
+            set => _slider.IsLogarithmic = value;
+        }
+
         public Slider Slider => _slider;
 
         public NumericBox Field => _box;

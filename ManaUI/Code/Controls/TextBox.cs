@@ -375,22 +375,23 @@ namespace ManaUI
                 case UiKey.C when control:
                     if (HasSelection)
                     {
-                        Clipboard = SelectedText;
+                        Clipboard.Text = SelectedText;
                     }
 
                     break;
                 case UiKey.X when control && !IsReadOnly:
                     if (HasSelection)
                     {
-                        Clipboard = SelectedText;
+                        Clipboard.Text = SelectedText;
                         DeleteSelection();
                     }
 
                     break;
                 case UiKey.V when control && !IsReadOnly:
-                    if (!string.IsNullOrEmpty(Clipboard))
+                    var pasted = Clipboard.Text;
+                    if (!string.IsNullOrEmpty(pasted))
                     {
-                        InsertText(Clipboard);
+                        InsertText(pasted);
                     }
 
                     break;
@@ -409,32 +410,10 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Clipboard contents. In-process by default: ManaUI has no windowing dependency and so no access
-        /// to the OS clipboard, which is what keeps the text controls testable headlessly.
-        /// <para>
-        /// A host with a real clipboard sets <see cref="ClipboardRead"/> and <see cref="ClipboardWrite"/>,
-        /// after which this becomes a view onto the platform's. Reading through a hook rather than
-        /// mirroring into the static matters: the OS clipboard changes without telling anyone, and a copy
-        /// made in another application has to be visible here on the next paste.
-        /// </para>
+        /// The clipboard copy, cut and paste go through. In memory unless a host replaces it with one
+        /// backed by the platform's, which is what keeps the text controls testable headlessly.
         /// </summary>
-        public static string Clipboard
-        {
-            get => ClipboardRead?.Invoke() ?? _clipboard;
-            set
-            {
-                _clipboard = value ?? string.Empty;
-                ClipboardWrite?.Invoke(_clipboard);
-            }
-        }
-
-        private static string _clipboard = string.Empty;
-
-        /// <summary>Set by a host to read the platform clipboard; null falls back to the in-process one.</summary>
-        public static Func<string>? ClipboardRead { get; set; }
-
-        /// <summary>Set by a host to write the platform clipboard.</summary>
-        public static Action<string>? ClipboardWrite { get; set; }
+        public static IUiClipboard Clipboard { get; set; } = new UiMemoryClipboard();
 
         protected override void OnLostFocus()
         {

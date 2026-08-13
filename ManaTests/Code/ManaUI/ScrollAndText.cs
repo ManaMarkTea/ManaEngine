@@ -284,7 +284,7 @@ public static class ScrollAndTextChecks
         Check("ctrl-A selects all", box.SelectedText == "Sea", $"'{box.SelectedText}'");
 
         root.Input.InjectKeyDown(UiKey.C, UiModifiers.Control);
-        Check("ctrl-C copies", TextBox.Clipboard == "Sea", TextBox.Clipboard);
+        Check("ctrl-C copies", TextBox.Clipboard.Text == "Sea", TextBox.Clipboard.Text);
 
         root.Input.InjectKeyDown(UiKey.End);
         root.Input.InjectKeyDown(UiKey.V, UiModifiers.Control);
@@ -292,7 +292,7 @@ public static class ScrollAndTextChecks
 
         root.Input.InjectKeyDown(UiKey.A, UiModifiers.Control);
         root.Input.InjectKeyDown(UiKey.X, UiModifiers.Control);
-        Check("ctrl-X cuts", box.Text.Length == 0 && TextBox.Clipboard == "SeaSea", $"'{box.Text}'");
+        Check("ctrl-X cuts", box.Text.Length == 0 && TextBox.Clipboard.Text == "SeaSea", $"'{box.Text}'");
 
         // MaxLength
         var limited = new TextBox { MaxLength = 3 }.Width(100.0f);

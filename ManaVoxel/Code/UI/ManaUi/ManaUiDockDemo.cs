@@ -2,6 +2,7 @@ using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.Search;
 
 using Button = ManaUI.Button;
 
@@ -31,7 +32,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 10;
+        private const int LayoutVersion = 11;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -46,6 +47,12 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// and rescan for no reason.
         /// </summary>
         public static MeshAssetLibrary MeshAssets { get; } = new();
+
+        /// <summary>
+        /// The place search, shared for the same reason: a theme switch rebuilds every panel, and results
+        /// someone waited on a network round trip for should survive that.
+        /// </summary>
+        public static PlaceSearchModel PlaceSearch { get; } = new();
 
         /// <summary>Every panel the workspace can show.</summary>
         /// <summary>
@@ -62,6 +69,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             "tools",
             "import",
+            "search",
             "placement",
             "physics",
             "voxelstats",
@@ -151,6 +159,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "import" when editor != null => new DockItem(
                     "Import",
                     MeshImportManaView.Build(theme, editor, MeshAssets)) { Id = "import" },
+                "search" when editor != null => new DockItem(
+                    "Search",
+                    PlaceSearchManaView.Build(theme, editor, PlaceSearch)) { Id = "search" },
                 "placement" when editor != null => new DockItem(
                     "Placement",
                     VoxelEditorPanelsManaView.BuildPlacement(theme, editor)) { Id = "placement" },

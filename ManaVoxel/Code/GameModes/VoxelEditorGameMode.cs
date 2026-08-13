@@ -5,6 +5,7 @@ using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
+using ManaVoxel.Code.Search;
 using ManaVoxel.Code.UI;
 using ManaVoxel.Code.UI.ManaUi;
 using ManaCore.Diagnostics;
@@ -37,6 +38,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelEditorMainMenuView _mainMenuView = new();
         private readonly VoxelToolPaletteView _toolPaletteView = new();
         private readonly VoxelEditorPanelsView _panelsView = new();
+        private readonly PlaceSearchNavigator _navigator = new();
         private readonly VoxelEditorAboutPanelView _aboutPanelView = new();
         private readonly VoxelSearchPanelView _searchPanelView = new();
         private readonly ViewportCameraGizmoView _cameraGizmoView = new();
@@ -1729,6 +1731,15 @@ namespace Mana.Code.GameModes
 
             _aboutPanelView.Draw(_viewModel, Context, _webGpuContext);
             _searchPanelView.Draw(_viewModel, Context, _planet, Context.World.MainCamera);
+
+            // The ManaUI search panel knows a longitude and a latitude and nothing else; the planet, camera
+            // and scene it needs are here.
+            if (PlaceSearchRequests.TakeFlyTo() is { } destination
+                && _planet != null
+                && Context.World.MainCamera != null)
+            {
+                _navigator.FlyTo(destination, Context, _planet, Context.World.MainCamera);
+            }
         }
 
         private void ProcessMeshPickerPlacement(Silk.NET.Input.IMouse mouseState, Vector2 sceneMin, Vector2 sceneMax)

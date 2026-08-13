@@ -66,14 +66,44 @@ namespace ManaUI
             }
         }
 
+        /// <summary>
+        /// Spreads the travel by ratio rather than by difference. A range spanning orders of magnitude --
+        /// 1km to 64km, 0.001 to 10 -- puts almost every useful value in the first few pixels of a linear
+        /// slider, where it cannot be picked. Ignored unless both ends are above zero, since the log of
+        /// zero has nowhere to go.
+        /// </summary>
+        public bool IsLogarithmic { get; set; }
+
+        private bool UsesLog => IsLogarithmic && _minimum > 0.0f && _maximum > 0.0f;
+
         /// <summary>Value as 0..1 across the range; 0 when the range is degenerate.</summary>
         public float NormalizedValue
         {
             get
             {
+                if (UsesLog)
+                {
+                    var span = MathF.Log(_maximum) - MathF.Log(_minimum);
+                    return span <= 0.0f ? 0.0f : (MathF.Log(_value) - MathF.Log(_minimum)) / span;
+                }
+
                 var range = _maximum - _minimum;
                 return range <= 0.0f ? 0.0f : (_value - _minimum) / range;
             }
+        }
+
+        /// <summary>The value a position along the track means. The inverse of <see cref="NormalizedValue"/>.</summary>
+        public float ValueAt(float normalized)
+        {
+            normalized = Math.Clamp(normalized, 0.0f, 1.0f);
+
+            if (UsesLog)
+            {
+                var low = MathF.Log(_minimum);
+                return MathF.Exp(low + normalized * (MathF.Log(_maximum) - low));
+            }
+
+            return _minimum + normalized * (_maximum - _minimum);
         }
 
         protected override Vector2 MeasureOverride(Vector2 availableSize)
@@ -223,8 +253,7 @@ namespace ManaUI
                 return;
             }
 
-            var normalized = Math.Clamp((position.X - track.X) / track.Width, 0.0f, 1.0f);
-            Value = _minimum + normalized * (_maximum - _minimum);
+            Value = ValueAt((position.X - track.X) / track.Width);
         }
 
         private float Coerce(float value)

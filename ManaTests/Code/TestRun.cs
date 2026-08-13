@@ -73,6 +73,7 @@ public static class TestRunner
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "tab rows", TabRowChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
+        ("ManaUI", "place search", PlaceSearchChecks.Run),
         ("ManaUI", "layout persistence", PersistenceChecks.Run),
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),
