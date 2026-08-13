@@ -42,6 +42,32 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
         /// <summary>
+        /// What each panel is called, for the Panels menu.
+        /// <para>
+        /// Separate from the factory rather than read out of it, because asking the factory would mean
+        /// building the panel to find out its name -- and building every panel to draw a menu is exactly
+        /// the cost the factory exists to avoid. A test holds the two lists to each other.
+        /// </para>
+        /// </summary>
+        public static readonly Dictionary<string, string> PanelTitles = new(StringComparer.Ordinal)
+        {
+            ["tools"] = "Voxel Tools",
+            ["import"] = "Import",
+            ["search"] = "Search",
+            ["blurtest"] = "Blur Test",
+            ["placement"] = "Placement",
+            ["physics"] = "Physics",
+            ["voxelstats"] = "Voxel Stats",
+            ["lighting"] = "Lighting",
+            ["outliner"] = "Outliner",
+            ["inspector"] = "Inspector",
+            ["showcase"] = "ManaUI",
+            ["layers"] = "Layers",
+            ["stats"] = "Stats",
+            ["about"] = "About"
+        };
+
+        /// <summary>
         /// The asset list behind the import panel, shared rather than per-panel: scanning walks the whole
         /// asset tree, and a theme switch rebuilds every panel -- which would otherwise throw the list away
         /// and rescan for no reason.
@@ -366,6 +392,33 @@ namespace ManaVoxel.Code.UI.ManaUi
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
+            // Closing a panel used to be permanent: nothing listed what existed, so a panel dismissed by its
+            // tab's close button was gone until the layout was reset. This is what makes that reversible,
+            // and what makes a newly added panel findable without waiting for a version merge.
+            void TogglePanel(string id)
+            {
+                var existing = left.AllItems().Concat(right.AllItems())
+                    .FirstOrDefault(item => item.Id == id);
+
+                if (existing != null)
+                {
+                    existing.Owner?.Remove(existing);
+                    return;
+                }
+
+                if (Resolve(id) is not { } item)
+                {
+                    return;
+                }
+
+                // Into whichever column exists, preferring the right, the same as a version merge does.
+                var host = right.RootNode != null ? right : left;
+                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
+            }
+
+            bool IsPanelOpen(string id) =>
+                left.AllItems().Concat(right.AllItems()).Any(item => item.Id == id);
+
             void Choose(WorkspacePreset preset)
             {
                 state.Preset = preset;
@@ -400,7 +453,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, editor))
+                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor))
                     .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
                     .Width(rightPanel.Size),
 
@@ -615,6 +668,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             Action<UiThemeKind> chooseTheme,
             Action<string> chooseFont,
             Action<float> chooseBlur,
+            Action<string> togglePanel,
+            Func<string, bool> isPanelOpen,
             VoxelEditorViewModel? editor)
         {
             var bar = new MenuBar();
@@ -662,6 +717,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                             vm.RemoveLayerCommand.Execute(null);
                         }
                     })),
+
+                // Every panel the workspace can build, so none of them can be lost. Ordered as PanelIds is,
+                // which groups the editor's own panels ahead of the general ones.
+                new MenuItem("Panels").WithItems(
+                    PanelIds
+                        .Select(id => new MenuItem(
+                                PanelTitles.TryGetValue(id, out var title) ? title : id,
+                                () => togglePanel(id))
+                            .Checkable(() => isPanelOpen(id)))
+                        .ToArray()),
 
                 // "Appearance" rather than "View": the editor's own View menu now sits in this same bar,
                 // and two menus with one name is a coin toss for whoever is looking for something.

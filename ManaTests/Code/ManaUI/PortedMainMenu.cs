@@ -281,6 +281,26 @@ public static class PortedMainMenuChecks
             missingFromList.Count == 0,
             missingFromList.Count == 0 ? string.Join(", ", known) : string.Join(", ", missingFromList));
 
+        // The Panels menu is what makes a closed panel reachable again, and a newly added one findable
+        // without waiting for a version merge. It draws from the same list, so a panel missing a title would
+        // appear in it as a raw id.
+        var untitled = ManaUiDockDemo.PanelIds
+            .Where(id => !ManaUiDockDemo.PanelTitles.ContainsKey(id))
+            .ToList();
+
+        Check("every panel has a name for the Panels menu",
+            untitled.Count == 0,
+            untitled.Count == 0 ? $"{ManaUiDockDemo.PanelTitles.Count} named" : string.Join(", ", untitled));
+
+        // And the other way, or the menu offers something the factory cannot build.
+        var unknownTitles = ManaUiDockDemo.PanelTitles.Keys
+            .Where(id => !known.Contains(id))
+            .ToList();
+
+        Check("and every named panel is one the workspace can build",
+            unknownTitles.Count == 0,
+            unknownTitles.Count == 0 ? "matched" : string.Join(", ", unknownTitles));
+
         // Not covered here: that a workspace saved before these panels existed picks them up on upgrade.
         // That path is a version mismatch inside Build, and every attempt to seed it from a file ended up
         // proving nothing -- an unparseable seed falls back to the preset, which places every panel and
