@@ -448,14 +448,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ManaUiPerformanceStrip.Build(theme)
                     .Anchor(top: TopOffset - MenuBarHeight, left: 0.0f),
 
+                // Sized to its own menus rather than to the right column. Pinned to the column's width, the
+                // bar was cut off at whatever fitted -- so Panels and Appearance, being last, could not be
+                // reached at all. It grows leftward over the viewport instead, which costs a strip of scene
+                // that is already under the menu band.
                 new Border()
                     .Fill(theme.Frosted(theme.Surface))
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
                     .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor))
-                    .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
-                    .Width(rightPanel.Size),
+                    .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f),
 
                 rightPanel.Anchor(top: TopOffset, right: 0.0f, bottom: 0.0f));
         }
@@ -509,6 +512,33 @@ namespace ManaVoxel.Code.UI.ManaUi
                 default:
                     BuildRightColumn(right, resolve);
                     break;
+            }
+
+            // Every preset names the panels it arranges, so a newly added one is in none of them and a
+            // reset silently drops it -- which is how Import, Search and the blur test card went missing
+            // for anyone who tried a preset. Anything a preset did not place goes in rather than nowhere.
+            PlaceRemaining(left, right, resolve);
+        }
+
+        /// <summary>
+        /// Docks whatever a preset did not name. Into whichever column exists, preferring the right, the
+        /// same as an upgrade merge does.
+        /// </summary>
+        private static void PlaceRemaining(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        {
+            var present = left.AllItems().Concat(right.AllItems())
+                .Select(item => item.Id)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var id in PanelIds)
+            {
+                if (present.Contains(id) || resolve(id) is not { } item)
+                {
+                    continue;
+                }
+
+                var host = right.RootNode != null ? right : left;
+                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
         }
 

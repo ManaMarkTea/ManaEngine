@@ -281,6 +281,27 @@ public static class PortedMainMenuChecks
             missingFromList.Count == 0,
             missingFromList.Count == 0 ? string.Join(", ", known) : string.Join(", ", missingFromList));
 
+        // A menu that runs off the edge of its container is a menu nobody can open. The bar was pinned to
+        // the right column's width, so the last two -- Panels and Appearance, the ones added most recently
+        // -- were cut off entirely and could not be reached at all.
+        var barHeadings = FindAll<MenuBarHeading>(bars[0]);
+
+        Check("every menu has a heading drawn for it",
+            barHeadings.Count == bars[0].Menus.Count, $"{barHeadings.Count} of {bars[0].Menus.Count}");
+
+        var offScreen = barHeadings
+            .Where(h => h.Bounds.Right > root.Size.X + 0.5f || h.Bounds.Width <= 0.0f)
+            .Select(h => h.Menu.Text)
+            .ToList();
+
+        Check("and none of them run off the screen",
+            offScreen.Count == 0,
+            offScreen.Count == 0
+                ? $"bar ends at {barHeadings.Max(h => h.Bounds.Right):0} of {root.Size.X:0}"
+                : string.Join(", ", offScreen));
+
+        Check("Panels is reachable", headings.Contains("Panels"), string.Join(", ", headings));
+
         // The Panels menu is what makes a closed panel reachable again, and a newly added one findable
         // without waiting for a version merge. It draws from the same list, so a panel missing a title would
         // appear in it as a raw id.
@@ -300,6 +321,55 @@ public static class PortedMainMenuChecks
         Check("and every named panel is one the workspace can build",
             unknownTitles.Count == 0,
             unknownTitles.Count == 0 ? "matched" : string.Join(", ", unknownTitles));
+
+        // ---------------------------------------------------------------- presets
+        // Every preset names the panels it arranges, so a newly added one is in none of them and choosing a
+        // preset drops it. That is how Import, Search and the blur test card went missing for anyone who
+        // reset their layout -- and it looks exactly like the panel was never added.
+        var layout = bars[0].Menus.FirstOrDefault(m => m.Text == "Layout");
+        Check("there is a Layout menu of presets", layout is { Items.Count: > 0 }, $"{layout?.Items.Count ?? 0}");
+
+        if (layout != null)
+        {
+            // Compared against each other rather than against the full id list: some panels need a world,
+            // which this suite has none of, so they cannot be built here at all. What must hold is that no
+            // preset drops something another preset keeps -- which is precisely the bug, and needs no
+            // knowledge of what is buildable.
+            HashSet<string>? expected = null;
+            var reference = string.Empty;
+
+            foreach (var presetItem in layout.Items.Where(i => !i.IsSeparator).ToList())
+            {
+                presetItem.Invoke();
+                root.UpdateLayout(new Vector2(1600, 900));
+
+                var placed = FindAll<DockHost>(workspace)
+                    .SelectMany(host => host.AllItems())
+                    .Select(item => item.Id!)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                if (expected == null)
+                {
+                    expected = placed;
+                    reference = presetItem.Text;
+
+                    // The panels the presets were missing. Every preset hand-listed its arrangement, so
+                    // these three were in none of them and choosing any preset silently dropped them.
+                    foreach (var id in new[] { "import", "search", "blurtest" })
+                    {
+                        Check($"a preset places {id}", placed.Contains(id), string.Join(", ", placed));
+                    }
+
+                    continue;
+                }
+
+                var dropped = expected.Where(id => !placed.Contains(id)).ToList();
+
+                Check($"the {presetItem.Text} preset keeps what {reference} does",
+                    dropped.Count == 0,
+                    dropped.Count == 0 ? $"{placed.Count} panels" : $"dropped {string.Join(", ", dropped)}");
+            }
+        }
 
         // Not covered here: that a workspace saved before these panels existed picks them up on upgrade.
         // That path is a version mismatch inside Build, and every attempt to seed it from a file ended up

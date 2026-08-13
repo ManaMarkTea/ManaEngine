@@ -109,7 +109,7 @@ namespace ManaUI
     }
 
     /// <summary>One top-level heading in a menu bar.</summary>
-    internal sealed class MenuBarHeading : Control
+    public sealed class MenuBarHeading : Control
     {
         private readonly MenuBar _bar;
 
