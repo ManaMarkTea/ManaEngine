@@ -1,4 +1,5 @@
 using ManaUI;
+using ManaVoxel.Code.UI.ManaUi;
 
 namespace ManaTests;
 
@@ -254,6 +255,80 @@ public static class PersistenceChecks
                 File.Delete(versionPath);
             }
         }
+        // ---------------------------------------------------------------- workspace round trip
+        // Against a scratch file rather than the user's real workspace. Nothing exercised save-and-reload
+        // before, which is how a theme switch came to persist the theme it was leaving: the save ran
+        // before the swap -- it has to, the columns it also records are about to be replaced -- and read
+        // the outgoing value off the root.
+        var scratch = Path.Combine(Path.GetTempPath(), $"manaui-workspace-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var themeRoot = new UiRoot(fonts);
+            var themeVm = new ManaUiShowcaseViewModel();
+
+            themeRoot.Content = ManaUiDockDemo.Attach(
+                themeRoot, themeVm, () => "frame", persist: true, layoutPath: scratch);
+            themeRoot.UpdateLayout(new Vector2(1600, 900));
+
+            Check("a fresh workspace starts dark", themeRoot.Theme.Kind == UiThemeKind.Dark,
+                themeRoot.Theme.Kind.ToString());
+
+            var themeMenu = FindFirst<MenuBar>(themeRoot)!
+                .Menus.First(m => m.Text == "View")
+                .Items.First(i => i.Text == "Theme");
+
+            themeMenu.Items.First(i => i.Text == "Light").Invoked?.Invoke();
+            themeRoot.UpdateLayout(new Vector2(1600, 900));
+            Check("switching applies light", themeRoot.Theme.Kind == UiThemeKind.Light,
+                themeRoot.Theme.Kind.ToString());
+
+            var written = ManaUiWorkspaceLayout.Load(scratch);
+            Check("the file records the theme just chosen", written?.Theme == UiThemeKind.Light,
+                written?.Theme.ToString() ?? "nothing written");
+
+            // The real test: a fresh session against the same file.
+            var reopened = new UiRoot(fonts);
+            reopened.Content = ManaUiDockDemo.Attach(
+                reopened, new ManaUiShowcaseViewModel(), () => "frame", persist: true, layoutPath: scratch);
+            reopened.UpdateLayout(new Vector2(1600, 900));
+
+            Check("reopening comes up light", reopened.Theme.Kind == UiThemeKind.Light,
+                reopened.Theme.Kind.ToString());
+
+            // And back again, which is the direction that was stuck: every switch wrote the outgoing
+            // theme, so choosing dark saved light and the next run was light again.
+            var reopenedTheme = FindFirst<MenuBar>(reopened)!
+                .Menus.First(m => m.Text == "View")
+                .Items.First(i => i.Text == "Theme");
+
+            reopenedTheme.Items.First(i => i.Text == "Dark").Invoked?.Invoke();
+            reopened.UpdateLayout(new Vector2(1600, 900));
+
+            Check("the file records dark too",
+                ManaUiWorkspaceLayout.Load(scratch)?.Theme == UiThemeKind.Dark,
+                ManaUiWorkspaceLayout.Load(scratch)?.Theme.ToString() ?? "nothing written");
+
+            var third = new UiRoot(fonts);
+            third.Content = ManaUiDockDemo.Attach(
+                third, new ManaUiShowcaseViewModel(), () => "frame", persist: true, layoutPath: scratch);
+            third.UpdateLayout(new Vector2(1600, 900));
+
+            Check("and reopening comes up dark", third.Theme.Kind == UiThemeKind.Dark,
+                third.Theme.Kind.ToString());
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(scratch);
+            }
+            catch (IOException)
+            {
+                // A scratch file left behind is not worth failing the suite over.
+            }
+        }
+
     }
 
     private static bool NoEmptyNodes(DockHost host)
@@ -288,5 +363,25 @@ public static class PersistenceChecks
 
             return true;
         }
+    }
+
+    private static T? FindFirst<T>(UiElement element) where T : UiElement
+    {
+        if (element is T typed)
+        {
+            return typed;
+        }
+
+        var count = element.VisualChildCount;
+        for (var i = 0; i < count; i++)
+        {
+            var child = element.GetVisualChild(i);
+            if (child != null && FindFirst<T>(child) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 }

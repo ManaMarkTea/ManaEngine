@@ -36,7 +36,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
         /// every UI scale and does not need the per-scale split that storage uses for ImGui.
         /// </summary>
-        private static string LayoutPath => ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
+        private static string DefaultLayoutPath =>
+            ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
         /// <summary>Every panel the workspace can show.</summary>
         private static readonly string[] PanelIds =
@@ -57,12 +58,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             Func<string>? liveStat = null,
             bool persist = true,
             VoxelEditorViewModel? editor = null,
-            global::Mana.ManaWorld? world = null)
+            global::Mana.ManaWorld? world = null,
+            string? layoutPath = null)
         {
+            // Overridable so persistence can be exercised against a scratch file. Without it the only way
+            // to test saving and reloading would be to write the user's real workspace.
+            layoutPath ??= DefaultLayoutPath;
+
             // The saved theme has to be applied before anything is built, because views read colours as
             // they construct rather than at render time -- which is also why switching rebuilds rather than
             // just repainting.
-            var saved = persist ? ManaUiWorkspaceLayout.Load(LayoutPath) : null;
+            var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
             if (saved != null && root.Theme.Kind != saved.Theme)
             {
                 root.Theme = UiTheme.Create(saved.Theme);
@@ -75,7 +81,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
             var shell = new ContentHost();
-            shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
+            shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             return shell;
         }
 
@@ -86,7 +92,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             Func<string>? liveStat,
             bool persist,
             VoxelEditorViewModel? editor,
-            global::Mana.ManaWorld? world)
+            global::Mana.ManaWorld? world,
+            string layoutPath)
         {
             var theme = root.Theme;
             var debug = root.Debug;
@@ -117,10 +124,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 _ => null
             };
 
-            var saved = persist ? ManaUiWorkspaceLayout.Load(LayoutPath) : null;
+            var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
             var state = new WorkspaceState
             {
-                Preset = saved?.Preset ?? WorkspacePreset.RightColumn
+                Preset = saved?.Preset ?? WorkspacePreset.RightColumn,
+                Theme = root.Theme.Kind
             };
 
             // Non-short-circuiting on purpose: both columns must be restored, and && would skip the right
@@ -178,13 +186,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 {
                     Version = LayoutVersion,
                     Preset = state.Preset,
-                    Theme = root.Theme.Kind,
+                    Theme = state.Theme,
                     FontFamily = root.Theme.FontFamily,
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
                     Left = DockLayout.Capture(left),
                     Right = DockLayout.Capture(right)
-                }.Save(LayoutPath);
+                }.Save(layoutPath);
             }
 
             // An empty column would leave a resize handle floating against nothing, so it hides itself
@@ -221,13 +229,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
+                // Set before the save, saved before the swap: the file needs the incoming theme, and the
+                // columns whose widths it also records are about to be replaced.
+                state.Theme = kind;
                 Save();
                 root.Theme = UiTheme.Create(kind);
 
                 // Rebuilt rather than repainted. Application views capture theme colours as they are
                 // constructed -- a foreground here, a fill there -- so a swap that only re-rendered would
                 // leave half the workspace in the old palette.
-                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
             void ChooseFont(string family)
@@ -244,7 +255,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // theme change rebuilds it.
                 root.InvalidateAll();
                 Save();
-                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
             void Choose(WorkspacePreset preset)
@@ -274,6 +285,18 @@ namespace ManaVoxel.Code.UI.ManaUi
         private sealed class WorkspaceState
         {
             public WorkspacePreset Preset { get; set; }
+
+            /// <summary>
+            /// The theme to persist, which is not always the one the root is showing.
+            /// <para>
+            /// A theme change has to write the file before it swaps, because the swap rebuilds the
+            /// workspace and the save closure still refers to the old columns -- they are the ones holding
+            /// the widths worth keeping. Reading the theme off the root at that moment gave the outgoing
+            /// one, so every switch persisted the theme it was leaving and the setting was permanently one
+            /// run behind.
+            /// </para>
+            /// </summary>
+            public UiThemeKind Theme { get; set; }
         }
 
         // ----- presets ------------------------------------------------------------------------------
