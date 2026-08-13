@@ -94,6 +94,10 @@ public static class TestRunner
     {
         var run = new TestRun();
 
+        // The text box checks exercise copy and paste, which write to a static the host may have pointed
+        // at the real clipboard. A test run must not replace what the user had copied.
+        using var clipboard = ClipboardIsolation.Begin();
+
         foreach (var suite in Suites)
         {
             if (systemFilter != null

@@ -37,6 +37,51 @@ public static class RunnerChecks
         Check("still one draw call", root.Render().Batches.Count == 1,
             $"{root.Render().Batches.Count} batches");
 
+        // ---------------------------------------------------------------- clipboard isolation
+        // The text box checks copy, paste and cut, and TextBox.Clipboard is a static. Harmless while it is
+        // the library's own string; not harmless once the GUI runner has pointed it at the platform's,
+        // which is how running the suite replaced whatever the user had copied with the leftovers of a cut
+        // test. The runner detaches it for the duration of a run.
+        // Asserted from inside a run, which is the only place it can be: the question is not whether the
+        // isolation works when called, but whether the runner calls it.
+        Check("the runner isolates the clipboard for a run", ClipboardIsolation.IsActive,
+            "active while this check runs");
+
+        var platformClipboard = "something the user copied";
+        var written = new List<string>();
+
+        TextBox.ClipboardRead = () => platformClipboard;
+        TextBox.ClipboardWrite = value =>
+        {
+            platformClipboard = value;
+            written.Add(value);
+        };
+
+        try
+        {
+            using (ClipboardIsolation.Begin())
+            {
+                Check("isolation detaches the platform hooks",
+                    TextBox.ClipboardRead == null && TextBox.ClipboardWrite == null, "detached");
+
+                TextBox.Clipboard = "SeaSea";
+                Check("a check writing the clipboard stays in process",
+                    TextBox.Clipboard == "SeaSea" && written.Count == 0,
+                    $"{written.Count} writes reached the platform");
+            }
+
+            Check("the hooks come back", TextBox.ClipboardRead != null && TextBox.ClipboardWrite != null,
+                "reattached");
+            Check("and the user keeps what they had",
+                TextBox.Clipboard == "something the user copied", TextBox.Clipboard);
+        }
+        finally
+        {
+            TextBox.ClipboardRead = null;
+            TextBox.ClipboardWrite = null;
+            TextBox.Clipboard = string.Empty;
+        }
+
         // ---------------------------------------------------------------- fits the narrow window
         // Everything has to fit the column without a horizontal scroll bar, which is the failure the old
         // fixed-width search box produced when the window shrank.
