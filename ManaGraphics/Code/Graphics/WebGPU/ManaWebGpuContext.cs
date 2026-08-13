@@ -249,13 +249,25 @@ namespace ManaGraphics.Code.Graphics
         /// Whether anything in this frame's UI asked for a blurred backdrop. Read before the pass is split,
         /// because splitting it is the cost being avoided.
         /// </summary>
-        private bool WantsBackdrop() => UiRoot?.DrawList.BackdropRequested == true;
+        private bool WantsBackdrop()
+        {
+            ManaUI.UiBackdropStats.Supported = true;
+
+            if (UiRoot?.DrawList.BackdropRequested != true)
+            {
+                return false;
+            }
+
+            ManaUI.UiBackdropStats.Requested++;
+            return true;
+        }
 
         private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
         {
             _uiBackdrop ??= new ManaWebGpuUiBackdrop(_api, _device, _surfaceFormat);
             _uiBackdrop.Capture(commandEncoder, frame, _window.FramebufferSize);
 
+            ManaUI.UiBackdropStats.Captured++;
             _uiRenderer?.SetBackdrop(_uiBackdrop.View);
         }
 
@@ -289,6 +301,7 @@ namespace ManaGraphics.Code.Graphics
             if (_uiBackdrop != null)
             {
                 _uiRenderer.SetBackdrop(_uiBackdrop.View);
+                ManaUI.UiBackdropStats.Bound = _uiBackdrop.View != null;
             }
 
             var framebufferSize = _window.FramebufferSize;

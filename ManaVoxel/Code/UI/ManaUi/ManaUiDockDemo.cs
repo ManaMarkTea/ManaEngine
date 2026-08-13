@@ -32,7 +32,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 11;
+        private const int LayoutVersion = 12;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -70,6 +70,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             "tools",
             "import",
             "search",
+            "blurtest",
             "placement",
             "physics",
             "voxelstats",
@@ -171,6 +172,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "search" when editor != null => new DockItem(
                     "Search",
                     PlaceSearchManaView.Build(theme, editor, PlaceSearch)) { Id = "search" },
+                "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable())
+                {
+                    Id = "blurtest"
+                },
                 "placement" when editor != null => new DockItem(
                     "Placement",
                     VoxelEditorPanelsManaView.BuildPlacement(theme, editor)) { Id = "placement" },
