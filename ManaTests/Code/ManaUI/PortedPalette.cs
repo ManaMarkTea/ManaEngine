@@ -156,6 +156,92 @@ public static class PortedPaletteChecks
         Check("palette still renders after edits", final.InstanceCount > 30, $"{final.InstanceCount}");
 
         ToolPanel(fonts, check);
+        Lighting(fonts, check);
+    }
+
+    /// <summary>
+    /// The lighting and PBR debug panel, ported. Everything writes to the settings object the renderer
+    /// reads each frame, and everything polls it back -- these are changed by more than this panel.
+    /// </summary>
+    public static void Lighting(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var root = new UiRoot(fonts);
+        var settings = new ManaCore.Graphics.ManaIrradianceSettings();
+
+        UiElement? panel = null;
+        try
+        {
+            panel = IrradianceSettingsManaView.Build(root.Theme, settings);
+            Check("the lighting panel constructs", true);
+        }
+        catch (Exception ex)
+        {
+            Check("the lighting panel constructs", false, ex.Message);
+            return;
+        }
+
+        root.Content = panel;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        Check("it renders in one draw call", root.Render().Batches.Count == 1,
+            $"{root.Render().Batches.Count} batches");
+
+        // Writes reach the renderer's settings.
+        var exposure = FindAll<SliderBox>(panel)
+            .FirstOrDefault(s => MathF.Abs(s.Value - settings.Exposure) < 0.001f && s.Maximum > 2.9f);
+
+        Check("the exposure slider shows the current value", exposure != null, $"{settings.Exposure}");
+
+        if (exposure != null)
+        {
+            exposure.Value = 2.0f;
+            Check("and moving it changes the render settings",
+                MathF.Abs(settings.Exposure - 2.0f) < 0.01f, $"{settings.Exposure}");
+        }
+
+        // And changes made elsewhere show up, since the renderer and other panels write these too.
+        settings.Exposure = 1.25f;
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("a change made elsewhere shows up here",
+            exposure != null && MathF.Abs(exposure.Value - 1.25f) < 0.01f, $"{exposure?.Value}");
+
+        // The debug mode index is what reaches the shader, so the order of the list is not cosmetic.
+        var modes = FindAll<ComboBox>(panel).FirstOrDefault();
+        Check("the PBR debug outputs are offered", modes != null && modes.Items.Count > 10,
+            $"{modes?.Items.Count} modes");
+
+        if (modes != null)
+        {
+            Check("with Off first, as the shader numbers them",
+                modes.Items[0] as string == "Off", modes.Items[0]?.ToString() ?? "none");
+
+            modes.SelectedIndex = 2;
+            Check("and choosing one reaches the shader settings",
+                (int)settings.WebGpuDebugMode == 2, $"{settings.WebGpuDebugMode}");
+        }
+
+        // Reset means what the engine ships with, not what happened to be set when the panel was built.
+        settings.Exposure = 3.0f;
+        settings.WebGpuDebugMode = 5;
+
+        var reset = FindAll<Button>(panel).FirstOrDefault(b => b.Text == "Reset to defaults");
+        Check("a reset is offered", reset != null);
+
+        if (reset != null)
+        {
+            root.UpdateLayout(new Vector2(420, 900));
+            root.Input.InjectPointerMoved(reset.Bounds.Center);
+            root.Input.InjectPointerPressed(reset.Bounds.Center, PointerButton.Left, 5.0);
+            root.Input.InjectPointerReleased(reset.Bounds.Center, PointerButton.Left);
+
+            var fresh = new ManaCore.Graphics.ManaIrradianceSettings();
+            Check("and it restores the shipped defaults",
+                MathF.Abs(settings.Exposure - fresh.Exposure) < 0.001f
+                    && (int)settings.WebGpuDebugMode == (int)fresh.WebGpuDebugMode,
+                $"exposure {settings.Exposure}, mode {settings.WebGpuDebugMode}");
+        }
     }
 
     private static bool IsSliderVisible(UiRoot root, float minimum, float maximum)

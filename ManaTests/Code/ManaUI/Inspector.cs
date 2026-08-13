@@ -245,6 +245,17 @@ public static class InspectorChecks
         root.Content = view;
         root.UpdateLayout(new Vector2(420, 700));
 
+        // ---------------------------------------------------------------- the camera
+        // A camera used to be a separate ImGui window, which made it the one thing in the scene you could
+        // not simply select and look at. It is a widget now, so it appears when its node is selected.
+        //
+        // Only its registration is checked here: a CameraComponent subscribes to the window's resize event
+        // in its constructor, so one cannot be built without a window and this suite has none. The widget
+        // itself is exercised the same way every other one is -- by being in the registry.
+        Check("a camera has a widget registered for it",
+            InspectorWidgetFactory.CreateDefault().Widgets.Any(w => w is CameraWidget),
+            string.Join(", ", InspectorWidgetFactory.CreateDefault().Widgets.Select(w => w.GetType().Name)));
+
         // ---------------------------------------------------------------- reflected fallback
         // A component nobody has written a widget for used to get "no inspector for this component yet",
         // which is a dead end. Reflection over its own properties beats that: most components are a handful

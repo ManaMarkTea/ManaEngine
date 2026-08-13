@@ -30,7 +30,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 6;
+        private const int LayoutVersion = 7;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -129,6 +129,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "voxeldebug" when editor != null => new DockItem(
                     "Debug",
                     VoxelEditorPanelsManaView.BuildDebug(theme, editor)) { Id = "voxeldebug" },
+
+                "lighting" when world != null => new DockItem(
+                    "Lighting",
+                    IrradianceSettingsManaView.Build(theme, world.IrradianceSettings)) { Id = "lighting" },
                 // world.Selection rather than a separately supplied instance: it is the same object the
                 // ImGui outliner and the viewport already use, so the two outliners cannot drift apart.
                 "outliner" when world != null => new DockItem(
@@ -365,6 +369,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(right, resolve, "physics", DockSide.Center, tools);
             Place(right, resolve, "voxelstats", DockSide.Center, tools);
             Place(right, resolve, "voxeldebug", DockSide.Center, tools);
+            Place(right, resolve, "lighting", DockSide.Center, tools);
 
             var layers = Place(right, resolve, "layers", DockSide.Bottom);
             Place(right, resolve, "stats", DockSide.Center, layers);
@@ -379,6 +384,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "physics", DockSide.Center, tools);
             Place(left, resolve, "voxelstats", DockSide.Center, tools);
             Place(left, resolve, "voxeldebug", DockSide.Center, tools);
+            Place(left, resolve, "lighting", DockSide.Center, tools);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
             var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
@@ -399,6 +405,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "physics", DockSide.Center, tools);
             Place(left, resolve, "voxelstats", DockSide.Center, tools);
             Place(left, resolve, "voxeldebug", DockSide.Center, tools);
+            Place(left, resolve, "lighting", DockSide.Center, tools);
             Place(left, resolve, "showcase", DockSide.Bottom);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
@@ -421,6 +428,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "physics", DockSide.Center, splitTools);
             Place(left, resolve, "voxelstats", DockSide.Center, splitTools);
             Place(left, resolve, "voxeldebug", DockSide.Center, splitTools);
+            Place(left, resolve, "lighting", DockSide.Center, splitTools);
 
             var inspector = Place(right, resolve, "inspector", DockSide.Center);
             Place(right, resolve, "showcase", DockSide.Center, inspector);
