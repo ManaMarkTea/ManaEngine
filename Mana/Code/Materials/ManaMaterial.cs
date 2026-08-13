@@ -28,7 +28,14 @@ namespace Mana.Code.Materials
         public ManaTextureVector4 Emission;
         public ManaTextureSingle Metallic;
         public ManaTextureSingle Roughness;
-        public ManaTextureSingle Ambient;
+        public ManaTextureSingle Occlusion;
+
+        /// <summary>
+        /// How much of the surface is there at all. 1 is solid; a map here cuts holes without changing the
+        /// geometry -- leaves, grates, chain link.
+        /// </summary>
+        public ManaTextureSingle Opacity;
+
         public Dictionary<string, ManaMaterialUniformValue> ShaderUniforms { get; set; }
 
         // Snapshot of the value each named uniform had the first time it was set. "Reset" in the
@@ -42,6 +49,55 @@ namespace Mana.Code.Materials
 
         /// <summary>Shade with per-triangle geometric normals instead of interpolated vertex ones.</summary>
         public bool FlatShaded = false;
+
+        /// <summary>
+        /// How many times a texture repeats across the surface's own UVs, per axis.
+        /// <para>
+        /// A material property rather than mesh data: the same brick texture wants a different repeat on a
+        /// wall than on a doorframe, and neither should mean editing the mesh.
+        /// </para>
+        /// </summary>
+        public Vector2 UvScale = Vector2.One;
+
+        /// <summary>Shifts the texture across the surface. Useful for lining up a trim or a decal.</summary>
+        public Vector2 UvOffset = Vector2.Zero;
+
+        /// <summary>What the renderer should do with this material's alpha.</summary>
+        public ManaOpacityMode OpacityMode = ManaOpacityMode.Auto;
+
+        /// <summary>In Cutout, alpha below this is discarded and anything above is fully solid.</summary>
+        public double AlphaCutoff = 0.5;
+
+        /// <summary>
+        /// <see cref="OpacityMode"/> with Auto resolved, from what the material is actually asking for.
+        /// <para>
+        /// A value below one is a fade -- every pixel equally solid -- and only blending can express that.
+        /// Cutting out with a uniform alpha is a cliff: nothing happens until the value crosses the
+        /// threshold and then the whole surface vanishes at once.
+        /// </para>
+        /// <para>
+        /// A map with the value left at one is a mask, which is what cutting out is for: hard edges, no
+        /// sorting, no depth-write cost. Foliage and grates want this, and blending them without ordering
+        /// looks worse than not blending at all.
+        /// </para>
+        /// </summary>
+        public ManaOpacityMode EffectiveOpacityMode
+        {
+            get
+            {
+                if (OpacityMode != ManaOpacityMode.Auto)
+                {
+                    return OpacityMode;
+                }
+
+                if (Opacity != null && Opacity.Value < 0.999f)
+                {
+                    return ManaOpacityMode.Blend;
+                }
+
+                return Opacity?.TextureValue != null ? ManaOpacityMode.Cutout : ManaOpacityMode.Opaque;
+            }
+        }
 
         public ManaMaterial(ManaContext context) : base(context)
         {
@@ -62,7 +118,8 @@ namespace Mana.Code.Materials
             Emission = new ManaTextureVector4(Context, Colors.Cyan);
             Metallic = new ManaTextureSingle(Context, 0);
             Roughness = new ManaTextureSingle(Context, 1);
-            Ambient = new ManaTextureSingle(Context, 1.0);
+            Occlusion = new ManaTextureSingle(Context, 1.0);
+            Opacity = new ManaTextureSingle(Context, 1.0);
         }
 
         public Dictionary<string, ManaMaterialChannel> Channels { get; set; }
@@ -299,7 +356,8 @@ namespace Mana.Code.Materials
             copy.Metallic = (ManaTextureSingle)copy.Metallic.Clone();
             copy.FlatShaded = FlatShaded;
             copy.Roughness = (ManaTextureSingle)copy.Roughness.Clone();
-            copy.Ambient = (ManaTextureSingle)copy.Ambient.Clone();
+            copy.Occlusion = (ManaTextureSingle)copy.Occlusion.Clone();
+            copy.Opacity = (ManaTextureSingle)copy.Opacity.Clone();
             copy.ShaderUniforms = copy.ShaderUniforms.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value.Clone());
@@ -312,7 +370,8 @@ namespace Mana.Code.Materials
             copy.Emission.Load();
             copy.Metallic.Load();
             copy.Roughness.Load();
-            copy.Ambient.Load();
+            copy.Occlusion.Load();
+            copy.Opacity.Load();
 
             return copy;
         }

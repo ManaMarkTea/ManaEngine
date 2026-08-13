@@ -466,7 +466,7 @@ namespace Mana.Code.Graphics
                     if (material.Emission != null && material.Emission.Handle != 0) textures.Add(material.Emission.Handle);
                     if (material.Metallic != null && material.Metallic.Handle != 0) textures.Add(material.Metallic.Handle);
                     if (material.Roughness != null && material.Roughness.Handle != 0) textures.Add(material.Roughness.Handle);
-                    if (material.Ambient != null && material.Ambient.Handle != 0) textures.Add(material.Ambient.Handle);
+                    if (material.Occlusion != null && material.Occlusion.Handle != 0) textures.Add(material.Occlusion.Handle);
 
                     if (material.Shader?.CompiledShader != null)
                     {

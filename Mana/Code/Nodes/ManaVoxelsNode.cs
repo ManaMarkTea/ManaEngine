@@ -396,7 +396,7 @@ namespace Mana.Code.Nodes
             previewMaterial.Emission.Value = new Vector4(0.2f, 0.2f, 0.2f, 1.0f);
             previewMaterial.Metallic.Value = 0.0f;
             previewMaterial.Roughness.Value = ManaVoxelShape.DefaultVoxelRoughness;
-            previewMaterial.Ambient.Value = 1.0f;
+            previewMaterial.Occlusion.Value = 1.0f;
             previewMesh.Materials = new[] { previewMaterial };
             previewMesh.SetCpuData(previewGeom.CreateCpuData());
             if (Context.OpenGl != null)

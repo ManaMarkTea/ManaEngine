@@ -71,7 +71,23 @@ namespace ManaUI
                     nameof(targetProperty));
             }
 
-            element.AddPolledBinding(new UiPolledBinding<TValue>(read, value => target.Setter(element, value)));
+            // Marked while the value is being pushed in, so a control's change event can be told apart
+            // from a real edit. Without that a polled editor feeds its own value straight back to the
+            // model every frame -- see UiElement.IsApplyingBinding.
+            element.AddPolledBinding(new UiPolledBinding<TValue>(read, value =>
+            {
+                element.BeginBindingApply();
+
+                try
+                {
+                    target.Setter(element, value);
+                }
+                finally
+                {
+                    element.EndBindingApply();
+                }
+            }));
+
             return element;
         }
 

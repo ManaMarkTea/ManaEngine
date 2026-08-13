@@ -234,6 +234,13 @@ namespace Mana.Code.GameModes
                         Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                         Cursor.Name = "CursorBall";
 
+                        // A donut that spins and bobs like a pickup. Its motion component has no inspector
+                        // widget on purpose: selecting this is the standing demonstration that the
+                        // reflection fallback turns a plain component into a working editor.
+                        var pickup = shapes.AddTorus(new Vector3(60, 1.5f, 60), Colors.Gold, 2.0f);
+                        pickup.Name = "Pickup Donut";
+                        pickup.Components.Add(new ManaPickupMotionComponent(pickup));
+
                         voxelsNode = shapes.AddVoxels(Vector3.Zero);
                     }
 

@@ -1,3 +1,5 @@
+using Mana.Code.ManaShaders;
+
 namespace Mana.Code.Shapes
 {
     public class ManaProceduralMesh : ManaMesh
@@ -27,6 +29,12 @@ namespace Mana.Code.Shapes
             var foundMaterial = new ManaMaterial(Context);
             foundMaterial.Name = $"{GetShapeDisplayName()} Material";
             foundMaterial.Albedo.Value = DefaultVertexColor;
+
+            // Says what it already is. A material with no shader renders as PBR anyway -- the backend
+            // falls back to it by name -- but the material claimed to have none, so an inspector had no
+            // reason to offer the PBR channels and there was nowhere to assign a texture on a plain cube.
+            foundMaterial.Shader = new ManaPbrShader(Context);
+
             return foundMaterial;
         }
 

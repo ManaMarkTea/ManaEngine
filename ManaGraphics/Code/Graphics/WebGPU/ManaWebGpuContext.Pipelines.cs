@@ -360,7 +360,11 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[8];
+            // The rest of the PBR maps. Every one is present in the layout whether or not a material uses
+            // it: a bind group must fill every binding its layout declares, so an unassigned channel is
+            // bound to a neutral 1x1 rather than left out. A shader that reads none of them is fine --
+            // a layout may declare more than the shader consumes.
+            var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[ObjectBindingCount];
             bindGroupLayoutEntries[0] = bindGroupLayoutEntry;
             bindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
             bindGroupLayoutEntries[2] = textureBindGroupLayoutEntry;
@@ -370,9 +374,16 @@ namespace ManaGraphics.Code.Graphics
             bindGroupLayoutEntries[6] = brdfLutBindGroupLayoutEntry;
             bindGroupLayoutEntries[7] = clampSamplerBindGroupLayoutEntry;
 
+            for (var binding = FirstMaterialMapBinding; binding < ObjectBindingCount; binding++)
+            {
+                var entry = textureBindGroupLayoutEntry;
+                entry.Binding = (uint)binding;
+                bindGroupLayoutEntries[binding] = entry;
+            }
+
             var bindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
             {
-                EntryCount = 8,
+                EntryCount = ObjectBindingCount,
                 Entries = bindGroupLayoutEntries
             };
             _objectBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &bindGroupLayoutDescriptor);
@@ -485,6 +496,17 @@ namespace ManaGraphics.Code.Graphics
 
         // Shared with the inspector/schema cache so the .wgsl file used for rendering and the .wgsl
         // file parsed for CustomMaterialUniform metadata never drift apart.
+        /// <summary>
+        /// Where the material maps start in group(1). Bindings 0..7 are the object uniform, the two
+        /// samplers, albedo and the environment set; the rest follow in the order below.
+        /// </summary>
+        internal const int FirstMaterialMapBinding = 8;
+
+        /// <summary>Normal, emission, metallic, roughness, ambient occlusion and opacity.</summary>
+        internal const int MaterialMapCount = 6;
+
+        internal const int ObjectBindingCount = FirstMaterialMapBinding + MaterialMapCount;
+
         private static string ResolveShaderFileName(string shaderName)
         {
             return ManaWebGpuCustomUniformSchemaCache.ResolveShaderFileNameOrDefault(shaderName);

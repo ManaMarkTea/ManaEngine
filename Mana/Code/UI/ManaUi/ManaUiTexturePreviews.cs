@@ -62,6 +62,17 @@ namespace Mana.Code.UI.ManaUi
                 return false;
             }
 
+            // A texture that names a file is thumbnailed from the file, which is both faster and the only
+            // thing that works for one that has never been loaded -- which is exactly what the picker
+            // produces: a filename and nothing else. Going through PixelData instead would decode a
+            // multi-megapixel image at full size on the frame the row first asks, and would show nothing at
+            // all until something else got round to loading it.
+            if (!string.IsNullOrWhiteSpace(texture.OriginalFilename)
+                && TryGetForFile(atlas, ManaTexture.ResolveTexturePath(texture.OriginalFilename), out preview))
+            {
+                return true;
+            }
+
             // The generation is part of the key because a reset atlas invalidates every UV in it, and a
             // stale one would draw whatever landed in that rectangle afterwards.
             var key = (texture, atlas.Generation);

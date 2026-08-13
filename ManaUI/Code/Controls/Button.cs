@@ -97,7 +97,18 @@ namespace ManaUI
 
         public CornerRadius? CornerRadius { get; set; }
 
-        protected override Thickness ContentInset => Padding.IsZero ? Theme.ControlPadding : Padding;
+        /// <summary>
+        /// Lets a button shrink-wrap its child with no inset at all.
+        /// <para>
+        /// A zero <see cref="UiElement.Padding"/> otherwise reads as "not set, use the theme's", which makes
+        /// zero the one value a caller cannot ask for -- and an icon button that sets it gets the theme's
+        /// 8x4 anyway, quietly squeezing its content into whatever is left.
+        /// </para>
+        /// </summary>
+        public bool IgnoreThemePadding { get; set; }
+
+        protected override Thickness ContentInset =>
+            IgnoreThemePadding || !Padding.IsZero ? Padding : Theme.ControlPadding;
 
         protected override Vector2 MeasureOverride(Vector2 availableSize)
         {

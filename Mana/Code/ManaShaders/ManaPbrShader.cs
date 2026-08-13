@@ -97,7 +97,7 @@ namespace Mana.Code
             material.Emission.Bind(5);
             material.Metallic.Bind(6);
             material.Roughness.Bind(7);
-            material.Ambient.Bind(8);
+            material.Occlusion.Bind(8);
 
             CompiledShader.FindUniform("normalMapSelection")?.SetValue(material.NormalSelector);
             CompiledShader.FindUniform("emissionColor")?.SetValue(material.Emission.Value.X, material.Emission.Value.Y, material.Emission.Value.Z);

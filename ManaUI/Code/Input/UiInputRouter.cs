@@ -206,6 +206,10 @@ namespace ManaUI
 
             var target = PointerCaptureTarget ?? HoveredElement;
 
+            // Unconditional, because the light-dismissal call below is skipped during a capture drag and a
+            // tooltip should go away on any press regardless.
+            _root.Popups.NotifyPointerPressed();
+
             // Light dismissal runs before dispatch so a press outside an open menu closes it. It only
             // swallows the press when it landed on the popup's own anchor, which is what stops a dropdown
             // button from closing and instantly reopening.

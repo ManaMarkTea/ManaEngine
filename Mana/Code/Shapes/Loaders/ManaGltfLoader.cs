@@ -696,8 +696,11 @@ namespace Mana.Code.Shapes.Loaders
                                 case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = embeddedTexture; } break;
                                 case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = embeddedTexture; } break;
                                 case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = embeddedTexture; } break;
-                                case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = embeddedTexture; } break;
-                                case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = embeddedTexture; } break;
+                                case TextureType.Ambient: { outputMaterial.Occlusion.TextureValue = embeddedTexture; } break;
+                                case TextureType.AmbientOcclusion: { outputMaterial.Occlusion.TextureValue = embeddedTexture; } break;
+                                // glTF's occlusion map arrives as a lightmap, packed with roughness and
+                                // metallic in one texture. Nothing read it, so occlusion was always 1.
+                                case TextureType.Lightmap: { outputMaterial.Occlusion.TextureValue = embeddedTexture; } break;
                                 case TextureType.Emissive: { outputMaterial.Emission.TextureValue = embeddedTexture; } break;
                                 case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = embeddedTexture; } break;
                                 case TextureType.Normals: { outputMaterial.Normal.TextureValue = embeddedTexture; outputMaterial.NormalSelector = 0.0f; } break;
@@ -715,8 +718,9 @@ namespace Mana.Code.Shapes.Loaders
                                 case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = resolvedTexture; } break;
                                 case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = resolvedTexture; } break;
                                 case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = resolvedTexture; } break;
-                                case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = resolvedTexture; } break;
-                                case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = resolvedTexture; } break;
+                                case TextureType.Ambient: { outputMaterial.Occlusion.TextureValue = resolvedTexture; } break;
+                                case TextureType.AmbientOcclusion: { outputMaterial.Occlusion.TextureValue = resolvedTexture; } break;
+                                case TextureType.Lightmap: { outputMaterial.Occlusion.TextureValue = resolvedTexture; } break;
                                 case TextureType.Emissive: { outputMaterial.Emission.TextureValue = resolvedTexture; } break;
                                 case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = resolvedTexture; } break;
                                 case TextureType.Normals: { outputMaterial.Normal.TextureValue = resolvedTexture; outputMaterial.NormalSelector = 0.0f; } break;
@@ -749,8 +753,9 @@ namespace Mana.Code.Shapes.Loaders
                                     case TextureType.BaseColor: { outputMaterial.Albedo.TextureValue = channelTexture; } break;
                                     case TextureType.Metalness: { outputMaterial.Metallic.TextureValue = channelTexture; } break;
                                     case TextureType.DiffuseRoughness: { outputMaterial.Roughness.TextureValue = channelTexture; } break;
-                                    case TextureType.Ambient: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
-                                    case TextureType.AmbientOcclusion: { outputMaterial.Ambient.TextureValue = channelTexture; } break;
+                                    case TextureType.Ambient: { outputMaterial.Occlusion.TextureValue = channelTexture; } break;
+                                    case TextureType.AmbientOcclusion: { outputMaterial.Occlusion.TextureValue = channelTexture; } break;
+                                    case TextureType.Lightmap: { outputMaterial.Occlusion.TextureValue = channelTexture; } break;
                                     case TextureType.Emissive: { outputMaterial.Emission.TextureValue = channelTexture; } break;
                                     case TextureType.EmissionColor: { outputMaterial.Emission.TextureValue = channelTexture; } break;
                                     case TextureType.Normals: { outputMaterial.Normal.TextureValue = channelTexture; outputMaterial.NormalSelector = 0.0f; } break;
@@ -770,7 +775,22 @@ namespace Mana.Code.Shapes.Loaders
                         case "$mat.roughnessFactor": outputMaterial.Roughness.Value = metaChannel.ScalarValue; break;
                         case "$mat.shininess": outputMaterial.Roughness.Value = 1.0f - metaChannel.ScalarValue; break;
                         case "$mat.emissive": outputMaterial.Emission.Value = metaChannel.VectorValue; break;
-                        case "$mat.opacity": /*later*/ break;
+
+                        // glTF carries transparency on the material rather than in a separate map: the
+                        // alpha lives in the base colour texture, and alphaMode says what to do with it.
+                        // Without this the FlightHelmet's lenses render as solid plastic -- the alpha is
+                        // sampled and then thrown away, because an opaque material discards it.
+                        case "$mat.opacity": outputMaterial.Opacity.Value = metaChannel.ScalarValue; break;
+                        case "$mat.gltf.alphaCutoff": outputMaterial.AlphaCutoff = metaChannel.ScalarValue; break;
+                        case "$mat.gltf.alphaMode":
+                            outputMaterial.OpacityMode = metaChannel.Value switch
+                            {
+                                "OPAQUE" => ManaOpacityMode.Opaque,
+                                "MASK" => ManaOpacityMode.Cutout,
+                                "BLEND" => ManaOpacityMode.Blend,
+                                _ => ManaOpacityMode.Auto
+                            };
+                            break;
 
                     }                    
                 }

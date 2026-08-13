@@ -76,6 +76,16 @@ namespace ManaUI
         public object? Tag { get; set; }
 
         /// <summary>
+        /// Text shown after the pointer rests on this element. Inherited in effect: the nearest ancestor
+        /// carrying one wins, so wrapping a control in a border does not lose its tooltip.
+        /// </summary>
+        /// <remarks>
+        /// Setting one makes the element hit-testable even if it would not otherwise be, because a
+        /// tooltip is driven by hover and hover is decided by the hit test.
+        /// </remarks>
+        public string? Tooltip { get; set; }
+
+        /// <summary>
         /// Panel-specific placement hints, null until something sets one. Panels should read this directly
         /// and fall back to defaults rather than calling EnsureLayoutSlot during layout.
         /// </summary>
@@ -568,7 +578,13 @@ namespace ManaUI
         /// </summary>
         public virtual UiElement? HitTest(Vector2 point)
         {
-            if (_visibility != Visibility.Visible || !IsHitTestVisible || !Bounds.Contains(point))
+            // A tooltip re-enables hit testing for this element. Hover is decided by this walk, so an
+            // element the pointer cannot land on can never show one -- and several controls opt out by
+            // default, TextBlock among them, which is why a panel full of labelled rows showed no
+            // tooltips at all. Asking for a tooltip is asking to be found.
+            if (_visibility != Visibility.Visible
+                || (!IsHitTestVisible && string.IsNullOrEmpty(Tooltip))
+                || !Bounds.Contains(point))
             {
                 return null;
             }
@@ -582,7 +598,10 @@ namespace ManaUI
                 }
             }
 
-            return IsSelfHitTestVisible ? this : null;
+            // An element carrying a tooltip has to be findable here, or its tooltip can never appear:
+            // hover is decided by this walk, and most elements -- a text label among them -- deliberately
+            // let the pointer through to whatever is behind them.
+            return IsSelfHitTestVisible || !string.IsNullOrEmpty(Tooltip) ? this : null;
         }
 
         /// <summary>True when <paramref name="element"/> is this element or sits beneath it.</summary>

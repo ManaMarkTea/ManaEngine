@@ -109,6 +109,12 @@ namespace ManaUI
 
         public float ScrollBarThickness { get; set; } = 10.0f;
 
+        /// <summary>
+        /// Clear space between scrolling content and the bar beside it. Reserving only the bar's own width
+        /// leaves a value's editor ending flush against it, which reads as content running underneath.
+        /// </summary>
+        public float ScrollBarGap { get; set; } = 4.0f;
+
         // ----- typography ----------------------------------------------------------------------------
 
         public string FontFamily { get; set; } = "Roboto";

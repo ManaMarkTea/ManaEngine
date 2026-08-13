@@ -7,6 +7,11 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
+
+    <!-- Emitted so the inspector can show a property's own doc comment as its tooltip. 1591 is the
+         "missing XML comment" warning, which would otherwise fire on every undocumented public member. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

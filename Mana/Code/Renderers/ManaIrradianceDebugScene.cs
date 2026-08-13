@@ -82,7 +82,7 @@ namespace Mana.Code.Renderers
                     : TintDebugAlbedo(Vector4.One, binding.Metallic, binding.Roughness);
                 material.Metallic.Value = binding.UsePanelMaterial ? settings.DebugMetallic : binding.Metallic;
                 material.Roughness.Value = binding.UsePanelMaterial ? settings.DebugRoughness : binding.Roughness;
-                material.Ambient.Value = settings.DebugAmbient;
+                material.Occlusion.Value = settings.DebugAmbient;
             }
         }
 

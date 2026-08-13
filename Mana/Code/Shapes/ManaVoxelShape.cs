@@ -85,7 +85,7 @@ namespace Mana
             material.Shader = new ManaPbrShader(context);
             material.Metallic.Value = 0.0f;
             material.Roughness.Value = DefaultVoxelRoughness;
-            material.Ambient.Value = 1.0f;
+            material.Occlusion.Value = 1.0f;
         }
 
         public event Action<ManaVoxelData>? OnVoxelAdded;

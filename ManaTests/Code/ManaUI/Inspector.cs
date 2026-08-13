@@ -4,7 +4,10 @@ using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.UI.ManaUi;
 using ManaUI;
+using Mana.Code.Materials;
+using ManaCore.Graphics;
 using ManaVoxel.Code.UI.ManaUi;
+using ManaVoxel.Code.UI.ManaUi.Inspectors;
 
 namespace ManaTests;
 
@@ -22,6 +25,63 @@ public sealed class EquatableSubject
 
     public override bool Equals(object? obj) => obj is EquatableSubject other && other.Name == Name;
     public override int GetHashCode() => Name.GetHashCode();
+}
+
+/// <summary>
+/// A component nothing has written a widget for, which is what the reflection fallback is for. Deliberately
+/// a mix: the types it should find, and one it should not.
+/// </summary>
+public sealed class SampleComponent : ManaComponent
+{
+    public SampleComponent(ManaSceneNode owner) : base(owner)
+    {
+    }
+
+    public enum Mode
+    {
+        Off,
+        Gentle,
+        Violent
+    }
+
+    public float Strength { get; set; } = 0.25f;
+    public bool Loops { get; set; } = true;
+    public int Repeats { get; set; } = 3;
+    public string Caption { get; set; } = "hello";
+    public Vector3 Offset { get; set; } = new(1.0f, 2.0f, 3.0f);
+    public Vector4 TintColor { get; set; } = new(1.0f, 0.0f, 0.0f, 1.0f);
+    public Mode Behaviour { get; set; } = Mode.Gentle;
+
+    /// <summary>Read-only, so there is nothing to edit and it must not be offered.</summary>
+    public float Computed => Strength * Repeats;
+
+    /// <summary>Not a type the fallback knows how to edit.</summary>
+    public object? Payload { get; set; }
+}
+
+/// <summary>Counts its ticks, to catch a component being updated more than once a frame.</summary>
+public sealed class CountingComponent : ManaComponent
+{
+    private readonly Action _onTick;
+
+    public CountingComponent(ManaSceneNode owner, Action onTick) : base(owner)
+    {
+        _onTick = onTick;
+    }
+
+    public override void UpdateComponent()
+    {
+        _onTick();
+    }
+}
+
+/// <summary>A widget an application might register to replace one of the defaults.</summary>
+public sealed class StubTransformWidget : InspectorWidget<ManaSceneNode>
+{
+    protected override UiElement Build(ManaSceneNode subject, InspectorContext context)
+    {
+        return new TextBlock().Text("stub");
+    }
 }
 
 public static class InspectorChecks
@@ -185,6 +245,376 @@ public static class InspectorChecks
         root.Content = view;
         root.UpdateLayout(new Vector2(420, 700));
 
+        // ---------------------------------------------------------------- reflected fallback
+        // A component nobody has written a widget for used to get "no inspector for this component yet",
+        // which is a dead end. Reflection over its own properties beats that: most components are a handful
+        // of floats and flags, and a hand-written widget can still replace this whenever one is worth it.
+        var oddNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Odd" };
+        var sample = new SampleComponent(oddNode) { Strength = 0.75f };
+        oddNode.Components.Add(sample);
+        scene.Children.Add(oddNode);
+
+        world.Selection.SelectedNode = oddNode;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var reflected = FindAll<Expander>(view)
+            .FirstOrDefault(e => e.Header.Contains("SampleComponent", StringComparison.Ordinal));
+
+        Check("an unknown component is reflected rather than refused", reflected != null,
+            string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
+        Check("and says so in its header", reflected?.Header.Contains("reflected") == true,
+            reflected?.Header ?? "none");
+
+        Check("no placeholder is shown", !FindAll<TextBlock>(view)
+            .Any(t => t.Text.Contains("No inspector", StringComparison.Ordinal)), "reflection covered it");
+
+        // Every editable type, and nothing it cannot edit. Getting this wrong in either direction is the
+        // failure mode of a reflected inspector: a missing row, or a row that does nothing.
+        var labels = FindAll<TextBlock>(reflected).Select(t => t.Text).ToList();
+        foreach (var expected in new[] { "Strength", "Loops", "Repeats", "Caption", "Offset", "Behaviour" })
+        {
+            var humanised = expected.ToLowerInvariant();
+            Check($"{expected} is offered",
+                labels.Any(l => l.Replace(" ", string.Empty).Equals(humanised, StringComparison.OrdinalIgnoreCase)),
+                string.Join(", ", labels));
+        }
+
+        Check("a read-only property is not offered",
+            !labels.Any(l => l.Contains("omputed", StringComparison.Ordinal)), string.Join(", ", labels));
+        Check("nor one of a type it cannot edit",
+            !labels.Any(l => l.Contains("ayload", StringComparison.Ordinal)), string.Join(", ", labels));
+
+        // Inherited plumbing is skipped: every component has an Owner and a Position from the base type,
+        // and listing those buries the two or three properties that make this component what it is.
+        Check("inherited plumbing is skipped",
+            !labels.Any(l => l.Contains("wner", StringComparison.Ordinal)), string.Join(", ", labels));
+
+        // A reflected float gets the same slider-and-number editor a hand-written widget uses. Two
+        // different editors for the same kind of value is the sort of seam that makes a panel feel
+        // assembled rather than designed.
+        Check("a reflected float uses the standard scalar editor",
+            FindAll<SliderBox>(reflected).Count >= 1,
+            $"{FindAll<SliderBox>(reflected).Count} sliders");
+
+        // The rows are live in both directions, like every other editor here.
+        var strength = FindAll<SliderBox>(reflected)
+            .FirstOrDefault(b => MathF.Abs(b.Value - 0.75f) < 0.001f);
+        Check("a reflected value is shown", strength != null,
+            string.Join(", ", FindAll<SliderBox>(reflected).Select(b => b.Value.ToString("F2"))));
+
+        if (strength != null)
+        {
+            strength.Value = 0.5f;
+            Check("editing a reflected row writes to the component",
+                MathF.Abs(sample.Strength - 0.5f) < 0.001f, sample.Strength.ToString("F3"));
+
+            sample.Strength = 0.125f;
+            root.UpdateLayout(new Vector2(420, 700));
+            Check("and a change made elsewhere shows up",
+                MathF.Abs(strength.Value - 0.125f) < 0.001f, strength.Value.ToString("F3"));
+        }
+
+        var caption = FindAll<TextBox>(reflected).FirstOrDefault(b => b is not NumericBox);
+        Check("a string property gets a text box", caption?.Text == "hello", caption?.Text ?? "none");
+
+        // A Vector4 named like a colour gets a swatch, matching what the shader-uniform editor does.
+        Check("a colour-named vector gets a swatch", FindAll<ColorField>(reflected).Count > 0,
+            $"{FindAll<ColorField>(reflected).Count} swatches");
+
+        Check("an enum gets a drop down", FindAll<ComboBox>(reflected).Count == 1,
+            $"{FindAll<ComboBox>(reflected).Count} combos");
+
+        var behaviour = FindAll<ComboBox>(reflected).FirstOrDefault();
+        if (behaviour != null)
+        {
+            Check("the drop down starts on the current value",
+                behaviour.SelectedItem as string == "Gentle", behaviour.SelectedItem?.ToString() ?? "none");
+
+            behaviour.SelectedIndex = 2;
+            Check("and choosing writes the enum back",
+                sample.Behaviour == SampleComponent.Mode.Violent, sample.Behaviour.ToString());
+        }
+
+        // ---------------------------------------------------------------- names and explanations
+        // The label column is fixed, so narrowing the dock takes width from the editor rather than from
+        // the name. A long name still ellipsises, so the full text is always on hover -- an inspector
+        // where you cannot read what you are editing is no use.
+        var labelBlocks = FindAll<TextBlock>(reflected).Where(t => t.Tooltip != null).ToList();
+        Check("every property name carries its full text on hover", labelBlocks.Count >= 6,
+            $"{labelBlocks.Count} labelled rows");
+
+        Check("and the tooltip starts with the name itself",
+            labelBlocks.All(t => t.Tooltip!.StartsWith(t.Text, StringComparison.Ordinal)),
+            string.Join(" | ", labelBlocks.Take(3).Select(t => t.Tooltip!.Split('\n')[0])));
+
+        // Straight from the source, so this stays honest if the comment is reworded.
+        var documented = typeof(ManaPickupMotionComponent).GetProperty(nameof(ManaPickupMotionComponent.PhaseSeconds));
+        Check("the doc reader finds a summary",
+            documented != null && XmlDocSummaries.For(documented)?.Length > 0,
+            XmlDocSummaries.For(documented!) ?? "none");
+
+        // Multi-paragraph comments are the norm in this codebase, and reading Value alone would run the
+        // sentences together and drop every <see cref> reference.
+        var multiline = typeof(ManaSceneNode).GetProperty(nameof(ManaSceneNode.Rotation));
+        var rotationDoc = multiline == null ? null : XmlDocSummaries.For(multiline);
+        Check("a multi-paragraph comment keeps its paragraphs",
+            rotationDoc != null && rotationDoc.Contains('\n'), rotationDoc?.Replace("\n", " / ") ?? "none");
+        Check("without stacking up blank lines between them",
+            rotationDoc?.Contains("\n\n", StringComparison.Ordinal) != true,
+            rotationDoc?.Replace("\n", " / ") ?? "none");
+
+        Check("and a cref is reduced to the name it points at",
+            rotationDoc?.Contains("ManaPawnNode", StringComparison.Ordinal) == true
+                && rotationDoc?.Contains("T:Mana", StringComparison.Ordinal) != true,
+            rotationDoc?.Replace("\n", " / ") ?? "none");
+
+        // An undocumented property is not an error -- it just gets the name and nothing more.
+        var undocumented = typeof(SampleComponent).GetProperty(nameof(SampleComponent.Repeats));
+        Check("an undocumented property simply has none",
+            undocumented != null && XmlDocSummaries.For(undocumented) == null,
+            XmlDocSummaries.For(undocumented!) ?? "none");
+
+        // The whole point of a fallback is that it is replaceable.
+        var noFallback = InspectorWidgetFactory.CreateDefault();
+        noFallback.Fallback = null;
+        Check("a factory with no fallback shows nothing for it",
+            noFallback.BuildAll(sample, new InspectorContext(root.Theme, context, noFallback)).Count == 0,
+            "opt out is available");
+
+        // ---------------------------------------------------------------- the real thing
+        // The pickup component the voxel editor puts on a donut. No widget exists for it and none should:
+        // it is the standing proof that a component written without a thought for the UI still gets a
+        // working editor. Checked here so that stays true as the component grows properties.
+        var donut = new ManaSceneNode(context, Matrix4x4.CreateTranslation(new Vector3(60.0f, 1.5f, 60.0f)))
+        {
+            Name = "Pickup Donut"
+        };
+
+        var motion = new ManaPickupMotionComponent(donut);
+        donut.Components.Add(motion);
+        scene.Children.Add(donut);
+
+        var registry = InspectorWidgetFactory.CreateDefault();
+        Check("no hand-written widget claims the pickup",
+            !registry.AllFor(motion).Any(),
+            string.Join(", ", registry.AllFor(motion).Select(w => w.GetType().Name)));
+
+        world.Selection.SelectedNode = donut;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var pickupSection = FindAll<Expander>(view)
+            .FirstOrDefault(e => e.Header.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal));
+
+        Check("but it still gets an inspector", pickupSection != null,
+            string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
+
+        var pickupLabels = FindAll<TextBlock>(pickupSection).Select(t => t.Text).ToList();
+        Check("with its spin and bob settings",
+            pickupLabels.Any(l => l.Contains("Degrees per second", StringComparison.OrdinalIgnoreCase))
+                && pickupLabels.Any(l => l.Contains("Bob height", StringComparison.OrdinalIgnoreCase)),
+            string.Join(", ", pickupLabels));
+
+        // A property's own doc comment becomes its tooltip, the way Unreal shows a UPROPERTY tooltip.
+        // Read from the XML the compiler emits beside the assembly, so nothing is annotated twice.
+        var bobHeight = FindAll<TextBlock>(pickupSection)
+            .FirstOrDefault(t => t.Tooltip != null
+                && t.Text.Contains("Bob height", StringComparison.OrdinalIgnoreCase));
+
+        Check("a documented property explains itself on hover",
+            bobHeight?.Tooltip?.Contains("rest position", StringComparison.OrdinalIgnoreCase) == true,
+            bobHeight?.Tooltip?.Replace("\n", " / ") ?? "no tooltip");
+
+        var degrees = FindAll<SliderBox>(pickupSection)
+            .FirstOrDefault(b => MathF.Abs(b.Value - 90.0f) < 0.001f);
+
+        Check("showing the live value", degrees != null, $"{degrees?.Value}");
+
+        // The range is guessed from the value and rounded outwards, so 90 degrees per second gets a
+        // sensible 0..100 track rather than the 0..1 a default would give.
+        Check("with a range guessed from the value",
+            degrees != null && MathF.Abs(degrees.Maximum - 100.0f) < 0.001f,
+            $"0..{degrees?.Maximum}");
+
+        if (degrees != null)
+        {
+            degrees.Value = 45.0f;
+            Check("and editing it changes how fast the donut spins",
+                MathF.Abs(motion.DegreesPerSecond - 45.0f) < 0.001f, motion.DegreesPerSecond.ToString("F1"));
+        }
+
+        // Bobbing moves the node, and the node is also editable in the Transform section above. Whichever
+        // moved it last wins, so dragging a pickup somewhere else has to stick rather than being yanked
+        // back to wherever it was first dropped.
+        motion.Bobs = true;
+        motion.UpdateComponent();
+        donut.Position = new Vector3(10.0f, 5.0f, 10.0f);
+        motion.UpdateComponent();
+        motion.UpdateComponent();
+
+        Check("moving a bobbing node re-homes it rather than snapping back",
+            MathF.Abs(donut.Position.X - 10.0f) < 0.001f
+                && MathF.Abs(donut.Position.Z - 10.0f) < 0.001f
+                && MathF.Abs(donut.Position.Y - 5.0f) <= motion.BobHeight + 0.001f,
+            donut.Position.ToString());
+
+        // ---------------------------------------------------------------- no write-back from a poll
+        // The bug this covers: select a node that is moving on its own and it moves at double speed.
+        // The editors poll, so a self-animating node sets their value every frame; setting a control's
+        // value raises the same event a keystroke does; and the transform handlers write back and call
+        // UpdateTransform, which ticks every component on the node a second time. It also quantised the
+        // node's position to the box's display precision just for being selected.
+        var spun = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Spun" };
+        var spin = new ManaPickupMotionComponent(spun) { Bobs = false, DegreesPerSecond = 90.0f };
+        spun.Components.Add(spin);
+        scene.Children.Add(spun);
+
+        world.Selection.SelectedNode = spun;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        // An awkward value on purpose: three decimals is what the position editor displays, so a
+        // round-trip through it would round this off.
+        spun.Position = new Vector3(1.23456f, 0.0f, 0.0f);
+        root.UpdateLayout(new Vector2(420, 700));
+        root.UpdateLayout(new Vector2(420, 700));
+
+        Check("polling an editor does not write back through it",
+            MathF.Abs(spun.Position.X - 1.23456f) < 0.000001f, spun.Position.X.ToString("F6"));
+
+        var spinCalls = 0;
+        var counter = new CountingComponent(spun, () => spinCalls++);
+        spun.Components.Add(counter);
+
+        world.Selection.SelectedNode = null;
+        root.UpdateLayout(new Vector2(420, 700));
+        world.Selection.SelectedNode = spun;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        // A real frame's worth of time, so the pickup actually turns. With a zero delta nothing moves,
+        // the polled bindings never fire, and this would pass whether or not the loop was closed.
+        var clock = ManaTime.GlobalTime.DeltaTime;
+        ManaTime.GlobalTime.DeltaTime = TimeSpan.FromSeconds(1.0 / 60.0);
+
+        try
+        {
+            // One frame: the scene ticks, then the UI lays out. The tick turns the node, so the rotation
+            // editor's polled binding fires -- and an unguarded handler writes back and calls
+            // UpdateTransform, which runs every component on the node a second time.
+            spinCalls = 0;
+            spun.UpdateTransform();
+            root.UpdateLayout(new Vector2(420, 700));
+
+            Check("a selected node's components tick once per frame", spinCalls == 1,
+                $"{spinCalls} ticks in one frame");
+
+            // Two frames of turning should advance by two frames, not four.
+            var startAngle = spun.Rotation.Y;
+            spun.UpdateTransform();
+            root.UpdateLayout(new Vector2(420, 700));
+            spun.UpdateTransform();
+            root.UpdateLayout(new Vector2(420, 700));
+
+            var perFrame = spin.DegreesPerSecond.ToRadians() / 60.0f;
+            var turned = spun.Rotation.Y - startAngle;
+
+            Check("and a selected pickup turns at the same rate as an unselected one",
+                MathF.Abs(turned - perFrame * 2.0f) < perFrame * 0.25f,
+                $"{turned.ToDegrees():F2} degrees over two frames, expected {(perFrame * 2.0f).ToDegrees():F2}");
+        }
+        finally
+        {
+            ManaTime.GlobalTime.DeltaTime = clock;
+        }
+
+        // ---------------------------------------------------------------- rotation stays a heading
+        // Anything turning a node a little every frame used to accumulate without bound, until a float
+        // had no precision left for a degree. The node folds it now, so no animator has to remember to.
+        spun.Rotation = new Vector3(0.0f, 400.0f.ToRadians(), 0.0f);
+        Check("a rotation past a full turn wraps",
+            MathF.Abs(spun.RotationDegrees.Y - 40.0f) < 0.01f, $"{spun.RotationDegrees.Y:F1} degrees");
+
+        spun.Rotation = new Vector3((-6.0f).ToRadians(), 0.0f, 0.0f);
+        Check("and a small negative angle stays negative rather than becoming 354",
+            MathF.Abs(spun.RotationDegrees.X + 6.0f) < 0.01f, $"{spun.RotationDegrees.X:F1} degrees");
+
+        // ---------------------------------------------------------------- selecting a component
+        // The panel keyed only on the selected node, so choosing a different component on the same node
+        // changed nothing at all -- and which sections you got depended on whatever was selected the last
+        // time the node itself changed, which is why the pickup's section appeared only sometimes.
+        var twoPart = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Two Part" };
+        var twoPartLight = new ManaLightSourceComponent(twoPart) { Intensity = 1.0f };
+        var twoPartMotion = new ManaPickupMotionComponent(twoPart);
+        twoPart.Components.Add(twoPartLight);
+        twoPart.Components.Add(twoPartMotion);
+        scene.Children.Add(twoPart);
+
+        world.Selection.SelectedComponent = null;
+        world.Selection.SelectedNode = twoPart;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var bothHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("a node with no component selected shows all of them",
+            bothHeaders.Any(h => h == "Light Source")
+                && bothHeaders.Any(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal)),
+            string.Join(", ", bothHeaders));
+
+        // The node does not change here -- only the component does. That used to be invisible.
+        // Selecting one brings it to the top; it does not hide the rest of the node. Clicking a mesh in
+        // the scene selects its renderer, and narrowing to that made every other component on the node
+        // disappear -- which is how the pickup's settings became impossible to reach.
+        world.Selection.SelectedComponent = twoPartMotion;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var motionFirst = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("selecting a component brings it to the top",
+            motionFirst.FindIndex(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal))
+                < motionFirst.IndexOf("Light Source"),
+            string.Join(", ", motionFirst));
+
+        Check("without hiding the rest of the node",
+            motionFirst.Any(h => h == "Light Source"), string.Join(", ", motionFirst));
+
+        world.Selection.SelectedComponent = twoPartLight;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var lightFirst = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("and switching to a sibling reorders rather than filtering",
+            lightFirst.IndexOf("Light Source")
+                < lightFirst.FindIndex(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal))
+                && lightFirst.Any(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal)),
+            string.Join(", ", lightFirst));
+
+        // Clicking the donut in the scene selects its renderer, which is the exact sequence that hid the
+        // pickup. Both must be there.
+        var sceneClickNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Clicked" };
+        var clickedRenderer = new MeshRendererComponent(sceneClickNode, new ManaCube(context, Vector4.One, Vector3.One));
+        var clickedMotion = new ManaPickupMotionComponent(sceneClickNode);
+        sceneClickNode.Components.Add(clickedRenderer);
+        sceneClickNode.Components.Add(clickedMotion);
+        scene.Children.Add(sceneClickNode);
+
+        world.Selection.SelectedNode = sceneClickNode;
+        world.Selection.SelectedComponent = clickedRenderer;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var clickedHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("clicking a mesh in the scene still shows the node's other components",
+            clickedHeaders.Any(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal)),
+            string.Join(", ", clickedHeaders));
+
+        // A procedural mesh's material renders as PBR whether or not it says so, so it should say so --
+        // otherwise a plain cube offers no channels and nowhere to assign a texture.
+        Check("a procedural mesh gets a shader it can be inspected through",
+            clickedHeaders.Any(h => h == "PBR Channels"), string.Join(", ", clickedHeaders));
+
+        // Standing still must not rebuild, or a half-typed field is thrown away every frame.
+        var held = FindAll<Expander>(view).FirstOrDefault();
+        root.UpdateLayout(new Vector2(420, 700));
+        root.UpdateLayout(new Vector2(420, 700));
+        Check("an unchanged selection does not rebuild",
+            ReferenceEquals(FindAll<Expander>(view).FirstOrDefault(), held), "same instance");
+
+        world.Selection.SelectedComponent = null;
+
         // ---------------------------------------------------------------- components
         world.Selection.SelectedNode = lit;
         root.UpdateLayout(new Vector2(420, 700));
@@ -267,6 +697,46 @@ public static class InspectorChecks
             sections.IndexOf("Material") > sections.IndexOf("Mesh Renderer"),
             string.Join(", ", sections));
 
+        // ---------------------------------------------------------------- the widget registry
+        // The panel itself knows nothing about transforms or materials -- it asks the factory what shows
+        // the selected thing. That is what makes adding a component a new file rather than another branch.
+        var factory = InspectorWidgetFactory.CreateDefault();
+        var inspectorContext = new InspectorContext(root.Theme, context, factory);
+
+        Check("a node is claimed by more than one widget",
+            factory.AllFor(first).Count() >= 2,
+            string.Join(", ", factory.AllFor(first).Select(w => w.GetType().Name)));
+
+        Check("nothing claims an unrelated object", factory.For("just a string") == null,
+            factory.For("just a string")?.GetType().Name ?? "none");
+
+        // Acceptance is per instance, not per type: the PBR channels apply to a material only when its
+        // shader is the one that reads them.
+        var pbr = factory.AllFor(material).Select(w => w.GetType().Name).ToList();
+        Check("a PBR material gets its channel widget", pbr.Contains(nameof(PbrShaderWidget)),
+            string.Join(", ", pbr));
+
+        var plainMaterial = new ManaMaterial(context) { Name = "No Shader" };
+        var plain = factory.AllFor(plainMaterial).Select(w => w.GetType().Name).ToList();
+        Check("a material whose shader ignores them does not",
+            !plain.Contains(nameof(PbrShaderWidget)), string.Join(", ", plain));
+        Check("but it still gets the common material widget", plain.Contains(nameof(MaterialWidget)),
+            string.Join(", ", plain));
+
+        // An application can replace a built-in without editing it: the newest registration wins.
+        var overridden = InspectorWidgetFactory.CreateDefault().Register(new StubTransformWidget());
+        Check("the newest registration wins",
+            overridden.For(first) is StubTransformWidget,
+            overridden.For(first)?.GetType().Name ?? "none");
+
+        Check("and the built-in is still there for BuildAll",
+            overridden.AllFor(first).Any(w => w is TransformWidget),
+            "registration order preserved");
+
+        var stub = overridden.Build(first, inspectorContext);
+        Check("a registered widget is what gets built", stub is TextBlock { Text: "stub" },
+            stub?.GetType().Name ?? "null");
+
         var uniformSection = FindAll<Expander>(view)
             .FirstOrDefault(e => e.Header.StartsWith("Shader Uniforms", StringComparison.Ordinal));
         Check("editable uniforms get a section", uniformSection != null,
@@ -282,7 +752,10 @@ public static class InspectorChecks
             $"{FindAll<ColorField>(view).Count} colour fields");
 
         // Editing writes into the uniform the renderer will actually submit.
-        var strengthBox = FindAll<NumericBox>(view)
+        // Scoped to the uniforms section rather than searched by value across the whole panel: the PBR
+        // section has editors of its own that happen to sit at 0.5, and picking one of those up meant this
+        // check quietly edited the wrong control.
+        var strengthBox = FindAll<NumericBox>(uniformSection)
             .FirstOrDefault(box => MathF.Abs(box.Value - 0.5f) < 0.001f);
         Check("a float uniform is shown", strengthBox != null, $"{strengthBox?.Value}");
 
@@ -315,14 +788,111 @@ public static class InspectorChecks
         Check("the material section renders", root.Render().InstanceCount > 40,
             $"{root.Render().InstanceCount} instances");
 
-        // ---------------------------------------------------------------- texture channels
-        // Every PBR channel is listed whether or not it is filled -- an empty slot is where you click to
-        // assign one, which is the difference between showing a material and being able to dress it.
-        var textureSectionBefore = FindAll<Expander>(view)
-            .FirstOrDefault(e => e.Header.StartsWith("Textures", StringComparison.Ordinal));
+        // ---------------------------------------------------------------- clear of the scroll bar
+        // Editors used to run right up to the bar, which reads as content sliding underneath it. The
+        // viewer reserves the bar's width plus a gap, so there is visible space between the two.
+        var viewer = FindAll<ScrollViewer>(view).FirstOrDefault();
+        if (viewer is { CanScrollVertically: true })
+        {
+            var barLeft = viewer.Bounds.Right - root.Theme.ScrollBarThickness;
 
-        Check("empty channels are listed too", textureSectionBefore?.Header == "Textures (0 of 6)",
-            textureSectionBefore?.Header ?? "no section");
+            var touching = FindAll<UiElement>(view)
+                .Where(e => e is NumericBox or TextBox or ColorField or SliderBox)
+                .Where(e => !e.Bounds.IsEmpty)
+                .ToList();
+
+            var overlapping = touching.Count(e => e.Bounds.Right > barLeft - 0.5f);
+            Check("no editor reaches the scroll bar", overlapping == 0,
+                $"{overlapping} of {touching.Count} reach past {barLeft:F0}");
+
+            var widest = touching.Count > 0 ? touching.Max(e => e.Bounds.Right) : 0.0f;
+            Check("and there is a visible gap before it", touching.Count > 0 && barLeft - widest >= 2.0f,
+                $"{barLeft - widest:F1}px of clearance");
+        }
+
+        // ---------------------------------------------------------------- one pass is enough
+        // A rebuilt subtree's polled bindings used to evaluate a frame late, because the elements it
+        // creates are not in the list the refresh is iterating. That showed as a frame of blank rows every
+        // time the selection changed, and it is why these checks once needed layout run two or three times.
+        world.Selection.SelectedNode = null;
+        root.UpdateLayout(new Vector2(420, 900));
+        world.Selection.SelectedNode = meshNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        // Something only a polled binding ever writes: the slot tooltips are set nowhere else, so a
+        // tooltip present here means the new subtree's bindings ran on the pass that created it.
+        var settled = FindAll<Button>(view).Count(b => b.Tooltip != null);
+        Check("a rebuilt panel is populated in the same pass that built it", settled == 7,
+            $"{settled} of 7 slots bound after one pass");
+
+        // ---------------------------------------------------------------- the name column
+        // How much room a name needs depends entirely on what is being inspected, so the divider between
+        // the name and the editor is draggable -- and it moves the whole column, not one row, or the
+        // labels would stop lining up.
+        var splitters = FindAll<InspectorSplitter>(view);
+        Check("every row carries a divider", splitters.Count > 3, $"{splitters.Count} dividers");
+
+        if (splitters.Count > 0)
+        {
+            var splitter = splitters[0];
+            var startX = splitter.Bounds.X;
+            var otherStart = splitters[^1].Bounds.X;
+
+            Check("and they all sit at the same place", MathF.Abs(startX - otherStart) < 0.5f,
+                $"{startX:F0} vs {otherStart:F0}");
+
+            // Drawn at rest, not only under the pointer. Painting it on hover alone made it a control you
+            // had to already know was there -- nothing to aim at, and no hint the column could move.
+            var painted = root.Render().Instances.ToArray().Count(i =>
+                i.Rect.X >= splitter.Bounds.X - 1.0f
+                && i.Rect.Z <= splitter.Bounds.Right + 1.0f
+                && i.Rect.W - i.Rect.Y > 4.0f);
+
+            Check("the divider is visible without being hovered", painted > 0,
+                $"{painted} instances in the divider's column");
+
+            root.Input.InjectPointerMoved(splitter.Bounds.Center);
+            root.Input.InjectPointerPressed(splitter.Bounds.Center, PointerButton.Left, 40.0);
+            root.Input.InjectPointerMoved(splitter.Bounds.Center + new Vector2(40.0f, 0.0f));
+            root.Input.InjectPointerReleased(splitter.Bounds.Center + new Vector2(40.0f, 0.0f), PointerButton.Left);
+            root.UpdateLayout(new Vector2(420, 900));
+
+            Check("dragging one widens the name column",
+                splitter.Bounds.X > startX + 30.0f, $"{startX:F0} -> {splitter.Bounds.X:F0}");
+
+            Check("and every other row follows it",
+                MathF.Abs(splitters[^1].Bounds.X - splitter.Bounds.X) < 0.5f,
+                $"{splitters[^1].Bounds.X:F0} vs {splitter.Bounds.X:F0}");
+
+            // Dragged to nothing the panel would be a column of anonymous editors, so it is clamped.
+            root.Input.InjectPointerMoved(splitter.Bounds.Center);
+            root.Input.InjectPointerPressed(splitter.Bounds.Center, PointerButton.Left, 41.0);
+            root.Input.InjectPointerMoved(new Vector2(-500.0f, splitter.Bounds.Center.Y));
+            root.Input.InjectPointerReleased(new Vector2(-500.0f, splitter.Bounds.Center.Y), PointerButton.Left);
+            root.UpdateLayout(new Vector2(420, 900));
+
+            Check("it cannot be dragged away entirely",
+                splitter.Bounds.X >= InspectorMetrics.MinimumLabelWidth - 0.5f,
+                $"{splitter.Bounds.X:F0}, floor {InspectorMetrics.MinimumLabelWidth:F0}");
+
+            // Back to something sensible for the checks that follow.
+            root.Input.InjectPointerMoved(splitter.Bounds.Center);
+            root.Input.InjectPointerPressed(splitter.Bounds.Center, PointerButton.Left, 42.0);
+            root.Input.InjectPointerMoved(new Vector2(104.0f, splitter.Bounds.Center.Y));
+            root.Input.InjectPointerReleased(new Vector2(104.0f, splitter.Bounds.Center.Y), PointerButton.Left);
+            root.UpdateLayout(new Vector2(420, 900));
+        }
+
+        // ---------------------------------------------------------------- texture channels
+        // Every PBR channel has a slot whether or not it is filled -- an empty slot is where you click to
+        // assign one, which is the difference between showing a material and being able to dress it.
+        // The slot sits on the row of the value it modulates rather than in a section of its own, because
+        // which value a map belonged to was the thing that was hardest to tell when the two were separated.
+        var emptySlots = FindAll<UiImage>(view);
+        Check("every channel has a slot before anything is assigned", emptySlots.Count == 7,
+            $"{emptySlots.Count} slots");
+        Check("and all of them start empty", emptySlots.All(i => !i.HasSource),
+            $"{emptySlots.Count(i => i.HasSource)} filled");
 
         // A thumbnail is built from CPU pixels, so one is supplied the way a loader would.
         var map = new ManaTexture(context)
@@ -345,22 +915,27 @@ public static class InspectorChecks
         world.Selection.SelectedNode = meshNode;
         root.UpdateLayout(new Vector2(420, 900));
 
-        // A second pass on purpose. DynamicContent rebuilds the subtree from inside the polled refresh, so
-        // the elements it creates are not in the list being refreshed -- their bindings first evaluate on
-        // the following frame. Invisible at ninety frames a second; not invisible to a check that looks
-        // immediately.
-        root.UpdateLayout(new Vector2(420, 900));
-
-        var textureSection = FindAll<Expander>(view)
-            .FirstOrDefault(e => e.Header.StartsWith("Textures", StringComparison.Ordinal));
-        Check("the section counts what is filled", textureSection?.Header == "Textures (1 of 6)",
-            textureSection?.Header ?? "none");
-
         // One preview slot per channel, filled or not.
         var previews = FindAll<UiImage>(view);
-        Check("every channel has a preview slot", previews.Count == 6, $"{previews.Count} images");
+        Check("every channel has a preview slot", previews.Count == 7, $"{previews.Count} images");
 
-        if (previews.Count == 6)
+        // The slot is a square barely larger than a line of text, so a picture is all it can show. The
+        // path is what tells two grey noise maps apart, and it goes in the tooltip.
+        var albedoSlot = FindAll<Button>(view)
+            .FirstOrDefault(b => b.Tooltip != null && b.Tooltip.StartsWith("Albedo map", StringComparison.Ordinal));
+
+        Check("a filled slot names its file on hover",
+            albedoSlot?.Tooltip?.Contains("albedo.png", StringComparison.Ordinal) == true,
+            albedoSlot?.Tooltip?.Replace("\n", " | ") ?? "no tooltip");
+
+        var emptySlotTip = FindAll<Button>(view)
+            .FirstOrDefault(b => b.Tooltip != null && b.Tooltip.StartsWith("Normal map", StringComparison.Ordinal));
+
+        Check("and an empty one says it is empty",
+            emptySlotTip?.Tooltip?.Contains("Empty", StringComparison.Ordinal) == true,
+            emptySlotTip?.Tooltip?.Replace("\n", " | ") ?? "no tooltip");
+
+        if (previews.Count == 7)
         {
             Check("the filled channel points at the colour atlas",
                 previews[0].HasSource && previews[0].SourceSize.X > 0.0f,
@@ -386,10 +961,6 @@ public static class InspectorChecks
         world.Selection.SelectedNode = meshNode;
         root.UpdateLayout(new Vector2(420, 900));
 
-        // Again the extra pass: the rebuild happens inside the refresh, so the elements it creates
-        // evaluate on the following one.
-        root.UpdateLayout(new Vector2(420, 900));
-
         var rebuiltPreview = FindAll<UiImage>(view).FirstOrDefault();
         Check("rebuilding reuses the cached thumbnail",
             rebuiltPreview != null && rebuiltPreview.SourceUv == firstUv,
@@ -400,13 +971,11 @@ public static class InspectorChecks
         // The picker writes straight to the channel, which is what makes a plain box wearable.
         material.Albedo.TextureValue = null;
         root.UpdateLayout(new Vector2(420, 900));
-        root.UpdateLayout(new Vector2(420, 900));
 
         Check("clearing a channel empties its slot",
             FindAll<UiImage>(view)[0].HasSource == false, "no source");
 
         material.Albedo.TextureValue = map;
-        root.UpdateLayout(new Vector2(420, 900));
         root.UpdateLayout(new Vector2(420, 900));
 
         Check("assigning fills it again without a rebuild",
@@ -421,6 +990,292 @@ public static class InspectorChecks
         Check("and stores relative paths",
             ManaUiTextureLibrary.Assets.All(a => !Path.IsPathRooted(a.RelativePath)),
             "portable across machines");
+
+        // ---------------------------------------------------------------- the picker
+        // Opened by clicking the slot, so the gesture is covered rather than the handler being called.
+        var slotButton = FindAll<Button>(view)
+            .FirstOrDefault(b => b.Tooltip?.StartsWith("Albedo map", StringComparison.Ordinal) == true);
+
+        if (slotButton != null && ManaUiTextureLibrary.Assets.Count > 0)
+        {
+            root.UpdateLayout(new Vector2(420, 900));
+            root.Input.InjectPointerMoved(slotButton.Bounds.Center);
+
+            // Rested on first, which is how anyone actually reaches this button: you hover the slot to see
+            // what is in it, the tooltip appears, and then you click. The tooltip is anchored to the slot,
+            // and light dismissal swallows a press that lands on an open popup's anchor -- a rule that
+            // exists so a dropdown button cannot close and instantly reopen. Applied to a tooltip it ate
+            // the click outright, so the slot could not be clicked at all once its tooltip was up.
+            // Two frames: the tick that first sees a new candidate starts its dwell rather than completing
+            // it, so a single one never shows anything.
+            root.Popups.Tick(0.1);
+            root.Popups.Tick(1.0);
+            root.UpdateLayout(new Vector2(420, 900));
+
+            Check("resting on a slot shows its tooltip", root.Popups.Open.Count > 0,
+                $"{root.Popups.Open.Count} popups");
+
+            root.Input.InjectPointerPressed(slotButton.Bounds.Center, PointerButton.Left, 20.0);
+            root.Input.InjectPointerReleased(slotButton.Bounds.Center, PointerButton.Left);
+            root.UpdateLayout(new Vector2(420, 900));
+
+            var picker = root.Popups.Open.LastOrDefault();
+            Check("clicking a slot opens the picker", picker != null);
+
+            // And the tooltip is gone rather than left floating over what the click opened.
+            Check("the tooltip does not survive the click", root.Popups.Open.Count == 1,
+                $"{root.Popups.Open.Count} popups");
+
+            var offered = FindAll<Button>(picker?.Child)
+                .Where(b => b.Tooltip != null)
+                .ToList();
+
+            Check("the picker offers the library",
+                offered.Count == ManaUiTextureLibrary.Assets.Count,
+                $"{offered.Count} of {ManaUiTextureLibrary.Assets.Count}");
+
+            Check("each entry carries its full path",
+                offered.All(b => !string.IsNullOrWhiteSpace(b.Tooltip)),
+                "hover tells you which of several similarly named maps this is");
+
+            // A filter, because a real project has hundreds of these and scrolling is not a search.
+            var filter = FindAll<TextBox>(picker?.Child).FirstOrDefault();
+            Check("the picker has a filter", filter != null);
+
+            if (filter != null && offered.Count > 0)
+            {
+                var target = ManaUiTextureLibrary.Assets[0].Name;
+
+                filter.Text = target;
+                root.UpdateLayout(new Vector2(420, 900));
+
+                var visible = offered.Count(b => b.Visibility == Visibility.Visible);
+                Check("filtering narrows the list", visible < offered.Count && visible > 0,
+                    $"{visible} of {offered.Count} match '{target}'");
+
+                Check("and every survivor actually matches",
+                    offered.Where(b => b.Visibility == Visibility.Visible)
+                        .All(b => b.Tooltip!.Contains(target, StringComparison.OrdinalIgnoreCase)),
+                    "no false positives");
+
+                filter.Text = "zzz-no-such-texture";
+                root.UpdateLayout(new Vector2(420, 900));
+                Check("a filter matching nothing empties the list",
+                    offered.All(b => b.Visibility == Visibility.Collapsed),
+                    $"{offered.Count(b => b.Visibility == Visibility.Visible)} still shown");
+
+                filter.Text = string.Empty;
+                root.UpdateLayout(new Vector2(420, 900));
+                Check("clearing the filter brings them back",
+                    offered.All(b => b.Visibility == Visibility.Visible), "all offered again");
+            }
+
+            picker?.Close();
+            root.UpdateLayout(new Vector2(420, 900));
+        }
+
+        // ---------------------------------------------------------------- and it reaches the renderer
+        // The failure this covers: the picker assigned a map, the inspector showed it, and the mesh stayed
+        // untextured. The backends take the albedo map from the mesh's CPU data, where it is baked in at
+        // load time -- and left null by everything procedural, which a cube is. A map assigned to the
+        // material afterwards was written to a field nothing on the render path ever read.
+        if (ManaUiTextureLibrary.Assets.Count > 0)
+        {
+            var onDisk = ManaUiTextureLibrary.Assets[0];
+            material.Albedo.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+
+            var collected = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(collected);
+
+            var instance = collected.FirstOrDefault();
+            Check("the cube is collected for rendering", instance != null, $"{collected.Count} instances");
+
+            Check("an assigned map reaches the render instance",
+                !string.IsNullOrWhiteSpace(instance?.MeshData.AlbedoTexturePath),
+                instance?.MeshData.AlbedoTexturePath ?? "null -- the material's map was dropped");
+
+            // Resolved to somewhere on disk, because a relative path is what a material stores and an
+            // absolute one is what the backend opens. This is the exact test the WebGPU loader makes.
+            Check("and points at a file the backend can open",
+                instance?.MeshData.AlbedoTexturePath is { } path && File.Exists(path),
+                instance?.MeshData.AlbedoTexturePath ?? "none");
+
+            // Collected every frame. A fresh copy each time would fail the renderers' reference check and
+            // have them rebuilding the mesh's GPU buffers on every frame it is visible.
+            var again = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(again);
+
+            Check("the same assignment yields the same data object",
+                ReferenceEquals(instance?.MeshData, again.FirstOrDefault()?.MeshData),
+                "so the renderer does not rebuild it every frame");
+
+            // A picked texture is a filename and nothing else -- never loaded, no pixels. The preview has to
+            // come off disk, or the slot sits empty after a successful pick and looks like it did nothing.
+            world.Selection.SelectedNode = null;
+            root.UpdateLayout(new Vector2(420, 900));
+            world.Selection.SelectedNode = meshNode;
+            root.UpdateLayout(new Vector2(420, 900));
+
+            var picked = FindAll<UiImage>(view).FirstOrDefault();
+            Check("a picked texture previews without ever being loaded",
+                picked?.HasSource == true, $"{picked?.SourceSize} from {onDisk.Name}");
+
+            // Holding a source is not the same as being seen. The slot is a small square inside a border
+            // inside a button, and any of those collapsing to nothing would leave the row looking exactly
+            // like a failed pick.
+            Check("the slot is big enough to see", picked is { Bounds.Width: > 8.0f, Bounds.Height: > 8.0f },
+                picked?.Bounds.ToString() ?? "no bounds");
+
+            var textured = root.Render().Instances.ToArray()
+                .Where(i => (i.Flags & (uint)ManaUiInstanceFlags.Texture) != 0)
+                .Count(i => picked != null
+                    && i.Rect.X >= picked.Bounds.X - 1.0f
+                    && i.Rect.Z <= picked.Bounds.Right + 1.0f
+                    && i.Rect.Y >= picked.Bounds.Y - 1.0f
+                    && i.Rect.W <= picked.Bounds.Bottom + 1.0f);
+
+            Check("and the thumbnail is actually drawn there", textured > 0,
+                $"{textured} textured instances inside the slot");
+
+            // Every channel, not just albedo. The maps used to stop at the material: the picker wrote them
+            // and nothing downstream read them, so assigning a normal or emission map did nothing at all.
+            material.Normal.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+            material.Emission.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+            material.Metallic.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+            material.Roughness.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+            material.Occlusion.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+            material.Opacity.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+
+            var allMaps = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(allMaps);
+            var mapped = allMaps.FirstOrDefault()?.MeshData;
+
+            Check("a normal map reaches the render instance",
+                mapped?.NormalTexturePath is { } n && File.Exists(n), mapped?.NormalTexturePath ?? "null");
+            Check("an emission map does too",
+                mapped?.EmissionTexturePath is { } e && File.Exists(e), mapped?.EmissionTexturePath ?? "null");
+            Check("and metallic, roughness, ambient and opacity",
+                mapped?.MetallicTexturePath != null && mapped.RoughnessTexturePath != null
+                    && mapped.OcclusionTexturePath != null && mapped.OpacityTexturePath != null,
+                $"{mapped?.MetallicTexturePath != null}/{mapped?.RoughnessTexturePath != null}/"
+                    + $"{mapped?.OcclusionTexturePath != null}/{mapped?.OpacityTexturePath != null}");
+
+            // Still stable frame to frame, or the renderer rebuilds every mesh every frame.
+            var repeat = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(repeat);
+            Check("with all six assigned it is still the same object",
+                ReferenceEquals(mapped, repeat.FirstOrDefault()?.MeshData), "no per-frame rebuild");
+
+            // Opacity is the one that needs more than a map: the opaque blend state is One/Zero, so a
+            // material that only lowers its alpha renders exactly as before. Auto resolves to Cutout the
+            // moment there is anything to say, rather than leaving an assigned map doing nothing.
+            material.Opacity.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
+            material.OpacityMode = ManaOpacityMode.Auto;
+
+            Check("assigning an opacity map makes the material cut out",
+                material.EffectiveOpacityMode == ManaOpacityMode.Cutout,
+                material.EffectiveOpacityMode.ToString());
+
+            material.Opacity.TextureValue = null;
+            material.Opacity.Value = 1.0f;
+            Check("a material with nothing to say stays opaque",
+                material.EffectiveOpacityMode == ManaOpacityMode.Opaque,
+                material.EffectiveOpacityMode.ToString());
+
+            // A uniform value is a fade, and only blending can express that. Cutting out with the same
+            // alpha everywhere is a cliff: nothing, nothing, then the whole surface at once.
+            material.Opacity.Value = 0.5f;
+            Check("lowering the value alone asks for a fade, so it blends",
+                material.EffectiveOpacityMode == ManaOpacityMode.Blend,
+                material.EffectiveOpacityMode.ToString());
+
+            // And the value has to actually reach the renderer, which is the half that was missing: the
+            // map was wired and the slider was not, so it moved and nothing happened.
+            var faded = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(faded);
+
+            Check("the opacity value reaches the render instance",
+                MathF.Abs((faded.FirstOrDefault()?.Opacity ?? 1.0f) - 0.5f) < 0.001f,
+                $"{faded.FirstOrDefault()?.Opacity}");
+
+            // Blending is a material decision as much as a shader one: a PBR shader is opaque by nature,
+            // but a PBR material set to blend is not, and the pipeline is chosen from the instance.
+            material.OpacityMode = ManaOpacityMode.Blend;
+
+            var blended = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(blended);
+            var blendInstance = blended.FirstOrDefault();
+
+            Check("a blending material reaches the renderer as transparent",
+                blendInstance?.IsTransparent == true, $"{blendInstance?.IsTransparent}");
+            Check("and stops writing depth",
+                blendInstance?.DisableDepthWrite == true, $"{blendInstance?.DisableDepthWrite}");
+            Check("with its mode and cutoff",
+                blendInstance?.OpacityMode == ManaOpacityMode.Blend
+                    && MathF.Abs((blendInstance?.AlphaCutoff ?? 0.0f) - 0.5f) < 0.001f,
+                $"{blendInstance?.OpacityMode}, cutoff {blendInstance?.AlphaCutoff}");
+
+            material.OpacityMode = ManaOpacityMode.Auto;
+            material.Opacity.Value = 1.0f;
+
+            var opaque = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(opaque);
+            Check("an ordinary material is still opaque",
+                opaque.FirstOrDefault()?.IsTransparent == false, "no blending unless asked");
+
+            // A loaded glTF writes NormalSelector = 0, which means "use the map fully" -- it mixes toward
+            // the vertex normal, so it reads backwards everywhere downstream. The instance carries a
+            // strength instead, and the inspector shows that, or a helmet with a perfectly good normal
+            // map appears to have it switched off.
+            material.NormalSelector = 0.0;
+
+            var normals = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(normals);
+
+            Check("a fully applied normal map reaches the renderer at full strength",
+                MathF.Abs((normals.FirstOrDefault()?.NormalStrength ?? 0.0f) - 1.0f) < 0.001f,
+                $"{normals.FirstOrDefault()?.NormalStrength}");
+
+            material.NormalSelector = 1.0;
+            var ignored = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(ignored);
+
+            Check("and one mixed all the way to the vertex normal arrives at zero",
+                MathF.Abs(ignored.FirstOrDefault()?.NormalStrength ?? 1.0f) < 0.001f,
+                $"{ignored.FirstOrDefault()?.NormalStrength}");
+
+            material.NormalSelector = 0.0;
+
+            // UV tiling rides on the instance rather than the mesh: it is a material property, and the
+            // same brick wants a different repeat on a wall than on a doorframe.
+            material.UvScale = new Vector2(4.0f, 2.0f);
+            material.UvOffset = new Vector2(0.25f, 0.5f);
+
+            var tiled = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(tiled);
+
+            Check("uv tiling reaches the render instance",
+                tiled.FirstOrDefault()?.UvTransform == new Vector4(4.0f, 2.0f, 0.25f, 0.5f),
+                tiled.FirstOrDefault()?.UvTransform.ToString() ?? "none");
+
+            material.UvScale = Vector2.One;
+            material.UvOffset = Vector2.Zero;
+            material.Normal.TextureValue = null;
+            material.Emission.TextureValue = null;
+            material.Metallic.TextureValue = null;
+            material.Roughness.TextureValue = null;
+            material.Occlusion.TextureValue = null;
+            material.Opacity.TextureValue = null;
+
+            // Cleared, and the mesh goes back to whatever it was carrying itself.
+            material.Albedo.TextureValue = null;
+            var cleared = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+            meshNode.CollectRenderMeshInstances(cleared);
+
+            Check("clearing the channel takes the map off the mesh",
+                cleared.FirstOrDefault()?.MeshData.AlbedoTexturePath == null,
+                cleared.FirstOrDefault()?.MeshData.AlbedoTexturePath ?? "null");
+        }
 
         material.Albedo.TextureValue = null;
 

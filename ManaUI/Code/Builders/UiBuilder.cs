@@ -26,6 +26,13 @@ namespace ManaUI
             return element;
         }
 
+        /// <summary>Text shown when the pointer rests on this element.</summary>
+        public static T WithTooltip<T>(this T element, string? tooltip) where T : UiElement
+        {
+            element.Tooltip = tooltip;
+            return element;
+        }
+
         /// <summary>Escape hatch for anything the fluent surface does not cover.</summary>
         public static T Configure<T>(this T element, Action<T> configure) where T : UiElement
         {

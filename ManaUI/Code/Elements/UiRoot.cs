@@ -208,14 +208,29 @@ namespace ManaUI
             // before measure rather than after. The tree is only rescanned when it actually changed --
             // any structural edit dirties layout, and a binding added to an already-attached element
             // raises its own flag.
-            if (_layoutDirty || _polledBindingsDirty)
+            // Settled rather than refreshed once. A refresh can build a subtree -- DynamicContent rebuilds
+            // its content when the thing it is showing changes -- and the elements it creates are not in
+            // the list currently being iterated. Stopping after one pass means their bindings first
+            // evaluate on the following frame, so a panel shows one frame of blank rows every time the
+            // selection changes, and anything reading it in between sees a half-built tree.
+            // Re-reading a binding is cheap and writes only on a real change, so the repeat costs little.
+            for (var pass = 0; pass < MaxPolledBindingPasses; pass++)
             {
-                RescanPolledBindings();
-            }
+                if (_layoutDirty || _polledBindingsDirty)
+                {
+                    RescanPolledBindings();
+                }
 
-            foreach (var element in _polledBindingElements)
-            {
-                element.RefreshPolledBindings();
+                foreach (var element in _polledBindingElements)
+                {
+                    element.RefreshPolledBindings();
+                }
+
+                // Nothing new appeared, so the tree has settled.
+                if (!_polledBindingsDirty)
+                {
+                    break;
+                }
             }
 
             if (!_layoutDirty)
@@ -294,6 +309,13 @@ namespace ManaUI
         /// Rebuilds the flat list of elements carrying polled bindings, so the per-frame refresh iterates a
         /// short list instead of walking the whole tree.
         /// </summary>
+        /// <summary>
+        /// How many times a frame will re-scan for subtrees built by a polled refresh before giving up.
+        /// A cap rather than a loop, so a binding that rebuilds its own content every time cannot hang the
+        /// frame -- it just settles a frame late, as it did before.
+        /// </summary>
+        private const int MaxPolledBindingPasses = 4;
+
         internal void NotifyPolledBindingsChanged()
         {
             _polledBindingsDirty = true;

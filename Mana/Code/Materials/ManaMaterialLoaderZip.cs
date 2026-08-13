@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 namespace Mana.Code.Materials
 {
@@ -63,7 +63,7 @@ namespace Mana.Code.Materials
             }
             if (texture.Name.Contains(ambientNames))
             {
-                material.Ambient.TextureValue = texture;
+                material.Occlusion.TextureValue = texture;
             }
             if (texture.Name.Contains(metallicNames))
             {

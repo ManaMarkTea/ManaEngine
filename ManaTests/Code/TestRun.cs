@@ -77,6 +77,8 @@ public static class TestRunner
         ("ManaUI", "ported scene outliner", OutlinerChecks.Run),
         ("ManaUI", "ported scene inspector", InspectorChecks.Run),
 
+        ("Graphics", "pbr material maps", MaterialMapChecks.Run),
+
         // Last on purpose: it runs a filtered suite of its own, and being last keeps that nesting to one
         // level rather than having a later suite run inside it too.
         ("ManaUI", "gui test runner", RunnerChecks.Run)

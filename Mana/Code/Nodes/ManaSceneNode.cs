@@ -51,17 +51,39 @@ namespace Mana.Code.Nodes
             }
         }
 
+        /// <summary>
+        /// Euler angles in radians, folded into (-pi, pi].
+        /// <para>
+        /// Wrapped here rather than by each caller, because anything that turns a node a little every
+        /// frame -- a spinning pickup, a turret, a pawn -- otherwise accumulates without bound. Left to
+        /// run it reaches magnitudes where a float has no precision left for a degree, and an inspector
+        /// shows an ever-climbing number that means nothing.
+        /// </para>
+        /// <para>
+        /// Signed rather than 0..2pi so a small pitch reads as -6 degrees rather than 354, which is the
+        /// convention <see cref="ManaPawnNode"/> already used for yaw.
+        /// </para>
+        /// </summary>
         public Vector3 Rotation
         {
             get => _rotation;
             set
             {
-                if (!_rotation.Equals(value))
+                var wrapped = new Vector3(WrapRadians(value.X), WrapRadians(value.Y), WrapRadians(value.Z));
+
+                if (!_rotation.Equals(wrapped))
                 {
-                    _rotation = value;
+                    _rotation = wrapped;
                     _needsLocalTransformRebuild = true;
                 }
             }
+        }
+
+        /// <summary>Folds an angle into (-pi, pi]. NaN and infinity fold to zero rather than propagating.</summary>
+        private static float WrapRadians(float radians)
+        {
+            var wrapped = MathF.IEEERemainder(radians, MathF.Tau);
+            return float.IsFinite(wrapped) ? wrapped : 0.0f;
         }
         public Vector3 RotationDegrees { get { return Rotation.ToEulerDegrees(); } }
 
@@ -239,7 +261,7 @@ namespace Mana.Code.Nodes
 
                 try
                 {
-                    var meshData = renderer.Mesh.GetOrCreateCpuData();
+                    var meshData = renderer.ApplyMaterialTextures(renderer.Mesh.GetOrCreateCpuData());
                     output.Add(new ManaRenderMeshInstance
                     {
                         InstanceKey = renderer.InstanceKey,
@@ -253,16 +275,34 @@ namespace Mana.Code.Nodes
                         Metallic = renderer.Material.Metallic.Value,
                         Roughness = renderer.Material.Roughness.Value,
                         FlatShaded = renderer.Material.FlatShaded,
-                        AmbientOcclusion = renderer.Material.Ambient.Value,
+                        AmbientOcclusion = renderer.Material.Occlusion.Value,
                         Emission = renderer.Material.Emission.Value,
                         EmissionStrength = (float)renderer.Material.EmissionStrength,
                         PbrDebugMode = GetPbrDebugMode(renderer.Material),
                         IncludeInEnvironmentCapture = includeInEnvironmentCapture,
-                        IsTransparent = renderer.Material.Shader?.IsTransparent ?? false,
-                        DisableDepthWrite = renderer.Material.Shader?.DisableDepthWrite ?? false,
+                        // Blending is a material decision as much as a shader one: a PBR shader is opaque
+                        // by nature, but a PBR material wearing an opacity map is not.
+                        IsTransparent = (renderer.Material.Shader?.IsTransparent ?? false)
+                            || renderer.Material.EffectiveOpacityMode == ManaOpacityMode.Blend,
+                        DisableDepthWrite = (renderer.Material.Shader?.DisableDepthWrite ?? false)
+                            || renderer.Material.EffectiveOpacityMode == ManaOpacityMode.Blend,
+                        OpacityMode = renderer.Material.EffectiveOpacityMode,
+                        Opacity = (float)renderer.Material.Opacity.Value,
+                        AlphaCutoff = (float)renderer.Material.AlphaCutoff,
                         OutlineEnabled = renderer.OutlineEnabled,
                         OutlineColor = renderer.OutlineColor,
                         OutlineWidth = renderer.OutlineWidth,
+                        UvTransform = new Vector4(
+                            renderer.Material.UvScale.X,
+                            renderer.Material.UvScale.Y,
+                            renderer.Material.UvOffset.X,
+                            renderer.Material.UvOffset.Y),
+                        // Inverted on the way out. NormalSelector is a mix toward the vertex normal --
+                        // the GLSL does mix(fromMap, vertexNormal, selector), so 0 means "use the map
+                        // fully" -- and every loader writes it that way. The render instance carries a
+                        // strength instead, because 0 meaning "fully on" is a trap for everything
+                        // downstream, the inspector included.
+                        NormalStrength = 1.0f - (float)renderer.Material.NormalSelector,
                         CustomShaderUniforms = BuildCustomShaderUniforms(renderer.Material)
                     });
                 }

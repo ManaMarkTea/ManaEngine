@@ -225,6 +225,139 @@ public static class PopupChecks
         Check("open combo renders", drawn.InstanceCount > 20, $"{drawn.InstanceCount} instances");
         Check("still one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
         rendered.CloseDropDown();
+
+        Tooltips(root, Check);
+    }
+
+    /// <summary>
+    /// Tooltips, which are about dwell rather than arrival: the pointer has to rest before one appears, and
+    /// leaving takes it away again.
+    /// </summary>
+    private static void Tooltips(UiRoot root, Action<string, bool, string> Check)
+    {
+        var described = new Button().Label("Slot").Size(60.0f, 30.0f);
+        described.Tooltip = "Assets/Textures/MaterialTextures/rock_albedo.png";
+
+        // Wrapped, to prove the nearest ancestor carrying one wins -- the pointer lands on the label inside
+        // the button, not on the button itself.
+        var plain = new Button().Label("Plain").Size(60.0f, 30.0f);
+
+        root.Content = null;
+        root.Content = new Canvas().Children(
+            described.At(100.0f, 100.0f),
+            plain.At(300.0f, 100.0f));
+
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        var openBefore = root.Popups.Open.Count;
+
+        root.Input.InjectPointerMoved(described.Bounds.Center);
+        root.Popups.Tick(0.1);
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        Check("a tooltip does not appear the moment the pointer arrives",
+            root.Popups.Open.Count == openBefore, $"{root.Popups.Open.Count} popups");
+
+        // Past the dwell.
+        root.Popups.Tick(0.6);
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        var tip = root.Popups.Open.LastOrDefault();
+        Check("resting on it shows one", root.Popups.Open.Count == openBefore + 1,
+            $"{root.Popups.Open.Count} popups");
+
+        Check("and it carries the text",
+            tip != null && FindAll<TextBlock>(tip.Child!).Any(t => t.Text.Contains("rock_albedo.png")),
+            tip == null ? "no popup" : "text found");
+
+        // A tooltip is transparent to the pointer. Hit-testable by default, one appearing under the cursor
+        // would take the hover from the thing it describes -- which closes it, which gives the hover back,
+        // forever -- and eat the click as well.
+        // Asserted by aiming at the tooltip itself rather than by reading the flag: the pointer is resting
+        // above it here, so a hit-testable tooltip would not be caught by watching the hover from outside.
+        var inside = tip?.Bounds.Center ?? Vector2.Zero;
+        var underneath = root.HitTest(inside);
+
+        Check("the pointer passes straight through it",
+            tip != null && !ReferenceEquals(underneath, tip) && !IsWithin2(underneath, tip),
+            underneath?.GetType().Name ?? "nothing");
+
+        Check("and the control it describes keeps the hover",
+            root.Input.HoveredElement != null && IsWithin(root.Input.HoveredElement, described),
+            root.Input.HoveredElement?.GetType().Name ?? "null");
+
+        // Moving away takes it back.
+        root.Input.InjectPointerMoved(plain.Bounds.Center);
+        root.Popups.Tick(0.1);
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        Check("moving off closes it", root.Popups.Open.Count == openBefore,
+            $"{root.Popups.Open.Count} popups");
+
+        // An element with no tooltip never opens one, however long the pointer rests.
+        root.Popups.Tick(2.0);
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        Check("something with no tooltip stays quiet", root.Popups.Open.Count == openBefore,
+            $"{root.Popups.Open.Count} popups");
+
+        root.Input.InjectPointerMoved(new Vector2(900.0f, 600.0f));
+        root.Popups.Tick(0.1);
+
+        // A plain label with a tooltip. This is the case that did not work: hover is decided by the hit
+        // test, and a TextBlock deliberately lets the pointer through to whatever is behind it -- so an
+        // inspector full of labelled rows showed no tooltips at all while a Button showed its own fine.
+        var quiet = new TextBlock().Text("Degrees per second").Size(120.0f, 20.0f);
+        quiet.Tooltip = "How fast it turns.";
+
+        root.Content = null;
+        root.Content = new Canvas().Children(quiet.At(100.0f, 100.0f));
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        root.Input.InjectPointerMoved(quiet.Bounds.Center);
+        Check("a label carrying a tooltip is found by the hit test",
+            root.Input.HoveredElement is TextBlock, root.Input.HoveredElement?.GetType().Name ?? "nothing");
+
+        var beforeLabel = root.Popups.Open.Count;
+        root.Popups.Tick(0.1);
+        root.Popups.Tick(1.0);
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        Check("so resting on it shows its tooltip", root.Popups.Open.Count == beforeLabel + 1,
+            $"{root.Popups.Open.Count} popups");
+
+        // Still transparent when it has nothing to say, so an ordinary label does not start swallowing
+        // hover from whatever is behind it.
+        var silent = new TextBlock().Text("Plain").Size(120.0f, 20.0f);
+        root.Content = null;
+        root.Content = new Canvas().Children(silent.At(100.0f, 100.0f));
+        root.UpdateLayout(new Vector2(1000, 700));
+
+        root.Input.InjectPointerMoved(silent.Bounds.Center);
+        Check("a label without one stays transparent to the pointer",
+            root.Input.HoveredElement == null, root.Input.HoveredElement?.GetType().Name ?? "nothing");
+
+        root.Popups.CloseAll();
+        root.Input.InjectPointerMoved(new Vector2(900.0f, 600.0f));
+        root.Popups.Tick(0.1);
+    }
+
+    private static bool IsWithin2(UiElement? element, UiElement ancestor)
+    {
+        return element != null && IsWithin(element, ancestor);
+    }
+
+    private static bool IsWithin(UiElement element, UiElement ancestor)
+    {
+        for (var current = element; current != null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static IEnumerable<T> FindAll<T>(UiElement element) where T : UiElement

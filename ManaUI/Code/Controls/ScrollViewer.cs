@@ -225,7 +225,8 @@ namespace ManaUI
                 return Vector2.Zero;
             }
 
-            var thickness = Root?.Theme.ScrollBarThickness ?? 10.0f;
+            // The bar plus a gap, so content stops short of it rather than flush against it.
+            var thickness = (Root?.Theme.ScrollBarThickness ?? 10.0f) + (Root?.Theme.ScrollBarGap ?? 4.0f);
 
             var vertical = VerticalScrollBar switch
             {

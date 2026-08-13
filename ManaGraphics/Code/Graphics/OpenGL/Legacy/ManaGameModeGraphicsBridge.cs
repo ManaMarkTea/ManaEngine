@@ -195,7 +195,7 @@ namespace Mana.Code.Graphics
             FinalizeTexture(material.Emission);
             FinalizeTexture(material.Metallic);
             FinalizeTexture(material.Roughness);
-            FinalizeTexture(material.Ambient);
+            FinalizeTexture(material.Occlusion);
 
             foreach (var channel in material.Channels.Values)
             {

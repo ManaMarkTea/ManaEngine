@@ -79,12 +79,23 @@ namespace ManaGraphics.Code.Graphics
             {
                 Model = model,
                 NormalMatrix = normalMatrix,
-                MaterialAlbedo = meshInstance.Albedo,
+                // The material's opacity folds into the albedo's alpha rather than travelling as its own
+                // field: both answer "how solid is this", the shader already reads this channel, and
+                // multiplying is what composing them means.
+                MaterialAlbedo = new Vector4(
+                    meshInstance.Albedo.X,
+                    meshInstance.Albedo.Y,
+                    meshInstance.Albedo.Z,
+                    meshInstance.Albedo.W * Math.Clamp(meshInstance.Opacity, 0.0f, 1.0f)),
                 MaterialFactors = new Vector4(
                     Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
                     Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
                     Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
-                    1.0f),
+                    // w carries the cutout threshold, which is only read in that mode.
+                    Math.Clamp(meshInstance.AlphaCutoff, 0.0f, 1.0f)),
+                UvTransform = meshInstance.UvTransform,
+                OpacityMode = (float)meshInstance.OpacityMode,
+                NormalStrength = Math.Clamp(meshInstance.NormalStrength, 0.0f, 1.0f),
                 MaterialEmission = new Vector4(
                     meshInstance.Emission.X,
                     meshInstance.Emission.Y,
@@ -99,9 +110,7 @@ namespace ManaGraphics.Code.Graphics
                 // -1 means "no per-object override, use the frame's global debug mode" -- valid debug
                 // mode indexes are >= 0 (see ManaIrradianceSettings.WebGpuDebugMode).
                 DebugModeOverride = meshInstance.PbrDebugMode ?? -1.0f,
-                FlatShading = meshInstance.FlatShaded ? 1.0f : 0.0f,
-                _padding1 = 0.0f,
-                _padding2 = 0.0f
+                FlatShading = meshInstance.FlatShaded ? 1.0f : 0.0f
             };
         }
 
@@ -135,6 +144,7 @@ namespace ManaGraphics.Code.Graphics
                 NormalMatrix = normalMatrix,
                 CameraPosition = new Vector4(camera.Position, 1.0f),
                 MaterialAlbedo = meshInstance.Albedo,
+                // Scene capture keeps its own pre-split layout; the material maps are a main-pass concern.
                 MaterialFactors = new Vector4(
                     Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
                     Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
@@ -316,8 +326,11 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 OutlineParameters;
             public float DebugModeOverride;
             public float FlatShading;
-            public float _padding1;
-            public float _padding2;
+            public float NormalStrength;
+            public float OpacityMode;
+
+            /// <summary>Texture coordinate scale in XY, offset in ZW. Applies to every map.</summary>
+            public Vector4 UvTransform;
         }
 
         // Scene-capture-only, matches scene_capture.wgsl's unchanged (pre-split) TransformUniform

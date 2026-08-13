@@ -521,7 +521,7 @@ namespace Mana.Code.UI
 
             var materialName = material.Name;
 
-            // Albedo/Emission/Metallic/Roughness/Ambient/NormalSelector/EmissionStrength are only ever
+            // Albedo/Emission/Metallic/Roughness/Occlusion/NormalSelector/EmissionStrength are only ever
             // read by ManaPbrShader.BindShader — "shader toy" style shaders (lightning ball, liquid ball,
             // etc.) ignore them entirely, so showing them there is misleading.
             var usesPbrChannels = material.Shader is ManaPbrShader;
@@ -540,7 +540,7 @@ namespace Mana.Code.UI
                     DrawColorEditor("Emission", material.Emission);
                     DrawScalarEditor("Metallic", material.Metallic, 0.0f, 1.0f);
                     DrawScalarEditor("Roughness", material.Roughness, 0.0f, 1.0f);
-                    DrawScalarEditor("Ambient", material.Ambient, 0.0f, 1.0f);
+                    DrawScalarEditor("Occlusion", material.Occlusion, 0.0f, 1.0f);
 
                     var normalSelector = (float)material.NormalSelector;
                     if (DrawSliderFloatProperty("Normal Texture Mix", ref normalSelector, 0.0f, 1.0f))

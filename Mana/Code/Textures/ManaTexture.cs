@@ -190,7 +190,12 @@ namespace Mana
             }
         }
 
-        private static string ResolveTexturePath(string texturePath)
+        /// <summary>
+        /// Turns a texture path stored on a material into one that exists on disk, trying the working
+        /// directory and the build output. Public because the render path needs the same answer: a material
+        /// stores a relative path so a scene survives being moved, and the backend needs an absolute one.
+        /// </summary>
+        public static string ResolveTexturePath(string texturePath)
         {
             if (string.IsNullOrWhiteSpace(texturePath) || Path.IsPathRooted(texturePath))
             {

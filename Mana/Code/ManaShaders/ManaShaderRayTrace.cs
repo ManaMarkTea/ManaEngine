@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Mana.Code.Nodes;
 
 namespace Mana.Code.ManaShaders
@@ -69,7 +69,7 @@ namespace Mana.Code.ManaShaders
             SetUniform(uniforms, $@"spheres[{index}].material.emissionStrength", uniform => uniform.SetValue(material.EmissionStrength));
             SetUniform(uniforms, $@"spheres[{index}].material.smoothness", uniform => uniform.SetValue(material.Roughness.Value));
             SetUniform(uniforms, $@"spheres[{index}].material.specularColor", uniform => uniform.SetValue(Colors.White));
-            SetUniform(uniforms, $@"spheres[{index}].material.specularColorScatterChance", uniform => uniform.SetValue(material.Ambient.Value));
+            SetUniform(uniforms, $@"spheres[{index}].material.specularColorScatterChance", uniform => uniform.SetValue(material.Occlusion.Value));
             SetUniform(uniforms, $@"spheres[{index}].radius", uniform => uniform.SetValue(sphereNode.Scale.X * 0.25f));
             return true;
         }

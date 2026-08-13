@@ -35,6 +35,11 @@ namespace ManaUI
                 popup.PlacementTarget = placementTarget;
             }
 
+            // A popup closed through its own Close() -- which is what a command handler naturally calls,
+            // and what ComboBox and ColorField do -- would otherwise leave a detached element in this list
+            // forever, so Topmost and light dismissal would work off something no longer on screen.
+            popup.Closed += OnPopupClosed;
+
             _open.Add(popup);
             _root.PopupLayer.Children.Add(popup);
 
@@ -55,7 +60,25 @@ namespace ManaUI
         {
             if (_open.Remove(popup))
             {
+                popup.Closed -= OnPopupClosed;
                 popup.Close();
+            }
+        }
+
+        /// <summary>Deregisters a popup that closed itself, so the open list never holds a detached one.</summary>
+        private void OnPopupClosed(object? sender, EventArgs e)
+        {
+            if (sender is not UiPopup popup)
+            {
+                return;
+            }
+
+            popup.Closed -= OnPopupClosed;
+            _open.Remove(popup);
+
+            if (ReferenceEquals(popup, _tooltipPopup))
+            {
+                _tooltipPopup = null;
             }
         }
 
@@ -132,6 +155,8 @@ namespace ManaUI
         /// <summary>Advances the deferred-close timer. Call once per frame.</summary>
         public void Tick(double deltaSeconds)
         {
+            TickTooltip(deltaSeconds);
+
             if (_pendingCloseAfter == null || deltaSeconds <= 0.0)
             {
                 return;
@@ -146,6 +171,123 @@ namespace ManaUI
             var target = _pendingCloseAfter;
             CancelPendingClose();
             CloseDeeperThan(target);
+        }
+
+        // ----- tooltips -------------------------------------------------------------------------------
+
+        /// <summary>How long the pointer must rest on something before its tooltip appears.</summary>
+        public double TooltipDelaySeconds { get; set; } = 0.5;
+
+        private UiElement? _tooltipCandidate;
+        private UiPopup? _tooltipPopup;
+        private double _tooltipHoverTime;
+        private bool _tooltipSuppressed;
+
+        /// <summary>Called by the router on every press, including one arriving mid-drag.</summary>
+        internal void NotifyPointerPressed()
+        {
+            SuppressTooltip();
+        }
+
+        /// <summary>Hides any tooltip and keeps one from returning until the pointer moves elsewhere.</summary>
+        private void SuppressTooltip()
+        {
+            _tooltipSuppressed = true;
+            CloseTooltip();
+        }
+
+        /// <summary>
+        /// Shows the hovered element's tooltip once the pointer has rested on it.
+        /// <para>
+        /// Driven from the tick rather than from the hover event, because a tooltip is about dwell time and
+        /// an event only says the pointer arrived. The nearest ancestor carrying one wins, so wrapping a
+        /// label in a border does not lose its tooltip.
+        /// </para>
+        /// </summary>
+        private void TickTooltip(double deltaSeconds)
+        {
+            var hovered = NearestTooltip(_root.Input.HoveredElement);
+
+            if (!ReferenceEquals(hovered, _tooltipCandidate))
+            {
+                _tooltipCandidate = hovered;
+                _tooltipHoverTime = 0.0;
+                _tooltipSuppressed = false;
+                CloseTooltip();
+                return;
+            }
+
+            if (hovered == null || _tooltipPopup != null || _tooltipSuppressed || deltaSeconds <= 0.0)
+            {
+                return;
+            }
+
+            _tooltipHoverTime += deltaSeconds;
+            if (_tooltipHoverTime < TooltipDelaySeconds)
+            {
+                return;
+            }
+
+            ShowTooltip(hovered);
+        }
+
+        private UiElement? NearestTooltip(UiElement? element)
+        {
+            while (element != null)
+            {
+                if (!string.IsNullOrEmpty(element.Tooltip))
+                {
+                    return element;
+                }
+
+                element = element.Parent;
+            }
+
+            return null;
+        }
+
+        private void ShowTooltip(UiElement target)
+        {
+            var theme = _root.Theme;
+
+            // StaysOpen, because a tooltip is not something to dismiss -- it goes away when the pointer
+            // does, and closing it on the next click would fight whatever that click was for.
+            _tooltipPopup = new UiPopup
+            {
+                Placement = PopupPlacement.Bottom,
+                StaysOpen = true,
+
+                // Transparent to the pointer. A popup is hit-testable by default, and one that appeared
+                // under the cursor would take the hover away from the thing being described -- which closes
+                // the tooltip, which gives the hover back, forever -- and swallow the click as well.
+                IsHitTestVisible = false,
+                Child = new Border()
+                    .Fill(theme.SurfaceRaised)
+                    .Outline(theme.BorderStrong, 1.0f)
+                    .Rounded(theme.CornerRadius)
+                    .Shadow(10.0f)
+                    .PaddingOf(8.0f, 5.0f)
+                    .Content(new TextBlock()
+                        .Text(target.Tooltip!)
+                        .Foreground(theme.Text)
+                        .FontSize(theme.FontSizeSmall)
+                        .Wrap()
+                        .MaxSize(420.0f, 200.0f))
+            };
+
+            Show(_tooltipPopup, target);
+        }
+
+        private void CloseTooltip()
+        {
+            if (_tooltipPopup == null)
+            {
+                return;
+            }
+
+            var popup = _tooltipPopup;
+            _tooltipPopup = null;
+            Close(popup);
         }
 
         /// <summary>
@@ -180,6 +322,11 @@ namespace ManaUI
         /// </returns>
         internal bool HandlePointerPressed(UiElement? hit)
         {
+            // A press means the pointer is being used rather than rested, so any tooltip has said its
+            // piece. It stays away until the pointer moves to something else, instead of reappearing the
+            // moment the dwell timer is next consulted.
+            SuppressTooltip();
+
             if (_open.Count == 0)
             {
                 return false;
@@ -194,9 +341,17 @@ namespace ManaUI
                 }
             }
 
+            // A popup that takes no input takes no part in dismissal either. Without this a tooltip could
+            // swallow a click on the very control it describes: it is anchored to that control, and the
+            // rule below deliberately eats presses that land on an open popup's anchor.
             var onAnchor = false;
             foreach (var popup in _open)
             {
+                if (!popup.IsHitTestVisible)
+                {
+                    continue;
+                }
+
                 if (popup.PlacementTarget != null && popup.PlacementTarget.IsAncestorOf(hit))
                 {
                     onAnchor = true;

@@ -1,4 +1,4 @@
-﻿using Mana.Code.Nodes;
+using Mana.Code.Nodes;
 using System.Threading;
 using ManaCore.Graphics;
 
@@ -20,6 +20,98 @@ namespace Mana
         // frame.
         private string? _instanceKey;
         public string InstanceKey => _instanceKey ??= $"meshRenderer:{_instanceId:x16}";
+
+        // The last data returned by ApplyMaterialTextures, kept so a repeat call with the same inputs hands
+        // back the same object. The renderers reconcile by reference when a mesh has no version, so a fresh
+        // copy every frame would have them rebuilding GPU buffers every frame.
+        private ManaMeshCpuData? _texturedSource;
+        private ManaMeshCpuData? _texturedResult;
+        private string _texturedKey = string.Empty;
+
+        /// <summary>
+        /// The mesh's CPU data with this material's texture maps applied.
+        /// <para>
+        /// The backends take a mesh's maps from its CPU data, where they were baked in at load time by
+        /// whatever produced the mesh -- and left null by everything procedural. That makes a map assigned
+        /// to the material afterwards invisible, which is exactly what an inspector does. This overlays
+        /// them, so a material is the single place a map is chosen regardless of where the mesh came from.
+        /// </para>
+        /// </summary>
+        public ManaMeshCpuData ApplyMaterialTextures(ManaMeshCpuData meshData)
+        {
+            var current = Material;
+
+            var albedo = PathOf(current.Albedo) ?? meshData.AlbedoTexturePath;
+            var normal = PathOf(current.Normal) ?? meshData.NormalTexturePath;
+            var emission = PathOf(current.Emission) ?? meshData.EmissionTexturePath;
+            var metallic = PathOf(current.Metallic) ?? meshData.MetallicTexturePath;
+            var roughness = PathOf(current.Roughness) ?? meshData.RoughnessTexturePath;
+            var ambient = PathOf(current.Occlusion) ?? meshData.OcclusionTexturePath;
+            var opacity = PathOf(current.Opacity) ?? meshData.OpacityTexturePath;
+
+            // Nothing the material adds, so the mesh's own data is already the answer and the caller keeps
+            // its reference. This is the common case -- most meshes wear what they were loaded with.
+            if (ReferenceEquals(albedo, meshData.AlbedoTexturePath)
+                && ReferenceEquals(normal, meshData.NormalTexturePath)
+                && ReferenceEquals(emission, meshData.EmissionTexturePath)
+                && ReferenceEquals(metallic, meshData.MetallicTexturePath)
+                && ReferenceEquals(roughness, meshData.RoughnessTexturePath)
+                && ReferenceEquals(ambient, meshData.OcclusionTexturePath)
+                && ReferenceEquals(opacity, meshData.OpacityTexturePath))
+            {
+                return meshData;
+            }
+
+            var key = string.Join('|', albedo, normal, emission, metallic, roughness, ambient, opacity);
+
+            if (ReferenceEquals(_texturedSource, meshData)
+                && string.Equals(_texturedKey, key, StringComparison.Ordinal)
+                && _texturedResult != null)
+            {
+                return _texturedResult;
+            }
+
+            // The arrays are shared rather than copied: this is the same geometry wearing different maps,
+            // and the vertex data is the large part.
+            _texturedResult = new ManaMeshCpuData
+            {
+                Indexes = meshData.Indexes,
+                Positions = meshData.Positions,
+                Normals = meshData.Normals,
+                Colors = meshData.Colors,
+                TextureCoordinates0 = meshData.TextureCoordinates0,
+                TextureCoordinates1 = meshData.TextureCoordinates1,
+                AlbedoTexturePath = albedo,
+                AlbedoTextureBytes = ReferenceEquals(albedo, meshData.AlbedoTexturePath)
+                    ? meshData.AlbedoTextureBytes
+                    : null,
+                AlbedoFactor = meshData.AlbedoFactor,
+                NormalTexturePath = normal,
+                EmissionTexturePath = emission,
+                MetallicTexturePath = metallic,
+                RoughnessTexturePath = roughness,
+                OcclusionTexturePath = ambient,
+                OpacityTexturePath = opacity
+            };
+
+            _texturedSource = meshData;
+            _texturedKey = key;
+
+            return _texturedResult;
+        }
+
+        /// <summary>
+        /// A channel's map as a path the backend can open, or null when the channel is empty.
+        /// <para>
+        /// Resolved to an absolute path here: a material stores a relative one so a scene survives being
+        /// moved or opened on another machine, and the backend does a plain File.Exists.
+        /// </para>
+        /// </summary>
+        private static string? PathOf(ManaTextureDynamic? channel)
+        {
+            var name = channel?.TextureValue?.OriginalFilename;
+            return string.IsNullOrWhiteSpace(name) ? null : ManaTexture.ResolveTexturePath(name);
+        }
 
         private ManaMaterial? material;
         public ManaMaterial Material

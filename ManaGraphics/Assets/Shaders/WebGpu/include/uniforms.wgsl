@@ -28,6 +28,9 @@ struct ObjectUniform {
     outline_parameters : vec4<f32>,
     debug_mode_override : f32,
     flat_shading : f32,
-    _padding1 : f32,
-    _padding2 : f32,
+    normal_strength : f32,
+    // Matches ManaOpacityMode: 1 opaque, 2 cutout, 3 blend. Auto is resolved before it reaches here.
+    opacity_mode : f32,
+    // Texture coordinate scale in xy, offset in zw. Applies to every map on the material.
+    uv_transform : vec4<f32>,
 };

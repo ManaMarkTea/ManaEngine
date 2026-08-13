@@ -27,6 +27,30 @@ namespace ManaCore.Graphics
         public Vector4 OutlineColor { get; init; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; init; } = 2.0f;
 
+        /// <summary>
+        /// Texture coordinate scale in XY and offset in ZW, applied to every map on this material.
+        /// <para>
+        /// A material property rather than mesh data: the same brick texture wants a different repeat on a
+        /// wall than on a doorframe, and neither should mean editing the mesh.
+        /// </para>
+        /// </summary>
+        public Vector4 UvTransform { get; init; } = new(1.0f, 1.0f, 0.0f, 0.0f);
+
+        /// <summary>How strongly the normal map perturbs the surface. 0 ignores it entirely.</summary>
+        public float NormalStrength { get; init; } = 1.0f;
+
+        /// <summary>What the renderer does with this material's alpha. Never Auto -- resolved before here.</summary>
+        public ManaOpacityMode OpacityMode { get; init; } = ManaOpacityMode.Opaque;
+
+        /// <summary>Alpha below this is discarded in <see cref="ManaOpacityMode.Cutout"/>.</summary>
+        public float AlphaCutoff { get; init; } = 0.5f;
+
+        /// <summary>
+        /// How solid the material is before any opacity map. Multiplies the albedo's own alpha, so the two
+        /// compose rather than one overriding the other.
+        /// </summary>
+        public float Opacity { get; init; } = 1.0f;
+
         // Per-material named uniform overrides (from ManaMaterial.ShaderUniforms), normalized to
         // Vector4 (float in .X, vec3 in .XYZ) so this stays backend-agnostic. Consumed by shaders
         // that declare a matching custom uniform block (see ManaWebGpuContext.Uniforms.cs).

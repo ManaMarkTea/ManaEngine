@@ -136,7 +136,11 @@ namespace ManaGraphics.Code.Graphics
                 Sampler = _clampSampler
             };
 
-            var bindGroupEntries = new BindGroupEntry[8];
+            // The rest of the maps, in binding order. Each is a real texture or the neutral 1x1 for its
+            // kind, because a bind group has to fill every binding its layout declares.
+            var materialMaps = AcquireMaterialMaps(meshData);
+
+            var bindGroupEntries = new BindGroupEntry[ObjectBindingCount];
             bindGroupEntries[0] = bindGroupEntry;
             bindGroupEntries[1] = samplerBindGroupEntry;
             bindGroupEntries[2] = textureBindGroupEntry;
@@ -146,13 +150,22 @@ namespace ManaGraphics.Code.Graphics
             bindGroupEntries[6] = brdfLutBindGroupEntry;
             bindGroupEntries[7] = clampSamplerBindGroupEntry;
 
+            for (var map = 0; map < MaterialMapCount; map++)
+            {
+                bindGroupEntries[FirstMaterialMapBinding + map] = new BindGroupEntry
+                {
+                    Binding = (uint)(FirstMaterialMapBinding + map),
+                    TextureView = materialMaps[map].TextureView
+                };
+            }
+
             BindGroup* bindGroup = null;
             fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
             {
                 var bindGroupDescriptor = new BindGroupDescriptor
                 {
                     Layout = _objectBindGroupLayout,
-                    EntryCount = 8,
+                    EntryCount = ObjectBindingCount,
                     Entries = bindGroupEntriesPointer
                 };
                 bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
@@ -294,6 +307,7 @@ namespace ManaGraphics.Code.Graphics
                 mesh,
                 uniformBuffer,
                 textureResource,
+                materialMaps,
                 ReleaseMeshTexture,
                 bindGroup,
                 sceneCaptureUniformBuffers,
@@ -492,13 +506,29 @@ namespace ManaGraphics.Code.Graphics
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Whether two meshes wear the same maps. Every channel counts: the textures are baked into the
+        /// bind group, so a mesh that keeps its GPU resources keeps whatever it was built with -- which is
+        /// why assigning a map to a live material has to force a rebuild rather than merely a redraw.
+        /// </summary>
+        private static bool SameMaterialMaps(ManaMeshCpuData current, ManaMeshCpuData incoming)
+        {
+            return string.Equals(current.AlbedoTexturePath, incoming.AlbedoTexturePath, StringComparison.Ordinal)
+                && string.Equals(current.NormalTexturePath, incoming.NormalTexturePath, StringComparison.Ordinal)
+                && string.Equals(current.EmissionTexturePath, incoming.EmissionTexturePath, StringComparison.Ordinal)
+                && string.Equals(current.MetallicTexturePath, incoming.MetallicTexturePath, StringComparison.Ordinal)
+                && string.Equals(current.RoughnessTexturePath, incoming.RoughnessTexturePath, StringComparison.Ordinal)
+                && string.Equals(current.OcclusionTexturePath, incoming.OcclusionTexturePath, StringComparison.Ordinal)
+                && string.Equals(current.OpacityTexturePath, incoming.OpacityTexturePath, StringComparison.Ordinal);
+        }
+
         private static bool CanReuseSceneMesh(ManaRenderMeshInstance current, ManaRenderMeshInstance incoming)
         {
             if (!string.Equals(current.Name, incoming.Name, StringComparison.Ordinal) ||
                 !string.Equals(current.MeshKey, incoming.MeshKey, StringComparison.Ordinal) ||
                 current.MeshData.Indexes.Length != incoming.MeshData.Indexes.Length ||
                 current.MeshData.Positions.Length != incoming.MeshData.Positions.Length ||
-                !string.Equals(current.MeshData.AlbedoTexturePath, incoming.MeshData.AlbedoTexturePath, StringComparison.Ordinal))
+                !SameMaterialMaps(current.MeshData, incoming.MeshData))
             {
                 return false;
             }
@@ -519,7 +549,7 @@ namespace ManaGraphics.Code.Graphics
             return string.Equals(current.MeshKey, incoming.MeshKey, StringComparison.Ordinal) &&
                 !string.IsNullOrWhiteSpace(current.MeshKey) &&
                 string.Equals(current.Name, incoming.Name, StringComparison.Ordinal) &&
-                string.Equals(current.MeshData.AlbedoTexturePath, incoming.MeshData.AlbedoTexturePath, StringComparison.Ordinal) &&
+                SameMaterialMaps(current.MeshData, incoming.MeshData) &&
                 current.MeshData.Positions.Length == incoming.MeshData.Positions.Length &&
                 current.MeshData.Indexes.Length == incoming.MeshData.Indexes.Length;
         }
@@ -580,6 +610,7 @@ namespace ManaGraphics.Code.Graphics
                 ManaWebGpuMesh mesh,
                 WebGpuBuffer* uniformBuffer,
                 ManaWebGpuMeshTexture texture,
+                ManaWebGpuMeshTexture[] materialMaps,
                 Action<ManaWebGpuMeshTexture> releaseTexture,
                 BindGroup* bindGroup,
                 nint[] sceneCaptureUniformBuffers,
@@ -595,6 +626,7 @@ namespace ManaGraphics.Code.Graphics
                 Mesh = mesh;
                 UniformBuffer = uniformBuffer;
                 Texture = texture;
+                MaterialMaps = materialMaps;
                 ObjectBindGroup = bindGroup;
                 SceneCaptureUniformBuffers = sceneCaptureUniformBuffers;
                 SceneCaptureBindGroups = sceneCaptureBindGroups;
@@ -608,6 +640,9 @@ namespace ManaGraphics.Code.Graphics
             public ManaWebGpuMesh Mesh { get; }
             public WebGpuBuffer* UniformBuffer { get; }
             public ManaWebGpuMeshTexture Texture { get; }
+
+            /// <summary>Normal, emission, metallic, roughness, occlusion and opacity, in binding order.</summary>
+            public ManaWebGpuMeshTexture[] MaterialMaps { get; }
             public BindGroup* ObjectBindGroup { get; }
             public nint[] SceneCaptureUniformBuffers { get; private set; }
             public nint[] SceneCaptureBindGroups { get; private set; }
@@ -857,6 +892,13 @@ namespace ManaGraphics.Code.Graphics
                     _api.BindGroupRelease(CustomBindGroup);
                 }
                 _releaseTexture(Texture);
+
+                // Ref-counted and shared, so this is a decrement rather than a free for anything another
+                // mesh is still using -- including the neutral 1x1s, which nearly every mesh holds.
+                foreach (var map in MaterialMaps)
+                {
+                    _releaseTexture(map);
+                }
                 if (UniformBuffer != null)
                 {
                     _api.BufferRelease(UniformBuffer);

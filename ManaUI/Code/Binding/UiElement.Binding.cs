@@ -28,6 +28,30 @@ namespace ManaUI
             Root?.NotifyPolledBindingsChanged();
         }
 
+        private int _bindingApplyDepth;
+
+        /// <summary>
+        /// True while a binding is pushing a value into this element, as opposed to a user editing it.
+        /// <para>
+        /// An editor bound to something that changes on its own -- a node being animated, a gizmo drag --
+        /// gets its value set every frame, and setting it raises the same change event a keystroke does.
+        /// A handler that writes back on that event forms a loop: the model's value is round-tripped
+        /// through the control's display precision on every frame, and anything the write triggers happens
+        /// every frame too. Handlers that write to a model should do nothing while this is true.
+        /// </para>
+        /// </summary>
+        public bool IsApplyingBinding => _bindingApplyDepth > 0;
+
+        internal void BeginBindingApply()
+        {
+            _bindingApplyDepth++;
+        }
+
+        internal void EndBindingApply()
+        {
+            _bindingApplyDepth = Math.Max(0, _bindingApplyDepth - 1);
+        }
+
         internal void RefreshPolledBindings()
         {
             if (_polledBindings == null)
