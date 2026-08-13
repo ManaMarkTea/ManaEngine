@@ -329,7 +329,7 @@ namespace ManaUI
                         glyph.Size.X,
                         glyph.Size.Y);
 
-                    drawList.DrawGlyph(quad, glyph.AtlasUv, color);
+                    EmitGlyph(drawList, glyph, quad, color);
                 }
 
                 penX += glyph.Advance;
@@ -346,13 +346,14 @@ namespace ManaUI
                 var glyph = font.GetGlyph(codepoint);
                 if (glyph.HasPixels)
                 {
-                    drawList.DrawGlyph(
+                    EmitGlyph(
+                        drawList,
+                        glyph,
                         new UiRect(
                             font.SnapToPixel(penX + glyph.Offset.X),
                             font.SnapToPixel(baselineY + glyph.Offset.Y),
                             glyph.Size.X,
                             glyph.Size.Y),
-                        glyph.AtlasUv,
                         color);
                 }
 
@@ -437,6 +438,22 @@ namespace ManaUI
                 field = value;
                 _dirty = true;
             }
+        }
+
+        /// <summary>
+        /// Emits one glyph, from whichever atlas it lives in. A colour glyph carries its own pixels, so it
+        /// goes out as an image with a white tint rather than as coverage tinted by the text colour --
+        /// tinting an emoji by the label's foreground would turn it into a silhouette.
+        /// </summary>
+        private static void EmitGlyph(ManaUiDrawList drawList, ManaGlyph glyph, UiRect quad, Vector4 color)
+        {
+            if (glyph.IsColor)
+            {
+                drawList.DrawImage(quad, glyph.AtlasUv, UiColor.White.WithAlpha(color.W), CornerRadius.Zero);
+                return;
+            }
+
+            drawList.DrawGlyph(quad, glyph.AtlasUv, color);
         }
     }
 }

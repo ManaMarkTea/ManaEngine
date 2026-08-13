@@ -31,13 +31,24 @@ namespace ManaUI
         /// </summary>
         public readonly bool IsMissing;
 
+        /// <summary>
+        /// True when the glyph lives in the colour atlas rather than the coverage atlas -- an emoji, drawn
+        /// as an image instead of being tinted by the text colour.
+        /// <para>
+        /// The two atlases are bound together and chosen per instance by a flag, so a line mixing text and
+        /// emoji is still one draw call. What changes is which atlas <see cref="AtlasUv"/> indexes.
+        /// </para>
+        /// </summary>
+        public readonly bool IsColor;
+
         public ManaGlyph(
             Vector4 atlasUv,
             Vector2 offset,
             Vector2 size,
             float advance,
             bool hasPixels,
-            bool isMissing = false)
+            bool isMissing = false,
+            bool isColor = false)
         {
             AtlasUv = atlasUv;
             Offset = offset;
@@ -45,6 +56,7 @@ namespace ManaUI
             Advance = advance;
             HasPixels = hasPixels;
             IsMissing = isMissing;
+            IsColor = isColor;
         }
 
         /// <summary>True when there is a real glyph with something to draw.</summary>

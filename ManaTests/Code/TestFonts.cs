@@ -14,6 +14,15 @@ public static class TestFonts
             if (Directory.Exists(bundled))
             {
                 yield return bundled;
+
+                // ManaUI ships its own fonts -- the colour emoji strike, which has no substitute on a
+                // machine without one.
+                var library = Path.Combine(directory.FullName, "ManaUI", "Assets", "Fonts");
+                if (Directory.Exists(library))
+                {
+                    yield return library;
+                }
+
                 break;
             }
 

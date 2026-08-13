@@ -16,12 +16,19 @@ namespace ManaUI
         private readonly Dictionary<(string File, int Size, int Scale), ManaFont> _fonts = new();
         private readonly List<string> _searchDirectories = new();
 
-        public ManaFontManager(ManaGlyphAtlas? atlas = null)
+        public ManaFontManager(ManaGlyphAtlas? atlas = null, ManaImageAtlas? images = null)
         {
             Atlas = atlas ?? new ManaGlyphAtlas();
+            Images = images ?? new ManaImageAtlas();
         }
 
         public ManaGlyphAtlas Atlas { get; }
+
+        /// <summary>
+        /// Where colour glyphs are packed. Handed to every font, because any of them might turn out to be
+        /// an emoji font and the alternative is a font that silently cannot draw what it has.
+        /// </summary>
+        public ManaImageAtlas Images { get; }
 
         public IReadOnlyList<string> SearchDirectories => _searchDirectories;
 
@@ -54,6 +61,69 @@ namespace ManaUI
             "DejaVuSans",
             "NotoSansSymbols2-Regular"
         };
+
+        /// <summary>
+        /// Colour emoji fonts, tried in order. Kept apart from <see cref="FallbackFamilies"/> because one
+        /// of these cannot be loaded as an ordinary font at all: a CBDT emoji font has no glyf or loca
+        /// table, so stb refuses the file outright and there is nothing for a ManaFont to wrap.
+        /// </summary>
+        public List<string> ColorEmojiFamilies { get; } = new()
+        {
+            "NotoColorEmoji",
+            "seguiemj"
+        };
+
+        private ManaColorBitmapTable? _colorEmoji;
+        private bool _colorEmojiResolved;
+
+        /// <summary>
+        /// The colour emoji source, loaded on first use. Null when none of the candidates is present or
+        /// none of them uses embedded bitmaps -- a COLR/CPAL font resolves to a file but answers nothing
+        /// here, which is the honest result rather than a crash.
+        /// </summary>
+        public ManaColorBitmapTable? ColorEmoji
+        {
+            get
+            {
+                if (_colorEmojiResolved)
+                {
+                    return _colorEmoji;
+                }
+
+                _colorEmojiResolved = true;
+
+                foreach (var family in ColorEmojiFamilies)
+                {
+                    var path = ResolveCachedPath(family);
+                    if (path == null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (!_fileCache.TryGetValue(path, out var data))
+                        {
+                            data = File.ReadAllBytes(path);
+                            _fileCache[path] = data;
+                        }
+
+                        var table = ManaColorBitmapTable.TryRead(data);
+                        if (table != null)
+                        {
+                            _colorEmoji = table;
+                            break;
+                        }
+                    }
+                    catch (IOException)
+                    {
+                        // Unreadable file; try the next candidate.
+                    }
+                }
+
+                return _colorEmoji;
+            }
+        }
 
         /// <summary>
         /// Family names that resolve to a real file, for a font picker to offer.
@@ -148,7 +218,11 @@ namespace ManaUI
                 data,
                 rounded,
                 Atlas,
-                quantisedScale / 4.0f);
+                quantisedScale / 4.0f)
+            {
+                ImageAtlas = Images,
+                ColorEmoji = ColorEmoji
+            };
 
             // Cached before the chain is built, because a fallback is itself a font from this manager and
             // resolving one re-enters here. Without this a cycle in the fallback list would recurse

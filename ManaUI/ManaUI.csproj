@@ -16,10 +16,24 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
+    <!-- Decodes the PNGs embedded in colour-emoji fonts. Pure managed, so ManaUI stays headless-testable
+         and keeps its "no graphics dependency" rule. -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
+  </ItemGroup>
+
+  <!-- Fonts the library itself needs rather than the application: the colour emoji strike has no
+       substitute on a machine that lacks one, unlike the symbol fallbacks which are best-effort. -->
+  <ItemGroup>
+    <None Include="Assets\Fonts\**\*.ttf" CopyToOutputDirectory="PreserveNewest" LinkBase="Assets\Fonts" />
+
+    <!-- The COLRv1 build of Noto Color Emoji. Kept in the repo for reference but not shipped: its glyphs
+         are a paint graph of gradients and transforms rather than bitmaps, so nothing here can draw it,
+         and it is 25MB. NotoColorEmoji.ttf beside it is the CBDT build, which is the one that works. -->
+    <None Remove="Assets\Fonts\NotoColorEmoji-Regular.ttf" />
   </ItemGroup>
 
 </Project>

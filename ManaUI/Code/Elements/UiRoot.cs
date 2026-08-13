@@ -47,8 +47,12 @@ namespace ManaUI
         /// The colour atlas, for anything that brings its own colours rather than being tinted: thumbnails,
         /// colour emoji, multi-colour icons. Bound alongside the glyph atlas, so mixing the two costs no
         /// extra draw call.
+        /// <para>
+        /// The font manager's, not one of its own -- colour glyphs are packed by fonts, and a root holding
+        /// a second atlas would hand the renderer an empty one while the emoji sat in the other.
+        /// </para>
         /// </summary>
-        public ManaImageAtlas Images { get; } = new();
+        public ManaImageAtlas Images => Fonts.Images;
         /// <summary>
         /// The palette every control reads. Swapping it re-renders the tree, but note that a view which
         /// captured a colour when it was built keeps the old one -- most controls read the theme at render

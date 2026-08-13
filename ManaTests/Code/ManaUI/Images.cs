@@ -149,6 +149,92 @@ public static class ImageChecks
         Check("stretch fills the bounds exactly", fitted.DestinationRect() == fitted.Bounds,
             fitted.DestinationRect().ToString());
 
+        // ---------------------------------------------------------------- colour emoji
+        Console.WriteLine("  -- colour emoji --");
+
+        // stb rasterises outlines and nothing else, so an emoji font is blank through it. The CBDT tables
+        // hold a PNG per glyph, which is what this reads.
+        // Loaded outside the ordinary font path on purpose: stb cannot open a CBDT emoji font at all,
+        // because it has no glyf or loca table for stbtt_InitFont to work from.
+        var emojiTable = fonts.ColorEmoji;
+        Check("the colour emoji font is available", emojiTable != null,
+            emojiTable == null
+                ? $"searched {string.Join("; ", fonts.SearchDirectories)}"
+                : $"{emojiTable.GlyphCount} glyphs at {emojiTable.PixelsPerEm}px, "
+                  + $"{emojiTable.CharacterCount} codepoints");
+
+        if (emojiTable != null)
+        {
+            Check("its character map reaches past the BMP",
+                emojiTable.TryGetGlyphIndex(0x1F600, out var grinIndex) && grinIndex > 0,
+                "U+1F600 maps to a glyph");
+
+            // Reached through an ordinary text font, which is the whole point: a label containing an emoji
+            // just works, with the emoji font supplying pixels stb never sees.
+            var emoji = fonts.Get("Roboto", 15.0f);
+            Check("a text font can reach the emoji", emoji.HasColorGlyphs, "colour source attached");
+
+            // U+1F600 GRINNING FACE, the canonical smoke test.
+            var grin = emoji.GetGlyph(0x1F600);
+            Check("an emoji rasterises", grin.IsDrawable, $"{grin.Size.X:F1}x{grin.Size.Y:F1}px");
+            Check("and is flagged as colour", grin.IsColor, "goes to the image atlas");
+            Check("it is sized for the text around it", grin.Size.Y is > 4.0f and < 40.0f,
+                $"{grin.Size.Y:F1}px tall at a 15px font");
+            Check("it advances the pen", grin.Advance > 0.0f, $"{grin.Advance:F1}px");
+
+            // The pixels must actually be in the atlas, in colour -- a blank region would still produce a
+            // plausible-looking UV.
+            var grinUv = grin.AtlasUv;
+            var px = (int)MathF.Round(grinUv.X * fonts.Images.Width) + 1;
+            var py = (int)MathF.Round(grinUv.Y * fonts.Images.Height) + 1;
+            var opaque = 0;
+            var coloured = 0;
+
+            for (var y = 0; y < (int)grin.Size.Y - 2 && y < 64; y++)
+            {
+                for (var x = 0; x < (int)grin.Size.X - 2 && x < 64; x++)
+                {
+                    var o = ((py + y) * fonts.Images.Width + px + x) * 4;
+                    if (fonts.Images.Pixels[o + 3] > 200)
+                    {
+                        opaque++;
+                        if (fonts.Images.Pixels[o] != fonts.Images.Pixels[o + 1]
+                            || fonts.Images.Pixels[o + 1] != fonts.Images.Pixels[o + 2])
+                        {
+                            coloured++;
+                        }
+                    }
+                }
+            }
+
+            Check("the atlas holds real pixels", opaque > 20, $"{opaque} opaque texels");
+            Check("and they are in colour, not greyscale", coloured > 10,
+                $"{coloured} texels with unequal channels");
+
+            // A mixed line is still one draw call, because both atlases are bound at once.
+            var mixedRoot = new UiRoot(fonts);
+            mixedRoot.Content = new TextBlock().Text("Hi 😀 there");
+            mixedRoot.UpdateLayout(new Vector2(400, 100));
+            var mixedText = mixedRoot.Render();
+
+            // "Hi <emoji> there" is seven letters and one emoji; the two spaces draw nothing.
+            Check("text and emoji draw together", mixedText.InstanceCount == 8,
+                $"{mixedText.InstanceCount} instances");
+            Check("in a single batch", mixedText.Batches.Count == 1, $"{mixedText.Batches.Count} batches");
+
+            var colourInstances = 0;
+            foreach (var instance in mixedText.Instances)
+            {
+                if ((instance.Flags & (uint)ManaUiInstanceFlags.Texture) != 0)
+                {
+                    colourInstances++;
+                }
+            }
+
+            Check("the emoji went out as an image, not coverage", colourInstances == 1,
+                $"{colourInstances} textured instances");
+        }
+
         // An image with nothing assigned must be silent rather than drawing the atlas corner.
         var empty = new UiImage();
         root.Content = null;

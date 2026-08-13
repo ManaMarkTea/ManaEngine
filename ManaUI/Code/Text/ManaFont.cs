@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using SixLabors.ImageSharp.Processing;
 using StbTrueTypeSharp;
 
 namespace ManaUI
@@ -25,6 +26,24 @@ namespace ManaUI
         private int _atlasGeneration;
         private bool _disposed;
 
+        /// <summary>
+        /// The colour atlas colour glyphs are packed into. Optional, because a font without CBDT tables
+        /// never needs one and the layout engine is exercised headlessly without any atlas at all.
+        /// </summary>
+        public ManaImageAtlas? ImageAtlas { get; set; }
+
+        /// <summary>Embedded colour bitmaps in this font's own file. Null for every ordinary font.</summary>
+        public ManaColorBitmapTable? ColorBitmaps { get; private set; }
+
+        /// <summary>
+        /// A separate colour emoji font to fall back on. Distinct from <see cref="Fallbacks"/>, which holds
+        /// ManaFonts -- an emoji font cannot be one, having no outlines for stb to initialise from.
+        /// </summary>
+        public ManaColorBitmapTable? ColorEmoji { get; set; }
+
+        /// <summary>True when this font can supply colour glyphs, from its own tables or the emoji font.</summary>
+        public bool HasColorGlyphs => ColorBitmaps != null || ColorEmoji != null;
+
         public ManaFont(string name, byte[] fontData, float pixelSize, ManaGlyphAtlas atlas, float renderScale = 1.0f)
         {
             ArgumentException.ThrowIfNullOrEmpty(name);
@@ -48,6 +67,9 @@ namespace ManaUI
                 _dataPin.Free();
                 throw new InvalidOperationException($"'{name}' is not a font stb_truetype can read.");
             }
+
+            // Only emoji fonts answer this; for everything else it is a table-directory scan and a null.
+            ColorBitmaps = ManaColorBitmapTable.TryRead(fontData);
 
             // Glyphs are rasterised at the physical size so a HiDPI display gets genuinely sharper text
             // rather than a magnified bitmap...
@@ -117,6 +139,12 @@ namespace ManaUI
                 return cached;
             }
 
+            if (TryRasterizeColor(codepoint, out var colorGlyph))
+            {
+                _glyphs[codepoint] = colorGlyph;
+                return colorGlyph;
+            }
+
             // A codepoint this font lacks is rasterised by whichever fallback has it, into the same atlas
             // at the same size -- so the caller gets a real glyph rather than a tofu box and never has to
             // know which file it came from.
@@ -129,6 +157,8 @@ namespace ManaUI
                         continue;
                     }
 
+                    fallback.ImageAtlas ??= ImageAtlas;
+                    fallback.ColorEmoji ??= ColorEmoji;
                     var borrowed = fallback.GetGlyph(codepoint);
                     _glyphs[codepoint] = borrowed;
                     return borrowed;
@@ -220,6 +250,94 @@ namespace ManaUI
         public bool CanRender(int codepoint)
         {
             return FindFontFor(codepoint) != null;
+        }
+
+        /// <summary>
+        /// Decodes the glyph's embedded PNG, scales it to this font's size and packs it into the colour
+        /// atlas.
+        /// <para>
+        /// Scaled on the way in rather than at draw time. The strike is authored at 109 pixels and a UI
+        /// asks for fifteen, so storing them native would fit about forty emoji in a 1024 atlas and waste
+        /// most of what it did fit.
+        /// </para>
+        /// </summary>
+        private bool TryRasterizeColor(int codepoint, out ManaGlyph glyph)
+        {
+            glyph = default;
+
+            var imageAtlas = ImageAtlas;
+            if (imageAtlas == null)
+            {
+                return false;
+            }
+
+            // This font's own tables first -- a font that has both outlines and bitmaps should use its
+            // own -- then the shared emoji font.
+            var table = ColorBitmaps;
+            ManaColorBitmapEntry entry = default;
+            var found = false;
+
+            if (table != null
+                && table.TryGetGlyphIndex(codepoint, out var ownIndex)
+                && table.TryGetEntry(ownIndex, out entry))
+            {
+                found = true;
+            }
+            else if (ColorEmoji != null
+                && ColorEmoji.TryGetGlyphIndex(codepoint, out var emojiIndex)
+                && ColorEmoji.TryGetEntry(emojiIndex, out entry))
+            {
+                table = ColorEmoji;
+                found = true;
+            }
+
+            if (!found || table == null)
+            {
+                return false;
+            }
+
+            // Sized against the em, not the bitmap: emoji are designed to sit on the same line as text, so
+            // the target height comes from the font's own size rather than the strike's.
+            var target = PixelSize * RenderScale;
+            var scale = target / MathF.Max(1.0f, table.PixelsPerEm);
+            var width = Math.Max(1, (int)MathF.Round(entry.Width * scale));
+            var height = Math.Max(1, (int)MathF.Round(entry.Height * scale));
+
+            Vector4? uv;
+
+            try
+            {
+                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(
+                    table.GetPng(entry));
+
+                image.Mutate(context => context.Resize(width, height));
+
+                var pixels = new byte[width * height * 4];
+                image.CopyPixelDataTo(pixels);
+                uv = imageAtlas.Add(pixels, width, height);
+            }
+            catch (Exception)
+            {
+                // A PNG this decoder cannot read is one emoji missing, not a broken font.
+                return false;
+            }
+
+            if (uv == null)
+            {
+                return false;
+            }
+
+            // BearingY is measured up from the baseline; the UI's Y grows downward, hence the negation.
+            glyph = new ManaGlyph(
+                uv.Value,
+                new Vector2(entry.BearingX * scale / RenderScale, -entry.BearingY * scale / RenderScale),
+                new Vector2(width / RenderScale, height / RenderScale),
+                entry.Advance * scale / RenderScale,
+                hasPixels: true,
+                isMissing: false,
+                isColor: true);
+
+            return true;
         }
 
         private ManaGlyph Rasterize(int codepoint)
