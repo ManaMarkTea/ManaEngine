@@ -16,12 +16,32 @@ namespace ManaUI
     {
         private IReadOnlyList<float>? _samples;
 
-        /// <summary>The series, newest last. Read at render time, never copied.</summary>
+        /// <summary>The series. Read at render time, never copied.</summary>
         public IReadOnlyList<float>? Samples
         {
             get => _samples;
             set => SetVisualProperty(ref _samples, value);
         }
+
+        /// <summary>
+        /// Where the next sample will be written, for a series kept as a ring buffer -- so the oldest
+        /// sample is at this index and the newest is just before it.
+        /// <para>
+        /// Without this a ring buffer draws with a seam that travels across the graph as the cursor wraps,
+        /// which reads as the data jumping rather than scrolling. With it the newest sample is always at
+        /// the right-hand edge, which is the only place worth looking.
+        /// </para>
+        /// <para>
+        /// Null for a plain ordered list, where the newest is simply last.
+        /// </para>
+        /// </summary>
+        public int? WriteCursor
+        {
+            get => _writeCursor;
+            set => SetVisualProperty(ref _writeCursor, value);
+        }
+
+        private int? _writeCursor;
 
         /// <summary>Bottom of the graph. Fixed rather than the series minimum, so it does not breathe.</summary>
         public float Minimum { get; set; }
@@ -79,12 +99,11 @@ namespace ManaUI
 
             // The newest samples, right-aligned: a graph that scrolled from the left would put the moment
             // you care about at whichever end happened to have room.
-            var first = samples.Count - visible;
             var fill = Fill ?? theme.Accent;
 
             for (var i = 0; i < visible; i++)
             {
-                var value = Math.Clamp(samples[first + i], Minimum, top);
+                var value = Math.Clamp(SampleAt(samples, visible - i), Minimum, top);
                 var height = (value - Minimum) / range * inner.Height;
 
                 if (height <= 0.5f)
@@ -106,6 +125,23 @@ namespace ManaUI
                     new UiRect(inner.X, y, inner.Width, 1.0f),
                     ThresholdColor ?? theme.Warning);
             }
+        }
+
+        /// <summary>
+        /// The sample <paramref name="fromNewest"/> places back, where 1 is the newest. Unrolls the ring
+        /// when there is a cursor, so the caller can keep writing in place and still get a graph that
+        /// scrolls.
+        /// </summary>
+        private float SampleAt(IReadOnlyList<float> samples, int fromNewest)
+        {
+            if (_writeCursor is not { } cursor)
+            {
+                return samples[samples.Count - fromNewest];
+            }
+
+            // The cursor is where the next write goes, so the newest already written is one before it.
+            var index = (cursor - fromNewest) % samples.Count;
+            return samples[index < 0 ? index + samples.Count : index];
         }
 
         private static float Highest(IReadOnlyList<float> samples)

@@ -239,6 +239,76 @@ public static class TabsAndGraphChecks
             taller.Count == samples.Count && taller[^1].Rect.Y < columns[^1].Rect.Y,
             "read live");
 
+        // ---------------------------------------------------------------- ring buffers
+        // A caller sampling every frame keeps a ring and writes in place. Without being told where the
+        // cursor is, the graph draws from index zero and the join travels across it as the cursor wraps --
+        // which reads as the data jumping rather than scrolling.
+        var ring = new float[5];
+        var ringGraph = new Sparkline
+        {
+            Samples = ring,
+            Minimum = 0.0f,
+            Maximum = 100.0f,
+            Width = 120.0f,
+            Height = 40.0f
+        };
+
+        root.Content = null;
+        root.Content = new Canvas().Children(ringGraph.At(10.0f, 10.0f));
+
+        // Written past the end so the buffer has wrapped: chronologically 10, 20, 30, 40, 50, but stored
+        // starting at index 2. The newest, 50, sits at index 1.
+        var order = new[] { 10.0f, 20.0f, 30.0f, 40.0f, 50.0f };
+        var cursor = 2;
+        foreach (var value in order)
+        {
+            ring[cursor] = value;
+            cursor = (cursor + 1) % ring.Length;
+        }
+
+        ringGraph.WriteCursor = cursor;
+        root.UpdateLayout(new Vector2(400, 200));
+
+        List<ManaUiInstance> Columns(Sparkline of) => root.Render().Instances.ToArray()
+            .Where(i => i.Rect.X > of.Bounds.X && i.Rect.Z < of.Bounds.Right + 1.0f)
+            .Where(i => i.Rect.W - i.Rect.Y > 1.0f && i.Rect.Z - i.Rect.X <= 6.0f)
+            .OrderBy(i => i.Rect.X)
+            .ToList();
+
+        var wrapped = Columns(ringGraph);
+        Check("a wrapped ring draws every sample", wrapped.Count == order.Length, $"{wrapped.Count} columns");
+
+        if (wrapped.Count == order.Length)
+        {
+            // Chronological order, left to right, despite the storage starting mid-array.
+            var rising = true;
+            for (var i = 1; i < wrapped.Count; i++)
+            {
+                rising &= wrapped[i].Rect.Y < wrapped[i - 1].Rect.Y;
+            }
+
+            Check("in the order they were written, not the order they are stored", rising,
+                string.Join(", ", wrapped.Select(c => (c.Rect.W - c.Rect.Y).ToString("F0"))));
+
+            // The one thing that matters: the most recent sample is at the right-hand edge.
+            Check("with the newest at the right edge",
+                MathF.Abs((wrapped[^1].Rect.W - wrapped[^1].Rect.Y) - (wrapped[0].Rect.W - wrapped[0].Rect.Y) * 5.0f) < 3.0f,
+                $"tallest {wrapped[^1].Rect.W - wrapped[^1].Rect.Y:F0} vs shortest {wrapped[0].Rect.W - wrapped[0].Rect.Y:F0}");
+        }
+
+        // One more sample: the graph should scroll by one, not shuffle.
+        ring[cursor] = 60.0f;
+        cursor = (cursor + 1) % ring.Length;
+        ringGraph.WriteCursor = cursor;
+        root.UpdateLayout(new Vector2(400, 200));
+
+        var scrolled = Columns(ringGraph);
+        Check("another sample scrolls it rather than reordering it",
+            scrolled.Count == order.Length
+                && scrolled[^1].Rect.Y < scrolled[^2].Rect.Y
+                && MathF.Abs((scrolled[0].Rect.W - scrolled[0].Rect.Y) - (wrapped[1].Rect.W - wrapped[1].Rect.Y)) < 1.5f,
+            "oldest fell off the left");
+
         // An empty or absent series is a normal state -- the first frames of any counter.
         graph.Samples = null;
         root.UpdateLayout(new Vector2(400, 200));

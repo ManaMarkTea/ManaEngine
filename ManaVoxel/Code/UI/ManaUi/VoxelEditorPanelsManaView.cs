@@ -58,6 +58,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             graph.BindPolled(g => g.Tooltip, () =>
             {
                 Sample();
+
+                // Handed to the graph so it can unroll the ring: the newest sample belongs at the right
+                // edge, not wherever the cursor happens to have reached.
+                graph.WriteCursor = next;
+
                 return $"{ManaTime.GlobalTime.FramesPerSecondAvg:0} fps average, {frames[(next + frames.Length - 1) % frames.Length]:0.0} ms last frame";
             });
 
@@ -322,6 +327,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 var megabytes = GC.GetTotalMemory(false) / (1024.0f * 1024.0f);
                 memory[next] = megabytes;
                 next = (next + 1) % memory.Length;
+                memoryGraph.WriteCursor = next;
                 return $"{megabytes:0.0} MB managed";
             });
 
