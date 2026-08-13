@@ -1,6 +1,7 @@
 using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaUI;
+using ManaVoxel.Code.Assets;
 
 using Button = ManaUI.Button;
 
@@ -30,7 +31,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 9;
+        private const int LayoutVersion = 10;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -38,6 +39,13 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private static string DefaultLayoutPath =>
             ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
+
+        /// <summary>
+        /// The asset list behind the import panel, shared rather than per-panel: scanning walks the whole
+        /// asset tree, and a theme switch rebuilds every panel -- which would otherwise throw the list away
+        /// and rescan for no reason.
+        /// </summary>
+        public static MeshAssetLibrary MeshAssets { get; } = new();
 
         /// <summary>Every panel the workspace can show.</summary>
         /// <summary>
@@ -53,6 +61,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static readonly string[] PanelIds =
         {
             "tools",
+            "import",
             "placement",
             "physics",
             "voxelstats",
@@ -139,6 +148,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // One panel per subject rather than one with a tab bar: the dock already tabs anything
                 // sharing a slot, so this gives the same arrangement by default and lets them be pulled
                 // apart.
+                "import" when editor != null => new DockItem(
+                    "Import",
+                    MeshImportManaView.Build(theme, editor, MeshAssets)) { Id = "import" },
                 "placement" when editor != null => new DockItem(
                     "Placement",
                     VoxelEditorPanelsManaView.BuildPlacement(theme, editor)) { Id = "placement" },

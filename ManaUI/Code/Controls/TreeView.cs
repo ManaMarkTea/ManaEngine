@@ -20,6 +20,12 @@ namespace ManaUI
         // Reference identity: model objects may override Equals, and two equal-but-distinct nodes must
         // still expand independently.
         private readonly HashSet<object> _expanded = new(ReferenceEqualityComparer.Instance);
+
+        /// <summary>
+        /// Nodes closed by hand. Only meaningful against <see cref="IsExpandedByDefault"/> -- without it an
+        /// absence from <see cref="_expanded"/> already means closed, and this stays empty.
+        /// </summary>
+        private readonly HashSet<object> _collapsed = new(ReferenceEqualityComparer.Instance);
         private readonly List<object> _visibleItems = new();
         private readonly List<int> _depths = new();
         private readonly List<bool> _hasChildren = new();
@@ -145,11 +151,29 @@ namespace ManaUI
         /// <summary>Items currently shown, in display order.</summary>
         public IReadOnlyList<object> VisibleItems => _visibleItems;
 
-        public bool IsExpanded(object item) => _expanded.Contains(item);
+        /// <summary>
+        /// Which nodes start open. A file tree wants its folders open on arrival -- a panel that opens showing
+        /// nothing but folder names has hidden everything it exists to show -- while a scene graph wants the
+        /// opposite. Closing one by hand still sticks.
+        /// </summary>
+        public Func<object, bool>? IsExpandedByDefault { get; set; }
+
+        public bool IsExpanded(object item)
+        {
+            if (_collapsed.Contains(item))
+            {
+                return false;
+            }
+
+            return _expanded.Contains(item) || IsExpandedByDefault?.Invoke(item) == true;
+        }
 
         public void Expand(object item)
         {
-            if (_expanded.Add(item))
+            var changed = _collapsed.Remove(item);
+            changed |= _expanded.Add(item);
+
+            if (changed)
             {
                 QueueRebuild();
             }
@@ -157,7 +181,10 @@ namespace ManaUI
 
         public void Collapse(object item)
         {
-            if (_expanded.Remove(item))
+            var changed = _expanded.Remove(item);
+            changed |= _collapsed.Add(item);
+
+            if (changed)
             {
                 QueueRebuild();
             }
@@ -165,12 +192,13 @@ namespace ManaUI
 
         public void ToggleExpanded(object item)
         {
-            if (!_expanded.Remove(item))
+            if (IsExpanded(item))
             {
-                _expanded.Add(item);
+                Collapse(item);
+                return;
             }
 
-            QueueRebuild();
+            Expand(item);
         }
 
         /// <summary>Expands every ancestor of an item so it becomes visible.</summary>
@@ -187,6 +215,7 @@ namespace ManaUI
                 // The item itself is the last entry and does not need expanding to be seen.
                 for (var i = 0; i < path.Count - 1; i++)
                 {
+                    _collapsed.Remove(path[i]);
                     _expanded.Add(path[i]);
                 }
 
@@ -225,6 +254,18 @@ namespace ManaUI
         public void CollapseAll()
         {
             _expanded.Clear();
+
+            // Default-expanded nodes have to be closed explicitly, or clearing the set leaves them exactly
+            // as open as they were. Only what is visible can be reached, which is also all that is on screen
+            // to have looked open in the first place.
+            if (IsExpandedByDefault != null)
+            {
+                foreach (var item in _visibleItems)
+                {
+                    _collapsed.Add(item);
+                }
+            }
+
             QueueRebuild();
         }
 
@@ -270,7 +311,7 @@ namespace ManaUI
                     continue;
                 }
 
-                var expanded = _expanded.Contains(item);
+                var expanded = IsExpanded(item);
 
                 // The children of a collapsed node are never needed, so asking for them is skipped
                 // entirely unless HasChildrenSelector is absent and the expander state has to be derived.

@@ -1736,9 +1736,12 @@ namespace Mana.Code.GameModes
             if (HandleMeshPickerEscapeCancel())
             {
                 _panelsView.ClearDraggedMeshAssetPath();
+                MeshImportRequests.Clear();
             }
 
-            var pendingPath = _panelsView.ConsumePendingMeshSpawnPath();
+            // Both import panels feed this while ImGui is still on. They cannot both have a request pending
+            // in the same frame -- only one of them can be under the pointer.
+            var pendingPath = _panelsView.ConsumePendingMeshSpawnPath() ?? MeshImportRequests.TakePlacement();
             if (!string.IsNullOrWhiteSpace(pendingPath))
             {
                 BeginMeshPickerPlacementPreview(pendingPath);
@@ -1750,7 +1753,7 @@ namespace Mana.Code.GameModes
                               mousePosition.X <= sceneMax.X &&
                               mousePosition.Y >= sceneMin.Y &&
                               mousePosition.Y <= sceneMax.Y;
-            var draggedPath = _panelsView.CurrentDraggedMeshAssetPath;
+            var draggedPath = _panelsView.CurrentDraggedMeshAssetPath ?? MeshImportRequests.Dragging;
             if (!string.IsNullOrWhiteSpace(draggedPath) && isOverScene)
             {
                 BeginMeshPickerPlacementPreview(draggedPath);
@@ -1773,6 +1776,7 @@ namespace Mana.Code.GameModes
                 }
 
                 _panelsView.ClearDraggedMeshAssetPath();
+                MeshImportRequests.TakeDrag();
             }
 
             var placeClick = leftMouseDown && !_meshPickerPlaceClickWasDown;

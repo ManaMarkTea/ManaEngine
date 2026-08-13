@@ -90,6 +90,22 @@ namespace ManaUI
             // Re-resolve against the size actually granted: measure ran against the parent's offer, which
             // may have been larger or infinite, and star tracks must follow the real width.
             ResolveTracks(ColumnDefinitions, content.Width - _columnSpacing * MathF.Max(0, ColumnDefinitions.Count - 1), isColumns: true);
+
+            // Measured again at the widths just settled, exactly as the measure pass does. Resolving auto
+            // columns has to ask children for a natural width, which measures them against infinity -- so
+            // without this the row pass below sizes rows from whatever a child wanted when offered unlimited
+            // room. Nothing noticed until WrapPanel, whose height genuinely depends on its width: its row
+            // came out one line tall while it drew two.
+            foreach (var child in Children)
+            {
+                if (child.Visibility == Visibility.Collapsed)
+                {
+                    continue;
+                }
+
+                child.Measure(new Vector2(SpanLength(ColumnDefinitions, child, isColumns: true), LayoutHelper.Infinity));
+            }
+
             ResolveTracks(RowDefinitions, content.Height - _rowSpacing * MathF.Max(0, RowDefinitions.Count - 1), isColumns: false);
 
             AssignOffsets(ColumnDefinitions, _columnSpacing);
