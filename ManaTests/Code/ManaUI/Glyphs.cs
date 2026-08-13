@@ -128,15 +128,33 @@ public static class GlyphChecks
         drawList.Finish();
         Check("an empty box draws nothing", drawList.InstanceCount == 0, $"{drawList.InstanceCount}");
 
+        // Two strokes each, one instance per stroke. This was about forty instances when a diagonal had to
+        // be faked with a run of dots -- per checkbox, per frame.
         drawList.Reset();
         UiIcons.Check(drawList, new UiRect(0.0f, 0.0f, 12.0f, 12.0f), UiColor.White);
         drawList.Finish();
-        Check("a check mark draws", drawList.InstanceCount > 5, $"{drawList.InstanceCount} instances");
+        Check("a check mark is two strokes", drawList.InstanceCount == 2, $"{drawList.InstanceCount} instances");
+
+        Check("drawn at an angle",
+            drawList.Instances.ToArray().All(i => i.Rotation != 0.0f),
+            "both rotated");
+
+        // A rotated box covers more than its rect, so the bounds are what has to stay inside the icon --
+        // checking the rect would pass while the stroke poked out of whatever the icon sits in.
+        Check("and inside its box",
+            drawList.Instances.ToArray().All(i =>
+            {
+                var bounds = ManaUiDrawList.RotatedBounds(
+                    UiRect.FromEdges(i.Rect.X, i.Rect.Y, i.Rect.Z, i.Rect.W), i.Rotation);
+
+                return bounds.X >= -1.5f && bounds.Y >= -1.5f && bounds.Right <= 13.5f && bounds.Bottom <= 13.5f;
+            }),
+            "within bounds");
 
         drawList.Reset();
         UiIcons.Cross(drawList, new UiRect(0.0f, 0.0f, 10.0f, 10.0f), UiColor.White);
         drawList.Finish();
-        Check("a cross draws", drawList.InstanceCount > 5, $"{drawList.InstanceCount} instances");
+        Check("a cross is two strokes", drawList.InstanceCount == 2, $"{drawList.InstanceCount} instances");
 
         // A triangle is stacked rows, so it must stay inside the box it was given -- a row that overhung
         // would poke out of whatever the icon sits in.

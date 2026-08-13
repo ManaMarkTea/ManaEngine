@@ -164,10 +164,7 @@ namespace ManaUI
             }
         }
 
-        /// <summary>
-        /// A check mark: a short stroke down-right meeting a long stroke up-right. Both are diagonal, so
-        /// each is a run of small squares along its line -- the same staircase the triangles use.
-        /// </summary>
+        /// <summary>A check mark: a short stroke down-right meeting a long stroke up-right.</summary>
         public static void Check(ManaUiDrawList drawList, UiRect box, Vector4 color, float thickness = 2.0f)
         {
             if (box.Width <= 0.0f || box.Height <= 0.0f)
@@ -198,8 +195,13 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// A diagonal line as a run of overlapping round dots. Spacing is half the thickness so the dots
-        /// merge into a continuous stroke rather than reading as a dotted one.
+        /// A diagonal line, as one rotated box.
+        /// <para>
+        /// This used to be a run of overlapping round dots, because the pipeline could not express a box at
+        /// an angle. A check mark cost about forty instances that way, every checkbox, every frame -- and
+        /// the dots were only antialiased against each other, so the edge was subtly ragged. It is two
+        /// instances now, with the SDF doing the edge properly.
+        /// </para>
         /// </summary>
         private static void Stroke(
             ManaUiDrawList drawList,
@@ -208,28 +210,7 @@ namespace ManaUI
             Vector4 color,
             float thickness)
         {
-            var delta = to - from;
-            var length = delta.Length();
-            if (length <= 0.0f)
-            {
-                return;
-            }
-
-            var steps = Math.Max(2, (int)MathF.Ceiling(length / MathF.Max(0.5f, thickness * 0.5f)));
-            var corners = new CornerRadius(thickness * 0.5f);
-
-            for (var i = 0; i <= steps; i++)
-            {
-                var point = from + delta * (i / (float)steps);
-                drawList.FillRect(
-                    new UiRect(
-                        point.X - thickness * 0.5f,
-                        point.Y - thickness * 0.5f,
-                        thickness,
-                        thickness),
-                    color,
-                    corners);
-            }
+            drawList.DrawLine(from, to, color, thickness);
         }
     }
 }

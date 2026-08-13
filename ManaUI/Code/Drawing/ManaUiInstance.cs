@@ -34,7 +34,7 @@ namespace ManaUI
     /// via scissor for the same reason: a scissor change would force a draw-call split, and rounded clips
     /// (scroll viewers with rounded corners) are not expressible as a scissor rect at all.
     /// </para>
-    /// 84 bytes; field order and padding must match the WGSL/GLSL instance struct exactly.
+    /// 88 bytes; field order and padding must match the WGSL/GLSL instance struct exactly.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public struct ManaUiInstance
@@ -61,6 +61,16 @@ namespace ManaUI
 
         /// <summary>The bottom colour when Flags has Gradient. Ignored otherwise.</summary>
         public uint GradientColor;
+
+        /// <summary>
+        /// Rotation about the box centre, in radians, clockwise. Zero for almost everything.
+        /// <para>
+        /// Carried on the instance rather than being a separate primitive because a rotated rounded box is
+        /// still the same signed distance field sampled at a rotated point -- and it is the only way this
+        /// pipeline can draw a diagonal line at all, an axis tripod being nothing but diagonal lines.
+        /// </para>
+        /// </summary>
+        public float Rotation;
     }
 
     /// <summary>

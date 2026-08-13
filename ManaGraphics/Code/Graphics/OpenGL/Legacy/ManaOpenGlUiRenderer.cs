@@ -18,7 +18,7 @@ namespace Mana.Code.Graphics
     {
         // Must match sizeof(ManaUiInstance). A mismatch reads every instance at the wrong offset, which
         // produces a frame of noise rather than an error.
-        private const int InstanceStride = 84;
+        private const int InstanceStride = 88;
 
         private const string VertexShaderSource = @"#version 330 core
 
@@ -31,6 +31,7 @@ layout(location = 5) in uint aBorderColor;
 layout(location = 6) in float aBorderWidth;
 layout(location = 7) in uint aFlags;
 layout(location = 8) in uint aGradientColor;
+layout(location = 9) in float aRotation;
 
 uniform vec2 uViewportSize;
 
@@ -52,6 +53,7 @@ flat out vec4 vBorder;
 flat out float vBorderWidth;
 flat out uint vFlags;
 flat out vec4 vGradient;
+flat out float vRotation;
 flat out vec4 vSourceRect;
 
 vec4 unpackRgba(uint value)
@@ -86,7 +88,18 @@ void main()
 {
     // A unit quad as a triangle strip, straight from the vertex index; no vertex buffer involved.
     vec2 corner = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1));
-    vec2 position = mix(aRect.xy, aRect.zw, corner);
+
+    // Sized from the rotated bounding extent so the quad still covers the box after it turns. At zero
+    // rotation this is exactly mix(aRect.xy, aRect.zw, corner).
+    vec2 boxCentre = (aRect.xy + aRect.zw) * 0.5;
+    vec2 boxHalf = (aRect.zw - aRect.xy) * 0.5;
+    float cosR = cos(aRotation);
+    float sinR = sin(aRotation);
+    vec2 bounds = vec2(
+        abs(cosR) * boxHalf.x + abs(sinR) * boxHalf.y,
+        abs(sinR) * boxHalf.x + abs(cosR) * boxHalf.y);
+
+    vec2 position = boxCentre + (corner * 2.0 - 1.0) * bounds;
 
     vec2 normalized = position / uViewportSize;
     gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
@@ -102,6 +115,7 @@ void main()
     vGradient = toTargetSpace(unpackRgba(aGradientColor));
     vFlags = aFlags;
     vSourceRect = aUv;
+    vRotation = aRotation;
 }
 ";
 
@@ -114,6 +128,7 @@ flat in vec4 vCorners;
 flat in vec4 vClip;
 flat in vec4 vFill;
 flat in vec4 vGradient;
+flat in float vRotation;
 flat in vec4 vBorder;
 flat in float vBorderWidth;
 flat in uint vFlags;
@@ -197,7 +212,16 @@ void main()
         return;
     }
 
-    float distance = sdRoundedBox(p - centre, halfSize, vCorners);
+    // Rotating the sample point the other way is the same as rotating the box.
+    vec2 local = p - centre;
+    if (vRotation != 0.0)
+    {
+        float c = cos(-vRotation);
+        float s = sin(-vRotation);
+        local = vec2(local.x * c - local.y * s, local.x * s + local.y * c);
+    }
+
+    float distance = sdRoundedBox(local, halfSize, vCorners);
     float outer = coverage(distance);
     if (outer <= 0.0)
     {
@@ -210,7 +234,7 @@ void main()
     if ((vFlags & FLAG_GRADIENT) != 0u)
     {
         float height = max(vRect.w - vRect.y, 0.0001);
-        fill = mix(vFill, vGradient, clamp((p.y - vRect.y) / height, 0.0, 1.0));
+        fill = mix(vFill, vGradient, clamp((local.y + halfSize.y) / height, 0.0, 1.0));
     }
 
     if ((vFlags & FLAG_TEXTURE) != 0u)
@@ -519,6 +543,7 @@ void main()
             SetFloatAttribute(6, 1, baseOffset + 72);
             SetIntegerAttribute(7, baseOffset + 76);
             SetIntegerAttribute(8, baseOffset + 80);
+            SetFloatAttribute(9, 1, baseOffset + 84);
         }
 
         private void SetFloatAttribute(uint index, int components, int offset)

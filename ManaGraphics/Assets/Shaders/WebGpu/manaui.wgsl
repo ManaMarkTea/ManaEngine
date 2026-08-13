@@ -5,7 +5,7 @@
 // (discarded in the fragment shader) rather than via scissor, because a scissor change would force a
 // draw-call split and cannot express a rounded clip at all.
 //
-// Instance layout must stay in lockstep with ManaUI.ManaUiInstance (80 bytes).
+// Instance layout must stay in lockstep with ManaUI.ManaUiInstance (88 bytes).
 
 struct Uniforms {
     // Logical UI size. Positions arrive in logical pixels; the surface is physical, and the ratio between
@@ -34,6 +34,7 @@ struct InstanceInput {
     @location(6) border_width : f32,        // doubles as shadow blur radius
     @location(7) flags : u32,
     @location(8) gradient_color : u32,
+    @location(9) rotation : f32,
 };
 
 struct VertexOutput {
@@ -51,6 +52,7 @@ struct VertexOutput {
     // The unmodified instance uv. Distinct from the interpolated `uv` above because the shadow path needs
     // the source box as a whole rather than this fragment's position within it.
     @location(9) @interpolate(flat) source_rect : vec4<f32>,
+    @location(11) @interpolate(flat) rotation : f32,
 };
 
 fn unpack_rgba(packed : u32) -> vec4<f32> {
@@ -92,7 +94,19 @@ fn vs_main(
         f32((vertex_index >> 1u) & 1u)
     );
 
-    let position = mix(instance.rect.xy, instance.rect.zw, corner);
+    // The quad has to cover the box after it turns, so it is sized from the rotated bounding extent rather
+    // than from the rect. At zero rotation this is exactly mix(rect.xy, rect.zw, corner), so the ordinary
+    // path is unchanged.
+    let centre = (instance.rect.xy + instance.rect.zw) * 0.5;
+    let half_extent = (instance.rect.zw - instance.rect.xy) * 0.5;
+    let cos_r = cos(instance.rotation);
+    let sin_r = sin(instance.rotation);
+    let bounds = vec2<f32>(
+        abs(cos_r) * half_extent.x + abs(sin_r) * half_extent.y,
+        abs(sin_r) * half_extent.x + abs(cos_r) * half_extent.y
+    );
+
+    let position = centre + (corner * 2.0 - 1.0) * bounds;
 
     var output : VertexOutput;
 
@@ -116,6 +130,7 @@ fn vs_main(
     output.flags = instance.flags;
     output.gradient_color = srgb_to_linear(unpack_rgba(instance.gradient_color));
     output.source_rect = instance.uv;
+    output.rotation = instance.rotation;
     return output;
 }
 
@@ -171,6 +186,15 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let centre = (input.rect.xy + input.rect.zw) * 0.5;
     let half_size = (input.rect.zw - input.rect.xy) * 0.5;
 
+    // Rotating the sample point the other way is the same as rotating the box, and costs nothing when the
+    // rotation is zero.
+    var local = p - centre;
+    if (input.rotation != 0.0) {
+        let c = cos(-input.rotation);
+        let s = sin(-input.rotation);
+        local = vec2<f32>(local.x * c - local.y * s, local.x * s + local.y * c);
+    }
+
     if ((input.flags & FLAG_SHADOW) != 0u) {
         // The shadow's own quad is inflated past the box it belongs to; source_rect carries the original
         // box so the falloff is measured from the real edge.
@@ -194,11 +218,11 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     var base_fill = input.fill_color;
     if ((input.flags & FLAG_GRADIENT) != 0u) {
         let height = max(input.rect.w - input.rect.y, 0.0001);
-        let t = clamp((p.y - input.rect.y) / height, 0.0, 1.0);
+        let t = clamp((local.y + half_size.y) / height, 0.0, 1.0);
         base_fill = mix(input.fill_color, input.gradient_color, t);
     }
 
-    let distance = sd_rounded_box(p - centre, half_size, input.corners);
+    let distance = sd_rounded_box(local, half_size, input.corners);
     let outer = coverage(distance);
     if (outer <= 0.0) {
         discard;

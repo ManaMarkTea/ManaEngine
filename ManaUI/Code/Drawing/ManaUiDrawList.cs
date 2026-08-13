@@ -223,11 +223,16 @@ namespace ManaUI
             Add(rect, corners, tint, UiColor.Transparent, 0.0f, uv, ManaUiInstanceFlags.Texture);
         }
 
-        /// <summary>An axis-aligned line. Non-axis-aligned lines are not expressible as a box instance.</summary>
-        public void DrawLine(Vector2 from, Vector2 to, Vector4 color, float thickness)
+        /// <summary>
+        /// A line at any angle, drawn as one rotated box. Rounded ends by default, which is what makes short
+        /// thick segments read as strokes rather than as bricks.
+        /// </summary>
+        public void DrawLine(Vector2 from, Vector2 to, Vector4 color, float thickness, bool rounded = true)
         {
             var half = thickness * 0.5f;
 
+            // Axis-aligned lines skip the rotation entirely. They are almost all of them -- dividers, rules,
+            // underlines -- and an unrotated instance costs the shader nothing.
             if (MathF.Abs(from.Y - to.Y) < 0.5f)
             {
                 var left = MathF.Min(from.X, to.X);
@@ -244,7 +249,45 @@ namespace ManaUI
                 return;
             }
 
-            throw new NotSupportedException("ManaUiDrawList only draws axis-aligned lines.");
+            var delta = to - from;
+            var length = delta.Length();
+            if (length <= 0.0f)
+            {
+                return;
+            }
+
+            var centre = (from + to) * 0.5f;
+            var rect = UiRect.FromEdges(
+                centre.X - length * 0.5f,
+                centre.Y - half,
+                centre.X + length * 0.5f,
+                centre.Y + half);
+
+            Rotated(rect, MathF.Atan2(delta.Y, delta.X), color,
+                rounded ? new CornerRadius(half) : default);
+        }
+
+        /// <summary>A filled box turned about its own centre. The angle is in radians, clockwise.</summary>
+        public void Rotated(UiRect rect, float rotation, Vector4 color, CornerRadius corners = default)
+        {
+            Add(rect, corners, color, default, 0.0f, Vector4.Zero, ManaUiInstanceFlags.None,
+                gradientTo: null, rotation: rotation);
+        }
+
+        /// <summary>Bounds a rotated box actually covers, for clipping and hit testing.</summary>
+        public static UiRect RotatedBounds(UiRect rect, float rotation)
+        {
+            var centre = rect.Center;
+            var halfWidth = rect.Width * 0.5f;
+            var halfHeight = rect.Height * 0.5f;
+
+            var cos = MathF.Abs(MathF.Cos(rotation));
+            var sin = MathF.Abs(MathF.Sin(rotation));
+
+            var boundX = cos * halfWidth + sin * halfHeight;
+            var boundY = sin * halfWidth + cos * halfHeight;
+
+            return UiRect.FromEdges(centre.X - boundX, centre.Y - boundY, centre.X + boundX, centre.Y + boundY);
         }
 
         // ----- internals -----------------------------------------------------------------------------
@@ -257,11 +300,16 @@ namespace ManaUI
             float borderWidth,
             Vector4 uv,
             ManaUiInstanceFlags flags,
-            Vector4? gradientTo = null)
+            Vector4? gradientTo = null,
+            float rotation = 0.0f)
         {
             // Cheap rejection before the instance is ever built. Shadows are exempt: their quad is inflated
-            // past the clip on purpose and the falloff inside it is still visible.
-            if (_clip.IsEmpty || (!flags.HasFlag(ManaUiInstanceFlags.Shadow) && !rect.IntersectsWith(_clip)))
+            // past the clip on purpose and the falloff inside it is still visible. A rotated box is tested
+            // against its own bounds rather than its rect, or a diagonal line would be culled by a clip it
+            // actually crosses.
+            var bounds = rotation == 0.0f ? rect : RotatedBounds(rect, rotation);
+
+            if (_clip.IsEmpty || (!flags.HasFlag(ManaUiInstanceFlags.Shadow) && !bounds.IntersectsWith(_clip)))
             {
                 return;
             }
@@ -296,6 +344,7 @@ namespace ManaUI
                 Uv = uv,
                 Corners = corners.ToVector4(),
                 Clip = _clip.ToEdgeVector(),
+                Rotation = rotation,
                 FillColor = UiColor.Pack(fill),
                 BorderColor = UiColor.Pack(border),
                 BorderWidth = borderWidth,

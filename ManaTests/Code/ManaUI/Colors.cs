@@ -364,9 +364,11 @@ public static class GradientChecks
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
         // The renderers read instances at fixed byte offsets. A struct that grows without both renderers
-        // agreeing does not fail -- it reads every field at the wrong place and draws a frame of noise.
+        // agreeing does not fail -- it reads every field at the wrong place and draws a frame of noise. If
+        // this fails, update InstanceStride and the vertex layout in both ManaWebGpuUiRenderer and
+        // ManaOpenGlUiRenderer, and the instance struct in both shaders.
         var stride = System.Runtime.InteropServices.Marshal.SizeOf<ManaUiInstance>();
-        Check("the instance is the size both renderers expect", stride == 84, $"{stride} bytes");
+        Check("the instance is the size both renderers expect", stride == 88, $"{stride} bytes");
 
         var root = new UiRoot(fonts);
 
