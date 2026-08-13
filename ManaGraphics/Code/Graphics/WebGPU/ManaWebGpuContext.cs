@@ -243,6 +243,22 @@ namespace ManaGraphics.Code.Graphics
         /// Submits the ManaUI draw list recorded by the app this frame. Created lazily so a project that
         /// never assigns <see cref="UiRoot"/> pays nothing for the pipeline or its atlas texture.
         /// </summary>
+        private ManaWebGpuUiBackdrop? _uiBackdrop;
+
+        /// <summary>
+        /// Whether anything in this frame's UI asked for a blurred backdrop. Read before the pass is split,
+        /// because splitting it is the cost being avoided.
+        /// </summary>
+        private bool WantsBackdrop() => UiRoot?.DrawList.BackdropRequested == true;
+
+        private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
+        {
+            _uiBackdrop ??= new ManaWebGpuUiBackdrop(_api, _device, _surfaceFormat);
+            _uiBackdrop.Capture(commandEncoder, frame, _window.FramebufferSize);
+
+            _uiRenderer?.SetBackdrop(_uiBackdrop.View);
+        }
+
         private void DrawManaUi(RenderPassEncoder* renderPass)
         {
             var root = UiRoot;
@@ -265,6 +281,14 @@ namespace ManaGraphics.Code.Graphics
                     UiRoot = null;
                     return;
                 }
+            }
+
+            // Bound here as well as at capture time: the renderer is built lazily on its first frame, which
+            // is after the capture ran, so a workspace that opens with blur already on would otherwise show
+            // one frame with nothing behind it.
+            if (_uiBackdrop != null)
+            {
+                _uiRenderer.SetBackdrop(_uiBackdrop.View);
             }
 
             var framebufferSize = _window.FramebufferSize;
@@ -574,6 +598,19 @@ namespace ManaGraphics.Code.Graphics
             var toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
             _hdrPostProcessor?.Draw(toneMapRenderPass);
             _imGuiController?.Render(toneMapRenderPass);
+
+            // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
+            // writing. So the pass ends here, the frame is copied out and reduced, and the UI draws in a
+            // second pass that loads what the first one left. Skipped entirely unless something asked for
+            // blur, which keeps the ordinary frame exactly one pass as before.
+            if (WantsBackdrop())
+            {
+                _api.RenderPassEncoderEnd(toneMapRenderPass);
+                CaptureUiBackdrop(commandEncoder, surfaceTexture.Texture);
+
+                surfaceColorAttachment.LoadOp = LoadOp.Load;
+                toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
+            }
 
             // ManaUI draws last so it sits above ImGui during the migration -- the two coexist by design,
             // and panels move across one at a time.

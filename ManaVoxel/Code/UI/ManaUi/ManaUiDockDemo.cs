@@ -54,6 +54,15 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         public static PlaceSearchModel PlaceSearch { get; } = new();
 
+        /// <summary>
+        /// How much of a surface survives when the backdrop is blurred behind it. Enough to read text
+        /// against; much less and the panel stops being a panel.
+        /// </summary>
+        private const float SurfaceOpacity = 0.82f;
+
+        private static Vector4 ChromeFill(UiTheme theme) =>
+            theme.BackdropBlur > 0.0f ? theme.Background with { W = SurfaceOpacity } : theme.Background;
+
         /// <summary>Every panel the workspace can show.</summary>
         /// <summary>
         /// Every panel this workspace can build, in the order a merge should add them.
@@ -116,6 +125,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (saved?.FontFamily is { Length: > 0 } savedFont)
             {
                 root.Theme.FontFamily = savedFont;
+            }
+
+            if (saved != null)
+            {
+                root.Theme.BackdropBlur = saved.BackdropBlur;
             }
 
             // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
@@ -204,7 +218,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             var state = new WorkspaceState
             {
                 Preset = saved?.Preset ?? WorkspacePreset.RightColumn,
-                Theme = root.Theme.Kind
+                Theme = root.Theme.Kind,
+                BackdropBlur = root.Theme.BackdropBlur
             };
 
             // Non-short-circuiting on purpose: both columns must be restored, and && would skip the right
@@ -237,7 +252,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Edge = Dock.Left,
                 Size = saved is { LeftWidth: > 0.0f } ? saved.LeftWidth : DefaultLeftWidth,
                 MinimumSize = 200.0f,
-                Background = theme.Background,
+
+                // Translucent only when there is a blur to see through it to. An opaque column over a
+                // blurred snapshot is just an opaque column that made the GPU work for nothing.
+                Background = ChromeFill(theme),
+                BackdropBlur = theme.BackdropBlur,
                 Child = left
             };
 
@@ -246,7 +265,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Edge = Dock.Right,
                 Size = saved is { RightWidth: > 0.0f } ? saved.RightWidth : DefaultRightWidth,
                 MinimumSize = 220.0f,
-                Background = theme.Background,
+                Background = ChromeFill(theme),
+                BackdropBlur = theme.BackdropBlur,
                 Child = right
             };
 
@@ -263,6 +283,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Preset = state.Preset,
                     Theme = state.Theme,
                     FontFamily = root.Theme.FontFamily,
+                    BackdropBlur = state.BackdropBlur,
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
                     Left = DockLayout.Capture(left),
@@ -316,6 +337,22 @@ namespace ManaVoxel.Code.UI.ManaUi
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
+            // Blurring is a whole extra capture and reduce of the frame, so it is chosen rather than always
+            // on -- and rebuilds the workspace for the same reason a theme change does: the panels read
+            // their fills as they are constructed.
+            void ChooseBlur(float blur)
+            {
+                if (MathF.Abs(root.Theme.BackdropBlur - blur) < 0.01f)
+                {
+                    return;
+                }
+
+                root.Theme.BackdropBlur = blur;
+                state.BackdropBlur = blur;
+                Save();
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
+            }
+
             void ChooseFont(string family)
             {
                 if (root.Theme.FontFamily == family)
@@ -363,10 +400,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Anchor(top: TopOffset - MenuBarHeight, left: 0.0f),
 
                 new Border()
-                    .Fill(theme.Surface)
+                    .Fill(theme.BackdropBlur > 0.0f ? theme.Surface with { W = SurfaceOpacity } : theme.Surface)
+                    .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, editor))
+                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, editor))
                     .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
                     .Width(rightPanel.Size),
 
@@ -389,6 +427,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             /// </para>
             /// </summary>
             public UiThemeKind Theme { get; set; }
+
+            public float BackdropBlur { get; set; }
         }
 
         // ----- presets ------------------------------------------------------------------------------
@@ -578,6 +618,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             UiRoot root,
             Action<UiThemeKind> chooseTheme,
             Action<string> chooseFont,
+            Action<float> chooseBlur,
             VoxelEditorViewModel? editor)
         {
             var bar = new MenuBar();
@@ -635,6 +676,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                         new MenuItem("Light", () => chooseTheme(UiThemeKind.Light))
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Light)),
 
+                    new MenuItem("Backdrop blur").WithItems(
+                        BlurChoices.Select(blur => new MenuItem(BlurLabel(blur), () => chooseBlur(blur))
+                            .Checkable(() => MathF.Abs(root.Theme.BackdropBlur - blur) < 0.01f))
+                            .ToArray()),
+
                     new MenuItem("Font").WithItems(
                         root.Fonts.AvailableFamilies(FontChoices)
                             .Select(family => new MenuItem(FontLabel(family), () => chooseFont(family))
@@ -653,6 +699,14 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Fonts offered in the Font menu. Filtered at build time to whichever are actually installed, so
         /// the list spans platforms without offering a Windows face on a Mac.
         /// </summary>
+        /// <summary>
+        /// Blur radii offered. Powers of two because the blur is a mip chain -- each level is twice the
+        /// radius of the last, so anything between them is interpolated rather than distinct.
+        /// </summary>
+        private static readonly float[] BlurChoices = { 0.0f, 4.0f, 8.0f, 16.0f, 32.0f };
+
+        private static string BlurLabel(float blur) => blur <= 0.0f ? "Off" : $"{blur:0} px";
+
         private static readonly string[] FontChoices =
         {
             "Roboto",

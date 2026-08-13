@@ -18,7 +18,7 @@ namespace Mana.Code.Graphics
     {
         // Must match sizeof(ManaUiInstance). A mismatch reads every instance at the wrong offset, which
         // produces a frame of noise rather than an error.
-        private const int InstanceStride = 88;
+        private const int InstanceStride = 92;
 
         private const string VertexShaderSource = @"#version 330 core
 
@@ -32,6 +32,7 @@ layout(location = 6) in float aBorderWidth;
 layout(location = 7) in uint aFlags;
 layout(location = 8) in uint aGradientColor;
 layout(location = 9) in float aRotation;
+layout(location = 10) in float aBackdropBlur;
 
 uniform vec2 uViewportSize;
 
@@ -54,6 +55,7 @@ flat out float vBorderWidth;
 flat out uint vFlags;
 flat out vec4 vGradient;
 flat out float vRotation;
+flat out float vBackdropBlur;
 flat out vec4 vSourceRect;
 
 vec4 unpackRgba(uint value)
@@ -116,6 +118,7 @@ void main()
     vFlags = aFlags;
     vSourceRect = aUv;
     vRotation = aRotation;
+    vBackdropBlur = aBackdropBlur;
 }
 ";
 
@@ -129,6 +132,7 @@ flat in vec4 vClip;
 flat in vec4 vFill;
 flat in vec4 vGradient;
 flat in float vRotation;
+flat in float vBackdropBlur;
 flat in vec4 vBorder;
 flat in float vBorderWidth;
 flat in uint vFlags;
@@ -544,6 +548,7 @@ void main()
             SetIntegerAttribute(7, baseOffset + 76);
             SetIntegerAttribute(8, baseOffset + 80);
             SetFloatAttribute(9, 1, baseOffset + 84);
+            SetFloatAttribute(10, 1, baseOffset + 88);
         }
 
         private void SetFloatAttribute(uint index, int components, int offset)

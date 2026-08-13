@@ -40,6 +40,7 @@ namespace ManaUI
             _opacity = 1.0f;
             _currentTextureId = 0;
             _currentBatchStart = 0;
+            BackdropRequested = false;
         }
 
         /// <summary>Closes the trailing batch. Called by the UI root once the tree has finished rendering.</summary>
@@ -134,6 +135,28 @@ namespace ManaUI
             Add(rect, corners, top, UiColor.Transparent, 0.0f, Vector4.Zero, ManaUiInstanceFlags.None, bottom);
         }
 
+        /// <summary>
+        /// True when anything in this frame asked for a blurred backdrop.
+        /// <para>
+        /// The backend reads this to decide whether to snapshot and blur the frame at all. Blurring
+        /// unconditionally would make every UI pay for a feature almost none of them use.
+        /// </para>
+        /// </summary>
+        public bool BackdropRequested { get; private set; }
+
+        /// <summary>
+        /// A box filled with a blurred snapshot of what is behind the UI, tinted by <paramref name="tint"/>.
+        /// <para>
+        /// The tint's alpha is how much of it covers the blur: opaque hides it entirely, so a panel that
+        /// wants the effect wants a translucent one.
+        /// </para>
+        /// </summary>
+        public void FillBackdrop(UiRect rect, Vector4 tint, float blur, CornerRadius corners)
+        {
+            Add(rect, corners, tint, UiColor.Transparent, 0.0f, Vector4.Zero, ManaUiInstanceFlags.None,
+                gradientTo: null, rotation: 0.0f, backdropBlur: blur);
+        }
+
         /// <summary>Fill, gradient and inset border in one instance.</summary>
         public void DrawBox(
             UiRect rect,
@@ -141,12 +164,15 @@ namespace ManaUI
             Vector4 bottom,
             Vector4 border,
             float borderThickness,
-            CornerRadius corners)
+            CornerRadius corners,
+            float backdropBlur = 0.0f)
         {
             var hasFill = top.W > 0.0f || bottom.W > 0.0f;
             var hasBorder = borderThickness > 0.0f && border.W > 0.0f;
 
-            if (!hasFill && !hasBorder)
+            // A blurred backdrop is worth drawing even under a fully transparent tint -- the blur is the
+            // point, and the tint only says how much of it to cover.
+            if (!hasFill && !hasBorder && backdropBlur <= 0.0f)
             {
                 return;
             }
@@ -159,7 +185,9 @@ namespace ManaUI
                 hasBorder ? borderThickness : 0.0f,
                 Vector4.Zero,
                 ManaUiInstanceFlags.None,
-                bottom);
+                bottom,
+                rotation: 0.0f,
+                backdropBlur: backdropBlur);
         }
 
         /// <summary>Draws an inset border only, leaving the interior untouched.</summary>
@@ -174,16 +202,26 @@ namespace ManaUI
         }
 
         /// <summary>Fill and inset border in one instance -- the common case for panels, buttons and inputs.</summary>
-        public void DrawBox(UiRect rect, Vector4 fill, Vector4 border, float borderThickness, CornerRadius corners)
+        public void DrawBox(
+            UiRect rect,
+            Vector4 fill,
+            Vector4 border,
+            float borderThickness,
+            CornerRadius corners,
+            float backdropBlur = 0.0f)
         {
             var hasFill = fill.W > 0.0f;
             var hasBorder = borderThickness > 0.0f && border.W > 0.0f;
-            if (!hasFill && !hasBorder)
+
+            // A blurred backdrop is worth drawing even under a fully transparent fill -- the blur is the
+            // point, and the fill only says how much of it to cover.
+            if (!hasFill && !hasBorder && backdropBlur <= 0.0f)
             {
                 return;
             }
 
-            Add(rect, corners, fill, border, hasBorder ? borderThickness : 0.0f, Vector4.Zero, ManaUiInstanceFlags.None);
+            Add(rect, corners, fill, border, hasBorder ? borderThickness : 0.0f, Vector4.Zero,
+                ManaUiInstanceFlags.None, gradientTo: null, rotation: 0.0f, backdropBlur: backdropBlur);
         }
 
         /// <summary>
@@ -301,7 +339,8 @@ namespace ManaUI
             Vector4 uv,
             ManaUiInstanceFlags flags,
             Vector4? gradientTo = null,
-            float rotation = 0.0f)
+            float rotation = 0.0f,
+            float backdropBlur = 0.0f)
         {
             // Cheap rejection before the instance is ever built. Shadows are exempt: their quad is inflated
             // past the clip on purpose and the falloff inside it is still visible. A rotated box is tested
@@ -338,6 +377,12 @@ namespace ManaUI
                 flags |= ManaUiInstanceFlags.Gradient;
             }
 
+            if (backdropBlur > 0.0f)
+            {
+                flags |= ManaUiInstanceFlags.Backdrop;
+                BackdropRequested = true;
+            }
+
             _instances[_instanceCount++] = new ManaUiInstance
             {
                 Rect = rect.ToEdgeVector(),
@@ -345,6 +390,7 @@ namespace ManaUI
                 Corners = corners.ToVector4(),
                 Clip = _clip.ToEdgeVector(),
                 Rotation = rotation,
+                BackdropBlur = backdropBlur,
                 FillColor = UiColor.Pack(fill),
                 BorderColor = UiColor.Pack(border),
                 BorderWidth = borderWidth,

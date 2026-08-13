@@ -22,7 +22,7 @@ namespace ManaGraphics.Code.Graphics
     {
         // Must match sizeof(ManaUiInstance). Checked at start-up rather than trusted, because a mismatch
         // reads every instance at the wrong offset and produces a frame of noise rather than an error.
-        private const int InstanceStride = 88;
+        private const int InstanceStride = 92;
 
         private readonly WebGPU _api;
         private readonly Device* _device;
@@ -453,9 +453,11 @@ namespace ManaGraphics.Code.Graphics
             return _api.DeviceCreateSampler(_device, &descriptor);
         }
 
+        private TextureView* _backdropTextureView;
+
         private BindGroupLayout* CreateBindGroupLayout()
         {
-            var entries = stackalloc BindGroupLayoutEntry[4];
+            var entries = stackalloc BindGroupLayoutEntry[5];
 
             entries[0] = new BindGroupLayoutEntry
             {
@@ -492,7 +494,22 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var descriptor = new BindGroupLayoutDescriptor { EntryCount = 4, Entries = entries };
+            // The blurred backdrop. Declared whether or not anything uses it, so the pipeline is built once
+            // -- a bind group must fill every binding its layout declares, and a layout that came and went
+            // would mean rebuilding the pipeline the first time a panel asked for blur.
+            entries[4] = new BindGroupLayoutEntry
+            {
+                Binding = 4,
+                Visibility = ShaderStage.Fragment,
+                Texture = new TextureBindingLayout
+                {
+                    SampleType = TextureSampleType.Float,
+                    ViewDimension = TextureViewDimension.Dimension2D,
+                    Multisampled = false
+                }
+            };
+
+            var descriptor = new BindGroupLayoutDescriptor { EntryCount = 5, Entries = entries };
             return _api.DeviceCreateBindGroupLayout(_device, &descriptor);
         }
 
@@ -524,7 +541,7 @@ namespace ManaGraphics.Code.Graphics
         private RenderPipeline* CreatePipeline(TextureFormat surfaceFormat)
         {
             // One instance-stepped buffer; the quad's own corners come from @builtin(vertex_index).
-            var attributes = stackalloc VertexAttribute[10];
+            var attributes = stackalloc VertexAttribute[11];
             attributes[0] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 0, ShaderLocation = 0 };
             attributes[1] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 16, ShaderLocation = 1 };
             attributes[2] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 32, ShaderLocation = 2 };
@@ -535,12 +552,13 @@ namespace ManaGraphics.Code.Graphics
             attributes[7] = new VertexAttribute { Format = VertexFormat.Uint32, Offset = 76, ShaderLocation = 7 };
             attributes[8] = new VertexAttribute { Format = VertexFormat.Uint32, Offset = 80, ShaderLocation = 8 };
             attributes[9] = new VertexAttribute { Format = VertexFormat.Float32, Offset = 84, ShaderLocation = 9 };
+            attributes[10] = new VertexAttribute { Format = VertexFormat.Float32, Offset = 88, ShaderLocation = 10 };
 
             var vertexBufferLayout = new VertexBufferLayout
             {
                 ArrayStride = InstanceStride,
                 StepMode = VertexStepMode.Instance,
-                AttributeCount = 10,
+                AttributeCount = 11,
                 Attributes = attributes
             };
 
@@ -692,6 +710,21 @@ namespace ManaGraphics.Code.Graphics
             _api.QueueWriteTexture(_queue, &destination, white, 4, &layout, &extent);
         }
 
+        /// <summary>
+        /// The blurred snapshot of the frame under the UI, or null before one has been captured. Owned by
+        /// the context, which is what has the frame to snapshot.
+        /// </summary>
+        public void SetBackdrop(TextureView* view)
+        {
+            if (_backdropTextureView == view)
+            {
+                return;
+            }
+
+            _backdropTextureView = view;
+            CreateBindGroup();
+        }
+
         private void CreateBindGroup()
         {
             if (_bindGroup != null)
@@ -705,16 +738,24 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var entries = stackalloc BindGroupEntry[4];
+            var entries = stackalloc BindGroupEntry[5];
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = _uniformBuffer, Offset = 0, Size = 16 };
             entries[1] = new BindGroupEntry { Binding = 1, Sampler = _sampler };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = _glyphTextureView };
             entries[3] = new BindGroupEntry { Binding = 3, TextureView = _imageTextureView };
 
+            // Falls back to the image atlas when no backdrop has been captured. Nothing samples it in that
+            // case -- no instance carries the flag -- but the binding still has to be filled.
+            entries[4] = new BindGroupEntry
+            {
+                Binding = 4,
+                TextureView = _backdropTextureView != null ? _backdropTextureView : _imageTextureView
+            };
+
             var descriptor = new BindGroupDescriptor
             {
                 Layout = _bindGroupLayout,
-                EntryCount = 4,
+                EntryCount = 5,
                 Entries = entries
             };
 

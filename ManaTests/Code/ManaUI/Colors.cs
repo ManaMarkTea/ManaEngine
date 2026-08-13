@@ -368,7 +368,7 @@ public static class GradientChecks
         // this fails, update InstanceStride and the vertex layout in both ManaWebGpuUiRenderer and
         // ManaOpenGlUiRenderer, and the instance struct in both shaders.
         var stride = System.Runtime.InteropServices.Marshal.SizeOf<ManaUiInstance>();
-        Check("the instance is the size both renderers expect", stride == 88, $"{stride} bytes");
+        Check("the instance is the size both renderers expect", stride == 92, $"{stride} bytes");
 
         var root = new UiRoot(fonts);
 
@@ -443,5 +443,94 @@ public static class GradientChecks
             && i.Rect.Z - i.Rect.X > 20.0f);
 
         Check("a transparent one is not", !subtleShaded, "stays flat");
+    }
+}
+
+/// <summary>
+/// Backdrop blur: filling a surface with a softened picture of whatever the UI is sitting on.
+/// <para>
+/// The blur itself belongs to the backend -- a fragment cannot read the target it is writing, so the frame
+/// has to be snapshotted and reduced before the UI draws. What is checked here is everything that decides
+/// whether that happens at all, because the expensive half is skipped entirely when nothing asks for it.
+/// </para>
+/// </summary>
+public static class BackdropChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var root = new UiRoot(fonts);
+
+        // ---------------------------------------------------------------- the request flag
+        var plain = new Border().Fill(UiColor.FromHex("#404040")).Size(100.0f, 40.0f);
+        root.Content = new Canvas().Children(plain.At(10.0f, 10.0f));
+        root.UpdateLayout(new Vector2(400, 200));
+        root.Render();
+
+        // The backend splits its render pass and copies the whole frame to honour this. A UI that never
+        // asks must never set it, or every application pays for a feature it is not using.
+        Check("an ordinary frame asks for no backdrop", !root.DrawList.BackdropRequested, "not requested");
+
+        var frosted = new Border()
+            .Fill(UiColor.FromHex("#404040") with { W = 0.6f })
+            .Blur(12.0f)
+            .Size(100.0f, 40.0f);
+
+        root.Content = new Canvas().Children(frosted.At(10.0f, 10.0f));
+        root.UpdateLayout(new Vector2(400, 200));
+
+        var drawn = root.Render();
+        Check("a blurred one does", root.DrawList.BackdropRequested, "requested");
+
+        var instances = drawn.Instances.ToArray();
+        var box = instances.First(i => MathF.Abs(i.Rect.Y - 10.0f) < 1.0f);
+
+        Check("and the instance carries the flag",
+            (box.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0, $"flags {box.Flags}");
+
+        Check("with the radius it asked for", MathF.Abs(box.BackdropBlur - 12.0f) < 0.01f, $"{box.BackdropBlur}");
+
+        // Still one instance and one draw call -- the blur rides on the same box, like the gradient does.
+        Check("a blurred surface is still one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count}");
+        Check("and one instance",
+            instances.Count(i => MathF.Abs(i.Rect.Y - 10.0f) < 1.0f) == 1, "one box");
+
+        // ---------------------------------------------------------------- resetting
+        root.Content = new Canvas().Children(new Border().Fill(UiColor.White).Size(50.0f, 50.0f).At(0.0f, 0.0f));
+        root.UpdateLayout(new Vector2(400, 200));
+        root.Render();
+
+        // Left set, the backend would keep splitting its pass and copying the frame forever after the one
+        // panel that wanted it was closed.
+        Check("the request clears when nothing asks again", !root.DrawList.BackdropRequested, "cleared");
+
+        // ---------------------------------------------------------------- transparent fills
+        // A fully transparent fill would normally be skipped as nothing to draw. With a blur it is the
+        // whole point: the box exists to soften what is behind it.
+        var clear = new Border().Fill(UiColor.Transparent).Blur(8.0f).Size(60.0f, 60.0f);
+        root.Content = new Canvas().Children(clear.At(5.0f, 5.0f));
+        root.UpdateLayout(new Vector2(400, 200));
+
+        var clearDrawn = root.Render().Instances.ToArray();
+        Check("a transparent surface still blurs",
+            clearDrawn.Any(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0), "drawn");
+
+        // ---------------------------------------------------------------- flat fills unaffected
+        // Border passes its background as a gradient end only when there is one. Passing it always would
+        // set the gradient flag on every flat fill in the tree.
+        root.Content = new Canvas().Children(
+            new Border().Fill(UiColor.FromHex("#303030")).Size(40.0f, 40.0f).At(0.0f, 0.0f));
+
+        root.UpdateLayout(new Vector2(400, 200));
+        var flat = root.Render().Instances.ToArray().First();
+
+        Check("a flat fill takes neither flag",
+            (flat.Flags & (uint)(ManaUiInstanceFlags.Gradient | ManaUiInstanceFlags.Backdrop)) == 0,
+            $"flags {flat.Flags}");
+
+        // ---------------------------------------------------------------- the theme
+        var theme = UiTheme.Dark();
+        Check("blur is off unless asked for", theme.BackdropBlur == 0.0f, $"{theme.BackdropBlur}");
     }
 }

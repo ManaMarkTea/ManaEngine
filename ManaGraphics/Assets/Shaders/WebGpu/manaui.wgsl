@@ -5,7 +5,7 @@
 // (discarded in the fragment shader) rather than via scissor, because a scissor change would force a
 // draw-call split and cannot express a rounded clip at all.
 //
-// Instance layout must stay in lockstep with ManaUI.ManaUiInstance (88 bytes).
+// Instance layout must stay in lockstep with ManaUI.ManaUiInstance (92 bytes).
 
 struct Uniforms {
     // Logical UI size. Positions arrive in logical pixels; the surface is physical, and the ratio between
@@ -19,10 +19,15 @@ struct Uniforms {
 @group(0) @binding(2) var glyph_atlas : texture_2d<f32>;
 @group(0) @binding(3) var image_atlas : texture_2d<f32>;
 
+// A blurred snapshot of everything drawn under the UI. Bound to a 1x1 placeholder when nothing asked for
+// it, so the layout never changes and the pipeline is built once.
+@group(0) @binding(4) var backdrop : texture_2d<f32>;
+
 const FLAG_GLYPH  : u32 = 1u;
 const FLAG_TEXTURE: u32 = 2u;
 const FLAG_SHADOW : u32 = 4u;
 const FLAG_GRADIENT : u32 = 8u;
+const FLAG_BACKDROP : u32 = 16u;
 
 struct InstanceInput {
     @location(0) rect : vec4<f32>,          // minX, minY, maxX, maxY
@@ -35,6 +40,7 @@ struct InstanceInput {
     @location(7) flags : u32,
     @location(8) gradient_color : u32,
     @location(9) rotation : f32,
+    @location(10) backdrop_blur : f32,
 };
 
 struct VertexOutput {
@@ -53,6 +59,7 @@ struct VertexOutput {
     // the source box as a whole rather than this fragment's position within it.
     @location(9) @interpolate(flat) source_rect : vec4<f32>,
     @location(11) @interpolate(flat) rotation : f32,
+    @location(12) @interpolate(flat) backdrop_blur : f32,
 };
 
 fn unpack_rgba(packed : u32) -> vec4<f32> {
@@ -131,6 +138,7 @@ fn vs_main(
     output.gradient_color = srgb_to_linear(unpack_rgba(instance.gradient_color));
     output.source_rect = instance.uv;
     output.rotation = instance.rotation;
+    output.backdrop_blur = instance.backdrop_blur;
     return output;
 }
 
@@ -216,6 +224,18 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // Interpolated down the box. Mixed in linear space, which is the whole reason the colours were
     // converted on the way in: a gradient blended in sRGB darkens through the middle.
     var base_fill = input.fill_color;
+
+    // The blur is behind the fill, not mixed into it: the fill's own alpha is what decides how much of the
+    // scene survives, which is the same thing a translucent panel already meant.
+    var behind = vec4<f32>(0.0);
+    if ((input.flags & FLAG_BACKDROP) != 0u) {
+        // The snapshot covers the whole window, so this fragment's own position is its texture coordinate.
+        // Levels of the blur chain are progressively blurrier, so the radius picks one.
+        let level = clamp(log2(max(input.backdrop_blur, 1.0)), 0.0, f32(textureNumLevels(backdrop) - 1u));
+        let sample_uv = p / uniforms.viewport_size;
+        behind = textureSampleLevel(backdrop, atlas_sampler, sample_uv, level);
+    }
+
     if ((input.flags & FLAG_GRADIENT) != 0u) {
         let height = max(input.rect.w - input.rect.y, 0.0001);
         let t = clamp((local.y + half_size.y) / height, 0.0, 1.0);
@@ -252,6 +272,14 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         alpha = fill.a * outer;
         rgb = fill.rgb * alpha;
+    }
+
+    // Composited under whatever the fill produced, then the whole thing is made opaque: the backdrop is
+    // already a picture of what is behind, so letting more of the real scene through as well would show it
+    // twice, once sharp and once blurred.
+    if ((input.flags & FLAG_BACKDROP) != 0u) {
+        rgb = rgb + behind.rgb * (1.0 - alpha) * outer;
+        alpha = outer;
     }
 
     if (alpha <= 0.0) {

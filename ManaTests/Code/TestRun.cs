@@ -81,6 +81,7 @@ public static class TestRunner
         ("ManaUI", "ported scene outliner", OutlinerChecks.Run),
         ("ManaUI", "theme contrast", ThemeContrastChecks.Run),
         ("ManaUI", "gradients", GradientChecks.Run),
+        ("ManaUI", "backdrop blur", BackdropChecks.Run),
         ("ManaUI", "tabs and graphs", TabsAndGraphChecks.Run),
         ("ManaUI", "ported main menu", PortedMainMenuChecks.Run),
         ("ManaUI", "ported scene inspector", InspectorChecks.Run),

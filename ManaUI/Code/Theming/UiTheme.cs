@@ -68,6 +68,16 @@ namespace ManaUI
         /// <summary>The same, for the accent -- buttons carry it more strongly than panels do.</summary>
         public float AccentGradient { get; set; } = 0.10f;
 
+        /// <summary>
+        /// How far translucent surfaces blur what is behind them, in logical pixels. Zero leaves the scene
+        /// sharp behind them, which is the old look and stays the default.
+        /// <para>
+        /// Off by default because it is not free: the backend has to snapshot and blur the frame before the
+        /// UI draws, and it skips all of that entirely when nothing asks for it.
+        /// </para>
+        /// </summary>
+        public float BackdropBlur { get; set; }
+
         /// <summary>The top of a gradient over <paramref name="color"/>.</summary>
         public Vector4 GradientTop(Vector4 color, float strength) => UiColor.Lighten(color, strength * 0.5f);
 

@@ -47,6 +47,21 @@ namespace ManaUI
 
         private Vector4? _backgroundGradientTo;
 
+        /// <summary>
+        /// Blurs whatever is behind this border, in logical pixels; 0 leaves it sharp.
+        /// <para>
+        /// Only visible through a translucent <see cref="Background"/> -- the fill is drawn over the blur,
+        /// so an opaque one hides it completely.
+        /// </para>
+        /// </summary>
+        public float BackdropBlur
+        {
+            get => _backdropBlur;
+            set => SetVisualProperty(ref _backdropBlur, value);
+        }
+
+        private float _backdropBlur;
+
         /// <summary>Optional drop shadow blur radius; 0 disables it.</summary>
         public float ShadowBlur { get; set; }
 
@@ -61,19 +76,25 @@ namespace ManaUI
                 drawList.DrawShadow(Bounds, ShadowColor, ShadowBlur, _cornerRadius);
             }
 
+            // Two overloads rather than passing the background as its own gradient end: that would set the
+            // gradient flag on every flat fill in the tree, packing a second colour and taking the shader's
+            // gradient branch to interpolate between a colour and itself.
             if (_backgroundGradientTo is { } bottom)
             {
-                drawList.DrawBox(Bounds, _background, bottom, _borderColor, _borderThickness, _cornerRadius);
+                drawList.DrawBox(
+                    Bounds, _background, bottom, _borderColor, _borderThickness, _cornerRadius, _backdropBlur);
                 return;
             }
 
-            drawList.DrawBox(Bounds, _background, _borderColor, _borderThickness, _cornerRadius);
+            drawList.DrawBox(
+                Bounds, _background, _borderColor, _borderThickness, _cornerRadius, _backdropBlur);
         }
 
         /// <summary>Same rule as Panel: an invisible border is layout scaffolding, not a click target.</summary>
         protected override bool IsSelfHitTestVisible =>
             _background.W > 0.0f
             || _backgroundGradientTo is { W: > 0.0f }
+            || _backdropBlur > 0.0f
             || (_borderThickness > 0.0f && _borderColor.W > 0.0f);
     }
 }

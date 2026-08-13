@@ -55,6 +55,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>UI font family, or null for the theme's default.</summary>
         public string? FontFamily { get; set; }
 
+        /// <summary>Backdrop blur radius, so a workspace opens looking the way it was left.</summary>
+        public float BackdropBlur { get; set; }
+
         public float LeftWidth { get; set; }
 
         public float RightWidth { get; set; }

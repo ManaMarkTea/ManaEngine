@@ -67,6 +67,12 @@ namespace ManaUI
         /// </summary>
         public Vector4 Background { get; set; }
 
+        /// <summary>
+        /// Blurs whatever is behind this panel, in logical pixels; 0 leaves it sharp. Only visible through a
+        /// translucent <see cref="Background"/>.
+        /// </summary>
+        public float BackdropBlur { get; set; }
+
         /// <summary>True while the handle is being dragged.</summary>
         public bool IsResizing => _dragging;
 
@@ -145,7 +151,11 @@ namespace ManaUI
                 return;
             }
 
-            if (Background.W > 0.0f)
+            if (BackdropBlur > 0.0f)
+            {
+                drawList.FillBackdrop(Bounds, Background, BackdropBlur, default);
+            }
+            else if (Background.W > 0.0f)
             {
                 drawList.FillRect(Bounds, Background);
             }

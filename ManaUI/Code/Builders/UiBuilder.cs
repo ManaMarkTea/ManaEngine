@@ -426,6 +426,13 @@ namespace ManaUI
             return textBlock;
         }
 
+        /// <summary>Blurs whatever is behind this border. Only shows through a translucent fill.</summary>
+        public static Border Blur(this Border border, float radius)
+        {
+            border.BackdropBlur = radius;
+            return border;
+        }
+
         public static TextBlock Wrap(this TextBlock textBlock, bool wrap = true)
         {
             textBlock.TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap;

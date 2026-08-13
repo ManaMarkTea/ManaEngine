@@ -161,7 +161,9 @@ namespace ManaGraphics.Code.Graphics
             {
                 Device = _device,
                 Format = _surfaceFormat,
-                Usage = TextureUsage.RenderAttachment,
+                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
+                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
+                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
                 Width = (uint)framebufferSize.X,
                 Height = (uint)framebufferSize.Y,
                 PresentMode = PresentMode.Fifo,
@@ -196,7 +198,9 @@ namespace ManaGraphics.Code.Graphics
 
             var depthTextureDescriptor = new TextureDescriptor
             {
-                Usage = TextureUsage.RenderAttachment,
+                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
+                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
+                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D
                 {
@@ -261,7 +265,9 @@ namespace ManaGraphics.Code.Graphics
 
             var depthTextureDescriptor = new TextureDescriptor
             {
-                Usage = TextureUsage.RenderAttachment,
+                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
+                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
+                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D
                 {
