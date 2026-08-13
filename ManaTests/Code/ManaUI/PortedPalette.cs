@@ -265,6 +265,10 @@ public static class PortedPaletteChecks
                     {
                         new ManaCore.Graphics.ManaGraphicsDiagnosticEntry("Adapter", "Test GPU"),
                         new ManaCore.Graphics.ManaGraphicsDiagnosticEntry(
+                            "Notes",
+                            "Budget and usage are assigned by the operating system and can change "
+                            + "dynamically, so these figures are a snapshot rather than a limit."),
+                        new ManaCore.Graphics.ManaGraphicsDiagnosticEntry(
                             "Max texture size", "16384", ManaCore.Graphics.ManaGraphicsDiagnosticScope.WebGpu)
                     }),
 
@@ -290,7 +294,7 @@ public static class PortedPaletteChecks
 
         var sections = FindAll<Expander>(panel).Select(e => e.Header).ToList();
         Check("a section per group, with its count",
-            sections.Any(h => h.StartsWith("Device (2)", StringComparison.Ordinal))
+            sections.Any(h => h.StartsWith("Device (3)", StringComparison.Ordinal))
                 && sections.Any(h => h.StartsWith("Limits (1)", StringComparison.Ordinal)),
             string.Join(", ", sections));
 
@@ -317,7 +321,23 @@ public static class PortedPaletteChecks
         var rules = drawn.Count(i => i.Rect.Z - i.Rect.X <= 1.5f && i.Rect.W - i.Rect.Y > 8.0f);
         Check("and columns are separated by a rule", rules >= 3, $"{rules} vertical rules");
 
-        // Values are truncated to fit, so the full text has to be reachable on hover.
+        // A long value wraps rather than being cut off. Checked by height: a wrapped cell is taller than a
+        // single line, which a truncated one never is.
+        var notes = FindAll<TextBlock>(panel).FirstOrDefault(t => t.Text.StartsWith("Budget and usage", StringComparison.Ordinal));
+        var adapter = FindAll<TextBlock>(panel).FirstOrDefault(t => t.Text == "Test GPU");
+
+        Check("a long value is present in full", notes != null,
+            notes?.Text[..Math.Min(40, notes.Text.Length)] ?? "missing");
+
+        Check("and it wraps onto more than one line rather than being cut off",
+            notes != null && adapter != null && notes.Bounds.Height > adapter.Bounds.Height * 1.5f,
+            $"{notes?.Bounds.Height:F0}px vs {adapter?.Bounds.Height:F0}px for one line");
+
+        Check("without spilling out of its column",
+            notes != null && notes.Bounds.Right <= panel.Bounds.Right + 0.5f,
+            $"{notes?.Bounds.Right:F0} within {panel.Bounds.Right:F0}");
+
+        // The full text is still on hover, for anything that wraps to something unwieldy.
         Check("values carry their full text on hover",
             FindAll<TextBlock>(panel).Count(t => t.Tooltip != null) >= 6,
             $"{FindAll<TextBlock>(panel).Count(t => t.Tooltip != null)} with tooltips");

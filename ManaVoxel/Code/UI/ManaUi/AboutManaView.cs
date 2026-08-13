@@ -140,7 +140,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Foreground(foreground)
                 .FontFamily(heading ? theme.FontFamilyMedium : theme.FontFamilyMono)
                 .FontSize(theme.FontSizeSmall)
-                .Ellipsis()
+                // Wrapped rather than truncated. These are driver strings, limits and notes -- a value
+                // that reads "physical 100.44 GiB; used 285..." is worse than a taller row, and a table
+                // where most cells end in an ellipsis is a table nobody can read.
+                .Wrap()
                 .WithTooltip(text)
                 .Margin(6.0f, 3.0f, 6.0f, 3.0f);
         }
