@@ -60,6 +60,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             global::Mana.ManaWorld? world = null)
         {
             var theme = root.Theme;
+            var debug = root.Debug;
             var left = new DockHost();
             var right = new DockHost();
 
@@ -198,7 +199,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Fill(theme.Surface)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose))
+                    .Content(BuildMenuBar(vm, state, Choose, debug))
                     .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
                     .Width(rightPanel.Size),
 
@@ -373,9 +374,19 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static MenuBar BuildMenuBar(
             ManaUiShowcaseViewModel vm,
             WorkspaceState state,
-            Action<WorkspacePreset> choose)
+            Action<WorkspacePreset> choose,
+            UiDebugOverlay debug)
         {
             return new MenuBar().AddRange(
+                new MenuItem("Debug").WithItems(
+                    DebugItem("Element bounds", UiDebugFlags.ElementBounds, debug),
+                    DebugItem("Clip rects", UiDebugFlags.ClipRects, debug),
+                    DebugItem("Hover path", UiDebugFlags.HoverPath, debug),
+                    DebugItem("Stats", UiDebugFlags.Stats, debug),
+                    MenuItem.Separator(),
+                    new MenuItem("All on", () => debug.Flags = UiDebugFlags.All),
+                    new MenuItem("All off", () => debug.Flags = UiDebugFlags.None)),
+
                 new MenuItem("Layout").WithItems(
                     PresetItem("Right column", WorkspacePreset.RightColumn, state, choose),
                     PresetItem("Unity", WorkspacePreset.Unity, state, choose),
@@ -406,6 +417,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
+        }
+
+        /// <summary>One toggle per debug flag, so they can be combined rather than being a single mode.</summary>
+        private static MenuItem DebugItem(string label, UiDebugFlags flag, UiDebugOverlay debug)
+        {
+            return new MenuItem(label, () => debug.Flags ^= flag)
+                .Checkable(() => (debug.Flags & flag) != 0);
         }
 
         private static MenuItem PresetItem(

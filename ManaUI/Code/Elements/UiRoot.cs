@@ -27,6 +27,7 @@ namespace ManaUI
             FocusManager = new UiFocusManager(this);
             Input = new UiInputRouter(this);
             Popups = new UiPopupManager(this);
+            Debug = new UiDebugOverlay(this);
 
             ContentLayer = new ContentHost();
             FloatingLayer = new Canvas();
@@ -50,6 +51,12 @@ namespace ManaUI
 
         /// <summary>Open dropdowns, menus and tooltips.</summary>
         public UiPopupManager Popups { get; }
+
+        /// <summary>
+        /// Wireframe and statistics drawn over the finished UI. Off until something turns it on, and it
+        /// costs nothing while it is off.
+        /// </summary>
+        public UiDebugOverlay Debug { get; }
 
         /// <summary>The cursor shape the UI wants right now; the host applies it to the real window.</summary>
         public UiCursor RequestedCursor => Input.RequestedCursor;
@@ -205,6 +212,14 @@ namespace ManaUI
             // transparent unless an application deliberately sets Background (a standalone tool window
             // would; an in-engine overlay must not).
             base.Render(_drawList);
+
+            // Batches are only closed by Finish, so the content's own batch count is one more than however
+            // many boundaries it opened. Captured before the overlay draws, so the readout describes the UI
+            // rather than the overlay measuring itself.
+            var contentInstances = _drawList.InstanceCount;
+            var contentBatches = _drawList.Batches.Count + (contentInstances > 0 ? 1 : 0);
+
+            Debug.Render(_drawList, contentInstances, contentBatches);
 
             _drawList.Finish();
             _visualDirty = false;
