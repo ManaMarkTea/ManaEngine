@@ -128,6 +128,12 @@ namespace Mana.Code.GameModes
                     // Hands the backend the tree to draw. The engine layer still owns layout and recording;
                     // the context only submits the draw list this produced.
                     webGpuContext.UiRoot = ManaUi?.Root;
+
+                    // Handed to the About panel here rather than fetched by it: the snapshot belongs to
+                    // whichever backend is running, and a panel should not have to know which that was.
+                    ManaUiDiagnostics.BackendName = Context.GraphicsBackend.ToString();
+                    ManaUiDiagnostics.Snapshot =
+                        ManaGraphicsDiagnosticsProviderFactory.Create(Context, webGpuContext)?.DiagnosticsSnapshot;
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
                     _ImGui = webGpuContext.CreateImGuiController(input);
                     var io = ImGuiNET.ImGui.GetIO();

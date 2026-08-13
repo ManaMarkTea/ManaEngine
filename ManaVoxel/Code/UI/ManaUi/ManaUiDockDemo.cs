@@ -30,7 +30,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 7;
+        private const int LayoutVersion = 8;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -133,6 +133,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "lighting" when world != null => new DockItem(
                     "Lighting",
                     IrradianceSettingsManaView.Build(theme, world.IrradianceSettings)) { Id = "lighting" },
+
+                // The snapshot is whatever the backend reported at start-up; null before it has, which the
+                // panel says rather than showing an empty frame.
+                "about" => new DockItem("About", new DynamicContent()
+                    .Showing<ManaGraphicsDiagnosticsSnapshot>(
+                        () => ManaUiDiagnostics.Snapshot,
+                        captured => AboutManaView.Build(theme, captured, ManaUiDiagnostics.BackendName))
+                    .Empty(AboutManaView.Build(theme, null, ManaUiDiagnostics.BackendName)))
+                {
+                    Id = "about"
+                },
                 // world.Selection rather than a separately supplied instance: it is the same object the
                 // ImGui outliner and the viewport already use, so the two outliners cannot drift apart.
                 "outliner" when world != null => new DockItem(
@@ -370,6 +381,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(right, resolve, "voxelstats", DockSide.Center, tools);
             Place(right, resolve, "voxeldebug", DockSide.Center, tools);
             Place(right, resolve, "lighting", DockSide.Center, tools);
+            Place(right, resolve, "about", DockSide.Center, tools);
 
             var layers = Place(right, resolve, "layers", DockSide.Bottom);
             Place(right, resolve, "stats", DockSide.Center, layers);
@@ -385,6 +397,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "voxelstats", DockSide.Center, tools);
             Place(left, resolve, "voxeldebug", DockSide.Center, tools);
             Place(left, resolve, "lighting", DockSide.Center, tools);
+            Place(left, resolve, "about", DockSide.Center, tools);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
             var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
@@ -406,6 +419,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "voxelstats", DockSide.Center, tools);
             Place(left, resolve, "voxeldebug", DockSide.Center, tools);
             Place(left, resolve, "lighting", DockSide.Center, tools);
+            Place(left, resolve, "about", DockSide.Center, tools);
             Place(left, resolve, "showcase", DockSide.Bottom);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
@@ -429,6 +443,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "voxelstats", DockSide.Center, splitTools);
             Place(left, resolve, "voxeldebug", DockSide.Center, splitTools);
             Place(left, resolve, "lighting", DockSide.Center, splitTools);
+            Place(left, resolve, "about", DockSide.Center, splitTools);
 
             var inspector = Place(right, resolve, "inspector", DockSide.Center);
             Place(right, resolve, "showcase", DockSide.Center, inspector);

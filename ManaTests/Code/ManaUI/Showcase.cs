@@ -50,8 +50,11 @@ public static class ShowcaseChecks
             var right = columns[1];
 
             Check("docked layout builds", right.RootNode != null, right.RootNode?.GetType().Name ?? "null");
+            // Counted rather than named: panels that need no world -- the showcase, layers, stats and the
+            // diagnostics About -- all dock in a session like this one, and the number changes as the
+            // port proceeds. What matters is that the default preset uses one column.
             Check("the default preset puts every panel in one column",
-                right.AllItems().Count() == 3 && !left.AllItems().Any(),
+                right.AllItems().Count() >= 3 && !left.AllItems().Any(),
                 $"left [{string.Join(", ", left.AllItems().Select(i => i.Title))}] "
                 + $"right [{string.Join(", ", right.AllItems().Select(i => i.Title))}]");
 
@@ -128,6 +131,10 @@ public static class ShowcaseChecks
             Check("Unity is offered as a preset", unity != null,
                 string.Join(", ", layoutMenu?.Items.Select(i => i.Text) ?? Array.Empty<string>()));
 
+            // Counted before the change, so the check below is about conservation rather than comparing a
+            // number to itself.
+            var docked = left.AllItems().Count() + right.AllItems().Count();
+
             unity?.Invoked?.Invoke();
             dockRoot.UpdateLayout(new Vector2(1920, 1080));
 
@@ -136,8 +143,8 @@ public static class ShowcaseChecks
                 $"left [{string.Join(", ", left.AllItems().Select(i => i.Title))}] "
                 + $"right [{string.Join(", ", right.AllItems().Select(i => i.Title))}]");
             Check("no panel is lost in the move",
-                left.AllItems().Count() + right.AllItems().Count() == 3,
-                $"{left.AllItems().Count() + right.AllItems().Count()} panels");
+                left.AllItems().Count() + right.AllItems().Count() == docked,
+                $"{left.AllItems().Count() + right.AllItems().Count()} of {docked} panels");
             Check("the now-filled column shows itself",
                 panels[0].Visibility == Visibility.Visible, panels[0].Visibility.ToString());
             Check("the chosen preset is ticked", unity!.IsCheckedProvider?.Invoke() == true, "Unity checked");

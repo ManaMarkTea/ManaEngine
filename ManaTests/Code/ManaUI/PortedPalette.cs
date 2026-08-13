@@ -157,6 +157,7 @@ public static class PortedPaletteChecks
 
         ToolPanel(fonts, check);
         Lighting(fonts, check);
+        About(fonts, check);
     }
 
     /// <summary>
@@ -242,6 +243,84 @@ public static class PortedPaletteChecks
                     && (int)settings.WebGpuDebugMode == (int)fresh.WebGpuDebugMode,
                 $"exposure {settings.Exposure}, mode {settings.WebGpuDebugMode}");
         }
+    }
+
+    /// <summary>
+    /// The diagnostics snapshot, ported. A snapshot rather than a live readout, which the panel says --
+    /// these are the values the backend reported at start-up.
+    /// </summary>
+    public static void About(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var root = new UiRoot(fonts);
+
+        var snapshot = new ManaCore.Graphics.ManaGraphicsDiagnosticsSnapshot(
+            DateTimeOffset.Now,
+            new[]
+            {
+                new ManaCore.Graphics.ManaGraphicsDiagnosticSection(
+                    "Device",
+                    new[]
+                    {
+                        new ManaCore.Graphics.ManaGraphicsDiagnosticEntry("Adapter", "Test GPU"),
+                        new ManaCore.Graphics.ManaGraphicsDiagnosticEntry(
+                            "Max texture size", "16384", ManaCore.Graphics.ManaGraphicsDiagnosticScope.WebGpu)
+                    }),
+
+                new ManaCore.Graphics.ManaGraphicsDiagnosticSection(
+                    "Limits",
+                    new[]
+                    {
+                        new ManaCore.Graphics.ManaGraphicsDiagnosticEntry(
+                            "Bind groups", "4", ManaCore.Graphics.ManaGraphicsDiagnosticScope.WebGpu, "8")
+                    },
+                    valueHeading: "WebGPU",
+                    comparisonHeading: "OpenGL")
+            },
+            "startup");
+
+        var panel = AboutManaView.Build(root.Theme, snapshot, "WebGPU");
+        root.Content = panel;
+        root.UpdateLayout(new Vector2(560, 900));
+
+        Check("the about panel renders", root.Render().InstanceCount > 20,
+            $"{root.Render().InstanceCount} instances");
+        Check("in one draw call", root.Render().Batches.Count == 1, $"{root.Render().Batches.Count} batches");
+
+        var sections = FindAll<Expander>(panel).Select(e => e.Header).ToList();
+        Check("a section per group, with its count",
+            sections.Any(h => h.StartsWith("Device (2)", StringComparison.Ordinal))
+                && sections.Any(h => h.StartsWith("Limits (1)", StringComparison.Ordinal)),
+            string.Join(", ", sections));
+
+        var texts = FindAll<TextBlock>(panel).Select(t => t.Text).ToList();
+        Check("it says when the snapshot was taken",
+            texts.Any(t => t.Contains("Captured", StringComparison.Ordinal)
+                && t.Contains("startup", StringComparison.Ordinal)),
+            texts.FirstOrDefault(t => t.Contains("Captured", StringComparison.Ordinal)) ?? "no capture line");
+
+        Check("and names the backend",
+            texts.Any(t => t.Contains("WebGPU diagnostics", StringComparison.Ordinal)), "backend named");
+
+        // A comparison section gets both columns, with its own headings rather than "Value".
+        Check("a comparison section labels both columns",
+            texts.Contains("WebGPU") && texts.Contains("OpenGL"), string.Join(", ", texts.Take(12)));
+
+        // Values are truncated to fit, so the full text has to be reachable on hover.
+        Check("values carry their full text on hover",
+            FindAll<TextBlock>(panel).Count(t => t.Tooltip != null) >= 6,
+            $"{FindAll<TextBlock>(panel).Count(t => t.Tooltip != null)} with tooltips");
+
+        // No snapshot is a normal state early in start-up, and it says so rather than showing an empty
+        // frame that looks broken.
+        root.Content = null;
+        root.Content = AboutManaView.Build(root.Theme, null, "OpenGL");
+        root.UpdateLayout(new Vector2(560, 900));
+
+        Check("with no snapshot it says so",
+            FindAll<TextBlock>(root).Any(t => t.Text.Contains("No diagnostics", StringComparison.Ordinal)),
+            "empty state");
     }
 
     private static bool IsSliderVisible(UiRoot root, float minimum, float maximum)
