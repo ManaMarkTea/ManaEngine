@@ -273,6 +273,14 @@ namespace Mana
             return (IManaBindableGpuTexture)GpuTexture;
         }
 
+        /// <summary>
+        /// Called on the copy after a clone has had its GPU state cleared. A memberwise copy brings every
+        /// field with it, including any a subclass keeps about resources the copy does not own.
+        /// </summary>
+        protected virtual void OnCloned()
+        {
+        }
+
         public object Clone()
         {
             var copy = MemberwiseClone() as ManaTexture;
@@ -281,6 +289,7 @@ namespace Mana
                 copy.Handle = 0;
                 copy.IsLoaded = false;
                 copy.GpuTexture = null;
+                copy.OnCloned();
             }
             return copy ?? this;
         }

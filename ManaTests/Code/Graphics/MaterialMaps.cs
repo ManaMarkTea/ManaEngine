@@ -16,6 +16,74 @@ namespace ManaTests;
 public static class MaterialMapChecks
 {
     /// <summary>
+    /// The single- and vector-valued channels a material keeps for its scalars. These are real GPU
+    /// textures a pixel wide, and they are pushed to whenever their value changes -- which nothing did
+    /// until the sliders were wired up, so a latent crash sat here unnoticed.
+    /// </summary>
+    private static void CheckDynamicTextures(Action<string, bool, string> Check)
+    {
+        var world = new Mana.ManaWorld();
+        var context = new Mana.Code.ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        var material = new Mana.Code.Materials.ManaMaterial(context);
+
+        // Cloning is what a dynamic material does the moment anything edits a shared one. The copy owns
+        // no GPU resources -- Clone clears them -- and pushing a changed value into a texture that was
+        // never allocated is a GL_INVALID_VALUE rather than a no-op.
+        var copy = material.Clone() as Mana.Code.Materials.ManaMaterial;
+        Check("a material clones", copy != null, string.Empty);
+
+        if (copy == null)
+        {
+            return;
+        }
+
+        Check("the copy's channels are its own",
+            !ReferenceEquals(copy.Opacity, material.Opacity)
+                && !ReferenceEquals(copy.Occlusion, material.Occlusion),
+            "cloned, not shared");
+
+        Check("and they hold no GPU texture", copy.Opacity.GpuTexture == null && !copy.Opacity.IsLoaded,
+            "cleared by Clone");
+
+        // Changing a value marks the channel dirty; binding it then pushes. Headless there is no GL to
+        // push to, so what is being checked is that it declines rather than throwing -- the same guard
+        // that stops it writing into an unallocated texture when there is one.
+        copy.Opacity.Value = 0.25f;
+        Check("a changed value marks the channel dirty", copy.Opacity.IsDirty(), "dirty");
+
+        try
+        {
+            copy.Opacity.Bind(9);
+            Check("binding a dirty unallocated channel does not throw", true, "declined cleanly");
+        }
+        catch (Exception ex)
+        {
+            Check("binding a dirty unallocated channel does not throw", false, ex.GetType().Name + ": " + ex.Message);
+        }
+
+        // Every scalar channel, since they all take the same path and the crash was only found on one.
+        foreach (var (name, channel) in new (string, Mana.ManaTextureDynamic)[]
+        {
+            ("Metallic", material.Metallic),
+            ("Roughness", material.Roughness),
+            ("Occlusion", material.Occlusion),
+            ("Opacity", material.Opacity),
+            ("Albedo", material.Albedo)
+        })
+        {
+            try
+            {
+                channel.Bind(3);
+                Check($"{name} binds without throwing", true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                Check($"{name} binds without throwing", false, ex.GetType().Name);
+            }
+        }
+    }
+
+    /// <summary>
     /// The OpenGL path held to the same contract as the WebGPU one. It is the fallback backend, so it is
     /// the one that quietly drifts: nothing here fails a build, and a missing uniform simply does nothing.
     /// </summary>
@@ -188,6 +256,7 @@ public static class MaterialMapChecks
 
         CheckLoadedGltf(Check);
         CheckOpenGl(Check);
+        CheckDynamicTextures(Check);
 
         // Both roots: `dotnet run` leaves the working directory at the repository, while the built output
         // is where the shaders are actually copied. Searching one alone finds nothing in the other.
