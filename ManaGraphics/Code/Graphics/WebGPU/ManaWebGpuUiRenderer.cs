@@ -197,6 +197,21 @@ namespace ManaGraphics.Code.Graphics
             atlas.ClearDirty();
         }
 
+        /// <summary>
+        /// The colour atlas, as an sRGB texture.
+        /// <para>
+        /// The format is the whole fix for emoji looking washed out. Its contents are sRGB-encoded bytes,
+        /// straight out of a PNG; the shader works in linear and the surface re-encodes on write. Sampling
+        /// through Rgba8Unorm handed those sRGB values to the shader as though they were already linear,
+        /// so the surface encoded them a second time -- which lifts the midtones and reads exactly as
+        /// desaturated. Rgba8UnormSrgb makes the hardware decode on sample, for free, and it leaves alpha
+        /// alone as it should.
+        /// </para>
+        /// <para>
+        /// This assumes the atlas holds sRGB-authored content, which emoji and icons are. Anything already
+        /// linear -- a normal map thumbnail, say -- would need its own texture rather than a slot here.
+        /// </para>
+        /// </summary>
         private void CreateImageTexture(int width, int height)
         {
             var descriptor = new TextureDescriptor
@@ -204,7 +219,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D { Width = (uint)width, Height = (uint)height, DepthOrArrayLayers = 1 },
-                Format = TextureFormat.Rgba8Unorm,
+                Format = TextureFormat.Rgba8UnormSrgb,
                 MipLevelCount = 1,
                 SampleCount = 1
             };
@@ -213,7 +228,7 @@ namespace ManaGraphics.Code.Graphics
 
             var viewDescriptor = new TextureViewDescriptor
             {
-                Format = TextureFormat.Rgba8Unorm,
+                Format = TextureFormat.Rgba8UnormSrgb,
                 Dimension = TextureViewDimension.Dimension2D,
                 MipLevelCount = 1,
                 ArrayLayerCount = 1,
@@ -633,6 +648,7 @@ namespace ManaGraphics.Code.Graphics
             _glyphAtlasHeight = height;
         }
 
+        /// <summary>Matches the real atlas's format, so replacing one with the other changes nothing else.</summary>
         private void CreateImagePlaceholder()
         {
             var descriptor = new TextureDescriptor
@@ -640,7 +656,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D { Width = 1, Height = 1, DepthOrArrayLayers = 1 },
-                Format = TextureFormat.Rgba8Unorm,
+                Format = TextureFormat.Rgba8UnormSrgb,
                 MipLevelCount = 1,
                 SampleCount = 1
             };
@@ -649,7 +665,7 @@ namespace ManaGraphics.Code.Graphics
 
             var viewDescriptor = new TextureViewDescriptor
             {
-                Format = TextureFormat.Rgba8Unorm,
+                Format = TextureFormat.Rgba8UnormSrgb,
                 Dimension = TextureViewDimension.Dimension2D,
                 MipLevelCount = 1,
                 ArrayLayerCount = 1,
