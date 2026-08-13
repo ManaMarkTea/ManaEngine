@@ -1,5 +1,12 @@
 namespace ManaUI
 {
+    /// <summary>The built-in palettes.</summary>
+    public enum UiThemeKind
+    {
+        Dark,
+        Light
+    }
+
     /// <summary>
     /// The design tokens every control reads instead of hard-coding colours.
     /// <para>
@@ -119,6 +126,17 @@ namespace ManaUI
         public float FontSizeSmall { get; set; } = 13.0f;
         public float FontSizeHeading { get; set; } = 18.0f;
 
+        /// <summary>
+        /// Which built-in palette this theme came from. Carried on the theme so a host can persist the
+        /// choice without keeping a second copy of it that can drift out of step.
+        /// </summary>
+        public UiThemeKind Kind { get; private set; } = UiThemeKind.Dark;
+
+        public static UiTheme Create(UiThemeKind kind)
+        {
+            return kind == UiThemeKind.Light ? Light() : Dark();
+        }
+
         public static UiTheme Dark()
         {
             return new UiTheme();
@@ -128,6 +146,8 @@ namespace ManaUI
         {
             return new UiTheme
             {
+                Kind = UiThemeKind.Light,
+
                 Background = UiColor.FromHex("#F2F3F5"),
                 Surface = UiColor.FromHex("#FFFFFF"),
                 SurfaceAlt = UiColor.FromHex("#EDEEF0"),

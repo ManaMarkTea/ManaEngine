@@ -109,34 +109,13 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Draws the tick as the U+2713 glyph. The box primitive is axis-aligned only, so a check mark's
-        /// diagonals are not expressible as rectangles -- an earlier attempt with a single bar just read as
-        /// an indeterminate state. Fonts without the glyph fall back to a filled square, which at least is
-        /// unambiguously "on".
+        /// Draws the tick. Drawn from primitives rather than as U+2713, which Roboto does not have --
+        /// it rendered as .notdef, and the "fall back to a square" path never fired because a tofu box has
+        /// pixels like any other glyph.
         /// </summary>
         private void DrawTick(ManaUiDrawList drawList, UiRect box, Vector4 color)
         {
-            var root = Root;
-            if (root != null)
-            {
-                var font = root.Fonts.Get(root.Theme.FontFamily, BoxSize, root.Scale);
-                var glyph = font.GetGlyph(0x2713);
-
-                if (glyph.HasPixels)
-                {
-                    var origin = new Vector2(
-                        box.Center.X - glyph.Size.X * 0.5f,
-                        box.Center.Y - glyph.Size.Y * 0.5f);
-
-                    drawList.DrawGlyph(
-                        new UiRect(font.SnapToPixel(origin.X), font.SnapToPixel(origin.Y), glyph.Size.X, glyph.Size.Y),
-                        glyph.AtlasUv,
-                        color);
-                    return;
-                }
-            }
-
-            drawList.FillRect(box.Deflate(new Thickness(4.0f)), color, new CornerRadius(1.0f));
+            UiIcons.Check(drawList, box.Deflate(new Thickness(2.0f)), color);
         }
 
         protected override void OnPointerPressed(UiPointerEventArgs e)

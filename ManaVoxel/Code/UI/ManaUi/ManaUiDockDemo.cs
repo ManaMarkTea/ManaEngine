@@ -59,6 +59,30 @@ namespace ManaVoxel.Code.UI.ManaUi
             VoxelEditorViewModel? editor = null,
             global::Mana.ManaWorld? world = null)
         {
+            // The saved theme has to be applied before anything is built, because views read colours as
+            // they construct rather than at render time -- which is also why switching rebuilds rather than
+            // just repainting.
+            var saved = persist ? ManaUiWorkspaceLayout.Load(LayoutPath) : null;
+            if (saved != null && root.Theme.Kind != saved.Theme)
+            {
+                root.Theme = UiTheme.Create(saved.Theme);
+            }
+
+            // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
+            var shell = new ContentHost();
+            shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
+            return shell;
+        }
+
+        private static UiElement Build(
+            UiRoot root,
+            ContentHost shell,
+            ManaUiShowcaseViewModel vm,
+            Func<string>? liveStat,
+            bool persist,
+            VoxelEditorViewModel? editor,
+            global::Mana.ManaWorld? world)
+        {
             var theme = root.Theme;
             var debug = root.Debug;
             var left = new DockHost();
@@ -149,6 +173,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 {
                     Version = LayoutVersion,
                     Preset = state.Preset,
+                    Theme = root.Theme.Kind,
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
                     Left = DockLayout.Capture(left),
@@ -183,6 +208,22 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             SyncColumnVisibility();
 
+            void ChooseTheme(UiThemeKind kind)
+            {
+                if (root.Theme.Kind == kind)
+                {
+                    return;
+                }
+
+                Save();
+                root.Theme = UiTheme.Create(kind);
+
+                // Rebuilt rather than repainted. Application views capture theme colours as they are
+                // constructed -- a foreground here, a fill there -- so a swap that only re-rendered would
+                // leave half the workspace in the old palette.
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world);
+            }
+
             void Choose(WorkspacePreset preset)
             {
                 state.Preset = preset;
@@ -199,7 +240,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Fill(theme.Surface)
                     .Outline(theme.Border, 1.0f)
                     .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose, debug))
+                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme))
                     .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f)
                     .Width(rightPanel.Size),
 
@@ -375,7 +416,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaUiShowcaseViewModel vm,
             WorkspaceState state,
             Action<WorkspacePreset> choose,
-            UiDebugOverlay debug)
+            UiDebugOverlay debug,
+            UiRoot root,
+            Action<UiThemeKind> chooseTheme)
         {
             return new MenuBar().AddRange(
                 new MenuItem("Debug").WithItems(
@@ -411,6 +454,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                     })),
 
                 new MenuItem("View").WithItems(
+                    new MenuItem("Theme").WithItems(
+                        new MenuItem("Dark", () => chooseTheme(UiThemeKind.Dark))
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Dark),
+                        new MenuItem("Light", () => chooseTheme(UiThemeKind.Light))
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Light)),
+                    MenuItem.Separator(),
                     new MenuItem("Wireframe", () => vm.ShowWireframe = !vm.ShowWireframe)
                         .Checkable(() => vm.ShowWireframe),
                     MenuItem.Separator(),

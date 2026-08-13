@@ -343,10 +343,10 @@ namespace ManaUI
                 drawList.FillRect(rect, theme.Danger, new CornerRadius(3.0f));
             }
 
-            var glyph = font.GetGlyph('✕');
+            var glyph = font.GetGlyph('×');
             var color = hovered ? theme.TextOnAccent : theme.TextMuted;
 
-            if (glyph.HasPixels)
+            if (glyph.IsDrawable)
             {
                 drawList.DrawGlyph(
                     new UiRect(
@@ -359,7 +359,7 @@ namespace ManaUI
             }
             else
             {
-                drawList.FillRect(rect.Deflate(new Thickness(5.0f)), color);
+                UiIcons.Cross(drawList, rect.Deflate(new Thickness(4.0f)), color);
             }
         }
 

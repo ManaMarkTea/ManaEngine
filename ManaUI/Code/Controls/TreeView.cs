@@ -585,31 +585,20 @@ namespace ManaUI
                 return;
             }
 
-            var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
-            var glyph = font.GetGlyph(_owner.IsExpanded(_item) ? '▾' : '▸');
+            // Drawn rather than taken from a font: Roboto has no geometric-shape arrows, so this used to
+            // render .notdef -- the box people saw in the tree.
             var centre = new Vector2(
                 Bounds.X + Depth * _owner.IndentSize + ExpanderWidth * 0.5f,
                 Bounds.Center.Y);
 
-            if (glyph.HasPixels)
-            {
-                drawList.DrawGlyph(
-                    new UiRect(
-                        font.SnapToPixel(centre.X - glyph.Size.X * 0.5f),
-                        font.SnapToPixel(centre.Y - glyph.Size.Y * 0.5f),
-                        glyph.Size.X,
-                        glyph.Size.Y),
-                    glyph.AtlasUv,
-                    theme.TextMuted);
-            }
-            else
-            {
-                // Fallback for a font without the arrows: a filled square reads as "has children".
-                drawList.FillRect(
-                    new UiRect(centre.X - 3.0f, centre.Y - 3.0f, 6.0f, 6.0f),
-                    theme.TextMuted,
-                    new CornerRadius(1.0f));
-            }
+            var size = 8.0f;
+            var box = new UiRect(centre.X - size * 0.5f, centre.Y - size * 0.5f, size, size);
+
+            UiIcons.Triangle(
+                drawList,
+                box,
+                _owner.IsExpanded(_item) ? UiIconDirection.Down : UiIconDirection.Right,
+                theme.TextMuted);
         }
 
         /// <summary>The expander's hit area, which is deliberately the full row height for an easy target.</summary>

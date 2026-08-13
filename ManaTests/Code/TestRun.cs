@@ -56,6 +56,7 @@ public static class TestRunner
 
     private static readonly (string System, string Section, Action<ManaFontManager, Action<string, bool, string>> Run)[] Suites =
     {
+        ("ManaUI", "glyph coverage", GlyphChecks.Run),
         ("ManaUI", "layout, text and draw list", LayoutChecks.Run),
         ("ManaUI", "input", InputChecks.Run),
         ("ManaUI", "bindings", BindingChecks.Run),

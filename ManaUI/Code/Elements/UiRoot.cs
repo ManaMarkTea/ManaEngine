@@ -23,7 +23,7 @@ namespace ManaUI
             ArgumentNullException.ThrowIfNull(fonts);
 
             Fonts = fonts;
-            Theme = theme ?? UiTheme.Dark();
+            _theme = theme ?? UiTheme.Dark();
             FocusManager = new UiFocusManager(this);
             Input = new UiInputRouter(this);
             Popups = new UiPopupManager(this);
@@ -42,7 +42,34 @@ namespace ManaUI
 
         public ManaFontManager Fonts { get; }
         public ManaGlyphAtlas Atlas => Fonts.Atlas;
-        public UiTheme Theme { get; set; }
+        /// <summary>
+        /// The palette every control reads. Swapping it re-renders the tree, but note that a view which
+        /// captured a colour when it was built keeps the old one -- most controls read the theme at render
+        /// time, application views often do not. A host switching themes at runtime should rebuild its
+        /// content as well, which is what <see cref="ThemeChanged"/> is for.
+        /// </summary>
+        public UiTheme Theme
+        {
+            get => _theme;
+            set
+            {
+                ArgumentNullException.ThrowIfNull(value);
+
+                if (ReferenceEquals(_theme, value))
+                {
+                    return;
+                }
+
+                _theme = value;
+                InvalidateAll();
+                ThemeChanged?.Invoke(this, value);
+            }
+        }
+
+        private UiTheme _theme;
+
+        /// <summary>Raised after the theme is swapped, so hosts can rebuild views that captured colours.</summary>
+        public event EventHandler<UiTheme>? ThemeChanged;
 
         /// <summary>Routes platform input into the tree. The host feeds it; widgets never see a windowing API.</summary>
         public UiInputRouter Input { get; }

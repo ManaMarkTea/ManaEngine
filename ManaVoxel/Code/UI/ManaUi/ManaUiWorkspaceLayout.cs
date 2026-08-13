@@ -48,6 +48,10 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public WorkspacePreset Preset { get; set; } = WorkspacePreset.RightColumn;
 
+        /// <summary>Dark or light. Stored here rather than in a settings file of its own, because it is
+        /// part of how the workspace looks and belongs with the rest of it.</summary>
+        public UiThemeKind Theme { get; set; } = UiThemeKind.Dark;
+
         public float LeftWidth { get; set; }
 
         public float RightWidth { get; set; }

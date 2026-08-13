@@ -153,18 +153,16 @@ namespace ManaUI
 
             if (_hasCheckColumn && _item.ResolveChecked())
             {
-                var tick = font.GetGlyph('✓');
-                if (tick.HasPixels)
-                {
-                    drawList.DrawGlyph(
-                        new UiRect(
-                            font.SnapToPixel(Bounds.X + (CheckColumnWidth - tick.Size.X) * 0.5f),
-                            font.SnapToPixel(Bounds.Center.Y - tick.Size.Y * 0.5f),
-                            tick.Size.X,
-                            tick.Size.Y),
-                        tick.AtlasUv,
-                        foreground);
-                }
+                // Drawn rather than U+2713, which Roboto does not have -- it rendered as a tofu box.
+                var tickSize = 10.0f;
+                UiIcons.Check(
+                    drawList,
+                    new UiRect(
+                        Bounds.X + (CheckColumnWidth - tickSize) * 0.5f,
+                        Bounds.Center.Y - tickSize * 0.5f,
+                        tickSize,
+                        tickSize),
+                    foreground);
             }
 
             var label = new TextLayout { Font = font, Text = _item.Text };
@@ -193,18 +191,15 @@ namespace ManaUI
 
             if (_item.HasSubmenu)
             {
-                var arrow = font.GetGlyph('▶');
-                if (arrow.HasPixels)
-                {
-                    drawList.DrawGlyph(
-                        new UiRect(
-                            font.SnapToPixel(Bounds.Right - ArrowColumnWidth + 2.0f),
-                            font.SnapToPixel(Bounds.Center.Y - arrow.Size.Y * 0.5f),
-                            arrow.Size.X,
-                            arrow.Size.Y),
-                        arrow.AtlasUv,
-                        foreground);
-                }
+                UiIcons.Triangle(
+                    drawList,
+                    new UiRect(
+                        Bounds.Right - ArrowColumnWidth + 2.0f,
+                        Bounds.Center.Y - 4.0f,
+                        6.0f,
+                        8.0f),
+                    UiIconDirection.Right,
+                    foreground);
             }
         }
 

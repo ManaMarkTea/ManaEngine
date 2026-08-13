@@ -145,8 +145,22 @@ namespace ManaUI
             return width;
         }
 
+        /// <summary>
+        /// Whether the font actually contains this codepoint. Glyph index 0 is .notdef -- the tofu box --
+        /// which every other part of the pipeline treats as an ordinary glyph, so this is the only place
+        /// the difference can be seen.
+        /// </summary>
+        public bool HasGlyph(int codepoint)
+        {
+            return StbTrueType.stbtt_FindGlyphIndex(_info, codepoint) != 0;
+        }
+
         private ManaGlyph Rasterize(int codepoint)
         {
+            // Whitespace has no glyph index either in some fonts, but it also rasterises empty, so the
+            // flag only ends up mattering for characters that would otherwise draw a box.
+            var missing = !HasGlyph(codepoint);
+
             int advance;
             int leftSideBearing;
             StbTrueType.stbtt_GetCodepointHMetrics(_info, codepoint, &advance, &leftSideBearing);
@@ -164,12 +178,12 @@ namespace ManaUI
             // Whitespace and unmapped codepoints rasterise empty; they still advance the pen.
             if (width <= 0 || height <= 0)
             {
-                return ManaGlyph.Blank(advancePixels);
+                return ManaGlyph.Blank(advancePixels, missing);
             }
 
             if (!_atlas.TryPack(width, height, out var atlasX, out var atlasY))
             {
-                return ManaGlyph.Blank(advancePixels);
+                return ManaGlyph.Blank(advancePixels, missing);
             }
 
             var bitmap = new byte[width * height];
@@ -187,7 +201,8 @@ namespace ManaUI
                 new Vector2(x0 / RenderScale, y0 / RenderScale),
                 new Vector2(width / RenderScale, height / RenderScale),
                 advancePixels,
-                hasPixels: true);
+                hasPixels: true,
+                isMissing: missing);
         }
 
         public void Dispose()

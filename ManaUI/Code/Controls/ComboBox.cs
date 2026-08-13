@@ -151,28 +151,16 @@ namespace ManaUI
 
         private void RenderArrow(ManaUiDrawList drawList, ManaFont font, Vector4 color)
         {
-            // A triangle needs diagonals the box primitive cannot draw, so the glyph path handles it --
-            // same approach as the checkbox tick and the window close button.
+            // Drawn, not a glyph. The triangle characters are absent from Roboto and from most UI fonts,
+            // and a control's chrome should not change shape with the theme's typeface anyway.
             var centre = new Vector2(Bounds.Right - ArrowWidth * 0.5f - 4.0f, Bounds.Center.Y);
-            var glyph = font.GetGlyph(IsDropDownOpen ? '▲' : '▼');
+            var box = new UiRect(centre.X - 4.5f, centre.Y - 3.0f, 9.0f, 6.0f);
 
-            if (glyph.HasPixels)
-            {
-                drawList.DrawGlyph(
-                    new UiRect(
-                        font.SnapToPixel(centre.X - glyph.Size.X * 0.5f),
-                        font.SnapToPixel(centre.Y - glyph.Size.Y * 0.5f),
-                        glyph.Size.X,
-                        glyph.Size.Y),
-                    glyph.AtlasUv,
-                    color);
-                return;
-            }
-
-            drawList.FillRect(
-                new UiRect(centre.X - 4.0f, centre.Y - 1.0f, 8.0f, 2.0f),
-                color,
-                new CornerRadius(1.0f));
+            UiIcons.Triangle(
+                drawList,
+                box,
+                IsDropDownOpen ? UiIconDirection.Up : UiIconDirection.Down,
+                color);
         }
 
         // ----- drop down ------------------------------------------------------------------------------

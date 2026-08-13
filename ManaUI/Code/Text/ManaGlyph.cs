@@ -20,18 +20,39 @@ namespace ManaUI
         /// <summary>False for whitespace and anything that rasterised empty -- skip the quad entirely.</summary>
         public readonly bool HasPixels;
 
-        public ManaGlyph(Vector4 atlasUv, Vector2 offset, Vector2 size, float advance, bool hasPixels)
+        /// <summary>
+        /// True when the font has no glyph for this codepoint and what rasterised is the .notdef box.
+        /// <para>
+        /// Distinct from <see cref="HasPixels"/>, and the distinction matters: .notdef is a hollow
+        /// rectangle, so it has pixels like any other glyph. Every icon in the library had a "fall back to
+        /// a drawn shape if the font lacks this character" path keyed on HasPixels, and not one of them
+        /// ever fired -- the tofu box sailed through as a real glyph.
+        /// </para>
+        /// </summary>
+        public readonly bool IsMissing;
+
+        public ManaGlyph(
+            Vector4 atlasUv,
+            Vector2 offset,
+            Vector2 size,
+            float advance,
+            bool hasPixels,
+            bool isMissing = false)
         {
             AtlasUv = atlasUv;
             Offset = offset;
             Size = size;
             Advance = advance;
             HasPixels = hasPixels;
+            IsMissing = isMissing;
         }
 
-        public static ManaGlyph Blank(float advance)
+        /// <summary>True when there is a real glyph with something to draw.</summary>
+        public bool IsDrawable => HasPixels && !IsMissing;
+
+        public static ManaGlyph Blank(float advance, bool isMissing = false)
         {
-            return new ManaGlyph(Vector4.Zero, Vector2.Zero, Vector2.Zero, advance, false);
+            return new ManaGlyph(Vector4.Zero, Vector2.Zero, Vector2.Zero, advance, false, isMissing);
         }
     }
 }

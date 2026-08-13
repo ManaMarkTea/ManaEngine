@@ -81,10 +81,11 @@ public static class ShowcaseChecks
 
             foreach (var instance in dockRoot.Render().Instances)
             {
+                // Rect is (minX, minY, maxX, maxY) rather than position and size.
                 if (gutter.X >= instance.Rect.X
-                    && gutter.X <= instance.Rect.X + instance.Rect.Z
+                    && gutter.X <= instance.Rect.Z
                     && gutter.Y >= instance.Rect.Y
-                    && gutter.Y <= instance.Rect.Y + instance.Rect.W
+                    && gutter.Y <= instance.Rect.W
                     && UiColor.Unpack(instance.FillColor).W >= 1.0f)
                 {
                     painted = true;
@@ -148,6 +149,37 @@ public static class ShowcaseChecks
                 string.Join(", ", left.AllItems().Select(i => i.Title)));
 
             Check("the workspace still renders after a preset change",
+                dockRoot.Render().InstanceCount > 50, $"{dockRoot.Render().InstanceCount} instances");
+
+            // ---------------------------------------------------------------- theme
+            var viewMenu = menu!.Menus.First(item => item.Text == "View");
+            var themeMenu = viewMenu.Items.First(item => item.Text == "Theme");
+            var light = themeMenu.Items.First(item => item.Text == "Light");
+
+            Check("dark is the starting theme", dockRoot.Theme.Kind == UiThemeKind.Dark,
+                dockRoot.Theme.Kind.ToString());
+            Check("the dark entry is ticked",
+                themeMenu.Items.First(i => i.Text == "Dark").IsCheckedProvider?.Invoke() == true, "dark");
+
+            var darkBackground = dockRoot.Theme.Background;
+            light.Invoked?.Invoke();
+            dockRoot.UpdateLayout(new Vector2(1920, 1080));
+
+            Check("switching to light changes the theme", dockRoot.Theme.Kind == UiThemeKind.Light,
+                dockRoot.Theme.Kind.ToString());
+            Check("light really is lighter",
+                dockRoot.Theme.Background.X > darkBackground.X,
+                $"{darkBackground.X:F2} -> {dockRoot.Theme.Background.X:F2}");
+            Check("the light entry is now ticked", light.IsCheckedProvider?.Invoke() == true, "light");
+
+            // Views capture colours as they build, so a swap has to rebuild rather than repaint. If it did
+            // not, the panels would still be carrying the dark palette's surfaces.
+            var relitPanels = FindAll<ResizablePanel>(dockRoot);
+            Check("the workspace was rebuilt for the new theme",
+                relitPanels.Count == 2 && relitPanels.Any(p => p.Background.X > darkBackground.X + 0.1f),
+                string.Join(", ", relitPanels.Select(p => p.Background.X.ToString("F2"))));
+
+            Check("the workspace renders in light mode",
                 dockRoot.Render().InstanceCount > 50, $"{dockRoot.Render().InstanceCount} instances");
         }
         catch (Exception ex)

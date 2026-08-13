@@ -279,10 +279,10 @@ namespace ManaUI
             }
 
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
-            var glyph = font.GetGlyph('✕');
+            var glyph = font.GetGlyph('×');
             var color = hovered ? theme.TextOnAccent : theme.TextMuted;
 
-            if (glyph.HasPixels)
+            if (glyph.IsDrawable)
             {
                 drawList.DrawGlyph(
                     new UiRect(
@@ -295,7 +295,9 @@ namespace ManaUI
             }
             else
             {
-                drawList.FillRect(button.Deflate(new Thickness(6.0f)), color, new CornerRadius(1.0f));
+                // A font with no multiplication sign is unlikely but no longer silent: .notdef is detected
+                // now, so this actually runs rather than drawing a tofu box and calling it an X.
+                UiIcons.Cross(drawList, button.Deflate(new Thickness(5.0f)), color);
             }
         }
 
