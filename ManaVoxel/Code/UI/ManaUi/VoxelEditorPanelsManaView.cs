@@ -83,12 +83,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             return PhysicsTab(theme, viewModel);
         }
 
-        /// <summary>Memory over time and the developer toggles.</summary>
-        public static UiElement BuildDebug(UiTheme theme, VoxelEditorViewModel viewModel)
-        {
-            return DebugTab(theme, viewModel);
-        }
-
         private static UiElement Header(UiTheme theme, VoxelEditorViewModel viewModel, Sparkline graph)
         {
             return new StackPanel().Vertical(theme.Spacing).Children(
@@ -306,43 +300,6 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .BindTextPolled(() => viewModel.IsReassembling ? "Reassembly: in progress" : "Reassembly: idle")
                     .Foreground(theme.TextMuted)
                     .FontSize(theme.FontSizeSmall)).Scrollable();
-        }
-
-        private static UiElement DebugTab(UiTheme theme, VoxelEditorViewModel viewModel)
-        {
-            var memory = new float[FrameHistory];
-            var next = 0;
-
-            var memoryGraph = new Sparkline
-            {
-                Samples = memory,
-                Minimum = 0.0f,
-                Height = 46.0f
-            };
-
-            // Auto-scaled rather than fixed: unlike frame time there is no budget to draw a line at, and a
-            // fixed ceiling would either clip or flatten depending on the scene.
-            memoryGraph.BindPolled(g => g.Tooltip, () =>
-            {
-                var megabytes = GC.GetTotalMemory(false) / (1024.0f * 1024.0f);
-                memory[next] = megabytes;
-                next = (next + 1) % memory.Length;
-                memoryGraph.WriteCursor = next;
-                return $"{megabytes:0.0} MB managed";
-            });
-
-            return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
-                Section(theme, "Memory"),
-                memoryGraph,
-                new TextBlock()
-                    .BindTextPolled(() => $"{GC.GetTotalMemory(false) / (1024.0 * 1024.0):0.0} MB managed")
-                    .Foreground(theme.TextMuted)
-                    .FontSize(theme.FontSizeSmall),
-
-                Section(theme, "Tools"),
-                new CheckBox().Label("Show ImGui Demo Window")
-                    .Checked(viewModel.ShowImGuiDemoWindow)
-                    .OnChanged(value => viewModel.ShowImGuiDemoWindow = value)).Scrollable();
         }
 
         private static UiElement Slider(

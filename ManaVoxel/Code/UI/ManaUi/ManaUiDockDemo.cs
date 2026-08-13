@@ -30,7 +30,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 8;
+        private const int LayoutVersion = 9;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -40,8 +40,30 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
         /// <summary>Every panel the workspace can show.</summary>
-        private static readonly string[] PanelIds =
-            { "tools", "outliner", "inspector", "showcase", "layers", "stats" };
+        /// <summary>
+        /// Every panel this workspace can build, in the order a merge should add them.
+        /// <para>
+        /// This list and the factory below have to agree, and when they were written separately they
+        /// silently stopped agreeing: six panels were added to the factory and not here, so upgrading an
+        /// existing workspace found nothing new to merge and the panels only appeared after a reset. The
+        /// factory asserts against this list now, so a panel that is not in both fails a test rather than
+        /// going missing for exactly the people who already use the editor.
+        /// </para>
+        /// </summary>
+        public static readonly string[] PanelIds =
+        {
+            "tools",
+            "placement",
+            "physics",
+            "voxelstats",
+            "lighting",
+            "outliner",
+            "inspector",
+            "showcase",
+            "layers",
+            "stats",
+            "about"
+        };
 
         /// <summary>
         /// Builds the workspace over a <see cref="UiRoot"/> rather than the windowing host, so the whole
@@ -126,10 +148,6 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "voxelstats" when editor != null => new DockItem(
                     "Voxel Stats",
                     VoxelEditorPanelsManaView.BuildStats(theme, editor)) { Id = "voxelstats" },
-                "voxeldebug" when editor != null => new DockItem(
-                    "Debug",
-                    VoxelEditorPanelsManaView.BuildDebug(theme, editor)) { Id = "voxeldebug" },
-
                 "lighting" when world != null => new DockItem(
                     "Lighting",
                     IrradianceSettingsManaView.Build(theme, world.IrradianceSettings)) { Id = "lighting" },
@@ -379,7 +397,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(right, resolve, "placement", DockSide.Center, tools);
             Place(right, resolve, "physics", DockSide.Center, tools);
             Place(right, resolve, "voxelstats", DockSide.Center, tools);
-            Place(right, resolve, "voxeldebug", DockSide.Center, tools);
             Place(right, resolve, "lighting", DockSide.Center, tools);
             Place(right, resolve, "about", DockSide.Center, tools);
 
@@ -395,7 +412,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "placement", DockSide.Center, tools);
             Place(left, resolve, "physics", DockSide.Center, tools);
             Place(left, resolve, "voxelstats", DockSide.Center, tools);
-            Place(left, resolve, "voxeldebug", DockSide.Center, tools);
             Place(left, resolve, "lighting", DockSide.Center, tools);
             Place(left, resolve, "about", DockSide.Center, tools);
 
@@ -417,7 +433,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "placement", DockSide.Center, tools);
             Place(left, resolve, "physics", DockSide.Center, tools);
             Place(left, resolve, "voxelstats", DockSide.Center, tools);
-            Place(left, resolve, "voxeldebug", DockSide.Center, tools);
             Place(left, resolve, "lighting", DockSide.Center, tools);
             Place(left, resolve, "about", DockSide.Center, tools);
             Place(left, resolve, "showcase", DockSide.Bottom);
@@ -441,7 +456,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(left, resolve, "placement", DockSide.Center, splitTools);
             Place(left, resolve, "physics", DockSide.Center, splitTools);
             Place(left, resolve, "voxelstats", DockSide.Center, splitTools);
-            Place(left, resolve, "voxeldebug", DockSide.Center, splitTools);
             Place(left, resolve, "lighting", DockSide.Center, splitTools);
             Place(left, resolve, "about", DockSide.Center, splitTools);
 

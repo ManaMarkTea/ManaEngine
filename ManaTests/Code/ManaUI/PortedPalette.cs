@@ -307,6 +307,16 @@ public static class PortedPaletteChecks
         Check("a comparison section labels both columns",
             texts.Contains("WebGPU") && texts.Contains("OpenGL"), string.Join(", ", texts.Take(12)));
 
+        // The ImGui table had borders and banded rows, and losing them made a dense table hard to read
+        // across. Checked by what is actually drawn rather than by the elements built.
+        var drawn = root.Render().Instances.ToArray();
+
+        var bands = drawn.Count(i => i.Rect.Z - i.Rect.X > 200.0f && i.Rect.W - i.Rect.Y is > 8.0f and < 40.0f);
+        Check("rows are banded", bands >= 3, $"{bands} filled row bands");
+
+        var rules = drawn.Count(i => i.Rect.Z - i.Rect.X <= 1.5f && i.Rect.W - i.Rect.Y > 8.0f);
+        Check("and columns are separated by a rule", rules >= 3, $"{rules} vertical rules");
+
         // Values are truncated to fit, so the full text has to be reachable on hover.
         Check("values carry their full text on hover",
             FindAll<TextBlock>(panel).Count(t => t.Tooltip != null) >= 6,
@@ -350,14 +360,12 @@ public static class PortedPaletteChecks
         UiElement? stats = null;
         UiElement? placement = null;
         UiElement? physics = null;
-        UiElement? debug = null;
 
         try
         {
             stats = VoxelEditorPanelsManaView.BuildStats(root.Theme, vm);
             placement = VoxelEditorPanelsManaView.BuildPlacement(root.Theme, vm);
             physics = VoxelEditorPanelsManaView.BuildPhysics(root.Theme, vm);
-            debug = VoxelEditorPanelsManaView.BuildDebug(root.Theme, vm);
             Check("the ported tool panels construct", true);
         }
         catch (Exception ex)
@@ -373,7 +381,6 @@ public static class PortedPaletteChecks
             ("Voxel Stats", stats),
             ("Placement", placement),
             ("Physics", physics),
-            ("Debug", debug)
         })
         {
             root.Content = null;

@@ -51,7 +51,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static UiElement Section(UiTheme theme, ManaGraphicsDiagnosticSection section)
         {
             var hasComparison = !string.IsNullOrEmpty(section.ComparisonHeading);
-            var rows = new StackPanel().Vertical(1.0f);
+            var rows = new StackPanel().Vertical(0.0f);
 
             rows.Children.Add(Row(
                 theme,
@@ -59,20 +59,31 @@ namespace ManaVoxel.Code.UI.ManaUi
                 section.ValueHeading,
                 hasComparison ? section.ComparisonHeading : null,
                 heading: true,
+                striped: false,
                 scope: ManaGraphicsDiagnosticScope.Common));
 
-            foreach (var entry in section.Entries)
+            for (var i = 0; i < section.Entries.Count; i++)
             {
+                var entry = section.Entries[i];
+
                 rows.Children.Add(Row(
                     theme,
                     entry.Label,
                     entry.Value,
                     hasComparison ? entry.ComparisonValue ?? "—" : null,
                     heading: false,
+                    // Alternating bands rather than a grid of lines. A table this dense is read across a
+                    // row, and a band carries the eye further than a rule between every cell does.
+                    striped: i % 2 == 1,
                     entry.Scope));
             }
 
-            return new Expander().Header($"{section.Name} ({section.Entries.Count})").Content(rows);
+            return new Expander()
+                .Header($"{section.Name} ({section.Entries.Count})")
+                .Content(new Border()
+                    .Outline(theme.Border, 1.0f)
+                    .Rounded(theme.CornerRadius)
+                    .Content(rows));
         }
 
         /// <summary>
@@ -85,11 +96,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             string value,
             string? comparison,
             bool heading,
+            bool striped,
             ManaGraphicsDiagnosticScope scope)
         {
-            var columns = comparison == null ? "*, 160" : "*, 160, 160";
+            // The column rules are 1px columns of their own. Border carries a uniform thickness, and a
+            // rule on one edge is what separates columns without boxing every cell in.
+            var columns = comparison == null ? "220, 1, *" : "220, 1, *, 1, *";
 
-            var foreground = heading ? theme.TextMuted
+            var foreground = heading ? theme.Text
                 : scope switch
                 {
                     ManaGraphicsDiagnosticScope.OpenGl => theme.Success,
@@ -97,37 +111,38 @@ namespace ManaVoxel.Code.UI.ManaUi
                     _ => theme.Text
                 };
 
-            var grid = new Grid().Columns(columns, theme.Spacing).Rows("Auto").Children(
-                new TextBlock()
-                    .Text(label)
-                    .Foreground(heading ? theme.TextMuted : theme.TextMuted)
-                    .FontSize(theme.FontSizeSmall)
-                    .Ellipsis()
-                    .WithTooltip(label)
-                    .GridColumn(0),
-
-                new TextBlock()
-                    .Text(value)
-                    .Foreground(foreground)
-                    .FontFamily(heading ? theme.FontFamily : theme.FontFamilyMono)
-                    .FontSize(theme.FontSizeSmall)
-                    .Ellipsis()
-                    .WithTooltip(value)
-                    .GridColumn(1));
+            var grid = new Grid().Columns(columns, 0.0f).Rows("Auto").Children(
+                Cell(theme, label, heading ? theme.Text : theme.TextMuted, heading).GridColumn(0),
+                Rule(theme).GridColumn(1),
+                Cell(theme, value, foreground, heading).GridColumn(2));
 
             if (comparison != null)
             {
-                grid.Children.Add(new TextBlock()
-                    .Text(comparison)
-                    .Foreground(foreground)
-                    .FontFamily(heading ? theme.FontFamily : theme.FontFamilyMono)
-                    .FontSize(theme.FontSizeSmall)
-                    .Ellipsis()
-                    .WithTooltip(comparison)
-                    .GridColumn(2));
+                grid.Children.Add(Rule(theme).GridColumn(3));
+                grid.Children.Add(Cell(theme, comparison, foreground, heading).GridColumn(4));
             }
 
-            return grid;
+            // The heading gets the stronger fill, so a long section still says what its columns are when
+            // the top of it has scrolled away.
+            var background = heading ? theme.SurfaceAlt
+                : striped ? theme.SurfaceRaised
+                : UiColor.Transparent;
+
+            return new Border().Fill(background).Content(grid);
+        }
+
+        private static UiElement Rule(UiTheme theme) => new Border().Fill(theme.Divider).Width(1.0f);
+
+        private static UiElement Cell(UiTheme theme, string text, Vector4 foreground, bool heading)
+        {
+            return new TextBlock()
+                .Text(text)
+                .Foreground(foreground)
+                .FontFamily(heading ? theme.FontFamilyMedium : theme.FontFamilyMono)
+                .FontSize(theme.FontSizeSmall)
+                .Ellipsis()
+                .WithTooltip(text)
+                .Margin(6.0f, 3.0f, 6.0f, 3.0f);
         }
     }
 }

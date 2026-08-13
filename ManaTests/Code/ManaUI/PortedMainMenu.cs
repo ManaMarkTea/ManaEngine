@@ -251,7 +251,7 @@ public static class PortedMainMenuChecks
             .Select(item => item.Title)
             .ToList();
 
-        foreach (var panel in new[] { "Placement", "Physics", "Voxel Stats", "Debug" })
+        foreach (var panel in new[] { "Placement", "Physics", "Voxel Stats", "About" })
         {
             Check($"{panel} is its own dock panel", docked.Contains(panel), string.Join(", ", docked));
         }
@@ -262,8 +262,24 @@ public static class PortedMainMenuChecks
             !docked.Contains("Outliner") && !docked.Contains("Inspector"), string.Join(", ", docked));
 
         Check("and they arrive together rather than one preset knowing about them",
-            docked.Count(d => d is "Placement" or "Physics" or "Voxel Stats" or "Debug") == 4,
+            docked.Count(d => d is "Placement" or "Physics" or "Voxel Stats" or "About") == 4,
             string.Join(", ", docked));
+
+        // The merge list and the factory have to agree. When they were written separately they silently
+        // stopped agreeing -- six panels existed in the factory and not in the list, so upgrading a saved
+        // workspace found nothing new to add and they appeared only after a reset. Every id the workspace
+        // docks must be one the merge knows about, or it goes missing for exactly the people who already
+        // use the editor.
+        var known = ManaUiDockDemo.PanelIds.ToHashSet(StringComparer.Ordinal);
+
+        var missingFromList = docked
+            .Select(TitleToId)
+            .Where(id => id != null && !known.Contains(id!))
+            .ToList();
+
+        Check("every docked panel is one the upgrade merge knows about",
+            missingFromList.Count == 0,
+            missingFromList.Count == 0 ? string.Join(", ", known) : string.Join(", ", missingFromList));
 
         // Not covered here: that a workspace saved before these panels existed picks them up on upgrade.
         // That path is a version mismatch inside Build, and every attempt to seed it from a file ended up
@@ -282,6 +298,26 @@ public static class PortedMainMenuChecks
         {
         }
     }
+
+    /// <summary>
+    /// Panel titles are what a dock exposes; ids are what a layout stores. This is the one place the two
+    /// are mapped, and only for checking that the merge list is complete.
+    /// </summary>
+    private static string? TitleToId(string title) => title switch
+    {
+        "Voxel Tools" => "tools",
+        "Placement" => "placement",
+        "Physics" => "physics",
+        "Voxel Stats" => "voxelstats",
+        "Lighting" => "lighting",
+        "Outliner" => "outliner",
+        "Inspector" => "inspector",
+        "ManaUI" => "showcase",
+        "Layers" => "layers",
+        "Stats" => "stats",
+        "About" => "about",
+        _ => null
+    };
 
     private static List<T> FindAll<T>(UiElement? element) where T : UiElement
     {
