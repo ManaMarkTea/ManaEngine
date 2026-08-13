@@ -300,3 +300,169 @@ public static class DockingChecks
         }
     }
 }
+
+/// <summary>
+/// The tab strip's multi-row wrapping. Every check here is on geometry rather than on the item list: a tab
+/// that exists but is laid out past the strip's edge, or under another tab, is a panel the user cannot get
+/// back to.
+/// </summary>
+public static class TabRowChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        static DockItem Item(string title) => new(title, new Border().Fill(UiColor.White)) { Id = title };
+
+        static DockTabGroup Fill(UiRoot root, DockHost host, Vector2 size, params string[] titles)
+        {
+            var group = host.Dock(Item(titles[0]), DockSide.Center);
+            for (var i = 1; i < titles.Length; i++)
+            {
+                host.Dock(Item(titles[i]), DockSide.Center, group);
+            }
+
+            root.UpdateLayout(size);
+            return group;
+        }
+
+        // A few tabs in a wide dock: unchanged from a single-row strip, packed left at their natural widths
+        // rather than stretched across the whole strip.
+        var wide = new UiRoot(fonts);
+        var wideHost = new DockHost();
+        wide.Content = wideHost;
+
+        var few = Fill(wide, wideHost, new Vector2(1000, 600), "Scene", "Outliner", "Inspector");
+
+        Check("a few tabs stay on one row", few.RowCount == 1, $"{few.RowCount} rows");
+        Check("and do not stretch to fill", few.TabRect(2).Right < 900.0f, $"ends at {few.TabRect(2).Right:F0}");
+        Check("tabs sit left to right", few.TabRect(0).Right <= few.TabRect(1).X + 0.5f);
+
+        // Eleven panels in a narrow dock -- the editor's actual left column, and what made the strip
+        // unreadable when every tab was shrunk to fit one row.
+        var narrow = new UiRoot(fonts);
+        var narrowHost = new DockHost();
+        narrow.Content = narrowHost;
+
+        var many = Fill(
+            narrow,
+            narrowHost,
+            new Vector2(400, 800),
+            "Scene", "Outliner", "Inspector", "Assets", "Materials", "Lighting",
+            "Terrain", "Regions", "Placement", "Import", "About");
+
+        Check("a crowded strip wraps", many.RowCount > 1, $"{many.RowCount} rows");
+
+        var strip = many.TabStripRect;
+        Check("and the strip grows to hold the rows",
+            MathF.Abs(strip.Height - many.RowCount * (many.TabRect(0).Height)) < 0.5f,
+            $"{strip.Height:F0}px");
+
+        var narrowest = float.MaxValue;
+        var escaped = 0;
+
+        for (var i = 0; i < many.Items.Count; i++)
+        {
+            var tab = many.TabRect(i);
+            narrowest = MathF.Min(narrowest, tab.Width);
+
+            if (tab.X < strip.X - 0.5f || tab.Right > strip.Right + 0.5f
+                || tab.Y < strip.Y - 0.5f || tab.Bottom > strip.Bottom + 0.5f)
+            {
+                escaped++;
+            }
+        }
+
+        Check("every tab is inside the strip", escaped == 0, $"{escaped} escaped");
+
+        // The whole point: wrapping buys width back. One row of eleven in 400px would be ~36px each.
+        Check("and wide enough to read", narrowest >= 80.0f, $"narrowest {narrowest:F0}px");
+
+        // Rows are only useful if they are told apart, and only reachable if they do not overlap.
+        var overlaps = 0;
+        for (var i = 0; i < many.Items.Count; i++)
+        {
+            for (var j = i + 1; j < many.Items.Count; j++)
+            {
+                var a = many.TabRect(i);
+                var b = many.TabRect(j);
+
+                if (a.X < b.Right - 0.5f && b.X < a.Right - 0.5f
+                    && a.Y < b.Bottom - 0.5f && b.Y < a.Bottom - 0.5f)
+                {
+                    overlaps++;
+                }
+            }
+        }
+
+        Check("no two tabs overlap", overlaps == 0, $"{overlaps} overlapping pairs");
+
+        // Each row runs edge to edge, so a ragged end does not read as a broken layout.
+        var rowEnds = new List<float>();
+        for (var i = 0; i < many.Items.Count; i++)
+        {
+            var tab = many.TabRect(i);
+            var last = i == many.Items.Count - 1 || MathF.Abs(many.TabRect(i + 1).Y - tab.Y) > 0.5f;
+
+            if (last)
+            {
+                rowEnds.Add(tab.Right);
+            }
+        }
+
+        Check("rows fill the strip width",
+            rowEnds.Count == many.RowCount && rowEnds.TrueForAll(e => MathF.Abs(e - strip.Right) < 1.0f),
+            $"{rowEnds.Count} row ends");
+
+        // A taller strip has to cost the panel its height, or the two overlap.
+        var content = many.SelectedItem?.Content;
+        Check("content starts below the strip",
+            content != null && MathF.Abs(content.Bounds.Y - strip.Bottom) < 1.0f,
+            content?.Bounds.ToString() ?? "none");
+
+        // Clicking the second row has to select what is drawn there -- the row offset is exactly the sort of
+        // thing that hit-tests forget.
+        var secondRow = -1;
+        for (var i = 0; i < many.Items.Count; i++)
+        {
+            if (many.TabRect(i).Y > strip.Y + 0.5f)
+            {
+                secondRow = i;
+                break;
+            }
+        }
+
+        Check("there is a second row to click", secondRow > 0, $"tab {secondRow}");
+
+        if (secondRow > 0)
+        {
+            var point = many.TabRect(secondRow).Center;
+
+            narrow.Input.InjectPointerMoved(point);
+            narrow.Input.InjectPointerPressed(point, PointerButton.Left, 0.0);
+            narrow.Input.InjectPointerReleased(point, PointerButton.Left);
+
+            Check("clicking a tab on it selects that tab",
+                many.SelectedIndex == secondRow,
+                $"selected {many.SelectedIndex}, wanted {secondRow}");
+        }
+
+        // The cap. A strip that keeps growing eventually leaves nothing for the panel underneath it.
+        var crowded = new UiRoot(fonts);
+        var crowdedHost = new DockHost();
+        crowded.Content = crowdedHost;
+
+        var titles = new string[40];
+        for (var i = 0; i < titles.Length; i++)
+        {
+            titles[i] = $"Panel {i}";
+        }
+
+        var capped = Fill(crowded, crowdedHost, new Vector2(300, 800), titles);
+
+        Check("the strip stops growing", capped.RowCount <= 3, $"{capped.RowCount} rows");
+        Check("and still leaves room for the panel",
+            capped.TabStripRect.Height < capped.Bounds.Height * 0.5f,
+            $"{capped.TabStripRect.Height:F0} of {capped.Bounds.Height:F0}");
+    }
+}

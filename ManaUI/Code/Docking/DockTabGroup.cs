@@ -13,14 +13,29 @@ namespace ManaUI
         private const float TabPaddingX = 12.0f;
         private const float TabCloseSize = 14.0f;
 
-        /// <summary>Narrowest a tab shrinks to before the strip gives up and splits evenly instead.</summary>
-        private const float MinimumTabWidth = 44.0f;
+        /// <summary>Narrowest a tab is allowed to get before the strip wraps onto another row instead.</summary>
+        private const float MinimumTabWidth = 88.0f;
+
+        /// <summary>
+        /// Rows the strip will grow to. Past this it goes back to shrinking, because a strip that keeps
+        /// growing eventually leaves no room for the panel it is labelling.
+        /// </summary>
+        private const int MaximumTabRows = 3;
 
         private readonly List<DockItem> _items = new();
         private readonly ContentHost _contentHost = new();
 
+        /// <summary>Tab rectangles relative to the strip's top-left, so moving the dock does not rebuild them.</summary>
+        private readonly List<UiRect> _tabRects = new();
+
+        private readonly List<float> _naturalWidths = new();
+
         private int _selectedIndex = -1;
         private int _pressedTab = -1;
+
+        private float _layoutWidth = float.NaN;
+        private int _layoutCount = -1;
+        private int _rowCount = 1;
 
         public DockTabGroup()
         {
@@ -75,8 +90,19 @@ namespace ManaUI
 
         public float TabHeight { get; set; } = float.NaN;
 
-        private float ResolvedTabHeight =>
+        /// <summary>Height of one row of tabs. The strip is a whole number of these.</summary>
+        private float TabRowHeight =>
             LayoutHelper.IsAuto(TabHeight) ? (Root?.Theme.ControlHeight ?? 26.0f) + 2.0f : TabHeight;
+
+        /// <summary>Rows the strip is currently using. One, until the tabs stop fitting.</summary>
+        public int RowCount
+        {
+            get
+            {
+                EnsureTabLayout(Bounds.Width);
+                return _rowCount;
+            }
+        }
 
         public void Add(DockItem item)
         {
@@ -94,6 +120,7 @@ namespace ManaUI
             // Selecting the newly added item is what the user means by opening a panel.
             _selectedIndex = index;
             _contentHost.Child = item.Content;
+            InvalidateTabLayout();
             InvalidateMeasure();
         }
 
@@ -120,6 +147,7 @@ namespace ManaUI
 
             _selectedIndex = _items.Count == 0 ? -1 : Math.Clamp(index, 0, _items.Count - 1);
             _contentHost.Child = SelectedItem?.Content;
+            InvalidateTabLayout();
             InvalidateMeasure();
 
             if (_items.Count == 0)
@@ -135,7 +163,7 @@ namespace ManaUI
         protected override Vector2 MeasureOverride(Vector2 availableSize)
         {
             var inner = LayoutHelper.Deflate(availableSize, Padding);
-            var contentHeight = MathF.Max(0.0f, inner.Y - ResolvedTabHeight);
+            var contentHeight = MathF.Max(0.0f, inner.Y - StripHeightFor(inner.X));
 
             _contentHost.Measure(new Vector2(inner.X, contentHeight));
             return availableSize;
@@ -144,7 +172,10 @@ namespace ManaUI
         protected override Vector2 ArrangeOverride(Vector2 finalSize)
         {
             var content = ContentBounds;
-            var tabHeight = ResolvedTabHeight;
+
+            // Arrange knows the real width; measure only had a budget. Laying out here is what settles how
+            // many rows the strip takes, and so how much is left for the panel.
+            var tabHeight = StripHeightFor(content.Width);
 
             _contentHost.Arrange(new UiRect(
                 content.X,
@@ -178,42 +209,155 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Width a tab actually gets. Natural widths whenever they fit, and shrunk proportionally when they
-        /// do not -- titles already trim with an ellipsis, so a narrow tab is still a readable one, whereas
-        /// a tab laid out past the strip's edge is simply unreachable. That is what hid the Inspector tab
-        /// once a sixth panel was added to a 400px dock.
+        /// Lays the tabs out, wrapping onto extra rows rather than shrinking every tab past the point of
+        /// being readable.
         /// <para>
-        /// Below <see cref="MinimumTabWidth"/> proportional shrinking stops being useful -- the longest
-        /// title would collapse to nothing while a short one kept its space -- so a cramped strip splits
-        /// evenly instead. Every tab stays clickable either way.
+        /// Shrinking alone was the old behaviour, and it does keep every tab clickable -- but eleven panels
+        /// in a 400px dock left each one about 36px wide, which is an ellipsis and nothing else. Wrapping
+        /// spends the dock's height instead of its width, and height is what a tab strip has spare.
+        /// </para>
+        /// <para>
+        /// Rows are balanced by width rather than by count, so one long title does not leave a row of stubs
+        /// beside it, and each row is then stretched to fill the strip -- ragged row ends read as a broken
+        /// layout rather than as a deliberate one.
         /// </para>
         /// </summary>
-        private float TabWidth(int index)
+        private void EnsureTabLayout(float width)
         {
-            if (index < 0 || index >= _items.Count)
+            width = MathF.Max(width, 1.0f);
+
+            if (_layoutCount == _items.Count && MathF.Abs(_layoutWidth - width) < 0.5f)
             {
-                return 0.0f;
+                return;
             }
 
-            var available = Bounds.Width;
-            var natural = 0.0f;
+            _layoutWidth = width;
+            _layoutCount = _items.Count;
+            _tabRects.Clear();
+            _naturalWidths.Clear();
+            _rowCount = 1;
+
+            if (_items.Count == 0)
+            {
+                return;
+            }
+
+            var total = 0.0f;
             for (var i = 0; i < _items.Count; i++)
             {
-                natural += NaturalTabWidth(_items[i]);
+                var natural = NaturalTabWidth(_items[i]);
+                _naturalWidths.Add(natural);
+                total += natural;
             }
 
-            if (available <= 0.0f || natural <= available)
+            var rowHeight = TabRowHeight;
+
+            // Everything fits: natural widths, left aligned, exactly as a single-row strip has always looked.
+            if (total <= width)
             {
-                return NaturalTabWidth(_items[index]);
+                var x = 0.0f;
+                for (var i = 0; i < _items.Count; i++)
+                {
+                    _tabRects.Add(new UiRect(x, 0.0f, _naturalWidths[i], rowHeight));
+                    x += _naturalWidths[i];
+                }
+
+                return;
             }
 
-            var scale = available / natural;
-            if (NaturalTabWidth(_items[index]) * scale >= MinimumTabWidth)
+            // Filled to capacity rather than to an even share of the total. An even share sounds tidier, but
+            // it has to put the remainder somewhere, and the last row ends up over the strip's width -- which
+            // is the one outcome this is meant to avoid, since it shrinks tabs below the minimum again.
+            // Filling to capacity means no row ever exceeds the width, so stretching a row only widens tabs.
+            var rows = 0;
+            var packed = 0;
+
+            while (packed < _items.Count)
             {
-                return NaturalTabWidth(_items[index]) * scale;
+                packed += TakeRow(packed, width);
+                rows++;
             }
 
-            return available / _items.Count;
+            if (rows <= MaximumTabRows)
+            {
+                _rowCount = rows;
+
+                var start = 0;
+                for (var row = 0; row < rows; row++)
+                {
+                    var taken = TakeRow(start, width);
+                    PlaceRow(start, start + taken, row, width, rowHeight);
+                    start += taken;
+                }
+
+                return;
+            }
+
+            // Past the cap the strip stops growing and goes back to shrinking, split evenly by count: there
+            // is no readable answer at this point, only a reachable one.
+            _rowCount = MaximumTabRows;
+
+            var perRow = (int)MathF.Ceiling(_items.Count / (float)MaximumTabRows);
+            for (var row = 0; row < MaximumTabRows; row++)
+            {
+                var from = row * perRow;
+                var to = Math.Min(from + perRow, _items.Count);
+
+                if (from < to)
+                {
+                    PlaceRow(from, to, row, width, rowHeight);
+                }
+            }
+        }
+
+        /// <summary>How many tabs starting at <paramref name="start"/> fit in one row. Always at least one.</summary>
+        private int TakeRow(int start, float width)
+        {
+            var taken = 0;
+            var used = 0.0f;
+
+            while (start + taken < _items.Count)
+            {
+                var next = _naturalWidths[start + taken];
+                if (taken > 0 && used + next > width)
+                {
+                    break;
+                }
+
+                used += next;
+                taken++;
+            }
+
+            return Math.Max(taken, 1);
+        }
+
+        /// <summary>
+        /// Places one row's tabs, stretched or shrunk to span the strip exactly. Ragged row ends read as a
+        /// broken layout rather than a deliberate one.
+        /// </summary>
+        private void PlaceRow(int start, int end, int row, float width, float rowHeight)
+        {
+            var natural = 0.0f;
+            for (var i = start; i < end; i++)
+            {
+                natural += _naturalWidths[i];
+            }
+
+            var scale = natural > 0.0f ? width / natural : 1.0f;
+            var x = 0.0f;
+
+            for (var i = start; i < end; i++)
+            {
+                // The last tab in a row is snapped to the edge, so rounding cannot leave a seam.
+                var tabWidth = i == end - 1 ? width - x : _naturalWidths[i] * scale;
+                _tabRects.Add(new UiRect(x, row * rowHeight, MathF.Max(tabWidth, 0.0f), rowHeight));
+                x += tabWidth;
+            }
+        }
+
+        private void InvalidateTabLayout()
+        {
+            _layoutCount = -1;
         }
 
         /// <summary>Bounds of a tab in root coordinates.</summary>
@@ -224,13 +368,15 @@ namespace ManaUI
                 return UiRect.Empty;
             }
 
-            var x = Bounds.X;
-            for (var i = 0; i < index; i++)
+            EnsureTabLayout(Bounds.Width);
+
+            if (index >= _tabRects.Count)
             {
-                x += TabWidth(i);
+                return UiRect.Empty;
             }
 
-            return new UiRect(x, Bounds.Y, TabWidth(index), ResolvedTabHeight);
+            var rect = _tabRects[index];
+            return new UiRect(Bounds.X + rect.X, Bounds.Y + rect.Y, rect.Width, rect.Height);
         }
 
         private UiRect TabCloseRect(int index)
@@ -262,7 +408,15 @@ namespace ManaUI
         }
 
         /// <summary>The strip area, including the empty space past the last tab.</summary>
-        public UiRect TabStripRect => new UiRect(Bounds.X, Bounds.Y, Bounds.Width, ResolvedTabHeight);
+        public UiRect TabStripRect =>
+            new UiRect(Bounds.X, Bounds.Y, Bounds.Width, StripHeightFor(Bounds.Width));
+
+        /// <summary>Total strip height at a given width -- one row, or however many the tabs wrapped onto.</summary>
+        private float StripHeightFor(float width)
+        {
+            EnsureTabLayout(width);
+            return _rowCount * TabRowHeight;
+        }
 
         // ----- rendering ------------------------------------------------------------------------------
 
@@ -400,7 +554,8 @@ namespace ManaUI
 
             // Leaving the strip vertically means the user is pulling the panel out, not reordering it.
             // Reporting it rather than acting keeps this node unaware of floating windows.
-            if (MathF.Abs(e.Position.Y - TabStripRect.Center.Y) > ResolvedTabHeight)
+            var strip = TabStripRect;
+            if (e.Position.Y < strip.Y - TabRowHeight || e.Position.Y > strip.Bottom + TabRowHeight)
             {
                 var item = _items[Math.Clamp(_pressedTab, 0, _items.Count - 1)];
                 _pressedTab = -1;

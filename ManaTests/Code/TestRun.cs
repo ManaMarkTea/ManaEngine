@@ -71,6 +71,7 @@ public static class TestRunner
         ("ManaUI", "floating windows", WindowChecks.Run),
         ("ManaUI", "docking", DockingChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),
+        ("ManaUI", "tab rows", TabRowChecks.Run),
         ("ManaUI", "layout persistence", PersistenceChecks.Run),
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),
