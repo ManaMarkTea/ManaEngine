@@ -380,6 +380,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return;
             }
 
+            // Any drag still sitting in the mailbox belongs to a gesture that ended without anyone claiming
+            // it. Cleared here rather than on release, because the release is the frame the drop happens on
+            // and whoever is going to act on it has not looked yet.
+            MeshImportRequests.TakeDrag();
+
             _pressed = true;
             _pressedAt = e.Position;
 
@@ -418,14 +423,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             _pressed = false;
             ReleasePointerCapture();
 
-            if (_dragging)
-            {
-                _dragging = false;
-
-                // Whatever wanted the drop has had every frame since the pointer moved to take it. Anything
-                // still sitting here was never claimed, and leaving it would block the next drag.
-                MeshImportRequests.TakeDrag();
-            }
+            // Deliberately left set. The release is the drop: whoever acts on it reads the mailbox later in
+            // the same frame, and clearing here meant the drop was gone before it was seen -- so it took a
+            // second click to place anything. A stale one cannot accumulate, because the next press clears
+            // it before starting.
+            _dragging = false;
         }
     }
 

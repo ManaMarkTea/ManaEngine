@@ -332,18 +332,22 @@ public static class MeshImportChecks
         root.Input.InjectPointerMoved(start + new Vector2(40.0f, 20.0f));
         Check("moving out of the panel is", MeshImportRequests.Dragging != null, MeshImportRequests.Dragging ?? "none");
 
-        // Releasing has to clear an unclaimed request. It used to release the pointer capture the moment
-        // the drag began, so this row never saw the button come up -- a drag that ended anywhere the game
-        // mode did not treat as a drop left the request set forever, and every later drag was ignored
-        // because something was already being dragged. That is dragging silently dying after a while.
+        // The release is the drop, and whoever acts on it reads the mailbox later in the same frame. So it
+        // survives the button coming up -- clearing it here meant the drop was gone before anyone looked,
+        // and placing a mesh took a second click.
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
 
-        Check("releasing clears a drag nobody took", MeshImportRequests.Dragging == null,
-            MeshImportRequests.Dragging ?? "cleared");
+        Check("the drop survives the button coming up", MeshImportRequests.Dragging != null,
+            MeshImportRequests.Dragging ?? "cleared too early");
 
-        // And the next drag works, which is the thing that actually broke.
+        // A drag nobody claimed must not block the next one, which is the other half: leave it set forever
+        // and every later drag is ignored because something is already being dragged.
         root.Input.InjectPointerMoved(start);
         root.Input.InjectPointerPressed(start, PointerButton.Left, 0.0);
+
+        Check("and a new press clears one nobody claimed", MeshImportRequests.Dragging == null,
+            MeshImportRequests.Dragging ?? "cleared");
+
         root.Input.InjectPointerMoved(start + new Vector2(40.0f, 20.0f));
 
         Check("so a second drag still starts", MeshImportRequests.Dragging != null,
