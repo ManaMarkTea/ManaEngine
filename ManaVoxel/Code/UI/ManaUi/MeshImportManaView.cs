@@ -400,6 +400,15 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         protected override bool IsSelfHitTestVisible => true;
 
+        /// <summary>
+        /// Whether the pointer is over any part of the interface, as opposed to the scene behind it.
+        /// <para>
+        /// A geometric test, deliberately: the ghost is transparent to the pointer and the panels are not,
+        /// so this answers what is under the cursor rather than what happens to hold the capture.
+        /// </para>
+        /// </summary>
+        private bool IsOverUi(Vector2 position) => Root?.HitTest(position) != null;
+
         protected override void OnPointerPressed(UiPointerEventArgs e)
         {
             base.OnPointerPressed(e);
@@ -430,6 +439,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (_dragging)
             {
                 _ghost?.Move(e.Position);
+                MeshImportRequests.SetPointerOverUi(IsOverUi(e.Position));
                 return;
             }
 
@@ -444,6 +454,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // was already being dragged. That is the drag silently dying after a while.
             _dragging = true;
             MeshImportRequests.RequestDrag(_entry.PrimaryPath);
+            MeshImportRequests.SetPointerOverUi(IsOverUi(e.Position));
 
             if (Root is { } root)
             {
@@ -466,6 +477,14 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             _ghost?.Hide();
             _ghost = null;
+
+            if (_dragging)
+            {
+                // The last word on where the drop landed. Hit-tested rather than read from the router's
+                // own hover, which reports the captured element for the whole gesture and so would say the
+                // pointer was over this row no matter where it actually was.
+                MeshImportRequests.SetPointerOverUi(IsOverUi(e.Position));
+            }
 
             // Deliberately left set. The release is the drop: whoever acts on it reads the mailbox later in
             // the same frame, and clearing here meant the drop was gone before it was seen -- so it took a
@@ -491,9 +510,24 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>The asset being dragged, until the drop is taken. Null when nothing is being dragged.</summary>
         public static string? Dragging => _drag;
 
+        /// <summary>
+        /// True while the dragged mesh is over the interface rather than the scene.
+        /// <para>
+        /// A drop here is a cancel, not a placement. The editor works the scene out from the ImGui
+        /// viewport, which spans the whole window -- so without this, letting go over the import list put
+        /// the mesh in the world behind it.
+        /// </para>
+        /// </summary>
+        public static bool PointerOverUi { get; private set; }
+
+        public static void SetPointerOverUi(bool overUi) => PointerOverUi = overUi;
+
         public static void RequestPlacement(string asset) => _placement = asset;
 
         public static void RequestDrag(string asset) => _drag = asset;
+
+        /// <summary>Whether a drop should place anything: something dragged, and not over the interface.</summary>
+        public static bool CanDrop => _drag != null && !PointerOverUi;
 
         /// <summary>Takes a pending placement, if any. Reading it clears it -- a request is acted on once.</summary>
         public static string? TakePlacement()
@@ -514,6 +548,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             _placement = null;
             _drag = null;
+            PointerOverUi = false;
         }
     }
 }

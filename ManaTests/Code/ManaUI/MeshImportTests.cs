@@ -230,6 +230,13 @@ public static class MeshImportChecks
 
         Check("the ghost goes when the drag ends", lingering == 0, $"{lingering} still showing");
 
+        // Where the drop landed, not merely that it happened. The editor works the scene out from the ImGui
+        // viewport, which spans the whole window with the panels drawn over it -- so without this, letting
+        // go over the import list placed the mesh in the world behind it.
+        Check("a drop over the panel is not a drop into the scene",
+            MeshImportRequests.PointerOverUi && !MeshImportRequests.CanDrop,
+            $"over ui {MeshImportRequests.PointerOverUi}, can drop {MeshImportRequests.CanDrop}");
+
         Check("the drop survives the button coming up", MeshImportRequests.Dragging != null,
             MeshImportRequests.Dragging ?? "cleared too early");
 
@@ -247,6 +254,24 @@ public static class MeshImportChecks
             MeshImportRequests.Dragging ?? "none");
 
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
+
+        // And releasing clear of the panel is a real drop. The panel is 320 wide here, so anything past
+        // that is scene -- which is the whole difference between the two cases.
+        MeshImportRequests.Clear();
+        root.Input.InjectPointerMoved(start);
+        root.Input.InjectPointerPressed(start, PointerButton.Left, 0.0);
+
+        var outside = new Vector2(700.0f, 400.0f);
+        root.Input.InjectPointerMoved(outside);
+
+        Check("dragging out past the panel is over the scene",
+            !MeshImportRequests.PointerOverUi, $"over ui {MeshImportRequests.PointerOverUi}");
+
+        root.Input.InjectPointerReleased(outside, PointerButton.Left);
+
+        Check("and dropping there would place it",
+            MeshImportRequests.CanDrop, $"can drop {MeshImportRequests.CanDrop}");
+
         MeshImportRequests.Clear();
     }
 

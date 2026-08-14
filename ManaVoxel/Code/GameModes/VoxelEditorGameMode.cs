@@ -1762,19 +1762,26 @@ namespace Mana.Code.GameModes
                               mousePosition.Y >= sceneMin.Y &&
                               mousePosition.Y <= sceneMax.Y;
             var draggedPath = _panelsView.CurrentDraggedMeshAssetPath ?? MeshImportRequests.Dragging;
-            if (!string.IsNullOrWhiteSpace(draggedPath) && isOverScene)
+
+            // The scene rectangle is the whole ImGui viewport, which the ManaUI columns sit on top of -- so
+            // "over the scene" is true above a panel as well. The picker reports what is actually under the
+            // cursor, and only that says whether there is scene there to drop onto.
+            var overPanel = _panelsView.CurrentDraggedMeshAssetPath == null && MeshImportRequests.PointerOverUi;
+            var canDrop = isOverScene && !overPanel;
+
+            if (!string.IsNullOrWhiteSpace(draggedPath) && canDrop)
             {
                 BeginMeshPickerPlacementPreview(draggedPath);
             }
 
-            if (_meshPickerPreviewNode != null && isOverScene)
+            if (_meshPickerPreviewNode != null && canDrop)
             {
                 UpdateMeshPickerPlacementPreviewTransform();
             }
 
             if (!leftMouseDown && _meshPickerDragWasDown && !string.IsNullOrWhiteSpace(draggedPath))
             {
-                if (isOverScene && string.Equals(draggedPath, _meshPickerPreviewAssetPath, StringComparison.OrdinalIgnoreCase))
+                if (canDrop && string.Equals(draggedPath, _meshPickerPreviewAssetPath, StringComparison.OrdinalIgnoreCase))
                 {
                     CommitMeshPickerPlacementPreview();
                 }
