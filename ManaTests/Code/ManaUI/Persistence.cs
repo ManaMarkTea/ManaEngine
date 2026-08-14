@@ -385,3 +385,169 @@ public static class PersistenceChecks
         return null;
     }
 }
+
+/// <summary>
+/// Floating panels surviving a restart.
+/// <para>
+/// A panel dragged out of the columns belongs to neither, and the saved layout recorded only the two hosts
+/// -- so it simply stopped existing when the editor closed. That is data loss rather than an annoyance: the
+/// panel was open, and reopening the editor is not a request to close it.
+/// </para>
+/// </summary>
+public static class FloatingPersistenceChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var scratch = Path.Combine(Path.GetTempPath(), $"mana-floating-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            // ---------------------------------------------------------------- the schema
+            var layout = new ManaUiWorkspaceLayout
+            {
+                Version = 13,
+                Floating =
+                {
+                    new FloatingPanelLayout { Id = "import", X = 120.0f, Y = 90.0f, Width = 340.0f, Height = 420.0f }
+                }
+            };
+
+            var json = layout.ToJson();
+            Check("a floating panel is written to the file", json.Contains("import"), $"{json.Length} chars");
+
+            var loaded = ManaUiWorkspaceLayout.FromJson(json);
+            Check("and read back", loaded?.Floating.Count == 1, $"{loaded?.Floating.Count ?? 0}");
+
+            var entry = loaded!.Floating[0];
+            Check("with its panel and its frame",
+                entry.Id == "import"
+                    && MathF.Abs(entry.X - 120.0f) < 0.5f
+                    && MathF.Abs(entry.Y - 90.0f) < 0.5f
+                    && MathF.Abs(entry.Width - 340.0f) < 0.5f
+                    && MathF.Abs(entry.Height - 420.0f) < 0.5f,
+                $"{entry.Id} at ({entry.X:0},{entry.Y:0}) {entry.Width:0}x{entry.Height:0}");
+
+            // A file written before floating panels were recorded has no list at all, and must load rather
+            // than throwing on a missing property.
+            var old = ManaUiWorkspaceLayout.FromJson("{ \"Version\": 12 }");
+            Check("an older file with no floating list still loads", old is { Floating.Count: 0 }, "empty");
+
+            // ---------------------------------------------------------------- tearing one out
+            var root = new UiRoot(fonts);
+            var vm = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+
+            root.Content = ManaUiDockDemo.Attach(
+                root, new ManaUiShowcaseViewModel(), null, persist: true, editor: vm, layoutPath: scratch);
+
+            root.UpdateLayout(new Vector2(1600, 900));
+
+            var controller = ManaUiDockDemo.LastDragController;
+            Check("the workspace built a drag controller", controller != null);
+
+            var item = FindAll<DockHost>(root.Content!)
+                .SelectMany(host => host.AllItems())
+                .FirstOrDefault(i => i.Id == "import");
+
+            Check("the import panel starts docked", item != null, item?.Title ?? "missing");
+
+            if (item == null || controller == null)
+            {
+                return;
+            }
+
+            // The same call a tear-out makes, which is what registers it for saving.
+            controller.BeginFloat(item, new Vector2(400.0f, 300.0f));
+            root.UpdateLayout(new Vector2(1600, 900));
+
+            Check("and ends up floating", controller.FindFloating("import") != null, "floating");
+
+            // ---------------------------------------------------------------- reopening
+            var reopened = new UiRoot(fonts);
+            reopened.Content = ManaUiDockDemo.Attach(
+                reopened, new ManaUiShowcaseViewModel(), null, persist: true,
+                editor: new ManaVoxel.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
+
+            reopened.UpdateLayout(new Vector2(1600, 900));
+
+            var after = ManaUiDockDemo.LastDragController;
+            Check("it comes back floating rather than gone",
+                after?.FindFloating("import") != null, "restored");
+
+            // Exactly once. A floating panel the column merge also placed would come back twice -- in its
+            // window and in a tab -- which is why the restore runs before the merge asks what is present.
+            var dockedCopies = FindAll<DockHost>(reopened.Content!)
+                .SelectMany(host => host.AllItems())
+                .Count(i => i.Id == "import");
+
+            Check("and not also in a column", dockedCopies == 0, $"{dockedCopies} docked copies");
+
+            // ---------------------------------------------------------------- across an upgrade
+            // The merge that adds newly shipped panels asks what is already present. A floating panel is
+            // not in either column, so without counting it the merge helpfully adds a second copy into a
+            // tab -- and the user gets two of the panel they left floating.
+            var onDisk = ManaUiWorkspaceLayout.FromJson(File.ReadAllText(scratch));
+            Check("the saved file has the floating panel", onDisk?.Floating.Count == 1, $"{onDisk?.Floating.Count}");
+
+            if (onDisk == null)
+            {
+                return;
+            }
+
+            // Older than the current version, so restoring it runs the merge.
+            onDisk.Version = 1;
+            File.WriteAllText(scratch, onDisk.ToJson());
+
+            var upgraded = new UiRoot(fonts);
+            upgraded.Content = ManaUiDockDemo.Attach(
+                upgraded, new ManaUiShowcaseViewModel(), null, persist: true,
+                editor: new ManaVoxel.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
+
+            upgraded.UpdateLayout(new Vector2(1600, 900));
+
+            var upgradedDocked = FindAll<DockHost>(upgraded.Content!)
+                .SelectMany(host => host.AllItems())
+                .Count(i => i.Id == "import");
+
+            Check("an upgrade does not duplicate a floating panel",
+                upgradedDocked == 0, $"{upgradedDocked} docked copies");
+
+            Check("and leaves it floating",
+                ManaUiDockDemo.LastDragController?.FindFloating("import") != null, "still floating");
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(scratch))
+                {
+                    File.Delete(scratch);
+                }
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
+    private static List<T> FindAll<T>(UiElement element) where T : UiElement
+    {
+        var found = new List<T>();
+        Walk(element, found);
+        return found;
+
+        static void Walk(UiElement element, List<T> found)
+        {
+            if (element is T match)
+            {
+                found.Add(match);
+            }
+
+            foreach (var child in element.VisualChildren)
+            {
+                Walk(child, found);
+            }
+        }
+    }
+}

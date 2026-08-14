@@ -99,6 +99,13 @@ namespace ManaUI
         /// </summary>
         public IEnumerable<DockItem> FloatingItems => _floating.Values;
 
+        /// <summary>The panel a floating window holds, or null when the window is not one of ours.</summary>
+        public DockItem? ItemFor(UiWindow window) =>
+            _floating.TryGetValue(window, out var item) ? item : null;
+
+        /// <summary>Raised when a panel is floated, docked, moved or closed, so a layout can be saved.</summary>
+        public event EventHandler? FloatingChanged;
+
         /// <summary>The window holding a floating panel, or null when it is docked or not open at all.</summary>
         public UiWindow? FindFloating(string id)
         {
@@ -188,6 +195,7 @@ namespace ManaUI
             }
 
             _floating[window] = item;
+            FloatingChanged?.Invoke(this, EventArgs.Empty);
 
             // DragStarted as well as Dragging: a drag is under way from the moment the title bar is
             // grabbed, not from the first movement, and a tear-out is already mid-gesture when it arrives.
@@ -208,6 +216,7 @@ namespace ManaUI
             window.Dragging -= OnWindowDragging;
             window.DragEnded -= OnWindowDragEnded;
             window.Closed -= OnWindowClosed;
+            FloatingChanged?.Invoke(this, EventArgs.Empty);
 
             if (ReferenceEquals(_activeWindow, window))
             {
@@ -251,7 +260,9 @@ namespace ManaUI
             if (!target.IsValid)
             {
                 // Dropped away from the dock host, so it stays floating -- and stays registered, so it can
-                // be dragged back in later.
+                // be dragged back in later. Reported anyway: it has moved, and where a floating panel sits
+                // is part of the layout.
+                FloatingChanged?.Invoke(this, EventArgs.Empty);
                 return;
             }
 

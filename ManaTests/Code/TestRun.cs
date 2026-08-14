@@ -74,6 +74,7 @@ public static class TestRunner
         ("ManaUI", "tab rows", TabRowChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
+        ("ManaUI", "floating persistence", FloatingPersistenceChecks.Run),
         ("ManaUI", "place search", PlaceSearchChecks.Run),
         ("ManaUI", "viewport overlays", ViewportOverlayChecks.Run),
         ("ManaUI", "layout persistence", PersistenceChecks.Run),

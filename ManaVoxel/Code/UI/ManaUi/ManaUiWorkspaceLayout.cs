@@ -34,6 +34,20 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// column widths and the preset belong to the workspace rather than to any one dock host.
     /// </para>
     /// </summary>
+    /// <summary>One floating panel: which it is, and the frame it was left in.</summary>
+    public sealed class FloatingPanelLayout
+    {
+        public string Id { get; set; } = string.Empty;
+
+        public float X { get; set; }
+
+        public float Y { get; set; }
+
+        public float Width { get; set; }
+
+        public float Height { get; set; }
+    }
+
     public sealed class ManaUiWorkspaceLayout
     {
         private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -65,6 +79,16 @@ namespace ManaVoxel.Code.UI.ManaUi
         public DockLayoutNode? Left { get; set; }
 
         public DockLayoutNode? Right { get; set; }
+
+        /// <summary>
+        /// Panels torn out of the columns and left floating.
+        /// <para>
+        /// Held here rather than inside either column's tree because a floating panel belongs to neither --
+        /// which is exactly why it used to be lost on restart: the file recorded the two hosts and nothing
+        /// else, so a panel dragged out simply stopped existing when the editor closed.
+        /// </para>
+        /// </summary>
+        public List<FloatingPanelLayout> Floating { get; set; } = new();
 
         public string ToJson()
         {

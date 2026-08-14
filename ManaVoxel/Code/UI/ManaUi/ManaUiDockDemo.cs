@@ -32,7 +32,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
         /// except that this merges rather than discarding the arrangement.
         /// </summary>
-        private const int LayoutVersion = 12;
+        private const int LayoutVersion = 13;
 
         /// <summary>
         /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
@@ -72,6 +72,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// asset tree, and a theme switch rebuilds every panel -- which would otherwise throw the list away
         /// and rescan for no reason.
         /// </summary>
+        /// <summary>The most recently built workspace's drag controller. Test seam; see where it is set.</summary>
+        public static DockDragController? LastDragController { get; private set; }
+
         public static MeshAssetLibrary MeshAssets { get; } = new();
 
         /// <summary>
@@ -244,6 +247,23 @@ namespace ManaVoxel.Code.UI.ManaUi
                 BackdropBlur = root.Theme.BackdropBlur
             };
 
+            // One controller over both columns, so a panel torn out of either can be dropped into either.
+            // A controller per host could not do that: each only resolved drops inside its own tree.
+            var dragController = new DockDragController(root, new[] { left, right });
+
+            // The controller is not an element, so nothing can find it by walking the tree. Exposed so a
+            // test can float a panel the way a tear-out does; the workspace itself has it in scope.
+            LastDragController = dragController;
+
+            // Before the columns are filled, so a panel that was left floating counts as already open. The
+            // merge and the presets both ask what is present, and a floating panel that is not part of that
+            // answer comes back twice -- once in its window and once in a column.
+            RestoreFloating(root, dragController, saved, Resolve);
+
+            HashSet<string> FloatingIds() => dragController.FloatingItems
+                .Select(item => item.Id ?? string.Empty)
+                .ToHashSet(StringComparer.Ordinal);
+
             // Non-short-circuiting on purpose: both columns must be restored, and && would skip the right
             // one whenever the left was empty.
             var restored = saved != null
@@ -251,7 +271,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             if (!restored)
             {
-                ApplyPreset(state.Preset, left, right, Resolve);
+                ApplyPreset(state.Preset, left, right, Resolve, FloatingIds());
             }
             else if (saved!.Version != LayoutVersion)
             {
@@ -259,12 +279,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // added one would never appear for anyone who has run the editor before -- exactly what
                 // happened when the voxel palette was added. Merging on a version change keeps the user's
                 // arrangement while still surfacing what is new.
-                MergeMissingPanels(left, right, Resolve);
+                MergeMissingPanels(left, right, Resolve, FloatingIds());
             }
-
-            // One controller over both columns, so a panel torn out of either can be dropped into either.
-            // A controller per host could not do that: each only resolved drops inside its own tree.
-            var dragController = new DockDragController(root, new[] { left, right });
 
             // Backgrounds matter here because the columns sit over the viewport: the handle gutter and the
             // seams between panes are part of the column but not part of any panel's content, so without a
@@ -309,7 +325,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
                     Left = DockLayout.Capture(left),
-                    Right = DockLayout.Capture(right)
+                    Right = DockLayout.Capture(right),
+                    Floating = CaptureFloating(dragController)
                 }.Save(layoutPath);
             }
 
@@ -335,6 +352,9 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // Committed, not every pixel of the drag: a resize would otherwise rewrite the file on every
             // frame it moved.
+            // Floating panels are part of the layout too: created, moved, docked back or closed.
+            dragController.FloatingChanged += (_, _) => Save();
+
             leftPanel.SizeCommitted += (_, _) => Save();
             rightPanel.SizeCommitted += (_, _) => Save();
 
@@ -432,7 +452,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             void Choose(WorkspacePreset preset)
             {
                 state.Preset = preset;
-                ApplyPreset(preset, left, right, Resolve);
+                ApplyPreset(preset, left, right, Resolve, FloatingIds());
                 SyncColumnVisibility();
                 Save();
             }
@@ -503,7 +523,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             WorkspacePreset preset,
             DockHost left,
             DockHost right,
-            Func<string, DockItem?> resolve)
+            Func<string, DockItem?> resolve,
+            HashSet<string>? alreadyOpen = null)
         {
             left.RootNode = null;
             right.RootNode = null;
@@ -527,18 +548,24 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Every preset names the panels it arranges, so a newly added one is in none of them and a
             // reset silently drops it -- which is how Import, Search and the blur test card went missing
             // for anyone who tried a preset. Anything a preset did not place goes in rather than nowhere.
-            PlaceRemaining(left, right, resolve);
+            PlaceRemaining(left, right, resolve, alreadyOpen);
         }
 
         /// <summary>
         /// Docks whatever a preset did not name. Into whichever column exists, preferring the right, the
         /// same as an upgrade merge does.
         /// </summary>
-        private static void PlaceRemaining(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        private static void PlaceRemaining(
+            DockHost left,
+            DockHost right,
+            Func<string, DockItem?> resolve,
+            HashSet<string>? alreadyOpen = null)
         {
             var present = left.AllItems().Concat(right.AllItems())
                 .Select(item => item.Id)
                 .ToHashSet(StringComparer.Ordinal);
+
+            present.UnionWith(alreadyOpen ?? Enumerable.Empty<string>());
 
             foreach (var id in PanelIds)
             {
@@ -667,11 +694,83 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <see cref="LayoutVersion"/>, so a panel the user deliberately closed stays closed until the
         /// panel set actually changes.
         /// </summary>
-        private static void MergeMissingPanels(DockHost left, DockHost right, Func<string, DockItem?> resolve)
+        private static List<FloatingPanelLayout> CaptureFloating(DockDragController controller)
+        {
+            var captured = new List<FloatingPanelLayout>();
+
+            foreach (var window in controller.FloatingWindows)
+            {
+                if (controller.ItemFor(window) is not { Id: { Length: > 0 } id })
+                {
+                    continue;
+                }
+
+                captured.Add(new FloatingPanelLayout
+                {
+                    Id = id,
+                    X = window.Position.X,
+                    Y = window.Position.Y,
+
+                    // The arranged size rather than the requested one, so a window the user resized comes
+                    // back the size they left it.
+                    Width = window.Bounds.Width > 0.0f ? window.Bounds.Width : FloatingFallback.X,
+                    Height = window.Bounds.Height > 0.0f ? window.Bounds.Height : FloatingFallback.Y
+                });
+            }
+
+            return captured;
+        }
+
+        /// <summary>Size a floating panel comes back at when the file has nothing usable recorded.</summary>
+        private static readonly Vector2 FloatingFallback = new(320.0f, 360.0f);
+
+        private static void RestoreFloating(
+            UiRoot root,
+            DockDragController controller,
+            ManaUiWorkspaceLayout? saved,
+            Func<string, DockItem?> resolve)
+        {
+            if (saved?.Floating is not { Count: > 0 } floating)
+            {
+                return;
+            }
+
+            foreach (var entry in floating)
+            {
+                if (resolve(entry.Id) is not { } item)
+                {
+                    continue;
+                }
+
+                var window = new UiWindow(item.Title)
+                {
+                    Width = entry.Width > 0.0f ? entry.Width : FloatingFallback.X,
+                    Height = entry.Height > 0.0f ? entry.Height : FloatingFallback.Y,
+                    Child = item.Content
+                };
+
+                // Clamped onto the screen: a window left on a monitor that is no longer attached, or off the
+                // edge after the window shrank, would otherwise come back somewhere unreachable.
+                var position = new Vector2(
+                    Math.Clamp(entry.X, 0.0f, MathF.Max(0.0f, root.Size.X - 80.0f)),
+                    Math.Clamp(entry.Y, 0.0f, MathF.Max(0.0f, root.Size.Y - 40.0f)));
+
+                root.ShowWindow(window, position);
+                controller.RegisterFloating(window, item);
+            }
+        }
+
+        private static void MergeMissingPanels(
+            DockHost left,
+            DockHost right,
+            Func<string, DockItem?> resolve,
+            HashSet<string>? alreadyOpen = null)
         {
             var present = left.AllItems().Concat(right.AllItems())
                 .Select(item => item.Id)
                 .ToHashSet(StringComparer.Ordinal);
+
+            present.UnionWith(alreadyOpen ?? Enumerable.Empty<string>());
 
             foreach (var id in PanelIds)
             {
