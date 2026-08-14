@@ -132,6 +132,12 @@ namespace Mana.Code
             }
 
             var content = host.Root.Content ?? new Border();
+
+            // Still parented to the root's own content layer -- Root.Content is a shorthand for that
+            // layer's child, not a detached handle. Reusing it as a child of the overlay without freeing it
+            // first is reparenting it onto its own descendant.
+            content.RemoveFromParent();
+
             var screen = ManaLoadingScreenManaView.Build(host.Root.Theme, Loading);
 
             host.Root.Content = new ManaUiLoadingOverlay(content, screen, () => IsLoading);

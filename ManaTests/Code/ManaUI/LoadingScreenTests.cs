@@ -143,6 +143,42 @@ public static class LoadingScreenChecks
 
         Check("content underneath is laid out even while hidden",
             underlying.Bounds.Width > 0.0f, $"{underlying.Bounds}");
+
+        // ---------------------------------------------------------------- wrapping real root content
+        // UiRoot.Content is a shorthand for its content layer's child, not a detached handle -- so it is
+        // still parented to that layer, and reusing it as a child of the overlay without freeing it first
+        // is reparenting it onto its own descendant. Every real game mode goes through exactly this path:
+        // BuildManaUi assigns Root.Content, then the loading wrap reads it back and rewraps it.
+        var wrapRoot = new UiRoot(fonts);
+        var workspace = new Border().Fill(UiColor.FromHex("#305070")).Size(400.0f, 300.0f);
+        wrapRoot.Content = workspace;
+
+        Check("the workspace is parented to the root before wrapping",
+            workspace.Parent != null, workspace.Parent?.GetType().Name ?? "none");
+
+        Exception? thrown = null;
+        try
+        {
+            var existing = wrapRoot.Content ?? new Border();
+            existing.RemoveFromParent();
+
+            wrapRoot.Content = new ManaUiLoadingOverlay(
+                existing, ManaLoadingScreenManaView.Build(wrapRoot.Theme, new ManaLoadingViewModel()), () => false);
+        }
+        catch (Exception ex)
+        {
+            thrown = ex;
+        }
+
+        Check("wrapping already-parented content does not throw",
+            thrown == null, thrown?.Message ?? "clean");
+
+        wrapRoot.UpdateLayout(new Vector2(1200, 800));
+        var wrapped = wrapRoot.Render().Instances.ToArray();
+
+        Check("and the original content still renders",
+            wrapped.Any(i => i.FillColor == UiColor.Pack(UiColor.FromHex("#305070"))),
+            "workspace present");
     }
 
     private static T? Find<T>(UiElement element) where T : UiElement => FindAll<T>(element).FirstOrDefault();
