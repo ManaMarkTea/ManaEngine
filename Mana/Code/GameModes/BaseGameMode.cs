@@ -2,6 +2,7 @@ using Mana.Code.Graphics;
 using Mana.Code.UI;
 using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
+using ManaUI;
 using ManaCore.Loading;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -102,6 +103,7 @@ namespace Mana.Code
             {
                 ManaUi = new ManaUiHost(window, input);
                 BuildManaUi(ManaUi);
+                WrapManaUiWithLoadingScreen();
             }
 
             Load();
@@ -112,6 +114,27 @@ namespace Mana.Code
         /// </summary>
         protected virtual void BuildManaUi(ManaUiHost host)
         {
+        }
+
+        /// <summary>
+        /// Puts the loading screen over whatever <see cref="BuildManaUi"/> just built.
+        /// <para>
+        /// Shared by both graphics backends rather than each remembering to call it: a mode that opted into
+        /// ManaUI gets the loading screen as part of that, not as a second thing to wire up.
+        /// </para>
+        /// </summary>
+        private void WrapManaUiWithLoadingScreen()
+        {
+            var host = ManaUi;
+            if (host == null)
+            {
+                return;
+            }
+
+            var content = host.Root.Content ?? new Border();
+            var screen = ManaLoadingScreenManaView.Build(host.Root.Theme, Loading);
+
+            host.Root.Content = new ManaUiLoadingOverlay(content, screen, () => IsLoading);
         }
 
         public virtual void Load()
@@ -174,8 +197,24 @@ namespace Mana.Code
             {
                 ManaGameModeGraphicsBridge.ClearLoadingFrame(Context, GraphicsBackend);
 
-                ManaLoadingScreenView.Draw(Loading);
+                // A mode with ManaUI enabled shows the loading screen through it -- see
+                // WrapManaUiWithLoadingScreen, which wrapped the tree in one before the first frame ever
+                // ran. A mode without it falls back to the ImGui window this always used to be.
+                if (ManaUi != null)
+                {
+                    ManaUi.Render(deltaTime);
+                }
+                else
+                {
+                    ManaLoadingScreenView.Draw(Loading);
+                }
+
                 _ImGui.Render();
+
+                // OpenGL draws immediately and nothing else will submit this frame's ManaUI draw list, so
+                // it has to happen here too. The WebGPU path submits inside its own frame regardless of
+                // which branch this is, so the call is a no-op there.
+                ManaGameModeGraphicsBridge.DrawManaUi(Context, GraphicsBackend, ManaUi?.Root);
             }
             else
             {

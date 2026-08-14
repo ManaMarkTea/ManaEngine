@@ -80,6 +80,7 @@ public static class TestRunner
         ("ManaVoxel", "place search model", PlaceSearchModelChecks.Run),
         ("ManaUI", "place search panel", PlaceSearchChecks.Run),
         ("ManaUI", "viewport overlays", ViewportOverlayChecks.Run),
+        ("ManaUI", "loading screen", LoadingScreenChecks.Run),
         ("ManaUI", "layout persistence", PersistenceChecks.Run),
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),

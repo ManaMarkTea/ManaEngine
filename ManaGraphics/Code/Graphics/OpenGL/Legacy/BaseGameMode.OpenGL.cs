@@ -58,6 +58,7 @@ namespace Mana.Code
             {
                 ManaUi = new Mana.Code.UI.ManaUi.ManaUiHost(window, input);
                 BuildManaUi(ManaUi);
+                WrapManaUiWithLoadingScreen();
             }
 
             Load();
