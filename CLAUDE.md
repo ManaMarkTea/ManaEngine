@@ -32,7 +32,8 @@ dotnet run --project ManaTests -- -gui
 ```
 
 Add coverage by dropping a suite in `ManaTests/Code/<System>/` and registering it in the `suites` array
-in `ManaTests/Code/Program.cs`.
+in `ManaTests/Code/Program.cs`. Suite files end in `Tests.cs`, and live under the system they exercise --
+asset and model logic under its own project, not under ManaUI because a panel happens to call it.
 
 ## Architecture
 
