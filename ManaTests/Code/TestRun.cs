@@ -72,6 +72,7 @@ public static class TestRunner
         ("ManaUI", "docking", DockingChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "tab rows", TabRowChecks.Run),
+        ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),

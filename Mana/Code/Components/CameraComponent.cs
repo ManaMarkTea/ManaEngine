@@ -53,6 +53,11 @@ namespace Mana
         Vector2 _MouseSensitivity = new(8.0f, 8.0f);
         Vector2 _LastMousePos;
 
+        // See MouseGestureLatch's own doc comment for why re-reading uiCapturesMouse every frame is wrong
+        // for a held drag.
+        private MouseGestureLatch _rightMouseGesture;
+        private MouseGestureLatch _middleMouseGesture;
+
         Queue<float> _deltaHistoryX = new Queue<float>();
         Queue<float> _deltaHistoryY = new Queue<float>();
 
@@ -292,7 +297,7 @@ namespace Mana
 
             const float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            var orbitActive = !uiCapturesMouse && mouseState.IsButtonPressed(MouseButton.Right);
+            var orbitActive = _rightMouseGesture.Update(mouseState.IsButtonPressed(MouseButton.Right), uiCapturesMouse);
             UpdateAverage(delta, orbitActive, ref dxAvg, ref dyAvg);
 
             if (orbitActive)
@@ -349,8 +354,13 @@ namespace Mana
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            bool cameraMouseActive = !uiCapturesMouse &&
-                (MouseState.IsButtonPressed(MouseButton.Middle) || MouseState.IsButtonPressed(MouseButton.Right));
+
+            // Evaluated as two separate calls rather than one short-circuited "||" expression: each button
+            // owns its own latch, and short-circuiting after the first true result would skip clearing the
+            // other one on the frame it releases, leaving it stuck active for whatever pressed it next.
+            var rightGestureActive = _rightMouseGesture.Update(MouseState.IsButtonPressed(MouseButton.Right), uiCapturesMouse);
+            var middleGestureActive = _middleMouseGesture.Update(MouseState.IsButtonPressed(MouseButton.Middle), uiCapturesMouse);
+            bool cameraMouseActive = rightGestureActive || middleGestureActive;
             Vector2 mouseDelta = UpdateAverage(delta, cameraMouseActive, ref dxAvg, ref dyAvg);
 
             if (horizontalFlyKeysAvailable)
@@ -389,7 +399,7 @@ namespace Mana
                 }
             }
 
-            if (!uiCapturesMouse && MouseState.IsButtonPressed(MouseButton.Middle))
+            if (middleGestureActive)
             {
                 position += GetPanTranslation(mouseDelta);
             }
@@ -414,14 +424,14 @@ namespace Mana
             transform *= Matrix4x4.CreateTranslation(position);
             Owner.LocalTransform = transform;
 
-            if (MouseState.IsButtonPressed(MouseButton.Right))
+            if (rightGestureActive)
             {
                 rotationEuler.Y += dxAvg * 0.4f;
                 rotationEuler.X += dyAvg * 0.4f;
                 rotationEuler.X = rotationEuler.X.Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
             }
 
-            if (MouseState.IsButtonPressed(MouseButton.Right) && MouseState.ScrollWheels[0].Y != 0)
+            if (rightGestureActive && MouseState.ScrollWheels[0].Y != 0)
             {
                 const float scrollSpeedMultiplierPerNotch = 1.5f;
                 _MovementSpeed *= MathF.Pow(scrollSpeedMultiplierPerNotch, MouseState.ScrollWheels[0].Y);
