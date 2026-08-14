@@ -5,6 +5,7 @@ using Mana.Code.UI;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
+using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Search;
 using ManaVoxel.Code.UI;
 using ManaVoxel.Code.UI.ManaUi;
@@ -1956,34 +1957,13 @@ namespace Mana.Code.GameModes
             }
         }
 
-        private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath)
-        {
-            zipPath = string.Empty;
-            entryPath = string.Empty;
-
-            if (!assetReference.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            var payload = assetReference.Substring(ZipAssetPrefix.Length);
-            var separator = payload.IndexOf(':');
-            if (separator <= 0 || separator >= payload.Length - 1)
-            {
-                return false;
-            }
-
-            try
-            {
-                zipPath = Encoding.UTF8.GetString(Convert.FromBase64String(payload[..separator]));
-                entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(payload[(separator + 1)..]));
-                return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        /// <summary>
+        /// Delegated rather than implemented here. Two copies of this encoding is exactly what broke mesh
+        /// import: the picker was rewritten with a different separator, this decoder rejected everything it
+        /// produced, and every archived mesh was passed on as a filename and failed to open.
+        /// </summary>
+        private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath) =>
+            MeshAssetLibrary.TryDecodeZip(assetReference, out zipPath, out entryPath);
 
         private void ImportMeshAssetFromPicker(string filePath)
         {

@@ -99,7 +99,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             // a button that vanishes when nothing is selected teaches nothing.
             place.BindPolled(b => b.IsEnabled, () => library.SelectedAsset != null);
 
-            return new Grid().Rows("Auto, Auto, Auto, *, Auto, Auto", theme.Spacing).Columns("*").Children(
+            // Clipped, so nothing can leak past the panel whatever the arithmetic says. A grid hands out
+            // more than it has when its fixed rows already exceed the space, and the overflow lands on top
+            // of whatever is below rather than disappearing.
+            return new Grid().Rows("Auto, Auto, Auto, *, Auto, Auto", theme.Spacing).Columns("*").Clip().Children(
                 new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(0).Children(
                     filter.GridColumn(0),
                     new Button().Label("Rescan").Variant(ButtonVariant.Subtle)
@@ -112,7 +115,10 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 warning.GridRow(2),
 
-                tree.Scrollable().Configure(viewer => viewer.MinHeight = 140.0f).GridRow(3),
+                // No minimum height. A minimum on the star row does not shrink when the panel does -- it
+                // holds its size, the grid overflows, and the tree runs out through the button underneath
+                // it. Whatever is left over is the right amount, including none.
+                tree.Scrollable().GridRow(3),
 
                 new TextBlock()
                     .Text("Drag a mesh into the scene to place it under the cursor, or select one and press "

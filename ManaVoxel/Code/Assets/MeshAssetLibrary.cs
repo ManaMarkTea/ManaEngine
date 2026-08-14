@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using System.Numerics;
 
 namespace ManaVoxel.Code.Assets
@@ -382,29 +383,52 @@ namespace ManaVoxel.Code.Assets
             return asset;
         }
 
-        public static string EncodeZip(string zipPath, string entryPath) =>
-            $"{ZipAssetPrefix}{zipPath}|{entryPath}";
+        /// <summary>
+        /// A reference to a mesh inside an archive.
+        /// <para>
+        /// Both halves are base64 rather than written plainly, because a Windows path contains a colon and
+        /// an archive entry can contain very nearly anything -- there is no punctuation left to separate
+        /// them with. This is the format the importer decodes, and the two have to stay identical: a
+        /// reference it does not recognise is passed on as a filename, and the load fails on a path that is
+        /// not one.
+        /// </para>
+        /// </summary>
+        public static string EncodeZip(string zipPath, string entryPath)
+        {
+            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(zipPath)));
+            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
+            return $"{ZipAssetPrefix}{zip}:{entry}";
+        }
 
         public static bool TryDecodeZip(string asset, out string zipPath, out string entryPath)
         {
             zipPath = string.Empty;
             entryPath = string.Empty;
 
-            if (!asset.StartsWith(ZipAssetPrefix, StringComparison.OrdinalIgnoreCase))
+            if (!asset.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
             {
                 return false;
             }
 
             var body = asset[ZipAssetPrefix.Length..];
-            var separator = body.LastIndexOf('|');
-            if (separator <= 0)
+            var separator = body.IndexOf(':');
+            if (separator <= 0 || separator >= body.Length - 1)
             {
                 return false;
             }
 
-            zipPath = body[..separator];
-            entryPath = body[(separator + 1)..];
-            return true;
+            try
+            {
+                zipPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[..separator]));
+                entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[(separator + 1)..]));
+                return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
+            }
+            catch
+            {
+                // Not a reference we wrote. Treated as a plain path rather than thrown on, which is what a
+                // stray colon in a filename should do.
+                return false;
+            }
         }
 
         private static string Relative(string path)

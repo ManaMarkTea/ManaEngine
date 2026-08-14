@@ -1,3 +1,4 @@
+using System.Text;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.UI.ManaUi;
@@ -152,12 +153,39 @@ public static class MeshImportChecks
             selecting.SelectedAsset == null, selecting.SelectedAsset ?? "null");
 
         // ---------------------------------------------------------------- archives
-        var zipRef = MeshAssetLibrary.EncodeZip("/w/Assets/pack.zip", "models/ship.glb");
+        var zipPath = Path.GetFullPath("/w/Assets/pack.zip");
+        var zipRef = MeshAssetLibrary.EncodeZip(zipPath, "models/ship.glb");
 
         Check("an archive entry round-trips",
             MeshAssetLibrary.TryDecodeZip(zipRef, out var zip, out var entry)
-                && zip == "/w/Assets/pack.zip" && entry == "models/ship.glb",
+                && zip == zipPath && entry == "models/ship.glb",
             zipRef);
+
+        // Checked against the format itself rather than against the decoder above, which is the mistake
+        // that let this ship broken: the picker was rewritten with its own separator, agreed with itself
+        // perfectly, and disagreed with the importer -- so every archived mesh was handed on as a filename
+        // and failed to open. Both halves are base64 because a Windows path contains a colon and an entry
+        // name can contain nearly anything, leaving no punctuation free to separate them.
+        var body = zipRef.StartsWith("zipasset:", StringComparison.Ordinal) ? zipRef["zipasset:".Length..] : "";
+        var parts = body.Split(':');
+
+        Check("and is written the way the importer reads it",
+            parts.Length == 2
+                && Encoding.UTF8.GetString(Convert.FromBase64String(parts[0])) == zipPath
+                && Encoding.UTF8.GetString(Convert.FromBase64String(parts[1])) == "models/ship.glb",
+            zipRef);
+
+        // A real reference, with the drive letter and backslashes that broke it.
+        var windowsRef = MeshAssetLibrary.EncodeZip(
+            "C:" + Path.DirectorySeparatorChar + "Assets" + Path.DirectorySeparatorChar + "kenney_train-kit.zip",
+            "Models" + Path.DirectorySeparatorChar + "GLB format" + Path.DirectorySeparatorChar + "train-diesel-a.glb");
+
+        Check("a Windows path with a drive letter survives",
+            MeshAssetLibrary.TryDecodeZip(windowsRef, out var winZip, out var winEntry)
+                && winZip.EndsWith("kenney_train-kit.zip", StringComparison.Ordinal)
+                && winEntry.EndsWith("train-diesel-a.glb", StringComparison.Ordinal)
+                && !winEntry.Contains('\\'),
+            winZip + " | " + winEntry);
 
         Check("and reads as a normal asset",
             MeshAssetLibrary.FileName(zipRef) == "ship.glb"
@@ -219,6 +247,44 @@ public static class MeshImportChecks
             $"{afterFilter.Count} rows");
 
         library.Filter = "";
+        root.UpdateLayout(new Vector2(320, 700));
+        root.Render();
+
+        // ---------------------------------------------------------------- a narrow panel
+        // Shrunk until the fixed rows alone want more than there is. A grid hands out slots regardless, so
+        // the overflow lands on top of whatever is below it -- which is how the tree ended up running
+        // through the Place button.
+        root.UpdateLayout(new Vector2(300, 260));
+        root.Render();
+
+        var panelBounds = root.Content!.Bounds;
+
+        // Checked on what is drawn rather than on element bounds: a scroll viewer arranges its content
+        // taller than itself on purpose, so the tree legitimately overhangs. What must not overhang is the
+        // viewer, and what must not appear is any pixel outside the panel.
+        var squeezedViewer = Find<ScrollViewer>(root.Content!);
+        var squeezedPlace = FindAll<Button>(root.Content!)
+            .FirstOrDefault(b => b.Text.Contains("Place", StringComparison.Ordinal));
+
+        Check("the list gives up its space rather than holding a minimum",
+            squeezedViewer != null && squeezedPlace != null
+                && squeezedViewer.Bounds.Bottom <= squeezedPlace.Bounds.Y + 0.5f,
+            $"list ends {squeezedViewer?.Bounds.Bottom:0}, button starts {squeezedPlace?.Bounds.Y:0}");
+
+        // An instance is only visible where its rect meets its clip, which is how this pipeline confines
+        // anything at all -- so that intersection is what has to stay inside the panel.
+        var leaked = root.Render().Instances.ToArray()
+            .Select(i => (
+                Rect: UiRect.FromEdges(i.Rect.X, i.Rect.Y, i.Rect.Z, i.Rect.W),
+                Clip: UiRect.FromEdges(i.Clip.X, i.Clip.Y, i.Clip.Z, i.Clip.W)))
+            .Select(pair => (
+                Top: MathF.Max(pair.Rect.Y, pair.Clip.Y),
+                Bottom: MathF.Min(pair.Rect.Bottom, pair.Clip.Bottom)))
+            .Count(visible => visible.Bottom > visible.Top && visible.Bottom > panelBounds.Bottom + 0.5f);
+
+        Check("and nothing is drawn outside the panel",
+            leaked == 0, leaked == 0 ? $"{panelBounds.Height:0}px tall" : $"{leaked} instances past the edge");
+
         root.UpdateLayout(new Vector2(320, 700));
         root.Render();
 
