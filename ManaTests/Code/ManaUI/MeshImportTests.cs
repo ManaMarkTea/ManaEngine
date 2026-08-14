@@ -172,10 +172,63 @@ public static class MeshImportChecks
         root.Input.InjectPointerMoved(start + new Vector2(40.0f, 20.0f));
         Check("moving out of the panel is", MeshImportRequests.Dragging != null, MeshImportRequests.Dragging ?? "none");
 
+        // A ghost follows the cursor, because a drag that leaves the panel has nothing else on screen
+        // saying what is being carried.
+        root.UpdateLayout(new Vector2(320, 700));
+        root.Render();
+
+        // Identified by living in a popup rather than by where it is: the row it was made from carries the
+        // same text, and picking by position is how the first version of this check found the row instead.
+        var carried = FindAll<TextBlock>(root)
+            .FirstOrDefault(t => t.Text.Contains("FlightHelmet", StringComparison.Ordinal) && IsInsideGhost(t));
+
+        Check("a ghost of the row follows the cursor", carried != null, carried?.Text ?? "none");
+
+        var cursor = start + new Vector2(40.0f, 20.0f);
+
+        // Held on screen ahead of being offset, which is why the check below needs room to see the offset
+        // at all: in a panel this narrow the ghost is already against the right edge.
+        Check("the ghost stays on screen",
+            carried != null && carried.Bounds.Right <= root.Size.X + 0.5f && carried.Bounds.X >= -0.5f,
+            $"{carried?.Bounds} in {root.Size.X:0}");
+
+        Check("and below the pointer rather than under it",
+            carried != null && carried.Bounds.Y > cursor.Y, $"{carried?.Bounds.Y:0} vs {cursor.Y:0}");
+
+        // Given room, it sits down and to the right -- up and left would put it over whatever is being
+        // dragged towards, which is the one place it must not hide.
+        root.UpdateLayout(new Vector2(900, 700));
+        root.Render();
+
+        var roomy = FindAll<TextBlock>(root)
+            .FirstOrDefault(t => t.Text.Contains("FlightHelmet", StringComparison.Ordinal) && IsInsideGhost(t));
+
+        Check("and to the right when there is room",
+            roomy != null && roomy.Bounds.X > cursor.X, $"{roomy?.Bounds.X:0} vs cursor {cursor.X:0}");
+
+        root.UpdateLayout(new Vector2(320, 700));
+        root.Render();
+
+        // Transparent to the pointer, or it would be what every drop is tested against -- it sits under
+        // the cursor for the whole gesture.
+        var hit = root.HitTest(start + new Vector2(48.0f, 26.0f));
+        Check("and cannot be hit",
+            hit == null || !IsInsideGhost(hit),
+            hit?.GetType().Name ?? "nothing");
+
         // The release is the drop, and whoever acts on it reads the mailbox later in the same frame. So it
         // survives the button coming up -- clearing it here meant the drop was gone before anyone looked,
         // and placing a mesh took a second click.
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
+        root.UpdateLayout(new Vector2(320, 700));
+        root.Render();
+
+        // A ghost that outlived its gesture would sit over the scene until something else happened to
+        // close it.
+        var lingering = FindAll<TextBlock>(root)
+            .Count(t => t.Text.Contains("FlightHelmet", StringComparison.Ordinal) && IsInsideGhost(t));
+
+        Check("the ghost goes when the drag ends", lingering == 0, $"{lingering} still showing");
 
         Check("the drop survives the button coming up", MeshImportRequests.Dragging != null,
             MeshImportRequests.Dragging ?? "cleared too early");
@@ -195,6 +248,20 @@ public static class MeshImportChecks
 
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
         MeshImportRequests.Clear();
+    }
+
+    /// <summary>True when this element or an ancestor is the popup a drag ghost lives in.</summary>
+    private static bool IsInsideGhost(UiElement element)
+    {
+        for (var current = element; current != null; current = current.Parent)
+        {
+            if (current is UiPopup)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void Press(UiRoot root, Vector2 point)

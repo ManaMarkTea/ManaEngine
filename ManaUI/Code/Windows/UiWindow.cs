@@ -89,8 +89,16 @@ namespace ManaUI
         private float ResolvedTitleBarHeight =>
             LayoutHelper.IsAuto(TitleBarHeight) ? (Root?.Theme.ControlHeight ?? 26.0f) + 4.0f : TitleBarHeight;
 
+        /// <summary>
+        /// The whole grab area is kept clear, not merely the dots drawn in it.
+        /// <para>
+        /// A scrollbar reaching the last pixel ran straight through the grip. Clearing only the dots would
+        /// stop it looking wrong while leaving the bottom of the bar ungrabbable -- the window claims that
+        /// corner on press, so the bar underneath it can never be used. Better that it stops short.
+        /// </para>
+        /// </summary>
         protected override Thickness ContentInset =>
-            new Thickness(1.0f, ResolvedTitleBarHeight, 1.0f, 1.0f) + Padding;
+            new Thickness(1.0f, ResolvedTitleBarHeight, 1.0f, CanResize ? CornerResizeMargin : 1.0f) + Padding;
 
         // ----- placement -----------------------------------------------------------------------------
 

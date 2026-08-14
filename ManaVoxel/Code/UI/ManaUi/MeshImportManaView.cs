@@ -360,6 +360,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private readonly MeshAssetEntry _entry;
 
+        private UiDragGhost? _ghost;
         private Vector2 _pressedAt;
         private bool _pressed;
         private bool _dragging;
@@ -367,6 +368,34 @@ namespace ManaVoxel.Code.UI.ManaUi
         public MeshAssetRow(MeshAssetEntry entry)
         {
             _entry = entry;
+        }
+
+        /// <summary>
+        /// What follows the cursor while this row is being dragged. Built fresh each time rather than
+        /// reusing the row's own content, which is still in the list and cannot be in two places.
+        /// </summary>
+        private UiElement BuildGhost(UiTheme theme)
+        {
+            var (label, color) = MeshAssetLibrary.Badge(_entry.PrimaryPath);
+
+            return new Border()
+                .Fill(theme.SurfaceRaised)
+                .Outline(theme.Accent, 1.0f)
+                .Rounded(theme.CornerRadius)
+                .Shadow(12.0f)
+                .PaddingOf(8.0f, 5.0f)
+                .Content(new StackPanel().Horizontal(6.0f).Children(
+                    new Border()
+                        .Fill(color)
+                        .Rounded(3.0f)
+                        .PaddingOf(4.0f, 0.0f)
+                        .CenterV()
+                        .Content(new TextBlock()
+                            .Text(label)
+                            .Foreground(theme.TextOnAccent)
+                            .FontSize(theme.FontSizeSmall)),
+
+                    new TextBlock().Text(_entry.DisplayName).CenterV()));
         }
 
         protected override bool IsSelfHitTestVisible => true;
@@ -398,6 +427,12 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             base.OnPointerMoved(e);
 
+            if (_dragging)
+            {
+                _ghost?.Move(e.Position);
+                return;
+            }
+
             if (!_pressed || Vector2.Distance(e.Position, _pressedAt) < DragThreshold)
             {
                 return;
@@ -409,6 +444,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             // was already being dragged. That is the drag silently dying after a while.
             _dragging = true;
             MeshImportRequests.RequestDrag(_entry.PrimaryPath);
+
+            if (Root is { } root)
+            {
+                _ghost = new UiDragGhost(root);
+                _ghost.Show(BuildGhost(root.Theme), e.Position);
+            }
         }
 
         protected override void OnPointerReleased(UiPointerEventArgs e)
@@ -422,6 +463,9 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             _pressed = false;
             ReleasePointerCapture();
+
+            _ghost?.Hide();
+            _ghost = null;
 
             // Deliberately left set. The release is the drop: whoever acts on it reads the mailbox later in
             // the same frame, and clearing here meant the drop was gone before it was seen -- so it took a

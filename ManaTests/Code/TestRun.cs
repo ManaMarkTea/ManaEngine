@@ -75,6 +75,7 @@ public static class TestRunner
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
+        ("ManaUI", "window resize grip", WindowChecks.RunGrip),
         ("ManaUI", "floating persistence", FloatingPersistenceChecks.Run),
         ("ManaVoxel", "place search model", PlaceSearchModelChecks.Run),
         ("ManaUI", "place search panel", PlaceSearchChecks.Run),

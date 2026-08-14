@@ -194,4 +194,71 @@ public static class WindowChecks
         Check("windows render together", windowed.InstanceCount > 20, $"{windowed.InstanceCount} instances");
         Check("still one draw call", windowed.Batches.Count == 1, $"{windowed.Batches.Count} batches");
     }
+
+    /// <summary>
+    /// The resize grip's corner, kept clear of content.
+    /// <para>
+    /// A scrollable panel puts its bar down the right edge, and the grip's dots sit in the bottom-right
+    /// corner. Reaching the last pixel, the bar ran straight through them -- and a bar that cannot be
+    /// dragged there, because the corner belongs to the window, is worse than one that stops short.
+    /// </para>
+    /// </summary>
+    public static void RunGrip(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var root = new UiRoot(fonts);
+        root.Content = new Border().Fill(UiColor.Transparent);
+
+        var tall = new StackPanel().Vertical(4.0f);
+        for (var i = 0; i < 60; i++)
+        {
+            tall.Children.Add(new TextBlock().Text($"Row {i}"));
+        }
+
+        var window = new UiWindow("Scrollable") { Width = 260.0f, Height = 220.0f, Child = tall.Scrollable() };
+        root.ShowWindow(window, new Vector2(40.0f, 40.0f));
+        root.UpdateLayout(new Vector2(800, 600));
+        root.Render();
+
+        var grip = window.ResizeGripRect();
+        var viewer = Descendants(window).OfType<ScrollViewer>().FirstOrDefault();
+
+        Check("the window scrolls", viewer != null && viewer.ScrollableSize.Y > 0.0f,
+            $"{viewer?.ScrollableSize.Y:0}px of overflow");
+
+        Check("and its content stops above the grip",
+            viewer != null && viewer.Bounds.Bottom <= grip.Y + 0.5f,
+            $"content ends {viewer?.Bounds.Bottom:0}, grip starts {grip.Y:0}");
+
+        // A window nobody can resize has no grip to avoid, and should not give up the room for one.
+        var fixedWindow = new UiWindow("Fixed")
+        {
+            Width = 260.0f,
+            Height = 220.0f,
+            CanResize = false,
+            Child = new Border().Fill(UiColor.White)
+        };
+
+        root.ShowWindow(fixedWindow, new Vector2(340.0f, 40.0f));
+        root.UpdateLayout(new Vector2(800, 600));
+
+        var filled = fixedWindow.Child;
+        Check("a fixed window keeps the space instead",
+            filled != null && filled.Bounds.Bottom >= fixedWindow.Bounds.Bottom - 2.0f,
+            $"content ends {filled?.Bounds.Bottom:0} of {fixedWindow.Bounds.Bottom:0}");
+    }
+
+    private static IEnumerable<UiElement> Descendants(UiElement element)
+    {
+        foreach (var child in element.VisualChildren)
+        {
+            yield return child;
+
+            foreach (var nested in Descendants(child))
+            {
+                yield return nested;
+            }
+        }
+    }
 }
