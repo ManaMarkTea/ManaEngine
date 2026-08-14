@@ -641,6 +641,9 @@ namespace ManaGraphics.Code.Graphics
 
             if (!SuspendSceneWork)
             {
+                // First, so ordinary depth-tested geometry draws over it: the sky is a background, not
+                // something meshes need to sort against.
+                DrawSkybox(sceneRenderPass);
                 DrawDemoMesh(sceneRenderPass);
                 DrawOverlays(sceneRenderPass);
             }
@@ -745,6 +748,7 @@ namespace ManaGraphics.Code.Graphics
             _uiRenderer = null;
 
             ReleaseDemoResources();
+            ReleaseSkybox();
 
             if (_surface != null && _configured)
             {
