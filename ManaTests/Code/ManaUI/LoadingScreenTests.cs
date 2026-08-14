@@ -133,16 +133,86 @@ public static class LoadingScreenChecks
             afterInstances.Any(i => i.FillColor == UiColor.Pack(UiColor.FromHex("#204060"))),
             "content present");
 
-        // The content underneath is not merely hidden alongside the screen -- it has to be laid out and
-        // drawn the whole time, or the first frame after loading shows nothing until a second pass catches
-        // up. This is what a docked workspace depends on: it must already be arranged by the time it
-        // becomes visible.
+        // Collapsed while loading, not merely covered -- a docked workspace behind the screen is exactly
+        // the thing a background load thread is still mutating, and a hidden panel polling that state at
+        // the same time is a race, not just wasted work. Collapsed means UiRoot will not measure, arrange
+        // or evaluate a single binding anywhere inside it; the tree comes back to life in one pass the
+        // instant loading ends, rather than living through it a frame at a time.
         isLoading = true;
         root.UpdateLayout(new Vector2(1200, 800));
         root.Render();
 
-        Check("content underneath is laid out even while hidden",
-            underlying.Bounds.Width > 0.0f, $"{underlying.Bounds}");
+        Check("content underneath is collapsed while the screen is up",
+            underlying.Visibility == Visibility.Collapsed && underlying.Bounds.Width == 0.0f,
+            $"{underlying.Visibility}, {underlying.Bounds}");
+
+        isLoading = false;
+        root.UpdateLayout(new Vector2(1200, 800));
+        root.Render();
+
+        Check("and measured fresh the moment loading ends",
+            underlying.Visibility == Visibility.Visible && underlying.Bounds.Width > 0.0f,
+            $"{underlying.Visibility}, {underlying.Bounds}");
+
+        // ---------------------------------------------------------------- a hidden subtree costs nothing
+        // The property the collapsing above depends on: a polled binding inside a collapsed element must
+        // not run at all, not merely fail to appear on screen. One that kept running would still be racing
+        // the background load, whether or not its output was ever drawn.
+        // A polled binding evaluates once immediately, at bind time, so a label shows its real value from
+        // the first frame rather than a blank default -- that first read happens here, before the element
+        // is even attached to anything, and is not what this is checking.
+        var pollCount = 0;
+        var hiddenLabel = new TextBlock();
+        hiddenLabel.BindTextPolled(() => { pollCount++; return "polled"; });
+
+        var visibleHost = new Border().Size(50.0f, 50.0f);
+        var hiddenHost = new StackPanel { Visibility = Visibility.Collapsed }.Vertical(0.0f);
+        hiddenHost.Children.Add(hiddenLabel);
+
+        var subtreeRoot = new UiRoot(fonts);
+        subtreeRoot.Content = new StackPanel().Vertical(0.0f).Children(visibleHost, hiddenHost);
+
+        var afterBind = pollCount;
+
+        // Laid out and rendered twice, collapsed the whole time. What is being checked is that neither
+        // pass adds a poll beyond the one at bind time -- if the subtree walk reached it despite being
+        // collapsed, this is where the count would climb.
+        subtreeRoot.UpdateLayout(new Vector2(400, 400));
+        subtreeRoot.Render();
+        subtreeRoot.UpdateLayout(new Vector2(400, 400));
+        subtreeRoot.Render();
+
+        Check("a binding inside a collapsed subtree does not run again",
+            pollCount == afterBind, $"{afterBind} at bind, {pollCount} after two collapsed passes");
+
+        hiddenHost.Visibility = Visibility.Visible;
+        subtreeRoot.UpdateLayout(new Vector2(400, 400));
+        subtreeRoot.Render();
+
+        Check("and runs once its subtree becomes visible",
+            pollCount == afterBind + 1, $"{afterBind} at bind, {pollCount} once visible");
+
+        // The other half of the same rule: an element's own binding -- the one deciding whether it should
+        // be visible at all -- has to keep running while it is collapsed, or nothing could ever turn it
+        // back on. This is what lets ManaUiLoadingOverlay's content come back on its own.
+        var reappeared = false;
+        var selfGoverned = new Border { Visibility = Visibility.Collapsed };
+        selfGoverned.BindPolled(el => el.Visibility, () => reappeared ? Visibility.Visible : Visibility.Collapsed);
+
+        var governedRoot = new UiRoot(fonts);
+        governedRoot.Content = selfGoverned;
+        governedRoot.UpdateLayout(new Vector2(200, 200));
+        governedRoot.Render();
+
+        Check("a collapsed element's own binding still runs",
+            selfGoverned.Visibility == Visibility.Collapsed, $"{selfGoverned.Visibility}");
+
+        reappeared = true;
+        governedRoot.UpdateLayout(new Vector2(200, 200));
+        governedRoot.Render();
+
+        Check("so it can make itself visible again",
+            selfGoverned.Visibility == Visibility.Visible, $"{selfGoverned.Visibility}");
 
         // ---------------------------------------------------------------- wrapping real root content
         // UiRoot.Content is a shorthand for its content layer's child, not a detached handle -- so it is

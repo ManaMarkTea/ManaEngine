@@ -334,6 +334,19 @@ namespace ManaUI
                     _polledBindingElements.Add(element);
                 }
 
+                // A collapsed element's own bindings still run -- that is how it notices it should become
+                // visible again -- but its children do not. Without this, a hidden subtree costs exactly
+                // as much as a visible one: every dock panel behind the loading screen, every unselected
+                // inspector, every closed popup would go on reading whatever live state its bindings poll,
+                // for a picture nobody can see. Worse than wasted work, some of that state is being written
+                // concurrently on another thread -- the loading screen exists because a background load is
+                // still mutating the scene graph, and a hidden outliner walking it at the same time is a
+                // race, not merely a waste.
+                if (element.Visibility == Visibility.Collapsed)
+                {
+                    return;
+                }
+
                 var count = element.VisualChildCount;
                 for (var i = 0; i < count; i++)
                 {

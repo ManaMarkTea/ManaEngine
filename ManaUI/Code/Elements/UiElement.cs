@@ -196,6 +196,15 @@ namespace ManaUI
                     ClearSubtreeBounds();
                 }
 
+                // The root's polled-binding scan also skips a collapsed subtree, for the same reason
+                // layout does -- see UiRoot.RescanPolledBindings. A rescan is only triggered by a new
+                // binding appearing, not by an existing one changing an existing element's value, so
+                // without this a section that had been collapsed for its whole life could flip visible and
+                // its own children's bindings would simply never be found: nothing marked the scan stale.
+                // The section's newly-revealed subtree needs discovering in the same pass this ran in, and
+                // a subtree that just went the other way needs dropping just as promptly.
+                Root?.NotifyPolledBindingsChanged();
+
                 InvalidateMeasure();
             }
         }
