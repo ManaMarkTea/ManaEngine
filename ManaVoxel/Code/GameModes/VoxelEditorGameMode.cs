@@ -2275,6 +2275,14 @@ namespace Mana.Code.GameModes
 
         public override void Render(double deltaTime)
         {
+            // See ManaWebGpuContext.SuspendSceneWork. Set before base.Render so it is in place before
+            // ClearFrame runs later in the same frame, on the WebGPU path only -- null on OpenGL, which
+            // already gets this for free from BaseGameMode.Render never calling DrawWorld while loading.
+            if (_webGpuContext != null)
+            {
+                _webGpuContext.SuspendSceneWork = IsLoading;
+            }
+
             base.Render(deltaTime);
         }
 

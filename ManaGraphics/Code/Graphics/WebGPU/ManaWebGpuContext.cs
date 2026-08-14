@@ -109,6 +109,22 @@ namespace ManaGraphics.Code.Graphics
         /// </summary>
         public ManaUI.UiRoot? UiRoot { get; set; }
 
+        /// <summary>
+        /// Skips walking, uploading and drawing the scene for one frame -- everything else (clear, tone
+        /// map, ImGui, ManaUI) still runs.
+        /// <para>
+        /// Set by the app layer, the same way <see cref="UiRoot"/> is, rather than this context knowing
+        /// what "loading" means: OpenGL already never touches the scene while a game mode is loading
+        /// (BaseGameMode.Render's IsLoading branch simply does not call DrawWorld), but this backend's
+        /// equivalent, RefreshRenderScene, ran unconditionally every frame with no such gate. On a load
+        /// fast enough to add most of a scene within the first couple of seconds, the very first frame that
+        /// could have presented a loading screen instead spent over a second uploading meshes and compiling
+        /// shaders for content nobody could see yet, arriving late enough that the screen was visible for
+        /// only the tail end of the load it was supposed to cover. This is that gate.
+        /// </para>
+        /// </summary>
+        public bool SuspendSceneWork { get; set; }
+
         // Per-frame CPU-side timing for the last completed ClearFrame call, in milliseconds.
         // Read by the app layer (which owns Mana/ManaWorld) once per frame to feed a live perf HUD —
         // ManaGraphics can't call into Mana directly (wrong dependency direction), so it's exposed
@@ -480,6 +496,7 @@ namespace ManaGraphics.Code.Graphics
         }
 
         private bool _loggedFirstPresent;
+        private bool _loggedFirstSceneWork;
 
         public void ClearFrame(Color clearColor)
         {
@@ -588,16 +605,46 @@ namespace ManaGraphics.Code.Graphics
             var commandEncoderDescriptor = new CommandEncoderDescriptor();
             var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
             var collectStopwatch = Stopwatch.StartNew();
-            RefreshRenderScene();
+
+            // See SuspendSceneWork's own doc comment. RefreshRenderScene is where a fast-running background
+            // load turns into a synchronous stall on the render thread: it walks whatever the scene has
+            // grown to since last frame and uploads all of it right here, and on a load that outpaces the
+            // frame loop that can mean minutes of normal per-frame uploads compressed into whichever single
+            // frame happens to run next. The scene pass still clears below either way, so skipping this
+            // costs nothing but an empty frame -- exactly what a loading screen is drawn over.
+            if (!SuspendSceneWork)
+            {
+                if (!_loggedFirstSceneWork)
+                {
+                    _loggedFirstSceneWork = true;
+
+                    // Closes the loop with the rest of the startup timeline: whatever gap remains between
+                    // "first frame presented" and this is the loading screen actually having its moment on
+                    // screen before the scene catches up behind it.
+                    ManaConsole.WriteDiagnosticElapsed("First unsuspended RefreshRenderScene (scene upload resumes).");
+                }
+
+                RefreshRenderScene();
+            }
+
             UpdateFrameUniform();
             LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
-            EnsureEnvironmentInitializationStarted();
-            CaptureSceneEnvironmentIfNeeded(commandEncoder);
+
+            if (!SuspendSceneWork)
+            {
+                EnsureEnvironmentInitializationStarted();
+                CaptureSceneEnvironmentIfNeeded(commandEncoder);
+            }
 
             var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
             var drawStopwatch = Stopwatch.StartNew();
-            DrawDemoMesh(sceneRenderPass);
-            DrawOverlays(sceneRenderPass);
+
+            if (!SuspendSceneWork)
+            {
+                DrawDemoMesh(sceneRenderPass);
+                DrawOverlays(sceneRenderPass);
+            }
+
             _api.RenderPassEncoderEnd(sceneRenderPass);
             LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
