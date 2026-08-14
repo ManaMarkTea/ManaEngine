@@ -22,6 +22,14 @@ namespace ManaCore.Diagnostics
         public static string DiagnosticLogPath { get; } =
             Path.Combine(Environment.CurrentDirectory, "ManaGraphicsStartup.log");
 
+        /// <summary>
+        /// Set the moment this type is first touched, which for every entry point is at or near the very
+        /// top of Main. Every startup-timeline message below is measured against this, not against its own
+        /// previous call, so the numbers describe "how long since launch" rather than requiring the reader
+        /// to add up a column of deltas by hand.
+        /// </summary>
+        private static readonly long AppStartTimestamp = Stopwatch.GetTimestamp();
+
         public static void WriteDiagnostic(string message)
         {
             try
@@ -44,6 +52,19 @@ namespace ManaCore.Diagnostics
             {
                 // Logging must never take down the renderer.
             }
+        }
+
+        /// <summary>
+        /// Writes "{label} sinceLaunchMs=..." at Debug level -- visible in the diagnostics console by
+        /// default, unlike WriteVerbose. For startup-timeline milestones specifically: which stage of
+        /// bringing up a window and a graphics device is actually eating the time before the first frame,
+        /// something no amount of reading the code answers on its own since most of the candidates are
+        /// native driver calls.
+        /// </summary>
+        public static void WriteDiagnosticElapsed(string label)
+        {
+            var elapsedMs = Stopwatch.GetElapsedTime(AppStartTimestamp).TotalMilliseconds;
+            WriteDiagnostic($"{label} sinceLaunchMs={elapsedMs:F0}");
         }
 
         /// <summary>

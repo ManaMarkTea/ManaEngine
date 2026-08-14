@@ -186,10 +186,11 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU surface.");
             }
 
-            ManaConsole.WriteDiagnostic("Requesting WebGPU adapter.");
+            ManaConsole.WriteDiagnosticElapsed("Requesting WebGPU adapter.");
             RequestAdapter(requestedBackend);
-            ManaConsole.WriteDiagnostic("Requesting WebGPU device.");
+            ManaConsole.WriteDiagnosticElapsed("Adapter granted; requesting WebGPU device.");
             RequestDevice();
+            ManaConsole.WriteDiagnosticElapsed("Device granted.");
 
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
             _queue = _api.DeviceGetQueue(_device);
@@ -206,7 +207,11 @@ namespace ManaGraphics.Code.Graphics
                 {
                     try
                     {
+                        // Shader compilation, synchronous, on this thread -- another candidate for time
+                        // spent before the first frame can present, alongside the adapter/device request.
+                        ManaConsole.WriteDiagnosticElapsed("Creating scene mesh pipeline (shader compile).");
                         CreateDemoMeshPipeline();
+                        ManaConsole.WriteDiagnosticElapsed("Scene mesh pipeline ready.");
                     }
                     catch (Exception ex)
                     {
@@ -283,7 +288,13 @@ namespace ManaGraphics.Code.Graphics
             {
                 try
                 {
+                    // Another lazily-built pipeline, and another candidate for the gap between "the loading
+                    // screen could show" and "the loading screen actually did": this is the first time
+                    // anything asked to draw ManaUI at all, which for a mode with the loading overlay is
+                    // the very first loading frame.
+                    ManaConsole.WriteDiagnosticElapsed("Creating the ManaUI renderer (first draw request).");
                     _uiRenderer = new ManaWebGpuUiRenderer(_api, _device, _queue, _surfaceFormat);
+                    ManaConsole.WriteDiagnosticElapsed("ManaUI renderer ready; submitting its first draw list.");
                 }
                 catch (Exception ex)
                 {
@@ -468,6 +479,8 @@ namespace ManaGraphics.Code.Graphics
                 TaskScheduler.Default);
         }
 
+        private bool _loggedFirstPresent;
+
         public void ClearFrame(Color clearColor)
         {
             // Pumps any in-flight ManaWebGpuBufferReadback's native BufferMapAsync callback -- must run
@@ -636,6 +649,16 @@ namespace ManaGraphics.Code.Graphics
             var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
             _api.QueueSubmit(_queue, 1, &commandBuffer);
             _api.SurfacePresent(_surface);
+
+            if (!_loggedFirstPresent)
+            {
+                _loggedFirstPresent = true;
+
+                // The end of the trail: the moment a frame was actually handed to the window, as opposed to
+                // recorded, submitted or merely attempted. Everything before this in the log was a guess at
+                // why the window looked blank; this is when it stopped being one.
+                ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
+            }
 
             if (_wgpuNativeExtension != null)
             {

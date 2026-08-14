@@ -93,6 +93,7 @@ public static class TestRunner
         ("ManaUI", "ported scene inspector", InspectorChecks.Run),
 
         ("Graphics", "pbr material maps", MaterialMapChecks.Run),
+        ("Graphics", "startup diagnostics", StartupDiagnosticsChecks.Run),
 
         // Last on purpose: it runs a filtered suite of its own, and being last keeps that nesting to one
         // level rather than having a later suite run inside it too.

@@ -40,6 +40,12 @@ namespace ManaGraphics.Code.Diagnostics
             ManaLog.WriteDiagnostic(exception);
         }
 
+        /// <summary>See <see cref="ManaLog.WriteDiagnosticElapsed"/>. Startup-timeline milestones.</summary>
+        public static void WriteDiagnosticElapsed(string label)
+        {
+            ManaLog.WriteDiagnosticElapsed(label);
+        }
+
         public static void Shutdown()
         {
             ManaLog.Shutdown();

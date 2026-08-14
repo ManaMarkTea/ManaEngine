@@ -68,12 +68,24 @@ namespace ManaGraphics.Code.Graphics
         {
             try
             {
-                ManaConsole.WriteDiagnostic("WebGPU window Load.");
+                ManaConsole.WriteDiagnosticElapsed("WebGPU window Load started.");
                 _input = _window.CreateInput();
+
+                // Everything up to and including the game mode's own Load() runs here, on this thread,
+                // before this method returns -- including dispatching whatever background loading task the
+                // game mode kicks off. That task starts racing the rest of this method immediately.
                 _inputReady?.Invoke(_window, _input);
+                ManaConsole.WriteDiagnosticElapsed("Game mode load dispatched; background loading may already be under way.");
+
+                // The adapter/device request and any eagerly-built pipelines inside this constructor are
+                // the leading suspect for "the loading screen does not appear for a while": nothing can be
+                // presented to the window before this returns, no matter how cheap a frame would otherwise
+                // be, because there is no frame loop running yet to present one.
                 _webGpu = new ManaWebGpuContext(_window, _input, _requestedBackend, _renderSceneProvider);
+                ManaConsole.WriteDiagnosticElapsed("WebGPU device and surface ready.");
+
                 _webGpuReady?.Invoke(_webGpu, _input);
-                ManaConsole.WriteDiagnostic("WebGPU context loaded.");
+                ManaConsole.WriteDiagnosticElapsed("WebGPU context loaded; entering the frame loop next.");
             }
             catch (Exception ex)
             {
@@ -83,12 +95,25 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
+        private bool _loggedFirstRender;
+
         private void Render(double deltaTime)
         {
+            if (!_loggedFirstRender)
+            {
+                _loggedFirstRender = true;
+
+                // The frame loop's first tick. Everything from here on is a real frame that gets a chance
+                // to present -- if the gap between this and "WebGPU context loaded" above is small, the
+                // delay was in bring-up; if the gap between this and the loading screen actually appearing
+                // is the large one instead, the delay is per-frame cost after the loop already started.
+                ManaConsole.WriteDiagnosticElapsed("First frame loop tick.");
+            }
+
             _elapsedSeconds += deltaTime;
             _beforeRender?.Invoke(deltaTime);
             _onRenderImGui?.Invoke(deltaTime);
-            
+
             var t = (float)_elapsedSeconds;
             var clearColor = new Color
             {

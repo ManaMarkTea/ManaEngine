@@ -1,3 +1,5 @@
+using ManaCore.Diagnostics;
+
 namespace ManaCore.Loading
 {
     public enum ManaLoadingStage
@@ -38,6 +40,12 @@ namespace ManaCore.Loading
         {
             _stage = ManaLoadingStage.BackgroundWork;
             Progress.Start(status, 0.0f);
+
+            // IsLoading is true from this line on, which is what the loading overlay's visibility binding
+            // watches -- so this is the earliest moment the screen could legitimately be on screen. Compared
+            // against the frame-loop and first-present markers elsewhere, the gap after this one is time the
+            // screen was ready to show and nothing had rendered a frame yet.
+            ManaLog.WriteDiagnosticElapsed("Loading began; the loading screen can show from here.");
         }
 
         public void CompleteBackgroundWork()

@@ -187,6 +187,26 @@ namespace Mana.Code
         // Bump when InitializeDockLayout changes so saved layouts on disk get discarded and rebuilt.
         protected virtual int DockLayoutVersion => 1;
 
+        private bool _loggedFirstLoadingFrame;
+
+        /// <summary>
+        /// One-shot startup-timeline marker: the earliest point in a frame where the loading screen's draw
+        /// list could exist. Compared against ManaLoadingCoordinator.Begin's marker, the gap between the two
+        /// is time the screen was allowed to show and no frame had reached this line yet -- window and
+        /// graphics device bring-up is the leading suspect, since it runs once, synchronously, before the
+        /// frame loop calls this method for the first time at all.
+        /// </summary>
+        private void LogFirstLoadingFrameOnce()
+        {
+            if (_loggedFirstLoadingFrame)
+            {
+                return;
+            }
+
+            _loggedFirstLoadingFrame = true;
+            ManaCore.Diagnostics.ManaLog.WriteDiagnosticElapsed("First loading frame reached in BaseGameMode.Render.");
+        }
+
         public virtual void Render(double deltaTime)
         {
             RenderFrame++;
@@ -201,6 +221,7 @@ namespace Mana.Code
 
             if (IsLoading)
             {
+                LogFirstLoadingFrameOnce();
                 ManaGameModeGraphicsBridge.ClearLoadingFrame(Context, GraphicsBackend);
 
                 // A mode with ManaUI enabled shows the loading screen through it -- see
