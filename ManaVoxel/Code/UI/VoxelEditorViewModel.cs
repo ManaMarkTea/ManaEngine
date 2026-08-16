@@ -74,6 +74,15 @@ namespace ManaVoxel.Code.UI
         public int TextDepth = 1;
         public string ToolText = "MANA";
 
+        /// <summary>Circle and Sphere's rim colour. Every other shape tool paints with <see cref="PaintVoxelColor"/> instead.</summary>
+        public Vector4 ShapeStrokeColor = Colors.CornflowerBlue;
+
+        /// <summary>Circle and Sphere's interior colour, used only when <see cref="ShapeHasFill"/> is set.</summary>
+        public Vector4 ShapeFillColor = Colors.CornflowerBlue;
+
+        /// <summary>False paints only the rim -- a ring for Circle, a shell for Sphere.</summary>
+        public bool ShapeHasFill = true;
+
         public string[] ToolOptions => VoxelToolCatalog.ToolNames;
         public string[] WorkPlaneOptions => VoxelToolCatalog.PlaneNames;
         public string[] VoxelLayerNames
@@ -176,11 +185,18 @@ namespace ManaVoxel.Code.UI
 
         public VoxelToolSettings CreateToolSettings()
         {
+            var kind = VoxelToolCatalog.GetToolKind(SelectedToolIndex);
+
+            // Circle and Sphere paint a rim and an optional interior; every other tool paints one colour
+            // throughout, so it keeps using the plain paint colour it always has.
+            var isShapeTool = kind is VoxelToolKind.Circle or VoxelToolKind.Sphere;
+
             return new VoxelToolSettings
             {
-                ToolKind = VoxelToolCatalog.GetToolKind(SelectedToolIndex),
+                ToolKind = kind,
                 WorkPlane = (VoxelWorkPlane)Math.Clamp(SelectedWorkPlaneIndex, 0, WorkPlaneOptions.Length - 1),
-                Color = PaintVoxelColor,
+                Color = isShapeTool ? ShapeStrokeColor : PaintVoxelColor,
+                FillColor = isShapeTool && ShapeHasFill ? ShapeFillColor : null,
                 StrokeRadiusVoxels = Math.Clamp(StrokeRadiusVoxels, 0, 12),
                 TextScale = Math.Clamp(TextScale, 1, 8),
                 TextDepth = Math.Clamp(TextDepth, 1, 16),
@@ -555,6 +571,70 @@ namespace ManaVoxel.Code.UI
                 {
                     LastCommittedVoxelPosition = position;
                 }
+            }
+        }
+
+        /// <summary>Brush radius in world units for Paint/Erase, one voxel wider than the requested cell count so the voxel exactly at that distance is not missed to floating-point rounding.</summary>
+        private float DirectEditBrushRadius => Math.Clamp(StrokeRadiusVoxels, 0, 12) + 0.5f;
+
+        /// <summary>
+        /// Paints along the segment from <paramref name="from"/> to <paramref name="to"/>, not just at
+        /// <paramref name="to"/> -- pass the same point for both on the first dab of a stroke. Sweeping the
+        /// segment (rather than a single dab at the current position) is what keeps a fast mouse move, or a
+        /// frame hitch, from leaving an unpainted gap between where the cursor was last frame and where it
+        /// landed this frame.
+        /// </summary>
+        public void PaintAt(Vector3 from, Vector3 to)
+        {
+            var activeLayer = ActiveVoxelLayer;
+            if (activeLayer == null)
+            {
+                return;
+            }
+
+            var activeNode = activeLayer.Node;
+            var localFrom = from - activeNode.Position;
+            var localTo = to - activeNode.Position;
+            if (activeNode.VoxelShape.PaintRadius(localFrom, localTo, DirectEditBrushRadius, PaintVoxelColor) > 0)
+            {
+                activeNode.UpdateTransform();
+                LastCommittedVoxelPosition = to;
+            }
+        }
+
+        /// <summary>Erases along the segment from <paramref name="from"/> to <paramref name="to"/> -- see <see cref="PaintAt"/> for why a segment rather than just a point.</summary>
+        public void EraseAt(Vector3 from, Vector3 to)
+        {
+            var activeLayer = ActiveVoxelLayer;
+            if (activeLayer == null)
+            {
+                return;
+            }
+
+            var activeNode = activeLayer.Node;
+            var localFrom = from - activeNode.Position;
+            var localTo = to - activeNode.Position;
+            if (activeNode.VoxelShape.EraseRadius(localFrom, localTo, DirectEditBrushRadius) > 0)
+            {
+                activeNode.UpdateTransform();
+                LastCommittedVoxelPosition = to;
+            }
+        }
+
+        public void FloodFillAt(Vector3 position)
+        {
+            var activeLayer = ActiveVoxelLayer;
+            if (activeLayer == null)
+            {
+                return;
+            }
+
+            var activeNode = activeLayer.Node;
+            var localPos = position - activeNode.Position;
+            if (activeNode.VoxelShape.FloodFill(localPos, PaintVoxelColor) > 0)
+            {
+                activeNode.UpdateTransform();
+                LastCommittedVoxelPosition = position;
             }
         }
 

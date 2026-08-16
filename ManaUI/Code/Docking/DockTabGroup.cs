@@ -90,6 +90,14 @@ namespace ManaUI
 
         public float TabHeight { get; set; } = float.NaN;
 
+        /// <summary>
+        /// Collapses the tab strip to nothing while this group holds exactly one item -- a toolbar-shaped
+        /// panel that is always alone in its own dock host does not need a title bar naming the one thing
+        /// it can possibly be. Re-evaluated every layout pass, so the strip returns the moment a second
+        /// item is tabbed in.
+        /// </summary>
+        public bool HideStripWhenSingle { get; set; }
+
         /// <summary>Height of one row of tabs. The strip is a whole number of these.</summary>
         private float TabRowHeight =>
             LayoutHelper.IsAuto(TabHeight) ? (Root?.Theme.ControlHeight ?? 26.0f) + 2.0f : TabHeight;
@@ -415,6 +423,12 @@ namespace ManaUI
         private float StripHeightFor(float width)
         {
             EnsureTabLayout(width);
+
+            if (HideStripWhenSingle && _items.Count <= 1)
+            {
+                return 0.0f;
+            }
+
             return _rowCount * TabRowHeight;
         }
 

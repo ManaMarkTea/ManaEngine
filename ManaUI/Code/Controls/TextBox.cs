@@ -133,9 +133,13 @@ namespace ManaUI
             var enabled = IsEffectivelyEnabled;
             var corners = theme.CornerRadius;
 
+            // Hover overlay, same as every other control -- an input used to be the one thing on screen
+            // that never reacted to the pointer at all, resting or over it looked identical.
+            var fill = ApplyStateOverlay(enabled ? theme.SurfaceAlt : theme.Surface);
+
             drawList.DrawBox(
                 Bounds,
-                enabled ? theme.SurfaceAlt : theme.Surface,
+                fill,
                 IsFocused ? theme.Accent : theme.Border,
                 theme.BorderThickness,
                 corners);

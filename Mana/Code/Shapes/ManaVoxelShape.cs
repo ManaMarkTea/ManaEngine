@@ -90,6 +90,14 @@ namespace Mana
 
         public event Action<ManaVoxelData>? OnVoxelAdded;
 
+        /// <summary>
+        /// Fired once per voxel actually removed by EraseRadius. ManaVoxelsNode listens for
+        /// this to remove the matching kinematic collision body -- without it, an erased voxel's collider
+        /// stays behind in the physics world, invisible but still blocking the raycast every other tool
+        /// (including a second erase) picks against.
+        /// </summary>
+        public event Action<ManaVoxelData>? OnVoxelRemoved;
+
         public void AddVoxel(Vector3 position, Vector4 color)
         {
             var newVoxelData = new ManaVoxelData { Position = position, Color = color };
@@ -109,6 +117,163 @@ namespace Mana
         public void CommitData()
         {
             GenerateData();
+        }
+
+        /// <summary>Shortest squared distance from a point to the segment [a, b] (a degenerate a == b segment is just a point).</summary>
+        private static float DistanceSquaredToSegment(Vector3 point, Vector3 a, Vector3 b)
+        {
+            var segment = b - a;
+            var lengthSquared = segment.LengthSquared();
+            if (lengthSquared < 1e-8f)
+            {
+                return Vector3.DistanceSquared(point, a);
+            }
+
+            var t = Math.Clamp(Vector3.Dot(point - a, segment) / lengthSquared, 0.0f, 1.0f);
+            return Vector3.DistanceSquared(point, a + segment * t);
+        }
+
+        /// <summary>Recolours every committed voxel within <paramref name="radius"/> of <paramref name="center"/>.</summary>
+        public int PaintRadius(Vector3 center, float radius, Vector4 newColor)
+        {
+            return PaintRadius(center, center, radius, newColor);
+        }
+
+        /// <summary>
+        /// Recolours every committed voxel within <paramref name="radius"/> of the segment from
+        /// <paramref name="from"/> to <paramref name="to"/>, not just of a single point -- a brush dragged
+        /// across more than one voxel in a frame (a fast mouse move, or a hitch) must still paint the cells
+        /// in between rather than leaving a gap. Rebuilds geometry once, not per voxel. Returns the number
+        /// of voxels changed.
+        /// </summary>
+        public int PaintRadius(Vector3 from, Vector3 to, float radius, Vector4 newColor)
+        {
+            var radiusSquared = radius * radius;
+            var changed = 0;
+
+            for (var i = 0; i < Voxels.Count; i++)
+            {
+                var voxel = Voxels[i];
+                if (DistanceSquaredToSegment(voxel.Position, from, to) > radiusSquared)
+                {
+                    continue;
+                }
+
+                voxel.Color = newColor;
+                Voxels[i] = voxel;
+                changed++;
+            }
+
+            if (changed > 0)
+            {
+                RebuildGeometryFromCommittedVoxels("paint", Voxels.Count, 0, logStats: false);
+            }
+
+            return changed;
+        }
+
+        /// <summary>Removes every committed voxel within <paramref name="radius"/> of <paramref name="center"/>.</summary>
+        public int EraseRadius(Vector3 center, float radius)
+        {
+            return EraseRadius(center, center, radius);
+        }
+
+        /// <summary>
+        /// Removes every committed voxel within <paramref name="radius"/> of the segment from
+        /// <paramref name="from"/> to <paramref name="to"/> -- see <see cref="PaintRadius(Vector3, Vector3, float, Vector4)"/>
+        /// for why a segment rather than just a point. Fires <see cref="OnVoxelRemoved"/> for each voxel
+        /// removed, so the node holding this shape can drop the matching physics collider. Returns the
+        /// number of voxels removed.
+        /// </summary>
+        public int EraseRadius(Vector3 from, Vector3 to, float radius)
+        {
+            var radiusSquared = radius * radius;
+            var removed = 0;
+
+            for (var i = Voxels.Count - 1; i >= 0; i--)
+            {
+                var voxel = Voxels[i];
+                if (DistanceSquaredToSegment(voxel.Position, from, to) > radiusSquared)
+                {
+                    continue;
+                }
+
+                _voxelKeys.Remove(ToVoxelKey(voxel.Position));
+                Voxels.RemoveAt(i);
+                removed++;
+                OnVoxelRemoved?.Invoke(voxel);
+            }
+
+            if (removed > 0)
+            {
+                RebuildGeometryFromCommittedVoxels("erase", Voxels.Count, 0, logStats: false);
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// Recolours every voxel face-connected to the one at <paramref name="seedPosition"/> that shares its
+        /// exact starting colour, stopping at any colour boundary. Returns the number changed, or 0 if there
+        /// is no voxel at the seed position (or it is already <paramref name="newColor"/>).
+        /// </summary>
+        public int FloodFill(Vector3 seedPosition, Vector4 newColor)
+        {
+            var seedKey = ToVoxelKey(seedPosition);
+            var indexByKey = new Dictionary<(int X, int Y, int Z), int>(Voxels.Count);
+            for (var i = 0; i < Voxels.Count; i++)
+            {
+                indexByKey[ToVoxelKey(Voxels[i].Position)] = i;
+            }
+
+            if (!indexByKey.TryGetValue(seedKey, out var seedIndex))
+            {
+                return 0;
+            }
+
+            var targetColor = Voxels[seedIndex].Color;
+            if (targetColor == newColor)
+            {
+                return 0;
+            }
+
+            var visited = new HashSet<(int X, int Y, int Z)> { seedKey };
+            var queue = new Queue<(int X, int Y, int Z)>();
+            queue.Enqueue(seedKey);
+            var changed = 0;
+
+            while (queue.Count > 0)
+            {
+                var key = queue.Dequeue();
+                var index = indexByKey[key];
+                var voxel = Voxels[index];
+                voxel.Color = newColor;
+                Voxels[index] = voxel;
+                changed++;
+
+                foreach (var offset in FaceNeighborKeyOffsets)
+                {
+                    var neighborKey = (key.X + offset.X, key.Y + offset.Y, key.Z + offset.Z);
+                    if (!visited.Add(neighborKey) || !indexByKey.TryGetValue(neighborKey, out var neighborIndex))
+                    {
+                        continue;
+                    }
+
+                    if (Voxels[neighborIndex].Color != targetColor)
+                    {
+                        continue;
+                    }
+
+                    queue.Enqueue(neighborKey);
+                }
+            }
+
+            if (changed > 0)
+            {
+                RebuildGeometryFromCommittedVoxels("flood fill", Voxels.Count, 0, logStats: false);
+            }
+
+            return changed;
         }
 
         public void ReplaceCommittedVoxels(IEnumerable<ManaVoxelData> voxels, bool logStats = true)

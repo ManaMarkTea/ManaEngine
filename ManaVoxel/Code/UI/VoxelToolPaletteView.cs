@@ -27,7 +27,8 @@ namespace ManaVoxel.Code.UI
             ImGuiExt.DrawColorValue(ref viewModel.PaintVoxelColor);
 
             var selectedTool = VoxelToolCatalog.GetToolKind(viewModel.SelectedToolIndex);
-            if (selectedTool is VoxelToolKind.Stroke or VoxelToolKind.Line or VoxelToolKind.Spline)
+            if (selectedTool is VoxelToolKind.Stroke or VoxelToolKind.Line or VoxelToolKind.Spline
+                or VoxelToolKind.Paint or VoxelToolKind.Erase)
             {
                 ImGui.SliderInt("Radius", ref viewModel.StrokeRadiusVoxels, 0, 12);
             }
@@ -205,7 +206,55 @@ namespace ManaVoxel.Code.UI
                 case VoxelToolKind.Text:
                     DrawTextBlockIcon(drawList, center, iconColor, accentColor);
                     break;
+                case VoxelToolKind.Paint:
+                    DrawPaintToolIcon(drawList, center, iconColor, accentColor);
+                    break;
+                case VoxelToolKind.FloodFill:
+                    DrawFloodFillToolIcon(drawList, center, iconColor, accentColor);
+                    break;
+                case VoxelToolKind.Erase:
+                    DrawEraseToolIcon(drawList, center, iconColor, accentColor);
+                    break;
             }
+        }
+
+        private static void DrawPaintToolIcon(ImDrawListPtr drawList, Vector2 center, uint iconColor, uint accentColor)
+        {
+            // A brush recolouring a swatch instead of drawing a dot -- this recolours voxels that already
+            // exist, rather than adding new ones the way Stroke does.
+            var handleStart = center + new Vector2(-8.0f, -8.0f);
+            var handleEnd = center + new Vector2(2.0f, 2.0f);
+            drawList.AddLine(handleStart, handleEnd, iconColor, 3.0f);
+
+            var swatchMin = center + new Vector2(2.0f, 2.0f);
+            var swatchMax = center + new Vector2(10.0f, 10.0f);
+            drawList.AddRectFilled(swatchMin, swatchMax, accentColor, 2.0f);
+            drawList.AddRect(swatchMin, swatchMax, iconColor, 2.0f, ImDrawFlags.None, 1.1f);
+        }
+
+        private static void DrawFloodFillToolIcon(ImDrawListPtr drawList, Vector2 center, uint iconColor, uint accentColor)
+        {
+            // A tipped bucket pouring out its colour, same idea as the ManaUI icon.
+            var bodyA = center + new Vector2(-11.0f, -1.0f);
+            var bodyB = center + new Vector2(-1.0f, -9.0f);
+            var bodyC = center + new Vector2(6.0f, -2.0f);
+            var bodyD = center + new Vector2(-4.0f, 6.0f);
+
+            drawList.AddQuadFilled(bodyA, bodyB, bodyC, bodyD, accentColor);
+            drawList.AddQuad(bodyA, bodyB, bodyC, bodyD, iconColor, 1.4f);
+            drawList.AddCircleFilled(center + new Vector2(7.0f, 6.0f), 2.4f, iconColor, 10);
+            drawList.AddCircleFilled(center + new Vector2(10.0f, 10.0f), 1.6f, iconColor, 10);
+        }
+
+        private static void DrawEraseToolIcon(ImDrawListPtr drawList, Vector2 center, uint iconColor, uint accentColor)
+        {
+            // An eraser block, struck through -- removing rather than adding or recolouring.
+            var min = center + new Vector2(-8.0f, -6.0f);
+            var max = center + new Vector2(8.0f, 6.0f);
+
+            drawList.AddRectFilled(min, max, WithAlpha(accentColor, 0.22f), 2.5f);
+            drawList.AddRect(min, max, iconColor, 2.5f);
+            drawList.AddLine(min, max, iconColor, 1.6f);
         }
 
         private static void DrawBrushIcon(ImDrawListPtr drawList, Vector2 center, uint iconColor, uint accentColor)
@@ -331,6 +380,9 @@ namespace ManaVoxel.Code.UI
                 VoxelToolKind.Sphere => "Sphere",
                 VoxelToolKind.Spline => "Spline",
                 VoxelToolKind.Text => "Text",
+                VoxelToolKind.Paint => "Paint (recolour existing voxels)",
+                VoxelToolKind.FloodFill => "Flood Fill (recolour a connected region)",
+                VoxelToolKind.Erase => "Erase / cut",
                 _ => toolKind.ToString()
             };
         }

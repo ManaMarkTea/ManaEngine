@@ -42,7 +42,7 @@ namespace Mana.Code
 
         }
 
-        public void AddBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset)
+        public ManaCollisionComponent AddBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset)
         {
             var worldPosition = node.WorldTransform.Translation;
             Box boxShape = new Box(size.X, size.Y, size.Z);
@@ -60,6 +60,8 @@ namespace Mana.Code
             {
                 node.Components.Add(collisionComponent);
             }
+
+            return collisionComponent;
         }
 
         public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f, Vector3? initialLinearVelocity = null)

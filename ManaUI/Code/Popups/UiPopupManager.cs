@@ -176,7 +176,7 @@ namespace ManaUI
         // ----- tooltips -------------------------------------------------------------------------------
 
         /// <summary>How long the pointer must rest on something before its tooltip appears.</summary>
-        public double TooltipDelaySeconds { get; set; } = 0.5;
+        public double TooltipDelaySeconds { get; set; } = 0.15;
 
         private UiElement? _tooltipCandidate;
         private UiPopup? _tooltipPopup;

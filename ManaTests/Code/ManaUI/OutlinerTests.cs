@@ -53,6 +53,10 @@ public static class OutlinerChecks
         Check("scenes are the roots", tree!.VisibleItems.Count == 1, $"{tree.VisibleItems.Count}");
         Check("root is the scene", ReferenceEquals(tree.VisibleItems[0], scene));
 
+        Check("the panel names itself",
+            FindAll<TextBlock>(root).Any(t => t.Text == "OUTLINER"),
+            string.Join(", ", FindAll<TextBlock>(root).Select(t => t.Text).Take(5)));
+
         var drawn = root.Render();
         Check("outliner renders", drawn.InstanceCount > 5, $"{drawn.InstanceCount} instances");
 
@@ -152,5 +156,26 @@ public static class OutlinerChecks
         }
 
         return null;
+    }
+
+    private static List<T> FindAll<T>(UiElement element) where T : UiElement
+    {
+        var found = new List<T>();
+        Collect(element, found);
+        return found;
+    }
+
+    private static void Collect<T>(UiElement element, List<T> found) where T : UiElement
+    {
+        if (element is T typed)
+        {
+            found.Add(typed);
+        }
+
+        var count = element.VisualChildCount;
+        for (var i = 0; i < count; i++)
+        {
+            Collect(element.GetVisualChild(i), found);
+        }
     }
 }

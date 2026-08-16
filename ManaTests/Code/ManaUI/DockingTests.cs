@@ -173,6 +173,37 @@ public static class DockingChecks
             crowded.TabRect(0).Width > crowded.TabRect(0).Height * 2.0f,
             $"{crowded.TabRect(0).Width:F1}px");
 
+        // ---------------------------------------------------------------- a toolbar-shaped single tab
+        // A dock host that only ever holds one panel (the top toolbar strip) does not need a tab header
+        // naming the one thing it could possibly be -- opt-in, so every other panel keeps its title.
+        var soloGroup = new DockTabGroup { HideStripWhenSingle = true };
+        soloGroup.Add(new DockItem("Voxel Tools", new TextBlock().Text("Toolbar")));
+
+        var soloHost = new DockHost { RootNode = soloGroup };
+        root.Content = null;
+        root.Content = soloHost;
+        root.UpdateLayout(new Vector2(400, 100));
+
+        Check("a lone tab with HideStripWhenSingle set collapses its strip",
+            MathF.Abs(soloGroup.TabStripRect.Height) < 0.01f, $"{soloGroup.TabStripRect.Height:F1}px");
+
+        soloGroup.Add(new DockItem("Second", new TextBlock().Text("Body")));
+        root.UpdateLayout(new Vector2(400, 100));
+
+        Check("the strip returns once a second tab joins",
+            soloGroup.TabStripRect.Height > 10.0f, $"{soloGroup.TabStripRect.Height:F1}px");
+
+        var defaultGroup = new DockTabGroup();
+        defaultGroup.Add(new DockItem("Alone", new TextBlock().Text("Body")));
+
+        var defaultHost = new DockHost { RootNode = defaultGroup };
+        root.Content = null;
+        root.Content = defaultHost;
+        root.UpdateLayout(new Vector2(400, 100));
+
+        Check("a lone tab keeps its strip when the flag is not set",
+            defaultGroup.TabStripRect.Height > 10.0f, $"{defaultGroup.TabStripRect.Height:F1}px");
+
         root.Content = null;
         root.Content = host;
         root.UpdateLayout(new Vector2(1000, 600));

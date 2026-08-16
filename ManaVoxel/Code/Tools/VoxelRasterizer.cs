@@ -5,6 +5,9 @@ namespace ManaVoxel.Code.Tools
         public const int MaxFilledSphereRadiusCells = 18;
         public const int MaxFilledCircleRadiusCells = 64;
 
+        /// <summary>Thickness of the rim painted in the stroke colour, for a hollow or outlined shape.</summary>
+        private const float RimThicknessCells = 1.0f;
+
         public static Vector3 SnapToCenter(Vector3 position)
         {
             return new Vector3(
@@ -21,6 +24,22 @@ namespace ManaVoxel.Code.Tools
             }
 
             return SnapToCenter(position + Vector3.Normalize(normal) * 0.5f);
+        }
+
+        /// <summary>
+        /// The mirror of <see cref="SnapHitToAdjacentCenter"/>: steps into the surface instead of away from
+        /// it, landing on the voxel that was actually hit rather than the empty cell beside it. What Paint,
+        /// Erase and Flood Fill need to act on the voxel a raycast just found, instead of where a new one
+        /// would be placed.
+        /// </summary>
+        public static Vector3 SnapHitToOccupiedCenter(Vector3 position, Vector3 normal)
+        {
+            if (normal.LengthSquared() <= 0.0001f)
+            {
+                return SnapToCenter(position);
+            }
+
+            return SnapToCenter(position - Vector3.Normalize(normal) * 0.5f);
         }
 
         public static (int X, int Y, int Z) ToCell(Vector3 position)
@@ -98,7 +117,8 @@ namespace ManaVoxel.Code.Tools
             Vector3 center,
             Vector3 edge,
             VoxelWorkPlane plane,
-            Vector4 color)
+            Vector4 strokeColor,
+            Vector4? fillColor)
         {
             var centerCell = ToCell(SnapToCenter(center));
             var radius = MathF.Min(
@@ -106,6 +126,11 @@ namespace ManaVoxel.Code.Tools
                 MaxFilledCircleRadiusCells);
             var radiusCells = (int)MathF.Ceiling(radius);
             var radiusSquared = radius * radius + 0.001f;
+
+            // Anything at or past this inner radius is the rim; fillColor is null for a hollow shape, so
+            // everything the outer test admits paints as rim and nothing paints as interior.
+            var innerRadius = MathF.Max(0.0f, radius - RimThicknessCells);
+            var innerRadiusSquared = innerRadius * innerRadius;
             var axes = GetPlaneAxes(plane);
 
             for (var u = -radiusCells; u <= radiusCells; u++)
@@ -118,8 +143,14 @@ namespace ManaVoxel.Code.Tools
                         continue;
                     }
 
+                    var isRim = distanceSquared > innerRadiusSquared;
+                    if (!isRim && fillColor == null)
+                    {
+                        continue;
+                    }
+
                     var cell = Add(Add(centerCell, Multiply(axes.U, u)), Multiply(axes.V, v));
-                    cells[cell] = color;
+                    cells[cell] = isRim ? strokeColor : fillColor!.Value;
                 }
             }
         }
@@ -128,7 +159,8 @@ namespace ManaVoxel.Code.Tools
             Dictionary<(int X, int Y, int Z), Vector4> cells,
             Vector3 center,
             Vector3 edge,
-            Vector4 color)
+            Vector4 strokeColor,
+            Vector4? fillColor)
         {
             var centerCell = ToCell(SnapToCenter(center));
             var radius = MathF.Min(
@@ -136,6 +168,10 @@ namespace ManaVoxel.Code.Tools
                 MaxFilledSphereRadiusCells);
             var radiusCells = (int)MathF.Ceiling(radius);
             var radiusSquared = radius * radius + 0.001f;
+
+            // Same rim/interior split as the circle, just one axis wider -- a hollow sphere is a shell.
+            var innerRadius = MathF.Max(0.0f, radius - RimThicknessCells);
+            var innerRadiusSquared = innerRadius * innerRadius;
 
             for (var x = -radiusCells; x <= radiusCells; x++)
             {
@@ -149,8 +185,14 @@ namespace ManaVoxel.Code.Tools
                             continue;
                         }
 
+                        var isRim = distanceSquared > innerRadiusSquared;
+                        if (!isRim && fillColor == null)
+                        {
+                            continue;
+                        }
+
                         var cell = (centerCell.X + x, centerCell.Y + y, centerCell.Z + z);
-                        cells[cell] = color;
+                        cells[cell] = isRim ? strokeColor : fillColor!.Value;
                     }
                 }
             }

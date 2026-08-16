@@ -35,7 +35,7 @@ public static class PortedPaletteChecks
         }
 
         root.Content = palette;
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
 
         Check("palette lays out", palette.Bounds.Width > 100 && palette.Bounds.Height > 100,
             palette.Bounds.ToString());
@@ -50,60 +50,80 @@ public static class PortedPaletteChecks
         // as it was before the redesign.
         root.UpdateLayout(new Vector2(1400, 56));
 
-        var selectCheckBefore = FindAll<CheckBox>(root).First();
+        var selectButtonBefore = FindAll<Button>(root).First(b => b.Tooltip == "Select");
         var swatchBefore = FindAll<ColorField>(root).First();
-        Check("the checkbox and the colour swatch sit side by side, not stacked",
-            MathF.Abs(selectCheckBefore.Bounds.Y - swatchBefore.Bounds.Y) < swatchBefore.Bounds.Height
-                && swatchBefore.Bounds.X > selectCheckBefore.Bounds.Right,
-            $"select {selectCheckBefore.Bounds}, swatch {swatchBefore.Bounds}");
+        Check("the tool row and the colour swatch sit side by side, not stacked",
+            MathF.Abs(selectButtonBefore.Bounds.Y - swatchBefore.Bounds.Y) < swatchBefore.Bounds.Height
+                && swatchBefore.Bounds.X > selectButtonBefore.Bounds.Right,
+            $"select {selectButtonBefore.Bounds}, swatch {swatchBefore.Bounds}");
 
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
 
         // ---------------------------------------------------------------- model -> UI (polled)
-        var toolCombo = FindAll<ComboBox>(root).First();
-        vm.SelectedToolIndex = 3;
-        root.UpdateLayout(new Vector2(420, 900));
-        Check("model change reaches the combo", toolCombo.SelectedIndex == 3, $"{toolCombo.SelectedIndex}");
-
-        var selectBox = FindAll<CheckBox>(root).First();
+        // Icon toggles rather than a dropdown, like the ImGui palette -- a tool's own button carries the
+        // "current tool" state as its Variant instead of a combo box's SelectedIndex.
+        // Select mode is exclusive with the tools now, so a tool button only shows selected once select
+        // mode is off -- exactly the state a real tool pick leaves the model in.
+        var strokeButton = FindAll<Button>(root).First(b => b.Tooltip == "Stroke");
+        vm.SelectedToolIndex = VoxelToolCatalog.GetToolIndex(VoxelToolKind.Stroke);
         vm.IsSelectToolActive = false;
-        root.UpdateLayout(new Vector2(420, 900));
-        Check("model change reaches the checkbox", !selectBox.IsChecked, $"{selectBox.IsChecked}");
+        root.UpdateLayout(new Vector2(1600, 120));
+        Check("model change reaches the tool button",
+            strokeButton.Variant == ButtonVariant.Primary, $"{strokeButton.Variant}");
+
+        var selectButton = FindAll<Button>(root).First(b => b.Tooltip == "Select");
+        vm.IsSelectToolActive = false;
+        root.UpdateLayout(new Vector2(1600, 120));
+        Check("model change reaches the select button",
+            selectButton.Variant != ButtonVariant.Primary, $"{selectButton.Variant}");
 
         // Polled bindings only apply on a layout tick, which is the documented trade for reading a model
         // that cannot announce its own changes.
         vm.IsSelectToolActive = true;
-        Check("polled read waits for the tick", !selectBox.IsChecked, "unchanged before UpdateLayout");
-        root.UpdateLayout(new Vector2(420, 900));
-        Check("polled read applies on the tick", selectBox.IsChecked, "updated after UpdateLayout");
+        Check("polled read waits for the tick",
+            selectButton.Variant != ButtonVariant.Primary, "unchanged before UpdateLayout");
+        root.UpdateLayout(new Vector2(1600, 120));
+        Check("polled read applies on the tick",
+            selectButton.Variant == ButtonVariant.Primary, "updated after UpdateLayout");
 
         // ---------------------------------------------------------------- UI -> model (events)
-        toolCombo.SelectedIndex = 1;
-        Check("combo writes back to the model", vm.SelectedToolIndex == 1, $"{vm.SelectedToolIndex}");
+        var lineButton = FindAll<Button>(root).First(b => b.Tooltip == "Line");
+        Press(root, lineButton.Bounds.Center);
+        Check("clicking a tool button writes back to the model and leaves select mode",
+            vm.SelectedToolIndex == VoxelToolCatalog.GetToolIndex(VoxelToolKind.Line) && !vm.IsSelectToolActive,
+            $"tool {vm.SelectedToolIndex}, select {vm.IsSelectToolActive}");
 
-        selectBox.IsChecked = false;
-        Check("checkbox writes back to the model", !vm.IsSelectToolActive, $"{vm.IsSelectToolActive}");
+        // Select is a mode of its own now, not a toggle -- clicking it always turns it on rather than
+        // flipping it, the same way clicking a tool always makes that tool current rather than clearing it.
+        Press(root, selectButton.Bounds.Center);
+        Check("clicking select turns select mode on, leaving the last tool as-is underneath it",
+            vm.IsSelectToolActive && vm.SelectedToolIndex == VoxelToolCatalog.GetToolIndex(VoxelToolKind.Line),
+            $"select {vm.IsSelectToolActive}, tool {vm.SelectedToolIndex}");
 
-        var planeCombo = FindAll<ComboBox>(root).Skip(1).First();
+        Press(root, lineButton.Bounds.Center);
+        Check("and picking a tool again leaves select mode",
+            !vm.IsSelectToolActive, $"select {vm.IsSelectToolActive}");
+
+        var planeCombo = FindAll<ComboBox>(root).First();
         planeCombo.SelectedIndex = 2;
         Check("work plane writes back", vm.SelectedWorkPlaneIndex == 2, $"{vm.SelectedWorkPlaneIndex}");
 
         // ---------------------------------------------------------------- conditional sections
         vm.SelectedToolIndex = VoxelToolCatalog.GetToolIndex(VoxelToolKind.Stroke);
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
 
         var radiusVisible = IsSliderVisible(root, 0, 12);
         Check("radius shown for stroke tools", radiusVisible, "radius slider laid out");
 
         vm.SelectedToolIndex = VoxelToolCatalog.GetToolIndex(VoxelToolKind.Sphere);
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
         Check("radius hidden for sphere", !IsSliderVisible(root, 0, 12), "radius slider collapsed");
 
         var textBox = FindAll<TextBox>(root).First();
         Check("text field hidden outside the text tool", textBox.Bounds.IsEmpty, textBox.Bounds.ToString());
 
         vm.SelectedToolIndex = VoxelToolCatalog.GetToolIndex(VoxelToolKind.Text);
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
         Check("text field shown for the text tool", !textBox.Bounds.IsEmpty, textBox.Bounds.ToString());
 
         // ---------------------------------------------------------------- values
@@ -113,7 +133,7 @@ public static class PortedPaletteChecks
         Check("scale writes back as an integer", vm.TextScale == 5, $"{vm.TextScale}");
 
         vm.TextDepth = 9;
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
         var depthSlider = FindSlider(root, 1, 16);
         Check("depth reads back from the model",
             depthSlider != null && MathF.Abs(depthSlider.Value - 9.0f) < 0.01f, $"{depthSlider?.Value}");
@@ -124,7 +144,7 @@ public static class PortedPaletteChecks
 
         // The swatch follows the colour, which is the whole point of showing it. It reads through a polled
         // binding, so it needs a tick before it can have caught up.
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
         var swatch = FindAll<ColorField>(root).FirstOrDefault();
         Check("swatch tracks the paint colour",
             swatch != null && MathF.Abs(swatch.Color.Y - 0.9f) < 0.01f,
@@ -141,19 +161,19 @@ public static class PortedPaletteChecks
             // Voxels are opaque, so offering an alpha control there would be a lie.
             Check("the palette hides alpha", !swatch.ShowAlpha, "opaque voxels");
 
-            root.UpdateLayout(new Vector2(420, 900));
+            root.UpdateLayout(new Vector2(1600, 120));
             root.Input.InjectPointerMoved(swatch.Bounds.Center);
             root.Input.InjectPointerPressed(swatch.Bounds.Center, PointerButton.Left, 9.0);
             root.Input.InjectPointerReleased(swatch.Bounds.Center, PointerButton.Left);
-            root.UpdateLayout(new Vector2(420, 900));
+            root.UpdateLayout(new Vector2(1600, 120));
 
             Check("clicking the swatch opens the picker", swatch.IsOpen);
             swatch.Close();
-            root.UpdateLayout(new Vector2(420, 900));
+            root.UpdateLayout(new Vector2(1600, 120));
         }
 
         // ---------------------------------------------------------------- end to end
-        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(1600, 120));
         var final = root.Render();
         Check("palette still renders after edits", final.InstanceCount > 30, $"{final.InstanceCount}");
 
@@ -365,6 +385,13 @@ public static class PortedPaletteChecks
     {
         return FindAll<Slider>(root)
             .FirstOrDefault(s => MathF.Abs(s.Minimum - minimum) < 0.01f && MathF.Abs(s.Maximum - maximum) < 0.01f);
+    }
+
+    private static void Press(UiRoot root, Vector2 point)
+    {
+        root.Input.InjectPointerMoved(point);
+        root.Input.InjectPointerPressed(point, PointerButton.Left, 0.0);
+        root.Input.InjectPointerReleased(point, PointerButton.Left);
     }
 
     /// <summary>

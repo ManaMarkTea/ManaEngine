@@ -56,7 +56,10 @@ namespace Mana.Code.GameModes
         private int _meshPickerPreviewMeshStartIndex = -1;
         private int _meshPickerPreviewMaterialStartIndex = -1;
         private bool _selectPointerWasDown;
+        private bool _directEditPointerWasDown;
+        private Vector3? _lastDirectEditPosition;
         private bool _frameSelectedKeyWasDown;
+        private bool _escapeSelectionKeyWasDown;
         private HashSet<MeshRendererComponent> _lastOutlinedSelectionComponents = new();
         private HashSet<MeshRendererComponent> _lastStreamingHighlightedComponents = new();
         private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
@@ -2006,6 +2009,15 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            var toolKind = VoxelToolCatalog.GetToolKind(_viewModel.SelectedToolIndex);
+            if (toolKind is VoxelToolKind.Paint or VoxelToolKind.FloodFill or VoxelToolKind.Erase)
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                UpdateDirectVoxelEditInteraction(inputCaptured, MouseState, toolKind);
+                return;
+            }
+
             bool leftMouseDown = MouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
             var toolSettings = _viewModel.CreateToolSettings();
 
@@ -2058,6 +2070,81 @@ namespace Mana.Code.GameModes
             }
         }
 
+        // Paint, Flood Fill and Erase all act on voxels that already exist, so none of them go through
+        // _toolController -- it only ever builds NEW geometry from drag points and has no read access to
+        // what is already there. Paint/Erase behave like a brush, applying continuously while dragging but
+        // debounced to once per cell (the same idea VoxelToolController uses for Stroke); Flood Fill only
+        // ever acts once per click, since re-flooding an already-uniform region every frame would be a
+        // no-op anyway.
+        private void UpdateDirectVoxelEditInteraction(bool inputCaptured, IMouse mouseState, VoxelToolKind toolKind)
+        {
+            bool leftMouseDown = !inputCaptured && mouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
+
+            if (inputCaptured || _viewModel.HasBakedVoxels)
+            {
+                _viewModel.ClearHoveredVoxel();
+                _lastDirectEditPosition = null;
+                _directEditPointerWasDown = false;
+                return;
+            }
+
+            var hit = GetProjectedMouseHit();
+            if (!hit.Hit)
+            {
+                _viewModel.ClearHoveredVoxel();
+                _lastDirectEditPosition = null;
+                _directEditPointerWasDown = false;
+                return;
+            }
+
+            // The mirror of the placement cursor: this steps INTO the surface, landing on the voxel that
+            // was actually hit rather than the empty cell beside it that Stroke/Line/etc would place into.
+            var occupiedPos = VoxelRasterizer.SnapHitToOccupiedCenter(hit.Position, hit.Normal);
+            Cursor.Position = occupiedPos;
+            Cursor.UpdateTransform();
+            _viewModel.SetHoveredVoxel(occupiedPos, hit.Normal, Context.World.MainCamera.Owner.Position);
+
+            var justPressed = leftMouseDown && !_directEditPointerWasDown;
+            _directEditPointerWasDown = leftMouseDown;
+
+            if (!leftMouseDown)
+            {
+                _lastDirectEditPosition = null;
+                return;
+            }
+
+            if (toolKind == VoxelToolKind.FloodFill)
+            {
+                if (justPressed)
+                {
+                    _viewModel.FloodFillAt(occupiedPos);
+                }
+
+                return;
+            }
+
+            if (_lastDirectEditPosition.HasValue &&
+                Vector3.DistanceSquared(_lastDirectEditPosition.Value, occupiedPos) < 0.0001f)
+            {
+                return;
+            }
+
+            // Sweeps from the last touched cell to this one rather than a single dab at just the current
+            // position -- a mouse move fast enough to skip frames (or a frame hitch) would otherwise leave
+            // a gap of untouched voxels between where the cursor was and where it landed.
+            var from = _lastDirectEditPosition ?? occupiedPos;
+            _lastDirectEditPosition = occupiedPos;
+
+            if (toolKind == VoxelToolKind.Paint)
+            {
+                _viewModel.PaintAt(from, occupiedPos);
+            }
+            else
+            {
+                _viewModel.EraseAt(from, occupiedPos);
+            }
+        }
+
         // A second click on the SAME already-picked patch within this window counts as a double-click.
         // No pixel-distance check -- re-picking already implicitly requires the ray to still land on
         // the same node, which is a stronger check than cursor position alone.
@@ -2092,6 +2179,32 @@ namespace Mana.Code.GameModes
 
             var selection = Context.World.Selection;
             Context.World.MainCamera.TryFrameSelection(selection.SelectedComponent as MeshRendererComponent, selection.SelectedNode);
+        }
+
+        // Escape backs all the way out: it already releases a possessed pawn (ManaPawnController) and
+        // cancels an in-progress mesh-picker placement (HandleMeshPickerEscapeCancel) as two independent
+        // edge-detected consumers of the same key -- this is the third, clearing whatever is selected and
+        // handing control back to the Select tool rather than leaving the last tool active over nothing.
+        private void UpdateEscapeSelectionShortcut()
+        {
+            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            var keyDown = !UiWantsKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.Escape);
+            var pressed = keyDown && !_escapeSelectionKeyWasDown;
+            _escapeSelectionKeyWasDown = keyDown;
+
+            if (!pressed)
+            {
+                return;
+            }
+
+            Context.World.Selection.SelectedNode = null;
+            Context.World.Selection.SelectedComponent = null;
+            _viewModel.IsSelectToolActive = true;
         }
 
         private void UpdateSelectionPointerInteraction(bool inputCaptured, IMouse mouseState)
@@ -2452,6 +2565,7 @@ namespace Mana.Code.GameModes
             // hit-tested like anything else, and UiWantsMouse already knows.
             UpdateVoxelPointerInteraction(UiWantsMouse);
             UpdateFrameSelectedShortcut();
+            UpdateEscapeSelectionShortcut();
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
 
             // The ManaUI search panel knows a longitude and a latitude and nothing else; the planet, camera

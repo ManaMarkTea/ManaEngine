@@ -311,8 +311,23 @@ namespace ManaVoxel.Code.UI.ManaUi
                 bottomPanel.Visibility = bottom.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
             }
 
+            // Voxel Tools is the strip's only occupant in every preset, so its tab header is pure chrome --
+            // a title bar for a toolbar that never has anything to tab against. Re-applied on every layout
+            // change rather than once, so a panel later dragged into the strip gets its header back the
+            // moment it stops being the sole occupant.
+            void HideTopStripHeaderWhenSingle()
+            {
+                if (top.RootNode is DockTabGroup group)
+                {
+                    group.HideStripWhenSingle = true;
+                }
+            }
+
+            HideTopStripHeaderWhenSingle();
+
             top.LayoutChanged += (_, _) =>
             {
+                HideTopStripHeaderWhenSingle();
                 SyncColumnVisibility();
                 Save();
             };

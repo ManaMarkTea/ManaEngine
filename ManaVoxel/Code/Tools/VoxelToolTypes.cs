@@ -9,7 +9,20 @@ namespace ManaVoxel.Code.Tools
         Circle = 2,
         Sphere = 3,
         Spline = 4,
-        Text = 5
+        Text = 5,
+
+        /// <summary>
+        /// Recolours existing voxels in a brush radius. Handled directly by VoxelEditorGameMode/
+        /// VoxelEditorViewModel -- there is no IVoxelTool for it, since it reads and mutates voxels that
+        /// already exist rather than building new geometry from drag points.
+        /// </summary>
+        Paint = 6,
+
+        /// <summary>Recolours a whole connected same-colour region from one click. Handled the same way as <see cref="Paint"/>.</summary>
+        FloodFill = 7,
+
+        /// <summary>Removes existing voxels in a brush radius. Handled the same way as <see cref="Paint"/>.</summary>
+        Erase = 8
     }
 
     public enum VoxelWorkPlane
@@ -37,6 +50,14 @@ namespace ManaVoxel.Code.Tools
         public VoxelToolKind ToolKind { get; init; }
         public VoxelWorkPlane WorkPlane { get; init; }
         public Vector4 Color { get; init; }
+
+        /// <summary>
+        /// Circle and Sphere's interior colour. Null means hollow -- paint the rim in <see cref="Color"/>
+        /// and leave the interior empty, rather than filling it with anything at all. Every other tool
+        /// ignores this; they only ever read <see cref="Color"/>.
+        /// </summary>
+        public Vector4? FillColor { get; init; }
+
         public int StrokeRadiusVoxels { get; init; }
         public int TextScale { get; init; }
         public int TextDepth { get; init; }
@@ -73,7 +94,10 @@ namespace ManaVoxel.Code.Tools
             VoxelToolKind.Circle,
             VoxelToolKind.Sphere,
             VoxelToolKind.Spline,
-            VoxelToolKind.Text
+            VoxelToolKind.Text,
+            VoxelToolKind.Paint,
+            VoxelToolKind.FloodFill,
+            VoxelToolKind.Erase
         };
 
         public static readonly string[] ToolNames =
@@ -83,7 +107,10 @@ namespace ManaVoxel.Code.Tools
             "Circle",
             "Sphere",
             "Spline",
-            "Text"
+            "Text",
+            "Paint",
+            "Flood Fill",
+            "Erase"
         };
 
         public static readonly string[] PlaneNames =
@@ -229,7 +256,8 @@ namespace ManaVoxel.Code.Tools
             var center = points[0];
             var edgePosition = points.Count > 1 ? points[^1].Position : center.Position;
             var plane = VoxelRasterizer.ResolvePlane(settings.WorkPlane, center.Normal);
-            VoxelRasterizer.AddFilledCircle(cells, center.Position, edgePosition, plane, settings.Color);
+            VoxelRasterizer.AddFilledCircle(
+                cells, center.Position, edgePosition, plane, settings.Color, settings.FillColor);
             return BuildResult(DisplayName, center.Position, cells);
         }
     }
@@ -249,7 +277,7 @@ namespace ManaVoxel.Code.Tools
 
             var center = points[0].Position;
             var edgePosition = points.Count > 1 ? points[^1].Position : center;
-            VoxelRasterizer.AddFilledSphere(cells, center, edgePosition, settings.Color);
+            VoxelRasterizer.AddFilledSphere(cells, center, edgePosition, settings.Color, settings.FillColor);
             return BuildResult(DisplayName, center, cells);
         }
     }

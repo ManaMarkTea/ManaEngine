@@ -64,10 +64,18 @@ namespace Mana.Code.Nodes
         private LockPreviewMeshUpdater? _lockPreviewMeshUpdater;
         private MeshRendererComponent? _lockPreviewRenderer;
 
+        // Keyed by the exact ManaVoxelData.Position value Shape_OnVoxelAdded/Shape_OnVoxelRemoved both see
+        // (copied straight through from the shape's own storage, never independently recomputed), so exact
+        // float equality is safe here. Without this, Erase had no way to find which kinematic collider
+        // belonged to a voxel it just removed -- the collider stayed behind, invisible but still solid,
+        // blocking the raycast every tool (including a second erase) picks against.
+        private readonly Dictionary<Vector3, ManaCollisionComponent> _voxelBodiesByPosition = new();
+
         public ManaVoxelsNode(ManaContext context, Matrix4x4 localTransform) : base(context, localTransform)
         {
             shape = new ManaVoxelShape(Context);
             shape.OnVoxelAdded += Shape_OnVoxelAdded;
+            shape.OnVoxelRemoved += Shape_OnVoxelRemoved;
             mergedVoxelRenderer = new MeshRendererComponent(this, shape);
             Components.Add(mergedVoxelRenderer);
         }
@@ -79,7 +87,15 @@ namespace Mana.Code.Nodes
                 return;
             }
 
-            Context.Physics.AddBoxBody(this, Vector3.One, obj.Position);
+            _voxelBodiesByPosition[obj.Position] = Context.Physics.AddBoxBody(this, Vector3.One, obj.Position);
+        }
+
+        private void Shape_OnVoxelRemoved(ManaVoxelData obj)
+        {
+            if (_voxelBodiesByPosition.Remove(obj.Position, out var collisionComponent))
+            {
+                Context.Physics.RemoveBody(collisionComponent.Body);
+            }
         }
 
         public int BakeVoxelsToDynamicPhysics(float massPerVoxel = 1.0f)
@@ -97,6 +113,10 @@ namespace Mana.Code.Nodes
             {
                 Context.Physics.RemoveBody(collision.Body);
             }
+
+            // Every collider above is gone -- without this, the entries would point at now-removed
+            // components until LockBakedVoxelsForEditing repopulates the dictionary from scratch below.
+            _voxelBodiesByPosition.Clear();
 
             Components.Remove(mergedVoxelRenderer);
 
@@ -180,7 +200,7 @@ namespace Mana.Code.Nodes
             shape.ReplaceCommittedVoxels(rebakedVoxels);
             foreach (var voxel in shape.CommittedVoxels)
             {
-                Context.Physics.AddBoxBody(this, Vector3.One, voxel.Position);
+                _voxelBodiesByPosition[voxel.Position] = Context.Physics.AddBoxBody(this, Vector3.One, voxel.Position);
             }
 
             _bakedBodies = null;

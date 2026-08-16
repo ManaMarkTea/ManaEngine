@@ -16,7 +16,10 @@ namespace Mana.Code.UI.ManaUi
     /// </summary>
     public static class ViewportCameraGizmoManaView
     {
-        public const float GizmoSize = 166.0f;
+        // Was 166 -- the widget was reading as a bigger fixture in the corner of the viewport than the
+        // viewport itself, for something used maybe once a minute. Everything below is that same layout
+        // at roughly 72% scale; the viewport, not the gizmo, is meant to be what draws the eye.
+        public const float GizmoSize = 120.0f;
         public const float GizmoMargin = 18.0f;
         public const float TripodSize = 94.0f;
 
@@ -60,27 +63,32 @@ namespace Mana.Code.UI.ManaUi
                     .Anchor(left: 0.0f, top: 0.0f, right: 0.0f, bottom: 0.0f),
 
                 Arrow(theme, camera, CameraViewPreset.Back, UiIconDirection.Up, "Back")
-                    .At(66.0f, 15.0f).Width(34.0f).Height(24.0f),
+                    .At(48.0f, 11.0f).Width(25.0f).Height(17.0f),
 
                 Arrow(theme, camera, CameraViewPreset.Left, UiIconDirection.Left, "Left")
-                    .At(20.0f, 62.0f).Width(24.0f).Height(34.0f),
+                    .At(14.0f, 45.0f).Width(17.0f).Height(25.0f),
 
-                Face(theme, camera).At(56.0f, 54.0f).Width(54.0f).Height(46.0f),
+                Face(theme, camera).At(40.0f, 39.0f).Width(39.0f).Height(33.0f),
 
                 Arrow(theme, camera, CameraViewPreset.Right, UiIconDirection.Right, "Right")
-                    .At(122.0f, 62.0f).Width(24.0f).Height(34.0f),
+                    .At(88.0f, 45.0f).Width(17.0f).Height(25.0f),
 
                 Arrow(theme, camera, CameraViewPreset.Front, UiIconDirection.Down, "Front")
-                    .At(66.0f, 106.0f).Width(34.0f).Height(24.0f),
+                    .At(48.0f, 77.0f).Width(25.0f).Height(17.0f),
 
+                // These two keep real words in them, so they shrank less than the icon cluster above --
+                // padding is dropped instead of width, which is where a small text button actually has
+                // room to give.
                 new Button()
                     .Label("BOTTOM")
                     .Variant(ButtonVariant.Subtle)
                     .OnClick(() => camera.SetViewPreset(CameraViewPreset.Bottom))
                     .WithTooltip("Bottom")
-                    .At(12.0f, 136.0f).Width(64.0f).Height(22.0f),
+                    .Configure(b => b.IgnoreThemePadding = true)
+                    .At(7.0f, 97.0f).Width(50.0f).Height(18.0f),
 
-                projection.At(90.0f, 136.0f).Width(56.0f).Height(22.0f));
+                projection.Configure(b => b.IgnoreThemePadding = true)
+                    .At(61.0f, 97.0f).Width(44.0f).Height(18.0f));
         }
 
         /// <summary>The cube's top face, and the only preset that reads as a surface rather than a direction.</summary>
