@@ -33,6 +33,14 @@
         }
 
         public TimeSpan[] History = new TimeSpan[300];
+
+        /// <summary>
+        /// Millisecond mirror of <see cref="History"/>, for a live frame-time graph (see ManaUI's
+        /// DebugManaView / Sparkline) to bind straight to without copying it out every frame the way
+        /// CopyOrderedHistory does -- Sparkline reads a ring buffer in place via its own WriteCursor.
+        /// </summary>
+        public float[] HistoryMilliseconds = new float[300];
+
         public int HistoryIndex = -1;
         public int HistoryCount { get; private set; }
         private double _historySecondsTotal;
@@ -59,6 +67,7 @@
             }
 
             History[HistoryIndex] = DeltaTime;
+            HistoryMilliseconds[HistoryIndex] = (float)DeltaTime.TotalMilliseconds;
             _historySecondsTotal += DeltaTime.TotalSeconds;
 
             LastUpdate = now;

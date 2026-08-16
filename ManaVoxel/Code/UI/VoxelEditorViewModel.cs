@@ -97,6 +97,14 @@ namespace ManaVoxel.Code.UI
 
         public bool ShowLockPreview;
         public bool ShowImGuiDemoWindow;
+
+        /// <summary>
+        /// The mouse-picking ray as of the last frame, for the Debug panel's readout. Set once, right where
+        /// the ray is actually computed each frame, rather than recomputed a second time for the panel.
+        /// </summary>
+        public Vector3 DebugRayOrigin;
+        public Vector3 DebugRayDirection;
+
         public bool ShowAboutWindow;
         public bool ShowSearchWindow;
         public bool UseLightTheme = true;

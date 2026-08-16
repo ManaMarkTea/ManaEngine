@@ -45,6 +45,15 @@ namespace Mana
             liveFrameStatTexts[name] = value;
         }
 
+        /// <summary>Read-only view for a perf panel; ManaUI's World Perf equivalent polls this directly rather than through ImGui.</summary>
+        public IReadOnlyDictionary<string, TimeSpan> LiveFrameStats => liveFrameStats;
+
+        /// <summary>Read-only view of <see cref="RecordFrameStatText"/>'s targets, same reasoning as <see cref="LiveFrameStats"/>.</summary>
+        public IReadOnlyDictionary<string, string> LiveFrameStatTexts => liveFrameStatTexts;
+
+        /// <summary>The one-time load-time history, for the same panel's "Load times" section.</summary>
+        public IReadOnlyList<ManaPerformanceLog> PerformanceLogs => manaPerformanceLogs;
+
         public int LastMeshCount { get; private set; }
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
         public SceneSelectionState Selection => sceneSelectionState;

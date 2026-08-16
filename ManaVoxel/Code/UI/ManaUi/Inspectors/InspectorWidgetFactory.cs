@@ -52,9 +52,15 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 .Register(new MeshRendererWidget())
                 .Register(new LightWidget())
                 .Register(new CameraWidget())
+                .Register(new CameraMouseInputWidget())
                 .Register(new MaterialWidget())
                 .Register(new PbrShaderWidget())
-                .Register(new ShaderUniformsWidget());
+                .Register(new ShaderUniformsWidget())
+                .Register(new PlanetWidget())
+                .Register(new TerrainCacheWidget())
+                .Register(new RegionHexTilingWidget())
+                .Register(new LineMeshWidget())
+                .Register(new TerrainPatchWidget());
         }
 
         public IReadOnlyList<IInspectorWidget> Widgets => _widgets;

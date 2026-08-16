@@ -37,6 +37,15 @@ namespace Mana.Code
 
         public static float Latest => _historyCount > 0 ? History[_historyIndex] : 0f;
 
+        /// <summary>
+        /// The ring buffer itself, for a live graph to bind straight to (see ManaUI's Sparkline) rather
+        /// than paying for a CopyOrderedHistory allocation every frame just to draw it.
+        /// </summary>
+        public static IReadOnlyList<float> RawHistory => History;
+
+        /// <summary>Where <see cref="Sample"/> will write next -- see Sparkline.WriteCursor.</summary>
+        public static int WriteCursor => (_historyIndex + 1) % HistoryCapacity;
+
         public static int CopyOrderedHistory(float[] buffer)
         {
             var count = Math.Min(_historyCount, buffer.Length);
