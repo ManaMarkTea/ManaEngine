@@ -96,7 +96,7 @@ namespace ManaGraphics.Code.Graphics
 
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
                     sceneMeshes: _sceneMeshes.Count.ToString("N0"),
-                    meshTextures: _meshTextureCache.Count.ToString("N0"),
+                    meshTextures: _meshTextures.Count.ToString("N0"),
                     shaders: _shaderModules.Count.ToString("N0"),
                     pipelines: _pipelines.Count.ToString("N0"),
                     totalPolygons: totalWebGpuPolygons,
@@ -306,7 +306,7 @@ namespace ManaGraphics.Code.Graphics
                     $"irradiance={environmentSource.IrradianceCubeSize}; prefilter={environmentSource.PrefilterCubeSize}; " +
                     $"BRDF LUT={environmentSource.BrdfLutSize}; refresh={environmentSource.SceneCaptureRefreshIntervalFrames} frames.");
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextureCache.Count}; " +
+                    $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
                     $"shaderModules={_shaderModules.Count}; renderPipelines={_pipelines.Count}; " +
                     $"environmentMap={_environmentReflectionMap != null}; ImGui={_imGuiController != null}.");
 

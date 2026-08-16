@@ -83,7 +83,7 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to create WebGPU uniform buffer for mesh '{instance.Name}'.");
             }
 
-            var textureResource = AcquireMeshTexture(meshData);
+            var textureResource = _meshTextures.AcquireMeshTexture(meshData);
             var environmentReflectionMap = GetOrCreateEnvironmentReflectionMap();
 
             var bindGroupEntry = new BindGroupEntry
@@ -138,7 +138,7 @@ namespace ManaGraphics.Code.Graphics
 
             // The rest of the maps, in binding order. Each is a real texture or the neutral 1x1 for its
             // kind, because a bind group has to fill every binding its layout declares.
-            var materialMaps = AcquireMaterialMaps(meshData);
+            var materialMaps = _meshTextures.AcquireMaterialMaps(meshData);
 
             var bindGroupEntries = new BindGroupEntry[ObjectBindingCount];
             bindGroupEntries[0] = bindGroupEntry;
@@ -173,7 +173,7 @@ namespace ManaGraphics.Code.Graphics
 
             if (bindGroup == null)
             {
-                ReleaseMeshTexture(textureResource);
+                _meshTextures.ReleaseMeshTexture(textureResource);
                 _api.BufferRelease(uniformBuffer);
                 mesh.Dispose();
                 throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
@@ -197,7 +197,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
                     _api.BindGroupRelease(bindGroup);
-                    ReleaseMeshTexture(textureResource);
+                    _meshTextures.ReleaseMeshTexture(textureResource);
                     _api.BufferRelease(uniformBuffer);
                     mesh.Dispose();
                     throw new InvalidOperationException($"Failed to create WebGPU scene capture uniform buffer for mesh '{instance.Name}'.");
@@ -233,7 +233,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
                     _api.BindGroupRelease(bindGroup);
-                    ReleaseMeshTexture(textureResource);
+                    _meshTextures.ReleaseMeshTexture(textureResource);
                     _api.BufferRelease(uniformBuffer);
                     mesh.Dispose();
                     throw new InvalidOperationException($"Failed to create WebGPU scene capture bind group for mesh '{instance.Name}'.");
@@ -258,7 +258,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
                 _api.BindGroupRelease(bindGroup);
-                ReleaseMeshTexture(textureResource);
+                _meshTextures.ReleaseMeshTexture(textureResource);
                 _api.BufferRelease(uniformBuffer);
                 mesh.Dispose();
                 throw new InvalidOperationException($"Failed to create WebGPU custom uniform buffer for mesh '{instance.Name}'.");
@@ -289,7 +289,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
                 _api.BindGroupRelease(bindGroup);
-                ReleaseMeshTexture(textureResource);
+                _meshTextures.ReleaseMeshTexture(textureResource);
                 _api.BufferRelease(uniformBuffer);
                 _api.BufferRelease(customUniformBuffer);
                 mesh.Dispose();
@@ -308,7 +308,7 @@ namespace ManaGraphics.Code.Graphics
                 uniformBuffer,
                 textureResource,
                 materialMaps,
-                ReleaseMeshTexture,
+                _meshTextures.ReleaseMeshTexture,
                 bindGroup,
                 sceneCaptureUniformBuffers,
                 sceneCaptureBindGroups,

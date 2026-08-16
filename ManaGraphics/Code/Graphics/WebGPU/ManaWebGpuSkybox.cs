@@ -1,27 +1,44 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
 {
-    public unsafe sealed partial class ManaWebGpuContext
+    /// <summary>
+    /// The environment shown as a background, behind every mesh -- WebGPU's counterpart to what
+    /// ManaIrradianceRenderer.RenderEnvironmentBackground already does on OpenGL.
+    /// <para>
+    /// Standalone rather than another slice of <see cref="ManaWebGpuContext"/>, the same shape as
+    /// <see cref="ManaWebGpuUiBackdrop"/>: everything it touches (api/device/queue/depth format, and a
+    /// clamp sampler and environment view passed in per draw) is a value the context can hand over once,
+    /// not a private field it needs to reach back into.
+    /// </para>
+    /// </summary>
+    public unsafe sealed class ManaWebGpuSkybox : IDisposable
     {
-        private BindGroupLayout* _skyboxBindGroupLayout;
-        private PipelineLayout* _skyboxPipelineLayout;
-        private RenderPipeline* _skyboxPipeline;
-        private ShaderModule* _skyboxShaderModule;
-        private WebGpuBuffer* _skyboxUniformBuffer;
-        private BindGroup* _skyboxBindGroup;
-        private TextureView* _skyboxBoundTextureView;
+        private readonly WebGPU _api;
+        private readonly Device* _device;
+        private readonly Queue* _queue;
+        private readonly TextureFormat _depthFormat;
+        private readonly string _shaderPath;
+
+        private BindGroupLayout* _bindGroupLayout;
+        private PipelineLayout* _pipelineLayout;
+        private RenderPipeline* _pipeline;
+        private ShaderModule* _shaderModule;
+        private WebGpuBuffer* _uniformBuffer;
+        private BindGroup* _bindGroup;
+        private TextureView* _boundTextureView;
 
         /// <summary>
         /// True once the skybox has failed to build. Latched rather than retried every frame, the same as
         /// the ManaUI renderer's own first-use failure: a background that cannot draw should disappear
         /// once and quietly, not throw again on every subsequent frame.
         /// </summary>
-        private bool _skyboxFailed;
+        private bool _failed;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct SkyboxUniform
@@ -29,58 +46,58 @@ namespace ManaGraphics.Code.Graphics
             public Matrix4x4 InverseDirectionViewProjection;
         }
 
-        /// <summary>
-        /// The environment shown as a background, behind every mesh -- WebGPU's counterpart to what
-        /// ManaIrradianceRenderer.RenderEnvironmentBackground already does on OpenGL. Drawn first in the
-        /// scene pass, with depth write off and the compare forced to Always, so it can never block or be
-        /// blocked by anything drawn after it: it is the one thing in the pass that is not geometry.
-        /// <para>
-        /// Skipped whenever there is nothing sensible to draw yet -- no active scene, no environment map --
-        /// which is the same state a frame is in for the first few frames after startup while the real
-        /// environment is still loading in the background. The scene pass's own clear is what shows through
-        /// on those frames, exactly as it always has.
-        /// </para>
-        /// </summary>
-        private void DrawSkybox(RenderPassEncoder* renderPass)
+        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat depthFormat, string shaderPath)
         {
-            if (_skyboxFailed || _activeRenderScene == null || _clampSampler == null)
-            {
-                return;
-            }
+            _api = api;
+            _device = device;
+            _queue = queue;
+            _depthFormat = depthFormat;
+            _shaderPath = shaderPath;
+        }
 
-            var environment = _environmentReflectionMap;
-            if (environment == null || environment.EnvironmentMapResource.TextureView == null)
+        /// <summary>
+        /// Drawn first in the scene pass, with depth write off and the compare forced to Always, so it can
+        /// never block or be blocked by anything drawn after it: it is the one thing in the pass that is
+        /// not geometry.
+        /// </summary>
+        public void Draw(
+            RenderPassEncoder* renderPass,
+            TextureFormat colorFormat,
+            Sampler* clampSampler,
+            TextureView* environmentView,
+            ManaCameraData camera,
+            Matrix4x4 aspectCorrectedProjection)
+        {
+            if (_failed || clampSampler == null || environmentView == null)
             {
                 return;
             }
 
             try
             {
-                EnsureSkyboxPipeline();
-                EnsureSkyboxBindGroup(environment.EnvironmentMapResource.TextureView);
-                UpdateSkyboxUniform();
+                EnsurePipeline(colorFormat);
+                EnsureBindGroup(clampSampler, environmentView);
+                UpdateUniform(camera, aspectCorrectedProjection);
             }
             catch (Exception ex)
             {
-                _skyboxFailed = true;
+                _failed = true;
                 ManaConsole.WriteDiagnostic($"WebGPU skybox failed to initialise, disabling it: {ex.Message}");
                 return;
             }
 
-            if (_skyboxPipeline == null || _skyboxBindGroup == null)
+            if (_pipeline == null || _bindGroup == null)
             {
                 return;
             }
 
-            _api.RenderPassEncoderSetPipeline(renderPass, _skyboxPipeline);
-            _api.RenderPassEncoderSetBindGroup(renderPass, 0, _skyboxBindGroup, 0, null);
+            _api.RenderPassEncoderSetPipeline(renderPass, _pipeline);
+            _api.RenderPassEncoderSetBindGroup(renderPass, 0, _bindGroup, 0, null);
             _api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
         }
 
-        private void UpdateSkyboxUniform()
+        private void UpdateUniform(ManaCameraData camera, Matrix4x4 aspectCorrectedProjection)
         {
-            var camera = _activeRenderScene!.Camera;
-
             // Same trick ManaIrradianceRenderer.RenderEnvironmentBackground uses on OpenGL: the view's
             // translation is zeroed before combining with the projection, so unprojecting a screen position
             // through the inverse yields a direction straight away rather than a point that would still
@@ -88,7 +105,7 @@ namespace ManaGraphics.Code.Graphics
             var directionOnlyView = camera.View;
             directionOnlyView.Translation = Vector3.Zero;
 
-            var directionViewProjection = directionOnlyView * GetAspectCorrectedProjection(camera);
+            var directionViewProjection = directionOnlyView * aspectCorrectedProjection;
             if (!Matrix4x4.Invert(directionViewProjection, out var inverse))
             {
                 // Degenerate only when the projection itself is degenerate (a zero far plane, say), which
@@ -98,12 +115,12 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var uniform = new SkyboxUniform { InverseDirectionViewProjection = inverse };
-            _api.QueueWriteBuffer(_queue, _skyboxUniformBuffer, 0, &uniform, (nuint)sizeof(SkyboxUniform));
+            _api.QueueWriteBuffer(_queue, _uniformBuffer, 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }
 
-        private void EnsureSkyboxPipeline()
+        private void EnsurePipeline(TextureFormat colorFormat)
         {
-            if (_skyboxPipeline != null)
+            if (_pipeline != null)
             {
                 return;
             }
@@ -138,26 +155,26 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 3, Entries = entries };
-            _skyboxBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
-            if (_skyboxBindGroupLayout == null)
+            _bindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
+            if (_bindGroupLayout == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox bind group layout.");
             }
 
-            var setLayout = _skyboxBindGroupLayout;
+            var setLayout = _bindGroupLayout;
             var pipelineLayoutDescriptor = new PipelineLayoutDescriptor
             {
                 BindGroupLayoutCount = 1,
                 BindGroupLayouts = &setLayout
             };
 
-            _skyboxPipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
-            if (_skyboxPipelineLayout == null)
+            _pipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
+            if (_pipelineLayout == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox pipeline layout.");
             }
 
-            _skyboxShaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl"));
+            _shaderModule = CreateShaderModule(_shaderPath);
 
             var uniformDescriptor = new BufferDescriptor
             {
@@ -165,8 +182,8 @@ namespace ManaGraphics.Code.Graphics
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst
             };
 
-            _skyboxUniformBuffer = _api.DeviceCreateBuffer(_device, &uniformDescriptor);
-            if (_skyboxUniformBuffer == null)
+            _uniformBuffer = _api.DeviceCreateBuffer(_device, &uniformDescriptor);
+            if (_uniformBuffer == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox uniform buffer.");
             }
@@ -178,14 +195,14 @@ namespace ManaGraphics.Code.Graphics
             {
                 var colorTarget = new ColorTargetState
                 {
-                    Format = GetSceneColorFormat(),
+                    Format = colorFormat,
                     Blend = null,
                     WriteMask = ColorWriteMask.All
                 };
 
                 var fragmentState = new FragmentState
                 {
-                    Module = _skyboxShaderModule,
+                    Module = _shaderModule,
                     EntryPoint = fragmentEntryPoint,
                     TargetCount = 1,
                     Targets = &colorTarget
@@ -219,10 +236,10 @@ namespace ManaGraphics.Code.Graphics
 
                 var pipelineDescriptor = new RenderPipelineDescriptor
                 {
-                    Layout = _skyboxPipelineLayout,
+                    Layout = _pipelineLayout,
                     Vertex = new VertexState
                     {
-                        Module = _skyboxShaderModule,
+                        Module = _shaderModule,
                         EntryPoint = vertexEntryPoint,
                         BufferCount = 0
                     },
@@ -238,8 +255,8 @@ namespace ManaGraphics.Code.Graphics
                     Fragment = &fragmentState
                 };
 
-                _skyboxPipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDescriptor);
-                if (_skyboxPipeline == null)
+                _pipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDescriptor);
+                if (_pipeline == null)
                 {
                     throw new InvalidOperationException("Failed to create the WebGPU skybox render pipeline.");
                 }
@@ -258,84 +275,119 @@ namespace ManaGraphics.Code.Graphics
         /// case, when the real environment map swaps in for the startup placeholder, since scene capture is
         /// off on this backend and nothing else replaces it afterwards.
         /// </summary>
-        private void EnsureSkyboxBindGroup(TextureView* environmentView)
+        private void EnsureBindGroup(Sampler* clampSampler, TextureView* environmentView)
         {
-            if (_skyboxBindGroup != null && _skyboxBoundTextureView == environmentView)
+            if (_bindGroup != null && _boundTextureView == environmentView)
             {
                 return;
             }
 
-            if (_skyboxBindGroup != null)
+            if (_bindGroup != null)
             {
-                _api.BindGroupRelease(_skyboxBindGroup);
-                _skyboxBindGroup = null;
+                _api.BindGroupRelease(_bindGroup);
+                _bindGroup = null;
             }
 
             var entries = stackalloc BindGroupEntry[3];
             entries[0] = new BindGroupEntry
             {
                 Binding = 0,
-                Buffer = _skyboxUniformBuffer,
+                Buffer = _uniformBuffer,
                 Offset = 0,
                 Size = (ulong)sizeof(SkyboxUniform)
             };
-            entries[1] = new BindGroupEntry { Binding = 1, Sampler = _clampSampler };
+            entries[1] = new BindGroupEntry { Binding = 1, Sampler = clampSampler };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = environmentView };
 
             var descriptor = new BindGroupDescriptor
             {
-                Layout = _skyboxBindGroupLayout,
+                Layout = _bindGroupLayout,
                 EntryCount = 3,
                 Entries = entries
             };
 
-            _skyboxBindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
-            if (_skyboxBindGroup == null)
+            _bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            if (_bindGroup == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox bind group.");
             }
 
-            _skyboxBoundTextureView = environmentView;
+            _boundTextureView = environmentView;
         }
 
-        private void ReleaseSkybox()
+        private ShaderModule* CreateShaderModule(string shaderPath)
         {
-            if (_skyboxBindGroup != null)
+            var source = ManaWgslPreprocessor.LoadResolved(shaderPath);
+            var sourcePointer = Marshal.StringToCoTaskMemUTF8(source);
+
+            try
             {
-                _api.BindGroupRelease(_skyboxBindGroup);
-                _skyboxBindGroup = null;
+                var wgslDescriptor = new ShaderModuleWGSLDescriptor
+                {
+                    Chain = new ChainedStruct
+                    {
+                        SType = SType.ShaderModuleWgslDescriptor
+                    },
+                    Code = (byte*)sourcePointer
+                };
+
+                var shaderDescriptor = new ShaderModuleDescriptor
+                {
+                    NextInChain = &wgslDescriptor.Chain
+                };
+
+                var shaderModule = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+                if (shaderModule == null)
+                {
+                    throw new InvalidOperationException($"Failed to create WebGPU shader module from {shaderPath}.");
+                }
+
+                return shaderModule;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(sourcePointer);
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_bindGroup != null)
+            {
+                _api.BindGroupRelease(_bindGroup);
+                _bindGroup = null;
             }
 
-            _skyboxBoundTextureView = null;
+            _boundTextureView = null;
 
-            if (_skyboxUniformBuffer != null)
+            if (_uniformBuffer != null)
             {
-                _api.BufferRelease(_skyboxUniformBuffer);
-                _skyboxUniformBuffer = null;
+                _api.BufferRelease(_uniformBuffer);
+                _uniformBuffer = null;
             }
 
-            if (_skyboxPipeline != null)
+            if (_pipeline != null)
             {
-                _api.RenderPipelineRelease(_skyboxPipeline);
-                _skyboxPipeline = null;
+                _api.RenderPipelineRelease(_pipeline);
+                _pipeline = null;
             }
 
-            if (_skyboxPipelineLayout != null)
+            if (_pipelineLayout != null)
             {
-                _api.PipelineLayoutRelease(_skyboxPipelineLayout);
-                _skyboxPipelineLayout = null;
+                _api.PipelineLayoutRelease(_pipelineLayout);
+                _pipelineLayout = null;
             }
 
-            if (_skyboxBindGroupLayout != null)
+            if (_bindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_skyboxBindGroupLayout);
-                _skyboxBindGroupLayout = null;
+                _api.BindGroupLayoutRelease(_bindGroupLayout);
+                _bindGroupLayout = null;
             }
 
-            if (_skyboxShaderModule != null)
+            if (_shaderModule != null)
             {
-                _api.ShaderModuleRelease(_skyboxShaderModule);
-                _skyboxShaderModule = null;
+                _api.ShaderModuleRelease(_shaderModule);
+                _shaderModule = null;
             }
         }
     }

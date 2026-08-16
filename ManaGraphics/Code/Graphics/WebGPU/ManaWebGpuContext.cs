@@ -56,7 +56,7 @@ namespace ManaGraphics.Code.Graphics
         // Work handed in from background threads that must run on the render thread instead -- see
         // EnqueueRenderThreadWork for why submitting from anywhere else deadlocks wgpu-native.
         private readonly ConcurrentQueue<Action> _renderThreadWork = new();
-        private readonly Dictionary<string, ManaWebGpuMeshTexture> _meshTextureCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ManaWebGpuMeshTextureCache _meshTextures;
         private ManaRenderScene? _activeRenderScene;
         private ulong _frameSerial;
         private Vector3 _demoMeshCenter;
@@ -97,6 +97,7 @@ namespace ManaGraphics.Code.Graphics
         private readonly Dictionary<string, nint> _pipelines = new();
         private ManaWebGpuImGuiController? _imGuiController;
         private ManaWebGpuUiRenderer? _uiRenderer;
+        private ManaWebGpuSkybox? _skybox;
 
         /// <summary>
         /// The ManaUI tree to draw over the scene, or null while the app is still on ImGui alone.
@@ -210,6 +211,7 @@ namespace ManaGraphics.Code.Graphics
 
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
             _queue = _api.DeviceGetQueue(_device);
+            _meshTextures = new ManaWebGpuMeshTextureCache(_api, _device, _queue);
             if (!_api.TryGetDeviceExtension(_device, out _wgpuNativeExtension))
             {
                 ManaConsole.WriteDiagnostic("WGPU native extension unavailable; falling back to InstanceProcessEvents for async GPU callback pumping.");
@@ -281,6 +283,41 @@ namespace ManaGraphics.Code.Graphics
 
             ManaUI.UiBackdropStats.Requested++;
             return true;
+        }
+
+        /// <summary>
+        /// Skipped whenever there is nothing sensible to draw yet -- no active scene, no environment map --
+        /// which is the same state a frame is in for the first few frames after startup while the real
+        /// environment is still loading in the background. The scene pass's own clear is what shows through
+        /// on those frames, exactly as it always has.
+        /// </summary>
+        private void DrawSkybox(RenderPassEncoder* renderPass)
+        {
+            if (_activeRenderScene == null || _clampSampler == null)
+            {
+                return;
+            }
+
+            var environment = _environmentReflectionMap;
+            if (environment == null || environment.EnvironmentMapResource.TextureView == null)
+            {
+                return;
+            }
+
+            _skybox ??= new ManaWebGpuSkybox(
+                _api,
+                _device,
+                _queue,
+                _depthFormat,
+                ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl")));
+
+            _skybox.Draw(
+                renderPass,
+                GetSceneColorFormat(),
+                _clampSampler,
+                environment.EnvironmentMapResource.TextureView,
+                _activeRenderScene.Camera,
+                GetAspectCorrectedProjection(_activeRenderScene.Camera));
         }
 
         private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
@@ -748,7 +785,8 @@ namespace ManaGraphics.Code.Graphics
             _uiRenderer = null;
 
             ReleaseDemoResources();
-            ReleaseSkybox();
+            _skybox?.Dispose();
+            _skybox = null;
 
             if (_surface != null && _configured)
             {

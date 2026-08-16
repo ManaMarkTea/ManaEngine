@@ -1,22 +1,127 @@
-using System.Runtime.InteropServices;
-using System.Numerics;
 using System.Security.Cryptography;
-using System.Text;
-using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
+using ManaGraphics.Code.Diagnostics;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using Silk.NET.Maths;
 using Silk.NET.WebGPU;
-using Silk.NET.WebGPU.Extensions.WGPU;
-using Silk.NET.Windowing;
-using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
 
 namespace ManaGraphics.Code.Graphics
 {
-    public unsafe sealed partial class ManaWebGpuContext : IDisposable
+    /// <summary>
+    /// Every mesh's albedo and material maps, ref-counted and shared across meshes that use the same file
+    /// (or, for an untextured mesh, the same neutral 1x1 per map kind).
+    /// <para>
+    /// Standalone rather than another slice of <see cref="ManaWebGpuContext"/>: everything it needs is
+    /// api/device/queue, handed over once at construction, and its own cache dictionary -- nothing here
+    /// reaches back into the context's per-frame state the way the scene/pipeline partials do.
+    /// </para>
+    /// </summary>
+    internal unsafe sealed class ManaWebGpuMeshTextureCache
     {
+        private readonly WebGPU _api;
+        private readonly Device* _device;
+        private readonly Queue* _queue;
+        private readonly Dictionary<string, ManaWebGpuMeshTexture> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+        public ManaWebGpuMeshTextureCache(WebGPU api, Device* device, Queue* queue)
+        {
+            _api = api;
+            _device = device;
+            _queue = queue;
+        }
+
+        public int Count => _cache.Count;
+
+        public ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)
+        {
+            var textureKey = GetMeshTextureKey(cpuData);
+            if (_cache.TryGetValue(textureKey, out var cachedTexture))
+            {
+                cachedTexture.RefCount++;
+                return cachedTexture;
+            }
+
+            CreateMeshTexture(cpuData, out var texture, out var textureView);
+            var textureResource = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
+            {
+                RefCount = 1
+            };
+            _cache[textureKey] = textureResource;
+            return textureResource;
+        }
+
+        /// <summary>
+        /// The six non-albedo maps in binding order. Kept as one call so the order lives in exactly one
+        /// place -- it has to agree with the bind group layout and with the WGSL, and three copies of an
+        /// ordering is three chances to get it wrong.
+        /// </summary>
+        public ManaWebGpuMeshTexture[] AcquireMaterialMaps(ManaMeshCpuData cpuData)
+        {
+            return new[]
+            {
+                AcquireMaterialMap(cpuData.NormalTexturePath, ManaMaterialMapKind.Normal),
+                AcquireMaterialMap(cpuData.EmissionTexturePath, ManaMaterialMapKind.Colour),
+                AcquireMaterialMap(cpuData.MetallicTexturePath, ManaMaterialMapKind.Linear),
+                AcquireMaterialMap(cpuData.RoughnessTexturePath, ManaMaterialMapKind.Linear),
+                AcquireMaterialMap(cpuData.OcclusionTexturePath, ManaMaterialMapKind.Linear),
+                AcquireMaterialMap(cpuData.OpacityTexturePath, ManaMaterialMapKind.Linear)
+            };
+        }
+
+        public void ReleaseMeshTexture(ManaWebGpuMeshTexture textureResource)
+        {
+            if (textureResource.RefCount <= 0)
+            {
+                return;
+            }
+
+            textureResource.RefCount--;
+            if (textureResource.RefCount > 0)
+            {
+                return;
+            }
+
+            _cache.Remove(textureResource.Key);
+            if (textureResource.TextureView != null)
+            {
+                _api.TextureViewRelease(textureResource.TextureView);
+                textureResource.TextureView = null;
+            }
+
+            if (textureResource.Texture != null)
+            {
+                _api.TextureRelease(textureResource.Texture);
+                textureResource.Texture = null;
+            }
+        }
+
+        /// <summary>
+        /// One of a material's maps, shared by every mesh using the same file. Absent maps share a single
+        /// neutral 1x1 per kind, so a scene of untextured meshes costs three tiny textures in total.
+        /// </summary>
+        private ManaWebGpuMeshTexture AcquireMaterialMap(string? path, ManaMaterialMapKind kind)
+        {
+            var textureKey = string.IsNullOrWhiteSpace(path) || !File.Exists(path)
+                ? $"neutral:{kind}"
+                : $"{kind}:{Path.GetFullPath(path)}";
+
+            if (_cache.TryGetValue(textureKey, out var cachedTexture))
+            {
+                cachedTexture.RefCount++;
+                return cachedTexture;
+            }
+
+            CreateMaterialMapTexture(path, kind, out var texture, out var textureView);
+            var textureResource = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
+            {
+                RefCount = 1
+            };
+
+            _cache[textureKey] = textureResource;
+            return textureResource;
+        }
+
         private void CreateMeshTexture(ManaMeshCpuData cpuData, out Texture* meshTexture, out TextureView* meshTextureView)
         {
             byte[] pixels;
@@ -52,20 +157,6 @@ namespace ManaGraphics.Code.Graphics
             }
 
             CreateRgba8SrgbTexture(pixels, width, height, "mesh", out meshTexture, out meshTextureView);
-        }
-
-        private void CreateImageTexture(string texturePath, bool flipVertical, string diagnosticName, out Texture* texture, out TextureView* textureView)
-        {
-            using var image = ImageSharpImage.Load<Rgba32>(texturePath);
-            if (flipVertical)
-            {
-                image.Mutate(x => x.Flip(FlipMode.Vertical));
-            }
-
-            var pixels = new byte[image.Width * image.Height * 4];
-            image.CopyPixelDataTo(pixels);
-            CreateRgba8SrgbTexture(pixels, (uint)image.Width, (uint)image.Height, diagnosticName, out texture, out textureView);
-            ManaConsole.WriteDiagnostic($"WebGPU {diagnosticName} texture loaded: {texturePath}");
         }
 
         private void CreateRgba8SrgbTexture(byte[] pixels, uint width, uint height, string diagnosticName, out Texture* texture, out TextureView* textureView)
@@ -175,95 +266,6 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// One of a material's maps, shared by every mesh using the same file. Absent maps share a single
-        /// neutral 1x1 per kind, so a scene of untextured meshes costs three tiny textures in total.
-        /// </summary>
-        private ManaWebGpuMeshTexture AcquireMaterialMap(string? path, ManaMaterialMapKind kind)
-        {
-            var textureKey = string.IsNullOrWhiteSpace(path) || !File.Exists(path)
-                ? $"neutral:{kind}"
-                : $"{kind}:{Path.GetFullPath(path)}";
-
-            if (_meshTextureCache.TryGetValue(textureKey, out var cachedTexture))
-            {
-                cachedTexture.RefCount++;
-                return cachedTexture;
-            }
-
-            CreateMaterialMapTexture(path, kind, out var texture, out var textureView);
-            var textureResource = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
-            {
-                RefCount = 1
-            };
-
-            _meshTextureCache[textureKey] = textureResource;
-            return textureResource;
-        }
-
-        /// <summary>
-        /// The six non-albedo maps in binding order. Kept as one call so the order lives in exactly one
-        /// place -- it has to agree with the bind group layout and with the WGSL, and three copies of an
-        /// ordering is three chances to get it wrong.
-        /// </summary>
-        private ManaWebGpuMeshTexture[] AcquireMaterialMaps(ManaMeshCpuData cpuData)
-        {
-            return new[]
-            {
-                AcquireMaterialMap(cpuData.NormalTexturePath, ManaMaterialMapKind.Normal),
-                AcquireMaterialMap(cpuData.EmissionTexturePath, ManaMaterialMapKind.Colour),
-                AcquireMaterialMap(cpuData.MetallicTexturePath, ManaMaterialMapKind.Linear),
-                AcquireMaterialMap(cpuData.RoughnessTexturePath, ManaMaterialMapKind.Linear),
-                AcquireMaterialMap(cpuData.OcclusionTexturePath, ManaMaterialMapKind.Linear),
-                AcquireMaterialMap(cpuData.OpacityTexturePath, ManaMaterialMapKind.Linear)
-            };
-        }
-
-        private ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)
-        {
-            var textureKey = GetMeshTextureKey(cpuData);
-            if (_meshTextureCache.TryGetValue(textureKey, out var cachedTexture))
-            {
-                cachedTexture.RefCount++;
-                return cachedTexture;
-            }
-
-            CreateMeshTexture(cpuData, out var texture, out var textureView);
-            var textureResource = new ManaWebGpuMeshTexture(textureKey, texture, textureView)
-            {
-                RefCount = 1
-            };
-            _meshTextureCache[textureKey] = textureResource;
-            return textureResource;
-        }
-
-        private void ReleaseMeshTexture(ManaWebGpuMeshTexture textureResource)
-        {
-            if (textureResource.RefCount <= 0)
-            {
-                return;
-            }
-
-            textureResource.RefCount--;
-            if (textureResource.RefCount > 0)
-            {
-                return;
-            }
-
-            _meshTextureCache.Remove(textureResource.Key);
-            if (textureResource.TextureView != null)
-            {
-                _api.TextureViewRelease(textureResource.TextureView);
-                textureResource.TextureView = null;
-            }
-
-            if (textureResource.Texture != null)
-            {
-                _api.TextureRelease(textureResource.Texture);
-                textureResource.Texture = null;
-            }
-        }
-
         private static string GetMeshTextureKey(ManaMeshCpuData cpuData)
         {
             if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
@@ -279,21 +281,20 @@ namespace ManaGraphics.Code.Graphics
 
             return "fallback:white";
         }
+    }
 
-        internal unsafe sealed class ManaWebGpuMeshTexture
+    internal unsafe sealed class ManaWebGpuMeshTexture
+    {
+        public ManaWebGpuMeshTexture(string key, Texture* texture, TextureView* textureView)
         {
-            public ManaWebGpuMeshTexture(string key, Texture* texture, TextureView* textureView)
-            {
-                Key = key;
-                Texture = texture;
-                TextureView = textureView;
-            }
-
-            public string Key { get; }
-            public Texture* Texture { get; set; }
-            public TextureView* TextureView { get; set; }
-            public int RefCount { get; set; }
+            Key = key;
+            Texture = texture;
+            TextureView = textureView;
         }
 
+        public string Key { get; }
+        public Texture* Texture { get; set; }
+        public TextureView* TextureView { get; set; }
+        public int RefCount { get; set; }
     }
 }
