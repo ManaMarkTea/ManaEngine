@@ -667,9 +667,16 @@ namespace ManaGraphics.Code.Graphics
             UpdateFrameUniform();
             LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
+            // Not gated on SuspendSceneWork like the block above: the loading screen's own completion
+            // waits on IsEnvironmentInitializationPending (see VoxelEditorGameMode.CanCompleteLoading),
+            // so suspending this too meant the environment map could never start loading while the
+            // screen that's waiting on it was up -- loading waiting on loading, forever. Kicking off the
+            // Task.Run load here only needs the active render scene, not the mesh upload/reconcile work
+            // RefreshRenderScene does, so it's safe to run every frame regardless of suspension.
+            EnsureEnvironmentInitializationStarted();
+
             if (!SuspendSceneWork)
             {
-                EnsureEnvironmentInitializationStarted();
                 CaptureSceneEnvironmentIfNeeded(commandEncoder);
             }
 

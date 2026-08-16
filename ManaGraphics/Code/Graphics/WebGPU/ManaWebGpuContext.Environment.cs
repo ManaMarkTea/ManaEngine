@@ -172,6 +172,11 @@ namespace ManaGraphics.Code.Graphics
 
         private void EnsureEnvironmentInitializationStarted()
         {
+            // Normally set by RefreshRenderScene, but that's skipped while SuspendSceneWork is on (see
+            // its call site in ClearFrame), which is exactly the window this method most needs to run in
+            // -- the loading screen waits on the environment map, so it has to be able to start without
+            // the mesh upload/reconcile work RefreshRenderScene also does.
+            _activeRenderScene ??= _renderSceneProvider?.Invoke();
             if (_activeRenderScene != null)
             {
                 _ = GetOrCreateEnvironmentReflectionMap();
