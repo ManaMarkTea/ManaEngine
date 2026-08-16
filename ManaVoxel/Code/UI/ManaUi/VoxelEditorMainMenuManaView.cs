@@ -1,4 +1,5 @@
 using Mana;
+using Mana.Code;
 using Mana.Code.GameModes;
 using Mana.Code.UI.ManaUi;
 using ManaUI;
@@ -47,12 +48,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .EnabledWhen(() => !viewModel.HasBakedVoxels),
 
                 new MenuItem("Lock Voxels For Editing", () => viewModel.Commands.LockBakedVoxelsForEditing())
-                    .EnabledWhen(() => viewModel.HasBakedVoxels),
-
-                MenuItem.Separator(),
-
-                new MenuItem("Show ImGui Demo", () => viewModel.ShowImGuiDemoWindow = !viewModel.ShowImGuiDemoWindow)
-                    .Checkable(() => viewModel.ShowImGuiDemoWindow));
+                    .EnabledWhen(() => viewModel.HasBakedVoxels));
         }
 
         private static MenuItem Character(VoxelEditorViewModel viewModel)
@@ -71,7 +67,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new MenuItem("Remove All Characters", () => viewModel.Commands.RemoveAllCharacters())
                     .EnabledWhen(() => viewModel.PawnController is { Pawns.Count: > 0 }),
 
-                MenuItem.Label(CharacterSummary(viewModel)),
+                MenuItem.Label(CharacterSummary(viewModel))
+                    .ShortcutFrom(() => ControllingStatus(viewModel)),
 
                 MenuItem.Separator(),
 
@@ -86,15 +83,104 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Checkable(() => viewModel.CharacterPhysicsEnabled)
                     .WithTooltip(
                         "On: the character gets a Bepu capsule, falls under gravity, collides with "
-                        + "platforms and can jump with Space.\nOff: the old flat-ground walker."));
+                        + "platforms and can jump with Space.\nOff: the old flat-ground walker."),
+
+                MenuItem.Separator(),
+
+                new MenuItem(
+                        "Click To Move",
+                        () => SetIfControllerPresent(viewModel, c => c.ClickToMoveEnabled = !c.ClickToMoveEnabled))
+                    .Checkable(() => viewModel.PawnController?.ClickToMoveEnabled ?? false)
+                    .EnabledWhen(() => viewModel.PawnController != null),
+
+                new MenuItem(
+                        "WASD Drive",
+                        () => SetIfControllerPresent(viewModel, c => c.KeyboardDriveEnabled = !c.KeyboardDriveEnabled))
+                    .Checkable(() => viewModel.PawnController?.KeyboardDriveEnabled ?? false)
+                    .EnabledWhen(() => viewModel.PawnController != null)
+                    .WithTooltip(
+                        "While a character is possessed, WASD drives it instead of the camera.\n"
+                        + "Q/E and mouse orbit still move the camera. Esc releases."),
+
+                new MenuItem("Release Character", () => viewModel.PawnController?.Possess(null))
+                    .WithShortcut("Esc")
+                    .EnabledWhen(() => viewModel.PawnController?.PossessedPawn != null),
+
+                MenuItem.Separator(),
+
+                CameraModeMenu(viewModel));
 
             return menu;
+        }
+
+        /// <summary>
+        /// This is the ManaUI-side fix for what was otherwise the only way to leave a spring-arm camera
+        /// mode: the ImGui Character menu's "Camera" submenu. C still cycles modes and Esc still releases
+        /// the pawn (ManaPawnController.UpdateDriveInput reads those keys directly), but without this menu
+        /// there was no way to see which mode was active, no way to jump straight to Free, and no way to
+        /// discover either shortcut at all once ImGui's own menu bar stopped being the one on screen.
+        /// </summary>
+        private static MenuItem CameraModeMenu(VoxelEditorViewModel viewModel)
+        {
+            return new MenuItem("Camera").WithItems(
+                CameraModeItem(viewModel, ManaCameraMode.Free, "Free Camera",
+                    "Editor fly camera. WASD/QE, right-drag to look."),
+                CameraModeItem(viewModel, ManaCameraMode.Follow, "Follow (Spring Arm)",
+                    "Boom behind the character that swings around as it moves."),
+                CameraModeItem(viewModel, ManaCameraMode.Orbit, "Orbit (Spring Arm)",
+                    "Same boom, but it stays where you leave it."),
+
+                MenuItem.Separator(),
+                MenuItem.Label("C cycles modes"),
+                MenuItem.Label("Right-drag orbits, scroll zooms the boom"),
+                MenuItem.Label(string.Empty).ShortcutFrom(() => SpringArmStatus(viewModel)));
+        }
+
+        private static MenuItem CameraModeItem(VoxelEditorViewModel viewModel, ManaCameraMode mode, string label, string tooltip)
+        {
+            // The spring-arm modes need something to hang off, so they stay greyed out until a character
+            // is possessed rather than silently doing nothing -- same rule the ImGui version used.
+            return new MenuItem(label, () => viewModel.PawnController?.SetCameraMode(mode))
+                .Checkable(() => viewModel.PawnController?.CameraMode == mode)
+                .EnabledWhen(() => mode == ManaCameraMode.Free || viewModel.PawnController?.PossessedPawn != null)
+                .WithTooltip(tooltip);
+        }
+
+        private static void SetIfControllerPresent(VoxelEditorViewModel viewModel, Action<ManaPawnController> apply)
+        {
+            if (viewModel.PawnController is { } controller)
+            {
+                apply(controller);
+            }
+        }
+
+        private static string SpringArmStatus(VoxelEditorViewModel viewModel)
+        {
+            var springArm = viewModel.PawnController?.SpringArm;
+            if (springArm == null)
+            {
+                return string.Empty;
+            }
+
+            return $"Arm {springArm.CurrentArmLength:0.0} / {springArm.ArmLength:0.0}"
+                + (springArm.IsProbeShortened ? " (pulled in)" : string.Empty);
         }
 
         private static string CharacterSummary(VoxelEditorViewModel viewModel)
         {
             var packs = viewModel.CharacterCatalog.Select(asset => asset.PackName).Distinct().Count();
             return $"{viewModel.CharacterCatalog.Count} characters across {packs} pack(s)";
+        }
+
+        private static string ControllingStatus(VoxelEditorViewModel viewModel)
+        {
+            var controller = viewModel.PawnController;
+            if (controller?.PossessedPawn == null)
+            {
+                return controller == null ? string.Empty : "Click a character to control it";
+            }
+
+            return $"Controlling: {controller.PossessedPawn.Name} (WASD, Shift run, Space jump)";
         }
 
         private static MenuItem View(VoxelEditorViewModel viewModel, BaseGameMode? host)

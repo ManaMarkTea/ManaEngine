@@ -245,10 +245,19 @@ namespace Mana.Code
             }
             else
             {
-                DrawMainMenuBar();
-                DrawDockSpace();
-                DrawImGui(deltaTime);
-                Context.World.DrawImGui();
+                // A mode with ManaUI enabled has ported every panel it actually shows; ImGui's own menu
+                // bar, dockspace and panels stand down entirely rather than sitting underneath ManaUI
+                // unseen but still live -- an undocked ImGui window still claims the mouse whenever it
+                // ends up under the cursor, and the two dock layouts have no idea where the other one's
+                // columns are. _ImGui itself stays running (Update/Render still happen below) so nothing
+                // else in this method has to know ImGui is idle; it simply has no windows open to draw.
+                if (!EnableManaUi)
+                {
+                    DrawMainMenuBar();
+                    DrawDockSpace();
+                    DrawImGui(deltaTime);
+                    Context.World.DrawImGui();
+                }
 
                 // Recorded before the backend draws, so the draw list the GPU submits is this frame's.
                 ManaUi?.Render(deltaTime);

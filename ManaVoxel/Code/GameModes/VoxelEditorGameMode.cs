@@ -1694,6 +1694,8 @@ namespace Mana.Code.GameModes
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
             var rayOrigin = ray.Origin;
             var rayDirection = ray.Direction;
+            _viewModel.DebugRayOrigin = rayOrigin;
+            _viewModel.DebugRayDirection = rayDirection;
 
             _panelsView.Draw(_viewModel, ref rayOrigin, ref rayDirection);
             ProcessMeshPickerPlacement(MouseState, sceneMin, sceneMax);
@@ -2283,7 +2285,183 @@ namespace Mana.Code.GameModes
                 _webGpuContext.SuspendSceneWork = IsLoading;
             }
 
+            // Was called from inside DrawImGui, back when that was the one method BaseGameMode.Render
+            // always reached every non-loading frame. Now that ImGui itself is skipped entirely for this
+            // mode (see BaseGameMode.Render's EnableManaUi gate), DrawImGui never runs at all -- so this
+            // has to be called from somewhere that still does, or none of it runs either: no mesh-picker
+            // placement, no drag-and-drop, no pawn driving, no planet auto-LOD, no view-option syncing.
+            if (!IsLoading)
+            {
+                UpdateEditorPerFrameState();
+            }
+
             base.Render(deltaTime);
+        }
+
+        /// <summary>
+        /// Everything DrawImGui used to do that was not actually drawing an ImGui window: selection/active-
+        /// layer outline sync, planet streaming and auto-LOD, the view-option toggles the menu bar drives,
+        /// mesh-picker drag-and-drop, voxel pointer interaction, pawn driving input, and place-search
+        /// fly-to. All of it has to run every non-loading frame regardless of which UI is on screen.
+        /// </summary>
+        private void UpdateEditorPerFrameState()
+        {
+            PushWebGpuFrameStats();
+            LogMemoryStatsPeriodically();
+            ManaMemoryStats.Sample();
+
+            // Keep the active voxel node highlighted through the shared post-process outline pass.
+            var activeNode = _viewModel.VoxelNode;
+            var activeOutlineColor = new Vector4(1.0f, 0.88f, 0.18f, 1.0f);
+            foreach (var scene in Context.World.Scenes)
+            {
+                foreach (var child in scene.Children)
+                {
+                    if (child is ManaVoxelsNode voxelNode)
+                    {
+                        bool isActive = (voxelNode == activeNode);
+                        voxelNode.ShowOutline = isActive;
+
+                        foreach (var meshRenderer in voxelNode.Components.OfType<MeshRendererComponent>())
+                        {
+                            meshRenderer.OutlineEnabled = isActive;
+                            meshRenderer.OutlineColor = activeOutlineColor;
+                            meshRenderer.OutlineWidth = 4.0f;
+                        }
+
+                        // Remove selection cages created by older builds now that selection uses the mask pass.
+                        var legacyOutline = voxelNode.Children.FirstOrDefault(node => node.Name == "VoxelSelectionOutline");
+                        if (legacyOutline != null)
+                        {
+                            voxelNode.RemoveChild(legacyOutline);
+                        }
+                    }
+                }
+            }
+
+            // Highlight whatever the Outliner or viewport select tool currently has selected, distinct from
+            // the active-voxel-layer highlight above (skipped when they're the same node, to avoid flicker).
+            // A component-level selection (e.g. one patch on a PlanetNode shared root node) only outlines
+            // that ONE renderer, not every sibling on the same node -- a plain node-level selection (KML
+            // lines, shapes, a bare shared root) still blanket-highlights every renderer on the node.
+            // Diffs against the EXACT set of components lit last frame (not just node/component identity)
+            // -- keying off identity alone missed the transition from "whole node lit" to "one specific
+            // component on that SAME node lit," since the node itself hadn't changed, leaving every other
+            // sibling stuck outlined forever.
+            var selectedNode = Context.World.Selection.SelectedNode;
+            var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
+
+            HashSet<MeshRendererComponent> targetOutlinedComponents;
+            if (selectedComponent != null)
+            {
+                targetOutlinedComponents = new HashSet<MeshRendererComponent> { selectedComponent };
+            }
+            else if (selectedNode != null && selectedNode != activeNode)
+            {
+                targetOutlinedComponents = new HashSet<MeshRendererComponent>(selectedNode.Components.OfType<MeshRendererComponent>());
+            }
+            else
+            {
+                targetOutlinedComponents = new HashSet<MeshRendererComponent>();
+            }
+
+            foreach (var meshRenderer in _lastOutlinedSelectionComponents)
+            {
+                if (!targetOutlinedComponents.Contains(meshRenderer))
+                {
+                    meshRenderer.OutlineEnabled = false;
+                }
+            }
+
+            if (targetOutlinedComponents.Count > 0)
+            {
+                var outlineColor = selectedComponent != null ? GetSelectionOutlineColor(selectedComponent) : GetSelectionOutlineColor(null);
+                foreach (var meshRenderer in targetOutlinedComponents)
+                {
+                    meshRenderer.OutlineEnabled = true;
+                    meshRenderer.OutlineColor = outlineColor;
+                    meshRenderer.OutlineWidth = 4.0f;
+                }
+            }
+
+            _lastOutlinedSelectionComponents = targetOutlinedComponents;
+
+            // Also highlight every OTHER patch currently doing background streaming work (in-place
+            // up-res, splitting, merging) -- not just the selected one. With auto-LOD running, several
+            // patches can be streaming at once with no way to see how much/which without this (besides
+            // the World Perf panel's aggregate counts, see PushPlanetStreamingStatusToWorldPerf).
+            UpdateStreamingActivityOutlines(selectedComponent, activeNode);
+
+            // Called every frame the patch is selected, not just once on selection change -- covers both
+            // the Outliner tree AND clicking a patch directly in the 3D view, since both already write to
+            // the same SelectedComponent via UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
+            // TryBeginPatchUpres is documented as safe/idempotent to call repeatedly (a no-op once the
+            // patch is InProgress/Done/Failed) -- calling it only once per selection change used to leave
+            // a patch stuck forever if that single call happened to lose the non-blocking _rebuildLock
+            // race to some other in-flight background operation (split/merge/another patch's up-res),
+            // since nothing would retry until the user deselected and reselected. Calling every frame
+            // lets a lost race self-heal on the very next frame instead.
+            if (_planet != null && _planet.TryGetPatchKey(selectedComponent, out var patchKey))
+            {
+                _planet.TryBeginPatchUpres(patchKey);
+            }
+
+            SyncLightningBallVisibility();
+            SyncLiquidBallVisibility();
+            SyncWaterVisibility();
+            SyncWireframeViewOption();
+            SyncNormalsViewOption();
+            SyncKmlAirspaceVisibility();
+            ProcessPendingRegionRequest();
+
+            // Must run on the main thread -- finalizing a completed patch split touches the scene
+            // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
+            // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
+            _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateNearOcean(Context.World.MainCamera);
+            _planet?.UpdateDetailChase();
+            _planet?.ProcessPendingSplits();
+            _planet?.ProcessPendingMerges();
+            // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
+            _region?.ProcessPendingLoad();
+
+            // The whole window, in the same coordinate space as the mouse: dropping used to be bounded by
+            // the ImGui main viewport (minus a manual carve-out for ImGui's own import window), but with
+            // ImGui no longer drawing anything there is no second window to carve out any more. The real
+            // exclusion is ManaUI's own hit test below (MeshImportRequests.PointerOverUi) -- this is only
+            // the coarse "is the pointer even inside the window" bound it was always meant to be.
+            var windowSize = Context.Window.Size;
+            var sceneMin = Vector2.Zero;
+            var sceneMax = new Vector2(windowSize.X, windowSize.Y);
+
+            var mouseState = Context.Input.Mice.First();
+
+            var mouseStart = new Vector3(mouseState.Position, 0.0f);
+            var mouseEnd = new Vector3(mouseState.Position, 1.0f);
+
+            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+            var rayOrigin = ray.Origin;
+            var rayDirection = ray.Direction;
+            _viewModel.DebugRayOrigin = rayOrigin;
+            _viewModel.DebugRayDirection = rayDirection;
+
+            ProcessMeshPickerPlacement(mouseState, sceneMin, sceneMax);
+
+            // The gizmo used to have to report back whether it was under the pointer, because an ImGui
+            // window drawn over the scene is invisible to the scene. As part of the ManaUI tree it is
+            // hit-tested like anything else, and UiWantsMouse already knows.
+            UpdateVoxelPointerInteraction(UiWantsMouse);
+            UpdateFrameSelectedShortcut();
+            _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+
+            // The ManaUI search panel knows a longitude and a latitude and nothing else; the planet, camera
+            // and scene it needs are here.
+            if (PlaceSearchRequests.TakeFlyTo() is { } destination
+                && _planet != null
+                && Context.World.MainCamera != null)
+            {
+                _navigator.FlyTo(destination, Context, _planet, Context.World.MainCamera);
+            }
         }
 
         private void SyncLightningBallVisibility()
