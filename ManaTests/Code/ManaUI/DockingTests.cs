@@ -85,6 +85,19 @@ public static class DockingChecks
         Check("splitter wants a resize cursor", root.RequestedCursor == UiCursor.SizeWE,
             root.RequestedCursor.ToString());
 
+        // The gutter between two panes has to match the panel chrome around it (Surface), not the shell
+        // colour outside the dock entirely (Background) -- that mismatch is what read as a gap in the
+        // panel rather than a divider inside it, even though every pixel was opaque.
+        var gutterFill = root.Render().Instances.ToArray()
+            .Where(i => splitterX >= i.Rect.X && splitterX <= i.Rect.Z && splitterY >= i.Rect.Y && splitterY <= i.Rect.W)
+            .Select(i => UiColor.Unpack(i.FillColor))
+            .FirstOrDefault(color => Vector4.Distance(color, root.Theme.Surface) < 0.01f
+                || Vector4.Distance(color, root.Theme.Background) < 0.01f);
+
+        Check("the splitter gutter matches the surrounding panel surface, not the outer shell",
+            Vector4.Distance(gutterFill, root.Theme.Surface) < 0.01f,
+            $"sampled {gutterFill} vs surface {root.Theme.Surface} / background {root.Theme.Background}");
+
         var leftWidthBefore = left.Bounds.Width;
         var rightWidthBefore = right.Bounds.Width;
         root.Input.InjectPointerPressed(new Vector2(splitterX, splitterY), PointerButton.Left, 0.0);

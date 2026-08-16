@@ -125,7 +125,7 @@ public static class ViewportOverlayChecks
         var right = new Border().Fill(UiColor.White).Width(rightWidth);
 
         var layer = new ViewportOverlayLayer(
-            root.Theme, () => leftWidth, () => rightWidth, topOffset: 40.0f, () => null, null);
+            root.Theme, () => leftWidth, () => rightWidth, () => 40.0f, () => 0.0f, () => null, null);
 
         // Stands in for the gizmo, which needs a camera and so cannot be built here. Same slot, same
         // placement -- what is being checked is where the layer puts a top-right overlay, not what it is.

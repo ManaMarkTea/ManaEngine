@@ -396,6 +396,9 @@ public static class PortedMainMenuChecks
     private static string? TitleToId(string title) => title switch
     {
         "Voxel Tools" => "tools",
+        "Import" => "import",
+        "Search" => "search",
+        "Blur Test" => "blurtest",
         "Placement" => "placement",
         "Physics" => "physics",
         "Voxel Stats" => "voxelstats",
@@ -403,9 +406,9 @@ public static class PortedMainMenuChecks
         "Outliner" => "outliner",
         "Inspector" => "inspector",
         "ManaUI" => "showcase",
-        "Layers" => "layers",
-        "Stats" => "stats",
         "About" => "about",
+        "World Perf" => "worldperf",
+        "Debug" => "debug",
         _ => null
     };
 

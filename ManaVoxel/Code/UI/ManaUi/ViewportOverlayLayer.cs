@@ -29,7 +29,8 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         private readonly Func<float> _leftWidth;
         private readonly Func<float> _rightWidth;
-        private readonly float _topOffset;
+        private readonly Func<float> _topHeight;
+        private readonly Func<float> _bottomHeight;
 
         private readonly List<Slot> _slots = new();
 
@@ -39,13 +40,15 @@ namespace ManaVoxel.Code.UI.ManaUi
             UiTheme theme,
             Func<float> leftWidth,
             Func<float> rightWidth,
-            float topOffset,
+            Func<float> topHeight,
+            Func<float> bottomHeight,
             Func<CameraComponent?> camera,
             VoxelEditorViewModel? editor)
         {
             _leftWidth = leftWidth;
             _rightWidth = rightWidth;
-            _topOffset = topOffset;
+            _topHeight = topHeight;
+            _bottomHeight = bottomHeight;
 
             // The layer itself is transparent to the pointer; the gizmo's own buttons are not. That is what
             // decides whether a click orbits the camera or presses a preset, and it falls out of hit testing
@@ -90,9 +93,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // viewport, rather than one overlapping the panel that took the space.
                 return UiRect.FromEdges(
                     Bounds.X + MathF.Max(0.0f, _leftWidth()),
-                    Bounds.Y + _topOffset,
+                    Bounds.Y + MathF.Max(0.0f, _topHeight()),
                     Bounds.Right - MathF.Max(0.0f, _rightWidth()),
-                    Bounds.Bottom);
+                    Bounds.Bottom - MathF.Max(0.0f, _bottomHeight()));
             }
         }
 

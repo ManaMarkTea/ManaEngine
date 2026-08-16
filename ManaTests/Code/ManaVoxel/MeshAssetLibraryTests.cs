@@ -142,6 +142,20 @@ public static class MeshAssetLibraryChecks
         filtered.Filter = "";
         Check("clearing it brings everything back", AllEntries(filtered.Tree).Count() == 5);
 
+        // ---------------------------------------------------------------- folder-only tree
+        // FolderTree backs the import panel's Unreal-style folder sidebar, which must not shrink just
+        // because something is typed into the search box above the main list.
+        filtered.Filter = "helmet";
+        Check("FolderTree ignores the text filter",
+            AllFolders(filtered.FolderTree).Any(f => f.Name.Contains("Props", StringComparison.Ordinal)),
+            string.Join(" | ", AllFolders(filtered.FolderTree).Select(f => f.Name)));
+
+        Check("even though Tree itself is still narrowed",
+            !AllFolders(filtered.Tree).Any(f => f.Name.Contains("Props", StringComparison.Ordinal)),
+            string.Join(" | ", AllFolders(filtered.Tree).Select(f => f.Name)));
+
+        filtered.Filter = "";
+
         // ---------------------------------------------------------------- selection
         var selecting = Library();
         selecting.SelectedAsset = Sample[0];

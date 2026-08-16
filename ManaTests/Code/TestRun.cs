@@ -84,6 +84,7 @@ public static class TestRunner
         ("ManaUI", "loading screen", LoadingScreenChecks.Run),
         ("ManaUI", "layout persistence", PersistenceChecks.Run),
         ("ManaUI", "real editor views", ShowcaseChecks.Run),
+        ("ManaUI", "dock regions (menu, bottom strip, Layers removal)", DockRegionsChecks.Run),
         ("ManaUI", "ported voxel tool palette", PortedPaletteChecks.Run),
         ("ManaUI", "ported scene outliner", OutlinerChecks.Run),
         ("ManaUI", "theme contrast", ThemeContrastChecks.Run),

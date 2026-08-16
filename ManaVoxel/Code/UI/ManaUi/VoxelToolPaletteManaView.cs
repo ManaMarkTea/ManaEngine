@@ -22,57 +22,60 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         public static UiElement Build(UiTheme theme, VoxelEditorViewModel vm)
         {
-            return new StackPanel()
-                .Vertical(theme.Spacing)
-                .Padding(12.0f)
-                .Children(
-                    BuildToolSection(theme, vm),
-                    Divider(theme),
-                    BuildColorSection(theme, vm),
-                    Divider(theme),
-                    BuildStrokeSection(theme, vm),
-                    BuildTextSection(theme, vm));
+            var row = new StackPanel().Horizontal(theme.Spacing * 2.0f).Padding(10.0f, 6.0f).Children(
+                BuildToolGroup(theme, vm),
+                Divider(theme),
+                BuildColorGroup(theme, vm),
+                BuildStrokeGroup(theme, vm),
+                BuildTextGroup(theme, vm));
+
+            // Horizontal rather than vertical: this lives in the toolbar strip under the menu now, not a
+            // side column, so a window too narrow for every group scrolls sideways rather than wrapping.
+            return row.Scrollable().Scrolls(vertical: ScrollBarVisibility.Disabled, horizontal: ScrollBarVisibility.Auto);
         }
 
         // ----- tools ----------------------------------------------------------------------------------
 
-        private static UiElement BuildToolSection(UiTheme theme, VoxelEditorViewModel vm)
+        private static UiElement BuildToolGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
             // Select is a mode rather than a tool, so it stays a separate toggle exactly as it is in the
             // ImGui palette.
             var select = new CheckBox()
-                .Label("Select mode")
+                .Label("Select")
+                .CenterV()
                 .OnChanged(value => vm.IsSelectToolActive = value)
                 .BindPolled(c => c.IsChecked, () => vm.IsSelectToolActive);
 
             var tool = new ComboBox()
                 .Options(VoxelToolCatalog.ToolNames)
+                .Width(150.0f)
                 .OnSelected(index => vm.SelectedToolIndex = index)
                 .BindPolled(c => c.SelectedIndex, () => vm.SelectedToolIndex);
 
             var plane = new ComboBox()
                 .Options(VoxelToolCatalog.PlaneNames)
+                .Width(110.0f)
                 .OnSelected(index => vm.SelectedWorkPlaneIndex = index)
                 .BindPolled(c => c.SelectedIndex, () => vm.SelectedWorkPlaneIndex);
 
-            return new StackPanel().Vertical(theme.Spacing).Children(
-                Caption("Tool", theme),
+            return new StackPanel().Horizontal(theme.Spacing).Children(
                 select,
-                LabelledRow(theme, "Tool", tool),
-                LabelledRow(theme, "Work plane", plane));
+                Group(theme, "Tool", tool),
+                Group(theme, "Work plane", plane));
         }
 
         // ----- paint colour ---------------------------------------------------------------------------
 
-        private static UiElement BuildColorSection(UiTheme theme, VoxelEditorViewModel vm)
+        private static UiElement BuildColorGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
-            // The swatch opens a real picker now that there is one. Voxel colours are opaque, so the alpha
-            // strip is hidden rather than offering a control that would do nothing.
+            // The swatch opens a real picker now that there is one -- channel sliders included -- so the
+            // toolbar only needs room for the swatch itself, not a copy of the picker beside it.
             var field = new ColorField
             {
                 Color = vm.PaintVoxelColor,
                 ShowAlpha = false,
-                Height = 28.0f
+                Width = 32.0f,
+                Height = 32.0f
             };
 
             field.ColorChanged += (_, color) =>
@@ -82,74 +85,46 @@ namespace ManaVoxel.Code.UI.ManaUi
             // eyedropper, and neither announces a change.
             field.BindPolled(f => f.Color, () => vm.PaintVoxelColor);
 
-            // The sliders stay. A picker is for choosing a colour; a slider is for nudging one channel of
-            // the colour already chosen, and the palette does both.
-            return new StackPanel().Vertical(theme.Spacing).Children(
-                Caption("Paint colour", theme),
-                field,
-                ChannelSlider(theme, "R", () => vm.PaintVoxelColor.X, v => vm.PaintVoxelColor.X = v),
-                ChannelSlider(theme, "G", () => vm.PaintVoxelColor.Y, v => vm.PaintVoxelColor.Y = v),
-                ChannelSlider(theme, "B", () => vm.PaintVoxelColor.Z, v => vm.PaintVoxelColor.Z = v));
-        }
-
-        private static UiElement ChannelSlider(
-            UiTheme theme,
-            string label,
-            Func<float> read,
-            Action<float> write)
-        {
-            var slider = new Slider()
-                .Range(0.0f, 1.0f)
-                .OnChanged(write)
-                .BindPolled(s => s.Value, read);
-
-            var value = new TextBlock()
-                .Foreground(theme.TextMuted)
-                .FontSize(theme.FontSizeSmall)
-                .CenterV()
-                .BindTextPolled(read, v => $"{v:F2}");
-
-            return new Grid().Columns("18, *, 34", 6.0f).Rows("Auto").Children(
-                new TextBlock().Text(label).Foreground(theme.TextMuted).CenterV().GridColumn(0),
-                slider.GridColumn(1),
-                value.GridColumn(2));
+            return Group(theme, "Paint colour", field);
         }
 
         // ----- stroke and text --------------------------------------------------------------------------
 
-        private static UiElement BuildStrokeSection(UiTheme theme, VoxelEditorViewModel vm)
+        private static UiElement BuildStrokeGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
-            var section = new StackPanel().Vertical(theme.Spacing).Children(
-                Caption("Stroke", theme),
+            var row = new StackPanel().Horizontal(theme.Spacing).Children(
+                Divider(theme),
                 IntSlider(theme, "Radius", 0, 12,
                     () => vm.StrokeRadiusVoxels,
-                    v => vm.StrokeRadiusVoxels = v));
+                    v => vm.StrokeRadiusVoxels = v,
+                    width: 150.0f));
 
-            // Shown only for the tools that use a radius, matching the ImGui palette. Polled because the
-            // tool index it depends on is a field like everything else.
-            return section.BindPolled(s => s.Visibility, () =>
+            // Shown only for the tools that use a radius, matching the ImGui palette. The divider is part
+            // of this group rather than a fixed fixture, so hiding the group does not leave it stranded
+            // with nothing to its right.
+            return row.BindPolled(s => s.Visibility, () =>
                 VoxelToolCatalog.GetToolKind(vm.SelectedToolIndex)
                     is VoxelToolKind.Stroke or VoxelToolKind.Line or VoxelToolKind.Spline
                     ? Visibility.Visible
                     : Visibility.Collapsed);
         }
 
-        private static UiElement BuildTextSection(UiTheme theme, VoxelEditorViewModel vm)
+        private static UiElement BuildTextGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
             var text = new TextBox()
                 .Hint("Text to stamp")
                 .Configure(box => box.MaxLength = 128)
+                .Width(160.0f)
                 .OnCommitted(value => vm.ToolText = value)
                 .BindPolled(b => b.Text, () => vm.ToolText);
 
-            var section = new StackPanel().Vertical(theme.Spacing).Children(
+            var row = new StackPanel().Horizontal(theme.Spacing).Children(
                 Divider(theme),
-                Caption("Text tool", theme),
-                text,
-                IntSlider(theme, "Scale", 1, 8, () => vm.TextScale, v => vm.TextScale = v),
-                IntSlider(theme, "Depth", 1, 16, () => vm.TextDepth, v => vm.TextDepth = v));
+                Group(theme, "Text", text),
+                IntSlider(theme, "Scale", 1, 8, () => vm.TextScale, v => vm.TextScale = v, width: 130.0f),
+                IntSlider(theme, "Depth", 1, 16, () => vm.TextDepth, v => vm.TextDepth = v, width: 130.0f));
 
-            return section.BindPolled(s => s.Visibility, () =>
+            return row.BindPolled(s => s.Visibility, () =>
                 VoxelToolCatalog.GetToolKind(vm.SelectedToolIndex) == VoxelToolKind.Text
                     ? Visibility.Visible
                     : Visibility.Collapsed);
@@ -161,7 +136,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             int minimum,
             int maximum,
             Func<int> read,
-            Action<int> write)
+            Action<int> write,
+            float width = 170.0f)
         {
             var slider = new Slider()
                 .Range(minimum, maximum, 1.0f)
@@ -174,19 +150,18 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .CenterV()
                 .BindTextPolled(read, v => v.ToString());
 
-            return new Grid().Columns("Auto, *, 28", 6.0f).Rows("Auto").Children(
+            return new Grid().Columns("Auto, *, 28", 6.0f).Rows("Auto").Width(width).Children(
                 new TextBlock().Text(label).Foreground(theme.TextMuted).CenterV().GridColumn(0),
-                slider.GridColumn(1),
+                slider.GridColumn(1).CenterV(),
                 value.GridColumn(2));
         }
 
         // ----- helpers --------------------------------------------------------------------------------
 
-        private static UiElement LabelledRow(UiTheme theme, string label, UiElement control)
+        /// <summary>A small caption above a control, stacked to keep a toolbar group readable without a row of its own.</summary>
+        private static UiElement Group(UiTheme theme, string caption, UiElement control)
         {
-            return new Grid().Columns("80, *", 6.0f).Rows("Auto").Children(
-                new TextBlock().Text(label).Foreground(theme.TextMuted).CenterV().GridColumn(0),
-                control.GridColumn(1));
+            return new StackPanel().Vertical(2.0f).Children(Caption(caption, theme), control);
         }
 
         private static TextBlock Caption(string text, UiTheme theme)
@@ -199,7 +174,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static UiElement Divider(UiTheme theme)
         {
-            return new Border().Fill(theme.Divider).Height(1.0f).Margin(0.0f, 4.0f);
+            return new Border().Fill(theme.Divider).Width(1.0f).Margin(2.0f, 4.0f).StretchV();
         }
     }
 }

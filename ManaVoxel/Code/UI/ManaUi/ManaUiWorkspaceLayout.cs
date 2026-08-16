@@ -4,14 +4,7 @@ using ManaUI;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
-    /// <summary>
-    /// The editor arrangements offered in the Layout menu, named after the tools they mimic.
-    /// <para>
-    /// These are starting points, not modes. Picking one rebuilds the columns; everything afterwards --
-    /// dragging a tab out, splitting a pane, resizing a column -- is saved over the top of it, and the
-    /// preset is only reapplied when another one is chosen.
-    /// </para>
-    /// </summary>
+    /// <summary>Starting arrangements offered in the Layout menu, named after the tools they mimic. Not modes -- everything done afterward saves over the top.</summary>
     public enum WorkspacePreset
     {
         /// <summary>Everything in one column on the right, closest to how the panels started out.</summary>
@@ -27,13 +20,6 @@ namespace ManaVoxel.Code.UI.ManaUi
         Split
     }
 
-    /// <summary>
-    /// The persisted workspace: both columns, their widths, and which preset they came from.
-    /// <para>
-    /// A wrapper around two <see cref="DockLayoutNode"/> trees rather than an extension of them, because
-    /// column widths and the preset belong to the workspace rather than to any one dock host.
-    /// </para>
-    /// </summary>
     /// <summary>One floating panel: which it is, and the frame it was left in.</summary>
     public sealed class FloatingPanelLayout
     {
@@ -48,6 +34,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         public float Height { get; set; }
     }
 
+    /// <summary>The persisted workspace: the columns, their widths, and which preset they came from.</summary>
     public sealed class ManaUiWorkspaceLayout
     {
         private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -62,8 +49,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public WorkspacePreset Preset { get; set; } = WorkspacePreset.RightColumn;
 
-        /// <summary>Dark or light. Stored here rather than in a settings file of its own, because it is
-        /// part of how the workspace looks and belongs with the rest of it.</summary>
+        /// <summary>Dark or light. Kept with the rest of the workspace rather than a separate settings file.</summary>
         public UiThemeKind Theme { get; set; } = UiThemeKind.Dark;
 
         /// <summary>UI font family, or null for the theme's default.</summary>
@@ -76,18 +62,21 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public float RightWidth { get; set; }
 
+        public float TopHeight { get; set; }
+
+        public float BottomHeight { get; set; }
+
         public DockLayoutNode? Left { get; set; }
 
         public DockLayoutNode? Right { get; set; }
 
-        /// <summary>
-        /// Panels torn out of the columns and left floating.
-        /// <para>
-        /// Held here rather than inside either column's tree because a floating panel belongs to neither --
-        /// which is exactly why it used to be lost on restart: the file recorded the two hosts and nothing
-        /// else, so a panel dragged out simply stopped existing when the editor closed.
-        /// </para>
-        /// </summary>
+        /// <summary>The strip under the menu, dedicated to Voxel Tools.</summary>
+        public DockLayoutNode? Top { get; set; }
+
+        /// <summary>The strip along the bottom, dedicated to Import -- spans the left column and the viewport, not the right column.</summary>
+        public DockLayoutNode? Bottom { get; set; }
+
+        /// <summary>Panels torn out of the columns and left floating, held separately since they belong to neither.</summary>
         public List<FloatingPanelLayout> Floating { get; set; } = new();
 
         public string ToJson()

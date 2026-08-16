@@ -1,3 +1,5 @@
+using Mana;
+using Mana.Code;
 using ManaUI;
 using ManaVoxel.Code.UI.ManaUi;
 
@@ -36,23 +38,36 @@ public static class ShowcaseChecks
         {
             var dockRoot = new UiRoot(fonts);
             var dockVm = new ManaUiShowcaseViewModel();
+
+            // A bare world, the same minimal setup InspectorChecks/OutlinerChecks use, so the
+            // world-dependent panels (Outliner, Inspector, World Perf) actually populate the right column
+            // instead of leaving it to the two or three panels that need nothing at all.
+            var dockWorld = new ManaWorld();
+            _ = new ManaContext(null!, null!, dockWorld) { DeferGpuUploads = true };
+
             // persist: false so the test never reads or writes the user's real layout file.
-            var dockHostElement = ManaUiDockDemo.Attach(dockRoot, dockVm, () => "frame 0", persist: false);
+            var dockHostElement = ManaUiDockDemo.Attach(
+                dockRoot, dockVm, () => "frame 0", persist: false, world: dockWorld);
 
             dockRoot.Content = dockHostElement;
             dockRoot.UpdateLayout(new Vector2(1920, 1080));
 
-            // Two columns now, left and right, each in its own resizable panel.
+            // Four hosts now: the top toolbar strip, the left and right columns, and the bottom strip
+            // Import gets to itself, each in its own resizable panel. FindAll walks in the order the Grid
+            // adds them: top, left, right, bottom.
             var columns = FindAll<DockHost>(dockRoot);
-            Check("the workspace has two columns", columns.Count == 2, $"{columns.Count} dock hosts");
+            Check("the workspace has four dock hosts", columns.Count == 4, $"{columns.Count} dock hosts");
 
-            var left = columns[0];
-            var right = columns[1];
+            var top = columns[0];
+            var left = columns[1];
+            var right = columns[2];
+            var bottom = columns[3];
 
             Check("docked layout builds", right.RootNode != null, right.RootNode?.GetType().Name ?? "null");
-            // Counted rather than named: panels that need no world -- the showcase, layers, stats and the
-            // diagnostics About -- all dock in a session like this one, and the number changes as the
-            // port proceeds. What matters is that the default preset uses one column.
+            // Counted rather than named: panels that need no editor -- the showcase, the diagnostics About,
+            // the blur test, and now the world-backed Outliner/Inspector/World Perf -- all dock in a
+            // session like this one, and the number changes as the port proceeds. What matters is that the
+            // default preset uses one column.
             Check("the default preset puts every panel in one column",
                 right.AllItems().Count() >= 3 && !left.AllItems().Any(),
                 $"left [{string.Join(", ", left.AllItems().Select(i => i.Title))}] "
@@ -62,23 +77,28 @@ public static class ShowcaseChecks
                 MathF.Abs(right.Bounds.Right - 1920.0f) < 1.0f, right.Bounds.ToString());
             Check("the columns leave the viewport visible",
                 right.Bounds.Width < 500.0f, $"{right.Bounds.Width}");
+            Check("the top strip starts empty without an editor",
+                !top.AllItems().Any(), string.Join(", ", top.AllItems().Select(i => i.Title)));
+            Check("the bottom strip starts empty without an editor",
+                !bottom.AllItems().Any(), string.Join(", ", bottom.AllItems().Select(i => i.Title)));
 
-            // An empty column collapses rather than leaving a resize handle against nothing.
+            // An empty strip collapses rather than leaving a resize handle against nothing. Same walk
+            // order as the hosts: top, left, right, bottom.
             var panels = FindAll<ResizablePanel>(dockRoot);
-            Check("each column is resizable", panels.Count == 2, $"{panels.Count} resizable panels");
+            Check("each of the four docks is resizable", panels.Count == 4, $"{panels.Count} resizable panels");
             Check("an empty column is collapsed",
-                panels[0].Visibility == Visibility.Collapsed, panels[0].Visibility.ToString());
+                panels[1].Visibility == Visibility.Collapsed, panels[1].Visibility.ToString());
 
             // A column sits over the viewport, so every pixel of it has to be painted. The gutters are the
             // easy ones to miss: the handle strip and the seams between panes belong to the column but to
             // no panel's content, and leaving them unpainted made a solid column read as translucent.
-            Check("the column paints a backdrop", panels[1].Background.W > 0.0f,
-                $"alpha {panels[1].Background.W}");
+            Check("the column paints a backdrop", panels[2].Background.W > 0.0f,
+                $"alpha {panels[2].Background.W}");
 
             // Sampled off-centre on purpose. The handle's own 2px line sits exactly in the middle of the
             // grab strip, so a centre sample passes whether or not the rest of the gutter is painted --
             // which is what it did before this comment existed.
-            var handleRect = panels[1].HandleRect;
+            var handleRect = panels[2].HandleRect;
             var gutter = new Vector2(handleRect.X + 1.0f, handleRect.Center.Y);
             var painted = false;
 
@@ -99,7 +119,7 @@ public static class ShowcaseChecks
             Check("something opaque covers the handle gutter", painted, $"sampled at {gutter}");
 
             // Dragging the handle widens the column, which is the point of the whole exercise.
-            var rightPanel = panels[1];
+            var rightPanel = panels[2];
             var widthBefore = rightPanel.Size;
             var grab = rightPanel.HandleRect.Center;
 
@@ -146,7 +166,7 @@ public static class ShowcaseChecks
                 left.AllItems().Count() + right.AllItems().Count() == docked,
                 $"{left.AllItems().Count() + right.AllItems().Count()} of {docked} panels");
             Check("the now-filled column shows itself",
-                panels[0].Visibility == Visibility.Visible, panels[0].Visibility.ToString());
+                panels[1].Visibility == Visibility.Visible, panels[1].Visibility.ToString());
             Check("the chosen preset is ticked", unity!.IsCheckedProvider?.Invoke() == true, "Unity checked");
 
             var rightColumnPreset = layoutMenu!.Items.First(item => item.Text == "Right column");
@@ -183,7 +203,7 @@ public static class ShowcaseChecks
             // not, the panels would still be carrying the dark palette's surfaces.
             var relitPanels = FindAll<ResizablePanel>(dockRoot);
             Check("the workspace was rebuilt for the new theme",
-                relitPanels.Count == 2 && relitPanels.Any(p => p.Background.X > darkBackground.X + 0.1f),
+                relitPanels.Count == 4 && relitPanels.Any(p => p.Background.X > darkBackground.X + 0.1f),
                 string.Join(", ", relitPanels.Select(p => p.Background.X.ToString("F2"))));
 
             Check("the workspace renders in light mode",

@@ -41,15 +41,28 @@ public static class MeshImportChecks
         var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
         var library = Library();
 
+        // The panel is three panes wide now (folders | list | placement), each with a fixed share, so the
+        // window has to be wide enough for all three -- 320px for the centre list, same as the whole panel
+        // used to get, plus the resizable folder sidebar (with its drag splitter) and the placement sidebar
+        // either side of it.
+        const float FolderColumn = 210.0f;
+        const float FolderSplitterWidth = 5.0f;
+        const float PlacementColumn = 220.0f;
+        const float DividerWidth = 1.0f;
+        const float DefaultCenterWidth = 320.0f;
+        var defaultSize = new Vector2(
+            FolderColumn + FolderSplitterWidth + DefaultCenterWidth + DividerWidth + PlacementColumn, 700.0f);
+
         MeshImportRequests.Clear();
         root.Content = MeshImportManaView.Build(root.Theme, viewModel, library);
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
 
         var drawn = root.Render();
         Check("the panel renders", drawn.Instances.Length > 0, $"{drawn.Instances.Length} instances");
         Check("in one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
 
-        // Seven format toggles in a 320px panel do not fit on one line, which is the reason WrapPanel exists.
+        // Seven format toggles in a 320px-wide list column do not fit on one line, which is the reason
+        // WrapPanel exists.
         var wrap = Find<WrapPanel>(root.Content!);
         Check("the format toggles wrap", wrap is { LineCount: > 1 }, $"{wrap?.LineCount ?? 0} lines");
 
@@ -70,15 +83,18 @@ public static class MeshImportChecks
             wrap != null && wrap.Children.All(c => c.Bounds.Bottom <= wrap.Bounds.Bottom + 0.5f),
             $"{wrap?.Bounds.Height ?? 0.0f:F0}px tall for {wrap?.LineCount ?? 0} lines");
 
-        // The tree shows the library's contents, not a snapshot taken when the panel was built.
-        var treeView = Find<TreeView>(root.Content!);
-        Check("the panel found the tree", treeView != null);
+        // There are two trees now -- the folder sidebar and the asset list -- distinguished by what they
+        // actually show rather than by position: only the asset list's ChildrenSelector ever yields a
+        // MeshAssetEntry, so the folder tree (folders only) can never satisfy this.
+        var treeView = FindAll<TreeView>(root.Content!)
+            .FirstOrDefault(t => t.VisibleItems.OfType<MeshAssetEntry>().Any());
+        Check("the panel found the asset tree", treeView != null);
 
         var visibleNames = treeView!.VisibleItems.OfType<MeshAssetEntry>().Select(e => e.DisplayName).ToList();
         Check("rows appear for the assets", visibleNames.Count > 0, string.Join(", ", visibleNames));
 
         library.Filter = "helmet";
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
 
         var afterFilter = treeView.VisibleItems.OfType<MeshAssetEntry>().ToList();
@@ -87,14 +103,16 @@ public static class MeshImportChecks
             $"{afterFilter.Count} rows");
 
         library.Filter = "";
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
 
         // ---------------------------------------------------------------- a narrow panel
         // Shrunk until the fixed rows alone want more than there is. A grid hands out slots regardless, so
         // the overflow lands on top of whatever is below it -- which is how the tree ended up running
-        // through the Place button.
-        root.UpdateLayout(new Vector2(300, 260));
+        // through the Place button. The side columns keep their fixed widths regardless, so only the
+        // centre list column is actually being squeezed here.
+        var squeezedSize = new Vector2(FolderColumn + FolderSplitterWidth + 100.0f + DividerWidth + PlacementColumn, 260.0f);
+        root.UpdateLayout(squeezedSize);
         root.Render();
 
         var panelBounds = root.Content!.Bounds;
@@ -125,7 +143,7 @@ public static class MeshImportChecks
         Check("and nothing is drawn outside the panel",
             leaked == 0, leaked == 0 ? $"{panelBounds.Height:0}px tall" : $"{leaked} instances past the edge");
 
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
 
         // ---------------------------------------------------------------- placing
@@ -134,12 +152,12 @@ public static class MeshImportChecks
 
         Check("there is a place button", place != null, place?.Text ?? "none");
 
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
         Check("disabled with nothing selected", place is { IsEnabled: false });
 
         library.SelectedAsset = Sample[0];
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
         Check("and enabled once something is", place is { IsEnabled: true });
 
@@ -174,7 +192,7 @@ public static class MeshImportChecks
 
         // A ghost follows the cursor, because a drag that leaves the panel has nothing else on screen
         // saying what is being carried.
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
 
         // Identified by living in a popup rather than by where it is: the row it was made from carries the
@@ -197,7 +215,7 @@ public static class MeshImportChecks
 
         // Given room, it sits down and to the right -- up and left would put it over whatever is being
         // dragged towards, which is the one place it must not hide.
-        root.UpdateLayout(new Vector2(900, 700));
+        root.UpdateLayout(new Vector2(1600.0f, 700.0f));
         root.Render();
 
         var roomy = FindAll<TextBlock>(root)
@@ -206,7 +224,7 @@ public static class MeshImportChecks
         Check("and to the right when there is room",
             roomy != null && roomy.Bounds.X > cursor.X, $"{roomy?.Bounds.X:0} vs cursor {cursor.X:0}");
 
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
 
         // Transparent to the pointer, or it would be what every drop is tested against -- it sits under
@@ -220,7 +238,7 @@ public static class MeshImportChecks
         // survives the button coming up -- clearing it here meant the drop was gone before anyone looked,
         // and placing a mesh took a second click.
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
-        root.UpdateLayout(new Vector2(320, 700));
+        root.UpdateLayout(defaultSize);
         root.Render();
 
         // A ghost that outlived its gesture would sit over the scene until something else happened to
@@ -255,13 +273,13 @@ public static class MeshImportChecks
 
         root.Input.InjectPointerReleased(start + new Vector2(40.0f, 20.0f), PointerButton.Left);
 
-        // And releasing clear of the panel is a real drop. The panel is 320 wide here, so anything past
-        // that is scene -- which is the whole difference between the two cases.
+        // And releasing clear of the panel is a real drop. Anything past the panel's own width is scene --
+        // which is the whole difference between the two cases.
         MeshImportRequests.Clear();
         root.Input.InjectPointerMoved(start);
         root.Input.InjectPointerPressed(start, PointerButton.Left, 0.0);
 
-        var outside = new Vector2(700.0f, 400.0f);
+        var outside = new Vector2(defaultSize.X + 50.0f, 400.0f);
         root.Input.InjectPointerMoved(outside);
 
         Check("dragging out past the panel is over the scene",
@@ -273,6 +291,35 @@ public static class MeshImportChecks
             MeshImportRequests.CanDrop, $"can drop {MeshImportRequests.CanDrop}");
 
         MeshImportRequests.Clear();
+
+        // ---------------------------------------------------------------- resizing the folder column
+        // Last, since dragging the splitter changes the folder column's width for the rest of this Grid's
+        // lifetime -- every size-dependent check above assumes the untouched default.
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        var folderTree = FindAll<TreeView>(root.Content!)
+            .FirstOrDefault(t => !t.VisibleItems.OfType<MeshAssetEntry>().Any());
+        Check("the panel found the folder tree", folderTree != null);
+
+        var folderWidthBefore = folderTree!.Bounds.Width;
+        var grab = new Vector2(
+            folderTree.Bounds.Right + root.Theme.Spacing + FolderSplitterWidth * 0.5f,
+            folderTree.Bounds.Y + 10.0f);
+
+        root.Input.InjectPointerMoved(grab);
+        Check("the splitter asks for a resize cursor", root.RequestedCursor == UiCursor.SizeWE,
+            root.RequestedCursor.ToString());
+
+        root.Input.InjectPointerPressed(grab, PointerButton.Left, 0.0);
+        root.Input.InjectPointerMoved(grab + new Vector2(60.0f, 0.0f));
+        root.UpdateLayout(defaultSize);
+        root.Render();
+        root.Input.InjectPointerReleased(grab + new Vector2(60.0f, 0.0f), PointerButton.Left);
+
+        Check("dragging the splitter widens the folder column",
+            folderTree.Bounds.Width > folderWidthBefore + 40.0f,
+            $"{folderWidthBefore:0} -> {folderTree.Bounds.Width:0}");
     }
 
     /// <summary>True when this element or an ancestor is the popup a drag ghost lives in.</summary>

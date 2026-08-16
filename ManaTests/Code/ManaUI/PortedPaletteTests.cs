@@ -44,6 +44,21 @@ public static class PortedPaletteChecks
         Check("palette renders", drawn.InstanceCount > 30, $"{drawn.InstanceCount} instances");
         Check("still one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
 
+        // ---------------------------------------------------------------- a toolbar strip's real shape
+        // This lives in a wide, thin strip under the menu now, not a tall side column -- laid out at that
+        // shape, its groups have to sit side by side rather than stacked, or the strip is just as useless
+        // as it was before the redesign.
+        root.UpdateLayout(new Vector2(1400, 56));
+
+        var selectCheckBefore = FindAll<CheckBox>(root).First();
+        var swatchBefore = FindAll<ColorField>(root).First();
+        Check("the checkbox and the colour swatch sit side by side, not stacked",
+            MathF.Abs(selectCheckBefore.Bounds.Y - swatchBefore.Bounds.Y) < swatchBefore.Bounds.Height
+                && swatchBefore.Bounds.X > selectCheckBefore.Bounds.Right,
+            $"select {selectCheckBefore.Bounds}, swatch {swatchBefore.Bounds}");
+
+        root.UpdateLayout(new Vector2(420, 900));
+
         // ---------------------------------------------------------------- model -> UI (polled)
         var toolCombo = FindAll<ComboBox>(root).First();
         vm.SelectedToolIndex = 3;
@@ -103,22 +118,9 @@ public static class PortedPaletteChecks
         Check("depth reads back from the model",
             depthSlider != null && MathF.Abs(depthSlider.Value - 9.0f) < 0.01f, $"{depthSlider?.Value}");
 
-        // Colour channels round-trip through a Vector4 field.
-        vm.PaintVoxelColor = new Vector4(0.25f, 0.5f, 0.75f, 1.0f);
-        root.UpdateLayout(new Vector2(420, 900));
-
-        var channels = FindAll<Slider>(root).Where(s => s.Minimum == 0.0f && s.Maximum == 1.0f).ToList();
-        Check("three colour channels", channels.Count == 3, $"{channels.Count}");
-        Check("red channel reads the model", MathF.Abs(channels[0].Value - 0.25f) < 0.01f,
-            $"{channels[0].Value}");
-
-        channels[1].Value = 0.9f;
-        Check("green channel writes the model", MathF.Abs(vm.PaintVoxelColor.Y - 0.9f) < 0.01f,
-            $"{vm.PaintVoxelColor.Y}");
-        Check("writing one channel leaves the others",
-            MathF.Abs(vm.PaintVoxelColor.X - 0.25f) < 0.01f
-            && MathF.Abs(vm.PaintVoxelColor.Z - 0.75f) < 0.01f,
-            vm.PaintVoxelColor.ToString());
+        // Colour lives entirely behind the swatch's own picker now -- the toolbar has no room for a copy of
+        // it, so a Vector4 field round-trips through the swatch rather than through channel sliders.
+        vm.PaintVoxelColor = new Vector4(0.25f, 0.9f, 0.75f, 1.0f);
 
         // The swatch follows the colour, which is the whole point of showing it. It reads through a polled
         // binding, so it needs a tick before it can have caught up.

@@ -259,9 +259,18 @@ namespace ManaUI
                 var active = _draggingSplitter == i || (_draggingSplitter < 0 && rect.Contains(pointer));
 
                 // Filled first, always. The gutter between two panes is a gap in the panel surface, and
-                // leaving it unpainted let whatever the dock sits over -- the viewport -- show through, so
-                // the column looked translucent rather than solid.
-                drawList.FillRect(rect, theme.Background);
+                // leaving it unpainted let whatever the dock sits over -- the viewport -- show through.
+                // Surface, not Background: Background is the shell colour outside the dock entirely, and
+                // painting the gutter with it left a seam noticeably darker than the panes either side of
+                // it -- which read as a gap even though every pixel was opaque.
+                if (theme.BackdropBlur > 0.0f)
+                {
+                    drawList.FillBackdrop(rect, theme.Frosted(theme.Surface), theme.BackdropBlur, default);
+                }
+                else
+                {
+                    drawList.FillRect(rect, theme.Surface);
+                }
 
                 // The visible line is thinner than the grab area: a 6px bar is easy to hit but ugly to look
                 // at, so only a hairline is drawn unless it is being used.

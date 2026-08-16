@@ -108,13 +108,24 @@ namespace ManaVoxel.Code.Assets
             {
                 if (_treeDirty || _tree == null)
                 {
-                    _tree = BuildTree();
+                    _tree = BuildTree(_filter);
                     _treeDirty = false;
                 }
 
                 return _tree;
             }
         }
+
+        /// <summary>
+        /// The folder hierarchy alone, ignoring the text filter -- an Unreal-style folder sidebar should
+        /// not shrink just because something is typed into the search box above the main list.
+        /// <para>
+        /// Rebuilt fresh on every call rather than cached alongside <see cref="Tree"/>: nothing here is
+        /// disk I/O, and a view only actually re-enumerates it when its own change-detection (a
+        /// TreeView's StructureSignature) says the sidebar needs to change at all.
+        /// </para>
+        /// </summary>
+        public MeshAssetFolder FolderTree => BuildTree(string.Empty);
 
         public bool IsFormatEnabled(MeshAssetFormats format) => (_formats & format) != 0;
 
@@ -187,10 +198,10 @@ namespace ManaVoxel.Code.Assets
 
         // ----- tree ---------------------------------------------------------------------------------------
 
-        private MeshAssetFolder BuildTree()
+        private MeshAssetFolder BuildTree(string filterOverride)
         {
             var root = new MutableFolder("Assets");
-            var filter = _filter.Trim();
+            var filter = filterOverride.Trim();
 
             foreach (var asset in _assets)
             {

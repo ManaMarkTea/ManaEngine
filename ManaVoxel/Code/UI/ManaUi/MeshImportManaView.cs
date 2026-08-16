@@ -9,6 +9,11 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// <summary>
     /// The mesh import panel: what gets imported, and the transform it arrives with.
     /// <para>
+    /// Three panes, Unreal Content Browser-shaped: a folder tree on the left for navigation, the filtered
+    /// asset list in the middle, and the placement transform as its own panel on the right rather than
+    /// competing with the list for vertical space above it.
+    /// </para>
+    /// <para>
     /// The list itself is <see cref="MeshAssetLibrary"/>'s -- this only draws it. What the panel adds is the
     /// two ways of getting a mesh into the scene: drag a row into the viewport to place it under the cursor,
     /// or select and press the button to place it on the next click. Both end at the same request, so the
@@ -17,36 +22,219 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class MeshImportManaView
     {
+        /// <summary>Wide enough to read a folder name at a glance without stealing more than a sliver from the list.</summary>
+        private const float DefaultFolderWidth = 210.0f;
+
+        private const float MinFolderWidth = 140.0f;
+        private const float MaxFolderWidth = 420.0f;
+
         public static UiElement Build(UiTheme theme, VoxelEditorViewModel viewModel, MeshAssetLibrary library)
         {
-            // A Grid rather than a stack: the tree needs a scroll viewer, and a viewer inside a vertical
-            // stack is measured with unbounded height, so it grows to fit and never scrolls.
-            return new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Padding(8.0f).Children(
-                new StackPanel().Vertical(theme.Spacing).GridRow(0).Children(
-                    new TextBlock()
-                        .Text("Applied to models dropped onto the window and to anything placed from the list below.")
-                        .Foreground(theme.TextMuted)
-                        .FontSize(theme.FontSizeSmall)
-                        .Wrap(),
+            var grid = new Grid().Columns($"{DefaultFolderWidth}, Auto, *, Auto, 220", theme.Spacing).Rows("*").Padding(8.0f);
+            grid.ColumnDefinitions[0].MinLength = MinFolderWidth;
+            grid.ColumnDefinitions[0].MaxLength = MaxFolderWidth;
 
-                    Row(theme, "Offset", Vector(
-                        () => viewModel.ImportPositionOffset,
-                        value => viewModel.ImportPositionOffset = value,
-                        step: 0.1f)),
+            return grid.Children(
+                FolderSidebar(theme, library).GridColumn(0),
+                new FolderSplitter(
+                    () => grid.ColumnDefinitions[0].Length.Value,
+                    width =>
+                    {
+                        grid.ColumnDefinitions[0].Length = GridLength.Pixels(
+                            Math.Clamp(width, MinFolderWidth, MaxFolderWidth));
+                        grid.InvalidateMeasure();
+                    })
+                    .GridColumn(1),
+                Picker(theme, library).GridColumn(2),
+                Divider(theme).GridColumn(3),
+                TransformPanel(theme, viewModel).GridColumn(4));
+        }
 
-                    Row(theme, "Rotation", Vector(
-                        () => viewModel.ImportRotationDegrees,
-                        value => viewModel.ImportRotationDegrees = value,
-                        step: 1.0f)),
+        private static UiElement Divider(UiTheme theme)
+        {
+            return new Border().Fill(theme.Divider).Width(1.0f);
+        }
 
-                    Row(theme, "Scale", Vector(
-                        () => viewModel.ImportScale,
-                        value => viewModel.ImportScale = value,
-                        step: 0.05f)),
+        /// <summary>The line between the folder tree and the asset list, dragged to resize the folder column.</summary>
+        private sealed class FolderSplitter : UiElement
+        {
+            private const float Thickness = 5.0f;
 
-                    new Border().Fill(theme.Divider).Height(1.0f).Margin(0.0f, 4.0f, 0.0f, 0.0f)),
+            private readonly Func<float> _read;
+            private readonly Action<float> _write;
 
-                Picker(theme, library).GridRow(1));
+            private bool _dragging;
+            private float _dragStartPointer;
+            private float _dragStartWidth;
+
+            public FolderSplitter(Func<float> read, Action<float> write)
+            {
+                _read = read;
+                _write = write;
+                Width = Thickness;
+            }
+
+            protected override bool IsSelfHitTestVisible => true;
+
+            protected override Vector2 MeasureOverride(Vector2 availableSize) => new(Thickness, 0.0f);
+
+            protected override void OnPointerPressed(UiPointerEventArgs e)
+            {
+                if (e.Button != PointerButton.Left)
+                {
+                    return;
+                }
+
+                _dragging = true;
+                _dragStartPointer = e.Position.X;
+                _dragStartWidth = _read();
+
+                CapturePointer();
+                e.Handled = true;
+            }
+
+            protected override void OnPointerMoved(UiPointerEventArgs e)
+            {
+                if (!_dragging)
+                {
+                    return;
+                }
+
+                _write(_dragStartWidth + (e.Position.X - _dragStartPointer));
+                e.Handled = true;
+            }
+
+            protected override void OnPointerReleased(UiPointerEventArgs e)
+            {
+                if (!_dragging)
+                {
+                    return;
+                }
+
+                _dragging = false;
+                ReleasePointerCapture();
+                e.Handled = true;
+            }
+
+            public override UiCursor GetCursor(Vector2 point) => UiCursor.SizeWE;
+
+            protected override void OnRender(ManaUiDrawList drawList)
+            {
+                if (Root?.Theme is not { } theme)
+                {
+                    return;
+                }
+
+                var colour = _dragging ? theme.Accent : IsPointerOver ? theme.BorderStrong : theme.Border;
+                var centre = Bounds.X + Bounds.Width * 0.5f;
+                drawList.FillRect(new UiRect(centre - 0.5f, Bounds.Y, 1.0f, Bounds.Height), colour);
+            }
+        }
+
+        /// <summary>
+        /// Folders only, like the Content Browser's own tree -- picking one narrows the main list to it, the
+        /// same way typing its name into the filter box would, since both are the same substring match
+        /// against each asset's full path.
+        /// </summary>
+        private static UiElement FolderSidebar(UiTheme theme, MeshAssetLibrary library)
+        {
+            var tree = new TreeView
+            {
+                ItemsSource = new FolderRoots(library),
+                ChildrenSelector = FolderChildrenOf,
+                HasChildrenSelector = static item => item is MeshAssetFolder folder && folder.Folders.Count > 0,
+                IsExpandedByDefault = static _ => true,
+                ItemTemplate = item => BuildFolderRow(theme, item),
+
+                // Ignorant of the text filter on purpose -- see MeshAssetLibrary.FolderTree. Formats still
+                // change which folders have anything in them, so those are still part of the signature.
+                StructureSignature = () => HashCode.Combine(library.Assets.Count, library.Formats)
+            };
+
+            tree.SelectionChanged += (_, item) =>
+            {
+                // A folder's own (possibly collapsed-chain) name is exactly what the search box would need
+                // typed in to show the same assets, so setting it there is what "select a folder" means.
+                library.Filter = item is MeshAssetFolder folder ? folder.Name : string.Empty;
+            };
+
+            var allAssets = new Button()
+                .Label("All Assets")
+                .Variant(ButtonVariant.Subtle)
+                .StretchH()
+                .OnClick(() => library.Filter = string.Empty);
+
+            return new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Clip().Children(
+                allAssets.GridRow(0),
+                tree.Scrollable().GridRow(1));
+        }
+
+        private sealed class FolderRoots : System.Collections.IEnumerable
+        {
+            private readonly MeshAssetLibrary _library;
+
+            public FolderRoots(MeshAssetLibrary library)
+            {
+                _library = library;
+            }
+
+            public System.Collections.IEnumerator GetEnumerator()
+            {
+                return _library.FolderTree.Folders.GetEnumerator();
+            }
+        }
+
+        private static System.Collections.IEnumerable? FolderChildrenOf(object item)
+        {
+            return item is MeshAssetFolder folder ? folder.Folders : null;
+        }
+
+        private static UiElement BuildFolderRow(UiTheme theme, object item)
+        {
+            if (item is not MeshAssetFolder folder)
+            {
+                return new TextBlock().Text(item.ToString() ?? string.Empty);
+            }
+
+            return new StackPanel().Horizontal(6.0f).Children(
+                new TextBlock().Text(folder.Name).Ellipsis().CenterV(),
+                new TextBlock()
+                    .Text(folder.TotalEntries.ToString())
+                    .Foreground(theme.TextMuted)
+                    .FontSize(theme.FontSizeSmall)
+                    .CenterV());
+        }
+
+        /// <summary>The transform new placements arrive with, broken out as its own panel rather than
+        /// stealing the list's headroom the way it did stacked above it.</summary>
+        private static UiElement TransformPanel(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new TextBlock()
+                    .Text("Placement")
+                    .FontFamily(theme.FontFamilyMedium)
+                    .Foreground(theme.Text),
+
+                new TextBlock()
+                    .Text("Applied to models dropped onto the window and to anything placed from the list.")
+                    .Foreground(theme.TextMuted)
+                    .FontSize(theme.FontSizeSmall)
+                    .Wrap(),
+
+                Row(theme, "Offset", Vector(
+                    () => viewModel.ImportPositionOffset,
+                    value => viewModel.ImportPositionOffset = value,
+                    step: 0.1f)),
+
+                Row(theme, "Rotation", Vector(
+                    () => viewModel.ImportRotationDegrees,
+                    value => viewModel.ImportRotationDegrees = value,
+                    step: 1.0f)),
+
+                Row(theme, "Scale", Vector(
+                    () => viewModel.ImportScale,
+                    value => viewModel.ImportScale = value,
+                    step: 0.05f)));
         }
 
         private static UiElement Picker(UiTheme theme, MeshAssetLibrary library)
@@ -54,7 +242,18 @@ namespace ManaVoxel.Code.UI.ManaUi
             var tree = BuildTree(theme, library);
 
             var filter = new TextBox { Placeholder = "Filter by name or folder" };
-            filter.TextChanged += (_, text) => library.Filter = text;
+            filter.TextChanged += (_, text) =>
+            {
+                if (!filter.IsApplyingBinding)
+                {
+                    library.Filter = text;
+                }
+            };
+
+            // Polled rather than one-way: the folder sidebar can also set the filter (picking a folder is
+            // the same as typing its name), and the box has to show that rather than sitting there blank
+            // while the list is narrowed to something it never displayed.
+            filter.BindPolled(t => t.Text, () => library.Filter);
 
             var count = new TextBlock()
                 .Foreground(theme.TextMuted)

@@ -577,6 +577,47 @@ public static class BackdropChecks
                 .All(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) == 0),
             "no backdrop");
 
+        // ---------------------------------------------------------------- the docked panels themselves
+        // A panel's own tab strip and content area used to paint a flat, opaque fill regardless of the
+        // theme -- so "blur everything" only ever showed in the sliver of column a docked panel did not
+        // cover. The panel's own chrome has to frost too, not just the column behind it.
+        static DockItem Item(string title) => new(title, new Border().Fill(UiColor.White)) { Id = title };
+
+        var blurredHost = new DockHost();
+        var blurredRoot = new UiRoot(fonts) { Theme = blurredTheme };
+        blurredRoot.Content = blurredHost;
+        blurredHost.Dock(Item("Outliner"), DockSide.Center);
+        blurredRoot.UpdateLayout(new Vector2(400, 300));
+
+        var tabGroupDrawn = blurredRoot.Render().Instances.ToArray();
+        Check("a docked panel's tab strip frosts when the theme asks for it",
+            tabGroupDrawn.Any(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0),
+            $"{tabGroupDrawn.Count(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0)} of {tabGroupDrawn.Length}");
+
+        var sharpHost = new DockHost();
+        var sharpDockRoot = new UiRoot(fonts) { Theme = sharpTheme };
+        sharpDockRoot.Content = sharpHost;
+        sharpHost.Dock(Item("Outliner"), DockSide.Center);
+        sharpDockRoot.UpdateLayout(new Vector2(400, 300));
+
+        Check("and stays solid when blur is off",
+            sharpDockRoot.Render().Instances.ToArray()
+                .All(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) == 0),
+            "no backdrop");
+
+        // The gutter between two split panes is the same story: painted flat, it broke the frost right down
+        // the middle of a split column.
+        var splitHost = new DockHost();
+        var splitRoot = new UiRoot(fonts) { Theme = blurredTheme };
+        splitRoot.Content = splitHost;
+        var firstGroup = splitHost.Dock(Item("Outliner"), DockSide.Center);
+        splitHost.Dock(Item("Inspector"), DockSide.Right, firstGroup);
+        splitRoot.UpdateLayout(new Vector2(400, 300));
+
+        Check("the splitter gutter between two panes frosts too",
+            splitRoot.Render().Instances.ToArray().Any(i => (i.Flags & (uint)ManaUiInstanceFlags.Backdrop) != 0),
+            "frosted gutter");
+
         // ---------------------------------------------------------------- radii the backend can reach
         // The radius selects a level of a mip chain as log2 of it, so a chain of N levels tops out at
         // 2^(N-1). Past that it does not fail -- it clamps, silently, and the blur just stops getting

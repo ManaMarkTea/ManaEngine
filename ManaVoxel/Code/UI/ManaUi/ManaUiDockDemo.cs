@@ -9,46 +9,26 @@ using Button = ManaUI.Button;
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
-    /// The editor's ManaUI workspace: two resizable columns of dockable panels, arranged from a named
-    /// preset and remembered across restarts.
-    /// <para>
-    /// Two columns rather than one full-screen dock host, because ManaUI is still being built out alongside
-    /// the existing ImGui editor -- a host that filled the window would cover both the viewport and the
-    /// panels people actually use today. Columns leave the middle clear, which is also what makes the
-    /// Unity- and Unreal-shaped presets possible.
-    /// </para>
+    /// The editor's ManaUI workspace: a full-width menu, a toolbar strip for Voxel Tools, two resizable
+    /// columns, and a status bar -- arranged from a named preset and remembered across restarts.
     /// </summary>
     public static class ManaUiDockDemo
     {
-        private const float TopOffset = 60.0f;
         private const float MenuBarHeight = 32.0f;
+        private const float StatusBarHeight = 26.0f;
 
         private const float DefaultLeftWidth = 300.0f;
         private const float DefaultRightWidth = 380.0f;
+        private const float DefaultTopHeight = 56.0f;
+        private const float DefaultBottomHeight = 220.0f;
 
-        /// <summary>
-        /// Bump when a panel is added, removed or renamed. A saved workspace carrying an older version has
-        /// missing panels merged into it on the next run; one carrying this version is taken as-is, so a
-        /// panel the user closed stays closed. Same idea as BaseGameMode.DockLayoutVersion does for ImGui,
-        /// except that this merges rather than discarding the arrangement.
-        /// </summary>
-        private const int LayoutVersion = 13;
+        /// <summary>Bump when a panel is added, removed or renamed; missing panels get merged in on load.</summary>
+        private const int LayoutVersion = 17;
 
-        /// <summary>
-        /// Layout geometry here is proportional, not pixel-based like ImGui's ini, so one file works at
-        /// every UI scale and does not need the per-scale split that storage uses for ImGui.
-        /// </summary>
         private static string DefaultLayoutPath =>
             ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
-        /// <summary>
-        /// What each panel is called, for the Panels menu.
-        /// <para>
-        /// Separate from the factory rather than read out of it, because asking the factory would mean
-        /// building the panel to find out its name -- and building every panel to draw a menu is exactly
-        /// the cost the factory exists to avoid. A test holds the two lists to each other.
-        /// </para>
-        /// </summary>
+        /// <summary>What each panel is called, for the Panels menu. Kept separate from the factory so drawing the menu doesn't require building every panel.</summary>
         public static readonly Dictionary<string, string> PanelTitles = new(StringComparer.Ordinal)
         {
             ["tools"] = "Voxel Tools",
@@ -62,38 +42,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             ["outliner"] = "Outliner",
             ["inspector"] = "Inspector",
             ["showcase"] = "ManaUI",
-            ["layers"] = "Layers",
-            ["stats"] = "Stats",
-            ["about"] = "About"
+            ["about"] = "About",
+            ["worldperf"] = "World Perf",
+            ["debug"] = "Debug"
         };
 
-        /// <summary>
-        /// The asset list behind the import panel, shared rather than per-panel: scanning walks the whole
-        /// asset tree, and a theme switch rebuilds every panel -- which would otherwise throw the list away
-        /// and rescan for no reason.
-        /// </summary>
-        /// <summary>The most recently built workspace's drag controller. Test seam; see where it is set.</summary>
+        /// <summary>Test seam: the most recently built workspace's drag controller.</summary>
         public static DockDragController? LastDragController { get; private set; }
 
+        /// <summary>Shared, not per-panel, so a theme rebuild doesn't throw the scanned list away.</summary>
         public static MeshAssetLibrary MeshAssets { get; } = new();
 
-        /// <summary>
-        /// The place search, shared for the same reason: a theme switch rebuilds every panel, and results
-        /// someone waited on a network round trip for should survive that.
-        /// </summary>
+        /// <summary>Shared for the same reason -- also keeps results across a theme rebuild.</summary>
         public static PlaceSearchModel PlaceSearch { get; } = new();
 
-        /// <summary>Every panel the workspace can show.</summary>
-        /// <summary>
-        /// Every panel this workspace can build, in the order a merge should add them.
-        /// <para>
-        /// This list and the factory below have to agree, and when they were written separately they
-        /// silently stopped agreeing: six panels were added to the factory and not here, so upgrading an
-        /// existing workspace found nothing new to merge and the panels only appeared after a reset. The
-        /// factory asserts against this list now, so a panel that is not in both fails a test rather than
-        /// going missing for exactly the people who already use the editor.
-        /// </para>
-        /// </summary>
+        /// <summary>Every panel this workspace can build, in merge order. Must agree with the factory below, or newly added panels silently never merge in.</summary>
         public static readonly string[] PanelIds =
         {
             "tools",
@@ -107,20 +70,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             "outliner",
             "inspector",
             "showcase",
-            "layers",
-            "stats",
-            "about"
+            "about",
+            "worldperf",
+            "debug"
         };
 
-        /// <summary>
-        /// Builds the workspace over a <see cref="UiRoot"/> rather than the windowing host, so the whole
-        /// thing can be constructed and exercised headlessly.
-        /// <para>
-        /// <paramref name="editor"/> and <paramref name="world"/> are the editor's real state. Panels that
-        /// need one and are not given it simply do not appear, which is what lets the same workspace be
-        /// built in a test with neither.
-        /// </para>
-        /// </summary>
+        /// <summary>Builds the workspace over a <see cref="UiRoot"/> so it can be exercised headlessly. Panels needing <paramref name="editor"/>/<paramref name="world"/> just don't appear without them.</summary>
         public static UiElement Attach(
             UiRoot root,
             ManaUiShowcaseViewModel vm,
@@ -130,13 +85,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             global::Mana.ManaWorld? world = null,
             string? layoutPath = null)
         {
-            // Overridable so persistence can be exercised against a scratch file. Without it the only way
-            // to test saving and reloading would be to write the user's real workspace.
+            // Overridable so persistence can be exercised against a scratch file rather than the user's real one.
             layoutPath ??= DefaultLayoutPath;
 
-            // The saved theme has to be applied before anything is built, because views read colours as
-            // they construct rather than at render time -- which is also why switching rebuilds rather than
-            // just repainting.
+            // Applied before anything is built: views read theme colours as they construct, not at render time.
             var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
             if (saved != null && root.Theme.Kind != saved.Theme)
             {
@@ -171,30 +123,27 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var theme = root.Theme;
             var debug = root.Debug;
+            var top = new DockHost();
             var left = new DockHost();
             var right = new DockHost();
+            var bottom = new DockHost();
 
-            // Read each frame rather than captured: the main camera is replaced when a scene loads, and an
-            // overlay still drawing the old one would silently drift from the view.
+            // Read each frame: the main camera is replaced on scene load.
             global::Mana.CameraComponent? camera() => world?.MainCamera;
 
-            // The factory is what makes a saved layout restorable: content is application-owned and cannot
-            // come out of a file, so persistence stores ids and asks for the panel back by name.
+            // Persistence stores ids and asks for the panel back by name, since content is application-owned.
             DockItem? Resolve(string id) => id switch
             {
                 "showcase" => new DockItem("ManaUI", ManaUiShowcaseView.BuildContent(theme, vm, liveStat).Scrollable())
                 {
                     Id = "showcase"
                 },
-                "layers" => new DockItem("Layers", BuildLayers(theme, vm).Scrollable()) { Id = "layers" },
-                "stats" => new DockItem("Stats", BuildStats(theme, vm, liveStat)) { Id = "stats" },
+                // Build() already wraps itself in a horizontal ScrollViewer -- this is a toolbar strip now,
+                // not a side column, so it scrolls sideways rather than the usual vertical wrap.
                 "tools" when editor != null => new DockItem(
                     "Voxel Tools",
-                    VoxelToolPaletteManaView.Build(theme, editor).Scrollable()) { Id = "tools" },
+                    VoxelToolPaletteManaView.Build(theme, editor)) { Id = "tools" },
 
-                // One panel per subject rather than one with a tab bar: the dock already tabs anything
-                // sharing a slot, so this gives the same arrangement by default and lets them be pulled
-                // apart.
                 "import" when editor != null => new DockItem(
                     "Import",
                     MeshImportManaView.Build(theme, editor, MeshAssets)) { Id = "import" },
@@ -218,8 +167,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     "Lighting",
                     IrradianceSettingsManaView.Build(theme, world.IrradianceSettings)) { Id = "lighting" },
 
-                // The snapshot is whatever the backend reported at start-up; null before it has, which the
-                // panel says rather than showing an empty frame.
+                // Null until the backend has reported its start-up snapshot; the panel says so rather than showing an empty frame.
                 "about" => new DockItem("About", new DynamicContent()
                     .Showing<ManaGraphicsDiagnosticsSnapshot>(
                         () => ManaUiDiagnostics.Snapshot,
@@ -228,14 +176,19 @@ namespace ManaVoxel.Code.UI.ManaUi
                 {
                     Id = "about"
                 },
-                // world.Selection rather than a separately supplied instance: it is the same object the
-                // ImGui outliner and the viewport already use, so the two outliners cannot drift apart.
+                // world.Selection is the same instance the ImGui outliner and viewport use, so they can't drift apart.
                 "outliner" when world != null => new DockItem(
                     "Outliner",
                     SceneOutlinerManaView.Build(theme, world, world.Selection)) { Id = "outliner" },
                 "inspector" when world != null => new DockItem(
                     "Inspector",
                     SceneInspectorManaView.Build(theme, world.Selection, world.Context)) { Id = "inspector" },
+                "worldperf" when world != null => new DockItem(
+                    "World Perf",
+                    WorldPerfManaView.Build(theme, world).Scrollable()) { Id = "worldperf" },
+                "debug" when editor != null => new DockItem(
+                    "Debug",
+                    DebugManaView.Build(theme, editor).Scrollable()) { Id = "debug" },
                 _ => null
             };
 
@@ -247,52 +200,56 @@ namespace ManaVoxel.Code.UI.ManaUi
                 BackdropBlur = root.Theme.BackdropBlur
             };
 
-            // One controller over both columns, so a panel torn out of either can be dropped into either.
-            // A controller per host could not do that: each only resolved drops inside its own tree.
-            var dragController = new DockDragController(root, new[] { left, right });
-
-            // The controller is not an element, so nothing can find it by walking the tree. Exposed so a
-            // test can float a panel the way a tear-out does; the workspace itself has it in scope.
+            // One controller over every host, so a panel torn out of any of them can be dropped into any other.
+            var dragController = new DockDragController(root, new[] { top, left, right, bottom });
             LastDragController = dragController;
 
-            // Before the columns are filled, so a panel that was left floating counts as already open. The
-            // merge and the presets both ask what is present, and a floating panel that is not part of that
-            // answer comes back twice -- once in its window and once in a column.
+            // Before the columns are filled, so a floating panel doesn't also get placed in a column.
             RestoreFloating(root, dragController, saved, Resolve);
 
             HashSet<string> FloatingIds() => dragController.FloatingItems
                 .Select(item => item.Id ?? string.Empty)
                 .ToHashSet(StringComparer.Ordinal);
 
-            // Non-short-circuiting on purpose: both columns must be restored, and && would skip the right
-            // one whenever the left was empty.
+            // Non-short-circuiting: every host must be restored, or && would skip later ones once one came back empty.
             var restored = saved != null
-                && (DockLayout.Apply(left, saved.Left, Resolve) | DockLayout.Apply(right, saved.Right, Resolve));
+                && (DockLayout.Apply(top, saved.Top, Resolve)
+                    | DockLayout.Apply(left, saved.Left, Resolve)
+                    | DockLayout.Apply(right, saved.Right, Resolve)
+                    | DockLayout.Apply(bottom, saved.Bottom, Resolve));
 
             if (!restored)
             {
-                ApplyPreset(state.Preset, left, right, Resolve, FloatingIds());
+                ApplyPreset(state.Preset, top, left, right, bottom, Resolve, FloatingIds());
             }
             else if (saved!.Version != LayoutVersion)
             {
-                // A saved workspace only knows the panels that existed when it was written, so a newly
-                // added one would never appear for anyone who has run the editor before -- exactly what
-                // happened when the voxel palette was added. Merging on a version change keeps the user's
-                // arrangement while still surfacing what is new.
-                MergeMissingPanels(left, right, Resolve, FloatingIds());
+                // Merges any panel that didn't exist when this was saved, so upgrades don't lose new panels.
+                MergeMissingPanels(top, left, right, bottom, Resolve, FloatingIds());
+
+                // Voxel Tools and Import used to live in a column; move each to its own strip once, on upgrade.
+                RelocateToStrip("tools", top, new[] { left, right, bottom }, Resolve, FloatingIds());
+                RelocateToStrip("import", bottom, new[] { left, right, top }, Resolve, FloatingIds());
             }
 
-            // Backgrounds matter here because the columns sit over the viewport: the handle gutter and the
-            // seams between panes are part of the column but not part of any panel's content, so without a
-            // backdrop the scene shows through and a solid column reads as translucent.
+            // MinimumSize before Size in each of these: Size's setter clamps against MinimumSize immediately,
+            // and an object initializer runs in order -- reversed, it clamps against the class's stale
+            // default (180) instead of the value below it, which is how the toolbar's 56px became 180px.
+            var topPanel = new ResizablePanel
+            {
+                Edge = Dock.Top,
+                MinimumSize = 40.0f,
+                Size = saved is { TopHeight: > 0.0f } ? saved.TopHeight : DefaultTopHeight,
+                Background = theme.Frosted(theme.Background),
+                BackdropBlur = theme.BackdropBlur,
+                Child = top
+            };
+
             var leftPanel = new ResizablePanel
             {
                 Edge = Dock.Left,
-                Size = saved is { LeftWidth: > 0.0f } ? saved.LeftWidth : DefaultLeftWidth,
                 MinimumSize = 200.0f,
-
-                // Translucent only when there is a blur to see through it to. An opaque column over a
-                // blurred snapshot is just an opaque column that made the GPU work for nothing.
+                Size = saved is { LeftWidth: > 0.0f } ? saved.LeftWidth : DefaultLeftWidth,
                 Background = theme.Frosted(theme.Background),
                 BackdropBlur = theme.BackdropBlur,
                 Child = left
@@ -301,11 +258,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             var rightPanel = new ResizablePanel
             {
                 Edge = Dock.Right,
-                Size = saved is { RightWidth: > 0.0f } ? saved.RightWidth : DefaultRightWidth,
                 MinimumSize = 220.0f,
+                Size = saved is { RightWidth: > 0.0f } ? saved.RightWidth : DefaultRightWidth,
                 Background = theme.Frosted(theme.Background),
                 BackdropBlur = theme.BackdropBlur,
                 Child = right
+            };
+
+            var bottomPanel = new ResizablePanel
+            {
+                Edge = Dock.Bottom,
+                MinimumSize = 120.0f,
+                Size = saved is { BottomHeight: > 0.0f } ? saved.BottomHeight : DefaultBottomHeight,
+                Background = theme.Frosted(theme.Background),
+                BackdropBlur = theme.BackdropBlur,
+                Child = bottom
             };
 
             void Save()
@@ -322,21 +289,33 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Theme = state.Theme,
                     FontFamily = root.Theme.FontFamily,
                     BackdropBlur = state.BackdropBlur,
+                    TopHeight = topPanel.Size,
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
+                    BottomHeight = bottomPanel.Size,
+                    Top = DockLayout.Capture(top),
                     Left = DockLayout.Capture(left),
                     Right = DockLayout.Capture(right),
+                    Bottom = DockLayout.Capture(bottom),
                     Floating = CaptureFloating(dragController)
                 }.Save(layoutPath);
             }
 
-            // An empty column would leave a resize handle floating against nothing, so it hides itself
-            // until it has something to hold.
+            // An empty strip would leave a resize handle floating against nothing, so it hides itself until
+            // it has something to hold.
             void SyncColumnVisibility()
             {
+                topPanel.Visibility = top.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
                 leftPanel.Visibility = left.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
                 rightPanel.Visibility = right.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
+                bottomPanel.Visibility = bottom.RootNode == null ? Visibility.Collapsed : Visibility.Visible;
             }
+
+            top.LayoutChanged += (_, _) =>
+            {
+                SyncColumnVisibility();
+                Save();
+            };
 
             left.LayoutChanged += (_, _) =>
             {
@@ -350,13 +329,21 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Save();
             };
 
+            bottom.LayoutChanged += (_, _) =>
+            {
+                SyncColumnVisibility();
+                Save();
+            };
+
             // Committed, not every pixel of the drag: a resize would otherwise rewrite the file on every
             // frame it moved.
             // Floating panels are part of the layout too: created, moved, docked back or closed.
             dragController.FloatingChanged += (_, _) => Save();
 
+            topPanel.SizeCommitted += (_, _) => Save();
             leftPanel.SizeCommitted += (_, _) => Save();
             rightPanel.SizeCommitted += (_, _) => Save();
+            bottomPanel.SizeCommitted += (_, _) => Save();
 
             SyncColumnVisibility();
 
@@ -367,21 +354,15 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                // Set before the save, saved before the swap: the file needs the incoming theme, and the
-                // columns whose widths it also records are about to be replaced.
+                // Saved before the swap: the columns whose widths it records are about to be rebuilt.
                 state.Theme = kind;
                 Save();
                 root.Theme = UiTheme.Create(kind);
 
-                // Rebuilt rather than repainted. Application views capture theme colours as they are
-                // constructed -- a foreground here, a fill there -- so a swap that only re-rendered would
-                // leave half the workspace in the old palette.
+                // Rebuilt, not repainted: views capture theme colours as they're constructed.
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
-            // Blurring is a whole extra capture and reduce of the frame, so it is chosen rather than always
-            // on -- and rebuilds the workspace for the same reason a theme change does: the panels read
-            // their fills as they are constructed.
             void ChooseBlur(float blur)
             {
                 if (MathF.Abs(root.Theme.BackdropBlur - blur) < 0.01f)
@@ -404,21 +385,15 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 root.Theme.FontFamily = family;
 
-                // Every measured width in the tree was computed with the old face, so this is a full
-                // relayout rather than a repaint -- and the workspace is rebuilt for the same reason a
-                // theme change rebuilds it.
+                // Every measured width in the tree was computed with the old face, so this needs a full relayout.
                 root.InvalidateAll();
                 Save();
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
-            // Closing a panel used to be permanent: nothing listed what existed, so a panel dismissed by its
-            // tab's close button was gone until the layout was reset. This is what makes that reversible,
-            // and what makes a newly added panel findable without waiting for a version merge.
             void TogglePanel(string id)
             {
-                // Floating windows count. Without them a panel torn out of the dock reads as closed, and
-                // opening it again builds a second copy of something already on screen.
+                // Floating windows count as open, or reopening one builds a second copy on screen.
                 if (dragController.FindFloating(id) is { } floating)
                 {
                     floating.BringToFront();
@@ -426,8 +401,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                var docked = left.AllItems().Concat(right.AllItems())
-                    .FirstOrDefault(item => item.Id == id);
+                var docked = AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == id);
 
                 if (docked != null)
                 {
@@ -440,57 +414,79 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                // Into whichever column exists, preferring the right, the same as a version merge does.
-                var host = right.RootNode != null ? right : left;
+                // Voxel Tools goes back to its own strip, Import to its own, everything else prefers the
+                // right column.
+                var host = id == "tools" ? top : id == "import" ? bottom : right.RootNode != null ? right : left;
                 host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
 
             bool IsPanelOpen(string id) =>
-                left.AllItems().Concat(right.AllItems()).Any(item => item.Id == id)
+                AllDocked(top, left, right, bottom).Any(item => item.Id == id)
                 || dragController.FindFloating(id) != null;
 
             void Choose(WorkspacePreset preset)
             {
                 state.Preset = preset;
-                ApplyPreset(preset, left, right, Resolve, FloatingIds());
+                ApplyPreset(preset, top, left, right, bottom, Resolve, FloatingIds());
                 SyncColumnVisibility();
                 Save();
             }
 
-            // The menu bar rides above the right column, both anchored clear of ImGui's own chrome. The
-            // performance strip sits at the far left of that same band: it is a glance, not a panel, so it
-            // wants somewhere permanent and small rather than a column of its own.
-            //
-            // The overlay layer goes in first, so the columns draw over it: it spans the whole window and
-            // works out the viewport itself from what the columns are covering.
+            // Rows: the toolbar strip, the main area, and the Import strip -- but the Import strip only
+            // spans the left column and the viewport (columns 0-1). The right column spans both of the
+            // lower rows so it reaches the status bar unbroken, matching Unreal's own Outliner/Details
+            // column running the full height beside a Content Browser docked under the viewport.
+            var dockArea = new Grid()
+                .Rows("Auto, *, Auto")
+                .Columns("Auto, *, Auto")
+                .Children(
+                    topPanel.GridRow(0).GridColumn(0, span: 3),
+                    leftPanel.GridRow(1).GridColumn(0),
+                    rightPanel.GridRow(1, span: 2).GridColumn(2),
+                    bottomPanel.GridRow(2).GridColumn(0, span: 2))
+                .Anchor(top: MenuBarHeight, left: 0.0f, right: 0.0f, bottom: StatusBarHeight);
+
+            // Overlay first so the dock area draws over it; it works out the viewport from what the strips
+            // cover. The right column already excludes itself via rightWidth regardless of row span, so the
+            // bottom strip's height only needs to be subtracted once for the left+centre area it actually sits under.
             return new Canvas().Children(
                 new ViewportOverlayLayer(
                     theme,
                     () => leftPanel.Visibility == Visibility.Collapsed ? 0.0f : leftPanel.Size,
                     () => rightPanel.Visibility == Visibility.Collapsed ? 0.0f : rightPanel.Size,
-                    TopOffset,
+                    () => MenuBarHeight + (topPanel.Visibility == Visibility.Collapsed ? 0.0f : topPanel.Size),
+                    () => StatusBarHeight + (bottomPanel.Visibility == Visibility.Collapsed ? 0.0f : bottomPanel.Size),
                     camera,
                     editor)
                     .Anchor(left: 0.0f, top: 0.0f, right: 0.0f, bottom: 0.0f),
 
-                leftPanel.Anchor(top: TopOffset, left: 0.0f, bottom: 0.0f),
+                dockArea,
 
-                ManaUiPerformanceStrip.Build(theme)
-                    .Anchor(top: TopOffset - MenuBarHeight, left: 0.0f),
-
-                // Sized to its own menus rather than to the right column. Pinned to the column's width, the
-                // bar was cut off at whatever fitted -- so Panels and Appearance, being last, could not be
-                // reached at all. It grows leftward over the viewport instead, which costs a strip of scene
-                // that is already under the menu band.
                 new Border()
                     .Fill(theme.Frosted(theme.Surface))
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
-                    .Rounded(theme.CornerRadius)
-                    .Content(BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor))
-                    .Anchor(top: TopOffset - MenuBarHeight, right: 0.0f),
+                    .Height(MenuBarHeight)
+                    .Content(new Grid().Columns("*, Auto").Rows("Auto").Children(
+                        BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor)
+                            .GridColumn(0),
+                        BuildClock(theme).Margin(0.0f, 0.0f, 12.0f, 0.0f).GridColumn(1)))
+                    .Anchor(top: 0.0f, left: 0.0f, right: 0.0f),
 
-                rightPanel.Anchor(top: TopOffset, right: 0.0f, bottom: 0.0f));
+                new Border()
+                    .Fill(theme.Frosted(theme.Surface))
+                    .Blur(theme.BackdropBlur)
+                    .Outline(theme.Border, 1.0f)
+                    .Height(StatusBarHeight)
+                    .PaddingOf(8.0f, 2.0f)
+                    .Content(new Grid().Columns("*, Auto").Rows("Auto").Children(
+                        ManaUiPerformanceStrip.Build(theme).GridColumn(1).CenterV()))
+                    .Anchor(left: 0.0f, right: 0.0f, bottom: 0.0f));
+        }
+
+        private static IEnumerable<DockItem> AllDocked(DockHost top, DockHost left, DockHost right, DockHost bottom)
+        {
+            return top.AllItems().Concat(left.AllItems()).Concat(right.AllItems()).Concat(bottom.AllItems());
         }
 
         /// <summary>Mutable bits the menu and the save hook both need to see.</summary>
@@ -498,16 +494,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             public WorkspacePreset Preset { get; set; }
 
-            /// <summary>
-            /// The theme to persist, which is not always the one the root is showing.
-            /// <para>
-            /// A theme change has to write the file before it swaps, because the swap rebuilds the
-            /// workspace and the save closure still refers to the old columns -- they are the ones holding
-            /// the widths worth keeping. Reading the theme off the root at that moment gave the outgoing
-            /// one, so every switch persisted the theme it was leaving and the setting was permanently one
-            /// run behind.
-            /// </para>
-            /// </summary>
+            /// <summary>Theme to persist -- not always what the root is showing, since a switch saves before it swaps.</summary>
             public UiThemeKind Theme { get; set; }
 
             public float BackdropBlur { get; set; }
@@ -515,19 +502,25 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         // ----- presets ------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Rebuilds both columns from scratch. Presets are starting points rather than modes, so this runs
-        /// only when one is chosen -- everything the user does afterwards is saved over the top of it.
-        /// </summary>
+        /// <summary>Rebuilds every host from scratch. Only runs when a preset is chosen; edits afterward save over it.</summary>
         private static void ApplyPreset(
             WorkspacePreset preset,
+            DockHost top,
             DockHost left,
             DockHost right,
+            DockHost bottom,
             Func<string, DockItem?> resolve,
             HashSet<string>? alreadyOpen = null)
         {
+            top.RootNode = null;
             left.RootNode = null;
             right.RootNode = null;
+            bottom.RootNode = null;
+
+            // Voxel Tools and Import get their own strips regardless of preset, so a preset only has to
+            // arrange the two columns.
+            Place(top, resolve, "tools", DockSide.Center);
+            Place(bottom, resolve, "import", DockSide.Center);
 
             switch (preset)
             {
@@ -545,23 +538,20 @@ namespace ManaVoxel.Code.UI.ManaUi
                     break;
             }
 
-            // Every preset names the panels it arranges, so a newly added one is in none of them and a
-            // reset silently drops it -- which is how Import, Search and the blur test card went missing
-            // for anyone who tried a preset. Anything a preset did not place goes in rather than nowhere.
-            PlaceRemaining(left, right, resolve, alreadyOpen);
+            // Anything a preset didn't name (a newly added panel) still needs a home rather than vanishing.
+            PlaceRemaining(top, left, right, bottom, resolve, alreadyOpen);
         }
 
-        /// <summary>
-        /// Docks whatever a preset did not name. Into whichever column exists, preferring the right, the
-        /// same as an upgrade merge does.
-        /// </summary>
+        /// <summary>Docks whatever a preset didn't name, preferring the right column, same as an upgrade merge.</summary>
         private static void PlaceRemaining(
+            DockHost top,
             DockHost left,
             DockHost right,
+            DockHost bottom,
             Func<string, DockItem?> resolve,
             HashSet<string>? alreadyOpen = null)
         {
-            var present = left.AllItems().Concat(right.AllItems())
+            var present = AllDocked(top, left, right, bottom)
                 .Select(item => item.Id)
                 .ToHashSet(StringComparer.Ordinal);
 
@@ -579,92 +569,67 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
         }
 
-        /// <summary>Everything in one column, which is how these panels started out.</summary>
+        /// <summary>Everything tabbed in one column.</summary>
         private static void BuildRightColumn(DockHost right, Func<string, DockItem?> resolve)
         {
-            var tools = Place(right, resolve, "tools", DockSide.Center);
-            var outliner = Place(right, resolve, "outliner", DockSide.Bottom, tools);
+            var outliner = Place(right, resolve, "outliner", DockSide.Center);
 
             // Tabbed with the outliner: master and detail, and side by side in one column would leave
             // neither enough width for a transform row.
-            Place(right, resolve, "inspector", DockSide.Center, outliner);
-            Place(right, resolve, "showcase", DockSide.Center, tools);
-            Place(right, resolve, "placement", DockSide.Center, tools);
-            Place(right, resolve, "physics", DockSide.Center, tools);
-            Place(right, resolve, "voxelstats", DockSide.Center, tools);
-            Place(right, resolve, "lighting", DockSide.Center, tools);
-            Place(right, resolve, "about", DockSide.Center, tools);
-
-            var layers = Place(right, resolve, "layers", DockSide.Bottom);
-            Place(right, resolve, "stats", DockSide.Center, layers);
+            Place(right, resolve, "inspector", DockSide.Bottom, outliner);
+            Place(right, resolve, "showcase", DockSide.Center, outliner);
+            Place(right, resolve, "placement", DockSide.Center, outliner);
+            Place(right, resolve, "physics", DockSide.Center, outliner);
+            Place(right, resolve, "voxelstats", DockSide.Center, outliner);
+            Place(right, resolve, "lighting", DockSide.Center, outliner);
+            Place(right, resolve, "about", DockSide.Center, outliner);
         }
 
-        /// <summary>Tools on the left; hierarchy above inspector on the right, as Unity stacks them.</summary>
+        /// <summary>Hierarchy on the left and Inspector on the right, Unity's own arrangement.</summary>
         private static void BuildUnity(DockHost left, DockHost right, Func<string, DockItem?> resolve)
         {
-            var tools = Place(left, resolve, "tools", DockSide.Center);
-            Place(left, resolve, "showcase", DockSide.Center, tools);
-            Place(left, resolve, "placement", DockSide.Center, tools);
-            Place(left, resolve, "physics", DockSide.Center, tools);
-            Place(left, resolve, "voxelstats", DockSide.Center, tools);
-            Place(left, resolve, "lighting", DockSide.Center, tools);
-            Place(left, resolve, "about", DockSide.Center, tools);
+            Place(left, resolve, "outliner", DockSide.Center);
 
-            var outliner = Place(right, resolve, "outliner", DockSide.Center);
-            var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
-
-            Place(right, resolve, "layers", DockSide.Center, inspector);
-            Place(right, resolve, "stats", DockSide.Center, inspector);
+            // The extras this editor has that Unity does not go where a custom add-on panel usually lands
+            // in Unity -- tabbed alongside the Inspector, rather than crowding the Hierarchy.
+            var inspector = Place(right, resolve, "inspector", DockSide.Center);
+            Place(right, resolve, "showcase", DockSide.Center, inspector);
+            Place(right, resolve, "placement", DockSide.Center, inspector);
+            Place(right, resolve, "physics", DockSide.Center, inspector);
+            Place(right, resolve, "voxelstats", DockSide.Center, inspector);
+            Place(right, resolve, "lighting", DockSide.Center, inspector);
+            Place(right, resolve, "about", DockSide.Center, inspector);
         }
 
-        /// <summary>
-        /// Tools left; outliner as a shallow band top-right with the details panel filling the space
-        /// beneath it, which is roughly the proportion Unreal gives them.
-        /// </summary>
+        /// <summary>Outliner as a shallow top band, details filling below it -- roughly Unreal's proportions.</summary>
         private static void BuildUnreal(DockHost left, DockHost right, Func<string, DockItem?> resolve)
         {
-            var tools = Place(left, resolve, "tools", DockSide.Center);
-            Place(left, resolve, "layers", DockSide.Center, tools);
-            Place(left, resolve, "placement", DockSide.Center, tools);
-            Place(left, resolve, "physics", DockSide.Center, tools);
-            Place(left, resolve, "voxelstats", DockSide.Center, tools);
-            Place(left, resolve, "lighting", DockSide.Center, tools);
-            Place(left, resolve, "about", DockSide.Center, tools);
+            var placement = Place(left, resolve, "placement", DockSide.Center);
+            Place(left, resolve, "physics", DockSide.Center, placement);
+            Place(left, resolve, "voxelstats", DockSide.Center, placement);
+            Place(left, resolve, "lighting", DockSide.Center, placement);
+            Place(left, resolve, "about", DockSide.Center, placement);
             Place(left, resolve, "showcase", DockSide.Bottom);
 
             var outliner = Place(right, resolve, "outliner", DockSide.Center);
-            var inspector = Place(right, resolve, "inspector", DockSide.Bottom, outliner);
-            Place(right, resolve, "stats", DockSide.Center, inspector);
-
-            // The outliner is a list and the inspector is a form, so the space is not split evenly.
-            if (right.RootNode is DockSplit split && split.Children.Count == 2)
-            {
-                split.SetWeights(new[] { 0.35f, 0.65f });
-            }
+            Place(right, resolve, "inspector", DockSide.Bottom, outliner);
         }
 
         /// <summary>Outliner far left, inspector far right, viewport clear between them.</summary>
         private static void BuildSplit(DockHost left, DockHost right, Func<string, DockItem?> resolve)
         {
             var outliner = Place(left, resolve, "outliner", DockSide.Center);
-            var splitTools = Place(left, resolve, "tools", DockSide.Center, outliner);
-            Place(left, resolve, "placement", DockSide.Center, splitTools);
-            Place(left, resolve, "physics", DockSide.Center, splitTools);
-            Place(left, resolve, "voxelstats", DockSide.Center, splitTools);
-            Place(left, resolve, "lighting", DockSide.Center, splitTools);
-            Place(left, resolve, "about", DockSide.Center, splitTools);
+            Place(left, resolve, "placement", DockSide.Center, outliner);
+            Place(left, resolve, "physics", DockSide.Center, outliner);
+            Place(left, resolve, "voxelstats", DockSide.Center, outliner);
+            Place(left, resolve, "lighting", DockSide.Center, outliner);
+            Place(left, resolve, "about", DockSide.Center, outliner);
 
             var inspector = Place(right, resolve, "inspector", DockSide.Center);
             Place(right, resolve, "showcase", DockSide.Center, inspector);
-            var layers = Place(right, resolve, "layers", DockSide.Bottom);
-            Place(right, resolve, "stats", DockSide.Center, layers);
         }
 
-        /// <summary>
-        /// Docks a panel by id, or does nothing when it is unavailable in this session -- the voxel palette
-        /// with no editor view model, the outliner with no world. Returns the node it landed in so the next
-        /// panel can be placed relative to it.
-        /// </summary>
+        /// <summary>Docks a panel by id, or no-ops if unavailable this session. Returns the node it landed in.</summary>
         private static DockNode? Place(
             DockHost host,
             Func<string, DockItem?> resolve,
@@ -678,9 +643,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return null;
             }
 
-            // Center with no target lands in the first group rather than beside the panel it was meant to
-            // join, which silently reshuffles a preset whenever an earlier panel was unavailable. Splitting
-            // instead keeps the shape recognisable.
+            // Center with no target would land in the first group rather than beside the intended panel.
             if (target == null && host.RootNode != null && side == DockSide.Center)
             {
                 side = DockSide.Bottom;
@@ -689,11 +652,80 @@ namespace ManaVoxel.Code.UI.ManaUi
             return host.Dock(item, side, target);
         }
 
-        /// <summary>
-        /// Docks any panel neither column contains. Only runs when the saved version differs from
-        /// <see cref="LayoutVersion"/>, so a panel the user deliberately closed stays closed until the
-        /// panel set actually changes.
-        /// </summary>
+        /// <summary>Docks any panel no host contains. Only runs on a version mismatch, so closed panels stay closed otherwise.</summary>
+        private static void MergeMissingPanels(
+            DockHost top,
+            DockHost left,
+            DockHost right,
+            DockHost bottom,
+            Func<string, DockItem?> resolve,
+            HashSet<string>? alreadyOpen = null)
+        {
+            var present = AllDocked(top, left, right, bottom)
+                .Select(item => item.Id)
+                .ToHashSet(StringComparer.Ordinal);
+
+            present.UnionWith(alreadyOpen ?? Enumerable.Empty<string>());
+
+            foreach (var id in PanelIds)
+            {
+                if (present.Contains(id))
+                {
+                    continue;
+                }
+
+                var item = resolve(id);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                // Voxel Tools and Import go straight to their own strips; everything else prefers the
+                // right column.
+                if (id == "tools")
+                {
+                    top.Dock(item, DockSide.Center, DockHost.FindFirstGroup(top.RootNode));
+                    continue;
+                }
+
+                if (id == "import")
+                {
+                    bottom.Dock(item, DockSide.Center, DockHost.FindFirstGroup(bottom.RootNode));
+                    continue;
+                }
+
+                var host = right.RootNode != null ? right : left;
+                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
+            }
+        }
+
+        /// <summary>One-time migration: moves a panel that used to live in a column into its own dedicated strip.</summary>
+        private static void RelocateToStrip(
+            string id,
+            DockHost home,
+            IReadOnlyList<DockHost> others,
+            Func<string, DockItem?> resolve,
+            HashSet<string> floatingIds)
+        {
+            if (home.AllItems().Any(item => item.Id == id) || floatingIds.Contains(id))
+            {
+                return;
+            }
+
+            var existing = others.SelectMany(host => host.AllItems()).FirstOrDefault(item => item.Id == id);
+            if (existing != null)
+            {
+                existing.Owner?.Remove(existing);
+                home.Dock(existing, DockSide.Center, DockHost.FindFirstGroup(home.RootNode));
+                return;
+            }
+
+            if (resolve(id) is { } item)
+            {
+                home.Dock(item, DockSide.Center, DockHost.FindFirstGroup(home.RootNode));
+            }
+        }
+
         private static List<FloatingPanelLayout> CaptureFloating(DockDragController controller)
         {
             var captured = new List<FloatingPanelLayout>();
@@ -711,8 +743,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     X = window.Position.X,
                     Y = window.Position.Y,
 
-                    // The arranged size rather than the requested one, so a window the user resized comes
-                    // back the size they left it.
+                    // Arranged size, not requested: a resized window comes back the size it was left.
                     Width = window.Bounds.Width > 0.0f ? window.Bounds.Width : FloatingFallback.X,
                     Height = window.Bounds.Height > 0.0f ? window.Bounds.Height : FloatingFallback.Y
                 });
@@ -749,8 +780,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Child = item.Content
                 };
 
-                // Clamped onto the screen: a window left on a monitor that is no longer attached, or off the
-                // edge after the window shrank, would otherwise come back somewhere unreachable.
+                // Clamped onto the screen so a detached monitor or a shrunk window doesn't strand it.
                 var position = new Vector2(
                     Math.Clamp(entry.X, 0.0f, MathF.Max(0.0f, root.Size.X - 80.0f)),
                     Math.Clamp(entry.Y, 0.0f, MathF.Max(0.0f, root.Size.Y - 40.0f)));
@@ -760,44 +790,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
         }
 
-        private static void MergeMissingPanels(
-            DockHost left,
-            DockHost right,
-            Func<string, DockItem?> resolve,
-            HashSet<string>? alreadyOpen = null)
-        {
-            var present = left.AllItems().Concat(right.AllItems())
-                .Select(item => item.Id)
-                .ToHashSet(StringComparer.Ordinal);
-
-            present.UnionWith(alreadyOpen ?? Enumerable.Empty<string>());
-
-            foreach (var id in PanelIds)
-            {
-                if (present.Contains(id))
-                {
-                    continue;
-                }
-
-                var item = resolve(id);
-                if (item == null)
-                {
-                    continue;
-                }
-
-                // Into whichever column already exists, preferring the right -- that is where a
-                // single-column workspace keeps everything.
-                var host = right.RootNode != null ? right : left;
-                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
-            }
-        }
-
         // ----- menu ---------------------------------------------------------------------------------
 
-        /// <summary>
-        /// A ManaUI menu bar running beside ImGui's own. Not a replacement yet -- it drives the demo view
-        /// model rather than the editor -- but it is the shape the real one will take.
-        /// </summary>
+        /// <summary>The editor's real menu bar, in ManaUI.</summary>
         private static MenuBar BuildMenuBar(
             ManaUiShowcaseViewModel vm,
             WorkspaceState state,
@@ -813,9 +808,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var bar = new MenuBar();
 
-            // The editor's own menus come first, so the bar reads the way the ImGui one does. They are
-            // added rather than built into this method because they belong to the editor, not to the
-            // workspace chrome -- the workspace outlives any particular application's menus.
+            // Editor menus first, so the bar reads the way the ImGui one did. Owned by the editor, not this chrome.
             if (editor != null)
             {
                 foreach (var menu in VoxelEditorMainMenuManaView.BuildMenus(editor))
@@ -840,25 +833,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     PresetItem("Unreal", WorkspacePreset.Unreal, state, choose),
                     PresetItem("Split", WorkspacePreset.Split, state, choose),
                     MenuItem.Separator(),
-
-                    // Reapplies the preset already chosen, which is what "reset" means here: put the
-                    // panels back where this arrangement started.
                     new MenuItem("Reset panels", () => choose(state.Preset))),
 
-                new MenuItem("Layers").WithItems(
-                    new MenuItem("Add layer") { Command = vm.AddLayerCommand }.WithShortcut("Ctrl+N"),
-                    new MenuItem("Remove layer") { Command = vm.RemoveLayerCommand },
-                    MenuItem.Separator(),
-                    new MenuItem("Clear all", () =>
-                    {
-                        while (vm.Layers.Count > 0)
-                        {
-                            vm.RemoveLayerCommand.Execute(null);
-                        }
-                    })),
-
-                // Every panel the workspace can build, so none of them can be lost. Ordered as PanelIds is,
-                // which groups the editor's own panels ahead of the general ones.
                 new MenuItem("Panels").WithItems(
                     PanelIds
                         .Select(id => new MenuItem(
@@ -867,8 +843,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Checkable(() => isPanelOpen(id)))
                         .ToArray()),
 
-                // "Appearance" rather than "View": the editor's own View menu now sits in this same bar,
-                // and two menus with one name is a coin toss for whoever is looking for something.
+                // "Appearance" rather than "View": the editor's own View menu already sits in this bar.
                 new MenuItem("Appearance").WithItems(
                     new MenuItem("Theme").WithItems(
                         new MenuItem("Dark", () => chooseTheme(UiThemeKind.Dark))
@@ -895,18 +870,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
         }
 
-        /// <summary>
-        /// Fonts offered in the Font menu. Filtered at build time to whichever are actually installed, so
-        /// the list spans platforms without offering a Windows face on a Mac.
-        /// </summary>
-        /// <summary>
-        /// Blur radii offered. Powers of two because the blur is a mip chain -- each level is twice the
-        /// radius of the last, so anything between them is interpolated rather than distinct.
-        /// </summary>
+        /// <summary>Powers of two: the blur is a mip chain, so anything between two levels is interpolated.</summary>
         public static readonly float[] BlurChoices = { 0.0f, 4.0f, 8.0f, 16.0f, 32.0f };
 
         private static string BlurLabel(float blur) => blur <= 0.0f ? "Off" : $"{blur:0} px";
 
+        /// <summary>Fonts offered in the Font menu, filtered at build time to whichever are actually installed.</summary>
         private static readonly string[] FontChoices =
         {
             "Roboto",
@@ -961,53 +930,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Checkable(() => state.Preset == preset);
         }
 
-        // ----- demo panels --------------------------------------------------------------------------
-
-        private static UiElement BuildLayers(UiTheme theme, ManaUiShowcaseViewModel vm)
+        /// <summary>The one thing worth glancing at on a menu bar that otherwise never changes.</summary>
+        private static UiElement BuildClock(UiTheme theme)
         {
-            return new StackPanel().Vertical(theme.Spacing).Padding(12.0f).Children(
-                new StackPanel().Horizontal(theme.Spacing).Children(
-                    new Button().Label("Add").Command(vm.AddLayerCommand),
-                    new Button().Label("Remove").Command(vm.RemoveLayerCommand)),
+            var clock = new TextBlock()
+                .FontFamily(theme.FontFamilyMono)
+                .Foreground(theme.TextMuted)
+                .CenterV();
 
-                new ItemsControl()
-                    .Items(vm.Layers, layer => new Border()
-                        .Fill(theme.SurfaceAlt)
-                        .Rounded(theme.CornerRadius)
-                        .PaddingOf(8.0f, 4.0f)
-                        .Content(new Grid().Columns("*, Auto", 8.0f).Rows("Auto").Children(
-                            new TextBlock().BindText(layer, l => l.Name).Ellipsis().GridColumn(0),
-                            new TextBlock()
-                                .BindText(layer, l => l.VoxelCount, n => $"{n:N0}")
-                                .Foreground(theme.TextMuted)
-                                .GridColumn(1))))
-                    .Spacing(2.0f)
-                    .WhenEmpty(new TextBlock().Text("No layers.").Foreground(theme.TextMuted)));
-        }
-
-        private static UiElement BuildStats(UiTheme theme, ManaUiShowcaseViewModel vm, Func<string>? liveStat)
-        {
-            var stack = new StackPanel().Vertical(theme.Spacing).Padding(12.0f);
-
-            if (liveStat != null)
-            {
-                stack.Children.Add(new TextBlock().BindTextPolled(liveStat).Foreground(theme.TextMuted));
-            }
-
-            // Polled rather than bound: a collection's Count is not an observable property, and the
-            // binding engine rejects the nested path outright rather than silently going stale.
-            stack.Children.Add(new TextBlock()
-                .BindTextPolled(() => $"{vm.Layers.Count} layer{(vm.Layers.Count == 1 ? string.Empty : "s")}")
-                .Foreground(theme.TextMuted));
-
-            stack.Children.Add(new TextBlock()
-                .BindText(vm, v => v.ClickCount, n => $"{n} button press{(n == 1 ? string.Empty : "es")}")
-                .Foreground(theme.TextMuted));
-
-            stack.Children.Add(new TextBlock().Text("Drag a tab off the strip to float it.").Wrap());
-            stack.Children.Add(new TextBlock().Text("Drop it near an edge to dock it back.").Wrap());
-
-            return stack;
+            clock.BindTextPolled(() => DateTime.Now.ToString("h:mm:ss tt"));
+            return clock;
         }
     }
 }

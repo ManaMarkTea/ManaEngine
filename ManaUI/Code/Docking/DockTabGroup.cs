@@ -430,12 +430,24 @@ namespace ManaUI
             }
 
             var strip = TabStripRect;
-            drawList.FillRect(strip, theme.SurfaceAlt);
-            drawList.FillRect(new UiRect(strip.X, strip.Bottom - 1.0f, strip.Width, 1.0f), theme.Border);
+            var content = new UiRect(
+                Bounds.X, strip.Bottom, Bounds.Width, MathF.Max(0.0f, Bounds.Height - strip.Height));
 
-            drawList.FillRect(
-                new UiRect(Bounds.X, strip.Bottom, Bounds.Width, MathF.Max(0.0f, Bounds.Height - strip.Height)),
-                theme.Surface);
+            // Backdrop-blurred when asked for, the same as the columns themselves -- otherwise a panel's own
+            // tab strip and content area paint over the column's blur with a flat, opaque fill, and the
+            // "blur everything" option only ever shows in the sliver of column not covered by a panel.
+            if (theme.BackdropBlur > 0.0f)
+            {
+                drawList.FillBackdrop(strip, theme.Frosted(theme.SurfaceAlt), theme.BackdropBlur, default);
+                drawList.FillBackdrop(content, theme.Frosted(theme.Surface), theme.BackdropBlur, default);
+            }
+            else
+            {
+                drawList.FillRect(strip, theme.SurfaceAlt);
+                drawList.FillRect(content, theme.Surface);
+            }
+
+            drawList.FillRect(new UiRect(strip.X, strip.Bottom - 1.0f, strip.Width, 1.0f), theme.Border);
 
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
             var pointer = root.Input.PointerPosition;
