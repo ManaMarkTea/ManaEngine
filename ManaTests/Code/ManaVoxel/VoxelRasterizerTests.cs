@@ -72,5 +72,35 @@ public static class VoxelRasterizerChecks
             hollowSphere.TryGetValue(sphereSurfaceCell, out var hs) && hs == Stroke, $"{hs}");
         Check("every hollow-sphere cell is stroke coloured", hollowSphere.Values.All(v => v == Stroke),
             string.Join(", ", hollowSphere.Values.Distinct()));
+
+        // ---------------------------------------------------------------- work plane
+        // A work plane used to only ever pick which two axes a flat shape (Circle/Text) spanned -- it never
+        // actually constrained WHERE anything was drawn. TryIntersectWorkPlane is what makes it a real
+        // construction plane: every tool's placement ray hits this instead of scene geometry once a plane
+        // (other than Auto) and an offset are chosen.
+        var hitAbove = VoxelRasterizer.TryIntersectWorkPlane(
+            new Vector3(2.0f, 20.0f, 2.0f), new Vector3(0.0f, -1.0f, 0.0f), VoxelWorkPlane.XZ, 5.0f,
+            out var xzPosition, out var xzNormal);
+        Check("a straight-down ray finds the XZ plane at its offset", hitAbove);
+        Check("landing at the offset height", MathF.Abs(xzPosition.Y - 5.0f) < 0.0001f, $"{xzPosition}");
+        Check("with a normal facing back up at the camera", xzNormal == new Vector3(0.0f, 1.0f, 0.0f), $"{xzNormal}");
+
+        var hitSide = VoxelRasterizer.TryIntersectWorkPlane(
+            Vector3.Zero, new Vector3(-1.0f, 0.0f, 0.0f), VoxelWorkPlane.YZ, -3.0f,
+            out var yzPosition, out _);
+        Check("a ray along X finds the YZ plane at its (negative) offset", hitSide);
+        Check("at the expected X", MathF.Abs(yzPosition.X - (-3.0f)) < 0.0001f, $"{yzPosition}");
+
+        Check("a ray parallel to the plane never crosses it",
+            !VoxelRasterizer.TryIntersectWorkPlane(
+                Vector3.Zero, new Vector3(1.0f, 0.0f, 0.0f), VoxelWorkPlane.XZ, 5.0f, out _, out _));
+
+        Check("a plane behind the ray's origin does not count as a hit",
+            !VoxelRasterizer.TryIntersectWorkPlane(
+                new Vector3(0.0f, 10.0f, 0.0f), new Vector3(0.0f, 1.0f, 0.0f), VoxelWorkPlane.XZ, 5.0f, out _, out _));
+
+        Check("Auto has no fixed plane to intersect",
+            !VoxelRasterizer.TryIntersectWorkPlane(
+                Vector3.Zero, new Vector3(0.0f, -1.0f, 0.0f), VoxelWorkPlane.Auto, 0.0f, out _, out _));
     }
 }

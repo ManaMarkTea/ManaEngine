@@ -42,6 +42,64 @@ namespace ManaVoxel.Code.Tools
             return SnapToCenter(position - Vector3.Normalize(normal) * 0.5f);
         }
 
+        /// <summary>The world-space normal a work plane locks to -- XZ is a horizontal plane at a given height, and so on.</summary>
+        public static Vector3 GetWorkPlaneNormal(VoxelWorkPlane plane)
+        {
+            return plane switch
+            {
+                VoxelWorkPlane.XZ => Vector3.UnitY,
+                VoxelWorkPlane.XY => Vector3.UnitZ,
+                VoxelWorkPlane.YZ => Vector3.UnitX,
+                _ => Vector3.Zero
+            };
+        }
+
+        /// <summary>
+        /// Intersects a ray with a fixed construction plane -- XZ/XY/YZ at <paramref name="offset"/> along
+        /// its own normal axis -- rather than whatever scene geometry the ray happens to cross. This is what
+        /// lets every tool draw at a chosen height/depth in open air instead of only against a surface that
+        /// is actually there. Auto has no fixed plane to intersect and always fails.
+        /// </summary>
+        public static bool TryIntersectWorkPlane(
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            VoxelWorkPlane plane,
+            float offset,
+            out Vector3 position,
+            out Vector3 normal)
+        {
+            var planeNormal = GetWorkPlaneNormal(plane);
+            if (planeNormal == Vector3.Zero)
+            {
+                position = Vector3.Zero;
+                normal = Vector3.Zero;
+                return false;
+            }
+
+            var denominator = Vector3.Dot(rayDirection, planeNormal);
+            if (MathF.Abs(denominator) < 1e-6f)
+            {
+                position = Vector3.Zero;
+                normal = Vector3.Zero;
+                return false;
+            }
+
+            var t = (offset - Vector3.Dot(rayOrigin, planeNormal)) / denominator;
+            if (t < 0.0f)
+            {
+                position = Vector3.Zero;
+                normal = Vector3.Zero;
+                return false;
+            }
+
+            position = rayOrigin + rayDirection * t;
+
+            // Faces back toward the camera, the same convention a real surface's normal follows -- so
+            // SnapHitToAdjacentCenter/SnapHitToOccupiedCenter place on the expected side of the plane.
+            normal = denominator < 0.0f ? planeNormal : -planeNormal;
+            return true;
+        }
+
         public static (int X, int Y, int Z) ToCell(Vector3 position)
         {
             return (

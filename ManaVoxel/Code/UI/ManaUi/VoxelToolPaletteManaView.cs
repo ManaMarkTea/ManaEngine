@@ -390,11 +390,20 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var plane = new ComboBox()
                 .Options(VoxelToolCatalog.PlaneNames)
-                .Width(110.0f)
+                .Width(80.0f)
                 .OnSelected(index => vm.SelectedWorkPlaneIndex = index)
                 .BindPolled(c => c.SelectedIndex, () => vm.SelectedWorkPlaneIndex);
 
-            return Group(theme, "Work plane", plane);
+            // Where the plane sits along its own normal axis -- without this "XZ" alone says which two axes
+            // it spans but not where along the third one it is, which is why the plane never actually
+            // constrained anything before. Auto has no fixed plane to offset, so the field just disables.
+            var offset = new NumericBox().Step(1.0f).Places(2).Width(56.0f).Value(vm.WorkPlaneOffset);
+            offset.ValueChanged += (_, v) => vm.WorkPlaneOffset = v;
+            offset.BindPolled(b => b.Value, () => vm.WorkPlaneOffset);
+            offset.BindPolled(b => b.IsEnabled, () => vm.SelectedWorkPlaneIndex != 0);
+
+            var row = new StackPanel().Horizontal(theme.Spacing * 0.5f).Children(plane, offset);
+            return Group(theme, "Work plane", row);
         }
 
         // ----- stroke and text --------------------------------------------------------------------------

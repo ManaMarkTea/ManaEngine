@@ -15,6 +15,7 @@ using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaCore.Diagnostics;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -773,6 +774,13 @@ namespace ManaGraphics.Code.Graphics
             _api.TextureRelease(surfaceTexture.Texture);
 
             LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
+
+            // Handed to the profiler as well as the World Perf panel: the panel shows this frame, the
+            // profiler keeps the peak, and a hitch is only ever visible in the peak.
+            ManaFrameProfiler.Record("GPU: Scene Collect", LastCollectMs);
+            ManaFrameProfiler.Record("GPU: Draw Meshes", LastDrawMs);
+            ManaFrameProfiler.Record("GPU: Submit + Present", LastSubmitMs);
+            ManaFrameProfiler.Record("GPU: ClearFrame Total", LastFrameTotalMs);
         }
 
         public void Dispose()

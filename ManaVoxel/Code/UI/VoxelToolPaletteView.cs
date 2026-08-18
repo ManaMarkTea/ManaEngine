@@ -21,6 +21,14 @@ namespace ManaVoxel.Code.UI
             ImGui.Separator();
             DrawPlaneButtons(viewModel);
 
+            // Auto has no fixed plane to offset -- it still raycasts against real geometry, the way every
+            // tool always has. Any other plane locks placement to it, so this is where along the plane's
+            // own normal axis it actually sits.
+            if (viewModel.SelectedWorkPlaneIndex != 0)
+            {
+                ImGui.DragFloat("Plane offset", ref viewModel.WorkPlaneOffset, 0.25f);
+            }
+
             ImGui.Separator();
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("Paint Color");

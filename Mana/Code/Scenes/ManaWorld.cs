@@ -306,6 +306,21 @@ namespace Mana
 
             ImGui.Begin("World Perf");
 
+            // Peak first, same reasoning as the ManaUI panel: a this-frame column cannot show a hitch,
+            // because the frame you are reading is by definition not the one that stuttered.
+            ImGui.SeparatorText("Frame timings (peak over last 2s)");
+            ImGui.Text(
+                $"{ManaCore.Diagnostics.ManaFrameProfiler.HitchCount} hitches over "
+                + $"{ManaCore.Diagnostics.ManaFrameProfiler.HitchThresholdMs:0}ms in "
+                + $"{ManaCore.Diagnostics.ManaFrameProfiler.FrameCount} frames, worst "
+                + $"{ManaCore.Diagnostics.ManaFrameProfiler.WorstFrameMs:0.0}ms");
+            foreach (var (name, sample) in ManaCore.Diagnostics.ManaFrameProfiler.TopByPeak(24))
+            {
+                var calls = sample.LastCalls > 1 ? $" x{sample.LastCalls}" : string.Empty;
+                ImGui.Text(
+                    $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg  {name}{calls}");
+            }
+
             ImGui.SeparatorText("Live (this frame)");
             ImGui.Text($"Meshes rendered: {LastMeshCount}");
             foreach (var (name, duration) in liveFrameStats)

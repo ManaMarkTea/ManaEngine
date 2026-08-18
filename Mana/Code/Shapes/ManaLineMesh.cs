@@ -133,6 +133,44 @@ namespace Mana.Code.Shapes
             return material;
         }
 
+        /// <summary>
+        /// Where each line's vertices ended up in the last generated mesh, recorded so a caller that has only
+        /// MOVED points (a terrain drape, which changes each point's radius and nothing else) can rewrite
+        /// vertex data in place instead of regenerating -- see <see cref="TryRefreshRibbonGeometry"/>.
+        /// </summary>
+        private sealed class RibbonLayout
+        {
+            /// <summary>Source point indices that survived deduplication, per line, in order.</summary>
+            public required int[][] LinePointIndices { get; init; }
+
+            /// <summary>Each line's first vertex. Vertices run left, right, left, right... one pair per point.</summary>
+            public required int[] LineVertexStart { get; init; }
+
+            /// <summary>
+            /// Which entry of <see cref="Lines"/> each layout entry came from. Not the same as the layout
+            /// index: a degenerate line (fewer than two distinct points, or fewer than three on a closed
+            /// ring) produces no geometry and so no layout entry, which shifts everything after it.
+            /// </summary>
+            public required int[] LineSourceIndex { get; init; }
+
+            public required bool[] LineClosed { get; init; }
+
+            /// <summary>Total vertices, used to confirm the layout still describes the current CpuData.</summary>
+            public required int VertexCount { get; init; }
+
+            public required bool ShaderExpanded { get; init; }
+        }
+
+        private RibbonLayout? _ribbonLayout;
+
+        // Reused across refreshes so the steady state allocates nothing at all -- the point of the whole
+        // exercise, since it is allocation (a heap object per vertex, then six array copies out of them)
+        // that makes a full regenerate cost tens of megabytes and tens of milliseconds.
+        private Vector3[] _refreshPoints = Array.Empty<Vector3>();
+        private Vector3[] _refreshTangents = Array.Empty<Vector3>();
+
+        private bool IsFlatProfile => Profile is ManaLineProfile.ScreenRibbon or ManaLineProfile.Ribbon;
+
         protected override void GenerateData()
         {
             base.GenerateData();
@@ -141,13 +179,32 @@ namespace Mana.Code.Shapes
             var max = new Vector3(float.MinValue);
             var hasAnyPoint = false;
 
-            foreach (var line in Lines)
+            var flat = IsFlatProfile;
+            var layoutIndices = flat ? new List<int[]>(Lines.Count) : null;
+            var layoutStarts = flat ? new List<int>(Lines.Count) : null;
+            var layoutSources = flat ? new List<int>(Lines.Count) : null;
+            var layoutClosed = flat ? new List<bool>(Lines.Count) : null;
+
+            for (var lineIndex = 0; lineIndex < Lines.Count; lineIndex++)
             {
-                var points = DeduplicatePoints(line.Points, line.Closed);
-                if (points.Count < 2)
+                var line = Lines[lineIndex];
+
+                // Kept as indices rather than only as values, so the in-place refresh can re-read the same
+                // source slots after they have moved without re-deciding which ones survive -- a drape nudges
+                // radii, which could otherwise flip a borderline duplicate and silently change the topology.
+                var keptIndices = DeduplicateIndices(line.Points, line.Closed);
+                if (keptIndices.Count < 2 || (line.Closed && keptIndices.Count < 3))
                 {
                     continue;
                 }
+
+                var points = new List<Vector3>(keptIndices.Count);
+                foreach (var sourceIndex in keptIndices)
+                {
+                    points.Add(line.Points[sourceIndex]);
+                }
+
+                var vertexStart = DynamicGeometryContainer.Verts.Count;
 
                 if (Profile == ManaLineProfile.ScreenRibbon)
                 {
@@ -162,6 +219,14 @@ namespace Mana.Code.Shapes
                     AddRibbon(points, line.Closed);
                 }
 
+                if (flat)
+                {
+                    layoutIndices!.Add(keptIndices.ToArray());
+                    layoutStarts!.Add(vertexStart);
+                    layoutSources!.Add(lineIndex);
+                    layoutClosed!.Add(line.Closed);
+                }
+
                 foreach (var point in points)
                 {
                     min = Vector3.Min(min, point);
@@ -174,12 +239,195 @@ namespace Mana.Code.Shapes
             MinSize = hasAnyPoint ? min - margin : Vector3.Zero;
             MaxSize = hasAnyPoint ? max + margin : Vector3.Zero;
 
+            _ribbonLayout = flat
+                ? new RibbonLayout
+                {
+                    LinePointIndices = layoutIndices!.ToArray(),
+                    LineVertexStart = layoutStarts!.ToArray(),
+                    LineSourceIndex = layoutSources!.ToArray(),
+                    LineClosed = layoutClosed!.ToArray(),
+                    VertexCount = DynamicGeometryContainer.Verts.Count,
+                    ShaderExpanded = Profile == ManaLineProfile.ScreenRibbon,
+                }
+                : null;
+
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
+        }
+
+        /// <summary>
+        /// Rewrites vertex positions (and the normals and shader offsets derived from them) from the current
+        /// contents of <see cref="Lines"/> without regenerating the mesh. Returns false if the geometry cannot
+        /// be refreshed this way, in which case the caller must fall back to <see cref="RebuildGeometry"/>.
+        /// <para>
+        /// For a caller that only moves existing points -- a terrain drape re-samples each point's radius and
+        /// changes nothing else -- this is the difference between a per-frame stall and nearly free. A full
+        /// regenerate allocates a heap object per vertex and then copies six arrays out of them, measured at
+        /// 15-80ms and around 40MB per call for a border dataset; this writes into the arrays already there.
+        /// Both backends pick the result up: CpuDataVersion drives the WebGPU path's in-place geometry update
+        /// (same topology, so its buffers, bind groups and texture bindings all survive), and OpenGL gets the
+        /// same dynamic VBO write a skinned rig uses.
+        /// </para>
+        /// <para>
+        /// Flat and shader-expanded ribbons only. The tube profile shares vertices between four sides at every
+        /// joint via parallel transport, which is not a per-point rewrite.
+        /// </para>
+        /// </summary>
+        public bool TryRefreshRibbonGeometry()
+        {
+            var layout = _ribbonLayout;
+            var cpuData = CpuData;
+            if (layout == null || cpuData == null || !IsFlatProfile)
+            {
+                return false;
+            }
+
+            var positions = cpuData.Positions;
+            var normals = cpuData.Normals;
+            var colors = cpuData.Colors;
+
+            // A mismatch means something regenerated or replaced the geometry since the layout was recorded,
+            // so the recorded vertex offsets can no longer be trusted.
+            if (positions.Length != layout.VertexCount
+                || normals.Length != layout.VertexCount
+                || colors.Length != layout.VertexCount
+                || layout.LineSourceIndex.Length != layout.LinePointIndices.Length)
+            {
+                return false;
+            }
+
+            var halfThickness = Thickness * 0.5f;
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+            var hasAnyPoint = false;
+
+            for (var lineIndex = 0; lineIndex < layout.LinePointIndices.Length; lineIndex++)
+            {
+                var keptIndices = layout.LinePointIndices[lineIndex];
+                var count = keptIndices.Length;
+                var closed = layout.LineClosed[lineIndex];
+                var vertexStart = layout.LineVertexStart[lineIndex];
+
+                if (vertexStart + (count * 2) > layout.VertexCount)
+                {
+                    return false;
+                }
+
+                var sourcePoints = Lines[layout.LineSourceIndex[lineIndex]].Points;
+                EnsureRefreshScratch(count);
+
+                for (var i = 0; i < count; i++)
+                {
+                    var sourceIndex = keptIndices[i];
+                    if (sourceIndex >= sourcePoints.Count)
+                    {
+                        return false;
+                    }
+
+                    var point = sourcePoints[sourceIndex];
+                    _refreshPoints[i] = point;
+                    min = Vector3.Min(min, point);
+                    max = Vector3.Max(max, point);
+                    hasAnyPoint = true;
+                }
+
+                ComputeTangents(_refreshPoints, count, closed, _refreshTangents);
+
+                for (var i = 0; i < count; i++)
+                {
+                    var center = _refreshPoints[i];
+                    var tangent = _refreshTangents[i];
+
+                    // Same derivation as AddFlatRibbon, deliberately: the two must agree, or a refreshed
+                    // ribbon would not match a regenerated one.
+                    var outward = center.LengthSquared() > 0.000001f
+                        ? Vector3.Normalize(center)
+                        : ArbitraryPerpendicular(tangent);
+                    var side = Vector3.Cross(outward, tangent);
+                    if (side.LengthSquared() <= 0.000001f)
+                    {
+                        side = ArbitraryPerpendicular(tangent);
+                    }
+
+                    var sideDirection = Vector3.Normalize(side);
+                    var normal = Vector3.Normalize(outward);
+                    var leftVertex = vertexStart + (i * 2);
+                    var rightVertex = leftVertex + 1;
+
+                    if (layout.ShaderExpanded)
+                    {
+                        positions[leftVertex] = center;
+                        positions[rightVertex] = center;
+                        colors[leftVertex] = new Vector4(sideDirection, 1f);
+                        colors[rightVertex] = new Vector4(-sideDirection, 1f);
+                    }
+                    else
+                    {
+                        var offset = sideDirection * halfThickness;
+                        positions[leftVertex] = center + offset;
+                        positions[rightVertex] = center - offset;
+                        colors[leftVertex] = Vector4.One;
+                        colors[rightVertex] = Vector4.One;
+                    }
+
+                    normals[leftVertex] = normal;
+                    normals[rightVertex] = normal;
+                }
+            }
+
+            var margin = new Vector3(Thickness);
+            MinSize = hasAnyPoint ? min - margin : Vector3.Zero;
+            MaxSize = hasAnyPoint ? max + margin : Vector3.Zero;
+
+            // Same instance, same arrays -- this call is purely the version bump the backends key off, exactly
+            // as ManaSkinnedMeshComponent.PublishSkinnedGeometry does for a skinned rig.
+            SetCpuData(cpuData);
+            VertexBufferObject?.UpdateDynamicData(positions, normals, colors);
+            return true;
+        }
+
+        private void EnsureRefreshScratch(int count)
+        {
+            if (_refreshPoints.Length >= count)
+            {
+                return;
+            }
+
+            _refreshPoints = new Vector3[count];
+            _refreshTangents = new Vector3[count];
         }
 
         // Zero-length segments (consecutive duplicate points -- real-world boundary data routinely
         // has these, e.g. a ring's explicit closing point repeating its first) leave the tangent at
         // that point undefined; simplest correct fix is to just not have them.
+        // Index-returning twin of DeduplicatePoints, for a caller that needs to know WHICH source points
+        // survived rather than only their values -- see GenerateData's use of it to record the ribbon layout.
+        private static List<int> DeduplicateIndices(IReadOnlyList<Vector3> points, bool closed)
+        {
+            const float epsilonSq = 0.0001f * 0.0001f;
+            var result = new List<int>(points.Count);
+            if (points.Count == 0)
+            {
+                return result;
+            }
+
+            result.Add(0);
+            for (var i = 1; i < points.Count; i++)
+            {
+                if (Vector3.DistanceSquared(points[result[^1]], points[i]) > epsilonSq)
+                {
+                    result.Add(i);
+                }
+            }
+
+            if (closed && result.Count > 1
+                && Vector3.DistanceSquared(points[result[0]], points[result[^1]]) <= epsilonSq)
+            {
+                result.RemoveAt(result.Count - 1);
+            }
+
+            return result;
+        }
+
         private static List<Vector3> DeduplicatePoints(IReadOnlyList<Vector3> points, bool closed)
         {
             const float epsilonSq = 0.0001f * 0.0001f;
@@ -317,6 +565,31 @@ namespace Mana.Code.Shapes
         // loop, wrapping at both ends; for an open line, the single adjacent segment at each
         // endpoint). Averaging the incoming/outgoing directions this way is what makes the cross-
         // section naturally bisect a joint's turn angle instead of needing separate miter math.
+        // Buffer-writing overload for TryRefreshRibbonGeometry, which must not allocate. Same maths as the
+        // allocating version below; kept separate rather than merged so the generate path stays readable.
+        private static void ComputeTangents(Vector3[] points, int count, bool closed, Vector3[] tangents)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                Vector3 previous, next;
+                if (closed)
+                {
+                    previous = points[(i - 1 + count) % count];
+                    next = points[(i + 1) % count];
+                }
+                else
+                {
+                    previous = i > 0 ? points[i - 1] : points[i];
+                    next = i < count - 1 ? points[i + 1] : points[i];
+                }
+
+                var direction = next - previous;
+                tangents[i] = direction.LengthSquared() > 0.000001f
+                    ? Vector3.Normalize(direction)
+                    : Vector3.UnitX;
+            }
+        }
+
         private static Vector3[] ComputeTangents(List<Vector3> points, bool closed)
         {
             var count = points.Count;

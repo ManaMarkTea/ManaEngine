@@ -1286,9 +1286,75 @@ namespace Mana.Code.GameModes
         private readonly List<PlanetDrapedLines> _drapedOverlays = new();
 
         // Points re-draped per overlay per frame. The work is a batched radius sample plus a vector
-        // multiply per point, so this is a small slice of a frame; the whole-mesh ribbon rebuild only
-        // happens once an overlay's queue drains.
-        private const int DrapePointsPerFrame = 2048;
+        // multiply per point, so this is a small slice of a frame -- measured at well under a millisecond
+        // for the whole budget, against 25-75ms for the whole-mesh ribbon rebuild that follows a drain.
+        // Generous on purpose for that reason: the points are nearly free and clearing them sooner is what
+        // lets the expensive rebuild coalesce into one (see PlanetDrapedLines.RebuildSettleFrames).
+        private const int DrapePointsPerFrame = 8192;
+
+        // Every per-frame streaming step that has to happen on the main thread, in dependency order:
+        // decide what to refine, then adopt whatever finished, then feed the overlays that read the
+        // results. Each step is individually budgeted per frame, so calling this more than once per frame
+        // would quietly multiply every one of those budgets -- hence the UpdateFrame guard.
+        //
+        // Three callers, at most one of which pumps on any given frame: Update always runs, DrawImGui
+        // only when ImGui owns the UI, and UpdateEditorPerFrameState only when ManaUI does (see
+        // Render's comment on why that third one exists at all).
+        private long _lastStreamingPumpFrame = -1;
+
+        private void PumpPlanetStreaming()
+        {
+            if (_lastStreamingPumpFrame == UpdateFrame)
+            {
+                return;
+            }
+
+            _lastStreamingPumpFrame = UpdateFrame;
+
+            // Individually scoped rather than timed as one block: every one of these is a plausible hitch
+            // source with a different fix, and the whole point is to find out which.
+            using (ManaFrameProfiler.Measure("Streaming: Total"))
+            {
+                // Must run on the main thread -- finalizing a completed patch split touches the scene
+                // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
+                // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
+                using (ManaFrameProfiler.Measure("Streaming: AutoLod"))
+                {
+                    _planet?.UpdateAutoLod(Context.World.MainCamera);
+                }
+
+                using (ManaFrameProfiler.Measure("Streaming: NearOcean"))
+                {
+                    _planet?.UpdateNearOcean(Context.World.MainCamera);
+                }
+
+                using (ManaFrameProfiler.Measure("Streaming: DetailChase"))
+                {
+                    _planet?.UpdateDetailChase();
+                }
+
+                using (ManaFrameProfiler.Measure("Streaming: Split Finalize"))
+                {
+                    _planet?.ProcessPendingSplits();
+                }
+
+                using (ManaFrameProfiler.Measure("Streaming: Merge Finalize"))
+                {
+                    _planet?.ProcessPendingMerges();
+                }
+
+                // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
+                using (ManaFrameProfiler.Measure("Streaming: Region Adopt"))
+                {
+                    _region?.ProcessPendingLoad();
+                }
+
+                using (ManaFrameProfiler.Measure("Streaming: Overlay Drape"))
+                {
+                    RedrapePlanetOverlays();
+                }
+            }
+        }
 
         // Main thread, once per frame from Update. Never blocks: patches the planet is too busy to
         // report on go back on its queue, and draping itself is spread over as many frames as it needs.
@@ -1302,14 +1368,20 @@ namespace Mana.Code.GameModes
             PlanetDrapedLines[] overlays;
             lock (_drapedOverlays)
             {
-                if (_drapedOverlays.Count == 0)
-                {
-                    return;
-                }
-
                 overlays = _drapedOverlays.ToArray();
             }
 
+            // No overlays is the common case (nothing has loaded a border/airspace dataset yet), and the
+            // snapshot queue still has to be emptied -- each entry pins a patch's CPU mesh, so leaving it
+            // alone grows it for as long as terrain streams.
+            if (overlays.Length == 0)
+            {
+                _planet.DiscardChangedPatches();
+                return;
+            }
+
+            // Bounded on purpose: QueueChanged is paid in full per snapshot (it scans the whole root
+            // patch's point bucket), before the per-point drape budget below gets any say.
             var changed = _planet.DrainChangedPatches();
             if (changed.Count > 0)
             {
@@ -1319,9 +1391,13 @@ namespace Mana.Code.GameModes
                 }
             }
 
+            // Overlays are told whether the producer still has snapshots queued: a rebuild that fires
+            // between two halves of one streaming burst costs the same as one that covers the whole burst.
+            var moreChangesInbound = _planet.PendingChangedPatchCount > 0;
+
             foreach (var overlay in overlays)
             {
-                if (overlay.Tick(DrapePointsPerFrame))
+                if (overlay.Tick(DrapePointsPerFrame, moreChangesInbound))
                 {
                     ManaConsole.WriteDiagnostic(
                         $"[Drape] {overlay.Mesh.Name}: {overlay.LastMovedCount} point(s) moved, " +
@@ -1448,6 +1524,34 @@ namespace Mana.Code.GameModes
             return hit;
         }
 
+        // The construction-plane counterpart to GetProjectedMouseHit: intersects the mouse ray with a
+        // fixed plane instead of raycasting against physics colliders, so a work plane lets every tool draw
+        // in open air rather than only against whatever geometry the cursor happens to be over.
+        private RayHit GetWorkPlaneHit(VoxelWorkPlane plane, float offset)
+        {
+            var mouseState = Context.Input.Mice.FirstOrDefault();
+            if (mouseState == null)
+            {
+                return new RayHit();
+            }
+
+            var mouseStart = new Vector3(mouseState.Position, 0.0f);
+            var mouseEnd = new Vector3(mouseState.Position, 1.0f);
+            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
+
+            if (!VoxelRasterizer.TryIntersectWorkPlane(ray.Origin, ray.Direction, plane, offset, out var position, out var normal))
+            {
+                return new RayHit();
+            }
+
+            return new RayHit
+            {
+                Hit = true,
+                Position = position,
+                Normal = normal,
+                Distance = Vector3.Distance(ray.Origin, position),
+            };
+        }
 
         public const float TimestepDuration = 1 / 60f;
         protected override void DrawMainMenuBar()
@@ -1470,17 +1574,7 @@ namespace Mana.Code.GameModes
             SyncKmlAirspaceVisibility();
             ProcessPendingRegionRequest();
 
-            // Must run on the main thread -- finalizing a completed patch split touches the scene
-            // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
-            // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
-            _planet?.UpdateAutoLod(Context.World.MainCamera);
-            _planet?.UpdateNearOcean(Context.World.MainCamera);
-            _planet?.UpdateDetailChase();
-            _planet?.ProcessPendingSplits();
-            _planet?.ProcessPendingMerges();
-            // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
-            _region?.ProcessPendingLoad();
-            RedrapePlanetOverlays();
+            PumpPlanetStreaming();
             PushPlanetStreamingStatusToWorldPerf();
             UpdateWaterRippleInteraction();
         }
@@ -1490,10 +1584,27 @@ namespace Mana.Code.GameModes
         // to have many patches streaming in at once with no visibility into how much work was in flight.
         private void PushPlanetStreamingStatusToWorldPerf()
         {
+            var world = Context.World;
+
+            // Frame-level health, pushed every frame regardless of whether a planet exists: hitch count and
+            // worst frame are cumulative, so they answer "did it stutter while I was flying" after the fact.
+            world.RecordFrameStatText(
+                "Frames",
+                $"{ManaFrameProfiler.FrameCount} measured, {ManaFrameProfiler.HitchCount} over "
+                + $"{ManaFrameProfiler.HitchThresholdMs:0}ms, worst {ManaFrameProfiler.WorstFrameMs:0.0}ms");
+
+            var gc = ManaFrameProfiler.LastGcDelta;
+            world.RecordFrameStatText(
+                "GC",
+                $"alloc {ManaFrameProfiler.LastAllocatedMb:0.00}MB/frame (peak {ManaFrameProfiler.PeakAllocatedMb:0.0}MB), "
+                + $"collections this frame {gc.Gen0}/{gc.Gen1}/{gc.Gen2}");
+
             if (_planet == null)
             {
                 return;
             }
+
+            world.RecordFrameStatText("Planet snapshot queue", $"{_planet.PendingChangedPatchCount} pending");
 
             var status = _planet.GetStreamingStatus();
             Context.World.RecordFrameStatText("Planet patches resident", status.TotalLeaves.ToString());
@@ -1662,16 +1773,7 @@ namespace Mana.Code.GameModes
             SyncKmlAirspaceVisibility();
             ProcessPendingRegionRequest();
 
-            // Must run on the main thread -- finalizing a completed patch split touches the scene
-            // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
-            // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
-            _planet?.UpdateAutoLod(Context.World.MainCamera);
-            _planet?.UpdateNearOcean(Context.World.MainCamera);
-            _planet?.UpdateDetailChase();
-            _planet?.ProcessPendingSplits();
-            _planet?.ProcessPendingMerges();
-            // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
-            _region?.ProcessPendingLoad();
+            PumpPlanetStreaming();
 
             var mainViewport = ImGui.GetMainViewport();
             Vector2 sceneMin = mainViewport.WorkPos;
@@ -2029,7 +2131,14 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            RayHit hit = GetProjectedMouseHit();
+            // Auto keeps raycasting against real scene geometry, exactly as before. Any other plane locks
+            // the tool to a fixed construction plane instead -- the ray intersects that plane at
+            // WorkPlaneOffset rather than whatever surface happens to be under the cursor, which is what
+            // lets every tool (not just Circle/Text, which only ever used the plane for orientation) draw
+            // in open air at a chosen height/depth.
+            RayHit hit = toolSettings.WorkPlane == VoxelWorkPlane.Auto
+                ? GetProjectedMouseHit()
+                : GetWorkPlaneHit(toolSettings.WorkPlane, _viewModel.WorkPlaneOffset);
             VoxelToolPoint? toolPoint = null;
 
             if (hit.Hit)
@@ -2088,7 +2197,10 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var hit = GetProjectedMouseHit();
+            var workPlane = (VoxelWorkPlane)Math.Clamp(_viewModel.SelectedWorkPlaneIndex, 0, _viewModel.WorkPlaneOptions.Length - 1);
+            var hit = workPlane == VoxelWorkPlane.Auto
+                ? GetProjectedMouseHit()
+                : GetWorkPlaneHit(workPlane, _viewModel.WorkPlaneOffset);
             if (!hit.Hit)
             {
                 _viewModel.ClearHoveredVoxel();
@@ -2527,16 +2639,7 @@ namespace Mana.Code.GameModes
             SyncKmlAirspaceVisibility();
             ProcessPendingRegionRequest();
 
-            // Must run on the main thread -- finalizing a completed patch split touches the scene
-            // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
-            // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
-            _planet?.UpdateAutoLod(Context.World.MainCamera);
-            _planet?.UpdateNearOcean(Context.World.MainCamera);
-            _planet?.UpdateDetailChase();
-            _planet?.ProcessPendingSplits();
-            _planet?.ProcessPendingMerges();
-            // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
-            _region?.ProcessPendingLoad();
+            PumpPlanetStreaming();
 
             // The whole window, in the same coordinate space as the mouse: dropping used to be bounded by
             // the ImGui main viewport (minus a manual carve-out for ImGui's own import window), but with

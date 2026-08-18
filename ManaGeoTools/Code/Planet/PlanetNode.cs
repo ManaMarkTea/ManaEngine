@@ -177,7 +177,13 @@ namespace ManaGeoTools.Code.Planet
         private readonly Queue<PendingMerge> _readyToFinalizeMerge = new();
 
         private readonly PlanetOceanMesh _oceanMesh;
+        private readonly ManaMeshSceneNode _oceanNode;
         private readonly MeshRendererComponent _oceanRenderer;
+        private bool _oceanAttached;
+
+        // Set once LoadHeightDataAsync's decode has applied every baseline tile. Volatile: written on the
+        // decode task, read on the main thread every frame.
+        private volatile bool _baselineHeightDataLoaded;
 
         // Near tier of the ocean (see PlanetNearOceanMesh). The node is a permanent child; the
         // RENDERER is what gets attached/detached, so the patch costs nothing at all from orbit --
@@ -219,6 +225,16 @@ namespace ManaGeoTools.Code.Planet
         private const int MaxDirectSourceMatchDepth = 3;
         private const int PatchNameSplitPathTailDigits = 4;
         private const int MaxPendingSplitFinalizationsPerFrame = 1;
+
+        // Merge finalization costs about what a split child's does -- scene-graph swap plus a snapshot
+        // enqueue whose consumers then re-drape -- so it gets the same per-frame ceiling. Auto-LOD puts
+        // no cap on how many merges it LAUNCHES, so without this a burst of them lands in one frame.
+        private const int MaxPendingMergeFinalizationsPerFrame = 1;
+
+        // Ceiling on snapshots handed to consumers per DrainChangedPatches call. Consumers budget their
+        // own per-point work, but their intake (bucket scan per snapshot) is paid up front and scales
+        // with snapshot count, so the drain itself has to be bounded too.
+        public const int DefaultMaxChangedPatchesPerDrain = 4;
 
         private static readonly SemaphoreSlim UpresFetchThrottle = new(UpresMaxConcurrentFetches);
 
@@ -354,9 +370,17 @@ namespace ManaGeoTools.Code.Planet
             // Far tier: a single un-tiled, wave-free shell covering the whole globe (not one per
             // terrain patch), masked to real ocean coverage once height data arrives.
             _oceanMesh = new PlanetOceanMesh(context, radius, oceanResolution, heightLibrary: null);
-            var oceanNode = new ManaMeshSceneNode(context, _oceanMesh) { Name = "Ocean" };
-            _oceanRenderer = oceanNode.MeshRenderer;
-            AddChild(oceanNode);
+            _oceanNode = new ManaMeshSceneNode(context, _oceanMesh) { Name = "Ocean" };
+            _oceanRenderer = _oceanNode.MeshRenderer;
+            AddChild(_oceanNode);
+
+            // The mask that decides where this shell is water comes from the baseline height data, so
+            // until that has decoded the shell is an unmasked sphere at sea-level radius: ocean over every
+            // continent, with the placeholder terrain poking through it. Start hidden and let
+            // UpdateNearOcean attach it once IsOceanMaskReady -- ManaMeshSceneNode builds its renderer for
+            // us, so hiding means detaching that rather than not creating it.
+            _oceanAttached = true;
+            DetachFarOcean();
 
             // Near tier: starts detached, and stays that way until UpdateNearOcean sees the camera drop
             // into the altitude band where waves are actually resolvable.
@@ -391,12 +415,30 @@ namespace ManaGeoTools.Code.Planet
         public void LoadHeightDataAsync(GeoTiffLibrary heightLibrary)
         {
             HeightLibrary = heightLibrary;
+            _baselineHeightDataLoaded = false;
             Task.Run(() =>
             {
                 SetCurrentThreadName("Planet height decode");
-                heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches);
+                try
+                {
+                    heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches);
+                }
+                finally
+                {
+                    // In a finally so a failed or partial decode still releases whatever waits on this --
+                    // an ocean that never appears is worse than one masked by incomplete data.
+                    _baselineHeightDataLoaded = true;
+                    Console.WriteLine("[Planet] Baseline height data decoded; ocean mask is now valid.");
+                }
             });
         }
+
+        /// <summary>
+        /// True once the baseline elevation decode has finished, so anything masked by height data (the ocean
+        /// shell above all) is showing real coverage rather than a sea-level sphere. Also true when no height
+        /// library was ever attached, since in that case no mask is coming and the placeholder is all there is.
+        /// </summary>
+        public bool IsOceanMaskReady => HeightLibrary == null || _baselineHeightDataLoaded;
 
         private void ApplyTileToOverlappingPatches(ManaGeoTools.Code.GeoTiff.GeoTiff tile)
         {
@@ -459,17 +501,37 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>
-        /// Hands over the geometry snapshots produced since the last call. Lock-free on both sides.
+        /// Hands over up to <paramref name="maxSnapshots"/> of the geometry snapshots produced since the
+        /// last call. Lock-free on both sides. Whatever doesn't fit the budget stays queued in order for
+        /// the next call, so a burst of finished patches spreads over frames instead of landing in one.
+        ///
+        /// Call this every frame even with no consumers attached: snapshots each pin a patch's CPU mesh,
+        /// so a queue nobody drains grows without bound for as long as terrain streams.
         /// </summary>
-        public List<PatchGeometrySnapshot> DrainChangedPatches()
+        public List<PatchGeometrySnapshot> DrainChangedPatches(int maxSnapshots = DefaultMaxChangedPatchesPerDrain)
         {
+            var budget = Math.Max(1, maxSnapshots);
             var drained = new List<PatchGeometrySnapshot>();
-            while (_changedPatches.TryDequeue(out var snapshot))
+            while (drained.Count < budget && _changedPatches.TryDequeue(out var snapshot))
             {
                 drained.Add(snapshot);
             }
 
             return drained;
+        }
+
+        /// <summary>Snapshots still waiting on a DrainChangedPatches call.</summary>
+        public int PendingChangedPatchCount => _changedPatches.Count;
+
+        /// <summary>
+        /// Drops every queued snapshot without processing it. For a caller with no consumers to feed --
+        /// keeping the queue from growing is the entire point, and the next real change re-snapshots.
+        /// </summary>
+        public void DiscardChangedPatches()
+        {
+            while (_changedPatches.TryDequeue(out _))
+            {
+            }
         }
 
         public bool TryGetPatchKey(MeshRendererComponent? renderer, out PatchKey key)
@@ -1061,7 +1123,6 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void ProcessPendingMerges()
         {
-            List<PendingMerge>? ready = null;
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -1069,20 +1130,13 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                if (_readyToFinalizeMerge.Count > 0)
+                // Bounded like ProcessPendingSplits, and for the same reason: the rest stay queued in
+                // arrival order and finalize on later frames.
+                var processedThisFrame = 0;
+                while (processedThisFrame < MaxPendingMergeFinalizationsPerFrame && _readyToFinalizeMerge.Count > 0)
                 {
-                    ready = new List<PendingMerge>(_readyToFinalizeMerge);
-                    _readyToFinalizeMerge.Clear();
-                }
-
-                if (ready == null)
-                {
-                    return;
-                }
-
-                foreach (var pending in ready)
-                {
-                    FinalizeMerge(pending);
+                    FinalizeMerge(_readyToFinalizeMerge.Dequeue());
+                    processedThisFrame++;
                 }
             }
             finally
@@ -1277,6 +1331,20 @@ namespace ManaGeoTools.Code.Planet
             // pushed before any of the early-outs below.
             var (depthLiftCoefficient, depthLiftMaxUnits) = ComputeDepthLift(camera);
 
+            // Neither tier is worth showing before the height data that masks it: the far shell would be an
+            // opaque sea-level sphere over every continent, and the near patch would sample bathymetry that
+            // has not decoded yet. This method already owns which tier is visible, so the gate lives here.
+            if (!IsOceanMaskReady)
+            {
+                DetachFarOcean();
+                DetachNearOcean();
+                _nearOceanReady = false;
+                SetFarOceanNearFade(active: false, Vector3.Zero, 0f, 0f, depthLiftCoefficient, depthLiftMaxUnits);
+                return;
+            }
+
+            AttachFarOcean();
+
             if (!NearOceanEnabled)
             {
                 DetachNearOcean();
@@ -1440,6 +1508,37 @@ namespace ManaGeoTools.Code.Planet
             material.SetShaderUniform("nearFadeOuterRadius", active ? outerRadius : 0f);
             material.SetShaderUniform("depthLiftCoefficient", depthLiftCoefficient);
             material.SetShaderUniform("depthLiftMaxUnits", depthLiftMaxUnits);
+        }
+
+        private void AttachFarOcean()
+        {
+            if (_oceanAttached)
+            {
+                return;
+            }
+
+            _oceanNode.Components.Add(_oceanRenderer);
+            _oceanAttached = true;
+            Console.WriteLine("[Ocean] Far shell attached (baseline height data decoded, mask is valid).");
+        }
+
+        private void DetachFarOcean()
+        {
+            if (!_oceanAttached)
+            {
+                return;
+            }
+
+            // Same selection hand-off DetachNearOcean does, for the same reason: the renderer is about to
+            // leave the scene graph.
+            var selection = Context.World.Selection;
+            if (ReferenceEquals(selection.SelectedComponent, _oceanRenderer))
+            {
+                selection.SelectedComponent = null;
+            }
+
+            _oceanNode.Components.Remove(_oceanRenderer);
+            _oceanAttached = false;
         }
 
         private void AttachNearOcean()

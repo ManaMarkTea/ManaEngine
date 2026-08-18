@@ -1,5 +1,6 @@
 using System.Linq;
 using Mana;
+using ManaCore.Diagnostics;
 using ManaUI;
 
 namespace ManaVoxel.Code.UI.ManaUi
@@ -22,7 +23,18 @@ namespace ManaVoxel.Code.UI.ManaUi
             var meshCount = new TextBlock().Foreground(theme.Text);
             meshCount.BindTextPolled(() => $"Meshes rendered: {world.LastMeshCount}");
 
+            var hitchSummary = new TextBlock().FontFamily(theme.FontFamilyMono).Foreground(theme.Text);
+            hitchSummary.BindTextPolled(() =>
+                $"{ManaFrameProfiler.HitchCount} hitches over {ManaFrameProfiler.HitchThresholdMs:0}ms "
+                + $"in {ManaFrameProfiler.FrameCount} frames, worst {ManaFrameProfiler.WorstFrameMs:0.0}ms");
+
             return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
+                // Peak first, and open by default: this is the section that actually answers "why did it
+                // stutter", since a hitch is over by the time anyone reads a this-frame number.
+                new Expander().Header("Frame timings (peak over last 2s)").Expanded().Section(theme.Spacing,
+                    hitchSummary,
+                    ProfilerRows(theme)),
+
                 new Expander().Header("Live (this frame)").Section(theme.Spacing,
                     meshCount,
                     DictionaryRows(theme, () => world.LiveFrameStats,
@@ -34,6 +46,47 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 new Expander().Header("Load times").Section(theme.Spacing,
                     LoadTimeRows(theme, world)));
+        }
+
+        /// <summary>
+        /// One row per profiler scope, ordered by name rather than by cost. Cost order would be the more
+        /// useful reading, but it reshuffles every frame -- and <see cref="DynamicContent"/> rebuilds on key
+        /// identity, so a list that reorders is a list that rebuilds every frame. The peak column carries
+        /// the ranking instead.
+        /// </summary>
+        private static UiElement ProfilerRows(UiTheme theme)
+        {
+            return new DynamicContent()
+                .Showing<IReadOnlyList<string>>(
+                    () => ManaFrameProfiler.Names,
+                    names =>
+                    {
+                        var stack = new StackPanel().Vertical(theme.Spacing * 0.5f);
+                        foreach (var name in names)
+                        {
+                            var row = new TextBlock()
+                                .FontFamily(theme.FontFamilyMono)
+                                .FontSize(theme.FontSizeSmall)
+                                .Foreground(theme.TextMuted);
+
+                            row.BindTextPolled(() => ManaFrameProfiler.TryGetSample(name, out var sample)
+                                ? FormatSample(name, sample)
+                                : string.Empty);
+
+                            stack.Children.Add(row);
+                        }
+
+                        return stack;
+                    })
+                .Empty(new TextBlock().Text("Nothing measured yet.").Foreground(theme.TextMuted));
+        }
+
+        // Peak leads because it is the number that catches a hitch; "x2" only appears when a scope ran more
+        // than once in the frame, since that is the case where the total needs explaining.
+        private static string FormatSample(string name, ManaFrameProfiler.Sample sample)
+        {
+            var calls = sample.LastCalls > 1 ? $" x{sample.LastCalls}" : string.Empty;
+            return $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg  {name}{calls}";
         }
 
         private static UiElement LoadTimeRows(UiTheme theme, ManaWorld world)

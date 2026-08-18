@@ -69,6 +69,15 @@ namespace ManaVoxel.Code.UI
         public int SelectedToolIndex;
         public bool IsSelectToolActive = true;
         public int SelectedWorkPlaneIndex;
+
+        /// <summary>
+        /// Where a non-Auto work plane sits along its own normal axis -- the height for XZ, the depth for
+        /// XY, and so on. This is what makes the plane a real construction plane rather than just an
+        /// orientation hint: every tool's placement ray intersects it here instead of raycasting against
+        /// whatever scene geometry happens to be under the cursor.
+        /// </summary>
+        public float WorkPlaneOffset;
+
         public int StrokeRadiusVoxels;
         public int TextScale = 1;
         public int TextDepth = 1;

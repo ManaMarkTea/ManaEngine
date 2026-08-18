@@ -7,6 +7,7 @@ using ManaCore.Loading;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
+using ManaCore.Diagnostics;
 
 namespace Mana.Code
 {
@@ -154,6 +155,13 @@ namespace Mana.Code
 
         public void update(double deltaTime)
         {
+            // Closes the PREVIOUS tick, not this one, and does it here rather than at the end of Render for
+            // a specific reason: on the WebGPU path the real GPU frame is submitted after Render returns
+            // (GameSilkWebGpu.Render calls ClearFrame last), so closing in Render filed every GPU scope
+            // under the following frame. deltaTime is the gap since the last tick, which is exactly the
+            // duration of the frame being closed.
+            ManaFrameProfiler.EndFrame(deltaTime * 1000.0);
+
             ManaTime.GlobalTime.UpdateTime(deltaTime);
 
             UpdateFrame++;
@@ -164,9 +172,20 @@ namespace Mana.Code
             }
             else
             {
-                Context.Physics.Update();
-                Update(deltaTime);
-                Context.World.Update();
+                using (ManaFrameProfiler.Measure("Physics"))
+                {
+                    Context.Physics.Update();
+                }
+
+                using (ManaFrameProfiler.Measure("Mode Update"))
+                {
+                    Update(deltaTime);
+                }
+
+                using (ManaFrameProfiler.Measure("World Update"))
+                {
+                    Context.World.Update();
+                }
             }
         }
 
@@ -253,17 +272,31 @@ namespace Mana.Code
                 // else in this method has to know ImGui is idle; it simply has no windows open to draw.
                 if (!EnableManaUi)
                 {
-                    DrawMainMenuBar();
-                    DrawDockSpace();
-                    DrawImGui(deltaTime);
-                    Context.World.DrawImGui();
+                    using (ManaFrameProfiler.Measure("ImGui Panels"))
+                    {
+                        DrawMainMenuBar();
+                        DrawDockSpace();
+                        DrawImGui(deltaTime);
+                        Context.World.DrawImGui();
+                    }
                 }
 
                 // Recorded before the backend draws, so the draw list the GPU submits is this frame's.
-                ManaUi?.Render(deltaTime);
+                using (ManaFrameProfiler.Measure("ManaUI Layout + Record"))
+                {
+                    ManaUi?.Render(deltaTime);
+                }
 
-                ManaGameModeGraphicsBridge.DrawWorld(Context, GraphicsBackend);
-                _ImGui.Render();
+                // Nests the backend's own finer-grained scopes (scene collect, upload, draw, present).
+                using (ManaFrameProfiler.Measure("DrawWorld Total"))
+                {
+                    ManaGameModeGraphicsBridge.DrawWorld(Context, GraphicsBackend);
+                }
+
+                using (ManaFrameProfiler.Measure("ImGui Render"))
+                {
+                    _ImGui.Render();
+                }
 
                 // OpenGL draws immediately, so ManaUI goes here to land on top of ImGui. The WebGPU path
                 // submits inside its own frame instead, and this is a no-op there.

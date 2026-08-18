@@ -12,6 +12,7 @@ using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaCore.Diagnostics;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -340,6 +341,21 @@ namespace ManaGraphics.Code.Graphics
 
         private const ulong SceneMeshDeferredDisposeFrameDelay = 6;
 
+        // Two per-frame ceilings on fresh scene-mesh creation (geometry buffers, uniform buffer, bind group,
+        // texture binding), because that cost has two independent components and either one alone can blow a
+        // frame. Whatever doesn't fit is retried next frame: a mesh being replaced keeps drawing its old
+        // geometry meanwhile, a brand-new one appears a frame or two late, and at least one always uploads so
+        // a single mesh over budget can't stall forever.
+        //
+        // Count, for the per-mesh fixed cost -- measured at roughly 4ms each regardless of size, so the first
+        // unsuspended frame creating a whole planet's worth of patches at once cost ~880ms even though their
+        // combined geometry was only 1.6M indexes.
+        private const int MaxSceneMeshCreationsPerFrame = 8;
+
+        // Indexes, for the size-proportional part -- a handful of terrain patches at up to ~1M vertices each
+        // finishing together would pass the count cap while still moving far too much data in one frame.
+        private const ulong MaxSceneMeshIndexUploadsPerFrame = 4_000_000;
+
         private void ReleaseSceneMeshes(bool immediate = false)
         {
             foreach (var sceneMesh in _sceneMeshes)
@@ -393,9 +409,17 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var renderableMeshes = GetRenderableMeshes(renderScene);
+            IReadOnlyList<ManaRenderMeshInstance> renderableMeshes;
+            using (ManaFrameProfiler.Measure("GPU: Gather Renderables"))
+            {
+                renderableMeshes = GetRenderableMeshes(renderScene);
+            }
+
             _activeRenderScene = renderScene;
-            ReconcileSceneMeshes(renderableMeshes);
+            using (ManaFrameProfiler.Measure("GPU: Reconcile Scene Meshes"))
+            {
+                ReconcileSceneMeshes(renderableMeshes);
+            }
         }
 
         private void ReconcileSceneMeshes(IReadOnlyList<ManaRenderMeshInstance> renderableMeshes)
@@ -404,6 +428,7 @@ namespace ManaGraphics.Code.Graphics
             var activeKeys = new HashSet<string>(StringComparer.Ordinal);
             var uploadedCount = 0;
             var removedCount = 0;
+            var deferredCount = 0;
             ulong uploadedIndexes = 0;
             ulong removedIndexes = 0;
             List<string>? changedMeshSummaries = null;
@@ -435,13 +460,38 @@ namespace ManaGraphics.Code.Graphics
                         continue;
                     }
 
+                    // Out of upload budget: hold the existing scene mesh, Instance and all, so it keeps
+                    // drawing last frame's geometry rather than vanishing. Its key stays in activeKeys,
+                    // so the stale sweep below leaves it alone and the swap retries next frame.
+                    if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes))
+                    {
+                        deferredCount++;
+                        nextSceneMeshes.Add(existing);
+                        continue;
+                    }
+
                     removedCount++;
                     removedIndexes += existing.Mesh.IndexCount;
                     DeferSceneMeshDispose(existing);
                     _sceneMeshMap.Remove(key);
                 }
+                else if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes))
+                {
+                    // Nothing to fall back on for a first-time upload, so this mesh simply isn't drawn
+                    // until a later frame has room for it.
+                    deferredCount++;
+                    continue;
+                }
 
-                var created = CreateSceneMesh(instance);
+                // Scoped separately from the reconcile pass around it: walking the scene is cheap and
+                // steady, while buffer creation and upload is the part that spikes with a burst of
+                // finished terrain, and only one of those two is worth a budget.
+                ManaWebGpuSceneMesh created;
+                using (ManaFrameProfiler.Measure("GPU: Mesh Buffer Upload"))
+                {
+                    created = CreateSceneMesh(instance);
+                }
+
                 _sceneMeshMap[key] = created;
                 nextSceneMeshes.Add(created);
                 uploadedCount++;
@@ -468,19 +518,32 @@ namespace ManaGraphics.Code.Graphics
             _sceneMeshes.Clear();
             _sceneMeshes.AddRange(nextSceneMeshes);
 
-            if (uploadedCount > 0 || removedCount > 0)
+            if (uploadedCount > 0 || removedCount > 0 || deferredCount > 0)
             {
                 var residentIndexes = _sceneMeshes.Sum(mesh => mesh.Mesh.IndexCount);
                 ManaConsole.WriteDiagnostic(
                     $"WebGPU scene mesh delta: uploaded={uploadedCount} (indexes={uploadedIndexes}), " +
-                    $"removed={removedCount} (indexes={removedIndexes}), residentMeshes={_sceneMeshes.Count}, " +
-                    $"residentIndexes={residentIndexes}.");
+                    $"removed={removedCount} (indexes={removedIndexes}), deferred={deferredCount}, " +
+                    $"residentMeshes={_sceneMeshes.Count}, residentIndexes={residentIndexes}.");
 
                 if (changedMeshSummaries is { Count: > 0 })
                 {
                     ManaConsole.WriteDiagnostic($"WebGPU changed meshes: {string.Join("; ", changedMeshSummaries)}.");
                 }
             }
+        }
+
+        // Either ceiling closes the budget. Never true with nothing uploaded yet, so a mesh bigger than the
+        // whole per-frame allowance still gets created rather than being deferred forever.
+        private static bool IsUploadBudgetSpent(int uploadedCount, ulong uploadedIndexes)
+        {
+            if (uploadedCount == 0)
+            {
+                return false;
+            }
+
+            return uploadedCount >= MaxSceneMeshCreationsPerFrame
+                || uploadedIndexes >= MaxSceneMeshIndexUploadsPerFrame;
         }
 
         private static string FormatSceneMeshDelta(ManaRenderMeshInstance instance, string key, uint? oldIndexes, uint? newIndexes)
