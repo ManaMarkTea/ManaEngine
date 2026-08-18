@@ -416,7 +416,7 @@ namespace ManaGeoTools.Code.Planet
             // again after the mesh has already rendered once actually takes effect — see
             // GeoTiffTerrainMesh for the fuller explanation of why this matters.
             var cpuDataGenStart = Stopwatch.GetTimestamp();
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
             ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] CPU data generation time", cpuDataGenStart);
         }
 

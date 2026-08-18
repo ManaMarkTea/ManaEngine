@@ -678,7 +678,10 @@ namespace ManaGraphics.Code.Graphics
 
             if (!SuspendSceneWork)
             {
-                CaptureSceneEnvironmentIfNeeded(commandEncoder);
+                using (ManaFrameProfiler.Measure("GPU: Environment Capture"))
+                {
+                    CaptureSceneEnvironmentIfNeeded(commandEncoder);
+                }
             }
 
             var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
@@ -698,8 +701,11 @@ namespace ManaGraphics.Code.Graphics
 
             if (useHdrPost)
             {
-                DrawOutlineMask(commandEncoder);
-                _hdrPostProcessor?.Process(commandEncoder);
+                using (ManaFrameProfiler.Measure("GPU: Outline + HDR Post"))
+                {
+                    DrawOutlineMask(commandEncoder);
+                    _hdrPostProcessor?.Process(commandEncoder);
+                }
             }
 
             var surfaceColorAttachment = new RenderPassColorAttachment
@@ -717,8 +723,11 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
-            _hdrPostProcessor?.Draw(toneMapRenderPass);
-            _imGuiController?.Render(toneMapRenderPass);
+            using (ManaFrameProfiler.Measure("GPU: Tone Map + ImGui"))
+            {
+                _hdrPostProcessor?.Draw(toneMapRenderPass);
+                _imGuiController?.Render(toneMapRenderPass);
+            }
 
             // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
             // writing. So the pass ends here, the frame is copied out and reduced, and the UI draws in a
@@ -735,7 +744,10 @@ namespace ManaGraphics.Code.Graphics
 
             // ManaUI draws last so it sits above ImGui during the migration -- the two coexist by design,
             // and panels move across one at a time.
-            DrawManaUi(toneMapRenderPass);
+            using (ManaFrameProfiler.Measure("GPU: Draw ManaUI"))
+            {
+                DrawManaUi(toneMapRenderPass);
+            }
 
             _api.RenderPassEncoderEnd(toneMapRenderPass);
 

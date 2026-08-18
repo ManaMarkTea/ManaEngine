@@ -269,7 +269,7 @@ namespace ManaGeoTools.Code.Planet
             MinSize = new Vector3(-Radius, -Radius, -Radius);
             MaxSize = new Vector3(Radius, Radius, Radius);
 
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
         }
 
         private static float SmoothStep(float edge0, float edge1, float value)

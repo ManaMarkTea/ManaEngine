@@ -98,7 +98,7 @@ namespace ManaGeoTools.Code.GeoTiff
             // build: that lazy path only ever runs once (it returns the cached CpuData immediately
             // if non-null), so without this a second GenerateData()/RebuildGeometry() call after the
             // mesh has already rendered once would silently have no visible effect.
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
         }
     }
 }

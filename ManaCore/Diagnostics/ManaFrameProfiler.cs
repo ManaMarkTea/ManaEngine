@@ -31,6 +31,14 @@ namespace ManaCore.Diagnostics
 
         private const double BytesPerMegabyte = 1024.0 * 1024.0;
 
+        /// <summary>
+        /// Scopes whose names start with this are the top-level halves of a frame, summed and subtracted from
+        /// the frame's wall clock to report the remainder. That remainder is real and worth seeing: window
+        /// message pump, input polling and the vsync wait all live outside anything the engine can scope, so
+        /// without this a frame can be 50ms with every listed scope under 2ms and no way to tell why.
+        /// </summary>
+        public const string FrameScopePrefix = "Frame: ";
+
         private static readonly object Gate = new();
         private static readonly Dictionary<string, Entry> Entries = new(StringComparer.Ordinal);
 
@@ -90,9 +98,50 @@ namespace ManaCore.Diagnostics
         /// <summary>Peak of <see cref="LastAllocatedMb"/> over the history window.</summary>
         public static double PeakAllocatedMb { get; private set; }
 
-        /// <summary>One scope's rolling numbers. Milliseconds throughout.</summary>
-        public readonly record struct Sample(double LastMs, double PeakMs, double AverageMs, int LastCalls)
+        /// <summary>
+        /// How long the collector paused the process during the most recent collection, in milliseconds.
+        /// <para>
+        /// The measurement that settles whether a hitch is anyone's fault: a collection stops the main thread
+        /// wherever it happens to be, and that time is charged to whichever scope was running -- so a GC pause
+        /// masquerades as a slow scene walk, a slow draw, or a slow anything. Sampled only on frames that
+        /// actually collected, since <see cref="GC.GetGCMemoryInfo()"/> is not free and is uninteresting
+        /// otherwise.
+        /// </para>
+        /// </summary>
+        public static double LastGcPauseMs { get; private set; }
+
+        /// <summary>Worst <see cref="LastGcPauseMs"/> since the last <see cref="Reset"/>.</summary>
+        public static double WorstGcPauseMs { get; private set; }
+
+        /// <summary>Managed heap size at the most recent collection, in megabytes. Long pauses scale with this.</summary>
+        public static double HeapMb { get; private set; }
+
+        /// <summary>Share of wall-clock time spent paused in the collector, as reported by the runtime.</summary>
+        public static double GcPauseTimePercentage { get; private set; }
+
+        /// <summary>True when the process is using Server GC, which trades footprint for shorter pauses.</summary>
+        public static bool IsServerGc { get; } = System.Runtime.GCSettings.IsServerGC;
+
+        /// <summary>
+        /// One scope's rolling numbers. Milliseconds and bytes.
+        /// <para>
+        /// Bytes matter as much as milliseconds here: an allocation-heavy scope shows a small, steady time
+        /// and then charges for it later, on some other frame, as a collection pause that no timer can
+        /// attribute to whoever caused it. Nested scopes double-count both figures, the same way.
+        /// </para>
+        /// </summary>
+        public readonly record struct Sample(
+            double LastMs,
+            double PeakMs,
+            double AverageMs,
+            int LastCalls,
+            long LastBytes,
+            long PeakBytes)
         {
+            public double LastKb => LastBytes / 1024.0;
+
+            public double PeakKb => PeakBytes / 1024.0;
+
             /// <summary>Peak over average -- how spiky this scope is. 1 means perfectly steady; large means it stutters.</summary>
             public double Spikiness => AverageMs > 0.0001 ? PeakMs / AverageMs : 0.0;
         }
@@ -114,9 +163,11 @@ namespace ManaCore.Diagnostics
                 return;
             }
 
+            // No allocation figure: the work happened outside any scope of ours, so there is no
+            // before/after pair to difference.
             lock (Gate)
             {
-                GetEntryLocked(name).Accumulate(milliseconds);
+                GetEntryLocked(name).Accumulate(milliseconds, 0);
             }
         }
 
@@ -223,6 +274,7 @@ namespace ManaCore.Diagnostics
                 WorstFrameMs = 0.0;
                 FrameCount = 0;
                 PeakAllocatedMb = 0.0;
+                WorstGcPauseMs = 0.0;
                 _lastHitchFrame = -HitchLogCooldownFrames;
             }
         }
@@ -257,20 +309,49 @@ namespace ManaCore.Diagnostics
         // particular frame slow.
         private static string BuildHitchReportLocked(double frameMs)
         {
-            var worst = new List<(string Name, double Ms, int Calls)>(Entries.Count);
+            var worst = new List<(string Name, double Ms, int Calls, long Bytes)>(Entries.Count);
             foreach (var (name, entry) in Entries)
             {
-                if (entry.FrameMs >= 0.05)
+                // Either cost qualifies a scope for the report. A scope that allocates megabytes in under
+                // 0.05ms is not innocent -- it is why some later frame stalls in the collector.
+                if (entry.FrameMs >= 0.05 || entry.FrameBytes >= 64 * 1024)
                 {
-                    worst.Add((name, entry.FrameMs, entry.FrameCalls));
+                    worst.Add((name, entry.FrameMs, entry.FrameCalls, entry.FrameBytes));
                 }
             }
 
             worst.Sort(static (left, right) => right.Ms.CompareTo(left.Ms));
 
+            var accounted = 0.0;
+            var sawFrameScope = false;
+            foreach (var (name, entry) in Entries)
+            {
+                if (name.StartsWith(FrameScopePrefix, StringComparison.Ordinal))
+                {
+                    accounted += entry.FrameMs;
+                    sawFrameScope = true;
+                }
+            }
+
             var report = new System.Text.StringBuilder();
             report.Append($"[Hitch] frame={frameMs:F1}ms (budget {HitchThresholdMs:F0}ms)");
             report.Append($" alloc={LastAllocatedMb:F2}MB gc={LastGcDelta.Gen0}/{LastGcDelta.Gen1}/{LastGcDelta.Gen2}");
+
+            // Printed before the scope breakdown on purpose: if this is most of the frame, the breakdown below
+            // is telling you where the collector happened to interrupt, not what was slow.
+            if (LastGcPauseMs > 0.0)
+            {
+                report.Append($" gcPause={LastGcPauseMs:F1}ms heap={HeapMb:F0}MB");
+            }
+
+            if (sawFrameScope)
+            {
+                // Negative would mean the frame scopes covered work the wall clock attributes to a different
+                // frame, which is normal at a boundary and not worth reporting as a mystery.
+                var outside = frameMs - accounted;
+                report.Append($" outside={(outside > 0.0 ? outside : 0.0):F1}ms");
+            }
+
             report.Append(" |");
 
             if (worst.Count == 0)
@@ -284,8 +365,13 @@ namespace ManaCore.Diagnostics
             var reported = Math.Min(worst.Count, 8);
             for (var i = 0; i < reported; i++)
             {
-                var (name, ms, calls) = worst[i];
+                var (name, ms, calls, bytes) = worst[i];
                 report.Append($" {name}={ms:F1}ms");
+                if (bytes >= 64 * 1024)
+                {
+                    report.Append($"/{bytes / (1024.0 * 1024.0):F1}MB");
+                }
+
                 if (calls > 1)
                 {
                     report.Append($"(x{calls})");
@@ -312,12 +398,49 @@ namespace ManaCore.Diagnostics
                 {
                     PeakAllocatedMb = LastAllocatedMb;
                 }
+
+                var collected = LastGcDelta.Gen0 > 0 || LastGcDelta.Gen1 > 0 || LastGcDelta.Gen2 > 0;
+                if (collected)
+                {
+                    SamplePauseLocked();
+                }
+                else
+                {
+                    // Cleared rather than held, so the figure always describes THIS frame -- a stale pause
+                    // sitting next to a clean frame would read as a cause when it is not one.
+                    LastGcPauseMs = 0.0;
+                }
             }
 
             _lastAllocatedBytes = allocated;
             _lastGen0 = gen0;
             _lastGen1 = gen1;
             _lastGen2 = gen2;
+        }
+
+        private static void SamplePauseLocked()
+        {
+            try
+            {
+                var info = GC.GetGCMemoryInfo();
+                var pauseMs = 0.0;
+                foreach (var pause in info.PauseDurations)
+                {
+                    pauseMs += pause.TotalMilliseconds;
+                }
+
+                LastGcPauseMs = pauseMs;
+                HeapMb = info.HeapSizeBytes / BytesPerMegabyte;
+                GcPauseTimePercentage = info.PauseTimePercentage;
+                if (pauseMs > WorstGcPauseMs)
+                {
+                    WorstGcPauseMs = pauseMs;
+                }
+            }
+            catch
+            {
+                // Diagnostics must never take down a frame.
+            }
         }
 
         private static Entry GetEntryLocked(string name)
@@ -341,11 +464,17 @@ namespace ManaCore.Diagnostics
         {
             private readonly string? _name;
             private readonly long _startTimestamp;
+            private readonly long _startAllocatedBytes;
 
             internal Scope(string name)
             {
                 _name = name;
                 _startTimestamp = Stopwatch.GetTimestamp();
+
+                // Per-thread rather than process-wide, so a background thread allocating at the same time
+                // cannot be charged to this scope. It is a thread-local read -- cheap enough to sit in
+                // every scope.
+                _startAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
             }
 
             public void Dispose()
@@ -356,9 +485,10 @@ namespace ManaCore.Diagnostics
                 }
 
                 var elapsed = Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds;
+                var allocated = GC.GetAllocatedBytesForCurrentThread() - _startAllocatedBytes;
                 lock (Gate)
                 {
-                    GetEntryLocked(_name).Accumulate(elapsed);
+                    GetEntryLocked(_name).Accumulate(elapsed, Math.Max(0, allocated));
                 }
             }
         }
@@ -366,6 +496,7 @@ namespace ManaCore.Diagnostics
         private sealed class Entry
         {
             private readonly double[] _history = new double[HistoryFrames];
+            private readonly long[] _byteHistory = new long[HistoryFrames];
             private int _filled;
 
             /// <summary>Accumulating total for the frame in progress.</summary>
@@ -373,18 +504,23 @@ namespace ManaCore.Diagnostics
 
             public int FrameCalls { get; private set; }
 
+            public long FrameBytes { get; private set; }
+
             private double LastMs { get; set; }
             private int LastCalls { get; set; }
+            private long LastBytes { get; set; }
 
-            public void Accumulate(double milliseconds)
+            public void Accumulate(double milliseconds, long bytes)
             {
                 FrameMs += milliseconds;
+                FrameBytes += bytes;
                 FrameCalls++;
             }
 
             public void CloseFrame(int cursor)
             {
                 _history[cursor] = FrameMs;
+                _byteHistory[cursor] = FrameBytes;
                 if (_filled < HistoryFrames)
                 {
                     _filled++;
@@ -392,14 +528,17 @@ namespace ManaCore.Diagnostics
 
                 LastMs = FrameMs;
                 LastCalls = FrameCalls;
+                LastBytes = FrameBytes;
                 FrameMs = 0.0;
                 FrameCalls = 0;
+                FrameBytes = 0;
             }
 
             public Sample ToSample()
             {
                 var peak = 0.0;
                 var total = 0.0;
+                var peakBytes = 0L;
                 for (var i = 0; i < _filled; i++)
                 {
                     var value = _history[i];
@@ -408,10 +547,15 @@ namespace ManaCore.Diagnostics
                     {
                         peak = value;
                     }
+
+                    if (_byteHistory[i] > peakBytes)
+                    {
+                        peakBytes = _byteHistory[i];
+                    }
                 }
 
                 var average = _filled > 0 ? total / _filled : 0.0;
-                return new Sample(LastMs, peak, average, LastCalls);
+                return new Sample(LastMs, peak, average, LastCalls, LastBytes, peakBytes);
             }
         }
     }

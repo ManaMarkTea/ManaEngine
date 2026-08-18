@@ -63,7 +63,7 @@ namespace ManaGeoTools.Code.Kml.Geometry
 
             // Explicit SetCpuData (now public) so a second GenerateData()/RebuildGeometry() call
             // after the mesh has already rendered once actually takes effect — see GeoTiffTerrainMesh.
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
         }
 
         public override ManaMaterial GenerateMaterial()

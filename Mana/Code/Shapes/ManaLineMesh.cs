@@ -251,7 +251,7 @@ namespace Mana.Code.Shapes
                 }
                 : null;
 
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
         }
 
         /// <summary>

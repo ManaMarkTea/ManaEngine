@@ -166,6 +166,11 @@ namespace Mana.Code
 
             UpdateFrame++;
 
+            // "Frame: " prefixed scopes are the top-level halves of a frame; the profiler subtracts them from
+            // the frame's wall clock to report what is left as unaccounted (window message pump, input
+            // polling, vsync wait -- none of which is ours to scope).
+            using var frameScope = ManaFrameProfiler.Measure("Frame: Update");
+
             if (IsLoading)
             {
                 LoadingCoordinator.Update();
@@ -230,13 +235,19 @@ namespace Mana.Code
         {
             RenderFrame++;
 
+            using var frameScope = ManaFrameProfiler.Measure("Frame: Render");
+
             // Before ProcessPendingFontPreset: a scale change queues a font rebuild, which this next call
             // then performs in the same frame rather than a frame late.
             SyncImGuiUiScale();
             ProcessPendingFontPreset();
 
             AttachManaUiToImGui();
-            _ImGui.Update((float)deltaTime);
+
+            using (ManaFrameProfiler.Measure("ImGui Update"))
+            {
+                _ImGui.Update((float)deltaTime);
+            }
 
             if (IsLoading)
             {

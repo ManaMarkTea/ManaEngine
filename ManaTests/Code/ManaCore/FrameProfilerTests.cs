@@ -130,6 +130,26 @@ public static class FrameProfilerChecks
         ManaFrameProfiler.TryGetSample("test.measured", out var measured);
         Check("a using-scope times the block it wraps", measured.LastMs >= 8.0, $"{measured.LastMs:F1}ms");
 
+        // ---------------------------------------------------------------- allocation attribution
+        // The reason this is tracked at all: an allocating scope is charged for it later, on some other
+        // frame, as a collection pause no timer would pin on whoever caused it.
+        const int allocatedBytes = 512 * 1024;
+        using (ManaFrameProfiler.Measure("test.allocating"))
+        {
+            var waste = new byte[allocatedBytes];
+            waste[0] = 1;
+            GC.KeepAlive(waste);
+        }
+
+        ManaFrameProfiler.EndFrame(frameMs: 8.0);
+        ManaFrameProfiler.TryGetSample("test.allocating", out var allocating);
+        Check("a scope reports what it allocated",
+            allocating.LastBytes >= allocatedBytes, $"{allocating.LastKb:F0}KB");
+
+        ManaFrameProfiler.TryGetSample("test.measured", out measured);
+        Check("and a scope that allocates nothing reports nearly nothing",
+            measured.LastBytes < 4096, $"{measured.LastBytes} bytes");
+
         // Left clean for anything that runs after this, and for the app itself if this ran in-process.
         ManaFrameProfiler.Reset();
     }

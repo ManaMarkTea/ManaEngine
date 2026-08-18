@@ -226,17 +226,37 @@ namespace Mana
 
             ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(55.0f.ToRadians(), aspect, 0.001f, 1000.0f);
 
-            RunFutures(PreUpdateFutures, activePreUpdateFutures);
-
-            lock (SceneLock)
+            // Futures are queued work that ran here for want of anywhere better, so they are the first thing
+            // to suspect when this method spikes and the scene walk does not account for it.
+            using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("World: Pre-Update Futures"))
             {
-                foreach (var scene in Scenes)
-                {
-                    scene.Update();
-                }
+                RunFutures(PreUpdateFutures, activePreUpdateFutures);
             }
 
-            RunFutures(PostUpdateFutures, activePostUpdateFutures);
+            using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("World: Await Lock"))
+            {
+                Monitor.Enter(SceneLock);
+            }
+
+            try
+            {
+                using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("World: Scene Walk"))
+                {
+                    foreach (var scene in Scenes)
+                    {
+                        scene.Update();
+                    }
+                }
+            }
+            finally
+            {
+                Monitor.Exit(SceneLock);
+            }
+
+            using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("World: Post-Update Futures"))
+            {
+                RunFutures(PostUpdateFutures, activePostUpdateFutures);
+            }
 
             // A camera riding a spring arm is posed here rather than in CameraNode.UpdateTransform
             // above, because the thing it follows only reaches its final position during the scene
@@ -318,7 +338,8 @@ namespace Mana
             {
                 var calls = sample.LastCalls > 1 ? $" x{sample.LastCalls}" : string.Empty;
                 ImGui.Text(
-                    $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg  {name}{calls}");
+                    $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg "
+                    + $"{sample.PeakKb,8:F0}KB  {name}{calls}");
             }
 
             ImGui.SeparatorText("Live (this frame)");
@@ -371,20 +392,37 @@ namespace Mana
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
 
             var collectStopwatch = Stopwatch.StartNew();
-            lock (SceneLock)
+            // Separately scoped from the walk below because they fail differently: waiting on SceneLock means
+            // a background thread is holding the scene, whereas a slow walk means the scene itself is big.
+            using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Scene: Await Lock"))
             {
-                foreach (var scene in Scenes)
-                {
-                    scene.CollectRenderMeshInstances(meshes);
-                }
+                Monitor.Enter(SceneLock);
+            }
 
-                foreach (var scene in Scenes)
+            try
+            {
+                using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Scene: Collect Meshes"))
                 {
-                    foreach (var child in scene.Children)
+                    foreach (var scene in Scenes)
                     {
-                        CollectLightsFromNode(child, collectedLights);
+                        scene.CollectRenderMeshInstances(meshes);
                     }
                 }
+
+                using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Scene: Collect Lights"))
+                {
+                    foreach (var scene in Scenes)
+                    {
+                        foreach (var child in scene.Children)
+                        {
+                            CollectLightsFromNode(child, collectedLights);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Monitor.Exit(SceneLock);
             }
             RecordFrameStat("Scene Graph Collect", collectStopwatch.Elapsed);
             LastMeshCount = meshes.Count;

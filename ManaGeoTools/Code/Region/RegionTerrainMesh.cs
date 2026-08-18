@@ -336,7 +336,7 @@ namespace ManaGeoTools.Code.Region
             // Explicit rather than relying on GetOrCreateCpuData()'s lazy build, for the same reason
             // GeoTiffTerrainMesh does it: the lazy path returns the cached CpuData immediately once set,
             // so a later regenerate would otherwise have no visible effect.
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
         }
 
         /// <summary>

@@ -72,7 +72,7 @@ namespace ManaGeoTools.Code.Planet
             MinSize = new Vector3(-Radius, -Radius, -Radius);
             MaxSize = new Vector3(Radius, Radius, Radius);
 
-            SetCpuData(DynamicGeometryContainer.CreateCpuData());
+            PublishGeneratedGeometry();
         }
 
         private void BuildFace(Vector3 normal)

@@ -60,16 +60,52 @@ namespace Mana.Code
             throw new InvalidOperationException($"OpenGL mesh factory returned unsupported mesh type '{gpuMesh.GetType().Name}'.");
         }
 
+        /// <summary>
+        /// Snapshots the built geometry as flat arrays.
+        /// <para>
+        /// Written out by hand rather than through the Positions/Normals/... properties below, because each of
+        /// those is a LINQ Select().ToList() -- so the old one-liner built every channel twice, once as a List
+        /// and once as the array copied out of it. On a 1M-vertex terrain patch that was tens of megabytes of
+        /// immediately-dead garbage per generate, and terrain generates constantly. One pass, one array each,
+        /// and one dereference of each vertex instead of five.
+        /// </para>
+        /// </summary>
         public ManaMeshCpuData CreateCpuData()
         {
+            var vertexCount = Verts.Count;
+            var positions = new Vector3[vertexCount];
+            var normals = new Vector3[vertexCount];
+            var colors = new Vector4[vertexCount];
+            var texCoords0 = new Vector2[vertexCount];
+            var texCoords1 = new Vector2[vertexCount];
+
+            for (var i = 0; i < vertexCount; i++)
+            {
+                var vertex = Verts[i];
+                positions[i] = vertex.Position;
+                normals[i] = vertex.Normal;
+                colors[i] = vertex.Color;
+                texCoords0[i] = vertex.TexCoord0;
+                texCoords1[i] = vertex.TexCoord1;
+            }
+
+            var indexes = new uint[Faces.Count * 3];
+            var next = 0;
+            foreach (var face in Faces)
+            {
+                indexes[next++] = (uint)face.A.Index;
+                indexes[next++] = (uint)face.B.Index;
+                indexes[next++] = (uint)face.C.Index;
+            }
+
             return new ManaMeshCpuData
             {
-                Positions = Positions.ToArray(),
-                Normals = Normals.ToArray(),
-                Colors = Colors.ToArray(),
-                TextureCoordinates0 = TexCoords0.ToArray(),
-                TextureCoordinates1 = TexCoords1.ToArray(),
-                Indexes = Indexes.ToArray()
+                Positions = positions,
+                Normals = normals,
+                Colors = colors,
+                TextureCoordinates0 = texCoords0,
+                TextureCoordinates1 = texCoords1,
+                Indexes = indexes
             };
         }
 

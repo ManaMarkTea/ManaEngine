@@ -86,7 +86,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static string FormatSample(string name, ManaFrameProfiler.Sample sample)
         {
             var calls = sample.LastCalls > 1 ? $" x{sample.LastCalls}" : string.Empty;
-            return $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg  {name}{calls}";
+            return $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg "
+                + $"{sample.PeakKb,8:F0}KB  {name}{calls}";
         }
 
         private static UiElement LoadTimeRows(UiTheme theme, ManaWorld world)

@@ -1599,12 +1599,25 @@ namespace Mana.Code.GameModes
                 $"alloc {ManaFrameProfiler.LastAllocatedMb:0.00}MB/frame (peak {ManaFrameProfiler.PeakAllocatedMb:0.0}MB), "
                 + $"collections this frame {gc.Gen0}/{gc.Gen1}/{gc.Gen2}");
 
+            // Worst pause rather than the last one: a pause is the thing that stutters, and it is over by the
+            // time anyone reads the panel.
+            world.RecordFrameStatText(
+                "GC pauses",
+                $"worst {ManaFrameProfiler.WorstGcPauseMs:0.0}ms, {ManaFrameProfiler.GcPauseTimePercentage:0.0}% of wall clock, "
+                + $"heap {ManaFrameProfiler.HeapMb:0}MB, {(ManaFrameProfiler.IsServerGc ? "server" : "workstation")} GC");
+
             if (_planet == null)
             {
                 return;
             }
 
             world.RecordFrameStatText("Planet snapshot queue", $"{_planet.PendingChangedPatchCount} pending");
+
+            // Surfaced next to the heap figure above because the two are related: this cache never evicts by
+            // design (merges rely on a child's fetched tiles still being there), so it is the standing
+            // explanation for a heap that grows the longer you fly, and pause times grow with the heap.
+            var tileCount = _planet.HeightLibrary?.Tiles.Count ?? 0;
+            world.RecordFrameStatText("Height tiles cached", $"{tileCount} (never evicted)");
 
             var status = _planet.GetStreamingStatus();
             Context.World.RecordFrameStatText("Planet patches resident", status.TotalLeaves.ToString());
@@ -2517,7 +2530,10 @@ namespace Mana.Code.GameModes
             // placement, no drag-and-drop, no pawn driving, no planet auto-LOD, no view-option syncing.
             if (!IsLoading)
             {
-                UpdateEditorPerFrameState();
+                using (ManaFrameProfiler.Measure("Editor Per-Frame State"))
+                {
+                    UpdateEditorPerFrameState();
+                }
             }
 
             base.Render(deltaTime);

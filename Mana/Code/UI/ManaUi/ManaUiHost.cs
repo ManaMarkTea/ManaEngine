@@ -86,8 +86,19 @@ namespace Mana.Code.UI.ManaUi
             Root.Popups.Tick(deltaSeconds);
 
             Root.SetScale(GetFramebufferScale());
-            Root.UpdateLayout(LogicalSize);
-            Root.Render();
+
+            // Measure/arrange and draw-list recording separately: the first scales with how much of the tree
+            // was invalidated, the second with how many primitives the frame ends up with, and a spike in one
+            // says nothing about the other.
+            using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("ManaUI: Layout"))
+            {
+                Root.UpdateLayout(LogicalSize);
+            }
+
+            using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("ManaUI: Record"))
+            {
+                Root.Render();
+            }
 
             // After layout, so resize handles report against this frame's geometry.
             InputBridge?.ApplyCursor();
