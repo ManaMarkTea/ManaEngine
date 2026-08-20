@@ -28,7 +28,7 @@ using System.Text;
 
 namespace Mana.Code.GameModes
 {
-    public class VoxelEditorGameMode : BaseGameMode
+    public partial class VoxelEditorGameMode : BaseGameMode
     {
         private const string ManaWindowTitle = "Mana";
         private uint _toolDockId;
@@ -45,6 +45,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelToolController _toolController = new();
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
+        private PlayModeController? _playMode;
         private const string ZipAssetPrefix = "zipasset:";
         private bool _firstFrame = true;
         private bool _meshPickerDragWasDown;
@@ -106,6 +107,10 @@ namespace Mana.Code.GameModes
 
         public void RunWebGpu(string? requestedBackend)
         {
+            // Kept so Play In New Window launches on the backend this window is running, rather than
+            // whatever the second process would have picked on its own.
+            _requestedWebGpuBackend = requestedBackend;
+
             ManaConsole.AttachForDiagnostics("ManaVoxel WebGPU Diagnostics");
             ManaConsole.WriteDiagnostic("Starting ManaVoxel game mode with WebGPU graphics backend.");
             ManaConsole.WriteDiagnostic($"Requested WGPU backend: {requestedBackend ?? "auto"}");
@@ -174,12 +179,19 @@ namespace Mana.Code.GameModes
             // RenderFrame is plain engine state with no change notification, which is exactly the case the
             // polled binding exists for.
             // The same view model the ImGui palette uses, so both drive the editor and stay in step.
-            host.Root.Content = ManaUiDockDemo.Attach(
+            var workspace = ManaUiDockDemo.Attach(
                 host.Root,
                 _manaUiShowcase,
                 () => $"render frame {RenderFrame:N0}",
                 editor: _viewModel,
                 world: Context.World);
+
+            // Play collapses the whole workspace away and leaves the controls hint. Polled rather than
+            // rebuilt on the switch, because _playMode does not exist yet -- this runs before Load.
+            host.Root.Content = new ManaUiPlayOverlay(
+                workspace,
+                ManaUiPlayHud.Build(host.Root.Theme, GetPlayHudText),
+                () => IsPlaying);
         }
 
         public override void Load()
@@ -198,6 +210,8 @@ namespace Mana.Code.GameModes
             };
             _viewModel.AttachPawnController(_pawnController);
             _pawnController.ChangeCharacterRequested += direction => _viewModel.CycleControlledCharacter(direction);
+
+            InitializePlayMode();
 
             // Hands WASD to the possessed character. Set here rather than alongside
             // ShouldCaptureMouseInput below because that assignment runs on the background load task,
@@ -244,12 +258,22 @@ namespace Mana.Code.GameModes
                         Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                         Cursor.Name = "CursorBall";
 
+                        // Demo scenery, not level content: the shape factory tags everything it builds so
+                        // placed props round-trip, and these are the ones the game mode puts there itself.
+                        // Left tagged they would be saved into every level and then loaded a second time on
+                        // top of the copies this code always makes. See ManaLevelSource.
+                        xzPlane.LevelSource = null;
+                        yxPlane.LevelSource = null;
+                        zyPlane.LevelSource = null;
+                        Cursor.LevelSource = null;
+
                         // A donut that spins and bobs like a pickup. Its motion component has no inspector
                         // widget on purpose: selecting this is the standing demonstration that the
                         // reflection fallback turns a plain component into a working editor.
                         var pickup = shapes.AddTorus(new Vector3(60, 1.5f, 60), Colors.Gold, 2.0f);
                         pickup.Name = "Pickup Donut";
                         pickup.Components.Add(new ManaPickupMotionComponent(pickup));
+                        pickup.LevelSource = null;
 
                         voxelsNode = shapes.AddVoxels(Vector3.Zero);
                     }
@@ -1292,6 +1316,32 @@ namespace Mana.Code.GameModes
         // lets the expensive rebuild coalesce into one (see PlanetDrapedLines.RebuildSettleFrames).
         private const int DrapePointsPerFrame = 8192;
 
+        /// <summary>
+        /// Moves finished mesh previews into the UI atlas. Main thread, a few per frame -- see
+        /// MeshThumbnailImages.Pump for why the upload is throttled rather than done as results arrive.
+        /// <para>
+        /// The cache is created on first use rather than at load: it needs a context, and a session that never
+        /// opens the Import panel should not have spun up a worker or touched the cache directory.
+        /// </para>
+        /// </summary>
+        private void PumpMeshThumbnails()
+        {
+            var cache = ManaUiDockDemo.MeshThumbnails;
+            if (cache == null)
+            {
+                cache = new MeshThumbnailCache(Context);
+                ManaUiDockDemo.MeshThumbnails = cache;
+            }
+
+            if (ManaUi?.Root is { } root)
+            {
+                using (ManaFrameProfiler.Measure("Thumbnails: Atlas Upload"))
+                {
+                    MeshThumbnailImages.Pump(root, cache);
+                }
+            }
+        }
+
         // Every per-frame streaming step that has to happen on the main thread, in dependency order:
         // decide what to refine, then adopt whatever finished, then feed the overlays that read the
         // results. Each step is individually budgeted per frame, so calling this more than once per frame
@@ -1566,6 +1616,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            PumpMeshThumbnails();
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
             SyncWaterVisibility();
@@ -2450,6 +2501,13 @@ namespace Mana.Code.GameModes
                 return false;
             }
 
+            // While playing, a held left button is the game's business. Reporting it as an editor capture
+            // would stand the camera down and freeze the spring arm mid-orbit.
+            if (IsPlaying)
+            {
+                return false;
+            }
+
             var mouse = Context.Input.Mice.FirstOrDefault();
             return _toolController.IsDrawing || mouse?.IsButtonPressed(Silk.NET.Input.MouseButton.Left) == true;
         }
@@ -2550,6 +2608,23 @@ namespace Mana.Code.GameModes
             PushWebGpuFrameStats();
             LogMemoryStatsPeriodically();
             ManaMemoryStats.Sample();
+
+            // Here rather than in OnLoadingComplete, which the loading coordinator calls one line before it
+            // marks loading finished -- so IsLoading is still true there, and every level operation guards
+            // on exactly that. This method's first call is the first frame that is genuinely past loading.
+            OpenStartupLevelIfRequested();
+
+            UpdatePlayModeShortcuts();
+
+            // While playing, everything below this line is the editor acting on a pointer that now belongs
+            // to the game: picking, voxel placement, mesh drag-and-drop, selection outlines. Only the things
+            // the world needs regardless -- streaming, and the character's own input -- carry on.
+            if (_playMode is { IsPlaying: true })
+            {
+                PumpPlanetStreaming();
+                _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+                return;
+            }
 
             // Keep the active voxel node highlighted through the shared post-process outline pass.
             var activeNode = _viewModel.VoxelNode;

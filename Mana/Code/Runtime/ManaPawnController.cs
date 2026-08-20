@@ -60,6 +60,13 @@ namespace Mana.Code
         public bool ClickToMoveEnabled { get; set; } = true;
         public bool KeyboardDriveEnabled { get; set; } = true;
 
+        /// <summary>
+        /// Whether Escape releases the possessed pawn. Play mode turns this off and claims the key for
+        /// itself: while playing, Escape means "stop playing", and letting it also unpossess would leave
+        /// the character standing there under nobody's control for the frame before play ended.
+        /// </summary>
+        public bool ReleaseOnEscape { get; set; } = true;
+
         // Wire this to CameraComponent.ShouldCaptureKeyboardInput. True means the pawn owns the
         // movement keys this frame and the camera's fly block must stand down; otherwise the camera
         // would consume WASD first and the character would never move.
@@ -273,7 +280,7 @@ namespace Mana.Code
 
             // Escape is the way back out. Without it, a possessed pawn swallows every subsequent world
             // click as a walk order and nothing else in the scene can be selected again.
-            var releaseKeyDown = !keyboardCaptured && keyboard?.IsKeyPressed(Key.Escape) == true;
+            var releaseKeyDown = ReleaseOnEscape && !keyboardCaptured && keyboard?.IsKeyPressed(Key.Escape) == true;
             if (releaseKeyDown && !releaseKeyWasDown)
             {
                 Possess(null);

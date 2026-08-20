@@ -5,10 +5,21 @@ namespace ManaCore.Graphics
         public ManaGraphicsBackendKind GraphicsBackend { get; private init; } = ManaGraphicsBackendKind.WebGpu;
         public string? WebGpuBackend { get; private init; }
 
+        /// <summary>
+        /// Set by <c>--play &lt;level&gt;</c>: skip the editor and run that level as the game. This is what
+        /// the editor's Play In New Window launches, so the two paths stay the same one.
+        /// </summary>
+        public string? PlayLevelPath { get; private init; }
+
+        /// <summary>Set by <c>--level &lt;level&gt;</c>: start the editor with that level already open.</summary>
+        public string? EditLevelPath { get; private init; }
+
         public static ManaLaunchOptions Parse(string[] args)
         {
             var graphicsBackend = ParseGraphicsBackend(Environment.GetEnvironmentVariable("MANA_GRAPHICS_BACKEND"));
             var webGpuBackend = Environment.GetEnvironmentVariable("MANA_WGPU_BACKEND");
+            string? playLevelPath = null;
+            string? editLevelPath = null;
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -30,13 +41,27 @@ namespace ManaCore.Graphics
                     TryReadOptionValue(args, ref i, "--webgpu-backend", out webGpuBackendValue))
                 {
                     webGpuBackend = webGpuBackendValue;
+                    continue;
+                }
+
+                if (TryReadOptionValue(args, ref i, "--play", out var playValue))
+                {
+                    playLevelPath = playValue;
+                    continue;
+                }
+
+                if (TryReadOptionValue(args, ref i, "--level", out var editValue))
+                {
+                    editLevelPath = editValue;
                 }
             }
 
             return new ManaLaunchOptions
             {
                 GraphicsBackend = graphicsBackend,
-                WebGpuBackend = string.IsNullOrWhiteSpace(webGpuBackend) ? null : webGpuBackend
+                WebGpuBackend = string.IsNullOrWhiteSpace(webGpuBackend) ? null : webGpuBackend,
+                PlayLevelPath = string.IsNullOrWhiteSpace(playLevelPath) ? null : playLevelPath,
+                EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath
             };
         }
 

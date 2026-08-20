@@ -152,20 +152,46 @@ public static class DockingChecks
         root.Content = crowdedHost;
         root.UpdateLayout(new Vector2(400, 400));
 
-        var last = crowded.TabRect(crowded.Items.Count - 1);
-        Check("every tab fits inside the strip", last.Right <= crowded.Bounds.Right + 0.5f,
-            $"last tab ends at {last.Right:F1}, strip ends at {crowded.Bounds.Right:F1}");
-        Check("tabs do not overlap",
+        var lastCrowded = crowded.Items.Count - 1;
+
+        // Adding a panel selects it, so the sixth is the selected one here -- and a selected tab is always
+        // visible, which would otherwise make "which tabs are hidden" depend on that. Pinned to the first so
+        // the rest of this block reads against a known strip.
+        crowded.SelectedIndex = 0;
+        root.UpdateLayout(new Vector2(400, 400));
+
+        Check("visible tabs stay inside the strip",
+            Enumerable.Range(0, crowded.Items.Count)
+                .Select(crowded.TabRect)
+                .Where(tab => !tab.IsEmpty)
+                .All(tab => tab.Right <= crowded.Bounds.Right + 0.5f),
+            $"strip ends at {crowded.Bounds.Right:F1}");
+
+        Check("adjacent visible tabs meet without overlapping",
             MathF.Abs(crowded.TabRect(1).X - crowded.TabRect(0).Right) < 0.5f,
             $"{crowded.TabRect(0)} then {crowded.TabRect(1)}");
-        Check("a squeezed tab is still wide enough to hit", last.Width > 20.0f, $"{last.Width:F1}px");
 
-        // Reachable means clickable, which is the whole point.
-        root.Input.InjectPointerMoved(last.Center);
-        root.Input.InjectPointerPressed(last.Center, PointerButton.Left, 3.0);
-        root.Input.InjectPointerReleased(last.Center, PointerButton.Left);
-        Check("the last tab can be selected", crowded.SelectedIndex == crowded.Items.Count - 1,
-            $"{crowded.SelectedIndex}");
+        Check("and are wide enough to hit", crowded.TabRect(0).Width > 20.0f,
+            $"{crowded.TabRect(0).Width:F1}px");
+
+        // A visible tab is selected by clicking it, as always.
+        var firstCrowded = crowded.TabRect(0);
+        root.Input.InjectPointerMoved(firstCrowded.Center);
+        root.Input.InjectPointerPressed(firstCrowded.Center, PointerButton.Left, 3.0);
+        root.Input.InjectPointerReleased(firstCrowded.Center, PointerButton.Left);
+        Check("clicking a visible tab selects it", crowded.SelectedIndex == 0, $"{crowded.SelectedIndex}");
+
+        // Six long titles cannot all fit 400px, so the tail is behind the overflow button rather than
+        // squeezed to an ellipsis. Unreachable is the failure this guards; hidden is the design.
+        Check("the tail is in the overflow rather than squeezed",
+            crowded.OverflowedIndices().Contains(lastCrowded),
+            $"hidden: {string.Join(", ", crowded.OverflowedIndices())}");
+
+        // Selecting from the overflow menu is what the flyout does, and it has to bring the tab into view.
+        crowded.SelectedIndex = lastCrowded;
+        root.UpdateLayout(new Vector2(400, 400));
+        Check("selecting it from the overflow shows it",
+            !crowded.TabRect(lastCrowded).IsEmpty, $"{crowded.TabRect(lastCrowded)}");
 
         // Given room, tabs go back to their natural widths rather than staying squeezed.
         root.UpdateLayout(new Vector2(1600, 400));
@@ -395,19 +421,46 @@ public static class TabRowChecks
             "Scene", "Outliner", "Inspector", "Assets", "Materials", "Lighting",
             "Terrain", "Regions", "Placement", "Import", "About");
 
-        Check("a crowded strip wraps", many.RowCount > 1, $"{many.RowCount} rows");
+        // The contract this suite used to assert was the opposite: that the strip WRAPS onto extra rows.
+        // Wrapping was readable but cost up to 78px of a dock's height on labels alone, which is height a
+        // docked panel does not have to spare -- so a crowded strip now stays one row and moves the tabs that
+        // do not fit behind an overflow button. What is checked is that nothing becomes unreachable in the
+        // process, which is the risk that trade introduces.
+        Check("a crowded strip stays one row", many.RowCount == 1, $"{many.RowCount} rows");
 
         var strip = many.TabStripRect;
-        Check("and the strip grows to hold the rows",
-            MathF.Abs(strip.Height - many.RowCount * (many.TabRect(0).Height)) < 0.5f,
-            $"{strip.Height:F0}px");
+        Check("so the strip is exactly one row tall",
+            MathF.Abs(strip.Height - many.TabRect(0).Height) < 0.5f, $"{strip.Height:F0}px");
 
+        var overflow = many.OverflowRect;
+        Check("and offers an overflow button", !overflow.IsEmpty, overflow.ToString());
+        Check("which sits inside the strip",
+            overflow.Right <= strip.Right + 0.5f && overflow.Y >= strip.Y - 0.5f
+                && overflow.Bottom <= strip.Bottom + 0.5f,
+            $"{overflow} in {strip}");
+
+        var hidden = many.OverflowedIndices().ToList();
+        var shown = Enumerable.Range(0, many.Items.Count).Count(i => !many.TabRect(i).IsEmpty);
+        Check("every tab is either shown or in the overflow menu",
+            hidden.Count + shown == many.Items.Count,
+            $"{shown} shown + {hidden.Count} hidden of {many.Items.Count}");
+
+        Check("and the hidden ones are genuinely hidden",
+            hidden.TrueForAll(index => many.TabRect(index).IsEmpty), $"{hidden.Count} hidden");
+
+        // The point of the trade: the tabs that ARE shown are full width rather than ellipsis stubs. Eleven
+        // shrunk to fit 400px would be about 36px each.
         var narrowest = float.MaxValue;
         var escaped = 0;
 
         for (var i = 0; i < many.Items.Count; i++)
         {
             var tab = many.TabRect(i);
+            if (tab.IsEmpty)
+            {
+                continue;
+            }
+
             narrowest = MathF.Min(narrowest, tab.Width);
 
             if (tab.X < strip.X - 0.5f || tab.Right > strip.Right + 0.5f
@@ -417,12 +470,11 @@ public static class TabRowChecks
             }
         }
 
-        Check("every tab is inside the strip", escaped == 0, $"{escaped} escaped");
-
-        // The whole point: wrapping buys width back. One row of eleven in 400px would be ~36px each.
+        Check("every visible tab is inside the strip", escaped == 0, $"{escaped} escaped");
         Check("and wide enough to read", narrowest >= 80.0f, $"narrowest {narrowest:F0}px");
 
-        // Rows are only useful if they are told apart, and only reachable if they do not overlap.
+        // Visible tabs must not overlap each other; empty rectangles are skipped, since an overflowed tab
+        // has no geometry to collide with.
         var overlaps = 0;
         for (var i = 0; i < many.Items.Count; i++)
         {
@@ -430,6 +482,11 @@ public static class TabRowChecks
             {
                 var a = many.TabRect(i);
                 var b = many.TabRect(j);
+
+                if (a.IsEmpty || b.IsEmpty)
+                {
+                    continue;
+                }
 
                 if (a.X < b.Right - 0.5f && b.X < a.Right - 0.5f
                     && a.Y < b.Bottom - 0.5f && b.Y < a.Bottom - 0.5f)
@@ -439,62 +496,67 @@ public static class TabRowChecks
             }
         }
 
-        Check("no two tabs overlap", overlaps == 0, $"{overlaps} overlapping pairs");
+        Check("no two visible tabs overlap", overlaps == 0, $"{overlaps} overlapping pairs");
 
-        // Each row runs edge to edge, so a ragged end does not read as a broken layout.
-        var rowEnds = new List<float>();
+        // Visible tabs run edge to edge up to the overflow button, so a ragged end does not read as broken.
+        var lastVisibleRight = 0.0f;
         for (var i = 0; i < many.Items.Count; i++)
         {
             var tab = many.TabRect(i);
-            var last = i == many.Items.Count - 1 || MathF.Abs(many.TabRect(i + 1).Y - tab.Y) > 0.5f;
-
-            if (last)
+            if (!tab.IsEmpty)
             {
-                rowEnds.Add(tab.Right);
+                lastVisibleRight = MathF.Max(lastVisibleRight, tab.Right);
             }
         }
 
-        Check("rows fill the strip width",
-            rowEnds.Count == many.RowCount && rowEnds.TrueForAll(e => MathF.Abs(e - strip.Right) < 1.0f),
-            $"{rowEnds.Count} row ends");
+        Check("the visible tabs fill the strip up to the button",
+            MathF.Abs(lastVisibleRight - overflow.X) < 1.0f,
+            $"tabs end {lastVisibleRight:F0}, button at {overflow.X:F0}");
 
-        // A taller strip has to cost the panel its height, or the two overlap.
+        // A one-row strip still has to cost the panel that row, or the two overlap.
         var content = many.SelectedItem?.Content;
         Check("content starts below the strip",
             content != null && MathF.Abs(content.Bounds.Y - strip.Bottom) < 1.0f,
             content?.Bounds.ToString() ?? "none");
 
-        // Clicking the second row has to select what is drawn there -- the row offset is exactly the sort of
-        // thing that hit-tests forget.
-        var secondRow = -1;
-        for (var i = 0; i < many.Items.Count; i++)
-        {
-            if (many.TabRect(i).Y > strip.Y + 0.5f)
-            {
-                secondRow = i;
-                break;
-            }
-        }
+        // The failure mode worth guarding: selecting a panel from the overflow menu and then not being able
+        // to see which one is selected. The selected tab takes a visible slot no matter where it sits.
+        Check("the selected tab is visible to begin with", !many.TabRect(many.SelectedIndex).IsEmpty,
+            $"tab {many.SelectedIndex}");
 
-        Check("there is a second row to click", secondRow > 0, $"tab {secondRow}");
+        var lastIndex = many.Items.Count - 1;
+        many.SelectedIndex = lastIndex;
+        narrow.UpdateLayout(new Vector2(400, 800));
 
-        if (secondRow > 0)
-        {
-            var point = many.TabRect(secondRow).Center;
+        Check("and still visible after picking the last panel from the overflow",
+            !many.TabRect(lastIndex).IsEmpty, $"tab {lastIndex} at {many.TabRect(lastIndex)}");
 
-            narrow.Input.InjectPointerMoved(point);
-            narrow.Input.InjectPointerPressed(point, PointerButton.Left, 0.0);
-            narrow.Input.InjectPointerReleased(point, PointerButton.Left);
+        Check("which does not push the strip onto a second row", many.RowCount == 1, $"{many.RowCount} rows");
 
-            Check("clicking a tab on it selects that tab",
-                many.SelectedIndex == secondRow,
-                $"selected {many.SelectedIndex}, wanted {secondRow}");
-        }
+        Check("and leaves the rest reachable",
+            many.OverflowedIndices().Any(), $"{many.OverflowedIndices().Count()} still hidden");
 
-        // The cap. A strip that keeps growing eventually leaves nothing for the panel underneath it.
-        var crowded = new UiRoot(fonts);
-        var crowdedHost = new DockHost();
-        crowded.Content = crowdedHost;
+        // Pressing the button opens a menu rather than selecting anything, so the selection must not move --
+        // an overflow button that quietly changed panels on the way to its own menu would be its own bug.
+        var beforeOverflowPress = many.SelectedIndex;
+        var buttonPoint = many.OverflowRect.Center;
+
+        narrow.Input.InjectPointerMoved(buttonPoint);
+        narrow.Input.InjectPointerPressed(buttonPoint, PointerButton.Left, 0.0);
+        narrow.Input.InjectPointerReleased(buttonPoint, PointerButton.Left);
+
+        Check("pressing the overflow button does not change the selection",
+            many.SelectedIndex == beforeOverflowPress,
+            $"selected {many.SelectedIndex}, was {beforeOverflowPress}");
+
+        Check("and it opens a menu listing the hidden panels",
+            narrow.Popups.HasOpenPopups, $"{narrow.Popups.Open.Count} popups");
+
+        // Forty panels in a 300px dock: the case that used to hit the three-row cap and then fall back to
+        // shrinking every tab to an unreadable stub. One row now holds it regardless of how absurd the count.
+        var crowdedRoot = new UiRoot(fonts);
+        var crowdedRootHost = new DockHost();
+        crowdedRoot.Content = crowdedRootHost;
 
         var titles = new string[40];
         for (var i = 0; i < titles.Length; i++)
@@ -502,11 +564,13 @@ public static class TabRowChecks
             titles[i] = $"Panel {i}";
         }
 
-        var capped = Fill(crowded, crowdedHost, new Vector2(300, 800), titles);
+        var capped = Fill(crowdedRoot, crowdedRootHost, new Vector2(300, 800), titles);
 
-        Check("the strip stops growing", capped.RowCount <= 3, $"{capped.RowCount} rows");
-        Check("and still leaves room for the panel",
-            capped.TabStripRect.Height < capped.Bounds.Height * 0.5f,
+        Check("forty panels still make one row", capped.RowCount == 1, $"{capped.RowCount} rows");
+        Check("and the strip costs the panel one row, not a third of it",
+            capped.TabStripRect.Height < capped.Bounds.Height * 0.1f,
             $"{capped.TabStripRect.Height:F0} of {capped.Bounds.Height:F0}");
+        Check("with the remainder behind the button",
+            capped.OverflowedIndices().Count() > 30, $"{capped.OverflowedIndices().Count()} hidden");
     }
 }

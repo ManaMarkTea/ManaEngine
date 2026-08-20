@@ -276,6 +276,36 @@ namespace Mana
             return changed;
         }
 
+        /// <summary>
+        /// Removes every voxel, committed and pending, firing <see cref="OnVoxelRemoved"/> for each
+        /// committed one. Returns how many were removed.
+        /// <para>
+        /// The events are the whole point, and are why this is not just
+        /// <see cref="ReplaceCommittedVoxels"/> with an empty sequence: that one clears the lists
+        /// directly, which is fine when it is immediately refilled from an import, but on its own would
+        /// leave every kinematic collider behind -- an invisible solid copy of the model that the next
+        /// tool's raycast still hits. Loading a level clears before it fills, so it needs this one.
+        /// </para>
+        /// </summary>
+        public int ClearVoxels(bool logStats = true)
+        {
+            var removed = Voxels.Count;
+
+            for (var i = Voxels.Count - 1; i >= 0; i--)
+            {
+                var voxel = Voxels[i];
+                Voxels.RemoveAt(i);
+                OnVoxelRemoved?.Invoke(voxel);
+            }
+
+            AddVoxels.Clear();
+            _voxelKeys.Clear();
+            _pendingVoxelKeys.Clear();
+
+            RebuildGeometryFromCommittedVoxels("clear", 0, 0, logStats);
+            return removed;
+        }
+
         public void ReplaceCommittedVoxels(IEnumerable<ManaVoxelData> voxels, bool logStats = true)
         {
             Voxels.Clear();

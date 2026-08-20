@@ -28,7 +28,11 @@ namespace ManaVoxel.Code.UI.ManaUi
         private const float MinFolderWidth = 140.0f;
         private const float MaxFolderWidth = 420.0f;
 
-        public static UiElement Build(UiTheme theme, VoxelEditorViewModel viewModel, MeshAssetLibrary library)
+        public static UiElement Build(
+            UiTheme theme,
+            VoxelEditorViewModel viewModel,
+            MeshAssetLibrary library,
+            MeshThumbnailCache? thumbnails)
         {
             var grid = new Grid().Columns($"{DefaultFolderWidth}, Auto, *, Auto, 220", theme.Spacing).Rows("*").Padding(8.0f);
             grid.ColumnDefinitions[0].MinLength = MinFolderWidth;
@@ -45,7 +49,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                         grid.InvalidateMeasure();
                     })
                     .GridColumn(1),
-                Picker(theme, library).GridColumn(2),
+                Picker(theme, library, thumbnails).GridColumn(2),
                 Divider(theme).GridColumn(3),
                 TransformPanel(theme, viewModel).GridColumn(4));
         }
@@ -237,9 +241,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                     step: 0.05f)));
         }
 
-        private static UiElement Picker(UiTheme theme, MeshAssetLibrary library)
+        private static UiElement Picker(UiTheme theme, MeshAssetLibrary library, MeshThumbnailCache? thumbnails)
         {
-            var tree = BuildTree(theme, library);
+            var grid = ThumbnailGrid(theme, library, thumbnails);
 
             var filter = new TextBox { Placeholder = "Filter by name or folder" };
             filter.TextChanged += (_, text) =>
@@ -283,9 +287,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 () => library.ScanError == null ? Visibility.Collapsed : Visibility.Visible);
 
             var place = new Button()
-                .Label("Place selected")
+                .Label("Place")
                 .Variant(ButtonVariant.Primary)
-                .StretchH()
                 .OnClick(() =>
                 {
                     if (library.SelectedAsset is { } asset)
@@ -294,40 +297,199 @@ namespace ManaVoxel.Code.UI.ManaUi
                     }
                 });
 
+            // The prose this replaces -- "Drag a mesh into the scene to place it under the cursor, or select
+            // one and press Place. Escape cancels a placement in progress." -- spent two wrapped lines of a
+            // short panel restating what the button beside it does. As a tooltip it is there when wanted and
+            // costs nothing when not.
+            place.Tooltip = "Places the selected asset. You can also drag a tile straight into the scene, "
+                + "and Escape cancels a placement in progress.";
+
             // Disabled rather than hidden: the button is what tells you the list is for placing things, and
             // a button that vanishes when nothing is selected teaches nothing.
             place.BindPolled(b => b.IsEnabled, () => library.SelectedAsset != null);
 
+            var selection = new TextBlock()
+                .Foreground(theme.TextMuted)
+                .FontSize(theme.FontSizeSmall)
+                .Ellipsis()
+                .CenterV();
+
+            // The selected asset's name, which the old layout never showed at all -- with a tree you could
+            // see what was highlighted, but a tile's caption truncates, so the full name goes here.
+            selection.BindTextPolled(() => library.SelectedAsset is { } path
+                ? Path.GetFileName(path)
+                : "No asset selected");
+
             // Clipped, so nothing can leak past the panel whatever the arithmetic says. A grid hands out
             // more than it has when its fixed rows already exceed the space, and the overflow lands on top
             // of whatever is below rather than disappearing.
-            return new Grid().Rows("Auto, Auto, Auto, *, Auto, Auto", theme.Spacing).Columns("*").Clip().Children(
-                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(0).Children(
+            //
+            // Three fixed rows rather than five: the filter row now carries the count, the formats and
+            // Rescan, and the footer carries the selection and Place. That is two rows of height back, in a
+            // panel where the tile grid is the only thing that wanted more.
+            return new Grid().Rows("Auto, Auto, *, Auto", theme.Spacing).Columns("*").Clip().Children(
+                new Grid().Columns("*, Auto, Auto", theme.Spacing).Rows("Auto").GridRow(0).Children(
                     filter.GridColumn(0),
+                    count.GridColumn(1),
                     new Button().Label("Rescan").Variant(ButtonVariant.Subtle)
                         .OnClick(() => library.RequestScan(force: true))
-                        .GridColumn(1)),
+                        .GridColumn(2)),
 
-                new Grid().Columns("Auto, *", theme.Spacing).Rows("Auto").GridRow(1).Children(
-                    count.GridColumn(0),
+                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(1).Children(
+                    warning.GridColumn(0),
                     Formats(theme, library).GridColumn(1)),
 
-                warning.GridRow(2),
-
                 // No minimum height. A minimum on the star row does not shrink when the panel does -- it
-                // holds its size, the grid overflows, and the tree runs out through the button underneath
+                // holds its size, the grid overflows, and the content runs out through the footer underneath
                 // it. Whatever is left over is the right amount, including none.
-                tree.Scrollable().GridRow(3),
+                grid.GridRow(2),
 
-                new TextBlock()
-                    .Text("Drag a mesh into the scene to place it under the cursor, or select one and press "
-                        + "Place. Escape cancels a placement in progress.")
+                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(3).Children(
+                    selection.GridColumn(0),
+                    place.GridColumn(1)));
+        }
+
+        // ----- thumbnail grid ---------------------------------------------------------------------------
+
+        /// <summary>Edge of one tile. The thumbnail is square at the cache's size; the rest is the caption.</summary>
+        private const float TileWidth = 76.0f;
+
+        private const float TileHeight = 96.0f;
+
+        /// <summary>
+        /// The asset list as a wrapping grid of previews.
+        /// <para>
+        /// A tree in a panel this wide left most of its width empty -- one asset per row, and the row was a
+        /// short filename. Tiles spend that width instead: the same panel shows roughly ten times as many
+        /// assets, and each says what it is by looking like it rather than by being named.
+        /// </para>
+        /// <para>
+        /// Tiles are rebuilt only when the filtered list actually changes, and each asks the cache for its
+        /// thumbnail as it is built. Requesting is idempotent, so this stays cheap when the list is rebuilt
+        /// for an unrelated reason.
+        /// </para>
+        /// </summary>
+        private static UiElement ThumbnailGrid(
+            UiTheme theme,
+            MeshAssetLibrary library,
+            MeshThumbnailCache? thumbnails)
+        {
+            var content = new DynamicContent()
+                .Showing<IReadOnlyList<MeshAssetEntry>>(
+                    () => library.FilteredEntries,
+                    entries =>
+                    {
+                        var wrap = new WrapPanel { Spacing = theme.Spacing };
+                        foreach (var entry in entries)
+                        {
+                            wrap.Children.Add(Tile(theme, library, thumbnails, entry));
+                        }
+
+                        return wrap;
+                    })
+                .Empty(new TextBlock()
+                    .Text("Nothing matches.")
                     .Foreground(theme.TextMuted)
-                    .FontSize(theme.FontSizeSmall)
-                    .Wrap()
-                    .GridRow(4),
+                    .CenterH());
 
-                place.GridRow(5));
+            return content.Scrollable().Scrolls(
+                vertical: ScrollBarVisibility.Auto,
+                horizontal: ScrollBarVisibility.Disabled);
+        }
+
+        private static UiElement Tile(
+            UiTheme theme,
+            MeshAssetLibrary library,
+            MeshThumbnailCache? thumbnails,
+            MeshAssetEntry entry)
+        {
+            var path = entry.PrimaryPath;
+
+            // Asked for as the tile is built rather than when it scrolls into view. Visibility-driven
+            // requests would be the frugal choice, but the cache already collapses repeats and a filtered
+            // folder is a few hundred assets -- so the simpler thing is also fast enough, and the grid fills
+            // in from the top rather than only where the pointer has been.
+            // Resolved per tile rather than trusting the captured argument: the workspace is built during load,
+            // before the host has a graphics context to make a cache with, so the argument is null on the very
+            // build that creates every tile. Reading the shared one here picks it up as soon as it exists.
+            (thumbnails ?? ManaUiDockDemo.MeshThumbnails)?.Request(path);
+
+            var preview = new UiImage { Fit = UiImageFit.Contain };
+            preview.Width = MeshThumbnailCache.ThumbnailSize;
+            preview.Height = MeshThumbnailCache.ThumbnailSize;
+
+            // Required, not optional: a UV is normalised against the atlas, so it carries neither the image's
+            // size nor its aspect ratio. Without this the Contain fit has nothing to fit and draws nothing --
+            // which looks exactly like a thumbnail that was never generated.
+            preview.SourceSize = new Vector2(MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);
+
+            // The placeholder is the format badge, which is what the old list showed anyway -- so a tile is
+            // never empty while its preview is being generated, and an asset whose preview fails keeps a
+            // readable tile forever rather than a hole.
+            var badge = FormatBadge(theme, path);
+
+            preview.BindPolled(image => image.Visibility, () =>
+                MeshThumbnailImages.HasImage(path) ? Visibility.Visible : Visibility.Collapsed);
+            preview.BindPolled(image => image.SourceUv, () => MeshThumbnailImages.UvFor(path));
+            badge.BindPolled(element => element.Visibility, () =>
+                MeshThumbnailImages.HasImage(path) ? Visibility.Collapsed : Visibility.Visible);
+
+            var caption = new TextBlock()
+                .Text(entry.DisplayName)
+                .FontSize(theme.FontSizeSmall)
+                .Ellipsis()
+                .CenterH();
+
+            var body = new Grid().Rows("*, Auto", 2.0f).Columns("*").Children(
+                new Grid().Rows("*").Columns("*").GridRow(0).Children(preview.Center(), badge.Center()),
+                caption.GridRow(1));
+
+            // Selection is drawn by a frame inside the tile rather than by the button's own state: Button has
+            // no checked variant, and an outline is the clearer signal in a grid anyway -- a pressed-looking
+            // fill on one tile among two hundred is easy to miss.
+            var frame = new Border().Rounded(3.0f).Content(body);
+            frame.BindPolled(b => b.BorderColor,
+                () => IsSelected(library, path) ? theme.Accent : UiColor.Transparent);
+            frame.BindPolled(b => b.BorderThickness, () => IsSelected(library, path) ? 2.0f : 0.0f);
+
+            var tile = frame;
+            tile.Tooltip = entry.HasVariants
+                ? $"{path}\n{entry.Variants.Count} formats available"
+                : path;
+
+            // Wrapped in the same MeshAssetRow the list rows used, so dragging a tile into the scene still
+            // works -- that gesture is half of what this panel is for, and the Place button's tooltip promises
+            // it. The row handles press, threshold and ghost; the button inside it handles click and hover.
+            var draggable = new MeshAssetRow(entry) { Child = tile };
+            draggable.Clicked += (_, _) => library.SelectedAsset = path;
+            draggable.Width = TileWidth;
+            draggable.Height = TileHeight;
+
+            // Mirrored onto the outer element: it is what the pointer meets first, so a tooltip only on the
+            // button inside would be shadowed by the drag handler wrapping it.
+            draggable.Tooltip = entry.HasVariants
+                ? $"{path} ({entry.Variants.Count} formats available)"
+                : path;
+            return draggable;
+        }
+
+        private static bool IsSelected(MeshAssetLibrary library, string path)
+        {
+            return string.Equals(library.SelectedAsset, path, StringComparison.Ordinal);
+        }
+
+        private static UiElement FormatBadge(UiTheme theme, string path)
+        {
+            var extension = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
+
+            return new Border()
+                .Fill(theme.SurfaceRaised)
+                .Rounded(3.0f)
+                .Content(new TextBlock()
+                    .Text(extension.Length == 0 ? "?" : extension)
+                    .FontSize(theme.FontSizeSmall)
+                    .Foreground(theme.TextMuted)
+                    .Margin(5.0f, 2.0f));
         }
 
         private static TreeView BuildTree(UiTheme theme, MeshAssetLibrary library)
@@ -600,6 +762,13 @@ namespace ManaVoxel.Code.UI.ManaUi
         protected override bool IsSelfHitTestVisible => true;
 
         /// <summary>
+        /// A press that ended without becoming a drag. The tree used to supply selection by handling the press
+        /// itself, which a grid of tiles has no equivalent of -- and putting a Button inside instead does not
+        /// work, because the button consumes the press this row needs in order to start a drag at all.
+        /// </summary>
+        public event EventHandler? Clicked;
+
+        /// <summary>
         /// Whether the pointer is over any part of the interface, as opposed to the scene behind it.
         /// <para>
         /// A geometric test, deliberately: the ghost is transparent to the pointer and the panels are not,
@@ -665,6 +834,11 @@ namespace ManaVoxel.Code.UI.ManaUi
         protected override void OnPointerReleased(UiPointerEventArgs e)
         {
             base.OnPointerReleased(e);
+
+            if (e.Button == PointerButton.Left && _pressed && !_dragging && Bounds.Contains(e.Position))
+            {
+                Clicked?.Invoke(this, EventArgs.Empty);
+            }
 
             if (!_pressed && !_dragging)
             {

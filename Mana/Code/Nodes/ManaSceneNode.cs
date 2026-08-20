@@ -102,6 +102,12 @@ namespace Mana.Code.Nodes
 
         public bool IncludeInEnvironmentCapture { get; set; } = true;
 
+        /// <summary>
+        /// How this node was authored, or null for scenery the game mode builds in code. Saving a level
+        /// keeps the nodes that have one and skips the rest -- see <see cref="Levels.ManaLevelSource"/>.
+        /// </summary>
+        public Levels.ManaLevelSource? LevelSource { get; set; }
+
         public override string ToString()
         {
             return $"{Name}";

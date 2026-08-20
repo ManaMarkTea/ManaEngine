@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mana.Code.Levels;
 using Mana.Code.Nodes;
 
 namespace Mana.Code.Shapes
@@ -48,6 +49,7 @@ namespace Mana.Code.Shapes
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
             extraCube.Name = "Cube";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(Context, color, size)));
+            extraCube.LevelSource = ManaLevelSource.ForShape("Cube", color, size);
             Scene.Children.Add(extraCube);
             return extraCube;
         }
@@ -58,6 +60,7 @@ namespace Mana.Code.Shapes
             extraCube.Name = "Sphere";
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaSphere(Context, color, 0.5f)));
             extraCube.Scale = size;
+            extraCube.LevelSource = ManaLevelSource.ForShape("Sphere", color, size);
             Scene.Children.Add(extraCube);
             return extraCube;
         }
@@ -68,6 +71,7 @@ namespace Mana.Code.Shapes
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaPyramid(Context, color, Vector3.One)));
             //extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaCube(this, color, size)));
             extraCube.Scale = size;
+            extraCube.LevelSource = ManaLevelSource.ForShape("Pyramid", color, size);
             Scene.Children.Add(extraCube);
             return extraCube;
         }
@@ -78,6 +82,7 @@ namespace Mana.Code.Shapes
             torusNode.Name = "Torus";
             torusNode.Components.Add(new MeshRendererComponent(torusNode, new ManaTorus(Context, color)));
             torusNode.Scale = size;
+            torusNode.LevelSource = ManaLevelSource.ForShape("Torus", color, size);
             Scene.Children.Add(torusNode);
             return torusNode;
         }
@@ -88,6 +93,7 @@ namespace Mana.Code.Shapes
             icosahedronNode.Name = "Icosahedron";
             icosahedronNode.Components.Add(new MeshRendererComponent(icosahedronNode, new ManaIcosahedron(Context, color)));
             icosahedronNode.Scale = size;
+            icosahedronNode.LevelSource = ManaLevelSource.ForShape("Icosahedron", color, size);
             Scene.Children.Add(icosahedronNode);
             return icosahedronNode;
         }
@@ -98,6 +104,7 @@ namespace Mana.Code.Shapes
             isoSphereNode.Name = "Icosphere";
             isoSphereNode.Components.Add(new MeshRendererComponent(isoSphereNode, new ManaIsoSphere(Context, color, 0.5f)));
             isoSphereNode.Scale = size;
+            isoSphereNode.LevelSource = ManaLevelSource.ForShape("Icosphere", color, size);
             Scene.Children.Add(isoSphereNode);
             return isoSphereNode;
         }
@@ -107,6 +114,7 @@ namespace Mana.Code.Shapes
             ManaSceneNode extraCube = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
             extraCube.Name = name;
             extraCube.Components.Add(new MeshRendererComponent(extraCube, new ManaQuad(Context, color, size)));
+            extraCube.LevelSource = ManaLevelSource.ForShape("Quad", color, size);
             Scene.Children.Add(extraCube);
             return extraCube;
         }
@@ -125,6 +133,7 @@ namespace Mana.Code.Shapes
         {
             ManaSceneNode voxelNode = new ManaVoxelsNode(Context, Matrix4x4.CreateTranslation(position));            
             voxelNode.Name = "Voxel Scene";
+            voxelNode.LevelSource = ManaLevelSource.Voxels;
             Scene.Children.Add(voxelNode);
             return voxelNode;
         }

@@ -144,18 +144,29 @@ namespace ManaUI
         public CornerRadius CornerRadiusLarge { get; set; } = new CornerRadius(8.0f);
 
         /// <summary>Standard height for buttons, inputs and rows. Everything else spaces off this.</summary>
-        public float ControlHeight { get; set; } = 26.0f;
+        public float ControlHeight { get; set; } = 24.0f;
 
         public float BorderThickness { get; set; } = 1.0f;
         public float FocusRingThickness { get; set; } = 2.0f;
 
-        /// <summary>Gap between sibling controls.</summary>
-        public float Spacing { get; set; } = 6.0f;
+        /// <summary>
+        /// Gap between sibling controls.
+        /// <para>
+        /// These four metrics -- this, Padding, ControlPadding and LineSpacing -- are where the editor's
+        /// information density comes from, and they were set for comfort in a demo panel rather than for a
+        /// working editor. Tightened after comparing a full-screen ManaVoxel against Unreal at the same
+        /// window size: the viewport was actually the larger of the two, but every panel showed noticeably
+        /// fewer rows, which is what made the window feel smaller. Restrained on purpose -- a couple of
+        /// pixels per gap compounds across a docked layout, and going further starts costing legibility
+        /// rather than buying rows.
+        /// </para>
+        /// </summary>
+        public float Spacing { get; set; } = 4.0f;
 
         /// <summary>Inset from a container's edge to its content.</summary>
-        public Thickness Padding { get; set; } = new Thickness(8.0f);
+        public Thickness Padding { get; set; } = new Thickness(5.0f);
 
-        public Thickness ControlPadding { get; set; } = new Thickness(8.0f, 4.0f);
+        public Thickness ControlPadding { get; set; } = new Thickness(7.0f, 3.0f);
 
         public float ScrollBarThickness { get; set; } = 10.0f;
 
@@ -176,7 +187,7 @@ namespace ManaUI
         /// ascent + descent exactly the em size and leaves consecutive lines touching -- so the comfortable
         /// default lives here rather than in the font.
         /// </summary>
-        public float LineSpacing { get; set; } = 1.25f;
+        public float LineSpacing { get; set; } = 1.15f;
 
         public float FontSize { get; set; } = 15.0f;
         public float FontSizeSmall { get; set; } = 13.0f;

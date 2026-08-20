@@ -182,6 +182,10 @@ namespace ManaVoxel.Code.UI
         }
 
         public ManaPawnController? PawnController { get; private set; }
+
+        /// <summary>Level and play state. Its host is wired by the game mode, which owns the world.</summary>
+        public LevelViewModel Levels { get; } = new();
+
         public string? CharacterSpawnError { get; set; }
         public bool CharacterPhysicsEnabled { get; set; } = true;
         public bool HasPlatformCourse => _platformCourseService.Platforms.Count > 0;
@@ -474,7 +478,43 @@ namespace ManaVoxel.Code.UI
             RemoveCharacter(current);
         }
 
-        private void RemoveCharacter(ManaPawnNode pawn)
+        /// <summary>
+        /// Spawns a character at an exact spot and facing, without possessing it -- what Play needs, where
+        /// the Player Start decides both and possession is the caller's business.
+        /// </summary>
+        public ManaPawnNode? SpawnCharacterAt(Vector3 position, float yawRadians)
+        {
+            CharacterSpawnError = null;
+
+            if (_context == null)
+            {
+                CharacterSpawnError = "The editor is still loading.";
+                return null;
+            }
+
+            ManaPawnNode? pawn;
+            lock (_context.World.SceneLock)
+            {
+                pawn = _characterSpawnService.SpawnNextCharacter(
+                    _context.World,
+                    position,
+                    PawnController,
+                    CharacterPhysicsEnabled);
+            }
+
+            if (pawn == null)
+            {
+                CharacterSpawnError = _characterSpawnService.LastError ?? "Failed to spawn character.";
+                return null;
+            }
+
+            pawn.Rotation = new Vector3(0.0f, yawRadians, 0.0f);
+            pawn.UpdateTransform();
+            return pawn;
+        }
+
+        /// <summary>Removes one character, physics capsule included. Public because Play despawns its own.</summary>
+        public void RemoveCharacter(ManaPawnNode pawn)
         {
             if (_context == null)
             {
@@ -711,6 +751,22 @@ namespace ManaVoxel.Code.UI
             };
             _scene.Children.Add(_previewNode);
             return _previewNode;
+        }
+
+        /// <summary>
+        /// Drops every layer this view model knew about, ready for a level to register its own.
+        /// <para>
+        /// Called before the level loader has finished, not after, because the layer list is the one thing
+        /// here that outlives a level: every entry points at a node the loader is about to remove, and a
+        /// palette editing a deleted shape is how a tool ends up drawing into nothing.
+        /// </para>
+        /// </summary>
+        public void ResetVoxelLayersAfterLevelChange()
+        {
+            ClearToolPreview();
+            _voxelLayers.Clear();
+            ActiveVoxelLayerIndex = 0;
+            InitialVoxelCount = 0;
         }
 
         private void RegisterVoxelLayer(string name, string source, ManaVoxelShape shape, ManaVoxelsNode node)

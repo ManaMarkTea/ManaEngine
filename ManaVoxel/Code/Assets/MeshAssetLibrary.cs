@@ -51,6 +51,8 @@ namespace ManaVoxel.Code.Assets
 
         private MeshAssetFolder? _tree;
         private bool _treeDirty = true;
+        private bool _flatDirty = true;
+        private List<MeshAssetEntry>? _flat;
 
         private Task<MeshScanResult>? _scan;
         private DateTime _nextScanUtc = DateTime.MinValue;
@@ -110,9 +112,44 @@ namespace ManaVoxel.Code.Assets
                 {
                     _tree = BuildTree(_filter);
                     _treeDirty = false;
+                    _flatDirty = true;
                 }
 
                 return _tree;
+            }
+        }
+
+        /// <summary>
+        /// Every entry the filter admits, flattened and in tree order.
+        /// <para>
+        /// A grid of thumbnails wants a list, not a hierarchy: the folder each asset came from is already
+        /// shown by the sidebar and by the filter box, so repeating it as nesting inside the grid would spend
+        /// a row per folder to say what is on screen twice already. Cached with the tree it flattens, since
+        /// the grid asks for it every frame it lays out.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<MeshAssetEntry> FilteredEntries
+        {
+            get
+            {
+                if (_flatDirty || _flat == null)
+                {
+                    var flat = new List<MeshAssetEntry>();
+                    Flatten(Tree, flat);
+                    _flat = flat;
+                    _flatDirty = false;
+                }
+
+                return _flat;
+            }
+        }
+
+        private static void Flatten(MeshAssetFolder folder, List<MeshAssetEntry> output)
+        {
+            output.AddRange(folder.Entries);
+            foreach (var child in folder.Folders)
+            {
+                Flatten(child, output);
             }
         }
 
@@ -193,6 +230,7 @@ namespace ManaVoxel.Code.Assets
         private void Invalidate()
         {
             _treeDirty = true;
+            _flatDirty = true;
             Changed?.Invoke(this, EventArgs.Empty);
         }
 

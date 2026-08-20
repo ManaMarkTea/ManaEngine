@@ -40,14 +40,14 @@ public static class PortedMainMenuChecks
         root.UpdateLayout(new Vector2(1280, 720));
 
         var headings = bar.Menus.Select(m => m.Text).ToList();
-        Check("it has the same top-level menus", headings.SequenceEqual(new[] { "File", "Character", "View" }),
+        Check("it has the same top-level menus", headings.SequenceEqual(new[] { "File", "Play", "Character", "View" }),
             string.Join(", ", headings));
 
         Check("the bar is one row tall", bar.Bounds.Height <= root.Theme.ControlHeight + 8.0f,
             $"{bar.Bounds.Height:F0}px");
 
         // ---------------------------------------------------------------- File
-        var file = bar.Menus[0];
+        var file = bar.Menus.First(m => m.Text == "File");
         Check("File offers baking and locking",
             file.Items.Any(i => i.Text == "Bake Voxels To Physics")
                 && file.Items.Any(i => i.Text == "Lock Voxels For Editing"),
@@ -63,7 +63,7 @@ public static class PortedMainMenuChecks
             $"bake {bake.ResolveEnabled()}, lock {lockVoxels.ResolveEnabled()}");
 
         // ---------------------------------------------------------------- View toggles
-        var view = bar.Menus[2];
+        var view = bar.Menus.First(m => m.Text == "View");
         var toggles = new (string Row, Func<bool> Read)[]
         {
             ("Show Lightning Ball", () => vm.ShowLightningBall),
@@ -125,8 +125,45 @@ public static class PortedMainMenuChecks
             Check("and enabled again when they are shown", slider.IsEnabled, $"{slider.IsEnabled}");
         }
 
+        // ---------------------------------------------------------------- Play
+        // Every row here drives LevelViewModel, which has no host until the game mode wires one up. The
+        // point of these checks is that a menu built without one is inert rather than broken: a null host
+        // must disable the rows and swallow the invokes, because that is exactly the state the menu is in
+        // for the whole of startup, when it is on screen and clickable.
+        var play = bar.Menus.First(m => m.Text == "Play");
+        var playRow = play.Items.First(i => i.Text == "Play");
+        var stopRow = play.Items.First(i => i.Text == "Stop");
+
+        Check("Play offers play, play-from-camera, a new window and stop",
+            play.Items.Count(i => !i.IsSeparator && !i.IsLabel) == 4,
+            string.Join(", ", play.Items.Where(i => !i.IsSeparator).Select(i => i.Text)));
+
+        Check("the shortcuts are on the rows, so F5 is discoverable",
+            playRow.ResolveShortcut() == "F5" && stopRow.ResolveShortcut() == "Esc",
+            $"{playRow.ResolveShortcut()} / {stopRow.ResolveShortcut()}");
+
+        Check("with no host attached, playing is not offered",
+            !playRow.ResolveEnabled() && !stopRow.ResolveEnabled());
+
+        Check("and invoking one anyway does nothing rather than throwing",
+            !Throws(() => playRow.Invoke()));
+
+        // ---------------------------------------------------------------- File: levels
+        var newLevel = file.Items.FirstOrDefault(i => i.Text == "New Level");
+        var reload = file.Items.FirstOrDefault(i => i.Text == "Reload Level");
+        Check("File offers the level verbs",
+            newLevel != null && file.Items.Any(i => i.Text == "Save Level") && reload != null,
+            string.Join(", ", file.Items.Select(i => i.Text)));
+
+        Check("reload is offered only once a level has been opened or saved",
+            reload?.ResolveEnabled() == false, $"{reload?.ResolveEnabled()}");
+
+        Check("Save Level shows which level it would write",
+            file.Items.First(i => i.Text == "Save Level").ResolveShortcut().Contains("unsaved", StringComparison.Ordinal),
+            file.Items.First(i => i.Text == "Save Level").ResolveShortcut());
+
         // ---------------------------------------------------------------- labels and hints
-        var character = bar.Menus[1];
+        var character = bar.Menus.First(m => m.Text == "Character");
         var summary = character.Items.FirstOrDefault(i => i.IsLabel);
         Check("the character count is a label, not a command",
             summary != null && summary.Invoked == null, summary?.Text ?? "missing");
@@ -435,6 +472,19 @@ public static class PortedMainMenuChecks
         for (var i = 0; i < count; i++)
         {
             Walk(element.GetVisualChild(i), found);
+        }
+    }
+
+    private static bool Throws(Action action)
+    {
+        try
+        {
+            action();
+            return false;
+        }
+        catch
+        {
+            return true;
         }
     }
 }

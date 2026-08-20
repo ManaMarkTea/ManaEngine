@@ -53,8 +53,15 @@ public static class OutlinerChecks
         Check("scenes are the roots", tree!.VisibleItems.Count == 1, $"{tree.VisibleItems.Count}");
         Check("root is the scene", ReferenceEquals(tree.VisibleItems[0], scene));
 
-        Check("the panel names itself",
-            FindAll<TextBlock>(root).Any(t => t.Text == "OUTLINER"),
+        // Inverted from "the panel names itself": it used to draw an OUTLINER caption directly beneath a dock
+        // tab already reading Outliner, which spent a row of panel height repeating itself. The scene count
+        // below is the part that was worth the space, so that is what is checked instead.
+        Check("the panel does not repeat its own tab title",
+            !FindAll<TextBlock>(root).Any(t => t.Text == "OUTLINER"),
+            string.Join(", ", FindAll<TextBlock>(root).Select(t => t.Text).Take(5)));
+
+        Check("and still reports the scene count",
+            FindAll<TextBlock>(root).Any(t => t.Text.Contains("scene", StringComparison.OrdinalIgnoreCase)),
             string.Join(", ", FindAll<TextBlock>(root).Select(t => t.Text).Take(5)));
 
         var drawn = root.Render();

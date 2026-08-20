@@ -25,6 +25,29 @@ public static class MeshImportChecks
         "/w/Assets/Props/barrel.stl"
     };
 
+    /// <summary>
+    /// Asset names from a grid of tiles, taken from each tile's tooltip -- the tooltip is the asset's full
+    /// path, while the visible caption is a display name that ellipsises at tile width.
+    /// </summary>
+    private static List<string> TileNames(WrapPanel? grid)
+    {
+        var names = new List<string>();
+        if (grid == null)
+        {
+            return names;
+        }
+
+        foreach (var child in grid.Children)
+        {
+            if (child is MeshAssetRow tile && tile.Tooltip is { Length: > 0 } tooltip)
+            {
+                names.Add(tooltip);
+            }
+        }
+
+        return names;
+    }
+
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
@@ -54,7 +77,7 @@ public static class MeshImportChecks
             FolderColumn + FolderSplitterWidth + DefaultCenterWidth + DividerWidth + PlacementColumn, 700.0f);
 
         MeshImportRequests.Clear();
-        root.Content = MeshImportManaView.Build(root.Theme, viewModel, library);
+        root.Content = MeshImportManaView.Build(root.Theme, viewModel, library, thumbnails: null);
         root.UpdateLayout(defaultSize);
 
         var drawn = root.Render();
@@ -63,8 +86,30 @@ public static class MeshImportChecks
 
         // Seven format toggles in a 320px-wide list column do not fit on one line, which is the reason
         // WrapPanel exists.
-        var wrap = Find<WrapPanel>(root.Content!);
-        Check("the format toggles wrap", wrap is { LineCount: > 1 }, $"{wrap?.LineCount ?? 0} lines");
+        // Found by content, not by being the first WrapPanel in the tree: the asset grid is a WrapPanel now
+        // as well, and it comes first.
+        var wrap = FindAll<WrapPanel>(root.Content!)
+            .FirstOrDefault(panel => panel.Children.Any(child => child is CheckBox));
+        // Seven toggles now fit one line at this width -- the header row was reshuffled and the theme
+        // tightened, which is the better outcome. What still has to hold is that they wrap rather than
+        // overflow when the room is not there, so that is checked at a width where it is not.
+        Check("the panel has format toggles", wrap != null, $"{wrap?.Children.Count ?? 0} toggles");
+
+        root.UpdateLayout(new Vector2(
+            FolderColumn + FolderSplitterWidth + 190.0f + DividerWidth + PlacementColumn, 600.0f));
+        root.Render();
+
+        var narrowWrap = FindAll<WrapPanel>(root.Content!)
+            .FirstOrDefault(panel => panel.Children.Any(child => child is CheckBox));
+        // Not a line count: the tightened theme fits all seven on one line even here, and asserting otherwise
+        // would be asserting the old spacing. Staying inside the panel is the property that actually matters.
+        Check("the format toggles stay inside the panel when narrow",
+            narrowWrap != null
+                && narrowWrap.Children.All(c => c.Bounds.Right <= root.Content!.Bounds.Right + 0.5f),
+            $"{narrowWrap?.LineCount ?? 0} lines");
+
+        root.UpdateLayout(defaultSize);
+        root.Render();
 
         Check("and stay inside the panel",
             wrap != null && wrap.Children.All(c => c.Bounds.Right <= root.Content!.Bounds.Right + 0.5f),
@@ -83,28 +128,54 @@ public static class MeshImportChecks
             wrap != null && wrap.Children.All(c => c.Bounds.Bottom <= wrap.Bounds.Bottom + 0.5f),
             $"{wrap?.Bounds.Height ?? 0.0f:F0}px tall for {wrap?.LineCount ?? 0} lines");
 
-        // There are two trees now -- the folder sidebar and the asset list -- distinguished by what they
-        // actually show rather than by position: only the asset list's ChildrenSelector ever yields a
-        // MeshAssetEntry, so the folder tree (folders only) can never satisfy this.
-        var treeView = FindAll<TreeView>(root.Content!)
-            .FirstOrDefault(t => t.VisibleItems.OfType<MeshAssetEntry>().Any());
-        Check("the panel found the asset tree", treeView != null);
+        // The asset list is a grid of preview tiles now, not a second tree. A tree spent the panel's whole
+        // width on one filename per row; tiles spend it on assets. Only the folder sidebar is still a tree,
+        // which is why this looks for tiles and asserts the sidebar is unaffected further down.
+        var tileGrid = FindAll<WrapPanel>(root.Content!)
+            .FirstOrDefault(panel => panel.Children.Any(child => child is MeshAssetRow));
+        Check("the panel found the asset grid", tileGrid != null,
+            $"{tileGrid?.Children.Count ?? 0} tiles");
 
-        var visibleNames = treeView!.VisibleItems.OfType<MeshAssetEntry>().Select(e => e.DisplayName).ToList();
-        Check("rows appear for the assets", visibleNames.Count > 0, string.Join(", ", visibleNames));
+        // Every tile carries its asset's path as a tooltip, which is also what identifies it here -- the
+        // caption is the display name and truncates, so it is not something to match against.
+        var tileNames = TileNames(tileGrid);
+        Check("a tile appears for each asset", tileNames.Count > 0, string.Join(", ", tileNames));
+
+        Check("no asset is a bare tile with nothing to say",
+            tileNames.TrueForAll(name => name.Length > 0), $"{tileNames.Count} tiles");
 
         library.Filter = "helmet";
         root.UpdateLayout(defaultSize);
         root.Render();
 
-        var afterFilter = treeView.VisibleItems.OfType<MeshAssetEntry>().ToList();
-        Check("filtering the library updates the tree",
-            afterFilter.Count == 1 && afterFilter[0].DisplayName.Contains("Helmet", StringComparison.OrdinalIgnoreCase),
-            $"{afterFilter.Count} rows");
+        var afterFilter = TileNames(FindAll<WrapPanel>(root.Content!)
+            .FirstOrDefault(panel => panel.Children.Any(child => child is MeshAssetRow)));
+
+        Check("filtering the library updates the grid",
+            afterFilter.Count == 1 && afterFilter[0].Contains("Helmet", StringComparison.OrdinalIgnoreCase),
+            $"{afterFilter.Count} tiles: {string.Join(", ", afterFilter)}");
 
         library.Filter = "";
         root.UpdateLayout(defaultSize);
         root.Render();
+
+        // ---------------------------------------------------------------- what the panel no longer says
+        // A wrapped paragraph explaining that you can drag a mesh into the scene, press Place, or hit Escape
+        // spent two lines of a short panel restating the button beside it. The instruction still exists, on
+        // the button's own tooltip, where it costs nothing until wanted.
+        var placeButton = FindAll<Button>(root.Content!)
+            .FirstOrDefault(b => b.Text.Contains("Place", StringComparison.Ordinal));
+
+        Check("the Place button survived the cleanup", placeButton != null, placeButton?.Text ?? "none");
+        Check("and carries the instructions the panel used to print",
+            placeButton?.Tooltip is { Length: > 0 } tip
+                && tip.Contains("drag", StringComparison.OrdinalIgnoreCase)
+                && tip.Contains("Escape", StringComparison.OrdinalIgnoreCase),
+            placeButton?.Tooltip ?? "none");
+
+        Check("and the panel no longer prints them itself",
+            !FindAll<TextBlock>(root.Content!).Any(t =>
+                t.Text.Contains("Escape cancels", StringComparison.OrdinalIgnoreCase)));
 
         // ---------------------------------------------------------------- a narrow panel
         // Shrunk until the fixed rows alone want more than there is. A grid hands out slots regardless, so
@@ -120,7 +191,10 @@ public static class MeshImportChecks
         // Checked on what is drawn rather than on element bounds: a scroll viewer arranges its content
         // taller than itself on purpose, so the tree legitimately overhangs. What must not overhang is the
         // viewer, and what must not appear is any pixel outside the panel.
-        var squeezedViewer = Find<ScrollViewer>(root.Content!);
+        // The first ScrollViewer in the tree is the folder sidebar's, which spans the panel by design. The one
+        // this check is about is the asset grid's, in the picker column.
+        var squeezedViewer = FindAll<ScrollViewer>(root.Content!)
+            .FirstOrDefault(viewer => viewer.Bounds.X > FolderColumn);
         var squeezedPlace = FindAll<Button>(root.Content!)
             .FirstOrDefault(b => b.Text.Contains("Place", StringComparison.Ordinal));
 

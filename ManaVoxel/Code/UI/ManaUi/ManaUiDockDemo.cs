@@ -14,16 +14,26 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class ManaUiDockDemo
     {
-        private const float MenuBarHeight = 32.0f;
-        private const float StatusBarHeight = 26.0f;
+        // Both were set to comfortable round numbers; these are what the content actually needs at the
+        // theme's font size, and every pixel here is one the viewport does not get.
+        private const float MenuBarHeight = 28.0f;
+        private const float StatusBarHeight = 24.0f;
 
         private const float DefaultLeftWidth = 300.0f;
         private const float DefaultRightWidth = 380.0f;
-        private const float DefaultTopHeight = 56.0f;
+        /// <summary>
+        /// The toolbar strip. Sized to what one row of controls plus its padding actually measures (see
+        /// VoxelToolPaletteManaView), rather than to a round number with slack in it.
+        /// </summary>
+        private const float DefaultTopHeight = 38.0f;
         private const float DefaultBottomHeight = 220.0f;
 
-        /// <summary>Bump when a panel is added, removed or renamed; missing panels get merged in on load.</summary>
-        private const int LayoutVersion = 17;
+        /// <summary>
+        /// Bump when a panel is added, removed or renamed; missing panels get merged in on load. Also bump
+        /// when a strip's content changes shape enough that a saved size for it is stale -- 18 is the compact
+        /// toolbar, whose old saved height was more than twice what its content now measures.
+        /// </summary>
+        private const int LayoutVersion = 19;
 
         private static string DefaultLayoutPath =>
             ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
@@ -31,6 +41,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>What each panel is called, for the Panels menu. Kept separate from the factory so drawing the menu doesn't require building every panel.</summary>
         public static readonly Dictionary<string, string> PanelTitles = new(StringComparer.Ordinal)
         {
+            ["level"] = "Level",
             ["tools"] = "Voxel Tools",
             ["import"] = "Import",
             ["search"] = "Search",
@@ -56,9 +67,17 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>Shared for the same reason -- also keeps results across a theme rebuild.</summary>
         public static PlaceSearchModel PlaceSearch { get; } = new();
 
+        /// <summary>
+        /// Set by the host once it has a graphics context, since generating a preview means importing a mesh.
+        /// Null in a headless workspace (and in the tests), where the grid simply shows format badges -- the
+        /// panel has to work without previews, because previews are the part that can be unavailable.
+        /// </summary>
+        public static MeshThumbnailCache? MeshThumbnails { get; set; }
+
         /// <summary>Every panel this workspace can build, in merge order. Must agree with the factory below, or newly added panels silently never merge in.</summary>
         public static readonly string[] PanelIds =
         {
+            "level",
             "tools",
             "import",
             "search",
@@ -140,13 +159,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                 },
                 // Build() already wraps itself in a horizontal ScrollViewer -- this is a toolbar strip now,
                 // not a side column, so it scrolls sideways rather than the usual vertical wrap.
+                "level" when editor != null => new DockItem(
+                    "Level",
+                    LevelManaView.Build(theme, editor.Levels).Scrollable()) { Id = "level" },
+
                 "tools" when editor != null => new DockItem(
                     "Voxel Tools",
                     VoxelToolPaletteManaView.Build(theme, editor)) { Id = "tools" },
 
                 "import" when editor != null => new DockItem(
                     "Import",
-                    MeshImportManaView.Build(theme, editor, MeshAssets)) { Id = "import" },
+                    MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
                 "search" when editor != null => new DockItem(
                     "Search",
                     PlaceSearchManaView.Build(theme, editor, PlaceSearch)) { Id = "search" },
@@ -238,8 +261,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             var topPanel = new ResizablePanel
             {
                 Edge = Dock.Top,
-                MinimumSize = 40.0f,
-                Size = saved is { TopHeight: > 0.0f } ? saved.TopHeight : DefaultTopHeight,
+                MinimumSize = 30.0f,
+                // Deliberately NOT restored from an older layout version. The toolbar's height is a
+                // function of its content, so a size saved before the content changed is stale by
+                // definition -- and because the toolbar stretches to fill its strip, nothing would ever
+                // shrink it back. Every other strip is genuinely the user's choice and is restored as-is.
+                Size = saved is { TopHeight: > 0.0f } && saved.Version == LayoutVersion
+                    ? saved.TopHeight
+                    : DefaultTopHeight,
                 Background = theme.Frosted(theme.Background),
                 BackdropBlur = theme.BackdropBlur,
                 Child = top

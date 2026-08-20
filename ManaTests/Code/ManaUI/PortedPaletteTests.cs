@@ -35,6 +35,20 @@ public static class PortedPaletteChecks
         }
 
         root.Content = palette;
+
+        // ---------------------------------------------------------------- the strip's height is the point
+        // This sits directly above the viewport, so every pixel it asks for is one the viewport does not get.
+        // Captions used to stack above their controls, which made the strip two rows tall to label a single
+        // row of them; inline they cost nothing, because the control is already the tallest thing in the row.
+        // Asserted rather than merely measured, because the regression is invisible -- the toolbar stretches
+        // to fill whatever strip it is given, so growing back would just quietly eat viewport.
+        // The bound is one control row (24) plus the strip's padding and its horizontal scroll bar's
+        // allowance, with a couple of pixels of slack -- tight enough that a return to stacked captions (67px
+        // when this was written) fails it, loose enough that a control gaining a pixel of padding does not.
+        palette.Measure(new Vector2(1600, 10000.0f));
+        Check("the toolbar asks for about one control row, not two",
+            palette.DesiredSize.Y <= 44.0f, $"{palette.DesiredSize.Y:F1}px");
+
         root.UpdateLayout(new Vector2(1600, 120));
 
         Check("palette lays out", palette.Bounds.Width > 100 && palette.Bounds.Height > 100,

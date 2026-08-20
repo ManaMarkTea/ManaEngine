@@ -1,0 +1,229 @@
+using Mana.Code.Nodes;
+using Mana.Code.Shapes;
+using Mana.Code.UI.ManaUi;
+using ManaCore.Graphics;
+using ManaCore.Loading;
+using ManaGraphics.Code.Graphics;
+using ManaVoxel.Code.Levels;
+using ManaVoxel.Code.Services;
+using ManaVoxel.Code.UI.ManaUi;
+using ManaUI;
+using Silk.NET.Input;
+using System.Diagnostics;
+
+namespace Mana.Code.GameModes
+{
+    /// <summary>
+    /// The game, standing on its own: one level, one character, no editor. This is what
+    /// <c>ManaVoxel --play &lt;level&gt;</c> runs, and what the editor's Play In New Window launches.
+    /// <para>
+    /// A separate mode rather than the editor with its panels switched off, because "no editor" is not a
+    /// display setting. This one never builds the planet, the border overlays, the reference models or the
+    /// demo props -- so it starts in the time it takes to read one level file, which is the only reason a
+    /// standalone run is worth having next to the in-editor F5.
+    /// </para>
+    /// </summary>
+    public sealed class VoxelPlayGameMode : BaseGameMode
+    {
+        private const float GroundSize = 256.0f;
+
+        private readonly string _levelPath;
+        private readonly CharacterSpawnService _characterSpawn = new();
+        private readonly PlayHudState _hud = new();
+
+        private ManaPawnController? _pawnController;
+        private ManaPawnNode? _player;
+        private ManaWebGpuContext? _webGpuContext;
+
+        public VoxelPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
+            : base(graphicsBackend)
+        {
+            _levelPath = levelPath;
+        }
+
+        public override bool DeferGpuUploadsOnStartup => true;
+
+        protected override bool EnableManaUi => true;
+
+        /// <summary>The character being played, once there is one. Exposed for tests and diagnostics.</summary>
+        public ManaPawnNode? Player => _player;
+
+        public void RunWebGpu(string? requestedBackend)
+        {
+            new GameSilkWebGpu(
+                "ManaVoxel - Play",
+                requestedBackend,
+                () => Context.World.CreateRenderScene(),
+                (window, input) => LoadForGraphicsBackend(window, input, new ManaWebGpuGraphicsDevice(requestedBackend)),
+                deltaTime => update(deltaTime),
+                deltaTime => Render(deltaTime),
+                (webGpuContext, input) =>
+                {
+                    _webGpuContext = webGpuContext;
+                    if (Context.GraphicsDevice is ManaWebGpuGraphicsDevice webGpuGraphicsDevice)
+                    {
+                        webGpuGraphicsDevice.Context = webGpuContext;
+                    }
+
+                    webGpuContext.UiRoot = ManaUi?.Root;
+                    _ImGui = webGpuContext.CreateImGuiController(input);
+                }
+            ).Run();
+        }
+
+        /// <summary>
+        /// The whole UI: a controls hint. There is no menu bar and no dock host, so nothing on screen can
+        /// take the pointer away from the game.
+        /// </summary>
+        protected override void BuildManaUi(ManaUiHost host)
+        {
+            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hud.Text);
+        }
+
+        public override void Load()
+        {
+            LoadingCoordinator.Begin();
+
+            var world = Context.World;
+
+            _pawnController = new ManaPawnController(Context) { GroundPlaneHeight = 0.0f, ReleaseOnEscape = false };
+            world.MainCamera.ShouldCaptureKeyboardInput = () => _pawnController?.IsCapturingMovementKeys == true;
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    Context.DeferGpuUploads = true;
+
+                    Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.1f));
+                    var envPath = world.EnvironmentReflectionSource.SourcePath;
+                    var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
+                    envTexture.OriginalFilename = envPath;
+                    envTexture.Load();
+
+                    Loading.Report(new ManaLoadingProgress("Building ground", 0.35f));
+                    ManaSceneNode ground;
+                    lock (world.SceneLock)
+                    {
+                        var shapes = new ManaShapeFactory(Context, world.DefaultScene);
+                        ground = shapes.AddQuad(
+                            Vector3.Zero,
+                            Colors.White,
+                            ManaQuadPlanes.XZ,
+                            0,
+                            GroundSize,
+                            0,
+                            GroundSize,
+                            "Ground");
+                    }
+
+                    Context.Physics.AddBoxBody(
+                        ground,
+                        new Vector3(GroundSize, 0.1f, GroundSize),
+                        new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f));
+
+                    Loading.Report(new ManaLoadingProgress($"Loading {Path.GetFileName(_levelPath)}", 0.6f));
+                    LoadLevel();
+
+                    LoadingCoordinator.CompleteBackgroundWork();
+                }
+                catch (Exception exception)
+                {
+                    Trace.TraceError($"Play mode failed to load: {exception}");
+                    LoadingCoordinator.Fail(exception);
+                }
+            });
+        }
+
+        private void LoadLevel()
+        {
+            if (!File.Exists(_levelPath))
+            {
+                _hud.Text = $"Level '{Path.GetFileName(_levelPath)}' does not exist.";
+                return;
+            }
+
+            var level = ManaLevel.Load(_levelPath);
+            var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
+
+            foreach (var warning in result.Warnings)
+            {
+                Trace.TraceWarning($"Level load warning: {warning}");
+            }
+        }
+
+        /// <summary>
+        /// Holds the loading screen until the WebGPU environment map is up. Without it the first frame of
+        /// the game is drawn against an uninitialised environment -- the same wait the editor does, for the
+        /// same reason.
+        /// </summary>
+        protected override bool CanCompleteLoading()
+        {
+            if (GraphicsBackend != ManaGraphicsBackendKind.WebGpu)
+            {
+                return true;
+            }
+
+            return _webGpuContext is { IsEnvironmentInitializationPending: false };
+        }
+
+        /// <summary>
+        /// The character is spawned here rather than with the rest of the level, because spawning one needs
+        /// a settled world: the capsule is sized from the pawn's final rendered height and dropped into a
+        /// physics scene that has to already contain the ground it lands on.
+        /// </summary>
+        protected override void OnLoadingComplete()
+        {
+            var start = ManaPlayerStartNode.Find(Context.World);
+            if (start != null)
+            {
+                start.IsMarkerVisible = false;
+            }
+
+            var spawnPosition = start?.SpawnPosition ?? Vector3.Zero;
+            spawnPosition.Y += 0.5f;
+
+            lock (Context.World.SceneLock)
+            {
+                _player = _characterSpawn.SpawnNextCharacter(Context.World, spawnPosition, _pawnController);
+            }
+
+            if (_player == null || _pawnController == null)
+            {
+                _hud.Text = _characterSpawn.LastError ?? "No character could be spawned.";
+                return;
+            }
+
+            _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
+            _player.UpdateTransform();
+
+            _pawnController.Possess(_player);
+            _pawnController.SetCameraMode(ManaCameraMode.Follow);
+
+            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump, C camera, Esc quit";
+        }
+
+        public override void Update(double deltaTime)
+        {
+            _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+
+            // Escape quits rather than releasing the character: there is no editor to hand control back to.
+            var keyboard = Context.Input?.Keyboards.FirstOrDefault();
+            var quitKeyDown = keyboard?.IsKeyPressed(Key.Escape) == true;
+            if (quitKeyDown && !_quitKeyWasDown)
+            {
+                Context.Window.Close();
+            }
+
+            _quitKeyWasDown = quitKeyDown;
+        }
+
+        private bool _quitKeyWasDown;
+
+        /// <summary>A single mutable string is the entire view model this mode has.</summary>
+        private sealed class PlayHudState
+        {
+            public string Text { get; set; } = "Loading...";
+        }
+    }
+}

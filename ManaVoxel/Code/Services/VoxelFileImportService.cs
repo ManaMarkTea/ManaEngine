@@ -1,6 +1,7 @@
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.UI;
 using Mana;
+using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using System.IO.Compression;
 using System.Text;
@@ -68,6 +69,9 @@ namespace ManaVoxel.Code.Services
         private void ImportModelFile(string file, ManaWorld world, VoxelEditorViewModel viewModel)
         {
             var model = world.LoadFromGltf(file);
+            // Tagged as it lands, so an imported model is part of the level rather than something that
+            // has to be re-imported by hand after every open.
+            model.LevelSource = ManaLevelSource.ForMesh(file);
             ApplyModelTransform(model, viewModel);
             AdvanceImportCursor();
         }
@@ -99,6 +103,7 @@ namespace ManaVoxel.Code.Services
 
             // No temp extraction: the scene file is imported directly from the zip entry's bytes.
             var model = world.LoadFromGltfMemory(memory.ToArray(), entry.Name, sidecarResolver);
+            model.LevelSource = ManaLevelSource.ForMesh(assetReference);
             ApplyModelTransform(model, viewModel);
             AdvanceImportCursor();
         }

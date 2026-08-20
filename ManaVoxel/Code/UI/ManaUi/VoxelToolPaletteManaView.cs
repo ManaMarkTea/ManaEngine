@@ -37,7 +37,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Work plane gets a section of its own, pinned to the right rather than folded in with the
             // tools -- it only actually constrains Circle and Text (the only two that read it), and sitting
             // among the other tool controls made it look like it applied to all of them.
-            return new Grid().Columns("*, Auto, Auto").Rows("*").Padding(10.0f, 6.0f).Children(
+            return new Grid().Columns("*, Auto, Auto").Rows("Auto").Padding(6.0f, 3.0f).Children(
                 scrollable.GridColumn(0),
                 Divider(theme).GridColumn(1),
                 BuildWorkPlaneGroup(theme, vm).GridColumn(2));
@@ -45,7 +45,9 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         // ----- tools ----------------------------------------------------------------------------------
 
-        private const float ToolButtonSize = 32.0f;
+        // Matches the theme's control height, so a tool button is the same size as every other control in
+        // the strip and the strip is exactly one control tall.
+        private const float ToolButtonSize = 24.0f;
 
         private static UiElement BuildToolGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
@@ -313,8 +315,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 Color = vm.PaintVoxelColor,
                 ShowAlpha = false,
-                Width = 32.0f,
-                Height = 32.0f
+                Width = 24.0f,
+                Height = 24.0f
             };
 
             field.ColorChanged += (_, color) =>
@@ -342,8 +344,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 Color = vm.ShapeStrokeColor,
                 ShowAlpha = false,
-                Width = 32.0f,
-                Height = 32.0f
+                Width = 24.0f,
+                Height = 24.0f
             };
 
             stroke.ColorChanged += (_, color) =>
@@ -354,8 +356,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 Color = vm.ShapeFillColor,
                 ShowAlpha = false,
-                Width = 32.0f,
-                Height = 32.0f
+                Width = 24.0f,
+                Height = 24.0f
             };
 
             fill.ColorChanged += (_, color) =>
@@ -479,9 +481,20 @@ namespace ManaVoxel.Code.UI.ManaUi
         // ----- helpers --------------------------------------------------------------------------------
 
         /// <summary>A small caption above a control, stacked to keep a toolbar group readable without a row of its own.</summary>
+        /// <summary>
+        /// A captioned control, laid out inline rather than stacked.
+        /// <para>
+        /// Stacking read well in the old vertical palette, but in a horizontal strip it doubles the strip's
+        /// height for a label that fits perfectly well beside its control -- and the strip's height comes
+        /// straight off the viewport. The caption sits left, both centred, so a row of these is exactly one
+        /// control tall.
+        /// </para>
+        /// </summary>
         private static UiElement Group(UiTheme theme, string caption, UiElement control)
         {
-            return new StackPanel().Vertical(2.0f).Children(Caption(caption, theme), control);
+            return new StackPanel().Horizontal(4.0f).Children(
+                Caption(caption, theme).CenterV(),
+                control.CenterV());
         }
 
         private static TextBlock Caption(string text, UiTheme theme)

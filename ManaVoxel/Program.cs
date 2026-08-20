@@ -25,7 +25,25 @@ namespace Mana
 
                 var launchOptions = ManaLaunchOptions.Parse(args);
                 var backendKind = launchOptions.GraphicsBackend;
-                var game = new VoxelEditorGameMode(backendKind);
+
+                // --play skips the editor entirely: same executable, but the game rather than the tool.
+                if (launchOptions.PlayLevelPath is { } playLevelPath)
+                {
+                    var play = new VoxelPlayGameMode(playLevelPath, backendKind);
+                    if (backendKind == ManaGraphicsBackendKind.WebGpu)
+                    {
+                        play.RunWebGpu(launchOptions.WebGpuBackend);
+                        return;
+                    }
+
+                    play.Run();
+                    return;
+                }
+
+                var game = new VoxelEditorGameMode(backendKind)
+                {
+                    StartupLevelPath = launchOptions.EditLevelPath
+                };
                 game.PurgeStaleDockLayout();
 
                 if (backendKind == ManaGraphicsBackendKind.WebGpu)

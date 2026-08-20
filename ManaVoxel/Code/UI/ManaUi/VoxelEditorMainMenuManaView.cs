@@ -36,6 +36,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             return new[]
             {
                 File(viewModel),
+                Play(viewModel),
                 Character(viewModel),
                 View(viewModel, host)
             };
@@ -43,12 +44,65 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static MenuItem File(VoxelEditorViewModel viewModel)
         {
+            var levels = viewModel.Levels;
+
             return new MenuItem("File").WithItems(
+                new MenuItem("New Level", levels.New),
+
+                // Saves under whatever name the Level panel's box holds, which is also how Save As works.
+                // There is no file dialog to open here, and inventing a modal one for a name that is
+                // already on screen and editable would be a second way to say the same thing.
+                new MenuItem("Save Level", levels.Save)
+                    .ShortcutFrom(() => levels.CurrentLevelLabel),
+
+                new MenuItem("Reload Level", levels.Reload)
+                    .EnabledWhen(() => levels.CurrentPath != null),
+
+                MenuItem.Separator(),
+
+                new MenuItem("Place Player Start Here", levels.PlacePlayerStart)
+                    .ShortcutFrom(() => levels.HasPlayerStart ? "moves the existing one" : string.Empty),
+
+                MenuItem.Separator(),
+
                 new MenuItem("Bake Voxels To Physics", () => viewModel.Commands.BakeToPhysics())
                     .EnabledWhen(() => !viewModel.HasBakedVoxels),
 
                 new MenuItem("Lock Voxels For Editing", () => viewModel.Commands.LockBakedVoxelsForEditing())
                     .EnabledWhen(() => viewModel.HasBakedVoxels));
+        }
+
+        /// <summary>
+        /// Play. The keys are the point of this menu as much as the rows are -- F5 works whether or not the
+        /// menu is ever opened, and this is the only place that says so.
+        /// </summary>
+        private static MenuItem Play(VoxelEditorViewModel viewModel)
+        {
+            var levels = viewModel.Levels;
+
+            return new MenuItem("Play").WithItems(
+                new MenuItem("Play", levels.TogglePlay)
+                    .WithShortcut("F5")
+                    .EnabledWhen(() => levels.CanPlay && !levels.IsPlaying)
+                    .WithTooltip("Spawns the character at the Player Start and hides the editor."),
+
+                new MenuItem("Play From Camera", levels.PlayFromCamera)
+                    .WithShortcut("Shift+F5")
+                    .EnabledWhen(() => levels.CanPlay && !levels.IsPlaying)
+                    .WithTooltip("Starts the character in front of the camera instead of at the Player Start."),
+
+                new MenuItem("Play In New Window", levels.PlayInNewWindow)
+                    .WithShortcut("Ctrl+F5")
+                    .EnabledWhen(() => levels.CanPlay)
+                    .WithTooltip("Saves the level and launches it as a standalone game in its own window."),
+
+                new MenuItem("Stop", levels.TogglePlay)
+                    .WithShortcut("Esc")
+                    .EnabledWhen(() => levels.IsPlaying),
+
+                MenuItem.Separator(),
+
+                MenuItem.Label(string.Empty).ShortcutFrom(() => levels.Status));
         }
 
         private static MenuItem Character(VoxelEditorViewModel viewModel)

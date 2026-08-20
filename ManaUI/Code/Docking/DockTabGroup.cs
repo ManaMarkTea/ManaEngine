@@ -17,10 +17,9 @@ namespace ManaUI
         private const float MinimumTabWidth = 88.0f;
 
         /// <summary>
-        /// Rows the strip will grow to. Past this it goes back to shrinking, because a strip that keeps
-        /// growing eventually leaves no room for the panel it is labelling.
+        /// Width of the overflow button at the end of the strip. Enough for a chevron and a count.
         /// </summary>
-        private const int MaximumTabRows = 3;
+        private const float OverflowButtonWidth = 34.0f;
 
         private readonly List<DockItem> _items = new();
         private readonly ContentHost _contentHost = new();
@@ -30,11 +29,25 @@ namespace ManaUI
 
         private readonly List<float> _naturalWidths = new();
 
+        /// <summary>Item indices with a visible tab, in the left-to-right order they are drawn.</summary>
+        private readonly List<int> _visibleOrder = new();
+
+        /// <summary>Overflow button, relative to the strip's top-left. Empty when everything fits.</summary>
+        private UiRect _overflowRect = UiRect.Empty;
+
         private int _selectedIndex = -1;
         private int _pressedTab = -1;
 
         private float _layoutWidth = float.NaN;
         private int _layoutCount = -1;
+
+        /// <summary>
+        /// Selection the cached tab layout was built for. Part of the cache key because the selected tab is
+        /// guaranteed a visible slot -- so which tabs are visible depends on it, and a selection change with a
+        /// stale layout would leave the newly selected tab drawn nowhere and the old one still occupying its
+        /// place.
+        /// </summary>
+        private int _layoutSelected = -1;
         private int _rowCount = 1;
 
         public DockTabGroup()
@@ -217,33 +230,51 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Lays the tabs out, wrapping onto extra rows rather than shrinking every tab past the point of
-        /// being readable.
+        /// Lays the tabs out on a single row, with whatever does not fit moved behind an overflow button.
         /// <para>
-        /// Shrinking alone was the old behaviour, and it does keep every tab clickable -- but eleven panels
-        /// in a 400px dock left each one about 36px wide, which is an ellipsis and nothing else. Wrapping
-        /// spends the dock's height instead of its width, and height is what a tab strip has spare.
+        /// Two earlier answers to "eleven panels, one narrow dock" are worth knowing about, because this is
+        /// the third. Shrinking every tab to fit kept them all clickable but left each about 36px wide -- an
+        /// ellipsis and nothing else. Wrapping onto up to three rows made them readable, but spent 78px of
+        /// the dock's height on labels, and a docked panel has no height to spare either: that showed up as
+        /// the editor feeling cramped next to Unreal, which never spends more than one row on a tab strip.
         /// </para>
         /// <para>
-        /// Rows are balanced by width rather than by count, so one long title does not leave a row of stubs
-        /// beside it, and each row is then stretched to fill the strip -- ragged row ends read as a broken
-        /// layout rather than as a deliberate one.
+        /// So: full-width tabs for as many as fit, and the rest one click away. Height is fixed at one row no
+        /// matter how many panels are tabbed together, which is the property the other two lacked.
+        /// </para>
+        /// <para>
+        /// The selected tab is always among the visible ones -- it takes the last visible slot if it would
+        /// otherwise be hidden. A strip that does not show which panel you are looking at is worse than a
+        /// narrow one.
         /// </para>
         /// </summary>
         private void EnsureTabLayout(float width)
         {
             width = MathF.Max(width, 1.0f);
 
-            if (_layoutCount == _items.Count && MathF.Abs(_layoutWidth - width) < 0.5f)
+            if (_layoutCount == _items.Count
+                && _layoutSelected == _selectedIndex
+                && MathF.Abs(_layoutWidth - width) < 0.5f)
             {
                 return;
             }
 
             _layoutWidth = width;
             _layoutCount = _items.Count;
-            _tabRects.Clear();
+            _layoutSelected = _selectedIndex;
             _naturalWidths.Clear();
+            _visibleOrder.Clear();
+            _overflowRect = UiRect.Empty;
             _rowCount = 1;
+
+            // Index-aligned with _items and pre-filled empty, so an overflowed tab simply has no rectangle.
+            // Painting and hit testing both go through TabRect, and neither draws nor hits an empty one --
+            // which is why hiding a tab needs no special case anywhere else in this class.
+            _tabRects.Clear();
+            for (var i = 0; i < _items.Count; i++)
+            {
+                _tabRects.Add(UiRect.Empty);
+            }
 
             if (_items.Count == 0)
             {
@@ -266,67 +297,43 @@ namespace ManaUI
                 var x = 0.0f;
                 for (var i = 0; i < _items.Count; i++)
                 {
-                    _tabRects.Add(new UiRect(x, 0.0f, _naturalWidths[i], rowHeight));
+                    _tabRects[i] = new UiRect(x, 0.0f, _naturalWidths[i], rowHeight);
+                    _visibleOrder.Add(i);
                     x += _naturalWidths[i];
                 }
 
                 return;
             }
 
-            // Filled to capacity rather than to an even share of the total. An even share sounds tidier, but
-            // it has to put the remainder somewhere, and the last row ends up over the strip's width -- which
-            // is the one outcome this is meant to avoid, since it shrinks tabs below the minimum again.
-            // Filling to capacity means no row ever exceeds the width, so stretching a row only widens tabs.
-            var rows = 0;
-            var packed = 0;
+            // Room for the button has to come out of the tabs' share, or the last tab would sit under it.
+            var tabsWidth = MathF.Max(width - OverflowButtonWidth, MinimumTabWidth);
+            var visibleCount = CountThatFit(tabsWidth);
 
-            while (packed < _items.Count)
+            for (var i = 0; i < visibleCount; i++)
             {
-                packed += TakeRow(packed, width);
-                rows++;
+                _visibleOrder.Add(i);
             }
 
-            if (rows <= MaximumTabRows)
+            // The selected tab takes the last visible slot rather than being appended, so the count -- and
+            // therefore the strip's width budget -- is unchanged by the substitution.
+            if (_selectedIndex >= visibleCount && _visibleOrder.Count > 0)
             {
-                _rowCount = rows;
-
-                var start = 0;
-                for (var row = 0; row < rows; row++)
-                {
-                    var taken = TakeRow(start, width);
-                    PlaceRow(start, start + taken, row, width, rowHeight);
-                    start += taken;
-                }
-
-                return;
+                _visibleOrder[^1] = _selectedIndex;
             }
 
-            // Past the cap the strip stops growing and goes back to shrinking, split evenly by count: there
-            // is no readable answer at this point, only a reachable one.
-            _rowCount = MaximumTabRows;
-
-            var perRow = (int)MathF.Ceiling(_items.Count / (float)MaximumTabRows);
-            for (var row = 0; row < MaximumTabRows; row++)
-            {
-                var from = row * perRow;
-                var to = Math.Min(from + perRow, _items.Count);
-
-                if (from < to)
-                {
-                    PlaceRow(from, to, row, width, rowHeight);
-                }
-            }
+            PlaceVisible(tabsWidth, rowHeight);
+            _overflowRect = new UiRect(tabsWidth, 0.0f, MathF.Max(width - tabsWidth, 0.0f), rowHeight);
         }
 
-        /// <summary>How many tabs starting at <paramref name="start"/> fit in one row. Always at least one.</summary>
-        private int TakeRow(int start, float width)
+        /// <summary>How many tabs from the start fit in <paramref name="width"/> at natural size. At least one.</summary>
+        private int CountThatFit(float width)
         {
             var taken = 0;
             var used = 0.0f;
 
-            while (start + taken < _items.Count)
+            while (taken < _items.Count)
             {
-                var next = _naturalWidths[start + taken];
+                var next = _naturalWidths[taken];
                 if (taken > 0 && used + next > width)
                 {
                     break;
@@ -340,27 +347,83 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Places one row's tabs, stretched or shrunk to span the strip exactly. Ragged row ends read as a
-        /// broken layout rather than a deliberate one.
+        /// Places the visible tabs, stretched to span the tab area exactly. Ragged ends read as a broken
+        /// layout rather than a deliberate one.
         /// </summary>
-        private void PlaceRow(int start, int end, int row, float width, float rowHeight)
+        private void PlaceVisible(float width, float rowHeight)
         {
             var natural = 0.0f;
-            for (var i = start; i < end; i++)
+            foreach (var index in _visibleOrder)
             {
-                natural += _naturalWidths[i];
+                natural += _naturalWidths[index];
             }
 
             var scale = natural > 0.0f ? width / natural : 1.0f;
             var x = 0.0f;
 
-            for (var i = start; i < end; i++)
+            for (var slot = 0; slot < _visibleOrder.Count; slot++)
             {
-                // The last tab in a row is snapped to the edge, so rounding cannot leave a seam.
-                var tabWidth = i == end - 1 ? width - x : _naturalWidths[i] * scale;
-                _tabRects.Add(new UiRect(x, row * rowHeight, MathF.Max(tabWidth, 0.0f), rowHeight));
+                var index = _visibleOrder[slot];
+
+                // The last one is snapped to the edge, so rounding cannot leave a seam.
+                var tabWidth = slot == _visibleOrder.Count - 1 ? width - x : _naturalWidths[index] * scale;
+                _tabRects[index] = new UiRect(x, 0.0f, MathF.Max(tabWidth, 0.0f), rowHeight);
                 x += tabWidth;
             }
+        }
+
+        /// <summary>Item indices with no visible tab, in item order. Empty unless the strip overflowed.</summary>
+        public IEnumerable<int> OverflowedIndices()
+        {
+            EnsureTabLayout(Bounds.Width);
+
+            for (var i = 0; i < _items.Count; i++)
+            {
+                if (!_visibleOrder.Contains(i))
+                {
+                    yield return i;
+                }
+            }
+        }
+
+        /// <summary>Overflow button in root coordinates, or empty when every tab is showing.</summary>
+        public UiRect OverflowRect
+        {
+            get
+            {
+                EnsureTabLayout(Bounds.Width);
+                return _overflowRect.IsEmpty
+                    ? UiRect.Empty
+                    : new UiRect(
+                        Bounds.X + _overflowRect.X,
+                        Bounds.Y + _overflowRect.Y,
+                        _overflowRect.Width,
+                        _overflowRect.Height);
+            }
+        }
+
+        private void ShowOverflowMenu()
+        {
+            var root = Root;
+            var rect = OverflowRect;
+            if (root == null || rect.IsEmpty)
+            {
+                return;
+            }
+
+            var items = new List<MenuItem>();
+            foreach (var index in OverflowedIndices())
+            {
+                var target = index;
+                items.Add(new MenuItem(_items[target].Title, () => SelectedIndex = target));
+            }
+
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            MenuFlyout.ShowAt(root, new Vector2(rect.X, rect.Bottom), items);
         }
 
         private void InvalidateTabLayout()
@@ -507,7 +570,53 @@ namespace ManaUI
                 }
             }
 
+            RenderOverflowButton(drawList, theme, font, pointer);
+
             drawList.PopClip();
+        }
+
+        /// <summary>
+        /// The "and N more" affordance. Draws a chevron and the hidden count, because a chevron alone says
+        /// there is more without saying how much -- and with eleven panels in a dock, how much is the useful
+        /// part. Nothing is drawn when every tab fits.
+        /// </summary>
+        private void RenderOverflowButton(
+            ManaUiDrawList drawList,
+            UiTheme theme,
+            ManaFont font,
+            Vector2 pointer)
+        {
+            if (_overflowRect.IsEmpty)
+            {
+                return;
+            }
+
+            var rect = OverflowRect;
+            var hidden = _items.Count - _visibleOrder.Count;
+            if (hidden <= 0)
+            {
+                return;
+            }
+
+            var hovered = rect.Contains(pointer);
+            if (hovered)
+            {
+                drawList.FillRect(rect, theme.SurfaceRaised, CornerRadius.Top(4.0f));
+            }
+
+            var layout = new TextLayout
+            {
+                Font = font,
+                Text = $"»{hidden}",
+                Alignment = TextAlignment.Center,
+                MaxWidth = rect.Width
+            };
+
+            layout.Render(
+                drawList,
+                rect,
+                hovered ? theme.Text : theme.TextMuted,
+                VerticalAlignment.Center);
         }
 
         private static void RenderTabClose(
@@ -549,6 +658,15 @@ namespace ManaUI
         {
             if (e.Button != PointerButton.Left)
             {
+                return;
+            }
+
+            // Before the tab hit test: the button sits inside the strip, and a press there is not a press on
+            // whichever tab happens to be nearest.
+            if (OverflowRect.Contains(e.Position))
+            {
+                ShowOverflowMenu();
+                e.Handled = true;
                 return;
             }
 

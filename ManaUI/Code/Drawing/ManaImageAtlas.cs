@@ -29,7 +29,16 @@ namespace ManaUI
         private int _dirtyMaxX;
         private int _dirtyMaxY;
 
-        public ManaImageAtlas(int width = 1024, int height = 1024)
+        /// <summary>
+        /// 2048 square by default, which is 16MB of RAM.
+        /// <para>
+        /// 1024 was sized for icons. Mesh thumbnails are the first caller to want the atlas by the hundred --
+        /// a 64px preview per asset, and an asset library runs to thousands -- and this is a shelf packer, so
+        /// a region cannot be freed once handed out. Four times the area is four times as many previews before
+        /// the grid falls back to format badges, for a rounding error of memory next to the meshes themselves.
+        /// </para>
+        /// </summary>
+        public ManaImageAtlas(int width = 2048, int height = 2048)
         {
             Width = width;
             Height = height;

@@ -1,0 +1,70 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Sample Course",
+  "camera": {
+    "position": [ 12, 14, 32 ],
+    "rotation": [ -0.35, 0, 0 ]
+  },
+  "nodes": [
+    {
+      "name": "Player Start",
+      "kind": "PlayerStart",
+      "position": [ 8, 0, 8 ],
+      "rotation": [ 0, 3.1415927, 0 ],
+      "scale": [ 1, 1, 1 ]
+    },
+    {
+      "name": "Platform Step 1",
+      "kind": "Shape",
+      "position": [ 14, 0.25, 8 ],
+      "rotation": [ 0, 0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Cube",
+      "color": [ 0.42, 0.6, 0.86, 1 ],
+      "size": [ 1.5, 0.25, 1.5 ],
+      "collision": {
+        "size": [ 3, 0.5, 3 ],
+        "offset": [ 0, 0, 0 ]
+      }
+    },
+    {
+      "name": "Platform Step 2",
+      "kind": "Shape",
+      "position": [ 18, 1.25, 8 ],
+      "rotation": [ 0, 0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Cube",
+      "color": [ 0.42, 0.6, 0.86, 1 ],
+      "size": [ 1.5, 0.25, 1.5 ],
+      "collision": {
+        "size": [ 3, 0.5, 3 ],
+        "offset": [ 0, 0, 0 ]
+      }
+    },
+    {
+      "name": "Platform Summit",
+      "kind": "Shape",
+      "position": [ 22.5, 2.25, 8 ],
+      "rotation": [ 0, 0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Cube",
+      "color": [ 0.45, 0.82, 0.48, 1 ],
+      "size": [ 2, 0.25, 2 ],
+      "collision": {
+        "size": [ 4, 0.5, 4 ],
+        "offset": [ 0, 0, 0 ]
+      }
+    },
+    {
+      "name": "Marker Ball",
+      "kind": "Shape",
+      "position": [ 8, 3, 14 ],
+      "rotation": [ 0, 0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Sphere",
+      "color": [ 0.95, 0.72, 0.2, 1 ],
+      "size": [ 1.5, 1.5, 1.5 ]
+    }
+  ]
+}

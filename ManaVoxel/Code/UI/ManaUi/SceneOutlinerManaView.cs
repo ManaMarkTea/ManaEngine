@@ -51,15 +51,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             // A Grid, not a StackPanel: a vertical stack measures its children with unbounded height, so a
             // scroll viewer inside one grows to fit its content and never scrolls. The star row hands the
             // viewer whatever is left over, which is what gives it something to scroll against.
-            return new Grid().Rows("Auto, Auto, *", theme.Spacing).Columns("*").Padding(8.0f).Children(
-                new TextBlock()
-                    .Text("OUTLINER")
-                    .FontFamily(theme.FontFamilyMedium)
-                    .FontSize(theme.FontSizeSmall)
-                    .Foreground(theme.TextMuted)
-                    .GridRow(0),
-
-                new StackPanel().Horizontal(theme.Spacing).GridRow(1).Children(
+            // No "OUTLINER" caption row: the dock tab immediately above says exactly that, and a panel that
+            // repeats its own tab spends a row of height saying nothing. The tool row below carries the
+            // scene count, which is the part that was actually worth reading.
+            return new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Padding(5.0f).Children(
+                new StackPanel().Horizontal(theme.Spacing).GridRow(0).Children(
                     new Button().Label("Collapse all").Variant(ButtonVariant.Subtle)
                         .OnClick(tree.CollapseAll),
                     new TextBlock()
@@ -67,7 +63,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .Foreground(theme.TextMuted)
                         .CenterV()),
 
-                tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f).GridRow(2));
+                tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f).GridRow(1));
         }
 
         private static bool HasChildren(object item)
