@@ -1,9 +1,12 @@
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using Mana.Code;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Diagnostics;
+using ManaCore.Graphics;
+using ManaVoxel.Code.Services;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -30,7 +33,12 @@ namespace ManaVoxel.Code.Assets
         /// Bump to invalidate every cached file on disk. The stored bytes are raw pixels with no header
         /// describing how they were made, so a change to the rasterizer needs this or old previews persist.
         /// </summary>
-        private const int CacheFormatVersion = 1;
+        // 2: real material colour (texture / vertex colour / base colour factor) replaced the flat tint,
+        // and zip-packed assets generate at all now instead of silently failing.
+        // 3: a textured fragment's own alpha now cuts it out instead of painting transparent regions black
+        // and wrongly winning the depth test; a multi-part character (one mesh per limb) now combines every
+        // part instead of showing whichever one happened to be first.
+        private const int CacheFormatVersion = 3;
 
         private const int BytesPerPixel = 4;
         private static readonly int ExpectedByteCount = ThumbnailSize * ThumbnailSize * BytesPerPixel;
@@ -67,11 +75,15 @@ namespace ManaVoxel.Code.Assets
         /// <summary>Requests queued and not yet finished.</summary>
         public int PendingCount => _requests.Count;
 
-        private static string DefaultCacheDirectory()
-        {
-            var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(root, "ManaRenderer", "Thumbnails");
-        }
+        /// <summary>
+        /// Project-local rather than per-user AppData: the cache key already includes the asset's full path,
+        /// so a global store bought no real sharing between checkouts anyway (a different checkout is a
+        /// different path, hence a different key). Project-local means it is easy to find, easy to clear,
+        /// and travels naturally with per-checkout regeneration -- the same "Library holds derived data" idea
+        /// Unity uses, and gitignored the same way.
+        /// </summary>
+        private static string DefaultCacheDirectory() =>
+            Path.Combine(ManaProjectFolder.Resolve("Library"), "Thumbnails");
 
         /// <summary>
         /// Asks for a thumbnail if this is the first time anyone has. Cheap and safe to call every frame for
@@ -174,20 +186,51 @@ namespace ManaVoxel.Code.Assets
 
         private byte[]? Generate(string assetPath)
         {
+            // CPU-only either way: this loads geometry and material colour, nothing else, so it touches no
+            // graphics device and is safe away from the render thread. A full LoadFile would build materials
+            // and upload buffers.
+            var cpuData = MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out var entryPath)
+                ? GenerateFromZip(zipPath, entryPath)
+                : GenerateFromFile(assetPath);
+
+            return cpuData == null
+                ? null
+                : MeshThumbnailRasterizer.Render(cpuData, ThumbnailSize, new Vector4(0.82f, 0.84f, 0.88f, 1.0f));
+        }
+
+        private ManaMeshCpuData? GenerateFromFile(string assetPath)
+        {
             if (!File.Exists(assetPath))
             {
                 return null;
             }
 
-            // CPU-only: this loads geometry and nothing else, so it touches no graphics device and is safe
-            // away from the render thread. A full LoadFile would build materials and upload buffers.
             var loader = new ManaGltfLoader(_context);
-            var mesh = loader.LoadFirstMeshCpuOnly(assetPath);
-            var cpuData = mesh.CpuData;
+            return loader.LoadFirstMeshCpuOnly(assetPath).CpuData;
+        }
 
-            return cpuData == null
-                ? null
-                : MeshThumbnailRasterizer.Render(cpuData, ThumbnailSize, new Vector4(0.82f, 0.84f, 0.88f, 1.0f));
+        /// <summary>
+        /// A zip-packed asset (most of the character and prop library ships this way) has no directory on
+        /// disk a relative texture reference could resolve against, so its bytes are read straight out of
+        /// the archive instead -- same resolver <see cref="VoxelFileImportService"/> uses to import one for
+        /// real, just without the GPU-hooked half of that pipeline.
+        /// </summary>
+        private ManaMeshCpuData? GenerateFromZip(string zipPath, string entryPath)
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            var entry = archive.GetEntry(entryPath);
+            if (entry == null)
+            {
+                return null;
+            }
+
+            using var entryStream = entry.Open();
+            using var memory = new MemoryStream();
+            entryStream.CopyTo(memory);
+
+            var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
+            var loader = new ManaGltfLoader(_context);
+            return loader.LoadFirstMeshCpuOnlyFromMemory(memory.ToArray(), entry.Name, resolver).CpuData;
         }
 
         // ----- disk tier ---------------------------------------------------------------------------------

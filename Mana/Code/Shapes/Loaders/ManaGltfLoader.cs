@@ -172,91 +172,205 @@ namespace Mana.Code.Shapes.Loaders
                     : error);
             }
 
-            var mesh = scene->MMeshes[0];
-            var output = new ManaMesh(Context)
+            return BuildCpuOnlyMesh(scene, Path.GetFileNameWithoutExtension(sceneFile), externalAssetResolver: null);
+        }
+
+        /// <summary>
+        /// The CPU-only counterpart to <see cref="LoadFileFromMemory"/>: geometry and material colour, no
+        /// GPU device touched, for a scene that already lives in memory rather than on disk.
+        /// <para>
+        /// This is what makes a zip-packed asset -- most of the character and prop library ships this way --
+        /// previewable at all. <see cref="LoadFirstMeshCpuOnly"/> resolves a texture reference against a
+        /// directory on disk, which a zip entry does not have; <paramref name="externalAssetResolver"/> is
+        /// asked for the texture's bytes directly instead, the same contract <see cref="LoadFileFromMemory"/>
+        /// uses for the full GPU-hooked import.
+        /// </para>
+        /// </summary>
+        public unsafe ManaMesh LoadFirstMeshCpuOnlyFromMemory(
+            ReadOnlySpan<byte> sceneBytes,
+            string virtualFileName,
+            Func<string, byte[]?>? externalAssetResolver = null)
+        {
+            _AssetImporter = Assimp.GetApi();
+
+            var extensionHint = Path.GetExtension(virtualFileName);
+            if (!string.IsNullOrWhiteSpace(extensionHint) && extensionHint.StartsWith('.'))
             {
-                Name = string.IsNullOrWhiteSpace(mesh->MName) ? Path.GetFileNameWithoutExtension(sceneFile) : mesh->MName
-            };
-
-            uint[] indexes = new uint[0];
-            Vector3[] positions = new Vector3[mesh->MNumVertices];
-            Vector3[] normals = mesh->MNormals != null ? new Vector3[mesh->MNumVertices] : Array.Empty<Vector3>();
-            Vector4[] colors = mesh->MColors.Element0 != null ? new Vector4[mesh->MNumVertices] : Array.Empty<Vector4>();
-            Vector2[] textureCoordinates0 = mesh->MTextureCoords.Element0 != null ? new Vector2[mesh->MNumVertices] : Array.Empty<Vector2>();
-            Vector2[] textureCoordinates1 = mesh->MTextureCoords.Element1 != null ? new Vector2[mesh->MNumVertices] : Array.Empty<Vector2>();
-
-            Vector3 minSize = Vector3.One * float.MaxValue;
-            Vector3 maxSize = Vector3.One * float.MinValue;
-
-            List<uint> indices = new List<uint>();
-            for (uint i = 0; i < mesh->MNumFaces; i++)
-            {
-                Face face = mesh->MFaces[i];
-                for (uint j = 0; j < face.MNumIndices; j++)
-                {
-                    indices.Add(face.MIndices[j]);
-                }
+                extensionHint = extensionHint[1..];
             }
 
-            indexes = indices.ToArray();
-
-            Parallel.For(0, mesh->MNumVertices, (i) =>
+            Scene* scene;
+            fixed (byte* sceneBuffer = sceneBytes)
             {
-                Vector3 position = new Vector3(mesh->MVertices[i].X, mesh->MVertices[i].Y, mesh->MVertices[i].Z);
-                positions[i] = position;
+                scene = _AssetImporter.ImportFileFromMemory(sceneBuffer, (uint)sceneBytes.Length, (uint)PostProcessSteps.Triangulate, extensionHint);
+            }
 
-                lock (output)
+            ActivePath = string.Empty;
+
+            if (scene == null || scene->MFlags == Silk.NET.Assimp.Assimp.SceneFlagsIncomplete || scene->MRootNode == null || scene->MNumMeshes == 0)
+            {
+                var error = _AssetImporter.GetErrorStringS();
+                throw new Exception(string.IsNullOrWhiteSpace(error)
+                    ? $"Could not load a mesh from '{virtualFileName}'."
+                    : error);
+            }
+
+            return BuildCpuOnlyMesh(scene, Path.GetFileNameWithoutExtension(virtualFileName), externalAssetResolver);
+        }
+
+        /// <summary>
+        /// Builds a preview mesh from every mesh in the scene, not just the first.
+        /// <para>
+        /// A rigged Kenney character is not one skinned mesh -- it is a handful of separate rigid ones,
+        /// <c>leg-left</c>, <c>arm-right</c>, <c>head</c>, <c>torso</c>, each parented to its own joint node
+        /// for the animation to drive. Reading only <c>scene-&gt;MMeshes[0]</c> got whichever part happened to
+        /// come first in the file, which for these packs is a single small box (a leg, or an arm) -- the mesh
+        /// picker showed a box instead of a character. Concatenating every part is what actually shows the
+        /// whole silhouette.
+        /// </para>
+        /// <para>
+        /// Node transforms are deliberately not composed in: these kits model every part already sitting at
+        /// its resting position (the joints exist for runtime animation, not to place the part at rest), so
+        /// the raw per-mesh vertex data already assembles into the right shape. A model that instead relies on
+        /// its node transforms to position parts would combine wrong here -- acceptable for a preview
+        /// thumbnail, not for anything that has to be geometrically exact.
+        /// </para>
+        /// </summary>
+        private unsafe ManaMesh BuildCpuOnlyMesh(Scene* scene, string fallbackName, Func<string, byte[]?>? externalAssetResolver)
+        {
+            var firstMesh = scene->MMeshes[0];
+            var output = new ManaMesh(Context)
+            {
+                Name = string.IsNullOrWhiteSpace(firstMesh->MName) ? fallbackName : firstMesh->MName
+            };
+
+            var totalVertices = 0u;
+            var totalFaces = 0u;
+            var hasNormals = true;
+            var hasColors = true;
+            var hasUv0 = true;
+            var hasUv1 = true;
+
+            for (var mi = 0; mi < scene->MNumMeshes; mi++)
+            {
+                var part = scene->MMeshes[mi];
+                totalVertices += part->MNumVertices;
+                totalFaces += part->MNumFaces;
+                hasNormals &= part->MNormals != null;
+                hasColors &= part->MColors.Element0 != null;
+                hasUv0 &= part->MTextureCoords.Element0 != null;
+                hasUv1 &= part->MTextureCoords.Element1 != null;
+            }
+
+            var positions = new Vector3[totalVertices];
+            var normals = hasNormals ? new Vector3[totalVertices] : Array.Empty<Vector3>();
+            var colors = hasColors ? new Vector4[totalVertices] : Array.Empty<Vector4>();
+            var textureCoordinates0 = hasUv0 ? new Vector2[totalVertices] : Array.Empty<Vector2>();
+            var textureCoordinates1 = hasUv1 ? new Vector2[totalVertices] : Array.Empty<Vector2>();
+            var indexes = new List<uint>((int)(totalFaces * 3));
+
+            var minSize = Vector3.One * float.MaxValue;
+            var maxSize = Vector3.One * float.MinValue;
+            var vertexOffset = 0u;
+
+            for (var mi = 0; mi < scene->MNumMeshes; mi++)
+            {
+                var part = scene->MMeshes[mi];
+
+                for (var i = 0u; i < part->MNumVertices; i++)
                 {
+                    var position = new Vector3(part->MVertices[i].X, part->MVertices[i].Y, part->MVertices[i].Z);
+                    positions[vertexOffset + i] = position;
                     minSize = Vector3.Min(minSize, position);
                     maxSize = Vector3.Max(maxSize, position);
+
+                    if (hasNormals)
+                    {
+                        normals[vertexOffset + i] = new Vector3(part->MNormals[i].X, part->MNormals[i].Y, part->MNormals[i].Z).Normalized();
+                    }
+
+                    if (hasColors)
+                    {
+                        var c = part->MColors.Element0[i];
+                        colors[vertexOffset + i] = new Vector4(c.X, c.Y, c.Z, c.W);
+                    }
+
+                    if (hasUv0)
+                    {
+                        var uv = part->MTextureCoords.Element0[i];
+                        textureCoordinates0[vertexOffset + i] = new Vector2(uv.X, uv.Y);
+                    }
+
+                    if (hasUv1)
+                    {
+                        var uv = part->MTextureCoords.Element1[i];
+                        textureCoordinates1[vertexOffset + i] = new Vector2(uv.X, uv.Y);
+                    }
                 }
 
-                if (mesh->MNormals != null)
+                for (var i = 0u; i < part->MNumFaces; i++)
                 {
-                    normals[i] = new Vector3(mesh->MNormals[i].X, mesh->MNormals[i].Y, mesh->MNormals[i].Z).Normalized();
+                    var face = part->MFaces[i];
+                    for (var j = 0u; j < face.MNumIndices; j++)
+                    {
+                        indexes.Add(face.MIndices[j] + vertexOffset);
+                    }
                 }
 
-                if (mesh->MColors.Element0 != null)
-                {
-                    colors[i] = new Vector4(mesh->MColors.Element0[i].X, mesh->MColors.Element0[i].Y, mesh->MColors.Element0[i].Z, mesh->MColors.Element0[i].W);
-                }
-
-                if (mesh->MTextureCoords.Element0 != null)
-                {
-                    textureCoordinates0[i] = new Vector2(mesh->MTextureCoords.Element0[i].X, mesh->MTextureCoords.Element0[i].Y);
-                }
-
-                if (mesh->MTextureCoords.Element1 != null)
-                {
-                    textureCoordinates1[i] = new Vector2(mesh->MTextureCoords.Element1[i].X, mesh->MTextureCoords.Element1[i].Y);
-                }
-            });
+                vertexOffset += part->MNumVertices;
+            }
 
             output.SetSize(minSize, maxSize);
 
+            // The first part's material stands in for the whole preview -- ManaMeshCpuData carries one
+            // albedo, and a combined multi-part character has no single correct answer for which of its
+            // several materials that should be. Good enough for a preview; wrong for anything that needs
+            // every part in its own real colour.
             string? albedoTexturePath = null;
+            byte[]? albedoTextureBytes = null;
             Vector4? albedoFactor = null;
-            if (mesh->MMaterialIndex < scene->MNumMaterials)
+            if (firstMesh->MMaterialIndex < scene->MNumMaterials)
             {
-                ReadCpuOnlyMaterial(scene->MMaterials[mesh->MMaterialIndex], ref albedoTexturePath, ref albedoFactor);
+                ReadCpuOnlyMaterial(
+                    scene->MMaterials[firstMesh->MMaterialIndex],
+                    externalAssetResolver,
+                    ref albedoTexturePath,
+                    ref albedoTextureBytes,
+                    ref albedoFactor);
             }
 
             output.SetCpuData(new ManaMeshCpuData
             {
-                Indexes = indexes,
+                Indexes = indexes.ToArray(),
                 Positions = positions,
                 Normals = normals,
                 Colors = colors,
                 TextureCoordinates0 = textureCoordinates0,
                 TextureCoordinates1 = textureCoordinates1,
                 AlbedoTexturePath = albedoTexturePath,
+                AlbedoTextureBytes = albedoTextureBytes,
                 AlbedoFactor = albedoFactor
             });
 
             return output;
         }
 
-        private unsafe void ReadCpuOnlyMaterial(Material* material, ref string? albedoTexturePath, ref Vector4? albedoFactor)
+        /// <summary>
+        /// Reads a material's base colour without touching the GPU or <see cref="TextureManager"/> -- this
+        /// is the CPU-only path, used only for a preview thumbnail.
+        /// <para>
+        /// <paramref name="externalAssetResolver"/>, when given, means the scene came from memory (a zip
+        /// entry) and a texture reference has to be resolved as bytes rather than a file on disk; when null,
+        /// a texture on disk beside the scene file is read directly. Either way the caller ends up with the
+        /// texture's raw (still-encoded) bytes -- decoding is left to whoever actually needs pixels.
+        /// </para>
+        /// </summary>
+        private unsafe void ReadCpuOnlyMaterial(
+            Material* material,
+            Func<string, byte[]?>? externalAssetResolver,
+            ref string? albedoTexturePath,
+            ref byte[]? albedoTextureBytes,
+            ref Vector4? albedoFactor)
         {
             for (int i = 0; i < material->MNumProperties; i++)
             {
@@ -272,10 +386,26 @@ namespace Mana.Code.Shapes.Loaders
                         string propertyValue = Encoding.ASCII.GetString(byteArray, 4, byteArray.Length - 4).Trim('\0');
                         if (!string.IsNullOrWhiteSpace(propertyValue))
                         {
-                            string fullPath = Path.Combine(ActivePath, propertyValue);
-                            if (System.IO.File.Exists(fullPath))
+                            if (externalAssetResolver != null)
                             {
-                                albedoTexturePath = fullPath;
+                                albedoTextureBytes = externalAssetResolver(propertyValue);
+                            }
+                            else
+                            {
+                                string fullPath = Path.Combine(ActivePath, propertyValue);
+                                if (System.IO.File.Exists(fullPath))
+                                {
+                                    albedoTexturePath = fullPath;
+                                    try
+                                    {
+                                        albedoTextureBytes = System.IO.File.ReadAllBytes(fullPath);
+                                    }
+                                    catch (IOException)
+                                    {
+                                        // A texture that fails to read only costs the preview its colour,
+                                        // not the mesh itself.
+                                    }
+                                }
                             }
                         }
                     }
