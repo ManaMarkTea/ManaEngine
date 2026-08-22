@@ -364,3 +364,7 @@ FodyWeavers.xsd
 
 # dotnet-trace captures from tools/Profiling/Run-PerfTrace.ps1
 /PerfTraces/
+
+# Generated/derived data (mesh thumbnail cache, and anything else that lands here later) -- always
+# regenerable, never authored content. See ManaVoxel.Code.Assets.ManaProjectFolder.
+/Library/

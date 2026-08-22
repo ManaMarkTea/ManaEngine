@@ -1,6 +1,8 @@
 using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace ManaTests;
 
@@ -54,7 +56,7 @@ public static class MeshThumbnailChecks
         {
             Positions = positions,
             Normals = normals,
-            Colors = new Vector4[positions.Length],
+            Colors = Array.Empty<Vector4>(),
             TextureCoordinates0 = new Vector2[positions.Length],
             TextureCoordinates1 = new Vector2[positions.Length],
             Indexes = indexes,
@@ -153,7 +155,7 @@ public static class MeshThumbnailChecks
         {
             Positions = near.Positions.Concat(far.Positions).ToArray(),
             Normals = near.Normals.Concat(far.Normals).ToArray(),
-            Colors = new Vector4[near.Positions.Length * 2],
+            Colors = Array.Empty<Vector4>(),
             TextureCoordinates0 = new Vector2[near.Positions.Length * 2],
             TextureCoordinates1 = new Vector2[near.Positions.Length * 2],
             Indexes = near.Indexes
@@ -185,7 +187,7 @@ public static class MeshThumbnailChecks
         {
             Positions = new[] { Vector3.Zero, Vector3.Zero, Vector3.Zero },
             Normals = new[] { Vector3.Zero, Vector3.Zero, Vector3.Zero },
-            Colors = new Vector4[3],
+            Colors = Array.Empty<Vector4>(),
             TextureCoordinates0 = new Vector2[3],
             TextureCoordinates1 = new Vector2[3],
             Indexes = new uint[] { 0, 1, 2 },
@@ -222,5 +224,300 @@ public static class MeshThumbnailChecks
         var flat = MeshThumbnailRasterizer.Render(noNormals, Size, Tint);
         Check("a mesh without normals still shades", flat != null && OpaquePixels(flat) > 0,
             $"{(flat == null ? 0 : OpaquePixels(flat))} pixels");
+
+        // ---------------------------------------------------------------- shading direction
+        // Two mesh-space normals chosen so that, after the rasterizer's fixed three-quarter rotation, one
+        // lands well-aligned with its light direction and the other well AGAINST it -- while both already
+        // face the camera, so neither needs the camera-facing flip and this isolates the light term alone.
+        //
+        // Rendered each as a single triangle filling most of the tile, so the average red channel over
+        // opaque pixels is that face's brightness. This is a regression test for one exact numeric bug
+        // (MathF.Abs(lambert) instead of a clamp), so it deliberately mirrors the rasterizer's rotation and
+        // light constants rather than avoiding them -- there is no way to aim a specific direction at "well
+        // lit" vs "well shadowed" without knowing where the light and camera actually are.
+        var view = Matrix4x4.CreateRotationY(-0.62f) * Matrix4x4.CreateRotationX(0.42f);
+        var lightDirection = Vector3.Normalize(new Vector3(-0.4f, 0.75f, 0.5f));
+        Matrix4x4.Invert(view, out var inverseView);
+
+        // Already facing the camera (negative view-space Z) and pointing opposite the light: the darkest a
+        // surface can be. Literally -lightDirection, since the light's own Z is positive.
+        var shadowedMeshNormal = Vector3.Transform(-lightDirection, inverseView);
+
+        // Same idea, Z negated so it also faces the camera without a flip, but otherwise aligned with the
+        // light -- well lit.
+        var litMeshNormal = Vector3.Transform(
+            new Vector3(lightDirection.X, lightDirection.Y, -lightDirection.Z), inverseView);
+
+        var lit = SingleTriangle(litMeshNormal, 2.0f);
+        var shadowed = SingleTriangle(shadowedMeshNormal, 2.0f);
+
+        var litPixels = MeshThumbnailRasterizer.Render(lit, Size, Tint);
+        var shadowedPixels = MeshThumbnailRasterizer.Render(shadowed, Size, Tint);
+
+        Check("both faces render", litPixels != null && shadowedPixels != null);
+
+        if (litPixels != null && shadowedPixels != null)
+        {
+            var litShade = AverageRed(litPixels);
+            var shadowedShade = AverageRed(shadowedPixels);
+
+            // Under the old MathF.Abs(lambert) shading these two would have rendered at THE SAME brightness
+            // -- |N.L| does not distinguish "facing the light" from "facing directly away from it" -- which
+            // is exactly what makes a convex bump read as a dent. Correct shading must not just differ, it
+            // must order them the intuitive way: the face angled toward the light is the brighter one.
+            Check("a face facing away from the light renders darker than one facing toward it",
+                shadowedShade < litShade,
+                $"lit {litShade:F0}, shadowed {shadowedShade:F0}");
+
+            Check("and darker by a wide margin, not a rounding difference",
+                shadowedShade < litShade * 0.6,
+                $"lit {litShade:F0}, shadowed {shadowedShade:F0}");
+        }
+
+        // ---------------------------------------------------------------- colour priority
+        // A channel dominance check rather than an exact colour match: shading multiplies every channel by
+        // the same factor, so the ratio between channels survives regardless of how bright the face ended
+        // up -- which means these do not need to worry about facing the light at all, only about facing
+        // the camera (SingleTriangle's default direction does).
+        var camera = new Vector3(0.3f, 0.2f, -1.0f);
+        var red = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+        var green = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
+        var redTexture = SolidColorPng(255, 0, 0);
+        var uvSpread = new[] { new Vector2(0.0f, 0.0f), new Vector2(1.0f, 0.0f), new Vector2(0.0f, 1.0f) };
+
+        var vertexColored = SingleTriangle(camera, 2.0f, colors: new[] { red, red, red });
+        Check("vertex colour drives the preview, not the fallback tint",
+            IsChannelDominant(MeshThumbnailRasterizer.Render(vertexColored, Size, Tint), channel: 0));
+
+        var factored = SingleTriangle(camera, 2.0f, albedoFactor: green);
+        Check("a material's base colour factor drives the preview when there are no vertex colours",
+            IsChannelDominant(MeshThumbnailRasterizer.Render(factored, Size, Tint), channel: 1));
+
+        var textured = SingleTriangle(camera, 2.0f, albedoTextureBytes: redTexture, uvs: uvSpread);
+        Check("a base colour texture drives the preview",
+            IsChannelDominant(MeshThumbnailRasterizer.Render(textured, Size, Tint), channel: 0));
+
+        var texturedOverVertexColor = SingleTriangle(
+            camera, 2.0f, colors: new[] { green, green, green }, albedoTextureBytes: redTexture, uvs: uvSpread);
+        Check("a texture outranks vertex colour when a mesh somehow carries both",
+            IsChannelDominant(MeshThumbnailRasterizer.Render(texturedOverVertexColor, Size, Tint), channel: 0));
+
+        var whiteTexture = SolidColorPng(255, 255, 255);
+        var factorOverTexture = SingleTriangle(
+            camera, 2.0f, albedoFactor: green, albedoTextureBytes: whiteTexture, uvs: uvSpread);
+        Check("a base colour factor multiplies a texture rather than being ignored, matching glTF",
+            IsChannelDominant(MeshThumbnailRasterizer.Render(factorOverTexture, Size, Tint), channel: 1));
+
+        // ---------------------------------------------------------------- alpha cutout and the depth test
+        // A texture is usually a shared sheet with transparent padding between sprites, and PNG encoders
+        // routinely zero out the RGB under a transparent pixel. A fragment sampled there must not become a
+        // solid black pixel -- and because it is not really part of the surface, it must not win the depth
+        // test against whatever is actually behind it either. Both used to happen at once: an opaque black
+        // hole that also incorrectly occluded.
+        var fullyTransparent = SolidColorPng(0, 0, 0, alpha: 0);
+        var invisible = SingleTriangle(camera, 2.0f, albedoTextureBytes: fullyTransparent, uvs: uvSpread);
+        Check("a fully transparent texture paints nothing, not black",
+            OpaquePixels(MeshThumbnailRasterizer.Render(invisible, Size, Tint)) == 0);
+
+        // Left half opaque blue, right half fully transparent -- one texture, two UV regions, so both
+        // triangles below share the single albedo a mesh actually carries.
+        var splitTexture = SplitColorPng(0, 0, 255);
+        var opaqueHalfUvs = new[] { new Vector2(0.1f, 0.1f), new Vector2(0.4f, 0.1f), new Vector2(0.1f, 0.9f) };
+        var transparentHalfUvs = new[] { new Vector2(0.6f, 0.1f), new Vector2(0.9f, 0.1f), new Vector2(0.6f, 0.9f) };
+
+        // Moving further along this axis increases the rotated (rasterizer-space) Z, i.e. moves away from
+        // the viewer -- computed rather than guessed, so "near" and "far" below are not a coin flip.
+        var cameraDirection = Vector3.Normalize(camera);
+        var awayFromViewer = cameraDirection * MathF.Sign(Vector3.Transform(cameraDirection, view).Z);
+
+        // Larger and further back, so it fills the tile behind the smaller near triangle regardless of the
+        // small screen-space shift the offset picks up from the view rotation.
+        var farTriangle = SingleTriangle(
+            camera, 6.0f, albedoTextureBytes: splitTexture, uvs: opaqueHalfUvs, offset: awayFromViewer * 6.0f);
+
+        // Same texture, sampling its transparent half -- this triangle should contribute nothing at all.
+        var nearCutout = SingleTriangle(
+            camera, 2.0f, albedoTextureBytes: splitTexture, uvs: transparentHalfUvs, offset: awayFromViewer * 1.0f);
+
+        var layered = MeshThumbnailRasterizer.Render(Combine(nearCutout, farTriangle), Size, Tint);
+        Check("nothing paints black where the near triangle's cutout should reveal what is behind it",
+            HasNoBlackOpaquePixels(layered));
+
+        Check("and what is behind it is genuinely visible there, not occluded by the invisible cutout",
+            IsChannelDominant(layered, channel: 2));
+    }
+
+    /// <summary>A single-colour PNG, encoded in memory -- what a decoded albedo texture looks like.</summary>
+    private static byte[] SolidColorPng(byte r, byte g, byte b, byte alpha = 255)
+    {
+        using var image = new Image<Rgba32>(4, 4);
+        var pixel = new Rgba32(r, g, b, alpha);
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                image[x, y] = pixel;
+            }
+        }
+
+        using var stream = new MemoryStream();
+        image.SaveAsPng(stream);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// A PNG whose left half is opaque <paramref name="r"/>/<paramref name="g"/>/<paramref name="b"/> and
+    /// whose right half is fully transparent, RGB zeroed -- exactly how a sprite sheet's padding is
+    /// typically encoded, and the shape that broke both the colour and the depth test.
+    /// </summary>
+    private static byte[] SplitColorPng(byte r, byte g, byte b)
+    {
+        using var image = new Image<Rgba32>(8, 4);
+        var opaque = new Rgba32(r, g, b, 255);
+        var transparent = new Rgba32(0, 0, 0, 0);
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                image[x, y] = x < image.Width / 2 ? opaque : transparent;
+            }
+        }
+
+        using var stream = new MemoryStream();
+        image.SaveAsPng(stream);
+        return stream.ToArray();
+    }
+
+    /// <summary>True when no opaque pixel is (near-)black -- the signature of a transparent sample painted solid.</summary>
+    private static bool HasNoBlackOpaquePixels(byte[]? rgba)
+    {
+        if (rgba == null)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < rgba.Length; i += 4)
+        {
+            if (rgba[i + 3] == 0)
+            {
+                continue;
+            }
+
+            if (rgba[i] < 8 && rgba[i + 1] < 8 && rgba[i + 2] < 8)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>True when one RGB channel clearly outweighs the other two among the opaque pixels.</summary>
+    private static bool IsChannelDominant(byte[]? rgba, int channel)
+    {
+        if (rgba == null)
+        {
+            return false;
+        }
+
+        var others = Enumerable.Range(0, 3).Where(c => c != channel).ToArray();
+        var dominantSum = 0L;
+        var otherSum = 0L;
+        var count = 0;
+
+        for (var i = 0; i < rgba.Length; i += 4)
+        {
+            if (rgba[i + 3] == 0)
+            {
+                continue;
+            }
+
+            dominantSum += rgba[i + channel];
+            otherSum += rgba[i + others[0]] + rgba[i + others[1]];
+            count++;
+        }
+
+        return count > 0 && dominantSum > otherSum;
+    }
+
+    /// <summary>
+    /// One large triangle whose outward normal is <paramref name="direction"/>, duplicated across its three
+    /// vertices so the shader reads it directly rather than averaging it with any neighbour.
+    /// </summary>
+    private static ManaMeshCpuData SingleTriangle(
+        Vector3 direction,
+        float scale,
+        Vector4[]? colors = null,
+        Vector4? albedoFactor = null,
+        byte[]? albedoTextureBytes = null,
+        Vector2[]? uvs = null,
+        Vector3 offset = default)
+    {
+        var normal = Vector3.Normalize(direction);
+
+        // Any triangle whose plane has this normal; the two tangents just have to be non-parallel to it.
+        var tangent = Vector3.Normalize(Vector3.Cross(normal, Math.Abs(normal.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitX));
+        var bitangent = Vector3.Cross(normal, tangent);
+
+        var positions = new[]
+        {
+            offset + normal + (tangent * scale),
+            offset + normal + (bitangent * scale),
+            offset + normal - (tangent * scale) - (bitangent * scale),
+        };
+
+        return new ManaMeshCpuData
+        {
+            Positions = positions,
+            Normals = new[] { normal, normal, normal },
+            Colors = colors ?? Array.Empty<Vector4>(),
+            TextureCoordinates0 = uvs ?? new Vector2[3],
+            TextureCoordinates1 = new Vector2[3],
+            Indexes = new uint[] { 0, 1, 2 },
+            AlbedoFactor = albedoFactor,
+            AlbedoTextureBytes = albedoTextureBytes,
+        };
+    }
+
+    /// <summary>Combines two single-triangle meshes into one, index offsets included -- for depth-test checks.</summary>
+    /// <summary>
+    /// Combines two single-triangle meshes into one, index offsets included, for depth-test checks. Both
+    /// meshes must share the same albedo (texture and/or factor) if either carries one -- the rasterizer
+    /// takes a single texture per <c>Render</c> call, applied to every UV-bearing triangle in it, so there
+    /// is no way for two differently-textured triangles to coexist in one combined mesh.
+    /// </summary>
+    private static ManaMeshCpuData Combine(ManaMeshCpuData a, ManaMeshCpuData b)
+    {
+        return new ManaMeshCpuData
+        {
+            Positions = a.Positions.Concat(b.Positions).ToArray(),
+            Normals = a.Normals.Concat(b.Normals).ToArray(),
+            Colors = a.Colors.Length == a.Positions.Length && b.Colors.Length == b.Positions.Length
+                ? a.Colors.Concat(b.Colors).ToArray()
+                : Array.Empty<Vector4>(),
+            TextureCoordinates0 = a.TextureCoordinates0.Concat(b.TextureCoordinates0).ToArray(),
+            TextureCoordinates1 = a.TextureCoordinates1.Concat(b.TextureCoordinates1).ToArray(),
+            Indexes = a.Indexes.Concat(b.Indexes.Select(index => index + (uint)a.Positions.Length)).ToArray(),
+            AlbedoTextureBytes = a.AlbedoTextureBytes ?? b.AlbedoTextureBytes,
+            AlbedoFactor = a.AlbedoFactor ?? b.AlbedoFactor,
+        };
+    }
+
+    private static double AverageRed(byte[] rgba)
+    {
+        long sum = 0;
+        var count = 0;
+        for (var i = 0; i < rgba.Length; i += 4)
+        {
+            if (rgba[i + 3] == 0)
+            {
+                continue;
+            }
+
+            sum += rgba[i];
+            count++;
+        }
+
+        return count == 0 ? 0.0 : (double)sum / count;
     }
 }

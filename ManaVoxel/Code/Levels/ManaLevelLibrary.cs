@@ -1,68 +1,23 @@
+using ManaVoxel.Code.Assets;
+
 namespace ManaVoxel.Code.Levels
 {
     /// <summary>
-    /// Where levels live on disk, and what is in there.
-    /// <para>
-    /// Probed the same way <see cref="Assets.MeshAssetLibrary.Roots"/> probes for assets, and for the same
-    /// reason: the working directory is different under <c>dotnet run</c>, under a published build and
-    /// under the exe run straight out of <c>bin</c>, so a fixed relative path is wrong in at least two of
-    /// the three. The first folder that already exists wins, which means a repo checkout keeps its levels
-    /// in the repo rather than beside a build output nobody would think to look in.
-    /// </para>
+    /// Where levels live on disk, and what is in there. Levels are authored content, unlike the caches
+    /// <see cref="ManaProjectFolder"/> is also used for -- the "first folder that already exists wins" rule
+    /// it applies here is what makes a repo checkout keep its levels in the repo, travelling with it, rather
+    /// than beside a build output nobody would think to look in.
     /// </summary>
     public static class ManaLevelLibrary
     {
         public const string FolderName = "Levels";
-
-        private static IEnumerable<string> Roots()
-        {
-            yield return Path.Combine(Environment.CurrentDirectory, FolderName);
-            yield return Path.Combine(AppContext.BaseDirectory, FolderName);
-            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", FolderName);
-            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", FolderName);
-        }
 
         /// <summary>
         /// The folder levels are read from and written to, created if this is the first time. Never throws
         /// on a read-only location -- it falls back to the executable's own folder, which is at worst a
         /// place levels can still be saved.
         /// </summary>
-        public static string ResolveFolder()
-        {
-            foreach (var root in Roots())
-            {
-                if (Directory.Exists(root))
-                {
-                    return Path.GetFullPath(root);
-                }
-            }
-
-            // Beside the repo's Assets folder when there is one, so levels sit with the content rather than
-            // in a build output.
-            foreach (var assetRoot in Assets.MeshAssetLibrary.Roots())
-            {
-                if (!Directory.Exists(assetRoot))
-                {
-                    continue;
-                }
-
-                var parent = Path.GetDirectoryName(Path.GetFullPath(assetRoot));
-                if (string.IsNullOrEmpty(parent))
-                {
-                    continue;
-                }
-
-                var candidate = Path.Combine(parent, FolderName);
-                if (TryCreate(candidate))
-                {
-                    return candidate;
-                }
-            }
-
-            var fallback = Path.Combine(AppContext.BaseDirectory, FolderName);
-            TryCreate(fallback);
-            return fallback;
-        }
+        public static string ResolveFolder() => ManaProjectFolder.Resolve(FolderName);
 
         /// <summary>Every level file in the folder, newest first -- the one you were just working on is on top.</summary>
         public static IReadOnlyList<string> List()
@@ -109,18 +64,5 @@ namespace ManaVoxel.Code.Levels
         }
 
         public static string DisplayName(string path) => Path.GetFileNameWithoutExtension(path);
-
-        private static bool TryCreate(string path)
-        {
-            try
-            {
-                Directory.CreateDirectory(path);
-                return true;
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                return false;
-            }
-        }
     }
 }
