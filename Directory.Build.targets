@@ -30,4 +30,32 @@
           DestinationFolder="$(TargetDir)"
           SkipUnchangedFiles="true" />
   </Target>
+
+  <!-- Silk.NET.Assimp 2.23.0's generated structs match Assimp 6.x's ABI (Windows loads a single,
+       already-6.x Assimp64.dll), but its native-library loader still asks for the old
+       "libassimp.5"/"libassimp.so.5" SONAME on macOS and Linux, see
+       https://github.com/dotnet/Silk.NET/issues/2556. Ultz.Native.Assimp (Silk.NET.Assimp's native
+       package) ships both builds on those platforms for exactly this reason, but nothing in this repo
+       controls which one Silk.NET's own loader picks. Overwriting the 5.x file with the 6.x build's
+       bytes (same filename the loader actually opens, correct content underneath) fixes it without
+       waiting on upstream. Without this, Assimp loads and imports without any error at all; it just
+       silently misreads every skinned mesh's bone/animation data, which is why a dragged-in character's
+       idle pose folds in on itself instead of playing. -->
+  <PropertyGroup>
+    <_ManaAssimpNativeExtension Condition="'$(_ManaWebGpuNativeRuntime)' == 'osx-x64' Or '$(_ManaWebGpuNativeRuntime)' == 'osx-arm64'">dylib</_ManaAssimpNativeExtension>
+    <_ManaAssimpNativeExtension Condition="'$(_ManaWebGpuNativeRuntime)' == 'linux-x64' Or '$(_ManaWebGpuNativeRuntime)' == 'linux-arm' Or '$(_ManaWebGpuNativeRuntime)' == 'linux-arm64'">so</_ManaAssimpNativeExtension>
+
+    <_ManaAssimpWrongVersionFile Condition="'$(_ManaAssimpNativeExtension)' == 'dylib'">libassimp.5.dylib</_ManaAssimpWrongVersionFile>
+    <_ManaAssimpWrongVersionFile Condition="'$(_ManaAssimpNativeExtension)' == 'so'">libassimp.so.5</_ManaAssimpWrongVersionFile>
+
+    <_ManaAssimpCorrectVersionFile Condition="'$(_ManaAssimpNativeExtension)' == 'dylib'">libassimp.6.dylib</_ManaAssimpCorrectVersionFile>
+    <_ManaAssimpCorrectVersionFile Condition="'$(_ManaAssimpNativeExtension)' == 'so'">libassimp.so.6</_ManaAssimpCorrectVersionFile>
+  </PropertyGroup>
+
+  <Target Name="FixAssimpNativeAbiMismatch" AfterTargets="Build"
+          Condition="'$(_ManaAssimpWrongVersionFile)' != '' And Exists('$(TargetDir)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaAssimpCorrectVersionFile)')">
+    <Copy SourceFiles="$(TargetDir)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaAssimpCorrectVersionFile)"
+          DestinationFiles="$(TargetDir)runtimes/$(_ManaWebGpuNativeRuntime)/native/$(_ManaAssimpWrongVersionFile)"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>
