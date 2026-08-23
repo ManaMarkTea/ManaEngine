@@ -1,4 +1,5 @@
-﻿using Mana.Code.Nodes;
+﻿using Mana.Code.Materials;
+using Mana.Code.Nodes;
 
 namespace Mana.Code.ManaShaders
 {

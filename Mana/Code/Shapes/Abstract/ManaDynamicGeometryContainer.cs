@@ -43,6 +43,7 @@ namespace Mana.Code
         public List<ManaGeometryQuad> Quads = new List<ManaGeometryQuad>();
         public List<ManaGeometryEdge> Edges = new List<ManaGeometryEdge>();
 
+#if !MANA_BROWSER
         public ManaVertexBufferObject CreateVertexBufferObject(ManaContext context, BufferUsageARB usageHint = BufferUsageARB.StaticDraw)
         {
             if (context.DeferGpuUploads)
@@ -58,6 +59,7 @@ namespace Mana.Code
 
             throw new InvalidOperationException($"OpenGL mesh factory returned unsupported mesh type '{gpuMesh.GetType().Name}'.");
         }
+#endif
 
         /// <summary>
         /// Snapshots the built geometry as flat arrays.

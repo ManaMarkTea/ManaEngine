@@ -1,5 +1,6 @@
 using BepuPhysics;
 using Mana.Code.Components;
+using Mana.Code.Shapes;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -149,7 +150,9 @@ namespace Mana.Code.Nodes
             bakedMesh.SetCpuData(geom.CreateCpuData());
             if (Context.OpenGl != null)
             {
+#if !MANA_BROWSER
                 bakedMesh.VertexBufferObject = geom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+#endif
             }
 
             // Add updater (runs first) then renderer — order matters
@@ -421,7 +424,9 @@ namespace Mana.Code.Nodes
             previewMesh.SetCpuData(previewGeom.CreateCpuData());
             if (Context.OpenGl != null)
             {
+#if !MANA_BROWSER
                 previewMesh.VertexBufferObject = previewGeom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
+#endif
             }
 
             _lockPreviewMeshUpdater = new LockPreviewMeshUpdater(this, _bakedBodies, previewMesh);

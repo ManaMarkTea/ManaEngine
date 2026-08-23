@@ -1,11 +1,15 @@
 using CSharpColorSpaceConverter;
+#if !MANA_BROWSER
 using ImGuiNET;
+#endif
+using Mana.Code;
 using Silk.NET.Maths;
 using System.Text;
 using System.Numerics;
 
 namespace Mana
 {
+#if !MANA_BROWSER
     public static class ImGuiExt
     {
         public static readonly Vector4 RedPastelColor = new Vector4(0.86f, 0.42f, 0.42f, 1.0f);
@@ -253,6 +257,7 @@ namespace Mana
             ImGui.InputFloat4("", ref row4, "%.1f");
         }
     }
+#endif
 
     public static class Extensions
     {

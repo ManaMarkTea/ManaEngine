@@ -1,3 +1,4 @@
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using System.Numerics;
 
@@ -61,6 +62,7 @@ namespace Mana.Code
         {
             base.BindShader(material, objectMatrix, camera);
 
+#if !MANA_BROWSER
             var renderer = Context.World.Renderer as ManaIrradianceRenderer;
             if (renderer != null)
             {
@@ -92,6 +94,7 @@ namespace Mana.Code
                     : Context.World.IrradianceSettings.WebGpuDebugMode;
                 CompiledShader.FindUniform("pbrDebugMode")?.SetValue(debugMode);
             }
+#endif
 
             material.Albedo.Bind(3);
             material.Normal.Bind(4);

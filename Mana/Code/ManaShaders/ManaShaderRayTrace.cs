@@ -1,4 +1,7 @@
+#if !MANA_BROWSER
 using ImGuiNET;
+#endif
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
 
 namespace Mana.Code.ManaShaders
@@ -7,9 +10,12 @@ namespace Mana.Code.ManaShaders
     {
         public ManaShaderRayTrace(ManaContext context) : base(context)
         {
+#if !MANA_BROWSER
             context.World.ImGuiFutures.Add(() => OnGui());
+#endif
         }
 
+#if !MANA_BROWSER
         void OnGui()
         {
             ImGui.Begin("RayTracer");
@@ -21,6 +27,7 @@ namespace Mana.Code.ManaShaders
 
             Context.World.ImGuiFutures.Add(() => OnGui());
         }
+#endif
 
         public int RayCasts = 1;
         public int MaxBounces = 5;

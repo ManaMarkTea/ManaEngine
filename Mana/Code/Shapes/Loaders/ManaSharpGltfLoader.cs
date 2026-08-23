@@ -1,6 +1,8 @@
 using Mana.Code.Animation;
 using Mana.Code.Nodes;
+#if !MANA_BROWSER
 using Mana.Code.Graphics;
+#endif
 using Mana.Code.ManaShaders;
 using Mana.Code.Materials;
 using ManaCore.Graphics;
@@ -259,6 +261,7 @@ namespace Mana.Code.Shapes.Loaders
             };
 
             output.SetCpuData(meshData);
+#if !MANA_BROWSER
             if (Context.OpenGl != null && !Context.DeferGpuUploads)
             {
                 var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, meshData);
@@ -267,6 +270,7 @@ namespace Mana.Code.Shapes.Loaders
                     output.VertexBufferObject = openGlMesh.VertexBufferObject;
                 }
             }
+#endif
 
             output.Materials = firstMaterial != null ? new[] { firstMaterial } : Array.Empty<ManaMaterial>();
 

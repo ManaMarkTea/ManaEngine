@@ -1,7 +1,11 @@
+#if !MANA_BROWSER
 using ImGuiNET;
+#endif
 using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
+using Mana.Code.Renderers;
+using Mana.Code.Shapes;
 using Mana.Code.UI;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Graphics;
@@ -56,10 +60,12 @@ namespace Mana
         public int LastMeshCount { get; private set; }
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
         public SceneSelectionState Selection => sceneSelectionState;
+#if !MANA_BROWSER
         private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
         private readonly SceneInspectorPanelView sceneInspectorPanelView;
         private readonly CameraComponentImGuiView cameraComponentImGuiView = new CameraComponentImGuiView();
         private readonly IrradianceSettingsPanelView irradianceSettingsPanelView = new IrradianceSettingsPanelView();
+#endif
         private ManaIrradianceDebugScene? irradianceDebugScene;
 
         public readonly object SceneLock = new();
@@ -98,8 +104,10 @@ namespace Mana
         
         public ManaWorld() : base(null!)
         {
+#if !MANA_BROWSER
             sceneOutlinerPanelView = new SceneOutlinerPanelView(sceneSelectionState);
             sceneInspectorPanelView = new SceneInspectorPanelView(sceneSelectionState);
+#endif
 
             Meshes = new List<ManaMesh>();
             Scenes = new List<ManaScene>();
@@ -130,6 +138,7 @@ namespace Mana
             CameraNode.Components.Add(MainCamera);
 
 
+#if !MANA_BROWSER
             if (createRenderer)
             {
                 //this.Renderer = new ManaDeferredRenderer(context);
@@ -140,6 +149,7 @@ namespace Mana
                     this.Renderer.Initialize();
                 }
             }
+#endif
 
             DefaultScene = new ManaScene(context);
             DefaultScene.Name = "Default Scene";
@@ -248,6 +258,7 @@ namespace Mana
             Renderer.Render(drawScenes);
         }
 
+#if !MANA_BROWSER
         public void DrawImGui()
         {
             // Tab order within a dock node follows Begin() submission order, so Inspector
@@ -321,6 +332,7 @@ namespace Mana
 
             ImGui.End();
         }
+#endif
 
         private void CollectLightsFromNode(ManaSceneNode node, List<(Vector3 Position, Vector3 Color)> output)
         {

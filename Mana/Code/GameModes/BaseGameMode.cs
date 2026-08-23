@@ -53,17 +53,30 @@ namespace Mana.Code
 
         private static bool ImGuiWantsMouse()
         {
+#if MANA_BROWSER
+            return false;
+#else
             return HasImGuiContext() && ImGuiNET.ImGui.GetIO().WantCaptureMouse;
+#endif
         }
 
         private static bool ImGuiWantsKeyboard()
         {
+#if MANA_BROWSER
+            return false;
+#else
             return HasImGuiContext() && ImGuiNET.ImGui.GetIO().WantCaptureKeyboard;
+#endif
         }
 
         /// <summary>Guards the headless case, where there is no ImGui context to ask.</summary>
         private static bool HasImGuiContext()
         {
+#if MANA_BROWSER
+            // No real ImGui context ever exists in-browser (NullManaImGuiController never
+            // creates one) -- see ManaGraphics.csproj.
+            return false;
+#else
             try
             {
                 return ImGuiNET.ImGui.GetCurrentContext() != IntPtr.Zero;
@@ -72,6 +85,7 @@ namespace Mana.Code
             {
                 return false;
             }
+#endif
         }
 
         public ManaContext Context = null!;
@@ -237,10 +251,12 @@ namespace Mana.Code
 
             using var frameScope = ManaFrameProfiler.Measure("Frame: Render");
 
+#if !MANA_BROWSER
             // Before ProcessPendingFontPreset: a scale change queues a font rebuild, which this next call
             // then performs in the same frame rather than a frame late.
             SyncImGuiUiScale();
             ProcessPendingFontPreset();
+#endif
 
             AttachManaUiToImGui();
 
@@ -261,10 +277,12 @@ namespace Mana.Code
                 {
                     ManaUi.Render(deltaTime);
                 }
+#if !MANA_BROWSER
                 else
                 {
                     ManaLoadingScreenView.Draw(Loading);
                 }
+#endif
 
                 _ImGui.Render();
 
@@ -286,9 +304,13 @@ namespace Mana.Code
                     using (ManaFrameProfiler.Measure("ImGui Panels"))
                     {
                         DrawMainMenuBar();
+#if !MANA_BROWSER
                         DrawDockSpace();
+#endif
                         DrawImGui(deltaTime);
+#if !MANA_BROWSER
                         Context.World.DrawImGui();
+#endif
                     }
                 }
 

@@ -63,71 +63,85 @@ documented API but needs a real check before trusting it for an actual character
 matters because `CharacterSpawnService.Spawn` is how the player's controllable character
 gets into the world at all — there's no voxel-based fallback.
 
-**`Mana.csproj` does NOT compile cleanly for `browser-wasm` yet** — significant further
-work, precisely scoped below, not started. `ManaVoxel.csproj` hasn't been attempted at
-all yet (blocked on `Mana.csproj` first).
+**`Mana.csproj` now compiles cleanly for `browser-wasm`** (`dotnet build Mana/Mana.csproj
+-r browser-wasm --self-contained false` succeeds, 0 errors) — the Category 1/2 work
+scoped in the now-removed section below is done. Getting from ~108 errors/23 files to 0
+took three kinds of fix, roughly in this order of impact:
 
-**Still not started at all**: `ManaVoxel.Web` project itself, the custom browser
+1. **The real root cause of most "type not found in bare `namespace Mana`" errors**:
+   `Mana/Program.cs` carried six `global using Mana.Code*;` directives that applied
+   project-wide — every bare-`namespace Mana` file (`ManaCube.cs`, `ManaWorld.cs`,
+   `CameraComponent.cs`, etc.) had silently relied on them for years instead of their own
+   explicit `using`s. Excluding `Program.cs` for browser (it has `Main()` and constructs
+   the desktop-only `SceneViewerMode`) silently deleted those global usings too, which is
+   what actually produced the long tail of "`ManaMesh`/`ManaMaterial`/`ManaProceduralMesh`
+   not found" errors this session chased file-by-file before finding the real cause. Fix:
+   moved the six `global using` lines into a new `Mana/Code/GlobalUsings.cs` that's never
+   excluded. This one file fixed more errors than all the per-file `using` additions
+   combined — **if this happens again in another project, check for a `global using` in
+   whatever file is being excluded before adding explicit usings one file at a time.**
+2. **`OutputType`**: `Mana.csproj` is `WinExe` (it has its own `Main()` via `Program.cs`
+   for a standalone scene-viewer test harness). Excluding `Program.cs` for browser then
+   leaves no entry point, so `CS5001`. Fixed with
+   `<OutputType Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Library</OutputType>`.
+3. **OpenGL-only call sites that only compile because desktop always has a real
+   `Context.RequireOpenGl()`**: `ManaCompiledShader.cs`, `ManaLightningBallShader.cs`,
+   `ManaLiquidBallShader.cs`, `ManaForwardRenderer.cs`, `ManaTexture.cs`,
+   `ManaTextureDynamic.cs` all called `Context.gl`/`Context.RequireOpenGl()` (both
+   `#if !MANA_BROWSER`-only members of `ManaContext`) directly, always already behind (or
+   next to) an existing `if (Context.OpenGl == null) return;` guard. Since
+   `Context.OpenGl` (nullable `GL?`) is declared unconditionally on both platforms,
+   the fix was a mechanical `Context.RequireOpenGl()` → `Context.OpenGl!` /
+   `Context.gl` → `Context.OpenGl!` substitution — no new abstraction needed, the
+   null-check already there does the real work. A handful of remaining
+   `ManaMesh.VertexBufferObject` access sites (`MeshRendererComponent.DrawComponent`,
+   `ManaSkinnedMeshComponent`, `ManaLineMesh`, `ManaProceduralMesh`, `ManaVoxelShape`)
+   needed the call site itself wrapped in `#if !MANA_BROWSER` (the property itself was
+   already guarded from an earlier pass) — `MeshRendererComponent.DrawComponent`'s
+   emptiness pre-check falls back to just `Mesh == null` on browser, relying on
+   `Mesh.Draw()`'s own internal `ImmediateGpuMesh != null` check to no-op safely before
+   the WebGPU upload path has run.
+4. Remaining `ImGuiNET`-coupled files (`Extensions.cs`'s `ImGuiExt` class,
+   `CameraComponent.cs`'s `GetImGuiWantsCapture*` fallbacks, `ManaShaderRayTrace.cs`'s
+   debug `OnGui()`, `ManaWorld.cs`'s `DrawImGui()` and its four editor-panel-view fields,
+   `BaseGameMode.cs`'s `ImGuiWantsMouse/Keyboard`) all guarded with
+   `#if !MANA_BROWSER`/`#if MANA_BROWSER return false;` following the pattern already
+   established for the WebGPU-ImGui controller — same reasoning each time: ImGui is a
+   desktop/editor-only concern, play mode's visible UI is ManaUi.
+
+**`ManaVoxel.csproj -r browser-wasm` was attempted and is NOT a meaningful test** —
+found a real MSBuild/NuGet restore limitation, not a code problem. When `ManaVoxel.csproj`
+(a `WinExe`, never itself meant to be the browser executable — see M8) is built or
+published with `-r browser-wasm`, its `ProjectReference` chain
+(`ManaVoxel → ManaGeoTools → Mana`) causes **`Mana.csproj` to be compiled twice**: once
+correctly with `RuntimeIdentifier=browser-wasm` (confirmed via a temporary diagnostic
+MSBuild `<Message>` target), and once as a "ridless" companion pass with
+`RuntimeIdentifier` empty, which the .NET SDK performs internally when a RID-specific exe
+references a project — normally harmless, but not here, because **`PackageReference`
+`Condition`s keyed on `$(RuntimeIdentifier)` are evaluated once at restore time using
+whichever RID was last passed on the command line, and that single evaluation gets
+written into *both* the ridless and RID-specific `net10.0`/`net10.0/browser-wasm` targets
+in `project.assets.json`** (confirmed by inspecting the file directly — both targets had
+identical package lists, missing `Silk.NET.OpenGL.Extensions.ImGui`/`Silk.NET.Assimp`
+either way). So the ridless companion pass ends up compiling desktop-only, ImGui-using
+files (never excluded, since `Compile Remove` conditions — evaluated per-build-pass,
+correctly — see RID as empty there) against a package set that's missing ImGui anyway.
+This is a restore/build evaluation-timing mismatch, not fixable from the C# side.
+**Confirmed harmless**: each project's *own* restore self-heals for its own invocation —
+plain `dotnet build ManaVoxel/ManaVoxel.csproj` (no `-r`) and standalone
+`dotnet build Mana/Mana.csproj -r browser-wasm` both still pass individually,
+before and after the tainted `ManaVoxel -r browser-wasm` attempt. **Conclusion: don't
+try to make `ManaVoxel.csproj` itself browser-buildable** — it was never the target per
+M8 (a *new*, dedicated `ManaVoxel.Web.csproj` is), and a project that declares
+`<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>` as its own permanent identity
+(rather than receiving it ad hoc via `-r` on the command line against a project that
+also needs to build normally for desktop) shouldn't hit this restore issue at all — that
+project is the actual next milestone to attempt, not a repeat of this experiment.
+
+**Still not started at all**: `ManaVoxel.Web` project itself (M8), the custom browser
 `IWindow`/`IInputContext` (M1), and — see "M2's real remaining work" below — the actual
 70-function WebGPU shim (`ManaBrowserWebGpuNativeContext`/`ManaBrowserWebGpuSurface` are
 currently stubs that compile but always fail at runtime).
-
-### Mana.csproj's exact remaining browser-wasm compile scope (23 files, two categories)
-
-Run `dotnet build Mana/Mana.csproj -r browser-wasm --self-contained false` to reproduce.
-Two genuinely different, unrelated problems, both bigger than "swap a package":
-
-**Category 1 — ImGui.NET coupling (16 files).** Deeper than the isolated WebGPU-ImGui
-controller: `BaseGameMode.cs` itself (the shared base class every game mode, including
-play mode, inherits) calls `ImGuiNET.ImGui.GetIO()`/`.GetCurrentContext()` directly at
-three call sites (`HasImGuiContext`, and the two `WantCapture*` properties around it) —
-small, guardable with `#if MANA_BROWSER`. It also unconditionally calls
-`SyncImGuiUiScale()`, `ProcessPendingFontPreset()`, and (behind `if (!EnableManaUi)`,
-never true for play mode, but must still compile) `DrawDockSpace()` — all three defined
-in the four `BaseGameMode.ImGuiDocking/Dpi/Fonts/Theme.cs` partial files, which are
-otherwise purely editor-UI-shell concerns (docking layout persistence, font presets,
-theme colors) safe to exclude wholesale, replaced by three no-op stubs for those three
-specific methods. `ImGuiDockNative.cs` and four panel view files
-(`CameraComponentImGuiView.cs`, `IrradianceSettingsPanelView.cs`,
-`SceneInspectorPanelView.cs`, `SceneOutlinerPanelView.cs`) are confirmed editor-only
-(inspector/outliner panels, called only from `VoxelEditorGameMode`/the editor's own
-menu-bar views) — safe to exclude outright, not called from anything play-mode-relevant.
-`SceneViewerMode.cs` and `Mana/Program.cs` are Mana's own desktop test harness
-(GLFW-windowed scene viewer) — exclude, not part of what `ManaVoxel.Web` would need.
-Three files need real per-file judgment rather than a blanket exclude, because ImGui
-usage is mixed into otherwise-core, always-needed code: `Extensions.cs` (461 lines, 75
-ImGui hits — likely a mix of a genuinely-reusable extension-method utility class and
-ImGui-specific drawing helpers that need separating), `CameraComponent.cs` (756 lines,
-12 hits — probably an inspector-drawing method that's already conditionally called,
-worth checking before assuming it needs a guard at all), `ManaWorld.cs` (480 lines, 28
-hits), `ManaShaderRayTrace.cs` (120 lines, 7 hits). **Check each one's actual call
-sites before deciding exclude vs. guard vs. leave alone** — don't assume from hit count
-alone.
-
-**Category 2 — OpenGL-backend concrete-type coupling (7 files, some overlapping
-Category 1).** `ManaContext.cs`, `ManaMesh.cs`, `ManaTexture.cs`,
-`ManaDynamicGeometryContainer.cs`, `ManaIsoSphere.cs`, `ManaDeferredRenderer.cs`,
-`ManaIrradianceRenderer.cs` (plus this session's own `ManaSharpGltfLoader.cs`,
-transitively) reference concrete types — `ManaVertexBufferObject`,
-`IOpenGlGraphicsDevice`, `ManaRenderTarget`, `ManaOpenGlHdrPostProcessor` — that live in
-the excluded `ManaGraphics/Code/Graphics/OpenGL/Legacy/` folder, as **field/property
-types** in core classes (e.g. `ManaMesh.VertexBufferObject`), not just isolated method
-bodies. This is a different, likely deeper problem than Category 1: check whether these
-fields are already nullable/optional (the codebase already has an established
-`Context.OpenGl != null` pattern for "running under WebGPU, skip this" — `ManaMesh`'s
-own `VertexBufferObject` may already follow it) before assuming a bigger interface
-extraction is needed. `ManaDeferredRenderer.cs`/`ManaIrradianceRenderer.cs` in
-particular may turn out to be OpenGL-only renderers with a WebGPU equivalent living
-elsewhere (check `ManaGameModeGraphicsBridge`/`IManaGraphicsDevice` for how the engine
-already picks a renderer per backend) rather than something that needs porting at all.
-
-**Recommended order for next session**: Category 1's easy 2/3 first (exclude the
-confirmed-editor-only files, guard the 3 `BaseGameMode.cs` core lines, add the 3 no-op
-stubs) — mechanical, low-risk, matches the pattern already proven repeatedly this
-session. Verify `Mana.csproj` browser-wasm compile error count drops accordingly before
-touching the harder 4 mixed files or Category 2 at all. Rebuild the desktop
-build + ManaTests after every change, the same discipline used throughout this session
-— every single change in this file was verified that way, with zero exceptions.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 

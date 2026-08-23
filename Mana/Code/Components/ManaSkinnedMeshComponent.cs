@@ -148,7 +148,9 @@ namespace Mana
             // The WebGPU path picks the new geometry up from CpuDataVersion during scene reconcile, but
             // the OpenGL path draws straight from the VBO built at load time -- without this it would
             // render every rig frozen in its bind pose.
+#if !MANA_BROWSER
             Mesh.VertexBufferObject?.UpdateDynamicData(skinnedPositions, normals, Array.Empty<Vector4>());
+#endif
         }
     }
 }

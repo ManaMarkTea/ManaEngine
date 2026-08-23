@@ -15,7 +15,7 @@ namespace Mana.Code.Renderers
 
         public override void Clear()
         {
-            Context.RequireOpenGl().Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            Context.OpenGl!.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 
         public override void Render(Action drawScenes)

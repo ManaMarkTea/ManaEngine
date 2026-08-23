@@ -3,7 +3,9 @@ using Mana.Code.Components;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using ManaCore.Graphics;
+#if !MANA_BROWSER
 using Silk.NET.OpenGL;
+#endif
 
 namespace Mana.Code.Graphics
 {
@@ -11,6 +13,7 @@ namespace Mana.Code.Graphics
     {
         public static void ClearLoadingFrame(ManaContext context, ManaGraphicsBackendKind backend)
         {
+#if !MANA_BROWSER
             if (backend != ManaGraphicsBackendKind.OpenGL)
             {
                 return;
@@ -19,10 +22,12 @@ namespace Mana.Code.Graphics
             var gl = context.RequireOpenGl();
             gl.ClearColor(0.12f, 0.14f, 0.18f, 1.0f);
             gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+#endif
         }
 
         public static void DrawWorld(ManaContext context, ManaGraphicsBackendKind backend)
         {
+#if !MANA_BROWSER
             if (backend == ManaGraphicsBackendKind.OpenGL)
             {
                 // Services any SampleHeightsAsync requests queued from background threads (see
@@ -31,10 +36,13 @@ namespace Mana.Code.Graphics
                 (context.GraphicsDevice as ManaOpenGlGraphicsDevice)?.ProcessPendingHeightSampleRequests();
                 context.World.Draw();
             }
+#endif
         }
 
+#if !MANA_BROWSER
         private static ManaOpenGlUiRenderer? _openGlUiRenderer;
         private static bool _openGlUiRendererFailed;
+#endif
 
         /// <summary>
         /// Draws the ManaUI tree on the OpenGL backend. The WebGPU path submits inside its own frame, so
@@ -49,6 +57,7 @@ namespace Mana.Code.Graphics
             ManaGraphicsBackendKind backend,
             ManaUI.UiRoot? root)
         {
+#if !MANA_BROWSER
             if (backend != ManaGraphicsBackendKind.OpenGL || root == null)
             {
                 return;
@@ -88,17 +97,21 @@ namespace Mana.Code.Graphics
             }
 
             _openGlUiRenderer.Render(root.DrawList, root.Atlas, root.Size, framebufferSize);
+#endif
         }
 
         public static void DisposeManaUi()
         {
+#if !MANA_BROWSER
             _openGlUiRenderer?.Dispose();
             _openGlUiRenderer = null;
             _openGlUiRendererFailed = false;
+#endif
         }
 
         public static void InitializeRendererForLoading(ManaContext context, ManaGraphicsBackendKind backend)
         {
+#if !MANA_BROWSER
             if (backend != ManaGraphicsBackendKind.OpenGL)
             {
                 return;
@@ -107,6 +120,7 @@ namespace Mana.Code.Graphics
             context.DeferGpuUploads = false;
             context.World.Renderer.Initialize();
             context.DeferGpuUploads = true;
+#endif
         }
 
         public static void FinalizeGpuUploads(ManaContext context, ManaGraphicsBackendKind backend)
@@ -130,10 +144,12 @@ namespace Mana.Code.Graphics
         {
             imGui?.Dispose();
             context.Input?.Dispose();
+#if !MANA_BROWSER
             if (context.GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
             {
                 context.RequireOpenGl().Dispose();
             }
+#endif
         }
 
         private static void FinalizeSceneNode(
@@ -151,6 +167,7 @@ namespace Mana.Code.Graphics
                 var mesh = meshRenderer.Mesh;
                 if (mesh != null)
                 {
+#if !MANA_BROWSER
                     if (mesh.VertexBufferObject == null &&
                         mesh.CpuData != null &&
                         backend == ManaGraphicsBackendKind.OpenGL)
@@ -161,6 +178,7 @@ namespace Mana.Code.Graphics
                             mesh.VertexBufferObject = openGlMesh.VertexBufferObject;
                         }
                     }
+#endif
 
                     foreach (var material in mesh.Materials)
                     {
@@ -185,10 +203,12 @@ namespace Mana.Code.Graphics
             ManaGraphicsBackendKind backend,
             ManaMaterial material)
         {
+#if !MANA_BROWSER
             if (backend == ManaGraphicsBackendKind.OpenGL && material.Shader == null)
             {
                 material.Shader = new ManaPbrShader(context);
             }
+#endif
 
             FinalizeTexture(material.Albedo);
             FinalizeTexture(material.Normal);

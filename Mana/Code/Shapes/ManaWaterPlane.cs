@@ -1,3 +1,5 @@
+using Mana.Code.Materials;
+
 namespace Mana.Code.Shapes
 {
     // A subdivided XZ grid (unlike ManaQuad, which is a single 4-vertex quad) so the water
@@ -63,7 +65,9 @@ namespace Mana.Code.Shapes
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
             if (Context.OpenGl != null)
             {
+#if !MANA_BROWSER
                 VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+#endif
             }
         }
     }

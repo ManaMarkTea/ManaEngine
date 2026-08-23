@@ -24,9 +24,16 @@
   </ItemGroup>
 
   <!-- Browser target is WebGPU-only (see WebPort-Plan.md); OpenGL has no browser-wasm
-       backend and isn't needed there. -->
+       backend and isn't needed there. ManaGameModeGraphicsBridge.cs is the one exception:
+       despite living in this folder, it's a genuine cross-backend dispatcher (every method
+       branches on ManaGraphicsBackendKind and no-ops for non-OpenGL already) that
+       BaseGameMode.cs depends on directly; re-included and internally guarded instead
+       of excluded. Found the hard way: excluding it wholesale cascaded into ~30 unrelated
+       compile errors across the shader/texture/component system before the actual cause
+       was traced back here. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
     <Compile Remove="Code\Graphics\OpenGL\**\*.cs" />
+    <Compile Include="Code\Graphics\OpenGL\Legacy\ManaGameModeGraphicsBridge.cs" />
   </ItemGroup>
 
   <!-- ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset (same

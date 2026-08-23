@@ -1,3 +1,4 @@
+using Mana.Code;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
 using Silk.NET.OpenGL;
@@ -75,7 +76,7 @@ namespace Mana
 
         public void UpdateParameters()
         {
-            var gl = Context.RequireOpenGl();
+            var gl = Context.OpenGl!;
 
             var targetType = TextureTargetType;
 
@@ -145,7 +146,7 @@ namespace Mana
 
         protected virtual unsafe void LoadTextureData()
         {
-            var gl = Context.RequireOpenGl();
+            var gl = Context.OpenGl!;
 
             if (PixelData != null && PixelData.Length > 0)
             {
@@ -269,8 +270,16 @@ namespace Mana
                 return openGlTexture;
             }
 
+#if MANA_BROWSER
+            // No OpenGL on the browser target (WebGPU-only; see WebPort-Plan.md) -- this
+            // legacy per-texture-unit Bind(int) path is OpenGL-only; WebGPU binds
+            // textures through its own bind groups instead, never through here.
+            throw new PlatformNotSupportedException(
+                "ManaTexture.Bind (OpenGL texture units) is not supported on the browser target.");
+#else
             GpuTexture = new ManaOpenGlTexture(this);
             return (IManaBindableGpuTexture)GpuTexture;
+#endif
         }
 
         /// <summary>

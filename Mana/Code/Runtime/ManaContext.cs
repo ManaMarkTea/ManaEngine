@@ -7,8 +7,15 @@ namespace Mana.Code
 {
     public class ManaContext
     {
+#if !MANA_BROWSER
         public GL gl => RequireOpenGl();
         public GL? OpenGl => (GraphicsDevice as IOpenGlGraphicsDevice)?.Gl;
+#else
+        // No OpenGL on the browser target at all (WebGPU-only; see WebPort-Plan.md) --
+        // always null, matching the existing "this ManaContext has no OpenGL context"
+        // case every caller already checks for on desktop.
+        public GL? OpenGl => null;
+#endif
         public IManaGraphicsDevice? GraphicsDevice { get; private set; }
         public ManaGraphicsBackendKind GraphicsBackend => GraphicsDevice?.Backend ?? ManaGraphicsBackendKind.None;
         public IInputContext Input { get; set; } = null!;
@@ -35,6 +42,7 @@ namespace Mana.Code
             GraphicsDevice = graphicsDevice;
         }
 
+#if !MANA_BROWSER
         public ManaContext(IWindow window, GL gl, IInputContext input, ManaWorld world)
             : this(window, input, world, new ManaOpenGlGraphicsDevice(gl))
         {
@@ -51,5 +59,6 @@ namespace Mana.Code
                 $"This ManaContext is using {GraphicsBackend} and does not have an OpenGL context. " +
                 "Move this call behind a graphics backend abstraction or use an OpenGL-specific path.");
         }
+#endif
     }
 }

@@ -1,4 +1,7 @@
+using Mana.Code;
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using System.Threading;
 using ManaCore.Graphics;
 
@@ -191,10 +194,17 @@ namespace Mana
         public override void DrawComponent()
         {
             base.DrawComponent();
+#if !MANA_BROWSER
             if (Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
                 return;
             }
+#else
+            if (Mesh == null)
+            {
+                return;
+            }
+#endif
 
             if (DrawAfterScene)
             {
