@@ -20,12 +20,11 @@ namespace ManaVoxel.Code.UI.ManaUi
     public static class MeshThumbnailImages
     {
         /// <summary>
-        /// Thumbnails allowed into the atlas. The atlas is shared with icons and any other colour image, it
-        /// cannot free a region once packed (it is a shelf packer, not a heap), and a library can hold
-        /// thousands of assets -- so this is the point where the grid stops gaining previews and keeps format
-        /// badges instead. At 64px in a 2048 atlas the ceiling is around a thousand; this leaves room.
+        /// How long a visible tile stays eligible for the resident atlas when a rebuild is needed. This is
+        /// deliberately wall-clock rather than frame-counted: the thumbnail bridge is called from UI bindings
+        /// and from the editor pump, not from one tidy owner that can bracket a frame.
         /// </summary>
-        private const int MaximumResident = 900;
+        private const long RecentVisibilityMilliseconds = 2500;
 
         /// <summary>
         /// Uploads allowed per frame. Each insertion dirties a region of the atlas that the backend re-uploads
@@ -34,19 +33,45 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private const int UploadsPerFrame = 4;
 
+        private static readonly int ExpectedByteCount =
+            MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4;
+
         private static readonly Dictionary<string, Vector4> Uvs = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, byte[]> Pixels = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, long> LastVisibleAt = new(StringComparer.Ordinal);
         private static readonly HashSet<string> Failed = new(StringComparer.Ordinal);
+        private static int _atlasGeneration = -1;
 
         /// <summary>Thumbnails resident in the atlas.</summary>
         public static int ResidentCount => Uvs.Count;
 
-        /// <summary>True once the atlas is full, so the remaining tiles will keep their format badges.</summary>
+        /// <summary>Decoded thumbnails retained outside the atlas, so residents can be rebuilt after scrolling.</summary>
+        public static int StoredCount => Pixels.Count;
+
+        /// <summary>True only when the current visible set cannot fit even after rebuilding the atlas.</summary>
         public static bool IsAtlasFull { get; private set; }
 
         public static bool HasImage(string assetPath) => Uvs.ContainsKey(assetPath);
 
         public static Vector4 UvFor(string assetPath) =>
             Uvs.TryGetValue(assetPath, out var uv) ? uv : Vector4.Zero;
+
+        /// <summary>
+        /// Marks a tile as visible and makes its thumbnail resident if the cache has already produced pixels.
+        /// This is called from the tile's polled bindings, so newly visible assets can repopulate the atlas
+        /// without asking the thumbnail worker to regenerate anything.
+        /// </summary>
+        public static void Touch(UiRoot root, string assetPath)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(assetPath))
+            {
+                return;
+            }
+
+            TrackAtlasGeneration(root.Images);
+            LastVisibleAt[assetPath] = Environment.TickCount64;
+            EnsureResident(root, assetPath);
+        }
 
         /// <summary>
         /// Moves finished thumbnails into the atlas. Main thread, once per frame, from wherever the workspace
@@ -56,29 +81,41 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             foreach (var (path, pixels) in cache.TakeFinished(UploadsPerFrame))
             {
-                if (pixels == null)
-                {
-                    // Remembered so a failed asset is not re-requested every frame for the rest of the
-                    // session -- the cache only collapses repeats of requests it has not finished.
-                    Failed.Add(path);
-                    continue;
-                }
+                AcceptFinished(root, path, pixels);
+            }
+        }
 
-                if (Uvs.Count >= MaximumResident)
-                {
-                    IsAtlasFull = true;
-                    continue;
-                }
+        /// <summary>
+        /// Accepts one completed thumbnail. <see cref="Pump"/> is the normal caller; tests and alternate hosts
+        /// can use this directly when they already own a finished-pixel queue.
+        /// </summary>
+        public static void AcceptFinished(UiRoot root, string path, byte[]? pixels)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
 
-                var uv = root.Images.Add(pixels, MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);
-                if (uv == null)
-                {
-                    // The atlas said no: it is out of shelf space, which is permanent for this session.
-                    IsAtlasFull = true;
-                    continue;
-                }
+            TrackAtlasGeneration(root.Images);
 
-                Uvs[path] = uv.Value;
+            if (pixels == null || pixels.Length != ExpectedByteCount)
+            {
+                // Remembered so a failed asset is not re-requested every frame for the rest of the session.
+                Failed.Add(path);
+                Pixels.Remove(path);
+                Uvs.Remove(path);
+                return;
+            }
+
+            Failed.Remove(path);
+            Pixels[path] = pixels;
+
+            if (WasRecentlyVisible(path, Environment.TickCount64))
+            {
+                // A manual Refresh Thumbnail can produce new pixels for a thumbnail already resident in the
+                // atlas. Drop the old UV so the new pixels get packed and the tile visibly updates.
+                Uvs.Remove(path);
+                EnsureResident(root, path);
             }
         }
 
@@ -86,8 +123,92 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static void Reset()
         {
             Uvs.Clear();
+            Pixels.Clear();
+            LastVisibleAt.Clear();
             Failed.Clear();
             IsAtlasFull = false;
+            _atlasGeneration = -1;
+        }
+
+        private static void TrackAtlasGeneration(ManaImageAtlas atlas)
+        {
+            if (_atlasGeneration == atlas.Generation)
+            {
+                return;
+            }
+
+            // Another image-atlas user may have reset it. UVs are atlas-generation scoped; decoded pixels are
+            // not, so they survive and can be repacked the next time a tile becomes visible.
+            Uvs.Clear();
+            IsAtlasFull = false;
+            _atlasGeneration = atlas.Generation;
+        }
+
+        private static bool EnsureResident(UiRoot root, string path)
+        {
+            if (Uvs.ContainsKey(path) || !Pixels.TryGetValue(path, out var pixels))
+            {
+                return Uvs.ContainsKey(path);
+            }
+
+            if (TryAddResident(root.Images, path, pixels))
+            {
+                return true;
+            }
+
+            RebuildResidents(root, path);
+            return Uvs.ContainsKey(path);
+        }
+
+        private static bool TryAddResident(ManaImageAtlas atlas, string path, byte[] pixels)
+        {
+            var uv = atlas.Add(pixels, MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);
+            if (uv == null)
+            {
+                return false;
+            }
+
+            Uvs[path] = uv.Value;
+            IsAtlasFull = false;
+            return true;
+        }
+
+        private static void RebuildResidents(UiRoot root, string priorityPath)
+        {
+            root.Images.Reset();
+            Uvs.Clear();
+            _atlasGeneration = root.Images.Generation;
+            IsAtlasFull = false;
+
+            var now = Environment.TickCount64;
+            var paths = LastVisibleAt
+                .Where(pair => string.Equals(pair.Key, priorityPath, StringComparison.Ordinal)
+                    || WasRecentlyVisible(pair.Key, now))
+                .OrderByDescending(pair => string.Equals(pair.Key, priorityPath, StringComparison.Ordinal))
+                .ThenByDescending(pair => pair.Value)
+                .Select(pair => pair.Key);
+
+            foreach (var path in paths)
+            {
+                if (!Pixels.TryGetValue(path, out var pixels))
+                {
+                    continue;
+                }
+
+                if (TryAddResident(root.Images, path, pixels))
+                {
+                    continue;
+                }
+
+                IsAtlasFull = true;
+                break;
+            }
+        }
+
+        private static bool WasRecentlyVisible(string path, long now)
+        {
+            return LastVisibleAt.TryGetValue(path, out var then)
+                && now - then <= RecentVisibilityMilliseconds;
         }
     }
 }

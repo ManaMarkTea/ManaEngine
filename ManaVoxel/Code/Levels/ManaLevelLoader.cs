@@ -288,7 +288,7 @@ namespace ManaVoxel.Code.Levels
                 entryStream.CopyTo(memory);
 
                 var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-                return world.LoadFromGltfMemory(memory.ToArray(), entry.Name, sidecarResolver);
+                return world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
             }
 
             if (!File.Exists(assetReference))

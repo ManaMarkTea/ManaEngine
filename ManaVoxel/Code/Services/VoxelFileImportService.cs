@@ -90,7 +90,7 @@ namespace ManaVoxel.Code.Services
                 throw new FileNotFoundException($"Entry '{entryPath}' not found in zip '{zipPath}'.", zipPath);
             }
 
-            var extension = Path.GetExtension(entry.Name);
+            var extension = Path.GetExtension(entryPath);
             if (extension.Equals(".vox", StringComparison.OrdinalIgnoreCase))
             {
                 throw new NotSupportedException("Streaming .vox from zip is not yet supported. Import a loose .vox file instead.");
@@ -102,7 +102,7 @@ namespace ManaVoxel.Code.Services
             var sidecarResolver = CreateZipSidecarResolver(archive, entryPath);
 
             // No temp extraction: the scene file is imported directly from the zip entry's bytes.
-            var model = world.LoadFromGltfMemory(memory.ToArray(), entry.Name, sidecarResolver);
+            var model = world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
             model.LevelSource = ManaLevelSource.ForMesh(assetReference);
             ApplyModelTransform(model, viewModel);
             AdvanceImportCursor();

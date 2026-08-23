@@ -1,8 +1,7 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Mana;
 using ManaGeoTools.Code.Planet;
 using ManaUI;
+using ManaVoxel.Code.UI;
 
 // ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
 using Button = ManaUI.Button;
@@ -57,7 +56,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     var (_, _, firstCached) = DescribeTiles(planet, key);
                     if (firstCached != null)
                     {
-                        RevealFileInExplorer(firstCached);
+                        FileExplorer.Reveal(firstCached);
                     }
                 });
             openTileButton.BindPolled(b => b.Visibility, () => HasZoom(planet, key) ? Visibility.Visible : Visibility.Collapsed);
@@ -216,21 +215,5 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 : $"{metersPerPixel * 100.0:0.#} cm/px";
         }
 
-        /// <summary>Selects filePath in its containing folder rather than opening it, so sibling tiles are visible too.</summary>
-        private static void RevealFileInExplorer(string filePath)
-        {
-            try
-            {
-                var startInfo = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-                    ? new ProcessStartInfo("open", $"-R \"{filePath}\"") { UseShellExecute = true }
-                    : new ProcessStartInfo("explorer.exe", $"/select,\"{filePath}\"") { UseShellExecute = true };
-
-                Process.Start(startInfo);
-            }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-            {
-                ManaGraphics.Code.Diagnostics.ManaConsole.WriteDiagnostic($"Failed to reveal '{filePath}': {ex.Message}");
-            }
-        }
     }
 }

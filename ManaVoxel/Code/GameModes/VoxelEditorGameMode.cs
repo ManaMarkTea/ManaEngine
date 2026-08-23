@@ -582,7 +582,7 @@ namespace Mana.Code.GameModes
                         ImGui.BeginDisabled(cachedTilePaths.Count == 0);
                         if (ImGui.Button("Open Source Tile"))
                         {
-                            RevealFileInExplorer(cachedTilePaths[0]);
+                            FileExplorer.Reveal(cachedTilePaths[0]);
                         }
                         ImGui.EndDisabled();
                     }
@@ -676,7 +676,7 @@ namespace Mana.Code.GameModes
             ImGui.SameLine();
             if (ImGui.Button("Open Cache Folder"))
             {
-                OpenFolderInFileExplorer(TerrariumTileFetcher.CacheRoot);
+                FileExplorer.OpenFolder(TerrariumTileFetcher.CacheRoot);
             }
             ImGui.SameLine();
             ImGui.BeginDisabled(snapshot.IsRefreshing);
@@ -825,47 +825,6 @@ namespace Mana.Code.GameModes
             return sourceMetersPerPixel * (sourceResolution - 1) / (meshResolution - 1);
         }
 
-        private static void OpenFolderInFileExplorer(string path)
-        {
-            Directory.CreateDirectory(path);
-            try
-            {
-                if (OperatingSystem.IsWindows())
-                {
-                    Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
-                }
-                else if (OperatingSystem.IsMacOS())
-                {
-                    Process.Start(new ProcessStartInfo("open", $"\"{path}\"") { UseShellExecute = true });
-                }
-            }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-            {
-                ManaConsole.WriteDiagnostic($"Failed to open folder '{path}': {ex.Message}");
-            }
-        }
-
-        // Selects filePath in its containing folder (Explorer/Finder) rather than opening it directly --
-        // lets the user see sibling tiles too, and works the same whether or not there's a default image
-        // viewer associated with .png.
-        private static void RevealFileInExplorer(string filePath)
-        {
-            try
-            {
-                if (OperatingSystem.IsWindows())
-                {
-                    Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{filePath}\"") { UseShellExecute = true });
-                }
-                else if (OperatingSystem.IsMacOS())
-                {
-                    Process.Start(new ProcessStartInfo("open", $"-R \"{filePath}\"") { UseShellExecute = true });
-                }
-            }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-            {
-                ManaConsole.WriteDiagnostic($"Failed to reveal file '{filePath}': {ex.Message}");
-            }
-        }
 
         // ManaWebGpuContext (ManaGraphics) can't push into ManaWorld (Mana) directly — same
         // wrong-dependency-direction reason as above — so it just exposes last-frame timings as
@@ -1329,7 +1288,7 @@ namespace Mana.Code.GameModes
             var cache = ManaUiDockDemo.MeshThumbnails;
             if (cache == null)
             {
-                cache = new MeshThumbnailCache(Context);
+                cache = new MeshThumbnailCache(Context, _webGpuContext);
                 ManaUiDockDemo.MeshThumbnails = cache;
             }
 
@@ -1950,19 +1909,29 @@ namespace Mana.Code.GameModes
                 UpdateMeshPickerPlacementPreviewTransform();
             }
 
-            if (!leftMouseDown && _meshPickerDragWasDown && !string.IsNullOrWhiteSpace(draggedPath))
+            if (!leftMouseDown && _meshPickerDragWasDown)
             {
-                if (canDrop && string.Equals(draggedPath, _meshPickerPreviewAssetPath, StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(draggedPath))
                 {
-                    CommitMeshPickerPlacementPreview();
-                }
-                else
-                {
-                    CancelMeshPickerPlacementPreview();
+                    if (canDrop && string.Equals(draggedPath, _meshPickerPreviewAssetPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        CommitMeshPickerPlacementPreview();
+                    }
+                    else
+                    {
+                        CancelMeshPickerPlacementPreview();
+                    }
+
+                    _panelsView.ClearDraggedMeshAssetPath();
+                    MeshImportRequests.TakeDrag();
                 }
 
-                _panelsView.ClearDraggedMeshAssetPath();
-                MeshImportRequests.TakeDrag();
+                // Polled real button state rather than the row's own PointerReleased, which sometimes never
+                // fires (window loses focus mid-drag, the release lands outside the window) -- leaving that
+                // row's ghost floating in the viewport and its pointer capture stuck until something else
+                // happened to drag over the same row again. This runs every up-edge regardless of whether a
+                // mailbox drag was pending, since the two can desync.
+                MeshAssetRow.ForceEndActiveDrag();
             }
 
             var placeClick = leftMouseDown && !_meshPickerPlaceClickWasDown;
@@ -2107,7 +2076,7 @@ namespace Mana.Code.GameModes
                 using var memory = new MemoryStream();
                 entryStream.CopyTo(memory);
                 var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-                return Context.World.LoadFromGltfMemory(memory.ToArray(), entry.Name, sidecarResolver);
+                return Context.World.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
             }
 
             return Context.World.LoadFromGltf(assetReference);

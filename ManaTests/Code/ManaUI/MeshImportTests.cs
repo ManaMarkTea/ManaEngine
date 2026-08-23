@@ -1,4 +1,6 @@
 using System.Text;
+using Mana;
+using Mana.Code;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.UI.ManaUi;
@@ -59,6 +61,20 @@ public static class MeshImportChecks
             return library;
         }
 
+        static byte[] ThumbnailPixels(byte value)
+        {
+            var pixels = new byte[MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4];
+            for (var i = 0; i < pixels.Length; i += 4)
+            {
+                pixels[i] = value;
+                pixels[i + 1] = value;
+                pixels[i + 2] = value;
+                pixels[i + 3] = 255;
+            }
+
+            return pixels;
+        }
+
         // ---------------------------------------------------------------- the panel
         var root = new UiRoot(fonts);
         var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
@@ -83,6 +99,105 @@ public static class MeshImportChecks
         var drawn = root.Render();
         Check("the panel renders", drawn.Instances.Length > 0, $"{drawn.Instances.Length} instances");
         Check("in one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
+
+        // The real editor builds the ManaUI workspace before VoxelEditorGameMode.PumpMeshThumbnails has
+        // created the shared cache. Tiles therefore have to notice the cache later; a construction-time-only
+        // request is what made thumbnails appear only after right-click -> Refresh Thumbnail.
+        var thumbnailWorld = new ManaWorld();
+        var thumbnailContext = new ManaContext(null!, null!, thumbnailWorld) { DeferGpuUploads = true };
+        var lateCache = new MeshThumbnailCache(
+            thumbnailContext,
+            webGpuContext: null,
+            cacheDirectory: Path.Combine(Path.GetTempPath(), $"ManaTests-Thumbnails-{Guid.NewGuid():N}"));
+        try
+        {
+            ManaUiDockDemo.MeshThumbnails = lateCache;
+            root.UpdateLayout(defaultSize);
+            root.Render();
+
+            Check("tiles request thumbnails when the cache appears after build",
+                lateCache.RequestedCount == library.FilteredEntries.Count,
+                $"{lateCache.RequestedCount} of {library.FilteredEntries.Count}");
+        }
+        finally
+        {
+            ManaUiDockDemo.MeshThumbnails = null;
+            lateCache.Dispose();
+        }
+
+        // A full asset library can be much larger than the image atlas now that generated thumbnails are
+        // 112px. Requesting every tile as soon as the panel is built fills the atlas with early-sorted packs,
+        // leaving later filtered folders such as kitchen assets stuck on format badges.
+        var manyLibrary = new MeshAssetLibrary { Formats = MeshAssetFormats.All };
+        manyLibrary.SetAssets(Enumerable.Range(0, 80).Select(i => $"/w/Assets/Bulk/{i:000}.glb"));
+        var visibleCache = new MeshThumbnailCache(
+            thumbnailContext,
+            webGpuContext: null,
+            cacheDirectory: Path.Combine(Path.GetTempPath(), $"ManaTests-Thumbnails-{Guid.NewGuid():N}"));
+        var visibleRoot = new UiRoot(fonts);
+        visibleRoot.Content = MeshImportManaView.Build(visibleRoot.Theme, viewModel, manyLibrary, thumbnails: null);
+        visibleRoot.UpdateLayout(new Vector2(defaultSize.X, 360.0f));
+        visibleRoot.Render();
+        try
+        {
+            ManaUiDockDemo.MeshThumbnails = visibleCache;
+            visibleRoot.UpdateLayout(new Vector2(defaultSize.X, 360.0f));
+            visibleRoot.Render();
+
+            Check("thumbnail requests start with visible tiles rather than the whole library",
+                visibleCache.RequestedCount > 0
+                    && visibleCache.RequestedCount < manyLibrary.FilteredEntries.Count,
+                $"{visibleCache.RequestedCount} of {manyLibrary.FilteredEntries.Count}");
+        }
+        finally
+        {
+            ManaUiDockDemo.MeshThumbnails = null;
+            visibleCache.Dispose();
+        }
+
+        // The image atlas is a page for what is on screen, not storage for a whole asset library. A tiny
+        // atlas that fits only one generated preview catches the failure mode directly: the second visible
+        // thumbnail has to evict/repack instead of being lost forever, and the first one has to come back.
+        MeshThumbnailImages.Reset();
+        using (var rollingFonts = new ManaFontManager(
+            images: new ManaImageAtlas(
+                MeshThumbnailCache.ThumbnailSize + 8,
+                MeshThumbnailCache.ThumbnailSize + 8)))
+        {
+            var rollingRoot = new UiRoot(rollingFonts);
+            const string firstPath = "/w/Assets/Library/first.glb";
+            const string secondPath = "/w/Assets/Library/second.glb";
+
+            MeshThumbnailImages.Touch(rollingRoot, firstPath);
+            MeshThumbnailImages.AcceptFinished(rollingRoot, firstPath, ThumbnailPixels(80));
+
+            Check("a visible thumbnail becomes resident",
+                MeshThumbnailImages.HasImage(firstPath) && MeshThumbnailImages.ResidentCount == 1,
+                $"{MeshThumbnailImages.ResidentCount} resident");
+
+            var generationBeforeRefresh = rollingRoot.Images.Generation;
+            MeshThumbnailImages.AcceptFinished(rollingRoot, firstPath, ThumbnailPixels(96));
+            Check("refreshing a resident thumbnail replaces its atlas entry",
+                MeshThumbnailImages.HasImage(firstPath)
+                    && rollingRoot.Images.Generation > generationBeforeRefresh,
+                $"generation {generationBeforeRefresh}->{rollingRoot.Images.Generation}");
+
+            var generationBeforeRecycle = rollingRoot.Images.Generation;
+            MeshThumbnailImages.Touch(rollingRoot, secondPath);
+            MeshThumbnailImages.AcceptFinished(rollingRoot, secondPath, ThumbnailPixels(160));
+
+            Check("a full thumbnail atlas is recycled for the next visible asset",
+                MeshThumbnailImages.HasImage(secondPath)
+                    && rollingRoot.Images.Generation > generationBeforeRecycle,
+                $"generation {generationBeforeRecycle}->{rollingRoot.Images.Generation}");
+
+            MeshThumbnailImages.Touch(rollingRoot, firstPath);
+            Check("and an earlier thumbnail can return after recycling",
+                MeshThumbnailImages.HasImage(firstPath) && MeshThumbnailImages.StoredCount == 2,
+                $"{MeshThumbnailImages.ResidentCount} resident, {MeshThumbnailImages.StoredCount} stored");
+        }
+
+        MeshThumbnailImages.Reset();
 
         // Seven format toggles in a 320px-wide list column do not fit on one line, which is the reason
         // WrapPanel exists.
@@ -143,6 +258,59 @@ public static class MeshImportChecks
 
         Check("no asset is a bare tile with nothing to say",
             tileNames.TrueForAll(name => name.Length > 0), $"{tileNames.Count} tiles");
+
+        var zipPath = Path.GetFullPath("/w/Assets/pack.zip");
+        var zipRef = MeshAssetLibrary.EncodeZip(zipPath, "models/kitchen/model.glb");
+        var zipRoot = new UiRoot(fonts);
+        var zipLibrary = new MeshAssetLibrary { Formats = MeshAssetFormats.All };
+        zipLibrary.SetAssets(new[] { zipRef });
+        zipRoot.Content = MeshImportManaView.Build(zipRoot.Theme, viewModel, zipLibrary, thumbnails: null);
+        zipRoot.UpdateLayout(defaultSize);
+        zipRoot.Render();
+
+        var zipTooltip = FindAll<MeshAssetRow>(zipRoot.Content!).FirstOrDefault()?.Tooltip ?? string.Empty;
+        Check("zip tiles show decoded paths instead of the internal token",
+            zipTooltip.Contains(zipPath, StringComparison.OrdinalIgnoreCase)
+                && zipTooltip.Contains("models/kitchen/model.glb", StringComparison.Ordinal)
+                && !zipTooltip.Contains("zipasset:", StringComparison.Ordinal),
+            zipTooltip);
+
+        Check("generic zip tile captions keep the entry path",
+            FindAll<TextBlock>(zipRoot.Content!).Any(t => t.Text == "models/kitchen/model.glb"),
+            string.Join(", ", FindAll<TextBlock>(zipRoot.Content!).Select(t => t.Text).Where(t => t.Contains("model", StringComparison.OrdinalIgnoreCase))));
+
+        Check("zip fallback badges use the real mesh format",
+            FindAll<TextBlock>(zipRoot.Content!).Any(t => t.Text == "GLB"),
+            string.Join(", ", FindAll<TextBlock>(zipRoot.Content!).Select(t => t.Text).Where(t => t.Length <= 5)));
+
+        var sizeSlider = FindAll<Slider>(root.Content!)
+            .FirstOrDefault(slider =>
+                MathF.Abs(slider.Minimum - 56.0f) < 0.01f
+                && MathF.Abs(slider.Maximum - 112.0f) < 0.01f);
+        Check("the import panel has a thumbnail size slider", sizeSlider != null,
+            sizeSlider == null ? "none" : $"{sizeSlider.Minimum:0}..{sizeSlider.Maximum:0}");
+
+        if (sizeSlider != null && FindAll<MeshAssetRow>(root.Content!).FirstOrDefault() is { } firstTile)
+        {
+            var originalSize = sizeSlider.Value;
+            var tileWidthBefore = firstTile.Bounds.Width;
+            var tileHeightBefore = firstTile.Bounds.Height;
+
+            sizeSlider.Value = sizeSlider.Maximum;
+            root.UpdateLayout(defaultSize);
+            root.Render();
+
+            var grown = FindAll<MeshAssetRow>(root.Content!).FirstOrDefault();
+            Check("moving the thumbnail size slider resizes tiles",
+                grown != null
+                    && grown.Bounds.Width > tileWidthBefore + 20.0f
+                    && grown.Bounds.Height > tileHeightBefore + 20.0f,
+                $"{tileWidthBefore:0}x{tileHeightBefore:0} -> {grown?.Bounds.Width:0}x{grown?.Bounds.Height:0}");
+
+            sizeSlider.Value = originalSize;
+            root.UpdateLayout(defaultSize);
+            root.Render();
+        }
 
         library.Filter = "helmet";
         root.UpdateLayout(defaultSize);
@@ -366,6 +534,135 @@ public static class MeshImportChecks
 
         MeshImportRequests.Clear();
 
+        // ---------------------------------------------------------------- a drag whose release never arrives
+        // The real MouseUp is an OS event: losing window focus mid-drag (alt-tab, a modal stealing it, the
+        // release landing outside the window) can skip it entirely. Without a recovery path the row never
+        // sees OnPointerReleased, so its ghost is stuck on screen and its pointer capture black-holes every
+        // later click -- ForceEndActiveDrag is what VoxelEditorGameMode calls, off its own polled button
+        // state, to recover in that case.
+        root.Input.InjectPointerMoved(start);
+        root.Input.InjectPointerPressed(start, PointerButton.Left, 0.0);
+        root.Input.InjectPointerMoved(start + new Vector2(40.0f, 20.0f));
+
+        Check("a third drag starts normally", MeshImportRequests.Dragging != null,
+            MeshImportRequests.Dragging ?? "none");
+        Check("the row holds pointer capture mid-drag", row!.HasPointerCapture,
+            row.HasPointerCapture ? "captured" : "not captured");
+
+        // No InjectPointerReleased here -- this is the scenario where the OS never delivered one.
+        MeshAssetRow.ForceEndActiveDrag();
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        var strandedGhost = FindAll<TextBlock>(root)
+            .Count(t => t.Text.Contains("FlightHelmet", StringComparison.Ordinal) && IsInsideGhost(t));
+
+        Check("ForceEndActiveDrag clears a ghost whose release never arrived", strandedGhost == 0,
+            $"{strandedGhost} still showing");
+        Check("and releases the row's pointer capture", !row.HasPointerCapture,
+            row.HasPointerCapture ? "still captured" : "released");
+
+        Check("calling it again with nothing dragging is a no-op", true, "no throw");
+        MeshAssetRow.ForceEndActiveDrag();
+
+        // The row must not be left thinking it is still pressed/dragging either, or the very next press
+        // would be misread as a continuation of the old gesture instead of a fresh click.
+        MeshImportRequests.Clear();
+        root.Input.InjectPointerMoved(start);
+        root.Input.InjectPointerPressed(start, PointerButton.Left, 0.0);
+        root.Input.InjectPointerReleased(start, PointerButton.Left);
+
+        Check("and a plain click works normally afterwards", MeshImportRequests.Dragging == null,
+            MeshImportRequests.Dragging ?? "no drag pending");
+
+        MeshImportRequests.Clear();
+
+        // ---------------------------------------------------------------- right-click context menu
+        // Filtered to "crate" specifically: it is the one sample with no same-named variant, so its tile's
+        // tooltip is the bare path rather than the "(N formats available)" form a grouped entry gets --
+        // exactly what the checks below need to compare against.
+        library.Filter = "crate";
+        library.SelectedAsset = null;
+        MeshImportRequests.Clear();
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        var contextRow = FindAll<MeshAssetRow>(root.Content!).First();
+        var expectedPath = contextRow.Tooltip ?? string.Empty;
+        var rowCenter = contextRow.Bounds.Center;
+
+        Check("the filtered tile is the unambiguous crate asset",
+            expectedPath == Sample[5], expectedPath);
+
+        root.Input.InjectPointerMoved(rowCenter);
+        root.Input.InjectPointerPressed(rowCenter, PointerButton.Right, 0.0);
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        Check("right-clicking a tile opens a menu instead of selecting it",
+            root.Popups.HasOpenPopups && library.SelectedAsset == null,
+            $"popup open: {root.Popups.HasOpenPopups}, selected: {library.SelectedAsset ?? "none"}");
+
+        root.Input.InjectPointerReleased(rowCenter, PointerButton.Right);
+
+        Check("and does not start a drag either",
+            MeshImportRequests.Dragging == null, MeshImportRequests.Dragging ?? "none");
+
+        var contextMenuRows = FindAll<Control>(root.Popups.Topmost!).Where(IsMenuRow).ToList();
+        Check("the context menu has Place, Refresh, Show in Explorer and Copy Path",
+            contextMenuRows.Count == 4, $"{contextMenuRows.Count} rows");
+
+        // "Place"
+        root.Input.InjectPointerMoved(contextMenuRows[0].Bounds.Center);
+        root.Input.InjectPointerPressed(contextMenuRows[0].Bounds.Center, PointerButton.Left, 1.0);
+        root.Input.InjectPointerReleased(contextMenuRows[0].Bounds.Center, PointerButton.Left);
+
+        Check("Place asks for a placement of the right-clicked asset",
+            MeshImportRequests.TakePlacement() == expectedPath, "requested");
+        Check("and closes the menu", !root.Popups.HasOpenPopups);
+
+        // "Refresh Thumbnail" -- no cache exists in this test (Build was called with thumbnails: null and
+        // nothing else has set the static ManaUiDockDemo.MeshThumbnails), so this only has to not throw.
+        root.Input.InjectPointerMoved(rowCenter);
+        root.Input.InjectPointerPressed(rowCenter, PointerButton.Right, 2.0);
+        root.Input.InjectPointerReleased(rowCenter, PointerButton.Right);
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        contextMenuRows = FindAll<Control>(root.Popups.Topmost!).Where(IsMenuRow).ToList();
+        var threw = false;
+        try
+        {
+            root.Input.InjectPointerMoved(contextMenuRows[1].Bounds.Center);
+            root.Input.InjectPointerPressed(contextMenuRows[1].Bounds.Center, PointerButton.Left, 3.0);
+            root.Input.InjectPointerReleased(contextMenuRows[1].Bounds.Center, PointerButton.Left);
+        }
+        catch
+        {
+            threw = true;
+        }
+
+        Check("Refresh Thumbnail does nothing harmful with no cache wired up", !threw);
+
+        // "Copy Path" -- deliberately not clicking "Show in Explorer" (row 2), which launches a real OS
+        // file browser process and has no business doing that from a headless test run.
+        root.Input.InjectPointerMoved(rowCenter);
+        root.Input.InjectPointerPressed(rowCenter, PointerButton.Right, 4.0);
+        root.Input.InjectPointerReleased(rowCenter, PointerButton.Right);
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        contextMenuRows = FindAll<Control>(root.Popups.Topmost!).Where(IsMenuRow).ToList();
+        root.Input.InjectPointerMoved(contextMenuRows[3].Bounds.Center);
+        root.Input.InjectPointerPressed(contextMenuRows[3].Bounds.Center, PointerButton.Left, 5.0);
+        root.Input.InjectPointerReleased(contextMenuRows[3].Bounds.Center, PointerButton.Left);
+
+        Check("Copy Path puts the asset's path on the clipboard",
+            TextBox.Clipboard.Text == expectedPath, TextBox.Clipboard.Text);
+
+        library.Filter = "";
+        MeshImportRequests.Clear();
+
         // ---------------------------------------------------------------- resizing the folder column
         // Last, since dragging the splitter changes the folder column's width for the rest of this Grid's
         // lifetime -- every size-dependent check above assumes the untouched default.
@@ -395,6 +692,12 @@ public static class MeshImportChecks
             folderTree.Bounds.Width > folderWidthBefore + 40.0f,
             $"{folderWidthBefore:0} -> {folderTree.Bounds.Width:0}");
     }
+
+    /// <summary>
+    /// A context menu's rows, identified by type name rather than type since MenuRow is internal to ManaUI
+    /// -- the same idiom MenusTests.cs already uses for the main menu bar's own dropdowns.
+    /// </summary>
+    private static bool IsMenuRow(Control control) => control.GetType().Name == "MenuRow";
 
     /// <summary>True when this element or an ancestor is the popup a drag ghost lives in.</summary>
     private static bool IsInsideGhost(UiElement element)
