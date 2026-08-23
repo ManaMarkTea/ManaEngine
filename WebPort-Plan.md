@@ -2,26 +2,153 @@
 
 ## Status (resume-from-here notes)
 
-**Real (non-spike) code has started landing on the `web` branch**, verified against the
-full desktop build + ManaTests suite after each change (1660/1661 pass, one pre-existing
-unrelated failure):
-- `Mana.csproj`/`ManaGraphics.csproj`: GLFW/Assimp/wgpu-native/OpenGL packages and the
-  OpenGL backend source folder are now conditional on `RuntimeIdentifier != browser-wasm`.
-  `ManaVoxel.csproj` still needs the same treatment (redeclares the same packages a
-  third time — not yet done).
-- **M4 done for the mesh+material path**: `ManaSharpGltfLoader.cs` (SharpGLTF-based,
-  pure managed) verified against `FlightHelmet.gltf` — correct meshes, materials,
-  textures per channel, BLEND mode. Wired into `ManaWorld` via a partial-class split
-  (`ManaWorld.Gltf.Desktop.cs` / `ManaWorld.Gltf.Browser.cs`) so
-  `CharacterSpawnService`/`VoxelFileImportService`/`ManaLevelLoader` don't need to know
-  which backend loaded a file. **Not yet verified**: the skinning/animation path (no
-  rigged glTF sample was on hand this session) — implemented against SharpGLTF's
-  documented API but needs a real check before trusting it for an actual character.
-- **Still not started**: `ManaVoxel.Web` project itself, the custom browser
-  `IWindow`/`IInputContext` (M1), `ManaWebGpuContext.cs`'s constructor branching (skip
-  the wgpu-native-specific `InstanceExtras` backend-selection struct and native log
-  callback registration for browser; custom canvas surface creation), and actually
-  generating the 69-function shim/registration/lookup-table triad scoped earlier.
+**Real (non-spike) code has landed on the `web` branch**, verified against the full
+desktop build + ManaTests suite after every change (1660/1661 pass throughout, one
+pre-existing unrelated failure — a font/emoji glyph-classification check, confirmed
+present on a clean tree before any of this work started).
+
+**`ManaGraphics.csproj` now compiles cleanly for `browser-wasm`** — a genuine, checkable
+milestone (`dotnet build ManaGraphics -r browser-wasm --self-contained false` succeeds).
+Getting there took more than the originally-scoped "swap the WebGPU backend":
+- **GLFW/Assimp/wgpu-native packages** are conditional on `RuntimeIdentifier != browser-wasm`
+  in all three csproj files (`Mana`, `ManaGraphics`, `ManaVoxel`) — none have a
+  browser-wasm runtime asset.
+- **`Silk.NET.OpenGL`/`.Extensions.APPLE` do NOT need excluding** — a wrong call caught
+  and reverted this session. Both are pure managed bindings with no `runtimes/` folder
+  at all (GL functions are loaded via a `GetProcAddress` delegate from a live context at
+  runtime, not a bundled native binary), so referencing them costs nothing on
+  browser-wasm even though the actual OpenGL backend files never run there. Only
+  `Silk.NET.OpenGL.Extensions.ImGui` needed excluding, because it transitively pulls in
+  the real problem: ImGui.NET, which wraps a native `cimgui` binary with no
+  browser-wasm asset (confirmed via the package's `runtimes/` folder — win/linux/osx
+  only). **If revisiting this in a fresh context, check a package's own `runtimes/`
+  folder in `~/.nuget/packages/<name>/<version>/` before assuming it needs excluding —
+  don't pattern-match off GLFW/Assimp without checking.**
+- **`MANA_BROWSER`**, a compile-time `DefineConstants` symbol (set when
+  `RuntimeIdentifier == browser-wasm`), added to all three csproj files alongside the
+  RID-conditional `PackageReference`/`Compile Remove` approach, for small
+  browser-vs-desktop branches that don't warrant a full partial-class split (e.g. one
+  `#if` around 3 lines in a constructor). Used throughout `ManaWebGpuContext.cs` and its
+  9 partial-class siblings — see below.
+- **`ManaWebGpuContext.cs` and 9 sibling files** all referenced
+  `Silk.NET.WebGPU.Extensions.WGPU` (wgpu-native's proprietary multi-backend-selection
+  extension) — 7 files only had a dead unused `using` (removed/guarded), but the main
+  file's constructor built an `InstanceExtras`/`NativeSType.STypeInstanceExtras` chained
+  struct for backend selection (D3D12/Metal/Vulkan/etc. — meaningless in-browser, where
+  the browser's own WebGPU implementation picks its backend internally), registered
+  `wgpu_native`-specific log-tracing `DllImport`s, and called
+  `WebGPUSurface.CreateWebGPUSurface` (pulls a native platform window handle that
+  doesn't exist for a browser canvas). All guarded with `#if MANA_BROWSER`/`#if !MANA_BROWSER`.
+  Two new browser-only classes, `ManaBrowserWebGpuNativeContext` and
+  `ManaBrowserWebGpuSurface`, compile cleanly but **deliberately throw
+  `PlatformNotSupportedException`** — see "M2's real remaining work" below for why this
+  is a stub on purpose, not an oversight.
+- ImGui.NET's native-asset problem also meant `ManaWebGpuImGuiController.cs` (the
+  WebGPU-backend ImGui integration) had to be excluded from the browser compile.
+  `ManaWebGpuContext.CreateImGuiController` returns a new no-op
+  `NullManaImGuiController` (`ManaCore/Graphics/`) on browser instead — safe because
+  `BaseGameMode.cs` calls `_ImGui.Update()`/`.Render()` unconditionally every frame
+  regardless of game mode, and play mode's actual visible UI is ManaUi-based, not
+  ImGui-based.
+
+**M4 done for the mesh+material path**: `ManaSharpGltfLoader.cs` (SharpGLTF-based, pure
+managed) verified against `FlightHelmet.gltf` — correct meshes, materials, textures per
+channel (including the packed metallic-roughness-occlusion map), correct BLEND mode on
+the lens material. Wired into `ManaWorld` via a partial-class split
+(`ManaWorld.Gltf.Desktop.cs` / `ManaWorld.Gltf.Browser.cs`) so
+`CharacterSpawnService`/`VoxelFileImportService`/`ManaLevelLoader` don't need to know
+which backend loaded a file. **Not yet verified**: the skinning/animation path (no
+rigged glTF sample was on hand this session) — implemented against SharpGLTF's
+documented API but needs a real check before trusting it for an actual character, which
+matters because `CharacterSpawnService.Spawn` is how the player's controllable character
+gets into the world at all — there's no voxel-based fallback.
+
+**`Mana.csproj` does NOT compile cleanly for `browser-wasm` yet** — significant further
+work, precisely scoped below, not started. `ManaVoxel.csproj` hasn't been attempted at
+all yet (blocked on `Mana.csproj` first).
+
+**Still not started at all**: `ManaVoxel.Web` project itself, the custom browser
+`IWindow`/`IInputContext` (M1), and — see "M2's real remaining work" below — the actual
+70-function WebGPU shim (`ManaBrowserWebGpuNativeContext`/`ManaBrowserWebGpuSurface` are
+currently stubs that compile but always fail at runtime).
+
+### Mana.csproj's exact remaining browser-wasm compile scope (23 files, two categories)
+
+Run `dotnet build Mana/Mana.csproj -r browser-wasm --self-contained false` to reproduce.
+Two genuinely different, unrelated problems, both bigger than "swap a package":
+
+**Category 1 — ImGui.NET coupling (16 files).** Deeper than the isolated WebGPU-ImGui
+controller: `BaseGameMode.cs` itself (the shared base class every game mode, including
+play mode, inherits) calls `ImGuiNET.ImGui.GetIO()`/`.GetCurrentContext()` directly at
+three call sites (`HasImGuiContext`, and the two `WantCapture*` properties around it) —
+small, guardable with `#if MANA_BROWSER`. It also unconditionally calls
+`SyncImGuiUiScale()`, `ProcessPendingFontPreset()`, and (behind `if (!EnableManaUi)`,
+never true for play mode, but must still compile) `DrawDockSpace()` — all three defined
+in the four `BaseGameMode.ImGuiDocking/Dpi/Fonts/Theme.cs` partial files, which are
+otherwise purely editor-UI-shell concerns (docking layout persistence, font presets,
+theme colors) safe to exclude wholesale, replaced by three no-op stubs for those three
+specific methods. `ImGuiDockNative.cs` and four panel view files
+(`CameraComponentImGuiView.cs`, `IrradianceSettingsPanelView.cs`,
+`SceneInspectorPanelView.cs`, `SceneOutlinerPanelView.cs`) are confirmed editor-only
+(inspector/outliner panels, called only from `VoxelEditorGameMode`/the editor's own
+menu-bar views) — safe to exclude outright, not called from anything play-mode-relevant.
+`SceneViewerMode.cs` and `Mana/Program.cs` are Mana's own desktop test harness
+(GLFW-windowed scene viewer) — exclude, not part of what `ManaVoxel.Web` would need.
+Three files need real per-file judgment rather than a blanket exclude, because ImGui
+usage is mixed into otherwise-core, always-needed code: `Extensions.cs` (461 lines, 75
+ImGui hits — likely a mix of a genuinely-reusable extension-method utility class and
+ImGui-specific drawing helpers that need separating), `CameraComponent.cs` (756 lines,
+12 hits — probably an inspector-drawing method that's already conditionally called,
+worth checking before assuming it needs a guard at all), `ManaWorld.cs` (480 lines, 28
+hits), `ManaShaderRayTrace.cs` (120 lines, 7 hits). **Check each one's actual call
+sites before deciding exclude vs. guard vs. leave alone** — don't assume from hit count
+alone.
+
+**Category 2 — OpenGL-backend concrete-type coupling (7 files, some overlapping
+Category 1).** `ManaContext.cs`, `ManaMesh.cs`, `ManaTexture.cs`,
+`ManaDynamicGeometryContainer.cs`, `ManaIsoSphere.cs`, `ManaDeferredRenderer.cs`,
+`ManaIrradianceRenderer.cs` (plus this session's own `ManaSharpGltfLoader.cs`,
+transitively) reference concrete types — `ManaVertexBufferObject`,
+`IOpenGlGraphicsDevice`, `ManaRenderTarget`, `ManaOpenGlHdrPostProcessor` — that live in
+the excluded `ManaGraphics/Code/Graphics/OpenGL/Legacy/` folder, as **field/property
+types** in core classes (e.g. `ManaMesh.VertexBufferObject`), not just isolated method
+bodies. This is a different, likely deeper problem than Category 1: check whether these
+fields are already nullable/optional (the codebase already has an established
+`Context.OpenGl != null` pattern for "running under WebGPU, skip this" — `ManaMesh`'s
+own `VertexBufferObject` may already follow it) before assuming a bigger interface
+extraction is needed. `ManaDeferredRenderer.cs`/`ManaIrradianceRenderer.cs` in
+particular may turn out to be OpenGL-only renderers with a WebGPU equivalent living
+elsewhere (check `ManaGameModeGraphicsBridge`/`IManaGraphicsDevice` for how the engine
+already picks a renderer per backend) rather than something that needs porting at all.
+
+**Recommended order for next session**: Category 1's easy 2/3 first (exclude the
+confirmed-editor-only files, guard the 3 `BaseGameMode.cs` core lines, add the 3 no-op
+stubs) — mechanical, low-risk, matches the pattern already proven repeatedly this
+session. Verify `Mana.csproj` browser-wasm compile error count drops accordingly before
+touching the harder 4 mixed files or Category 2 at all. Rebuild the desktop
+build + ManaTests after every change, the same discipline used throughout this session
+— every single change in this file was verified that way, with zero exceptions.
+
+### M2's real remaining work (unblocked to start, but needs live browser access)
+
+The `INativeContext` **mechanism** is fully proven (see the M0 EXTENDED section below) —
+what's missing is populating `ManaBrowserWebGpuNativeContext`'s lookup dictionary and
+writing the corresponding shim functions for the 70 enumerated `wgpu*` functions, plus
+`ManaBrowserWebGpuSurface.CreateFromCanvas`'s actual
+`WGPUSurfaceDescriptorFromCanvasHTMLSelector` chain (also proven in the M0 spike).
+**Deliberately not attempted blind this session**: ~66 of the 70 functions are plain
+synchronous calls matching exactly what the M0 spike proved works; the other ~4
+(`InstanceRequestAdapter`, `AdapterRequestDevice`, `DeviceSetUncapturedErrorCallback`,
+`BufferMapAsync`) take callback function-pointer parameters, a materially different case
+the spike never exercised. Generating 70 shim functions/registrations by hand with no
+way to verify any of it until a browser is available risks silently shipping broken
+code — the callback ones specifically deserve a small, dedicated live-browser check
+before scaling the proven pattern up to all 70. When live-testable again: start with
+just `wgpuCreateInstance` + `wgpuInstanceRequestAdapter` (one callback, one not) in a
+throwaway spike exactly like M0's, confirm the callback ABI actually works, then
+generate the rest (reflection over `Silk.NET.WebGPU.dll`'s method signatures, not hand
+transcription — this was the plan even for the "safe" functions, to avoid transcription
+errors across 70 signatures).
 
 **Toolchain: done.** `wasm-tools` workload installed (`sudo dotnet workload install
 wasm-tools`) and Emscripten installed via `brew install emscripten` (retry needed once
