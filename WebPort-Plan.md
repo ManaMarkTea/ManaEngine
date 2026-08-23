@@ -172,14 +172,60 @@ required (each one silently fails/no-ops if missing, so all four matter):
    extra plumbing: it avoids touching the whole existing WebGPU rendering codebase.
 
 **Remaining mechanical work for real M2** (no longer research — just execution):
-enumerate every `wgpu*` C function `ManaGraphics/Code/Graphics/WebGPU/*.cs` actually
-calls (grep for `_api.` call sites, map each Silk.NET PascalCase method name back to its
-`wgpu*` C name), generate one forwarding-shim line + one registration declaration +
-one lookup-table entry per function (fully mechanical/scriptable — same three-line
-pattern repeated), and swap `[DynamicDependency]` in for the throwaway reachable-call
-hack. The `SType`/struct-layout ABI match already confirmed earlier means the generated
-shim signatures should be straightforward pointer-for-pointer forwards with no marshaling
-surprises.
+generate one forwarding-shim line + one registration declaration + one lookup-table
+entry per function (fully mechanical/scriptable — same three-line pattern repeated), and
+swap `[DynamicDependency]` in for the throwaway reachable-call hack. The `SType`/
+struct-layout ABI match already confirmed earlier means the generated shim signatures
+should be straightforward pointer-for-pointer forwards with no marshaling surprises.
+
+**Exact scope, already enumerated** — grepped every `_api.`/`api.` call site across
+`ManaGraphics/Code/Graphics/WebGPU/*.cs` (confirmed no WebGPU calls exist anywhere
+outside that folder): **69 distinct `wgpu*` functions** need the shim/registration/
+lookup-table triad. Naming is a mechanical 1:1 map, spot-checked via reflection
+(`CreateInstance`→`wgpuCreateInstance`, `DeviceCreateBuffer`→`wgpuDeviceCreateBuffer`,
+`SurfaceGetPreferredFormat`→`wgpuSurfaceGetPreferredFormat`, etc. — strip nothing, just
+prepend `wgpu`). Full list:
+
+```
+AdapterEnumerateFeatures, AdapterGetLimits, AdapterGetProperties, AdapterRelease,
+AdapterRequestDevice, BindGroupLayoutRelease, BindGroupRelease, BufferDestroy,
+BufferMapAsync, BufferRelease, CommandBufferRelease, CommandEncoderBeginComputePass,
+CommandEncoderBeginRenderPass, CommandEncoderCopyBufferToBuffer,
+CommandEncoderCopyTextureToTexture, CommandEncoderFinish, CommandEncoderRelease,
+ComputePassEncoderDispatchWorkgroups, ComputePassEncoderEnd, ComputePassEncoderRelease,
+ComputePassEncoderSetBindGroup, ComputePassEncoderSetPipeline, ComputePipelineRelease,
+CreateInstance, DeviceCreateBindGroup, DeviceCreateBindGroupLayout, DeviceCreateBuffer,
+DeviceCreateCommandEncoder, DeviceCreateComputePipeline, DeviceCreatePipelineLayout,
+DeviceCreateRenderPipeline, DeviceCreateSampler, DeviceCreateShaderModule,
+DeviceCreateTexture, DeviceEnumerateFeatures, DeviceGetLimits, DeviceGetQueue,
+DeviceRelease, DeviceSetUncapturedErrorCallback, InstanceProcessEvents, InstanceRelease,
+InstanceRequestAdapter, PipelineLayoutRelease, QueueRelease, QueueSubmit,
+QueueWriteBuffer, QueueWriteTexture, RenderPassEncoderDraw, RenderPassEncoderDrawIndexed,
+RenderPassEncoderEnd, RenderPassEncoderRelease, RenderPassEncoderSetBindGroup,
+RenderPassEncoderSetIndexBuffer, RenderPassEncoderSetPipeline,
+RenderPassEncoderSetScissorRect, RenderPassEncoderSetVertexBuffer,
+RenderPipelineRelease, SamplerRelease, ShaderModuleRelease, SurfaceConfigure,
+SurfaceGetCurrentTexture, SurfaceGetPreferredFormat, SurfacePresent, SurfaceRelease,
+SurfaceUnconfigure, TextureCreateView, TextureDestroy, TextureRelease, TextureViewRelease
+```
+
+**One excluded call site, needs its own handling, not a shim**: `TryGetDeviceExtension<T>`
+(used somewhere in the 68/70 raw grep hits) is a Silk.NET-only generic helper — reflection
+confirms its signature is `bool TryGetDeviceExtension<T>(Device*, out T)`, not a real
+`wgpu*` C function. It's how desktop code reaches `Silk.NET.WebGPU.Extensions.WGPU`'s
+device extension API, which is wgpu-native-specific tooling already excluded from the
+browser build entirely — whatever call site uses it needs a browser-specific branch
+(likely just skip/no-op) rather than a forwarding shim.
+
+**One thing to verify when actually writing shims, not yet checked**: `AdapterRequestDevice`
+and `InstanceRequestAdapter` are async, callback-based functions in the WebGPU API (they
+take a callback function pointer as a parameter rather than returning synchronously).
+Haven't yet confirmed the old Emscripten `library_webgpu.js` callback ABI matches what
+Silk.NET.WebGPU's generated delegate/marshaling code expects for these two — this is
+exactly the kind of subtle mismatch that could fail silently (wrong callback signature →
+garbage data or a crash deep in a callback trampoline) rather than at the call site
+itself, so these two deserve a dedicated small test before assuming the mechanical
+pattern just works for them the same way it did for the 67 synchronous functions.
 
 ## Context
 
