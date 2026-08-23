@@ -114,17 +114,72 @@ from and in addition to the ABI-numbering question already flagged below (which 
 stands — the SType/struct-layout match is good news, but only matters once something
 can actually call these functions at all).
 
-The fix is architecturally clear even though unbuilt: `WebGPU` has a public
-`.ctor(INativeContext)` — construct it directly with a small hand-written
-`INativeContext` for the browser build that resolves function pointers against our own
-statically-linked exports (the same `EmccExportedFunction` + per-file `[LibraryImport]`
-mechanism just proven above, generalized across the ~dozens of `wgpu*` functions
-`ManaWebGpuContext.cs` actually calls — not all ~100+ in the full API surface, just the
-subset in use) instead of going through `WebGPULibraryNameContainer`'s file-loading path.
-This is real, scoped, buildable work — not a new unknown — and is the concrete next
-step before M1/M2's real integration begins: build that custom `INativeContext`, wire
-one real `ManaWebGpuContext.cs` call through it (e.g. `wgpuCreateInstance`), and confirm
-end to end before porting the rest of the WebGPU backend.
+**RESOLVED — proven end to end with the real, unmodified Silk.NET.WebGPU package.**
+`WebGPU` has a public `.ctor(INativeContext)`. Built a custom `INativeContext` and
+confirmed `new WebGPU(context).CreateInstance(null)` — real Silk.NET.WebGPU code, the
+exact NuGet package `ManaGraphics` already depends on, no changes to Silk.NET itself —
+returns a valid instance handle in-browser. Full working recipe, all four pieces
+required (each one silently fails/no-ops if missing, so all four matter):
+
+1. **A one-line forwarding shim per `wgpu*` function needed**, in a
+   `<NativeFileReference>`'d `.c` file (`mana_webgpu.c`):
+   ```c
+   #include <webgpu/webgpu.h>
+   WGPUInstance mana_wgpuCreateInstance(WGPUInstanceDescriptor const* d) { return wgpuCreateInstance(d); }
+   ```
+   Confirmed necessary — tried skipping this and targeting the *real* `wgpuCreateInstance`
+   symbol directly via `[LibraryImport("clear_native", EntryPoint = "wgpuCreateInstance")]`
+   (no separate wrapper), reusing an existing `NativeFileReference`'d file as the
+   "bucket." Compiled and linked with zero errors, but the table generator silently
+   never created an entry for it — it appears to require the symbol be *defined* inside
+   the referenced `.c` file itself, not just reachable at final link time from some
+   other already-linked library (Emscripten's own `-lwebgpu`, in this case). So: yes to
+   a real per-function forwarding wrapper, no shortcut around writing one.
+
+2. **A "registration manifest"**: one `[LibraryImport("mana_webgpu")]` C# declaration
+   per shim function, e.g. `static partial nint mana_wgpuCreateInstance(nint descriptor);`
+   — this is what makes `PInvokeTableGenerator` emit the entry in
+   `obj/.../pinvoke-table.h` at all (confirmed by testing an invented library name with
+   no matching `NativeFileReference` — the declaration is silently dropped, no build
+   error, just a runtime failure later). **Gotcha**: the declared method must be
+   genuinely *reachable* in the compiled IL, or the trimmer strips it before the table
+   generator ever sees it — confirmed by watching `mana_webgpu_imports[]` go from
+   `count: 0` to `count: 1` purely by adding a call site (even one gated behind a
+   condition that's always false at runtime, e.g. `if (args.Length > 1000) { ... }` —
+   reachability is a static IL-call-graph check, not real runtime control flow). The
+   registration method is never actually *invoked* through this declaration in the real
+   design (see next point) — it exists purely so its P/Invoke metadata survives into the
+   table. For the real implementation this needs `[DynamicDependency]` (or an ILLink
+   root descriptor) on each registration method instead of a throwaway reachable call
+   site, to preserve them from trimming without the hack.
+
+3. **`BrowserWasmNativeContext : INativeContext`** — resolves Silk.NET's requested C
+   name (e.g. `"wgpuCreateInstance"`) to the shim's exported name
+   (`"mana_wgpuCreateInstance"`) via a lookup table, then dynamically to a real function
+   pointer via `NativeLibrary.Load("mana_webgpu")` (once, cached) +
+   `NativeLibrary.TryGetExport(handle, shimName, out addr)`. This dynamic-resolution
+   path is a *different* mechanism from #2's static compile-time `[LibraryImport]` path
+   — confirmed both work, but independently; `INativeContext` needs this one specifically
+   since Silk.NET picks names at runtime, not compile time.
+
+4. **Construct the API with it**: `new WebGPU(new BrowserWasmNativeContext())` instead
+   of `WebGPU.GetApi()`, only on the browser build. Nothing else about
+   `ManaGraphics/Code/Graphics/WebGPU/*.cs` needs to change — every existing `_api.Xxx(...)`
+   call site and every Silk.NET.WebGPU struct type (`Instance*`, `Device*`,
+   `SurfaceDescriptor`, etc.) keeps working completely unmodified. Only the API
+   construction/bootstrap differs per target — this is the main reason the
+   `INativeContext` approach (vs. hand-writing a parallel binding surface) is worth the
+   extra plumbing: it avoids touching the whole existing WebGPU rendering codebase.
+
+**Remaining mechanical work for real M2** (no longer research — just execution):
+enumerate every `wgpu*` C function `ManaGraphics/Code/Graphics/WebGPU/*.cs` actually
+calls (grep for `_api.` call sites, map each Silk.NET PascalCase method name back to its
+`wgpu*` C name), generate one forwarding-shim line + one registration declaration +
+one lookup-table entry per function (fully mechanical/scriptable — same three-line
+pattern repeated), and swap `[DynamicDependency]` in for the throwaway reachable-call
+hack. The `SType`/struct-layout ABI match already confirmed earlier means the generated
+shim signatures should be straightforward pointer-for-pointer forwards with no marshaling
+surprises.
 
 ## Context
 
@@ -207,13 +262,21 @@ even be needed at runtime — verify whether `VoxelPlayGameMode` constructs an I
 controller at all; if not, this milestone shrinks further.)
 
 **M2 — WebGPU surface binding**
-Swap `Silk.NET.WebGPU.Native.WGPU` (desktop `wgpu-native` binary) for the M0 shim on the
-browser TFM/RID (conditional `NativeFileReference`/package reference in
-`ManaVoxel.Web.csproj`). Get `WebGPUSurface.CreateWebGPUSurface` in
-`ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.cs:201` working against the M1
-canvas window — likely needs a browser-specific surface-creation path since that helper
-currently pulls a native platform window handle (HWND/NSWindow/X11) that doesn't exist
-for a canvas.
+The core mechanism — getting Silk.NET.WebGPU's real, unmodified API to call real
+Emscripten WebGPU functions in a browser-wasm build — is now fully proven (see the M0
+EXTENDED section above: a working `BrowserWasmNativeContext : INativeContext` +
+per-function forwarding shim + registration-manifest pattern, tested end to end with
+`wgpuCreateInstance`). What's left for M2 specifically:
+- Generate the shim/registration/lookup-table triad for every `wgpu*` function
+  `ManaGraphics/Code/Graphics/WebGPU/*.cs` actually calls (mechanical, see the checklist
+  above) instead of `Silk.NET.WebGPU.Native.WGPU` (the desktop `wgpu-native` binary,
+  excluded entirely on the browser TFM/RID).
+- Get `WebGPUSurface.CreateWebGPUSurface` in
+  `ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.cs:201` working against the M1
+  canvas window — likely needs a browser-specific surface-creation path since that
+  helper currently pulls a native platform window handle (HWND/NSWindow/X11) that
+  doesn't exist for a canvas; the proven `WGPUSurfaceDescriptorFromCanvasHTMLSelector`
+  chain from the M0 spike is the browser equivalent to wire in here.
 
 **M3 — Asset pipeline**
 Every shader/texture/level loader in this codebase calls `System.IO` directly with
