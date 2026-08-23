@@ -2,6 +2,27 @@
 
 ## Status (resume-from-here notes)
 
+**Real (non-spike) code has started landing on the `web` branch**, verified against the
+full desktop build + ManaTests suite after each change (1660/1661 pass, one pre-existing
+unrelated failure):
+- `Mana.csproj`/`ManaGraphics.csproj`: GLFW/Assimp/wgpu-native/OpenGL packages and the
+  OpenGL backend source folder are now conditional on `RuntimeIdentifier != browser-wasm`.
+  `ManaVoxel.csproj` still needs the same treatment (redeclares the same packages a
+  third time — not yet done).
+- **M4 done for the mesh+material path**: `ManaSharpGltfLoader.cs` (SharpGLTF-based,
+  pure managed) verified against `FlightHelmet.gltf` — correct meshes, materials,
+  textures per channel, BLEND mode. Wired into `ManaWorld` via a partial-class split
+  (`ManaWorld.Gltf.Desktop.cs` / `ManaWorld.Gltf.Browser.cs`) so
+  `CharacterSpawnService`/`VoxelFileImportService`/`ManaLevelLoader` don't need to know
+  which backend loaded a file. **Not yet verified**: the skinning/animation path (no
+  rigged glTF sample was on hand this session) — implemented against SharpGLTF's
+  documented API but needs a real check before trusting it for an actual character.
+- **Still not started**: `ManaVoxel.Web` project itself, the custom browser
+  `IWindow`/`IInputContext` (M1), `ManaWebGpuContext.cs`'s constructor branching (skip
+  the wgpu-native-specific `InstanceExtras` backend-selection struct and native log
+  callback registration for browser; custom canvas surface creation), and actually
+  generating the 69-function shim/registration/lookup-table triad scoped earlier.
+
 **Toolchain: done.** `wasm-tools` workload installed (`sudo dotnet workload install
 wasm-tools`) and Emscripten installed via `brew install emscripten` (retry needed once
 after a wifi drop mid-download — Homebrew resumed from cache fine).
