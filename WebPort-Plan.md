@@ -138,6 +138,11 @@ M8 (a *new*, dedicated `ManaVoxel.Web.csproj` is), and a project that declares
 also needs to build normally for desktop) shouldn't hit this restore issue at all — that
 project is the actual next milestone to attempt, not a repeat of this experiment.
 
+**M7 (BepuPhysics wasm verification) is done — no blocker.** A throwaway spike proved
+BepuPhysics 2.5.0-beta.29 produces bit-identical results natively and under
+`browser-wasm` (run headlessly via Node, no browser needed for a physics-only check).
+See M7 below for the full result.
+
 **Still not started at all**: `ManaVoxel.Web` project itself (M8), the custom browser
 `IWindow`/`IInputContext` (M1), and — see "M2's real remaining work" below — the actual
 70-function WebGPU shim (`ManaBrowserWebGpuNativeContext`/`ManaBrowserWebGpuSurface` are
@@ -553,13 +558,20 @@ directly, bypassing `IWindow` entirely — needs a browser branch (read
 `window.devicePixelRatio` via JS interop, or just default to `1.0` for v1 since play
 mode doesn't need precise multi-monitor DPI handling).
 
-**M7 — BepuPhysics wasm verification (spike, do early)**
-Could not confirm from research whether BepuPhysics v2.5.0-beta.29 hits any hard
-AVX/SSE `System.Runtime.Intrinsics` calls that wasm SIMD can't cover (vs. its
-width-agnostic `Vector<T>` "bundle" design, which should be fine). Write a tiny
-standalone console test that runs a few physics steps, publish it with
-`dotnet publish -r browser-wasm`, and run it in a browser console early — before
-integrating physics into `ManaVoxel.Web` — so a hard blocker here is discovered cheaply.
+**M7 — BepuPhysics wasm verification — DONE, no blocker found.**
+A standalone throwaway console app (BepuPhysics 2.5.0-beta.29 only, no ManaRenderer
+project references) ran a sphere-falls-onto-a-static-ground-box simulation for 300 steps
+at 1/60s, using the same `INarrowPhaseCallbacks`/`IPoseIntegratorCallbacks` shape as the
+engine's own `DemoNarrowPhaseCallbacks`/`DemoPoseIntegratorCallbacks`
+(`Mana/Code/Physics/PhysicsCallbacks.cs`). Run natively (`dotnet run -r osx-arm64`) and
+published for `browser-wasm` (`dotnet publish -r browser-wasm --self-contained true`,
+then run headlessly via `node bin/Release/net10.0/browser-wasm/AppBundle/main.js` — no
+browser needed at all for this, since it's pure physics with no DOM/canvas/WebGPU
+involved): **both produced the identical resting position, `(0, 0.499719, 0)`, bit for
+bit.** No AVX/SSE intrinsics issue, no wasm SIMD gap — `Vector<T>`'s width-agnostic
+"bundle" design covers it as expected. Nothing to port or work around; BepuPhysics is a
+non-issue for the browser build. (The spike project itself was thrown away after
+recording this result, same as M0's spike — not part of the tracked codebase.)
 
 **M8 — Project wiring & hosting**
 - New `ManaVoxel.Web.csproj`: `net10.0`, `<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>`,
