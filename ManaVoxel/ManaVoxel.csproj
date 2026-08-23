@@ -18,14 +18,20 @@
   <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="Stateless" Version="5.14.0" />
+  </ItemGroup>
+
+  <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these. See
+       Mana.csproj/ManaGraphics.csproj for the same treatment; this project redeclares the
+       packages a third time rather than inheriting them. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <PackageReference Include="Silk.NET.Assimp" Version="2.23.0" />
     <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.23.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageReference Include="Stateless" Version="5.14.0" />
   </ItemGroup>
 
   <ItemGroup>
