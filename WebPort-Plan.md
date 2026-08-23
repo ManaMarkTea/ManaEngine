@@ -65,17 +65,66 @@ tested interactively:
      point at the separate prebuilt `*.Cache.*` pack's `cache` dir since `FROZEN_CACHE`
      is on by default and the SDK pack's own `cache/` dir is empty and root-owned.
 
-**Not yet proven** — the actual next risk to de-risk before real engine porting starts:
-whether **Silk.NET.WebGPU's C# bindings** (used throughout `ManaWebGpuContext.cs` etc.)
-are ABI-compatible with this exact old-style `webgpu.h` (struct layout, `WGPUSType`
-enum numbering, calling convention) once linked into a .NET wasm build via
-`<NativeFileReference>` + `[DllImport("__Internal")]`. Silk.NET.WebGPU was likely
-generated against wgpu-native's or a different-vintage Dawn's `webgpu.h`, and WGPUSType
-extension-struct numbering in particular is known to drift between WebGPU
-implementations — this is exactly the kind of mismatch that would silently corrupt
-chained-struct dispatch (like the `WGPUSurfaceDescriptorFromCanvasHTMLSelector` chain
-used above) rather than fail loudly. This is the next thing to check before committing
-to M1/M2's real integration work.
+**M0 EXTENDED — fully closed the loop, C# calling into native WebGPU works.** Went one
+step further than the plan required: got actual C# code (via `[LibraryImport]`) calling
+into the native `clear_native.c` shim through a real `dotnet publish -r browser-wasm`
+build (not a standalone Emscripten spike), and it rendered into the canvas — full
+success log through `native_webgpu_init returned 1` →
+`Called native_webgpu_render from C# via LibraryImport`, canvas visibly orange. To
+reproduce: a `dotnet new console` app with `<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>`,
+`<EmccExtraLDFlags>-sUSE_WEBGPU=1</EmccExtraLDFlags>`, a `<NativeFileReference Include="clear_native.c" />`,
+and `<EmccExportedFunction Include="_funcName" />` per function (leading underscore
+required — it's the `EXPORTED_FUNCTIONS` convention, stripped again by the time it hits
+`wasm-ld`'s `--export=`), calling into it via `[LibraryImport("clear_native")]` (a
+partial method on a partial class) from C#, with the WebGPU device requested JS-side via
+`dotnet.withModuleConfig({ preRun: [...] })` using `addRunDependency`/
+`removeRunDependency` to gate startup on the async `navigator.gpu` calls, exactly as in
+the pure-Emscripten spike.
+
+**The one load-bearing gotcha, found the hard way**: the P/Invoke **library name must
+match the native source file's basename** (`"clear_native"` for `clear_native.c`), **not**
+`"__Internal"`. Using `"__Internal"` compiles fine, the generated
+`obj/.../pinvoke-table.h` correctly lists the function under a `{"__Internal", __Internal_imports, 2}`
+entry (verified: present, correctly named, correctly pointing at the real C functions),
+and yet at runtime it throws `DllNotFoundException` with message literally `"__Internal"`
+— no entry-point detail, just the bare library name — every time, with both classic
+`[DllImport]` and source-generated `[LibraryImport]`, in both Debug and Release. Root
+cause not fully nailed down (didn't chase further once the fix was found: the .NET wasm
+docs' own worked example uses the source-file's name as the DllImport target, e.g.
+`[DllImport("Test")]` for `Test.c` — `"__Internal"` is apparently reserved for the
+runtime's own corebindings, not for user `<NativeFileReference>` code, despite the
+generator dutifully building a well-formed table entry for it anyway). **Takeaway for
+M1/M2: always `[LibraryImport("<sourceFileBasename>")]`, never `"__Internal"`, for our
+own native shim code.**
+
+**New open question for M2, found while chasing the above**: reflecting over the actual
+`Silk.NET.WebGPU.dll` (see the `SType`/struct-layout checks above) also revealed that
+`Silk.NET.WebGPU.WebGPU.GetApi()` does NOT use compile-time `[DllImport]`/`[LibraryImport]`
+at all — its base type is `Silk.NET.Core.Native.NativeAPI`, constructed from an
+`INativeContext` built via `WebGPULibraryNameContainer` (confirmed present in the
+assembly), which is Silk.NET's own **runtime dynamic-loading** abstraction: it calls
+`NativeLibrary.Load`/`TryLoad` against a list of OS-specific candidate filenames (e.g.
+`wgpu_native.dll` / `libwgpu_native.dylib` / `libwgpu_native.so`) and resolves each
+function via `NativeLibrary.GetExport` against whatever loads. That mechanism has no
+separate shared-library file to find in a statically-linked browser-wasm binary — there
+is no `libwgpu_native.so` sitting anywhere; the WebGPU functions are exports of the
+*same* wasm module the whole app is compiled into. So **Silk.NET.WebGPU's own default
+loader almost certainly won't resolve anything on browser-wasm out of the box**, separate
+from and in addition to the ABI-numbering question already flagged below (which still
+stands — the SType/struct-layout match is good news, but only matters once something
+can actually call these functions at all).
+
+The fix is architecturally clear even though unbuilt: `WebGPU` has a public
+`.ctor(INativeContext)` — construct it directly with a small hand-written
+`INativeContext` for the browser build that resolves function pointers against our own
+statically-linked exports (the same `EmccExportedFunction` + per-file `[LibraryImport]`
+mechanism just proven above, generalized across the ~dozens of `wgpu*` functions
+`ManaWebGpuContext.cs` actually calls — not all ~100+ in the full API surface, just the
+subset in use) instead of going through `WebGPULibraryNameContainer`'s file-loading path.
+This is real, scoped, buildable work — not a new unknown — and is the concrete next
+step before M1/M2's real integration begins: build that custom `INativeContext`, wire
+one real `ManaWebGpuContext.cs` call through it (e.g. `wgpuCreateInstance`), and confirm
+end to end before porting the rest of the WebGPU backend.
 
 ## Context
 
