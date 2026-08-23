@@ -20,19 +20,32 @@
     <Compile Remove="Code\Graphics\OpenGL\Legacy\**\*.cs" />
   </ItemGroup>
 
+  <!-- Browser target is WebGPU-only (see WebPort-Plan.md); OpenGL has no browser-wasm
+       backend and isn't needed there. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\Graphics\OpenGL\**\*.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
+       wgpu-native (WGPU.Native/.Extensions.WGPU) is the desktop WebGPU backend;
+       GLFW is desktop windowing. The browser target uses Emscripten's own WebGPU
+       glue and a custom canvas-backed IWindow instead. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
   </ItemGroup>
 
   <ItemGroup>

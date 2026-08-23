@@ -1,4 +1,3 @@
-using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;

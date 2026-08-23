@@ -5,7 +5,6 @@ using Mana.Code.Nodes;
 using Mana.Code.UI;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Graphics;
-using Silk.NET.Assimp;
 using Silk.NET.Maths;
 using System.Diagnostics;
 using System.Numerics;
@@ -18,7 +17,7 @@ namespace Mana
         public TimeSpan Duration { get; set; }
     }
 
-    public class ManaWorld : ManaObject
+    public partial class ManaWorld : ManaObject
     {
         public bool UseRayTracing = false;
 
@@ -154,50 +153,6 @@ namespace Mana
             Renderer?.Resize(obj.X, obj.Y);
         }
        
-
-        public unsafe ManaSceneNode LoadFromGltf(
-            string sceneFile,
-            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
-        {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
-            ManaGltfLoader loader = new ManaGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
-            var rootSceneNode = loader.LoadFile(sceneFile);
-
-            stopwatch.Stop();
-            manaPerformanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
-
-            Scenes.AddRange(loader.Scenes);
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
-
-            return rootSceneNode;
-        }
-
-        public unsafe ManaSceneNode LoadFromGltfMemory(
-            ReadOnlyMemory<byte> sceneBytes,
-            string virtualFileName,
-            Func<string, byte[]?>? externalAssetResolver = null,
-            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
-        {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
-            ManaGltfLoader loader = new ManaGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
-            var rootSceneNode = loader.LoadFileFromMemory(sceneBytes.Span, virtualFileName, externalAssetResolver);
-
-            stopwatch.Stop();
-            manaPerformanceLogs.Add(new ManaPerformanceLog()
-            {
-                Name = $"Loading {virtualFileName} (memory)",
-                Duration = stopwatch.Elapsed
-            });
-
-            Scenes.AddRange(loader.Scenes);
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
-
-            return rootSceneNode;
-        }
 
         private void RunFutures(List<Action> futures, List<Action> activeFutures)
         {
