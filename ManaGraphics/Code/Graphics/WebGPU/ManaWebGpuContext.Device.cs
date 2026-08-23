@@ -7,7 +7,9 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -68,6 +70,7 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic($"[WebGPU] {type}: {ReadMessage(message)}");
         }
 
+#if !MANA_BROWSER
         private static InstanceBackend ParseInstanceBackend(string? requestedBackend)
         {
             if (!string.IsNullOrWhiteSpace(requestedBackend))
@@ -99,6 +102,7 @@ namespace ManaGraphics.Code.Graphics
 
             return InstanceBackend.Vulkan;
         }
+#endif
 
         private static string ReadMessage(byte* message)
         {

@@ -7,6 +7,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
     <ManaCopyWebGpuNativeRuntime>true</ManaCopyWebGpuNativeRuntime>
+    <!-- Compile-time symbol for the growing number of small browser-vs-desktop branches
+         (see WebPort-Plan.md) that don't warrant a full partial-class split. -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +27,15 @@
        backend and isn't needed there. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
     <Compile Remove="Code\Graphics\OpenGL\**\*.cs" />
+  </ItemGroup>
+
+  <!-- ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset (same
+       problem as GLFW/Assimp/wgpu-native). Play mode's actual UI is ManaUi-based, not
+       ImGui-based, so the browser target gets a no-op IManaImGuiController instead (see
+       ManaWebGpuContext.cs's CreateImGuiController) rather than porting cimgui to wasm. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\Graphics\ManaImGuiClipboardBridge.cs" />
+    <Compile Remove="Code\Graphics\WebGPU\ManaWebGpuImGuiController.cs" />
   </ItemGroup>
 
   <ItemGroup>

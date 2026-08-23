@@ -13,6 +13,8 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <!-- Declares PerMonitorV2 DPI awareness; see app.manifest for why. No effect off Windows. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- See ManaGraphics.csproj. -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

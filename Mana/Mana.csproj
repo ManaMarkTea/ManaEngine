@@ -12,6 +12,8 @@
          "missing XML comment" warning, which would otherwise fire on every undocumented public member. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- See ManaGraphics.csproj. -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -546,8 +548,11 @@
 
   <!-- Transitional bridge: these implementations now live with the graphics
        subsystem, but still compile into Mana until their ManaContext-era
-       dependencies are replaced with ManaCore contracts. -->
-  <ItemGroup>
+       dependencies are replaced with ManaCore contracts.
+       Desktop only: ManaImGuiClipboardBridge.cs needs ImGuiNET (no browser-wasm asset;
+       see ManaGraphics.csproj) and the OpenGL Legacy files need the OpenGL backend,
+       which the WebGPU-only browser target excludes entirely. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <Compile Include="..\ManaGraphics\Code\Graphics\ManaImGuiClipboardBridge.cs"
              Link="Code\Graphics\ManaImGuiClipboardBridge.cs" />
     <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
