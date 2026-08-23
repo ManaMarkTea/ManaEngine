@@ -109,41 +109,98 @@ took three kinds of fix, roughly in this order of impact:
    established for the WebGPU-ImGui controller — same reasoning each time: ImGui is a
    desktop/editor-only concern, play mode's visible UI is ManaUi.
 
-**`ManaVoxel.csproj -r browser-wasm` was attempted and is NOT a meaningful test** —
-found a real MSBuild/NuGet restore limitation, not a code problem. When `ManaVoxel.csproj`
-(a `WinExe`, never itself meant to be the browser executable — see M8) is built or
-published with `-r browser-wasm`, its `ProjectReference` chain
-(`ManaVoxel → ManaGeoTools → Mana`) causes **`Mana.csproj` to be compiled twice**: once
-correctly with `RuntimeIdentifier=browser-wasm` (confirmed via a temporary diagnostic
-MSBuild `<Message>` target), and once as a "ridless" companion pass with
-`RuntimeIdentifier` empty, which the .NET SDK performs internally when a RID-specific exe
-references a project — normally harmless, but not here, because **`PackageReference`
-`Condition`s keyed on `$(RuntimeIdentifier)` are evaluated once at restore time using
-whichever RID was last passed on the command line, and that single evaluation gets
-written into *both* the ridless and RID-specific `net10.0`/`net10.0/browser-wasm` targets
-in `project.assets.json`** (confirmed by inspecting the file directly — both targets had
-identical package lists, missing `Silk.NET.OpenGL.Extensions.ImGui`/`Silk.NET.Assimp`
-either way). So the ridless companion pass ends up compiling desktop-only, ImGui-using
-files (never excluded, since `Compile Remove` conditions — evaluated per-build-pass,
-correctly — see RID as empty there) against a package set that's missing ImGui anyway.
-This is a restore/build evaluation-timing mismatch, not fixable from the C# side.
-**Confirmed harmless**: each project's *own* restore self-heals for its own invocation —
-plain `dotnet build ManaVoxel/ManaVoxel.csproj` (no `-r`) and standalone
-`dotnet build Mana/Mana.csproj -r browser-wasm` both still pass individually,
-before and after the tainted `ManaVoxel -r browser-wasm` attempt. **Conclusion: don't
-try to make `ManaVoxel.csproj` itself browser-buildable** — it was never the target per
-M8 (a *new*, dedicated `ManaVoxel.Web.csproj` is), and a project that declares
-`<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>` as its own permanent identity
-(rather than receiving it ad hoc via `-r` on the command line against a project that
-also needs to build normally for desktop) shouldn't hit this restore issue at all — that
-project is the actual next milestone to attempt, not a repeat of this experiment.
+**`ManaVoxel.csproj -r browser-wasm` was attempted and found a real MSBuild/NuGet
+quirk** — chased further below under M8 and actually **solved**, so treat the paragraph
+that used to be here (concluding "don't try to make a RID-specific exe reference these
+projects, not fixable from the C# side") as superseded. Short version of what was
+actually going on, now that M8 forced a real fix: a RID-specific executable's
+`ProjectReference` to a project like `Mana.csproj` does NOT automatically flow
+`RuntimeIdentifier` down for either restore or build — `RuntimeIdentifier` is simply not
+one of the small set of properties (`TargetFramework`, `Configuration`, `Platform`) that
+auto-propagate across a `ProjectReference` edge, unlike what most MSBuild intuition
+assumes. Passing `-r browser-wasm` on the command line instead sets it as a build-wide
+global property, which DOES reach every project in the graph, including referenced
+ones — but a RID-specific exe referencing another project also always triggers a second,
+"ridless" companion build of that reference (a real, separate .NET SDK mechanism for
+resolving project-to-project compile references, unrelated to this codebase), and
+NuGet's restore evaluates `PackageReference` `Condition`s keyed on `$(RuntimeIdentifier)`
+*once* per restore invocation — so the ridless companion pass ends up with browser-wasm's
+package exclusions (no ImGui) but desktop's compile items (ImGui-using files still
+included), guaranteeing a failure no matter what the source code does. **The actual fix**
+(see M8): give every project that might be referenced under a RID
+(`ManaCore`/`ManaUI`/`Mana`/`ManaGraphics`) `<RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>`
+(plural — this is what makes *restore* compute a real, separate `net10.0/browser-wasm`
+target with browser-wasm's own correctly-scoped package set, instead of silently reusing
+whatever the ridless target resolved to), and give each `<ProjectReference>` in the
+RID-specific consumer's csproj `SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm"`
+(this is what makes the *build* actually request that target instead of silently falling
+back to the plain ridless one — `AdditionalProperties` on the `ProjectReference` was tried
+first and does NOT work for this, confirmed by a diagnostic `<Message>` target showing
+`RuntimeIdentifier` still empty downstream despite it). With both pieces in place, no
+`-r` flag on the command line is needed at all, so the restore-poisoning half of the
+problem never triggers — it was really a symptom of `-r`-driven global-property
+propagation being the *wrong* propagation mechanism for this shape of graph, not an
+unfixable NuGet limitation. `ManaVoxel.csproj` itself was still never converted this
+way (no reason to; `ManaVoxel.Web` is the actual browser executable, and `ManaVoxel`
+keeps building however it always has), so `dotnet build ManaVoxel/ManaVoxel.csproj -r
+browser-wasm` remains a broken, meaningless invocation — but that's fine, since nothing
+needs it to work.
 
 **M7 (BepuPhysics wasm verification) is done — no blocker.** A throwaway spike proved
 BepuPhysics 2.5.0-beta.29 produces bit-identical results natively and under
 `browser-wasm` (run headlessly via Node, no browser needed for a physics-only check).
 See M7 below for the full result.
 
-**Still not started at all**: `ManaVoxel.Web` project itself (M8), the custom browser
+**M8 (project wiring) — started: `ManaVoxel.Web` scaffolded and boots.** `ManaVoxel.Web.csproj`
+exists (`net10.0`, `RuntimeIdentifier=browser-wasm` baked in as its permanent identity,
+`SelfContained=false`; references `ManaCore`/`Mana`/`ManaGraphics` only, per M8's original
+scope — deliberately NOT `ManaVoxel.csproj` itself, since `VoxelPlayGameMode` and its
+`ManaVoxel.Code.Levels`/`Services`/`UI.ManaUi` dependencies aren't reachable from a
+three-project reference set and extracting/sharing them is separate follow-up work, not
+part of this scaffold). Getting this far required two real fixes beyond the RID-flow
+mechanism above:
+- **`Mana.csproj` could not be a RID-conditional `WinExe`/`Library` any more** (the
+  `OutputType Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Library` hack from the
+  earlier `Mana.csproj` browser-wasm milestone). The ridless companion build pass (see
+  above) always has `RuntimeIdentifier` empty — indistinguishable, by RID alone, from a
+  genuine plain desktop dev build of `Mana.csproj` (`dotnet run --project Mana`, its old
+  scene-viewer test harness) — so the same condition can't correctly pick `WinExe` for one
+  case and `Library` for the other. Fix: split `Mana/Program.cs`'s `Main()` out into a new
+  tiny project, `ManaSceneViewer/ManaSceneViewer.csproj` (`WinExe`, references
+  `Mana.csproj`), and made `Mana.csproj`'s `OutputType` permanently `Library` with no
+  condition at all. `SceneViewerMode.cs` itself (the game mode class, not the `Main()`)
+  stayed in `Mana.csproj` unchanged. Desktop scene-viewer dev workflow is now
+  `dotnet run --project ManaSceneViewer` instead of `dotnet run --project Mana`.
+- **`ManaGraphics.csproj`'s standalone `-r browser-wasm` build was actually already
+  broken** (a real regression from the "compiles cleanly" milestone claimed earlier this
+  session — re-verified and confirmed broken before touching anything, so this wasn't
+  caused by the `ManaVoxel.Web` work, just newly exposed by it). Its browser-only
+  `ItemGroup` had copied Mana.csproj's "re-include `ManaGameModeGraphicsBridge.cs` via a
+  `Compile Include`" fix verbatim, but nothing inside `ManaGraphics` itself calls that
+  dispatcher (only `Mana/Code/GameModes/BaseGameMode.cs` does, and `Mana.csproj` already
+  has its own correct re-include for that) — so `ManaGraphics.csproj` was compiling a file
+  needing `Mana.Code.*` types (`ManaContext`, `ManaSceneNode`, `ManaMaterial`,
+  `ManaTexture`) it has no way to see (`ManaGraphics` doesn't reference `Mana`; that
+  direction is already reversed). Fix: removed the unneeded re-include from
+  `ManaGraphics.csproj` entirely — the unconditional `OpenGL/Legacy/**` exclusion already
+  covers it correctly for both platforms. **Lesson**: a browser-wasm fix proven in one
+  project isn't safe to copy verbatim into a sibling project without checking whether that
+  project actually needs the same file for the same reason — re-verify each project
+  standalone after any copy-pasted csproj fix, don't just trust the pattern matched.
+- `ManaVoxel.Web/Program.cs` is an honest boot smoke test, not a fake play-mode: prints a
+  banner, constructs a real `ManaWorld()`, enumerates `ManaGraphicsBackendKind`, and calls
+  `ManaBrowserWebGpuNativeContext.TryGetProcAddress` to confirm (not crash on) M2's stub
+  status, then states the real next milestones. **Verified working end to end**:
+  `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release` produces a real
+  `AppBundle/` (with `index.html` deployed via `WasmExtraFilesToDeploy`), and
+  `node main.js` inside that folder runs it headlessly (no browser needed yet, since
+  nothing here touches DOM/canvas/GPU) and prints the expected sequence through to
+  "Boot smoke test complete." This is the first time `ManaCore`+`Mana`+`ManaGraphics`
+  have run *together* as one published wasm app, not just compiled individually.
+- Desktop verified unaffected throughout (`ManaVoxel`/`ManaSceneViewer` build, ManaTests
+  1660/1661 — same pre-existing unrelated failure — after every change in this section).
+
+**Still not started at all**: the custom browser
 `IWindow`/`IInputContext` (M1), and — see "M2's real remaining work" below — the actual
 70-function WebGPU shim (`ManaBrowserWebGpuNativeContext`/`ManaBrowserWebGpuSurface` are
 currently stubs that compile but always fail at runtime).
@@ -573,16 +630,41 @@ bit.** No AVX/SSE intrinsics issue, no wasm SIMD gap — `Vector<T>`'s width-agn
 non-issue for the browser build. (The spike project itself was thrown away after
 recording this result, same as M0's spike — not part of the tracked codebase.)
 
-**M8 — Project wiring & hosting**
-- New `ManaVoxel.Web.csproj`: `net10.0`, `<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>`,
-  references `ManaCore`/`Mana`/`ManaGraphics`, but with `Silk.NET.Windowing.Glfw`,
-  `Silk.NET.GLFW`, `Silk.NET.WebGPU.Native.WGPU`, and `Silk.NET.Assimp` excluded/replaced
-  per the milestones above (likely needs the shared projects' native refs made
-  conditional on TFM/RID rather than unconditionally pulled in).
-- `dotnet publish -r browser-wasm` produces the deployable `wwwroot`; host it with any
-  static file server. No special COOP/COEP headers needed for v1 (single-threaded, no
-  `SharedArrayBuffer`) — only becomes a requirement if/when M5's threading gap is
-  revisited later.
+**M8 — Project wiring & hosting — STARTED, scaffold boots.** See the Status section above
+for the full writeup; summary of what actually landed:
+- `ManaVoxel.Web/ManaVoxel.Web.csproj` exists: `net10.0`, `RuntimeIdentifier=browser-wasm`
+  baked in permanently, `SelfContained=false`, references `ManaCore`/`Mana`/`ManaGraphics`
+  only (not `ManaVoxel.csproj`). The native-ref exclusions this bullet used to call for
+  don't need separate handling here — they're already conditional on
+  `$(RuntimeIdentifier)` inside `Mana.csproj`/`ManaGraphics.csproj` themselves (from the
+  earlier milestones), and now correctly apply because of the fix below.
+- **The `ProjectReference` recipe that actually makes RID-conditional shared projects work
+  from a RID-specific consumer** (spent a lot of this session's time rediscovering this;
+  write it down so it isn't lost): the referenced project
+  (`ManaCore`/`ManaUI`/`Mana`/`ManaGraphics`) needs
+  `<RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>` (plural) in its own
+  `PropertyGroup` so *restore* computes a real separate `net10.0/browser-wasm` target; the
+  consumer's `<ProjectReference>` needs
+  `SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm"` so *build*
+  actually requests that target. Both pieces are required; either alone silently falls
+  back to a plain ridless build of the reference. No `-r` flag on the `dotnet
+  publish`/`dotnet build` command line is needed (or wanted) once both are in place.
+- `Program.cs` is an honest boot smoke test (constructs `ManaWorld`, exercises the M2 stub
+  without crashing), not a play-mode stand-in — see Status section for exactly what it
+  does and doesn't prove.
+- `index.html` + `main.js` follow M0's proven pattern (`await dotnet.create()` /
+  `runMain()`); `index.html` is deployed via `<WasmExtraFilesToDeploy Include="index.html" />`
+  since it isn't part of the wasm SDK's own default output set.
+- `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release` produces
+  `bin/Release/net10.0/browser-wasm/AppBundle/`; host that folder with any static file
+  server for a real in-browser check, or run `node main.js` from inside it for a headless
+  boot check (no server/browser needed for that much — confirmed working, see Status).
+  No special COOP/COEP headers needed for v1 (single-threaded, no `SharedArrayBuffer`) —
+  only becomes a requirement if/when M5's threading gap is revisited later.
+- Not yet done: wiring an actual `VoxelPlayGameMode`-equivalent bootstrap into
+  `Program.cs` (blocked on M1/M2), and deciding how `VoxelPlayGameMode`'s
+  `ManaVoxel`-namespaced dependencies get shared with `ManaVoxel.Web` (extract to a new
+  shared project? move into `Mana`? not yet decided).
 
 ## Verification
 

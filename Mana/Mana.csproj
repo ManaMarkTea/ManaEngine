@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <OutputType Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Library</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -384,10 +384,11 @@
        editor-UI-shell concerns (docking layout persistence, font presets, theme colors,
        inspector/outliner panels) with no play-mode-relevant caller left once
        BaseGameMode.cs's own call sites are guarded (see MANA_BROWSER usage there);
-       excluded outright rather than guarded internally. Mana/Program.cs and
-       SceneViewerMode.cs are Mana's own desktop test harness (GLFW-windowed scene
-       viewer), not part of what a browser host needs. See WebPort-Plan.md for the
-       still-unresolved rest of Mana.csproj's browser-wasm compile scope. -->
+       excluded outright rather than guarded internally. SceneViewerMode.cs is Mana's own
+       desktop test harness (GLFW-windowed scene viewer; its Main() lives in the separate
+       ManaSceneViewer project now), not part of what a browser host needs. See
+       WebPort-Plan.md for the still-unresolved rest of Mana.csproj's browser-wasm compile
+       scope. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
     <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiDocking.cs" />
     <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiDpi.cs" />
@@ -400,7 +401,6 @@
     <Compile Remove="Code\UI\SceneOutlinerPanelView.cs" />
     <Compile Remove="Code\UI\ManaLoadingScreenView.cs" />
     <Compile Remove="Code\GameModes\SceneViewerMode.cs" />
-    <Compile Remove="Program.cs" />
   </ItemGroup>
 
   <!-- ManaIrradianceRenderer/ManaDeferredRenderer are only ever constructed when

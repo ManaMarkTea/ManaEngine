@@ -1,6 +1,8 @@
-﻿// Mana Mark Tea - 2023
+// Mana Mark Tea - 2023
+using Mana;
+using Mana.Code;
 
-namespace Mana
+namespace ManaSceneViewer
 {
     public class Program
     {
@@ -13,5 +15,4 @@ namespace Mana
             game.Run();
         }
     }
-
 }

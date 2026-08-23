@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -24,17 +25,16 @@
   </ItemGroup>
 
   <!-- Browser target is WebGPU-only (see WebPort-Plan.md); OpenGL has no browser-wasm
-       backend and isn't needed there. ManaGameModeGraphicsBridge.cs is the one exception:
-       despite living in this folder, it's a genuine cross-backend dispatcher (every method
-       branches on ManaGraphicsBackendKind and no-ops for non-OpenGL already) that
-       BaseGameMode.cs depends on directly; re-included and internally guarded instead
-       of excluded. Found the hard way: excluding it wholesale cascaded into ~30 unrelated
-       compile errors across the shader/texture/component system before the actual cause
-       was traced back here. -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
-    <Compile Remove="Code\Graphics\OpenGL\**\*.cs" />
-    <Compile Include="Code\Graphics\OpenGL\Legacy\ManaGameModeGraphicsBridge.cs" />
-  </ItemGroup>
+       backend and isn't needed there. Unlike Mana.csproj (whose BaseGameMode.cs calls
+       ManaGameModeGraphicsBridge directly and so re-includes it via a Link for browser),
+       nothing inside ManaGraphics itself references that dispatcher outside this same
+       excluded OpenGL/Legacy folder, so no re-include is needed here: the unconditional
+       exclusion above already covers it correctly for both desktop and browser. A
+       browser-only re-include used to sit here too (copied from Mana.csproj's fix without
+       checking whether ManaGraphics needed the same treatment) and broke standalone
+       `dotnet build ManaGraphics.csproj -r browser-wasm`; the file needs Mana.Code.*
+       types (ManaContext, ManaSceneNode, ManaMaterial, ManaTexture) that only Mana.csproj
+       can see; ManaGraphics has no reference to Mana.csproj (that would be circular). -->
 
   <!-- ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset (same
        problem as GLFW/Assimp/wgpu-native). Play mode's actual UI is ManaUi-based, not
@@ -86,5 +86,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
 
 </Project>

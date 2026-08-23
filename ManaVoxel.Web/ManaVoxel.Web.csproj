@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Browser-wasm executable for the play-mode-only web build (see WebPort-Plan.md).
+       RuntimeIdentifier is baked in here permanently, not passed via -r on the command
+       line; unlike Mana.csproj/ManaGraphics.csproj (which build both desktop and
+       browser-wasm depending on how they're invoked), this project is ALWAYS
+       browser-wasm, so it never hits the restore/PackageReference-condition-evaluation
+       gotcha documented in WebPort-Plan.md's "ManaVoxel.csproj -r browser-wasm" section:
+       there is no other invocation of this project using a different RID to poison. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WasmMainJSPath>main.js</WasmMainJSPath>
+    <DefineConstants>$(DefineConstants);MANA_BROWSER</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Deliberately just the three libraries M8 scopes this project to; not
+         ManaVoxel.csproj itself. ManaVoxel is a WinExe with its own desktop-only
+         editor surface; referencing it here would reintroduce the same
+         RID-conditioned-restore problem documented for the "ManaVoxel -r browser-wasm"
+         experiment, since ManaVoxel.csproj would then be built both ways again
+         depending on which project is the invocation root. VoxelPlayGameMode.cs and
+         its handful of ManaVoxel-namespaced dependencies (Levels/Services/UI.ManaUi)
+         aren't reachable from here yet; extracting/sharing that code is follow-up
+         work, not part of this scaffold. -->
+    <ProjectReference Include="..\ManaCore\ManaCore.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WasmExtraFilesToDeploy Include="index.html" />
+  </ItemGroup>
+
+</Project>
