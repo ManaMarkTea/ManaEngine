@@ -2,16 +2,80 @@
 
 ## Status (resume-from-here notes)
 
-No engine code has been written yet — this session got as far as toolchain setup.
+**Toolchain: done.** `wasm-tools` workload installed (`sudo dotnet workload install
+wasm-tools`) and Emscripten installed via `brew install emscripten` (retry needed once
+after a wifi drop mid-download — Homebrew resumed from cache fine).
 
-- **.NET `wasm-tools` workload**: not installed. `dotnet workload install wasm-tools`
-  needs `sudo` on this machine because the SDK at `/usr/local/share/dotnet` is
-  root-owned. Run manually: `sudo dotnet workload install wasm-tools`.
-- **Emscripten SDK**: install in progress via `brew install emscripten` on the machine
-  this was started on. On a fresh machine, either `brew install emscripten` or the
-  official `emsdk` clone-and-install flow works — just need `emcc` on `PATH`.
-- Next actual coding step once both are installed: **M0** below (the WebGPU-in-browser
-  spike). Nothing else should start before M0 passes or explicitly falls back to OpenGL.
+**M0: PASSED.** Both halves of the spike confirmed live in a real browser (Chrome),
+tested interactively:
+1. A bare `dotnet new console` app with `<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>`
+   published via `dotnet publish -c Release` and ran in-browser, printing to the devtools
+   console. Confirms the .NET wasm-tools pipeline itself works on this machine.
+   Gotcha: the boot API is `await dotnet.run()`, not `dotnet.create().run()` — `.run()`
+   lives on the `dotnet` builder object itself. Also: after editing `main.js`,
+   `dotnet publish` did NOT recopy it into `AppBundle/` (stale incremental-build output) —
+   needed `rm -rf bin obj` before republishing to pick up the change. Watch for this
+   again during real development.
+2. **The critical result**: a hand-written C program using the *old* Emscripten WebGPU
+   API (`-sUSE_WEBGPU=1`, `webgpu.h`/`library_webgpu.js`, NOT the newer `emdawnwebgpu`
+   port) compiled against the **exact Emscripten build the .NET SDK bundles internally**
+   (3.1.56, found at
+   `/usr/local/share/dotnet/packs/Microsoft.NET.Runtime.Emscripten.3.1.56.Sdk.osx-arm64/`)
+   requested a WebGPU device, created a swapchain from a canvas, and cleared it to a
+   solid color — rendered correctly in Chrome, no console errors, full success log
+   (`device ready` → `swapchain ready` → `frame submitted` → `done`). This is the load-
+   bearing finding for the whole "WebGPU in browser" bet: Emscripten 3.1.56's WebGPU
+   support genuinely works against a real browser's `navigator.gpu` today.
+
+   To reproduce/extend this spike, from a shell:
+   ```
+   export DOTNET_EMSCRIPTEN_LLVM_ROOT=/usr/local/share/dotnet/packs/Microsoft.NET.Runtime.Emscripten.3.1.56.Sdk.osx-arm64/10.0.11/tools/bin
+   export DOTNET_EMSCRIPTEN_NODE_JS=/usr/local/share/dotnet/packs/Microsoft.NET.Runtime.Emscripten.3.1.56.Node.osx-arm64/10.0.11/tools/bin/node
+   export DOTNET_EMSCRIPTEN_BINARYEN_ROOT=/usr/local/share/dotnet/packs/Microsoft.NET.Runtime.Emscripten.3.1.56.Sdk.osx-arm64/10.0.11/tools
+   export EM_CACHE=/usr/local/share/dotnet/packs/Microsoft.NET.Runtime.Emscripten.3.1.56.Cache.osx-arm64/10.0.11/tools/emscripten/cache
+   /usr/local/share/dotnet/packs/Microsoft.NET.Runtime.Emscripten.3.1.56.Sdk.osx-arm64/10.0.11/tools/emscripten/emcc \
+     clear.c -o clear.html -sUSE_WEBGPU=1 --shell-file shell.html -O0
+   ```
+   (`(version numbers like 10.0.11/9.0.3 are whatever SDK version pulled the pack in —
+   check `/usr/local/share/dotnet/packs/` if these exact paths don't exist anymore.)
+
+   Three bugs hit and fixed along the way (all now fixed in the scratch `clear.c`/
+   `shell.html`, which were NOT committed to the repo — they lived in the session's
+   scratchpad and should be recreated if needed, see "how to reproduce" above):
+   - `em++` (not `emcc`) required for anything using `emdawnwebgpu`/C++ — irrelevant to
+     the old API path but relevant if we ever revisit the newer port.
+   - The `{{{ SCRIPT }}}` shell-file macro expands to a full `<script src=...>` tag, not
+     inline JS — nesting it inside a hand-written `<script>` block produces invalid
+     markup (`Unexpected token '<'`). Correct pattern: do the async
+     `navigator.gpu.requestAdapter()`/`requestDevice()` dance inside
+     `Module.preRun`, gated with `addRunDependency`/`removeRunDependency` so the wasm
+     runtime waits for it, then let `{{{ SCRIPT }}}` sit on its own line.
+   - `wgpuInstanceCreateSurface(0, ...)` fails an assertion
+     (`WGPUInstance must be created by wgpuCreateInstance`) — must call
+     `wgpuCreateInstance(NULL)` first and pass its actual return value, not a null/zero
+     placeholder.
+   - Zero-initializing `WGPURenderPassColorAttachment` leaves `depthSlice = 0`, which a
+     newer WebGPU spec revision interprets as "slice 0 of a 3D texture" — triggers a
+     validation error against a 2D swapchain texture view. Must explicitly set
+     `depthSlice = WGPU_DEPTH_SLICE_UNDEFINED` (`UINT32_MAX`).
+   - Also: the SDK's bundled `emcc` isn't runnable standalone without setting
+     `DOTNET_EMSCRIPTEN_LLVM_ROOT`/`_NODE_JS`/`_BINARYEN_ROOT` and `EM_CACHE` env vars
+     (normally set internally by the MSBuild task) — `BINARYEN_ROOT` should point at the
+     `tools` dir, NOT `tools/bin` (emscripten appends `bin/` itself). `EM_CACHE` should
+     point at the separate prebuilt `*.Cache.*` pack's `cache` dir since `FROZEN_CACHE`
+     is on by default and the SDK pack's own `cache/` dir is empty and root-owned.
+
+**Not yet proven** — the actual next risk to de-risk before real engine porting starts:
+whether **Silk.NET.WebGPU's C# bindings** (used throughout `ManaWebGpuContext.cs` etc.)
+are ABI-compatible with this exact old-style `webgpu.h` (struct layout, `WGPUSType`
+enum numbering, calling convention) once linked into a .NET wasm build via
+`<NativeFileReference>` + `[DllImport("__Internal")]`. Silk.NET.WebGPU was likely
+generated against wgpu-native's or a different-vintage Dawn's `webgpu.h`, and WGPUSType
+extension-struct numbering in particular is known to drift between WebGPU
+implementations — this is exactly the kind of mismatch that would silently corrupt
+chained-struct dispatch (like the `WGPUSurfaceDescriptorFromCanvasHTMLSelector` chain
+used above) rather than fail loudly. This is the next thing to check before committing
+to M1/M2's real integration work.
 
 ## Context
 
