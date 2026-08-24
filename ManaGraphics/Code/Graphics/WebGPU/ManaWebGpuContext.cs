@@ -63,7 +63,9 @@ namespace ManaGraphics.Code.Graphics
         // Work handed in from background threads that must run on the render thread instead -- see
         // EnqueueRenderThreadWork for why submitting from anywhere else deadlocks wgpu-native.
         private readonly ConcurrentQueue<Action> _renderThreadWork = new();
-        private readonly ManaWebGpuMeshTextureCache _meshTextures;
+        // Not readonly: set from FinishInitialization, which for MANA_BROWSER runs after the
+        // constructor returns (see ManaWebGpuContext.BrowserAsync.cs), not inside it.
+        private ManaWebGpuMeshTextureCache _meshTextures = null!;
         private ManaRenderScene? _activeRenderScene;
         private ulong _frameSerial;
         private Vector3 _demoMeshCenter;
@@ -188,10 +190,13 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
 #if MANA_BROWSER
             // No wgpu-native-style backend selection in-browser -- the browser's own WebGPU
-            // implementation picks its backend internally, so this is a plain descriptor, same
-            // shape as the M0 spike's wgpuCreateInstance(NULL) call (see WebPort-Plan.md).
-            var instanceDescriptor = new InstanceDescriptor();
-            _instance = _api.CreateInstance(&instanceDescriptor);
+            // implementation picks its backend internally. Deliberately a real null pointer, NOT
+            // `&(new InstanceDescriptor())`: a pointer to a zeroed-but-real struct silently hung
+            // forever inside Emscripten's legacy wgpuCreateInstance (confirmed by isolating the
+            // exact call via a raw function pointer probe -- null succeeded instantly, a pointer to
+            // an identical zeroed struct never returned). Matches the M0 spike's own
+            // wgpuCreateInstance(NULL) call, which is the only shape ever actually proven to work.
+            _instance = _api.CreateInstance((InstanceDescriptor*)null);
 #else
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MANA_WGPU_NATIVE_TRACE")))
             {
@@ -221,7 +226,9 @@ namespace ManaGraphics.Code.Graphics
 
             ManaConsole.WriteDiagnostic("Creating WebGPU surface.");
 #if MANA_BROWSER
+            Console.WriteLine("[ManaWebGpuContext] Calling CreateFromCanvas...");
             _surface = ManaBrowserWebGpuSurface.CreateFromCanvas(window, _api, _instance);
+            Console.WriteLine($"[ManaWebGpuContext] CreateFromCanvas returned: {(nint)_surface:X}");
 #else
             _surface = WebGPUSurface.CreateWebGPUSurface(window, _api, _instance);
 #endif
@@ -230,12 +237,26 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU surface.");
             }
 
+#if !MANA_BROWSER
             ManaConsole.WriteDiagnosticElapsed("Requesting WebGPU adapter.");
             RequestAdapter(requestedBackend);
             ManaConsole.WriteDiagnosticElapsed("Adapter granted; requesting WebGPU device.");
             RequestDevice();
             ManaConsole.WriteDiagnosticElapsed("Device granted.");
+            FinishInitialization(requestedBackend, window);
+#endif
+            // MANA_BROWSER: adapter/device request is genuinely asynchronous in a real browser
+            // (navigator.gpu.requestAdapter() resolves on a JS microtask, not synchronously within
+            // this call the way wgpu-native's desktop implementation does) -- a constructor can't
+            // await that, and this whole class is declared `unsafe`, which C# doesn't allow an
+            // `await` to appear within at all (regardless of whether the specific method touches a
+            // pointer). See ManaWebGpuContext.BrowserAsync.cs's CompleteBrowserInitializationAsync,
+            // a separate non-unsafe partial declaration of this same class, which callers must
+            // await before this context is usable; not yet confirmed working against a real browser.
+        }
 
+        private void FinishInitialization(string? requestedBackend, IWindow window)
+        {
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
             _queue = _api.DeviceGetQueue(_device);
             _meshTextures = new ManaWebGpuMeshTextureCache(_api, _device, _queue);

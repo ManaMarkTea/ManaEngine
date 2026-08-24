@@ -1,27 +1,34 @@
 using Mana;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Graphics;
+#if MANA_BROWSER
+using ManaGraphics.Code.Graphics.Browser;
+#endif
 
 Console.WriteLine("ManaVoxel.Web booting (browser-wasm)...");
 
-// Boot smoke test: prove the full ManaCore + Mana + ManaGraphics reference graph loads and
-// runs real engine code under Mono's wasm runtime, not just that each project compiles in
-// isolation (that was already verified per-project; this is the first time they've run
-// together as one published app). Deliberately does NOT attempt real windowing or WebGPU
-// device creation yet -- M1 (browser IWindow/IInputContext) and M2 (the real WebGPU shim)
-// aren't implemented, so this stays honest about what's proven vs. still stubbed rather
-// than faking a working play-mode experience. See WebPort-Plan.md for both milestones.
-
+// Quick boot smoke test first (cheap, and gives useful diagnostic output even if the heavier
+// WebGPU bring-up below fails): proves the full ManaCore + Mana + ManaGraphics reference graph
+// loads and runs real engine code under Mono's wasm runtime.
 var world = new ManaWorld();
 Console.WriteLine($"ManaWorld constructed OK ({world.Meshes.Count} meshes, {world.Scenes.Count} scenes at boot).");
-
 Console.WriteLine($"ManaGraphicsBackendKind values: {string.Join(", ", Enum.GetNames<ManaGraphicsBackendKind>())}");
 
-using var nativeContext = new ManaBrowserWebGpuNativeContext();
-var resolved = nativeContext.TryGetProcAddress("wgpuCreateInstance", out _);
-Console.WriteLine(
-    resolved
-        ? "UNEXPECTED: wgpuCreateInstance resolved -- M2 shim already implemented?"
-        : "Confirmed (expected): wgpuCreateInstance not resolved yet -- M2's WebGPU shim is still a stub.");
+#if MANA_BROWSER
+// The real M1/M2 attempt: a live browser IWindow (canvas-backed), the real WebGPU shim, and
+// GameSilkWebGpu's actual render loop -- the same code path VoxelPlayGameMode's own bring-up
+// uses on desktop, unmodified beyond the #if MANA_BROWSER branches already wired into it. Its
+// default per-frame behavior clears the canvas to a solid color, matching M0's original
+// "canvas clears to a color" verification target -- but this time through the real engine, not
+// a throwaway spike. NOT yet confirmed working end to end against a real browser; the whole
+// point of shipping this now is to find out from an actual browser console what breaks first.
+await ManaBrowserInterop.InitializeAsync();
+Console.WriteLine("Browser interop module loaded.");
 
-Console.WriteLine("Boot smoke test complete. Next real milestones: M1 (browser window/input), M2 (WebGPU shim).");
+var game = new GameSilkWebGpu("ManaVoxel.Web", requestedBackend: null);
+game.Run();
+Console.WriteLine("GameSilkWebGpu.Run() returned (expected: browser bring-up is async and non-blocking; " +
+    "watch the console above/after this line for how far it actually got).");
+#else
+Console.WriteLine("Not a browser-wasm build; skipping the WebGPU bring-up attempt.");
+#endif

@@ -18,6 +18,7 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
+#if !MANA_BROWSER
         private void RequestAdapter(string? requestedBackend)
         {
             var options = new RequestAdapterOptions
@@ -42,16 +43,61 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to request WebGPU device.");
             }
         }
+#else
+        // wgpu-native's desktop implementation invokes the callback synchronously, within the same
+        // call stack as InstanceRequestAdapter/AdapterRequestDevice, which is what lets the
+        // desktop RequestAdapter/RequestDevice above check _adapter/_device immediately after
+        // calling it. A real browser's navigator.gpu.requestAdapter()/requestDevice() resolve on a
+        // later JS microtask via Emscripten's library_webgpu.js calling back into this same
+        // callback -- genuinely asynchronous, not just async-shaped. These two just fire the
+        // native request; ManaWebGpuContext.BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync
+        // await a TaskCompletionSource that OnRequestAdapter/OnRequestDevice complete, once the
+        // callback actually arrives -- split into a separate non-unsafe partial file because this
+        // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
+        // at all, regardless of whether the awaiting method itself touches a pointer. Not yet
+        // confirmed against a real browser: the M0 spike only proved the shim mechanism for plain
+        // synchronous functions, not this callback-after-a-microtask path (see WebPort-Plan.md M2).
+        private System.Threading.Tasks.TaskCompletionSource<bool>? _adapterRequestTcs;
+        private System.Threading.Tasks.TaskCompletionSource<bool>? _deviceRequestTcs;
+
+        private void StartAdapterRequest()
+        {
+            var options = new RequestAdapterOptions
+            {
+                CompatibleSurface = _surface,
+                PowerPreference = PowerPreference.HighPerformance
+            };
+
+            _api.InstanceRequestAdapter(_instance, &options, _requestAdapterCallback, null);
+        }
+
+        private void StartDeviceRequest()
+        {
+            var descriptor = new DeviceDescriptor();
+            _api.AdapterRequestDevice(_adapter, &descriptor, _requestDeviceCallback, null);
+        }
+#endif
 
         private void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
         {
+#if MANA_BROWSER
+            Console.WriteLine($"[OnRequestAdapter] callback fired! status={status}");
+#endif
             if (status == RequestAdapterStatus.Success)
             {
                 _adapter = adapter;
+#if MANA_BROWSER
+                _adapterRequestTcs?.TrySetResult(true);
+#endif
                 return;
             }
 
+#if MANA_BROWSER
+            _adapterRequestTcs?.TrySetException(
+                new InvalidOperationException($"WebGPU adapter request failed: {status} {ReadMessage(message)}"));
+#else
             throw new InvalidOperationException($"WebGPU adapter request failed: {status} {ReadMessage(message)}");
+#endif
         }
 
         private void OnRequestDevice(RequestDeviceStatus status, Device* device, byte* message, void* userdata)
@@ -59,10 +105,18 @@ namespace ManaGraphics.Code.Graphics
             if (status == RequestDeviceStatus.Success)
             {
                 _device = device;
+#if MANA_BROWSER
+                _deviceRequestTcs?.TrySetResult(true);
+#endif
                 return;
             }
 
+#if MANA_BROWSER
+            _deviceRequestTcs?.TrySetException(
+                new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}"));
+#else
             throw new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}");
+#endif
         }
 
         private void OnError(ErrorType type, byte* message, void* userdata)

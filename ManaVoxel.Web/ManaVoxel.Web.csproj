@@ -17,6 +17,13 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WasmMainJSPath>main.js</WasmMainJSPath>
     <DefineConstants>$(DefineConstants);MANA_BROWSER</DefineConstants>
+    <!-- Activates Emscripten's own library_webgpu.js (the old USE_WEBGPU=1 API, not the newer
+         emdawnwebgpu port; see WebPort-Plan.md M0/M2), which is what
+         ManaGraphics/Native/mana_webgpu.c's shims forward into. This has to live here, not in
+         ManaGraphics.csproj: confirmed by testing that NativeFileReference/EmccExportedFunction/
+         EmccExtraLDFlags items declared in a referenced project are silently ignored during the
+         top-level app's publish; only the entry project's own native-link step runs them. -->
+    <EmccExtraLDFlags>$(EmccExtraLDFlags) -sUSE_WEBGPU=1</EmccExtraLDFlags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,6 +43,84 @@
 
   <ItemGroup>
     <WasmExtraFilesToDeploy Include="index.html" />
+    <WasmExtraFilesToDeploy Include="..\ManaGraphics\Native\mana_interop.js" Link="mana_interop.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Physically lives in ManaGraphics (the project whose ManaBrowserWebGpuNativeContext.cs
+         consumes it) but must be declared here; see the EmccExtraLDFlags comment above. -->
+    <NativeFileReference Include="..\ManaGraphics\Native\mana_webgpu.c" />
+    <!-- Hand-added, not part of the mechanically-generated 69; see mana_webgpu.c. -->
+    <EmccExportedFunction Include="_mana_wgpuInstanceCreateSurface" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterEnumerateFeatures" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterGetLimits" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterGetProperties" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterRelease" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterRequestDevice" />
+    <EmccExportedFunction Include="_mana_wgpuBindGroupLayoutRelease" />
+    <EmccExportedFunction Include="_mana_wgpuBindGroupRelease" />
+    <EmccExportedFunction Include="_mana_wgpuBufferDestroy" />
+    <EmccExportedFunction Include="_mana_wgpuBufferMapAsync" />
+    <EmccExportedFunction Include="_mana_wgpuBufferRelease" />
+    <EmccExportedFunction Include="_mana_wgpuCommandBufferRelease" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderBeginComputePass" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderBeginRenderPass" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderCopyBufferToBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderCopyTextureToTexture" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderFinish" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderRelease" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderDispatchWorkgroups" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderEnd" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderRelease" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderSetBindGroup" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderSetPipeline" />
+    <EmccExportedFunction Include="_mana_wgpuComputePipelineRelease" />
+    <EmccExportedFunction Include="_mana_wgpuCreateInstance" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateBindGroup" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateBindGroupLayout" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateCommandEncoder" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateComputePipeline" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreatePipelineLayout" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateRenderPipeline" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateSampler" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateShaderModule" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateTexture" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceEnumerateFeatures" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceGetLimits" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceGetQueue" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceRelease" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceSetUncapturedErrorCallback" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceProcessEvents" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceRelease" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceRequestAdapter" />
+    <EmccExportedFunction Include="_mana_wgpuPipelineLayoutRelease" />
+    <EmccExportedFunction Include="_mana_wgpuQueueRelease" />
+    <EmccExportedFunction Include="_mana_wgpuQueueSubmit" />
+    <EmccExportedFunction Include="_mana_wgpuQueueWriteBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuQueueWriteTexture" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderDraw" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderDrawIndexed" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderEnd" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderRelease" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetBindGroup" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetIndexBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetPipeline" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetScissorRect" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetVertexBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPipelineRelease" />
+    <EmccExportedFunction Include="_mana_wgpuSamplerRelease" />
+    <EmccExportedFunction Include="_mana_wgpuShaderModuleRelease" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceConfigure" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceGetCurrentTexture" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceGetPreferredFormat" />
+    <EmccExportedFunction Include="_mana_wgpuSurfacePresent" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceRelease" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceUnconfigure" />
+    <EmccExportedFunction Include="_mana_wgpuTextureCreateView" />
+    <EmccExportedFunction Include="_mana_wgpuTextureDestroy" />
+    <EmccExportedFunction Include="_mana_wgpuTextureRelease" />
+    <EmccExportedFunction Include="_mana_wgpuTextureViewRelease" />
   </ItemGroup>
 
 </Project>
