@@ -3,6 +3,7 @@ using ManaCore.Graphics;
 using ManaGraphics.Code.Graphics;
 #if MANA_BROWSER
 using ManaGraphics.Code.Graphics.Browser;
+using ManaVoxel.Web;
 #endif
 
 Console.WriteLine("ManaVoxel.Web booting (browser-wasm)...");
@@ -25,8 +26,10 @@ Console.WriteLine($"ManaGraphicsBackendKind values: {string.Join(", ", Enum.GetN
 await ManaBrowserInterop.InitializeAsync();
 Console.WriteLine("Browser interop module loaded.");
 
-var game = new GameSilkWebGpu("ManaVoxel.Web", requestedBackend: null);
-game.Run();
+// The real game: ground, the bundled level, a pawn controller and a follow camera -- the same
+// engine lifecycle the desktop play mode drives, minus the editor. See BrowserPlayGameMode.
+var playMode = new BrowserPlayGameMode("Levels/Sample Course.manalevel", ManaGraphicsBackendKind.WebGpu);
+playMode.RunWebGpu();
 Console.WriteLine("GameSilkWebGpu.Run() returned (expected: browser bring-up is async and non-blocking; " +
     "watch the console above/after this line for how far it actually got).");
 #else

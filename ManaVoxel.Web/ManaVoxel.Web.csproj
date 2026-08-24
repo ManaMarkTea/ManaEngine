@@ -23,6 +23,14 @@
          wgpuInstanceRequestAdapter; confirmed live in-browser, not just theorized. See
          WebPort-Plan.md M2. -->
     <RunAOTCompilation>true</RunAOTCompilation>
+    <!-- ManaLevel.Load deserializes .manalevel through System.Text.Json's reflection-based path.
+         A trimmed/AOT wasm publish turns that off by default (the runtime throws
+         "JsonSerializerIsReflectionDisabled"), because reflection over trimmed types can't be
+         proven safe. Re-enabling it is the supported switch for exactly this case. The properly
+         AOT-shaped fix is a source-generated JsonSerializerContext for ManaLevel's DTOs, which
+         would also shrink the output; worth doing if level DTOs ever get trimmed away or the
+         payload size starts to matter. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     <!-- Activates Emscripten's own library_webgpu.js (the old USE_WEBGPU=1 API, not the newer
          emdawnwebgpu port; see WebPort-Plan.md M0/M2), which is what
          ManaGraphics/Native/mana_webgpu.c's shims forward into. This has to live here, not in
@@ -57,6 +65,35 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Level loading, linked in by source rather than by referencing ManaVoxel.csproj: that
+         project is a WinExe whose ImGui/Assimp/editor surface has no browser-wasm build (see the
+         ProjectReference comment below for why it stays out). These particular files are pure
+         managed with no ImGui/Assimp/native dependencies, so compiling them into this assembly
+         costs nothing and leaves the desktop editor's own copy completely untouched. If the play
+         path ever needs much more of ManaVoxel than this, the better answer is extracting a
+         shared ManaLevels library rather than growing this list indefinitely. -->
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevel.cs" Link="Levels\ManaLevel.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelLoader.cs" Link="Levels\ManaLevelLoader.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
+    <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />
+    <!-- Only the zip-handling halves of these two: their other partials are editor-facing
+         (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
+         Splitting them was pure code movement; desktop compiles the same class from both files. -->
+    <Compile Include="..\ManaVoxel\Code\Assets\MeshAssetLibrary.ZipPaths.cs" Link="Levels\MeshAssetLibrary.ZipPaths.cs" />
+    <Compile Include="..\ManaVoxel\Code\Services\VoxelFileImportService.ZipSidecar.cs" Link="Levels\VoxelFileImportService.ZipSidecar.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The .manalevel DTOs (ManaLevel and friends, compiled into this assembly) are only ever
+         constructed by System.Text.Json's reflection, which the trimmer cannot see, so it
+         removes their parameterless constructors and deserialization fails at runtime with
+         "DeserializeNoConstructor". Rooting this assembly keeps them. Cheap here because this
+         assembly is just the entry point plus the linked level-loading sources; the engine
+         assemblies are still trimmed normally. -->
+    <TrimmerRootAssembly Include="ManaVoxel.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
     <WasmExtraFilesToDeploy Include="index.html" />
     <WasmExtraFilesToDeploy Include="..\ManaGraphics\Native\mana_interop.js" Link="mana_interop.js" />
   </ItemGroup>
@@ -72,6 +109,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- BepuPhysics crashes Mono's LLVM AOT compiler outright: "Assertion at mini-llvm.c:10284,
+         condition `LLVMTypeOf (lhs) == LLVMTypeOf (rhs)' not met" while compiling BepuPhysics.dll.
+         That's an internal compiler failure on Bepu's heavily-SIMD generic code, not something
+         fixable from this side. Interpreting just this one assembly (everything else still gets
+         AOT'd) sidesteps it; WebPort-Plan.md M7 already established Bepu runs correctly under the
+         wasm interpreter, producing bit-identical results to desktop. Physics is not the frame
+         budget's hot spot here, so the interpreter's slowdown on it is an acceptable trade for
+         having physics at all. Revisit if a later runtime fixes the AOT crash. -->
+    <_AOT_InternalForceInterpretAssemblies Include="BepuPhysics" />
+    <_AOT_InternalForceInterpretAssemblies Include="BepuUtilities" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- M3 prep: bundles the WGSL shaders into the wasm app's virtual filesystem so
          ManaWebGpuContext.Demo.cs's ResolveAssetPath (File.Exists probing against
          AppContext.BaseDirectory) and ManaWgslPreprocessor's sibling-relative #include
@@ -80,6 +130,19 @@
          is required to preserve the Assets/Shaders/WebGpu/... directory structure; confirmed
          via WasmAppBuilder.dll (ilspycmd) that an unset TargetPath drops the directory
          entirely. -->
+    <!-- The ground quad's default texture. Deliberately this one file rather than
+         Mana/Assets/Textures/**: that tree is 21 MB (14 MB of it environment maps, 6.5 MB of
+         material textures) and Sample Course references no textures at all, so anything more
+         would be download weight for nothing. Mesh-based levels will need their own additions. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\DebugTexture_Grid.png">
+      <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <!-- The level the browser build boots into. Sample Course is pure procedural shapes and
+         voxels with no external mesh/texture references, so it needs nothing bundled alongside it;
+         mesh-based levels (Little Train Yard) additionally need their Assets/*.zip. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Levels\Sample Course.manalevel">
+      <TargetPath>Levels/Sample Course.manalevel</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
     <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
       <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
