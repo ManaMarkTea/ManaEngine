@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code.Nodes;
 using ManaGraphics.Code.Graphics;
 using ManaVoxel.Code.Levels;
+using ManaVoxel.Code.Services;
 using System.Diagnostics;
 
 namespace ManaVoxel.Web
@@ -27,7 +28,12 @@ namespace ManaVoxel.Web
         private const float GroundSize = 256.0f;
 
         private readonly string _levelPath;
+        private readonly CharacterSpawnService _characterSpawn = new();
         private ManaPawnController? _pawnController;
+        private ManaPawnNode? _player;
+
+        /// <summary>The character being played, once there is one.</summary>
+        public ManaPawnNode? Player => _player;
 
         public BrowserPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
             : base(graphicsBackend)
@@ -103,6 +109,7 @@ namespace ManaVoxel.Web
                     new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f));
 
                 LoadLevel();
+                SpawnPlayer();
 
                 LoadingCoordinator.CompleteBackgroundWork();
             }
@@ -131,6 +138,48 @@ namespace ManaVoxel.Web
             }
 
             Console.WriteLine($"[BrowserPlay] Loaded '{level.Name}': {Context.World.DefaultScene.Children.Count} root nodes in the default scene.");
+        }
+
+        /// <summary>
+        /// Spawns the character at the level's ManaPlayerStartNode, possesses it, and puts the
+        /// camera behind it. Mirrors VoxelPlayGameMode's own spawn sequence.
+        /// </summary>
+        private void SpawnPlayer()
+        {
+            if (!_characterSpawn.IsAvailable)
+            {
+                Console.WriteLine("[BrowserPlay] No character packs found under Assets/; running without a player.");
+                return;
+            }
+
+            var start = ManaPlayerStartNode.Find(Context.World);
+            if (start != null)
+            {
+                // The start marker is level-authoring furniture, not something to look at while playing.
+                start.IsMarkerVisible = false;
+            }
+
+            var spawnPosition = start?.SpawnPosition ?? Vector3.Zero;
+            spawnPosition.Y += 0.5f;
+
+            lock (Context.World.SceneLock)
+            {
+                _player = _characterSpawn.SpawnNextCharacter(Context.World, spawnPosition, _pawnController);
+            }
+
+            if (_player == null || _pawnController == null)
+            {
+                Console.WriteLine($"[BrowserPlay] Character spawn failed: {_characterSpawn.LastError ?? "unknown reason"}");
+                return;
+            }
+
+            _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
+            _player.UpdateTransform();
+
+            _pawnController.Possess(_player);
+            _pawnController.SetCameraMode(ManaCameraMode.Follow);
+
+            Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
         }
 
         public override void Update(double deltaTime)

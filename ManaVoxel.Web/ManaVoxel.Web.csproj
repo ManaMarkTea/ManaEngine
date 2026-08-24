@@ -76,6 +76,7 @@
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelLoader.cs" Link="Levels\ManaLevelLoader.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
     <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />
+    <Compile Include="..\ManaVoxel\Code\Services\CharacterSpawnService.cs" Link="Services\CharacterSpawnService.cs" />
     <!-- Only the zip-handling halves of these two: their other partials are editor-facing
          (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
          Splitting them was pure code movement; desktop compiles the same class from both files. -->
@@ -136,6 +137,12 @@
          would be download weight for nothing. Mesh-based levels will need their own additions. -->
     <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\DebugTexture_Grid.png">
       <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <!-- The rigged character CharacterSpawnService loads the player from. It probes Assets roots
+         for zips containing "Models/GLB format/*.glb"; mini-characters is the smallest pack that
+         matches. Loaded through ManaWorld.Gltf.Browser.cs's SharpGLTF path, not Assimp. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_mini-characters.zip">
+      <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <!-- The level the browser build boots into. Sample Course is pure procedural shapes and
          voxels with no external mesh/texture references, so it needs nothing bundled alongside it;

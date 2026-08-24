@@ -129,6 +129,20 @@ namespace Mana
 
         public virtual void Load()
         {
+#if MANA_BROWSER
+            // CPU pixels are the whole job on the browser target: there is no OpenGL, and WebGPU
+            // uploads textures through its own bind groups from this data rather than through a
+            // bound texture unit. Without this branch, anything that loads a texture while
+            // DeferGpuUploads is false takes the OpenGL path below and throws
+            // PlatformNotSupportedException -- which is exactly what happened in
+            // ManaGameModeGraphicsBridge.FinalizeGpuUploads: it clears DeferGpuUploads first, then
+            // walks every material calling Load(). The throw was swallowed by
+            // ManaLoadingCoordinator.Update()'s catch into Fail(), so loading simply never
+            // completed and, because BaseGameMode.update() only ticks the loading coordinator
+            // while IsLoading, the game never simulated a single frame: no physics, no input, and
+            // no finalized GPU uploads, with nothing logged anywhere.
+            LoadCpuPixelData();
+#else
             if (Context.DeferGpuUploads)
             {
                 LoadCpuPixelData();
@@ -137,6 +151,7 @@ namespace Mana
             {
                 EnsureOpenGlTexture().Load();
             }
+#endif
         }
 
         internal void LoadOpenGlTextureData()
