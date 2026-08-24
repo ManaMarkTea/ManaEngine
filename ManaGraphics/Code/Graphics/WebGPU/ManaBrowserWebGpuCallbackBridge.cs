@@ -29,6 +29,10 @@ namespace ManaGraphics.Code.Graphics
         [LibraryImport("mana_webgpu", EntryPoint = "mana_log_shader_compilation_info")]
         internal static partial void LogShaderCompilationInfo(int shaderModuleId);
 
+        // Diagnostic only -- see mana_webgpu.c's mana_debug_readback_buffer_impl.
+        [LibraryImport("mana_webgpu", EntryPoint = "mana_debug_readback_buffer")]
+        internal static partial void DebugReadbackBuffer(int deviceId, int sourceBufferId, int byteSize);
+
         [JSExport]
         internal static void OnAdapterResult(int adapterId)
         {

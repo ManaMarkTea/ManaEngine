@@ -118,6 +118,38 @@ void mana_log_shader_compilation_info(int shaderModuleId) {
     mana_log_shader_compilation_info_impl(shaderModuleId);
 }
 
+// Diagnostic only: a direct GPU-side readback of a buffer's actual bytes, to confirm a
+// QueueWriteBuffer upload really landed rather than continuing to infer it from C# source
+// reading. wgpuBufferMapAsync is disabled for browser (same getWasmTableEntry callback bug as
+// DeviceSetUncapturedErrorCallback), and the source buffer is UNIFORM|COPY_DST anyway (not
+// MAP_READ-compatible per spec even if it worked), so this copies it into a throwaway
+// MAP_READ|COPY_DST staging buffer first, the standard WebGPU readback pattern, then maps and
+// logs that instead. Prints as float32s since every uniform struct in this codebase (frame and
+// object) is entirely f32/vec4/mat4 fields.
+EM_JS(void, mana_debug_readback_buffer_impl, (int deviceId, int sourceBufferId, int byteSize), {
+    var device = WebGPU.mgrDevice.get(deviceId);
+    var sourceBuffer = WebGPU.mgrBuffer.get(sourceBufferId);
+    var stagingBuffer = device.createBuffer({
+        size: byteSize,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
+    var encoder = device.createCommandEncoder();
+    encoder.copyBufferToBuffer(sourceBuffer, 0, stagingBuffer, 0, byteSize);
+    device.queue.submit([encoder.finish()]);
+    stagingBuffer.mapAsync(GPUMapMode.READ).then(() => {
+        var floats = new Float32Array(stagingBuffer.getMappedRange().slice(0));
+        console.log('[BufferReadback] buffer ' + sourceBufferId + ' (' + byteSize + ' bytes): [' + Array.from(floats).join(', ') + ']');
+        stagingBuffer.unmap();
+        stagingBuffer.destroy();
+    }, (ex) => {
+        console.error('[BufferReadback] mapAsync failed for buffer ' + sourceBufferId, ex);
+    });
+});
+
+void mana_debug_readback_buffer(int deviceId, int sourceBufferId, int byteSize) {
+    mana_debug_readback_buffer_impl(deviceId, sourceBufferId, byteSize);
+}
+
 // ---- Enum ABI remapping between Silk.NET.WebGPU 2.23.0 and this Emscripten SDK's bundled
 // webgpu.h ----
 // Both target structurally identical structs (every struct relevant to the render pipeline
