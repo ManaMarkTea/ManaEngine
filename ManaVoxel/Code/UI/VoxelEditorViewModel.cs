@@ -146,6 +146,7 @@ namespace ManaVoxel.Code.UI
         public bool ShowTrackSnapPoints;
         public bool ShowTransformGizmo = true;
         public SceneTransformGizmoMode TransformGizmoMode = SceneTransformGizmoMode.Translate;
+        public EditorUndoHistory History { get; } = new();
 
         // Off by default -- the demo KML is a ~10.5MB external file whose parse + mesh build cost is not
         // worth paying on every startup. Toggling this on is what triggers the (lazy, background) load;

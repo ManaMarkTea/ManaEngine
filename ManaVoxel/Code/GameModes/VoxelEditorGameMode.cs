@@ -59,6 +59,7 @@ namespace Mana.Code.GameModes
         private int _meshPickerPreviewSceneStartIndex = -1;
         private int _meshPickerPreviewMeshStartIndex = -1;
         private int _meshPickerPreviewMaterialStartIndex = -1;
+        private EditorSelectionSnapshot? _meshPickerPreviewSelectionBefore;
         private bool _selectPointerWasDown;
         private bool _directEditPointerWasDown;
         private Vector3? _lastDirectEditPosition;
@@ -212,7 +213,7 @@ namespace Mana.Code.GameModes
             InitCustomNodeInspectorHooks();
 
             var world = Context.World;
-            _transformGizmo = new SceneTransformGizmo(world);
+            _transformGizmo = new SceneTransformGizmo(world, _viewModel.History);
             _trackDebugVisualization = new TrackDebugVisualization(world);
 
             // Shares the editor's picking exclusions so a click-to-move order falls through the grid
@@ -1856,6 +1857,7 @@ namespace Mana.Code.GameModes
 
             try
             {
+                _meshPickerPreviewSelectionBefore = EditorSelectionSnapshot.Capture(world.Selection);
                 var previewNode = LoadMeshPickerAsset(assetReference);
                 _meshPickerPreviewAssetPath = assetReference;
                 _meshPickerPreviewNode = previewNode;
@@ -1872,6 +1874,7 @@ namespace Mana.Code.GameModes
                 _meshPickerPreviewSceneStartIndex = -1;
                 _meshPickerPreviewMeshStartIndex = -1;
                 _meshPickerPreviewMaterialStartIndex = -1;
+                _meshPickerPreviewSelectionBefore = null;
                 Trace.TraceWarning($"Failed to start mesh placement preview for '{assetReference}': {ex}");
                 ManaConsole.WriteDiagnostic($"Failed to start mesh placement preview for '{assetReference}': {ex}");
             }
@@ -1904,11 +1907,43 @@ namespace Mana.Code.GameModes
 
         private void CommitMeshPickerPlacementPreview()
         {
+            var world = Context.World;
+            var placedNode = _meshPickerPreviewNode;
+            var assetPath = _meshPickerPreviewAssetPath;
+            if (placedNode != null &&
+                _meshPickerPreviewSceneStartIndex >= 0 &&
+                _meshPickerPreviewMeshStartIndex >= 0 &&
+                _meshPickerPreviewMaterialStartIndex >= 0)
+            {
+                var insertion = EditorWorldInsertion.Capture(
+                    world,
+                    _meshPickerPreviewSceneStartIndex,
+                    _meshPickerPreviewMeshStartIndex,
+                    _meshPickerPreviewMaterialStartIndex);
+                var selectionBefore = _meshPickerPreviewSelectionBefore
+                    ?? EditorSelectionSnapshot.Capture(world.Selection);
+
+                EditorSelectionSnapshot.SelectNode(world.Selection, placedNode, sceneGraphChanged: true);
+                if (!insertion.IsEmpty)
+                {
+                    var displayName = !string.IsNullOrWhiteSpace(assetPath)
+                        ? MeshAssetLibrary.DisplayName(assetPath)
+                        : placedNode.Name ?? "Actor";
+                    _viewModel.History.RecordWorldInsertion(
+                        insertion,
+                        placedNode,
+                        selectionBefore,
+                        $"Place {displayName}",
+                        world.Selection);
+                }
+            }
+
             _meshPickerPreviewAssetPath = null;
             _meshPickerPreviewNode = null;
             _meshPickerPreviewSceneStartIndex = -1;
             _meshPickerPreviewMeshStartIndex = -1;
             _meshPickerPreviewMaterialStartIndex = -1;
+            _meshPickerPreviewSelectionBefore = null;
         }
 
         private void CancelMeshPickerPlacementPreview()
@@ -1928,6 +1963,7 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewSceneStartIndex = -1;
             _meshPickerPreviewMeshStartIndex = -1;
             _meshPickerPreviewMaterialStartIndex = -1;
+            _meshPickerPreviewSelectionBefore = null;
         }
 
         private ManaSceneNode LoadMeshPickerAsset(string assetReference)
@@ -2395,7 +2431,8 @@ namespace Mana.Code.GameModes
                     continue;
                 }
 
-                if (collision.Shape is not Box || !Context.Physics.Simulation.Bodies.BodyExists(collision.Body))
+                if (collision.Shape is not (Box or ConvexHull)
+                    || !Context.Physics.Simulation.Bodies.BodyExists(collision.Body))
                 {
                     continue;
                 }
@@ -2459,11 +2496,7 @@ namespace Mana.Code.GameModes
                 foreach (var collision in collisions)
                 {
                     var size = CollisionSize(collision);
-                    var cage = new ManaWireframeCage(
-                        Context,
-                        ColliderDebugColor,
-                        Vector3.Max(size * 0.5f, new Vector3(0.025f)),
-                        thickness: 0.035f);
+                    var debugMesh = CreateColliderDebugMesh(collision, size);
 
                     var node = new ManaSceneNode(Context, Matrix4x4.Identity)
                     {
@@ -2473,7 +2506,7 @@ namespace Mana.Code.GameModes
                         LevelSource = null
                     };
 
-                    node.Components.Add(new MeshRendererComponent(node, cage)
+                    node.Components.Add(new MeshRendererComponent(node, debugMesh)
                     {
                         DrawAfterScene = true
                     });
@@ -2537,9 +2570,54 @@ namespace Mana.Code.GameModes
 
         private static Vector3 CollisionSize(ManaCollisionComponent collision)
         {
-            return collision.Shape is Box box
-                ? new Vector3(box.Width, box.Height, box.Length)
-                : Vector3.Zero;
+            if (collision.Shape is Box box)
+            {
+                return new Vector3(box.Width, box.Height, box.Length);
+            }
+
+            if (collision.Shape is ConvexHull hull)
+            {
+                hull.ComputeBounds(Quaternion.Identity, out var min, out var max);
+                return max - min;
+            }
+
+            return Vector3.Zero;
+        }
+
+        private ManaMesh CreateColliderDebugMesh(ManaCollisionComponent collision, Vector3 size)
+        {
+            if (collision.Shape is not ConvexHull hull)
+            {
+                return new ManaWireframeCage(
+                    Context,
+                    ColliderDebugColor,
+                    Vector3.Max(size * 0.5f, new Vector3(0.025f)),
+                    thickness: 0.035f);
+            }
+
+            var faces = new List<ManaLinePolyline>(hull.FaceToVertexIndicesStart.Length);
+            for (var faceIndex = 0; faceIndex < hull.FaceToVertexIndicesStart.Length; faceIndex++)
+            {
+                hull.GetVertexIndicesForFace(faceIndex, out var vertexIndices);
+                var points = new List<Vector3>(vertexIndices.Length);
+                for (var vertexIndex = 0; vertexIndex < vertexIndices.Length; vertexIndex++)
+                {
+                    hull.GetPoint(vertexIndices[vertexIndex], out var point);
+                    points.Add(point);
+                }
+
+                if (points.Count >= 3)
+                {
+                    faces.Add(new ManaLinePolyline(points, closed: true));
+                }
+            }
+
+            return new ManaLineMesh(
+                Context,
+                faces,
+                thickness: 0.035f,
+                ColliderDebugColor,
+                emissionStrength: 1.5f);
         }
 
         private static string CollisionOwnerName(ManaSceneNode owner)
@@ -2724,6 +2802,7 @@ namespace Mana.Code.GameModes
             OpenStartupLevelIfRequested();
 
             UpdatePlayModeShortcuts();
+            UpdateUndoRedoShortcuts();
             _trackDebugVisualization?.SetVisibility(
                 _viewModel.ShowTrackBounds,
                 _viewModel.ShowTrackPivots,

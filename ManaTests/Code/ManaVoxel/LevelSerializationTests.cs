@@ -4,13 +4,16 @@ using Mana;
 using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using ManaCore.Graphics;
 using ManaGeoTools.Code.Planet;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Gameplay.Trains;
 using ManaVoxel.Code.Levels;
+using ManaVoxel.Code.UI;
 
 namespace ManaTests;
 
@@ -237,6 +240,22 @@ public static class LevelSerializationChecks
             Check("gizmo Y follows the mouse up at scene scale",
                 upProjected && MathF.Abs(upParameter - 1.0f) < 0.001f,
                 upParameter.ToString("0.###"));
+
+            var farPivot = new Vector3(250_000.0f, 80_000.0f, -175_000.0f);
+            object?[] farRightRay =
+            {
+                farPivot + new Vector3(0, 0, 10),
+                Vector3.Normalize(new Vector3(1, 0, -10)),
+                farPivot,
+                Vector3.UnitX,
+                Vector3.UnitZ,
+                0.0f
+            };
+            var farProjected = projectAxis.Invoke(null, farRightRay) is true;
+            var farParameter = farRightRay[5] is float far ? far : float.NaN;
+            Check("gizmo projection stays precise far from world origin",
+                farProjected && MathF.Abs(farParameter - 1.0f) < 0.01f,
+                farParameter.ToString("0.###"));
         }
 
         if (distanceToHandle != null)
@@ -259,6 +278,149 @@ public static class LevelSerializationChecks
                 directHit < 0.001f && clearMiss > 0.5f,
                 $"hit {directHit:0.###}, miss {clearMiss:0.###}");
         }
+
+        var insertionWorld = new ManaWorld();
+        var insertionContext = new ManaContext(null!, null!, insertionWorld) { DeferGpuUploads = true };
+        var existingScene = new ManaScene(insertionContext) { Name = "Existing" };
+        var importedScene = new ManaScene(insertionContext) { Name = "Imported" };
+        var existingNode = new ManaSceneNode(insertionContext, Matrix4x4.Identity) { Name = "Existing Node" };
+        var importedNode = new ManaSceneNode(insertionContext, Matrix4x4.Identity) { Name = "Imported Node" };
+        var importedMesh = new ManaCube(insertionContext, Vector4.One, Vector3.One);
+        var importedMaterial = new ManaMaterial(insertionContext) { Name = "Imported Material" };
+        existingScene.Children.Add(existingNode);
+        importedScene.Children.Add(importedNode);
+        insertionWorld.Scenes.Add(existingScene);
+        var sceneStart = insertionWorld.Scenes.Count;
+        var meshStart = insertionWorld.Meshes.Count;
+        var materialStart = insertionWorld.Materials.Count;
+        insertionWorld.Scenes.Add(importedScene);
+        insertionWorld.Meshes.Add(importedMesh);
+        insertionWorld.Materials.Add(importedMaterial);
+
+        var insertion = EditorWorldInsertion.Capture(insertionWorld, sceneStart, meshStart, materialStart);
+        var insertionHistory = new EditorUndoHistory();
+        insertionWorld.Selection.SelectedNode = existingNode;
+        var selectionBeforeInsertion = EditorSelectionSnapshot.Capture(insertionWorld.Selection);
+        EditorSelectionSnapshot.SelectNode(
+            insertionWorld.Selection,
+            importedNode,
+            sceneGraphChanged: true);
+        insertionHistory.RecordWorldInsertion(
+            insertion,
+            importedNode,
+            selectionBeforeInsertion,
+            "Place imported actor",
+            insertionWorld.Selection);
+        insertionHistory.Undo();
+        Check("undoing an actor placement removes all imported world data",
+            insertionWorld.Scenes.SequenceEqual(new[] { existingScene })
+            && insertionWorld.Meshes.Count == 0
+            && insertionWorld.Materials.Count == 0
+            && ReferenceEquals(insertionWorld.Selection.SelectedNode, existingNode),
+            $"{insertionWorld.Scenes.Count} scenes, {insertionWorld.Meshes.Count} meshes, "
+            + $"{insertionWorld.Materials.Count} materials, selection {insertionWorld.Selection.SelectedNode?.Name}");
+        insertionHistory.Redo();
+        Check("redoing an actor placement restores the same objects",
+            insertionWorld.Scenes.Count == 2
+            && ReferenceEquals(insertionWorld.Scenes[1], importedScene)
+            && ReferenceEquals(insertionWorld.Meshes.Single(), importedMesh)
+            && ReferenceEquals(insertionWorld.Materials.Single(), importedMaterial)
+            && ReferenceEquals(insertionWorld.Selection.SelectedNode, importedNode),
+            $"{insertionWorld.Scenes.Count} scenes, {insertionWorld.Meshes.Count} meshes, "
+            + $"{insertionWorld.Materials.Count} materials, selection {insertionWorld.Selection.SelectedNode?.Name}");
+
+        var wedgeWorld = new ManaWorld();
+        var wedgeContext = new ManaContext(null!, null!, wedgeWorld) { DeferGpuUploads = true };
+        wedgeContext.Physics = new ManaPhysics(wedgeContext);
+        var wedgeScene = new ManaScene(wedgeContext) { Name = "Wedge Scene" };
+        wedgeWorld.Scenes.Add(wedgeScene);
+        var wedgeLoadResult = ManaLevelLoader.Load(
+            new ManaLevel
+            {
+                Nodes =
+                {
+                    new ManaLevelNode
+                    {
+                        Name = "Shore Slope",
+                        Kind = ManaLevelSourceKind.Shape,
+                        Shape = "Wedge",
+                        Position = new[] { 2.0f, 3.0f, 4.0f },
+                        Size = new[] { 6.0f, 2.0f, 4.0f },
+                        Color = new[] { 0.2f, 0.6f, 0.3f, 1.0f },
+                        Collision = new ManaLevelCollision { UseVisualHull = true }
+                    }
+                }
+            },
+            wedgeContext,
+            wedgeScene,
+            replaceAuthoredNodes: false);
+        var wedgeNode = wedgeScene.Children.SingleOrDefault(node => node.Name == "Shore Slope");
+        var wedgeMesh = wedgeNode?.Components.OfType<MeshRendererComponent>().SingleOrDefault()?.Mesh as ManaWedge;
+        var wedgePositions = wedgeMesh?.GetOrCreateCpuData().Positions ?? Array.Empty<Vector3>();
+        Check("wedge level data constructs a wedge mesh",
+            wedgeNode?.LevelSource is { Shape: "Wedge", Size: var wedgeSize }
+            && wedgeSize == new Vector3(6.0f, 2.0f, 4.0f)
+            && wedgeMesh != null);
+        Check("a wedge can derive matching convex collision from its mesh",
+            wedgeNode?.Components.OfType<ManaCollisionComponent>().SingleOrDefault()?.Shape is ConvexHull,
+            string.Join(" | ", wedgeLoadResult.Warnings));
+        Check("a wedge occupies its full authored bounds",
+            wedgePositions.Length == 24
+            && wedgePositions.Min(position => position.X) == -3.0f
+            && wedgePositions.Max(position => position.X) == 3.0f
+            && wedgePositions.Min(position => position.Y) == -1.0f
+            && wedgePositions.Max(position => position.Y) == 1.0f
+            && wedgePositions.Min(position => position.Z) == -2.0f
+            && wedgePositions.Max(position => position.Z) == 2.0f,
+            $"{wedgePositions.Length} vertices");
+        Check("saving a wedge preserves its primitive recipe",
+            ManaLevelCapture.CaptureScene(wedgeWorld, wedgeScene, "Wedge Scene")
+                .Nodes.SingleOrDefault() is { Shape: "Wedge" } capturedWedge
+            && capturedWedge.Size!.SequenceEqual(new[] { 6.0f, 2.0f, 4.0f })
+            && capturedWedge.Collision?.UseVisualHull == true);
+
+        var disk = new ManaDisk(wedgeContext, Vector4.One, new Vector3(4.0f, 0.1f, 2.0f));
+        var diskData = disk.GetOrCreateCpuData();
+        Check("a disk is flat, elliptical, and occupies its full authored bounds",
+            diskData.Positions.Length == 384
+            && diskData.Positions.Min(position => position.X) == -2.0f
+            && diskData.Positions.Max(position => position.X) == 2.0f
+            && diskData.Positions.Min(position => position.Y) == -0.05f
+            && diskData.Positions.Max(position => position.Y) == 0.05f
+            && diskData.Positions.Min(position => position.Z) == -1.0f
+            && diskData.Positions.Max(position => position.Z) == 1.0f,
+            $"{diskData.Positions.Length} vertices");
+        Check("a disk has flat caps and separate side normals",
+            diskData.Normals.Any(normal => normal.Y > 0.99f)
+            && diskData.Normals.Any(normal => normal.Y < -0.99f)
+            && diskData.Normals.Any(normal => MathF.Abs(normal.Y) < 0.01f));
+
+        var slopePolicy = typeof(ManaPhysics).Assembly
+            .GetType("Mana.Code.DemoNarrowPhaseCallbacks")?
+            .GetMethod("IsWalkableSlope", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Check("character friction is reserved for walkable slopes",
+            slopePolicy?.Invoke(null, new object[] { Vector3.Normalize(new Vector3(0.4f, 1.0f, 0.0f)) }) is true
+            && slopePolicy.Invoke(null, new object[] { Vector3.UnitY }) is false
+            && slopePolicy.Invoke(null, new object[] { Vector3.UnitX }) is false);
+
+        var supportPolicy = typeof(ManaPawnNode).GetMethod(
+            "ComputeIdleGroundSupportVelocity",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var supportNormal = Vector3.Normalize(new Vector3(0.0f, 1.0f, 0.4f));
+        const float supportDelta = 1.0f / 60.0f;
+        var gravity = new Vector3(0.0f, -64.0f, 0.0f);
+        var supportVelocity = supportPolicy?.Invoke(
+            null,
+            new object[] { gravity, supportNormal, supportDelta }) is Vector3 support
+                ? support
+                : new Vector3(float.NaN);
+        var velocityAfterGravity = supportVelocity + gravity * supportDelta;
+        var remainingTangent = velocityAfterGravity
+            - Vector3.Dot(velocityAfterGravity, supportNormal) * supportNormal;
+        Check("idle ground support cancels downhill gravity before the solver step",
+            NearlyEqual(remainingTangent, Vector3.Zero, 0.0001f)
+            && supportVelocity.Z < 0.0f,
+            $"support {supportVelocity}, remaining tangent {remainingTangent}");
 
         var planetWorld = new ManaWorld();
         var planetContext = new ManaContext(null!, null!, planetWorld) { DeferGpuUploads = true };
@@ -361,8 +523,24 @@ public static class LevelSerializationChecks
         var pondWater = WalkNodes(pond?.Nodes ?? Enumerable.Empty<ManaLevelNode>())
             .SingleOrDefault(node => node.Kind == ManaLevelSourceKind.Water);
         Check("the pond owns a ripple-capable water surface",
-            pondWater?.Water is { Resolution: 96 } pondSettings
-            && pondSettings.Size.SequenceEqual(new[] { 16.0f, 16.0f }));
+            pondWater?.Water is { Resolution: 112 } pondSettings
+            && pondSettings.Size.SequenceEqual(new[] { 18.5f, 18.5f }));
+        var pondNodes = WalkNodes(pond?.Nodes ?? Enumerable.Empty<ManaLevelNode>()).ToList();
+        Check("the pond cuts its meadow around a recessed bed",
+            pondNodes.Count(node => node.Shape == "Cube" && node.Name?.EndsWith("Meadow") == true) == 4
+            && pondNodes.SingleOrDefault(node => node.Name == "Pond Bed") is
+            {
+                Shape: "Cube",
+                Position: [_, 0.1f, _]
+            });
+        Check("the pond shoreline uses four directional wedges",
+            pondNodes.Count(node => node.Shape == "Wedge") == 4
+            && pondNodes.Where(node => node.Shape == "Wedge")
+                .All(node => node.Collision?.UseVisualHull == true),
+            string.Join(", ", pondNodes.Where(node => node.Shape == "Wedge").Select(node => node.Name)));
+        Check("the pond uses flat disk lily pads",
+            pondNodes.Count(node => node.Name?.StartsWith("Lily Pad", StringComparison.Ordinal) == true
+                && node.Shape == "Disk") == 2);
 
         var allBundledLevels = Directory
             .EnumerateFiles(Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!, "*.manalevel")

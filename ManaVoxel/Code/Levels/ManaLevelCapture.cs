@@ -233,6 +233,14 @@ namespace ManaVoxel.Code.Levels
         {
             foreach (var collision in node.GetComponents<ManaCollisionComponent>())
             {
+                if (collision.Shape is ConvexHull)
+                {
+                    return new ManaLevelCollision
+                    {
+                        UseVisualHull = true
+                    };
+                }
+
                 if (collision.Shape is not Box box)
                 {
                     continue;

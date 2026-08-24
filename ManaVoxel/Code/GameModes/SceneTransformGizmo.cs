@@ -19,6 +19,7 @@ namespace Mana.Code.GameModes
         private readonly ManaWorld _world;
         private readonly ManaSceneNode _root;
         private readonly ManaScene _pickScene;
+        private readonly EditorUndoHistory _history;
         private readonly Dictionary<ManaSceneNode, GizmoAxis> _axisByNode = new();
         private readonly List<(GizmoAxis Axis, MeshRendererComponent Renderer)> _renderers = new();
 
@@ -32,11 +33,13 @@ namespace Mana.Code.GameModes
         private float _displayScale = 1.0f;
         private Vector3 _dragAxisWorld;
         private Vector3 _dragPlaneNormal;
+        private Vector3 _dragPivotWorld;
         private float _dragStartAxisParameter;
         private Vector3 _dragStartPlaneVector;
         private Vector3 _dragStartPosition;
         private Vector3 _dragStartRotation;
         private Vector3 _dragStartScale;
+        private SceneTransformGizmoMode _dragMode;
 
         private enum GizmoAxis
         {
@@ -45,9 +48,10 @@ namespace Mana.Code.GameModes
             Z
         }
 
-        public SceneTransformGizmo(ManaWorld world)
+        public SceneTransformGizmo(ManaWorld world, EditorUndoHistory history)
         {
             _world = world;
+            _history = history;
             _root = new ManaSceneNode(world.Context, Matrix4x4.Identity)
             {
                 Name = "Transform Gizmo (Transient)",
@@ -81,7 +85,8 @@ namespace Mana.Code.GameModes
                 _target = selectedNode;
             }
 
-            EnsureBuilt(mode);
+            var effectiveMode = _activeAxis.HasValue ? _dragMode : mode;
+            EnsureBuilt(effectiveMode);
             EnsureAttached();
             SyncTransform(selectedNode);
 
@@ -94,7 +99,7 @@ namespace Mana.Code.GameModes
             {
                 if (pointerDown)
                 {
-                    ApplyDrag(ray.Origin, ray.Direction, mode);
+                    ApplyDrag(ray.Origin, ray.Direction, _dragMode);
                 }
                 else
                 {
@@ -351,14 +356,15 @@ namespace Mana.Code.GameModes
                     continue;
                 }
 
-                var rayDistance = Vector3.Dot(_pivotWorld - rayOrigin, normal) / denominator;
+                var relativeRayOrigin = rayOrigin - _pivotWorld;
+                var rayDistance = Vector3.Dot(-relativeRayOrigin, normal) / denominator;
                 if (rayDistance < 0.0f)
                 {
                     continue;
                 }
 
-                var point = rayOrigin + rayDirection * rayDistance;
-                var error = MathF.Abs(Vector3.Distance(point, _pivotWorld) - _displayScale * ringRadius);
+                var pointFromPivot = relativeRayOrigin + rayDirection * rayDistance;
+                var error = MathF.Abs(pointFromPivot.Length() - _displayScale * ringRadius);
                 if (error <= _displayScale * pickWidth && error < closestError)
                 {
                     closestError = error;
@@ -423,12 +429,14 @@ namespace Mana.Code.GameModes
             _dragStartPosition = _target.Position;
             _dragStartRotation = _target.Rotation;
             _dragStartScale = _target.Scale;
+            _dragPivotWorld = _pivotWorld;
+            _dragMode = mode;
             var axisWorld = AxisWorld(axis);
             _dragAxisWorld = axisWorld;
 
             if (mode == SceneTransformGizmoMode.Rotate)
             {
-                if (!TryPlaneVector(rayOrigin, rayDirection, _pivotWorld, axisWorld, out _dragStartPlaneVector))
+                if (!TryPlaneVector(rayOrigin, rayDirection, _dragPivotWorld, axisWorld, out _dragStartPlaneVector))
                 {
                     return;
                 }
@@ -437,7 +445,7 @@ namespace Mana.Code.GameModes
                 || !TryAxisParameterOnPlane(
                     rayOrigin,
                     rayDirection,
-                    _pivotWorld,
+                    _dragPivotWorld,
                     axisWorld,
                     _dragPlaneNormal,
                     out _dragStartAxisParameter))
@@ -464,7 +472,7 @@ namespace Mana.Code.GameModes
 
             if (mode == SceneTransformGizmoMode.Rotate)
             {
-                if (!TryPlaneVector(rayOrigin, rayDirection, _pivotWorld, axisWorld, out var currentVector))
+                if (!TryPlaneVector(rayOrigin, rayDirection, _dragPivotWorld, axisWorld, out var currentVector))
                 {
                     return;
                 }
@@ -481,7 +489,7 @@ namespace Mana.Code.GameModes
                 if (!TryAxisParameterOnPlane(
                     rayOrigin,
                     rayDirection,
-                    _pivotWorld,
+                    _dragPivotWorld,
                     axisWorld,
                     _dragPlaneNormal,
                     out var parameter))
@@ -516,9 +524,31 @@ namespace Mana.Code.GameModes
 
         private void EndDrag()
         {
+            if (_activeAxis.HasValue && _target != null)
+            {
+                var before = new SceneNodeTransformState(
+                    _dragStartPosition,
+                    _dragStartRotation,
+                    _dragStartScale);
+                var after = SceneNodeTransformState.Capture(_target);
+                _history.RecordTransform(
+                    _target,
+                    before,
+                    after,
+                    $"{DescribeMode(_dragMode)} {_target.Name}",
+                    _world.Selection);
+            }
+
             _activeAxis = null;
             UpdateHighlight();
         }
+
+        private static string DescribeMode(SceneTransformGizmoMode mode) => mode switch
+        {
+            SceneTransformGizmoMode.Rotate => "Rotate",
+            SceneTransformGizmoMode.Scale => "Scale",
+            _ => "Move"
+        };
 
         private void SetHoveredAxis(GizmoAxis? axis)
         {
@@ -595,15 +625,18 @@ namespace Mana.Code.GameModes
                 return false;
             }
 
-            var distance = Vector3.Dot(axisOrigin - rayOrigin, planeNormal) / denominator;
+            // Stay relative to the drag origin. Reconstructing a large world-space point and then
+            // subtracting the pivot loses low bits as the scene moves farther from world origin.
+            var relativeRayOrigin = rayOrigin - axisOrigin;
+            var distance = Vector3.Dot(-relativeRayOrigin, planeNormal) / denominator;
             if (distance < 0.0f || !float.IsFinite(distance))
             {
                 parameter = 0.0f;
                 return false;
             }
 
-            var point = rayOrigin + rayDirection * distance;
-            parameter = Vector3.Dot(point - axisOrigin, Vector3.Normalize(axisDirection));
+            var pointFromAxisOrigin = relativeRayOrigin + rayDirection * distance;
+            parameter = Vector3.Dot(pointFromAxisOrigin, Vector3.Normalize(axisDirection));
             return float.IsFinite(parameter);
         }
 
@@ -621,14 +654,15 @@ namespace Mana.Code.GameModes
                 return false;
             }
 
-            var distance = Vector3.Dot(planeOrigin - rayOrigin, planeNormal) / denominator;
+            var relativeRayOrigin = rayOrigin - planeOrigin;
+            var distance = Vector3.Dot(-relativeRayOrigin, planeNormal) / denominator;
             if (distance < 0.0f)
             {
                 vector = Vector3.Zero;
                 return false;
             }
 
-            vector = rayOrigin + rayDirection * distance - planeOrigin;
+            vector = relativeRayOrigin + rayDirection * distance;
             if (vector.LengthSquared() < 0.000001f)
             {
                 return false;

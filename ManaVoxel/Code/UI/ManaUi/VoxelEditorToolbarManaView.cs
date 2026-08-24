@@ -16,17 +16,19 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static UiElement Build(UiTheme theme, VoxelEditorViewModel editor, ManaWorld? world)
         {
             return new Grid()
-                .Columns("Auto, Auto, Auto, Auto, Auto, Auto, *", theme.Spacing)
+                .Columns("Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto, *", theme.Spacing)
                 .Rows("Auto")
                 .Padding(6.0f, 3.0f)
                 .Children(
                     BuildLevelGroup(theme, editor.Levels, world).GridColumn(0),
                     Divider(theme).GridColumn(1),
-                    BuildGizmoGroup(theme, editor, world).GridColumn(2),
+                    BuildHistoryGroup(editor).GridColumn(2),
                     Divider(theme).GridColumn(3),
-                    BuildPlayGroup(theme, editor.Levels).GridColumn(4),
+                    BuildGizmoGroup(theme, editor, world).GridColumn(4),
                     Divider(theme).GridColumn(5),
-                    VoxelToolPaletteManaView.Build(theme, editor).GridColumn(6));
+                    BuildPlayGroup(theme, editor.Levels).GridColumn(6),
+                    Divider(theme).GridColumn(7),
+                    VoxelToolPaletteManaView.Build(theme, editor).GridColumn(8));
         }
 
         private static UiElement BuildLevelGroup(UiTheme theme, LevelViewModel levels, ManaWorld? world)
@@ -106,6 +108,27 @@ namespace ManaVoxel.Code.UI.ManaUi
                     GizmoModeButton("Move", "Translate along an axis.", SceneTransformGizmoMode.Translate, editor, world),
                     GizmoModeButton("Rotate", "Rotate around an axis.", SceneTransformGizmoMode.Rotate, editor, world),
                     GizmoModeButton("Scale", "Scale along an axis.", SceneTransformGizmoMode.Scale, editor, world));
+        }
+
+        private static UiElement BuildHistoryGroup(VoxelEditorViewModel editor)
+        {
+            var undo = new Button()
+                .Label("Undo")
+                .Variant(ButtonVariant.Subtle)
+                .WithTooltip("Undo the last editor action. Ctrl+Z.")
+                .OnClick(() => editor.History.Undo());
+            undo.BindPolled(button => button.IsEnabled, () => editor.History.CanUndo);
+
+            var redo = new Button()
+                .Label("Redo")
+                .Variant(ButtonVariant.Subtle)
+                .WithTooltip("Redo the last undone action. Ctrl+Y or Ctrl+Shift+Z.")
+                .OnClick(() => editor.History.Redo());
+            redo.BindPolled(button => button.IsEnabled, () => editor.History.CanRedo);
+
+            return new StackPanel()
+                .Horizontal(2.0f)
+                .Children(undo, redo);
         }
 
         private static Button GizmoModeButton(

@@ -15,14 +15,67 @@
       "scale": [ 1, 1, 1 ],
       "children": [
         {
-          "name": "Meadow Ground",
+          "name": "Raised Meadow",
+          "kind": "Group",
+          "position": [ 0, 0, 0 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 1, 1, 1 ],
+          "children": [
+            {
+              "name": "North Meadow",
+              "kind": "Shape",
+              "position": [ 0, 0.5, -12.25 ],
+              "rotation": [ 0, 0, 0 ],
+              "scale": [ 1, 1, 1 ],
+              "shape": "Cube",
+              "color": [ 0.32, 0.58, 0.25, 1 ],
+              "size": [ 30, 2, 5.5 ],
+              "collision": { "useVisualBounds": true }
+            },
+            {
+              "name": "South Meadow",
+              "kind": "Shape",
+              "position": [ 0, 0.5, 12.25 ],
+              "rotation": [ 0, 0, 0 ],
+              "scale": [ 1, 1, 1 ],
+              "shape": "Cube",
+              "color": [ 0.3, 0.55, 0.23, 1 ],
+              "size": [ 30, 2, 5.5 ],
+              "collision": { "useVisualBounds": true }
+            },
+            {
+              "name": "West Meadow",
+              "kind": "Shape",
+              "position": [ -12.25, 0.5, 0 ],
+              "rotation": [ 0, 0, 0 ],
+              "scale": [ 1, 1, 1 ],
+              "shape": "Cube",
+              "color": [ 0.3, 0.56, 0.24, 1 ],
+              "size": [ 5.5, 2, 19 ],
+              "collision": { "useVisualBounds": true }
+            },
+            {
+              "name": "East Meadow",
+              "kind": "Shape",
+              "position": [ 12.25, 0.5, 0 ],
+              "rotation": [ 0, 0, 0 ],
+              "scale": [ 1, 1, 1 ],
+              "shape": "Cube",
+              "color": [ 0.34, 0.6, 0.25, 1 ],
+              "size": [ 5.5, 2, 19 ],
+              "collision": { "useVisualBounds": true }
+            }
+          ]
+        },
+        {
+          "name": "Pond Bed",
           "kind": "Shape",
-          "position": [ 0, 0.55, 0 ],
+          "position": [ 0, 0.1, 0 ],
           "rotation": [ 0, 0, 0 ],
           "scale": [ 1, 1, 1 ],
           "shape": "Cube",
-          "color": [ 0.32, 0.58, 0.25, 1 ],
-          "size": [ 30, 0.8, 30 ],
+          "color": [ 0.14, 0.2, 0.12, 1 ],
+          "size": [ 16, 0.4, 16 ],
           "collision": { "useVisualBounds": true }
         },
         {
@@ -32,53 +85,53 @@
           "rotation": [ 0, 0, 0 ],
           "scale": [ 1, 1, 1 ],
           "water": {
-            "size": [ 16, 16 ],
-            "resolution": 96
+            "size": [ 18.5, 18.5 ],
+            "resolution": 112
           }
         },
         {
-          "name": "North Bank",
+          "name": "North Shore Slope",
           "kind": "Shape",
-          "position": [ 0, 1.02, -8.8 ],
+          "position": [ 0, 0.9, -8 ],
           "rotation": [ 0, 0, 0 ],
           "scale": [ 1, 1, 1 ],
-          "shape": "Cube",
+          "shape": "Wedge",
           "color": [ 0.43, 0.52, 0.22, 1 ],
-          "size": [ 18, 0.55, 1.6 ],
-          "collision": { "useVisualBounds": true }
+          "size": [ 19, 1.2, 3 ],
+          "collision": { "useVisualHull": true }
         },
         {
-          "name": "South Bank",
+          "name": "South Shore Slope",
           "kind": "Shape",
-          "position": [ 0, 1.02, 8.8 ],
-          "rotation": [ 0, 0, 0 ],
+          "position": [ 0, 0.9, 8 ],
+          "rotation": [ 0, 3.1415927, 0 ],
           "scale": [ 1, 1, 1 ],
-          "shape": "Cube",
+          "shape": "Wedge",
           "color": [ 0.39, 0.49, 0.2, 1 ],
-          "size": [ 18, 0.55, 1.6 ],
-          "collision": { "useVisualBounds": true }
+          "size": [ 19, 1.2, 3 ],
+          "collision": { "useVisualHull": true }
         },
         {
-          "name": "West Bank",
+          "name": "West Shore Slope",
           "kind": "Shape",
-          "position": [ -8.8, 1.02, 0 ],
-          "rotation": [ 0, 0, 0 ],
+          "position": [ -8, 0.9, 0 ],
+          "rotation": [ 0, 1.5707964, 0 ],
           "scale": [ 1, 1, 1 ],
-          "shape": "Cube",
+          "shape": "Wedge",
           "color": [ 0.36, 0.5, 0.2, 1 ],
-          "size": [ 1.6, 0.55, 16 ],
-          "collision": { "useVisualBounds": true }
+          "size": [ 19, 1.2, 3 ],
+          "collision": { "useVisualHull": true }
         },
         {
-          "name": "East Bank",
+          "name": "East Shore Slope",
           "kind": "Shape",
-          "position": [ 8.8, 1.02, 0 ],
-          "rotation": [ 0, 0, 0 ],
+          "position": [ 8, 0.9, 0 ],
+          "rotation": [ 0, -1.5707964, 0 ],
           "scale": [ 1, 1, 1 ],
-          "shape": "Cube",
+          "shape": "Wedge",
           "color": [ 0.4, 0.54, 0.22, 1 ],
-          "size": [ 1.6, 0.55, 16 ],
-          "collision": { "useVisualBounds": true }
+          "size": [ 19, 1.2, 3 ],
+          "collision": { "useVisualHull": true }
         },
         {
           "name": "Northwest Bank Mound",
@@ -171,20 +224,20 @@
         {
           "name": "Lily Pad 1",
           "kind": "Shape",
-          "position": [ -3.8, 1.23, -3.3 ],
+          "position": [ -3.8, 1.14, -3.3 ],
           "rotation": [ 0, 0.3, 0 ],
           "scale": [ 1, 1, 1 ],
-          "shape": "Sphere",
+          "shape": "Disk",
           "color": [ 0.18, 0.48, 0.16, 1 ],
           "size": [ 1.5, 0.08, 1.2 ]
         },
         {
           "name": "Lily Pad 2",
           "kind": "Shape",
-          "position": [ 4.2, 1.23, 3.2 ],
+          "position": [ 4.2, 1.14, 3.2 ],
           "rotation": [ 0, -0.2, 0 ],
           "scale": [ 1, 1, 1 ],
-          "shape": "Sphere",
+          "shape": "Disk",
           "color": [ 0.23, 0.56, 0.18, 1 ],
           "size": [ 1.25, 0.08, 1.05 ]
         },
@@ -230,7 +283,7 @@
         {
           "name": "Player Start",
           "kind": "PlayerStart",
-          "position": [ 0, 1, 13 ],
+          "position": [ 0, 1.55, 13 ],
           "rotation": [ 0, 3.1415927, 0 ],
           "scale": [ 1, 1, 1 ]
         }

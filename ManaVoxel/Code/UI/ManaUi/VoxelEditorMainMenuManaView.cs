@@ -36,10 +36,22 @@ namespace ManaVoxel.Code.UI.ManaUi
             return new[]
             {
                 File(viewModel),
+                Edit(viewModel),
                 Play(viewModel),
                 Character(viewModel),
                 View(viewModel, host)
             };
+        }
+
+        private static MenuItem Edit(VoxelEditorViewModel viewModel)
+        {
+            return new MenuItem("Edit").WithItems(
+                new MenuItem("Undo", () => viewModel.History.Undo())
+                    .WithShortcut("Ctrl+Z")
+                    .EnabledWhen(() => viewModel.History.CanUndo),
+                new MenuItem("Redo", () => viewModel.History.Redo())
+                    .WithShortcut("Ctrl+Y")
+                    .EnabledWhen(() => viewModel.History.CanRedo));
         }
 
         private static MenuItem File(VoxelEditorViewModel viewModel)

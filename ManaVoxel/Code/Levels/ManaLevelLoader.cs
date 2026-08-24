@@ -354,6 +354,8 @@ namespace ManaVoxel.Code.Levels
                     "Cube" => shapes.AddCube(position, color, size),
                     "Sphere" => shapes.AddSphere(position, color, size),
                     "Pyramid" => shapes.AddPyramid(position, color, size),
+                    "Wedge" => shapes.AddWedge(position, color, size),
+                    "Disk" => shapes.AddDisk(position, color, size),
                     "Torus" => shapes.AddTorus(position, color, size),
                     "Icosahedron" => shapes.AddIcosahedron(position, color, size),
                     "Icosphere" => shapes.AddIsoSphere(position, color, size),
@@ -472,6 +474,16 @@ namespace ManaVoxel.Code.Levels
         {
             if (entry.Collision is { } collision)
             {
+                if (collision.UseVisualHull
+                    && ManaCollisionBounds.TryGetVisualHullPoints(node, out var visualPoints))
+                {
+                    context.Physics.AddConvexHullBody(
+                        node,
+                        visualPoints,
+                        collision.Offset != null ? ToVector3(collision.Offset) : Vector3.Zero);
+                    return;
+                }
+
                 if (collision.UseVisualBounds
                     && ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset))
                 {

@@ -211,7 +211,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                     SceneOutlinerManaView.Build(theme, world, world.Selection, saveScene, sceneHasChanges)) { Id = "outliner" },
                 "inspector" when world != null => new DockItem(
                     "Inspector",
-                    SceneInspectorManaView.Build(theme, world.Selection, world.Context)) { Id = "inspector" },
+                    SceneInspectorManaView.Build(
+                        theme,
+                        world.Selection,
+                        world.Context,
+                        history: editor?.History)) { Id = "inspector" },
                 "worldperf" when world != null => new DockItem(
                     "World Perf",
                     WorldPerfManaView.Build(theme, world).Scrollable()) { Id = "worldperf" },

@@ -160,7 +160,7 @@ namespace ManaVoxel.Code.Levels
         public List<ManaLevelNode>? Children { get; set; }
     }
 
-    /// <summary>A kinematic box collider, so a platform you jumped on before is still solid after loading.</summary>
+    /// <summary>A kinematic collider, so authored terrain is still solid after loading.</summary>
     public sealed class ManaLevelCollision
     {
         /// <summary>
@@ -169,6 +169,10 @@ namespace ManaVoxel.Code.Levels
         /// </summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool UseVisualBounds { get; set; }
+
+        /// <summary>When true, collision is rebuilt as a convex hull of the rendered mesh.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool UseVisualHull { get; set; }
 
         /// <summary>Full extent, as Bepu's Box takes it. Explicit colliders require this.</summary>
         public float[]? Size { get; set; }

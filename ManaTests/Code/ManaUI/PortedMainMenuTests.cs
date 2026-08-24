@@ -40,7 +40,7 @@ public static class PortedMainMenuChecks
         root.UpdateLayout(new Vector2(1280, 720));
 
         var headings = bar.Menus.Select(m => m.Text).ToList();
-        Check("it has the same top-level menus", headings.SequenceEqual(new[] { "File", "Play", "Character", "View" }),
+        Check("it has the editor's top-level menus", headings.SequenceEqual(new[] { "File", "Edit", "Play", "Character", "View" }),
             string.Join(", ", headings));
 
         Check("the bar is one row tall", bar.Bounds.Height <= root.Theme.ControlHeight + 8.0f,
@@ -147,6 +147,27 @@ public static class PortedMainMenuChecks
 
         Check("and invoking one anyway does nothing rather than throwing",
             !Throws(() => playRow.Invoke()));
+
+        // ---------------------------------------------------------------- Edit history
+        var edit = bar.Menus.First(m => m.Text == "Edit");
+        var undo = edit.Items.First(i => i.Text == "Undo");
+        var redo = edit.Items.First(i => i.Text == "Redo");
+        Check("empty history disables undo and redo",
+            !undo.ResolveEnabled() && !redo.ResolveEnabled());
+        Check("history shortcuts are discoverable",
+            undo.ResolveShortcut() == "Ctrl+Z" && redo.ResolveShortcut() == "Ctrl+Y");
+
+        var historyValue = 1;
+        vm.History.Record("Change value", () => historyValue = 0, () => historyValue = 1);
+        Check("recording an edit enables undo", undo.ResolveEnabled() && !redo.ResolveEnabled());
+        undo.Invoke();
+        Check("undo applies once and enables redo",
+            historyValue == 0 && !undo.ResolveEnabled() && redo.ResolveEnabled(),
+            $"value {historyValue}");
+        redo.Invoke();
+        Check("redo reapplies the edit",
+            historyValue == 1 && undo.ResolveEnabled() && !redo.ResolveEnabled(),
+            $"value {historyValue}");
 
         // ---------------------------------------------------------------- File: levels
         var newLevel = file.Items.FirstOrDefault(i => i.Text == "New Level");

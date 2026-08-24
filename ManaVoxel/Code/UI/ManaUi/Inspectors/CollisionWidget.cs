@@ -10,7 +10,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
     {
         protected override bool Accepts(ManaSceneNode node)
         {
-            return TryGetBoxCollision(node, out _, out _, out _);
+            return TryGetCollision(node, out _, out _);
         }
 
         protected override UiElement Build(ManaSceneNode node, InspectorContext context)
@@ -20,7 +20,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 .Checked(ReadShowDebug(node))
                 .OnChanged(value =>
                 {
-                    if (TryGetBoxCollision(node, out _, out var collision, out _))
+                    if (TryGetCollision(node, out _, out var collision))
                     {
                         collision.ShowDebug = value;
                     }
@@ -31,7 +31,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 .Checked(ReadSyncNodeToPhysics(node))
                 .OnChanged(value =>
                 {
-                    if (TryGetBoxCollision(node, out _, out var collision, out _))
+                    if (TryGetCollision(node, out _, out var collision))
                     {
                         collision.SyncNodeToPhysics = value;
                     }
@@ -54,23 +54,23 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     fitVisualBounds,
 
                     InspectorControls.Row(context, "Owner",
-                        ReadOnly(theme, () => TryGetBoxCollision(node, out var owner, out _, out _)
+                        ReadOnly(theme, () => TryGetCollision(node, out var owner, out _)
                             ? DisplayName(owner)
                             : string.Empty)),
 
                     InspectorControls.Row(context, "Source",
-                        ReadOnly(theme, () => TryGetBoxCollision(node, out var owner, out var collision, out var box)
-                            ? SourceOf(owner, collision, box)
+                        ReadOnly(theme, () => TryGetCollision(node, out var owner, out var collision)
+                            ? SourceOf(owner, collision)
                             : string.Empty)),
 
                     InspectorControls.Row(context, "Size",
                         ReadOnly(theme, () => Format(SizeOf(node)))),
 
                     InspectorControls.Row(context, "Offset", InspectorControls.Vector(
-                        () => TryGetBoxCollision(node, out _, out var collision, out _) ? collision.Position : Vector3.Zero,
+                        () => TryGetCollision(node, out _, out var collision) ? collision.Position : Vector3.Zero,
                         value =>
                         {
-                            if (TryGetBoxCollision(node, out _, out var collision, out _))
+                            if (TryGetCollision(node, out _, out var collision))
                             {
                                 collision.Position = value;
                             }
@@ -80,27 +80,46 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
         private static bool ReadShowDebug(ManaSceneNode node)
         {
-            return TryGetBoxCollision(node, out _, out var collision, out _) && collision.ShowDebug;
+            return TryGetCollision(node, out _, out var collision) && collision.ShowDebug;
         }
 
         private static bool ReadSyncNodeToPhysics(ManaSceneNode node)
         {
-            return TryGetBoxCollision(node, out _, out var collision, out _) && collision.SyncNodeToPhysics;
+            return TryGetCollision(node, out _, out var collision) && collision.SyncNodeToPhysics;
         }
 
         private static Vector3 SizeOf(ManaSceneNode node)
         {
-            return TryGetBoxCollision(node, out _, out _, out var box)
-                ? new Vector3(box.Width, box.Height, box.Length)
-                : Vector3.Zero;
+            if (!TryGetCollision(node, out _, out var collision))
+            {
+                return Vector3.Zero;
+            }
+
+            if (collision.Shape is Box box)
+            {
+                return new Vector3(box.Width, box.Height, box.Length);
+            }
+
+            if (collision.Shape is ConvexHull hull)
+            {
+                hull.ComputeBounds(Quaternion.Identity, out var min, out var max);
+                return max - min;
+            }
+
+            return Vector3.Zero;
         }
 
-        private static string SourceOf(ManaSceneNode owner, ManaCollisionComponent collision, Box box)
+        private static string SourceOf(ManaSceneNode owner, ManaCollisionComponent collision)
         {
-            var size = new Vector3(box.Width, box.Height, box.Length);
-            return ManaCollisionBounds.MatchesVisualBox(owner, size, collision.Position)
-                ? "Visual bounds"
-                : "Explicit box";
+            if (collision.Shape is Box box)
+            {
+                var size = new Vector3(box.Width, box.Height, box.Length);
+                return ManaCollisionBounds.MatchesVisualBox(owner, size, collision.Position)
+                    ? "Visual bounds"
+                    : "Explicit box";
+            }
+
+            return collision.Shape is ConvexHull ? "Visual convex hull" : "Convex shape";
         }
 
         private static void FitToVisualBounds(ManaSceneNode node)
@@ -142,6 +161,26 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             owner = null!;
             collision = null!;
             box = default;
+            return false;
+        }
+
+        private static bool TryGetCollision(
+            ManaSceneNode node,
+            out ManaSceneNode owner,
+            out ManaCollisionComponent collision)
+        {
+            for (var current = node; current != null; current = current.Parent)
+            {
+                collision = current.GetComponents<ManaCollisionComponent>().FirstOrDefault()!;
+                if (collision != null)
+                {
+                    owner = current;
+                    return true;
+                }
+            }
+
+            owner = null!;
+            collision = null!;
             return false;
         }
 

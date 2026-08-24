@@ -14,7 +14,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             UiTheme theme,
             ManaContext? engine,
             InspectorWidgetFactory? widgets = null,
-            SceneSelectionState? selection = null)
+            SceneSelectionState? selection = null,
+            EditorUndoHistory? history = null)
         {
             ArgumentNullException.ThrowIfNull(theme);
 
@@ -22,6 +23,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             Engine = engine;
             Widgets = widgets ?? InspectorWidgetFactory.CreateDefault();
             Selection = selection;
+            History = history;
         }
 
         public UiTheme Theme { get; }
@@ -36,6 +38,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         public InspectorWidgetFactory Widgets { get; }
 
         public SceneSelectionState? Selection { get; }
+
+        public EditorUndoHistory? History { get; }
 
         /// <summary>
         /// Measurements shared by every row -- the width of the name column, which the divider moves.

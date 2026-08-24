@@ -32,9 +32,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             UiTheme theme,
             SceneSelectionState selection,
             ManaContext? context = null,
-            InspectorWidgetFactory? widgets = null)
+            InspectorWidgetFactory? widgets = null,
+            EditorUndoHistory? history = null)
         {
-            var inspector = new InspectorContext(theme, context, widgets, selection);
+            var inspector = new InspectorContext(theme, context, widgets, selection, history);
             var target = new SelectionTarget(selection);
 
             // The tree is retained, so the panel cannot simply re-run when the selection changes -- it has

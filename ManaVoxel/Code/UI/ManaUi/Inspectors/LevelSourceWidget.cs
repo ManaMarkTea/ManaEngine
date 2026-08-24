@@ -19,6 +19,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             "Cube",
             "Sphere",
             "Pyramid",
+            "Wedge",
+            "Disk",
             "Torus",
             "Icosahedron",
             "Icosphere",
@@ -162,6 +164,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 "Cube" => new ManaCube(context, color, size),
                 "Sphere" => new ManaSphere(context, color, 0.5f),
                 "Pyramid" => new ManaPyramid(context, color, Vector3.One),
+                "Wedge" => new ManaWedge(context, color, size),
+                "Disk" => new ManaDisk(context, color, size),
                 "Torus" => new ManaTorus(context, color),
                 "Icosahedron" => new ManaIcosahedron(context, color),
                 "Icosphere" => new ManaIsoSphere(context, color, 0.5f),
@@ -173,6 +177,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         private static bool ShapeBakesSize(string? shape)
         {
             return string.Equals(shape, "Cube", StringComparison.Ordinal)
+                || string.Equals(shape, "Wedge", StringComparison.Ordinal)
+                || string.Equals(shape, "Disk", StringComparison.Ordinal)
                 || string.Equals(shape, "Quad", StringComparison.Ordinal);
         }
 
@@ -188,6 +194,22 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
         private static void ResizeBoxCollisionToVisualBounds(ManaSceneNode node, string shape, Vector3 size)
         {
+            var hullCollision = node.GetComponents<ManaCollisionComponent>()
+                .FirstOrDefault(component => component.Shape is ConvexHull);
+            if (hullCollision != null)
+            {
+                var showDebug = hullCollision.ShowDebug;
+                var syncNodeToPhysics = hullCollision.SyncNodeToPhysics;
+                node.Context.Physics.RemoveBody(hullCollision.Body);
+                if (ManaCollisionBounds.TryGetVisualHullPoints(node, out var points))
+                {
+                    var replacement = node.Context.Physics.AddConvexHullBody(node, points, Vector3.Zero);
+                    replacement.ShowDebug = showDebug;
+                    replacement.SyncNodeToPhysics = syncNodeToPhysics;
+                }
+                return;
+            }
+
             if (!TryGetBoxCollision(node, out var collision, out _))
             {
                 return;
@@ -215,6 +237,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return node.LevelSource?.Shape switch
             {
                 "Cube" => "Size",
+                "Wedge" => "Size",
+                "Disk" => "Size",
                 "Quad" => "Quad size",
                 _ => "Source scale"
             };

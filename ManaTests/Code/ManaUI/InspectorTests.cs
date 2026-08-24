@@ -11,6 +11,7 @@ using Mana.Code.Materials;
 using ManaCore.Graphics;
 using ManaVoxel.Code.Gameplay.Trains;
 using ManaVoxel.Code.Levels;
+using ManaVoxel.Code.UI;
 using ManaVoxel.Code.UI.ManaUi;
 using ManaVoxel.Code.UI.ManaUi.Inspectors;
 
@@ -97,6 +98,7 @@ public static class InspectorChecks
 
         var root = new UiRoot(fonts);
         var world = new ManaWorld();
+        var history = new EditorUndoHistory();
         // Uploads deferred, so shader construction stops short of touching a GPU that is not there.
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
         context.Physics = new ManaPhysics(context);
@@ -125,7 +127,7 @@ public static class InspectorChecks
         UiElement? view = null;
         try
         {
-            view = SceneInspectorManaView.Build(root.Theme, world.Selection, context);
+            view = SceneInspectorManaView.Build(root.Theme, world.Selection, context, history: history);
             Check("inspector constructs over a real world", true);
         }
         catch (Exception ex)
@@ -177,6 +179,19 @@ public static class InspectorChecks
         position.Value = new Vector3(3.0f, -2.0f, 0.5f);
         Check("editing position writes to the node", first.Position == new Vector3(3.0f, -2.0f, 0.5f),
             first.Position.ToString());
+
+        position.Field(0).Focus();
+        root.Input.InjectKeyDown(UiKey.Enter);
+        Check("committing a transform creates one undo action", history.CanUndo && !history.CanRedo,
+            history.UndoDescription);
+        history.Undo();
+        Check("undo restores the whole transform", first.Position == Vector3.Zero && history.CanRedo,
+            first.Position.ToString());
+        history.Redo();
+        Check("redo restores the committed transform", first.Position == new Vector3(3.0f, -2.0f, 0.5f),
+            first.Position.ToString());
+        history.Clear();
+        root.FocusManager.Focus(null);
 
         var scale = vectors[2];
         scale.Value = new Vector3(2.0f, 2.0f, 2.0f);

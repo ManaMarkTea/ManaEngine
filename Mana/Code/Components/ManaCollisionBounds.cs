@@ -46,6 +46,32 @@ namespace Mana.Code.Components
                 && NearlyEqual(offset, visualOffset, epsilon);
         }
 
+        public static bool TryGetVisualHullPoints(ManaSceneNode node, out Vector3[] points)
+        {
+            points = Array.Empty<Vector3>();
+            if (!Matrix4x4.Invert(node.WorldTransform, out var worldToRoot))
+            {
+                return false;
+            }
+
+            var localPoints = new List<Vector3>();
+            CollectVisualPoints(node, worldToRoot, localPoints);
+            if (localPoints.Count < 4)
+            {
+                return false;
+            }
+
+            Matrix4x4.Decompose(node.WorldTransform, out var worldScale, out _, out _);
+            points = localPoints
+                .Select(point => new Vector3(
+                    point.X * worldScale.X,
+                    point.Y * worldScale.Y,
+                    point.Z * worldScale.Z))
+                .Distinct()
+                .ToArray();
+            return points.Length >= 4;
+        }
+
         private static void CollectVisualBounds(
             ManaSceneNode node,
             Matrix4x4 rootWorldToLocal,
@@ -101,6 +127,41 @@ namespace Mana.Code.Components
 
                 localMin = Vector3.Min(localMin, rootPosition);
                 localMax = Vector3.Max(localMax, rootPosition);
+            }
+        }
+
+        private static void CollectVisualPoints(
+            ManaSceneNode node,
+            Matrix4x4 rootWorldToLocal,
+            List<Vector3> points)
+        {
+            var nodeToRoot = node.WorldTransform * rootWorldToLocal;
+            foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+            {
+                if (renderer.Mesh == null)
+                {
+                    continue;
+                }
+
+                ManaMeshCpuData cpuData;
+                try
+                {
+                    cpuData = renderer.Mesh.CpuData ?? renderer.Mesh.GetOrCreateCpuData();
+                }
+                catch (InvalidOperationException)
+                {
+                    continue;
+                }
+
+                foreach (var position in cpuData.Positions)
+                {
+                    points.Add(Vector3.Transform(position, nodeToRoot));
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                CollectVisualPoints(child, rootWorldToLocal, points);
             }
         }
 
