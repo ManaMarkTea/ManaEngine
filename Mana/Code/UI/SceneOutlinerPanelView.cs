@@ -96,7 +96,21 @@ namespace Mana.Code.UI
             ImGui.PushID($"scene_{sceneIndex}");
 
             var label = $"{GetDisplayName(scene, $"Scene {sceneIndex}")} ({scene.Children.Count})";
-            if (ImGui.TreeNodeEx(label, ImGuiTreeNodeFlags.DefaultOpen))
+            var flags = ImGuiTreeNodeFlags.DefaultOpen;
+            if (selectionState.SelectedScene == scene)
+            {
+                flags |= ImGuiTreeNodeFlags.Selected;
+            }
+
+            var open = ImGui.TreeNodeEx(label, flags);
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+            {
+                selectionState.SelectedScene = scene;
+                selectionState.SelectedNode = null;
+                selectionState.SelectedComponent = null;
+            }
+
+            if (open)
             {
                 if (scene.Children.Count == 0)
                 {
@@ -140,6 +154,7 @@ namespace Mana.Code.UI
             var open = ImGui.TreeNodeEx(label, flags);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
+                selectionState.SelectedScene = null;
                 selectionState.SelectedNode = node;
                 selectionState.SelectedComponent = null;
             }
@@ -209,6 +224,7 @@ namespace Mana.Code.UI
             var open = ImGui.TreeNodeEx(label, flags);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
+                selectionState.SelectedScene = null;
                 selectionState.SelectedComponent = meshRenderer;
                 selectionState.SelectedNode = meshRenderer.Owner;
             }

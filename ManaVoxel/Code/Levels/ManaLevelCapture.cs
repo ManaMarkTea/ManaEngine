@@ -35,27 +35,66 @@ namespace ManaVoxel.Code.Levels
             {
                 foreach (var scene in world.Scenes)
                 {
-                    foreach (var child in scene.Children)
-                    {
-                        CaptureNode(child, level.Nodes);
-                    }
+                    CaptureSceneNodes(scene, level.Nodes);
                 }
 
-                var pose = cameraPose ?? (world.CameraNode != null
-                    ? (world.CameraNode.Position, world.CameraNode.Rotation)
-                    : null);
+                CaptureCamera(world, level, cameraPose);
+            }
 
-                if (pose.HasValue)
+            return level;
+        }
+
+        public static ManaLevel CaptureScene(
+            ManaWorld world,
+            ManaScene scene,
+            string name,
+            (Vector3 Position, Vector3 Rotation)? cameraPose = null,
+            bool includeCamera = true)
+        {
+            var level = new ManaLevel { Name = name };
+
+            lock (world.SceneLock)
+            {
+                CaptureSceneNodes(scene, level.Nodes);
+                if (includeCamera)
                 {
-                    level.Camera = new ManaLevelCamera
-                    {
-                        Position = ToArray(pose.Value.Position),
-                        Rotation = ToArray(pose.Value.Rotation)
-                    };
+                    CaptureCamera(world, level, cameraPose);
                 }
             }
 
             return level;
+        }
+
+        public static string CaptureSceneContentJson(ManaWorld world, ManaScene scene, string name)
+        {
+            return CaptureScene(world, scene, name, includeCamera: false).ToJson();
+        }
+
+        private static void CaptureSceneNodes(ManaScene scene, List<ManaLevelNode> output)
+        {
+            foreach (var child in scene.Children)
+            {
+                CaptureNode(child, output);
+            }
+        }
+
+        private static void CaptureCamera(
+            ManaWorld world,
+            ManaLevel level,
+            (Vector3 Position, Vector3 Rotation)? cameraPose)
+        {
+            var pose = cameraPose ?? (world.CameraNode != null
+                ? (world.CameraNode.Position, world.CameraNode.Rotation)
+                : null);
+
+            if (pose.HasValue)
+            {
+                level.Camera = new ManaLevelCamera
+                {
+                    Position = ToArray(pose.Value.Position),
+                    Rotation = ToArray(pose.Value.Rotation)
+                };
+            }
         }
 
         private static void CaptureNode(ManaSceneNode node, List<ManaLevelNode> output)

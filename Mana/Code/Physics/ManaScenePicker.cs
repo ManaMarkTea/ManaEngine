@@ -188,7 +188,7 @@ namespace Mana.Code
                 var recenteredMin = localMin - center;
                 var recenteredMax = localMax - center;
 
-                if (!RayIntersectsAabb(recenteredOrigin, localDirection, recenteredMin, recenteredMax))
+                if (!RayIntersectsAabb(recenteredOrigin, localDirection, recenteredMin, recenteredMax, out var boxLocalT))
                 {
                     continue;
                 }
@@ -196,6 +196,14 @@ namespace Mana.Code
                 if (TryIntersectTriangles(recenteredOrigin, localDirection, cpuData, center, out var meshLocalT) && meshLocalT < bestLocalT)
                 {
                     bestLocalT = meshLocalT;
+                    hitAny = true;
+                    hitRenderer = renderer;
+                }
+                else if (node.LevelSource != null && boxLocalT < bestLocalT)
+                {
+                    // Authored editor objects should remain easy to select even when very flat geometry
+                    // grazes the ray closely enough that triangle precision rejects it.
+                    bestLocalT = boxLocalT;
                     hitAny = true;
                     hitRenderer = renderer;
                 }
@@ -421,12 +429,24 @@ namespace Mana.Code
 
         private static bool RayIntersectsAabb(Vector3 origin, Vector3 direction, Vector3 min, Vector3 max)
         {
+            return RayIntersectsAabb(origin, direction, min, max, out _);
+        }
+
+        private static bool RayIntersectsAabb(
+            Vector3 origin,
+            Vector3 direction,
+            Vector3 min,
+            Vector3 max,
+            out float t)
+        {
             var tMin = 0f;
             var tMax = float.PositiveInfinity;
 
-            return IntersectSlab(origin.X, direction.X, min.X, max.X, ref tMin, ref tMax) &&
-                   IntersectSlab(origin.Y, direction.Y, min.Y, max.Y, ref tMin, ref tMax) &&
-                   IntersectSlab(origin.Z, direction.Z, min.Z, max.Z, ref tMin, ref tMax);
+            var hit = IntersectSlab(origin.X, direction.X, min.X, max.X, ref tMin, ref tMax) &&
+                      IntersectSlab(origin.Y, direction.Y, min.Y, max.Y, ref tMin, ref tMax) &&
+                      IntersectSlab(origin.Z, direction.Z, min.Z, max.Z, ref tMin, ref tMax);
+            t = hit ? tMin : float.PositiveInfinity;
+            return hit;
         }
 
         private static bool IntersectSlab(float origin, float direction, float min, float max, ref float tMin, ref float tMax)

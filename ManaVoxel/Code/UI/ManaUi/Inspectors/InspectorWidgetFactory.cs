@@ -47,8 +47,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         public static InspectorWidgetFactory CreateDefault()
         {
             return new InspectorWidgetFactory()
+                .Register(new SceneWidget())
                 .Register(new NodeIdentityWidget())
                 .Register(new TransformWidget())
+                .Register(new LevelSourceWidget())
+                .Register(new CollisionWidget())
                 .Register(new MeshRendererWidget())
                 .Register(new LightWidget())
                 .Register(new CameraWidget())

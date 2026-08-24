@@ -15,6 +15,7 @@ namespace Mana.Code.Components
         public TypedIndex ShapeIndex { get; set; }
         public BodyHandle Body { get; set; }
         public bool SyncNodeToPhysics { get; set; } = true;
+        public bool ShowDebug { get; set; }
 
         public ManaCollisionComponent(ManaSceneNode owner) : base(owner)
         {

@@ -1,4 +1,5 @@
 using ManaVoxel.Code.Levels;
+using Mana;
 
 namespace ManaVoxel.Code.UI
 {
@@ -18,6 +19,8 @@ namespace ManaVoxel.Code.UI
         void NewLevel();
         void OpenLevel(string path);
         void SaveLevel(string path);
+        void SaveScene(ManaScene scene);
+        bool SceneHasChanges(ManaScene scene);
 
         /// <summary>Drops a Player Start where the camera is looking, or moves the existing one there.</summary>
         void PlacePlayerStart();
@@ -114,6 +117,10 @@ namespace ManaVoxel.Code.UI
 
         /// <summary>Saves to <see cref="LevelName"/>, which is also how Save As works -- rename, then save.</summary>
         public void Save() => Host?.SaveLevel(ManaLevelLibrary.ResolvePath(LevelName));
+
+        public void SaveScene(ManaScene scene) => Host?.SaveScene(scene);
+
+        public bool SceneHasChanges(ManaScene scene) => Host?.SceneHasChanges(scene) ?? false;
 
         public void Open(string path) => Host?.OpenLevel(path);
 

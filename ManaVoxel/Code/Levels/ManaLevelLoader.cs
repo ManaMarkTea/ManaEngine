@@ -37,18 +37,25 @@ namespace ManaVoxel.Code.Levels
     public static class ManaLevelLoader
     {
         /// <summary>
-        /// Replaces the world's authored content with <paramref name="level"/>. Scenery the game mode built
-        /// in code is left alone -- see <see cref="ManaLevelSource"/> for where that line is drawn.
+        /// Loads <paramref name="level"/> into <paramref name="scene"/>. By default this replaces the world's
+        /// authored content; callers can opt out when composing separate level-backed scenes.
         /// </summary>
-        public static ManaLevelLoadResult Load(ManaLevel level, ManaContext context, ManaScene scene)
+        public static ManaLevelLoadResult Load(
+            ManaLevel level,
+            ManaContext context,
+            ManaScene scene,
+            bool replaceAuthoredNodes = true)
         {
             var result = new ManaLevelLoadResult();
             var world = context.World;
 
             // The world's existing voxel node is kept and refilled rather than rebuilt -- see the class
             // comment. A level with several voxel layers gets fresh nodes for the rest.
-            var reusableVoxelsNode = FindAuthoredVoxelsNode(world);
-            RemoveAuthoredNodes(context, keep: reusableVoxelsNode);
+            var reusableVoxelsNode = replaceAuthoredNodes ? FindAuthoredVoxelsNode(world) : null;
+            if (replaceAuthoredNodes)
+            {
+                RemoveAuthoredNodes(context, keep: reusableVoxelsNode);
+            }
 
             // Cleared even when the level has no voxels at all: opening an empty level should not leave the
             // previous one's model standing in the new one.

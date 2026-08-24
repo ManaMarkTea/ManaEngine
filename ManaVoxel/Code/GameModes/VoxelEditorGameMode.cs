@@ -1,4 +1,6 @@
 using ImGuiNET;
+using BepuPhysics.Collidables;
+using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Mana.Code.UI;
@@ -66,9 +68,13 @@ namespace Mana.Code.GameModes
         private HashSet<MeshRendererComponent> _lastStreamingHighlightedComponents = new();
         private readonly HashSet<ManaSceneNode> _pickingExclusions = new();
         private static readonly Vector4 SelectionOutlineColor = new(0.30f, 0.72f, 1.0f, 1.0f);
+        private static readonly Vector4 ColliderDebugColor = new(1.0f, 0.86f, 0.05f, 1.0f);
         private static readonly Vector4 PatchUpresInProgressOutlineColor = new(1.0f, 0.55f, 0.0f, 1.0f);
         private static readonly Vector4 PatchUpresDoneOutlineColor = new(0.25f, 0.85f, 0.25f, 1.0f);
         private static readonly Vector4 PatchUpresFailedOutlineColor = new(0.9f, 0.2f, 0.2f, 1.0f);
+        private ManaSceneNode? _selectionColliderDebugRoot;
+        private ManaSceneNode? _selectionColliderDebugTarget;
+        private readonly List<ColliderDebugEntry> _selectionColliderDebugEntries = new();
 
         public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall = null;
@@ -94,6 +100,11 @@ namespace Mana.Code.GameModes
             int Generation,
             long? Bytes,
             string? Error);
+
+        private sealed record ColliderDebugEntry(
+            ManaCollisionComponent Collision,
+            ManaSceneNode Node,
+            Vector3 Size);
 
         public override bool DeferGpuUploadsOnStartup => true;
 
@@ -1733,6 +1744,7 @@ namespace Mana.Code.GameModes
             // sibling stuck outlined forever.
             var selectedNode = Context.World.Selection.SelectedNode;
             var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
+            SyncSelectionColliderDebug(selectedNode);
 
             HashSet<MeshRendererComponent> targetOutlinedComponents;
             if (selectedComponent != null)
@@ -2348,6 +2360,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            Context.World.Selection.SelectedScene = null;
             Context.World.Selection.SelectedNode = null;
             Context.World.Selection.SelectedComponent = null;
             _viewModel.IsSelectToolActive = true;
@@ -2382,13 +2395,18 @@ namespace Mana.Code.GameModes
 
             if (pawnOutcome == ManaPawnController.ClickOutcome.Possessed)
             {
+                Context.World.Selection.SelectedScene = null;
                 Context.World.Selection.SelectedNode = _pawnController?.PossessedPawn;
                 Context.World.Selection.SelectedComponent = null;
                 return;
             }
 
-            Context.World.Selection.SelectedNode = pickResult?.Node;
-            Context.World.Selection.SelectedComponent = pickResult?.Renderer;
+            var selectedNode = ResolveEditorSelectableNode(pickResult?.Node);
+            Context.World.Selection.SelectedScene = null;
+            Context.World.Selection.SelectedNode = selectedNode;
+            Context.World.Selection.SelectedComponent = ReferenceEquals(selectedNode, pickResult?.Node)
+                ? pickResult?.Renderer
+                : null;
 
             var now = Environment.TickCount64;
             object? clickedTarget = (object?)pickResult?.Renderer ?? pickResult?.Node;
@@ -2406,6 +2424,261 @@ namespace Mana.Code.GameModes
             {
                 _planet.TrySplitPatch(patchKey);
             }
+        }
+
+        private static ManaSceneNode? ResolveEditorSelectableNode(ManaSceneNode? pickedNode)
+        {
+            for (var current = pickedNode; current != null; current = current.Parent)
+            {
+                if (current.LevelSource != null)
+                {
+                    return current;
+                }
+            }
+
+            return pickedNode;
+        }
+
+        private void SyncSelectionColliderDebug(ManaSceneNode? selectedNode)
+        {
+            var collisions = new List<ManaCollisionComponent>();
+            CollectSelectedBoxCollisions(selectedNode, collisions);
+            CollectPinnedBoxCollisions(collisions);
+
+            if (collisions.Count == 0)
+            {
+                ClearSelectionColliderDebug();
+                return;
+            }
+
+            if (NeedsColliderDebugRebuild(selectedNode, collisions))
+            {
+                RebuildSelectionColliderDebug(selectedNode, collisions);
+            }
+
+            if (!UpdateColliderDebugTransforms())
+            {
+                ClearSelectionColliderDebug();
+            }
+        }
+
+        private void CollectSelectedBoxCollisions(ManaSceneNode? selectedNode, List<ManaCollisionComponent> output)
+        {
+            if (selectedNode == null)
+            {
+                return;
+            }
+
+            var before = output.Count;
+            CollectNodeBoxCollisions(selectedNode, output, pinnedOnly: false);
+            if (output.Count > before)
+            {
+                return;
+            }
+
+            for (var current = selectedNode.Parent; current != null; current = current.Parent)
+            {
+                before = output.Count;
+                CollectOwnBoxCollisions(current, output, pinnedOnly: false);
+                if (output.Count > before)
+                {
+                    return;
+                }
+            }
+        }
+
+        private void CollectPinnedBoxCollisions(List<ManaCollisionComponent> output)
+        {
+            lock (Context.World.SceneLock)
+            {
+                foreach (var scene in Context.World.Scenes)
+                {
+                    foreach (var child in scene.Children)
+                    {
+                        CollectNodeBoxCollisions(child, output, pinnedOnly: true);
+                    }
+                }
+            }
+        }
+
+        private void CollectNodeBoxCollisions(
+            ManaSceneNode node,
+            List<ManaCollisionComponent> output,
+            bool pinnedOnly)
+        {
+            if (ReferenceEquals(node, _selectionColliderDebugRoot))
+            {
+                return;
+            }
+
+            CollectOwnBoxCollisions(node, output, pinnedOnly);
+
+            foreach (var child in node.Children)
+            {
+                CollectNodeBoxCollisions(child, output, pinnedOnly);
+            }
+        }
+
+        private void CollectOwnBoxCollisions(
+            ManaSceneNode node,
+            List<ManaCollisionComponent> output,
+            bool pinnedOnly)
+        {
+            foreach (var collision in node.GetComponents<ManaCollisionComponent>())
+            {
+                if (pinnedOnly && !collision.ShowDebug)
+                {
+                    continue;
+                }
+
+                if (collision.Shape is not Box || !Context.Physics.Simulation.Bodies.BodyExists(collision.Body))
+                {
+                    continue;
+                }
+
+                if (!output.Any(existing => ReferenceEquals(existing, collision)))
+                {
+                    output.Add(collision);
+                }
+            }
+        }
+
+        private bool NeedsColliderDebugRebuild(
+            ManaSceneNode? selectedNode,
+            IReadOnlyList<ManaCollisionComponent> collisions)
+        {
+            if (!ReferenceEquals(_selectionColliderDebugTarget, selectedNode)
+                || _selectionColliderDebugRoot == null
+                || _selectionColliderDebugEntries.Count != collisions.Count)
+            {
+                return true;
+            }
+
+            for (var i = 0; i < collisions.Count; i++)
+            {
+                if (!ReferenceEquals(_selectionColliderDebugEntries[i].Collision, collisions[i]))
+                {
+                    return true;
+                }
+
+                if (!_selectionColliderDebugEntries[i].Size.Equals(CollisionSize(collisions[i])))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void RebuildSelectionColliderDebug(
+            ManaSceneNode? selectedNode,
+            IReadOnlyList<ManaCollisionComponent> collisions)
+        {
+            lock (Context.World.SceneLock)
+            {
+                ClearSelectionColliderDebugNoLock();
+
+                var root = new ManaSceneNode(Context, Matrix4x4.Identity)
+                {
+                    Name = "Selection Collider Debug (Transient)",
+                    IncludeInEnvironmentCapture = false,
+                    LevelSource = null
+                };
+
+                Context.World.DefaultScene.Children.Add(root);
+                _pickingExclusions.Add(root);
+
+                _selectionColliderDebugRoot = root;
+                _selectionColliderDebugTarget = selectedNode;
+
+                foreach (var collision in collisions)
+                {
+                    var size = CollisionSize(collision);
+                    var cage = new ManaWireframeCage(
+                        Context,
+                        ColliderDebugColor,
+                        Vector3.Max(size * 0.5f, new Vector3(0.025f)),
+                        thickness: 0.035f);
+
+                    var node = new ManaSceneNode(Context, Matrix4x4.Identity)
+                    {
+                        Name = $"Collider {CollisionOwnerName(collision.Owner)}",
+                        IncludeInEnvironmentCapture = false,
+                        LevelSource = null
+                    };
+
+                    node.Components.Add(new MeshRendererComponent(node, cage)
+                    {
+                        DrawAfterScene = true
+                    });
+
+                    root.AddChild(node);
+                    _pickingExclusions.Add(node);
+                    _selectionColliderDebugEntries.Add(new ColliderDebugEntry(collision, node, size));
+                }
+            }
+        }
+
+        private bool UpdateColliderDebugTransforms()
+        {
+            foreach (var entry in _selectionColliderDebugEntries)
+            {
+                if (!Context.Physics.Simulation.Bodies.BodyExists(entry.Collision.Body))
+                {
+                    return false;
+                }
+
+                var pose = Context.Physics.Simulation.Bodies[entry.Collision.Body].Pose;
+                var transform = Matrix4x4.CreateFromQuaternion(pose.Orientation)
+                    * Matrix4x4.CreateTranslation(pose.Position);
+                entry.Node.SetLocalTransform(transform);
+                entry.Node.WorldTransform = transform;
+            }
+
+            return true;
+        }
+
+        private void ClearSelectionColliderDebug()
+        {
+            lock (Context.World.SceneLock)
+            {
+                ClearSelectionColliderDebugNoLock();
+            }
+        }
+
+        private void ClearSelectionColliderDebugNoLock()
+        {
+            foreach (var entry in _selectionColliderDebugEntries)
+            {
+                _pickingExclusions.Remove(entry.Node);
+            }
+
+            if (_selectionColliderDebugRoot != null)
+            {
+                _pickingExclusions.Remove(_selectionColliderDebugRoot);
+                _selectionColliderDebugRoot.Parent?.RemoveChild(_selectionColliderDebugRoot);
+
+                foreach (var scene in Context.World.Scenes)
+                {
+                    scene.Children.Remove(_selectionColliderDebugRoot);
+                }
+            }
+
+            _selectionColliderDebugRoot = null;
+            _selectionColliderDebugTarget = null;
+            _selectionColliderDebugEntries.Clear();
+        }
+
+        private static Vector3 CollisionSize(ManaCollisionComponent collision)
+        {
+            return collision.Shape is Box box
+                ? new Vector3(box.Width, box.Height, box.Length)
+                : Vector3.Zero;
+        }
+
+        private static string CollisionOwnerName(ManaSceneNode owner)
+        {
+            return string.IsNullOrWhiteSpace(owner.Name) ? owner.GetType().Name : owner.Name;
         }
 
         // A selected planet patch reflects its on-demand Terrarium up-res status (see
@@ -2591,6 +2864,7 @@ namespace Mana.Code.GameModes
             // the world needs regardless -- streaming, and the character's own input -- carry on.
             if (_playMode is { IsPlaying: true })
             {
+                ClearSelectionColliderDebug();
                 PumpPlanetStreaming();
                 _pawnController?.UpdateDriveInput(UiWantsKeyboard);
                 _trainLoop?.UpdateDebugInput(Context, UiWantsKeyboard);
@@ -2638,6 +2912,7 @@ namespace Mana.Code.GameModes
             // sibling stuck outlined forever.
             var selectedNode = Context.World.Selection.SelectedNode;
             var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
+            SyncSelectionColliderDebug(selectedNode);
 
             HashSet<MeshRendererComponent> targetOutlinedComponents;
             if (selectedComponent != null)

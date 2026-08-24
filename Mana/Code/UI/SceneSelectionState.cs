@@ -4,6 +4,8 @@ namespace Mana.Code.UI
 {
     public sealed class SceneSelectionState
     {
+        public global::Mana.ManaScene? SelectedScene { get; set; }
+
         public ManaSceneNode? SelectedNode { get; set; }
 
         // Finer-grained than SelectedNode -- lets one node host several independently-selectable

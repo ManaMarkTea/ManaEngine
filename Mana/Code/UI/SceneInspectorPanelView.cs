@@ -129,7 +129,15 @@ namespace Mana.Code.UI
         {
             if (selectionState.SelectedNode == null)
             {
-                ImGui.TextDisabled("No node selected");
+                if (selectionState.SelectedScene != null)
+                {
+                    ImGui.PushID($"inspector_scene_{selectionState.SelectedScene.GetHashCode()}");
+                    DrawSelectedSceneInspector(selectionState.SelectedScene);
+                    ImGui.PopID();
+                    return;
+                }
+
+                ImGui.TextDisabled("Nothing selected");
                 return;
             }
 
@@ -143,6 +151,46 @@ namespace Mana.Code.UI
                 CustomComponentInspectorHook?.Invoke(selectionState.SelectedComponent);
                 ImGui.PopID();
             }
+        }
+
+        private static void DrawSelectedSceneInspector(ManaScene scene)
+        {
+            var sceneName = scene.Name;
+            if (BeginPropertyTable("SceneProperties"))
+            {
+                if (DrawInputTextProperty("Name", ref sceneName, 160))
+                {
+                    scene.Name = sceneName;
+                }
+
+                DrawReadOnlyProperty("File", string.IsNullOrWhiteSpace(scene.LevelPath) ? "Not level-backed" : scene.LevelPath);
+                DrawReadOnlyProperty("Filename", string.IsNullOrWhiteSpace(scene.LevelPath) ? "None" : Path.GetFileName(scene.LevelPath));
+                DrawReadOnlyProperty("Top-level nodes", scene.Children.Count.ToString());
+                DrawReadOnlyProperty("Authored objects", CountAuthored(scene).ToString());
+                ImGui.EndTable();
+            }
+        }
+
+        private static int CountAuthored(ManaScene scene)
+        {
+            var count = 0;
+            foreach (var child in scene.Children)
+            {
+                count += CountAuthored(child);
+            }
+
+            return count;
+        }
+
+        private static int CountAuthored(ManaSceneNode node)
+        {
+            var count = node.LevelSource != null ? 1 : 0;
+            foreach (var child in node.Children)
+            {
+                count += CountAuthored(child);
+            }
+
+            return count;
         }
 
         private void DrawSelectedNodeInspector(ManaSceneNode node)

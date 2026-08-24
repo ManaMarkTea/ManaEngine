@@ -58,7 +58,8 @@ namespace Mana.Code.UI.ManaUi
         /// True when the pointer is over ManaUI. Game modes must check this before acting on a click so a
         /// button press does not also reach the scene behind it.
         /// </summary>
-        public bool IsPointerOverUi => IsEnabled && Root.Input.IsPointerOverUi;
+        public bool IsPointerOverUi => IsEnabled
+            && (Root.Input.IsPointerOverUi || InputBridge?.IsPointerOverInteractiveUi == true);
 
         /// <summary>True when a focused control is consuming keystrokes, so editor shortcuts should stand down.</summary>
         public bool IsKeyboardCaptured => IsEnabled && Root.Input.IsKeyboardCaptured;

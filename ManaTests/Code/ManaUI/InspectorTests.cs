@@ -1,11 +1,13 @@
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
+using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using Mana.Code.UI.ManaUi;
 using ManaUI;
 using Mana.Code.Materials;
 using ManaCore.Graphics;
+using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.UI.ManaUi;
 using ManaVoxel.Code.UI.ManaUi.Inspectors;
 
@@ -94,8 +96,13 @@ public static class InspectorChecks
         var world = new ManaWorld();
         // Uploads deferred, so shader construction stops short of touching a GPU that is not there.
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        context.Physics = new ManaPhysics(context);
 
-        var scene = new ManaScene(context) { Name = "Default Scene" };
+        var scene = new ManaScene(context)
+        {
+            Name = "Default Scene",
+            LevelPath = "C:/levels/default.manalevel"
+        };
         var first = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "First" };
         var second = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Second" };
 
@@ -110,6 +117,7 @@ public static class InspectorChecks
         scene.Children.Add(second);
         scene.Children.Add(lit);
         world.Scenes.Add(scene);
+        scene.SavedLevelContentJson = ManaLevelCapture.CaptureSceneContentJson(world, scene, scene.Name);
 
         UiElement? view = null;
         try
@@ -131,6 +139,19 @@ public static class InspectorChecks
             $"{root.Render().InstanceCount} instances");
         Check("no editors exist yet", FindAll<VectorBox>(view).Count == 0,
             $"{FindAll<VectorBox>(view).Count} vector rows");
+
+        // ---------------------------------------------------------------- scene metadata
+        world.Selection.SelectedScene = scene;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var sceneText = string.Join(" | ", FindAll<TextBlock>(view).Select(t => t.Text));
+        var sceneNameBox = FindAll<TextBox>(view).FirstOrDefault(box => box is not NumericBox);
+        Check("selecting a scene builds scene metadata",
+            sceneNameBox?.Text == "Default Scene" && sceneText.Contains("C:/levels/default.manalevel"),
+            $"{sceneNameBox?.Text ?? "null"} | {sceneText}");
+        Check("the scene inspector reports saved state",
+            sceneText.Contains("Saved", StringComparison.OrdinalIgnoreCase),
+            sceneText);
 
         // ---------------------------------------------------------------- following the selection
         // Nothing announces this. The selection is a plain object shared with the ImGui panels, so the
@@ -798,6 +819,59 @@ public static class InspectorChecks
 
         Check("the material section renders", root.Render().InstanceCount > 40,
             $"{root.Render().InstanceCount} instances");
+
+        // ---------------------------------------------------------------- level-authored collision
+        // "Level JSON" is a save recipe for this node, not a prefab instance. Collision gets its own
+        // node section so selecting imported mesh children can still expose the collider that owns them.
+        var levelNode = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Level Mesh",
+            LevelSource = ManaLevelSource.ForMesh("assets/platform.glb")
+        };
+        scene.Children.Add(levelNode);
+        var collision = context.Physics.AddBoxBody(levelNode, new Vector3(2.0f, 1.0f, 3.0f), new Vector3(0.25f, 0.5f, 0.75f));
+
+        world.Selection.SelectedNode = levelNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var levelSections = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("level-authored nodes call the save recipe Level JSON",
+            levelSections.Contains("Level JSON") && !levelSections.Contains("Level Source"),
+            string.Join(", ", levelSections));
+        Check("nodes with box collision get a collision section",
+            levelSections.Contains("Collision"),
+            string.Join(", ", levelSections));
+        Check("collision components do not fall through to reflection",
+            !levelSections.Any(header => header.Contains(nameof(ManaCollisionComponent), StringComparison.Ordinal)),
+            string.Join(", ", levelSections));
+
+        var showCollider = FindAll<CheckBox>(view).FirstOrDefault(box => box.Text == "Show collider");
+        Check("the collision section can pin collider debug", showCollider != null);
+        if (showCollider != null)
+        {
+            showCollider.IsChecked = true;
+            Check("pinning collider debug writes to the collision component",
+                collision.ShowDebug,
+                $"{collision.ShowDebug}");
+        }
+
+        var levelChild = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Level Mesh Child" };
+        levelNode.AddChild(levelChild);
+        world.Selection.SelectedNode = levelChild;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var childSections = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        Check("selecting a mesh child still shows its owning collision",
+            childSections.Contains("Collision"),
+            string.Join(", ", childSections));
+
+        var childCollisionText = string.Join(" | ", FindAll<TextBlock>(view).Select(t => t.Text));
+        Check("the inherited collision reports its owner",
+            childCollisionText.Contains("Level Mesh", StringComparison.Ordinal),
+            childCollisionText);
+
+        world.Selection.SelectedNode = meshNode;
+        root.UpdateLayout(new Vector2(420, 900));
 
         // ---------------------------------------------------------------- clear of the scroll bar
         // Editors used to run right up to the bar, which reads as content sliding underneath it. The

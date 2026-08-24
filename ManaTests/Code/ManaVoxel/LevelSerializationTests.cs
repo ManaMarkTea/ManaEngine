@@ -1,5 +1,7 @@
 using Mana;
+using Mana.Code;
 using Mana.Code.Levels;
+using Mana.Code.Nodes;
 using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
@@ -112,6 +114,37 @@ public static class LevelSerializationChecks
 
         Check("player start lookup walks grouped children",
             groupedReloaded.PlayerStart?.Position[0] == 7.0f);
+
+        // ---------------------------------------------------------------- scene capture
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world);
+        var sceneA = new ManaScene(context) { Name = "Scene A", LevelPath = "C:/levels/a.manalevel" };
+        var sceneB = new ManaScene(context) { Name = "Scene B", LevelPath = "C:/levels/b.manalevel" };
+        var sceneANode = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Scene A Box",
+            LevelSource = ManaLevelSource.ForShape("Cube", Vector4.One, Vector3.One)
+        };
+        var sceneBNode = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Scene B Box",
+            LevelSource = ManaLevelSource.ForShape("Cube", Vector4.One, Vector3.One)
+        };
+
+        sceneA.Children.Add(sceneANode);
+        sceneB.Children.Add(sceneBNode);
+        world.Scenes.Add(sceneA);
+        world.Scenes.Add(sceneB);
+
+        var sceneOnly = ManaLevelCapture.CaptureScene(world, sceneA, "Scene A");
+        Check("capturing one scene keeps only that scene's authored nodes",
+            sceneOnly.Nodes.Count == 1 && sceneOnly.Nodes[0].Name == "Scene A Box",
+            string.Join(", ", sceneOnly.Nodes.Select(node => node.Name)));
+
+        var wholeWorld = ManaLevelCapture.Capture(world, "World");
+        Check("capturing the world still walks every scene",
+            wholeWorld.Nodes.Count == 2,
+            string.Join(", ", wholeWorld.Nodes.Select(node => node.Name)));
 
         // ---------------------------------------------------------------- format guards
         Check("a foreign json is rejected by name, not by null reference",
