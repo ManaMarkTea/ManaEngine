@@ -5,11 +5,11 @@ using System.Runtime.Versioning;
 
 namespace ManaGraphics.Code.Graphics.Browser
 {
-    // JS glue for the browser IWindow/IInputContext (M1). Deliberately minimal: canvas size query,
-    // a requestAnimationFrame-driven render loop, and a ResizeObserver -- exactly what
-    // ManaBrowserWindow needs (see WebPort-Plan.md's earlier finding that ManaWebGpuContext only
-    // ever reads window.FramebufferSize). Real keyboard/mouse input is not wired yet; play mode's
-    // camera controls won't respond to input until that's added.
+    // JS glue for the browser IWindow/IInputContext: canvas size query, a
+    // requestAnimationFrame-driven render loop, a ResizeObserver, and real keyboard/mouse input
+    // (DOM listeners live in mana_interop.js's installInput; ManaBrowserInputContext holds the
+    // state the engine polls). Pointer lock is exposed for mouse-look but must be requested from
+    // inside a user gesture -- see RequestPointerLock.
     //
     // Uses the explicit JSHost.ImportAsync registration pattern rather than a bare
     // [JSImport("func", "mana_interop.js")] module-name string, to avoid depending on exactly how
@@ -48,6 +48,23 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("startRenderLoop", ModuleName)]
         internal static partial void StartRenderLoop();
 
+        [JSImport("installInput", ModuleName)]
+        internal static partial void InstallInput();
+
+        /// <summary>
+        /// Browsers only grant pointer lock from inside a user-gesture handler, so this has to be
+        /// called from a click/keypress the user actually made -- calling it on startup is silently
+        /// ignored.
+        /// </summary>
+        [JSImport("requestPointerLock", ModuleName)]
+        internal static partial void RequestPointerLock();
+
+        [JSImport("exitPointerLock", ModuleName)]
+        internal static partial void ExitPointerLock();
+
+        [JSImport("isPointerLocked", ModuleName)]
+        internal static partial bool IsPointerLocked();
+
         // JS -> C#. JS calls these directly via the assembly-exports object main.js stashes on
         // globalThis (see main.js) rather than passing .NET delegates into the JSImport calls
         // above, which keeps the marshaling on both sides to plain primitives.
@@ -55,6 +72,67 @@ namespace ManaGraphics.Code.Graphics.Browser
         internal static void OnFrame(double deltaTimeSeconds)
         {
             ManaBrowserWindow.Current?.RaiseFrame(deltaTimeSeconds);
+
+            // After the frame, not before: scroll is a one-frame delta in Silk.NET's model, so the
+            // frame that just ran had to be the one that got to see it.
+            ManaBrowserInputContext.Current?.EndFrame();
+        }
+
+        [JSExport]
+        internal static void OnKeyDown(string code, bool isRepeat)
+        {
+            ManaBrowserInputContext.Current?.Keyboard.HandleKeyDown(ManaBrowserKeyMap.FromDomCode(code), isRepeat);
+        }
+
+        [JSExport]
+        internal static void OnKeyUp(string code)
+        {
+            ManaBrowserInputContext.Current?.Keyboard.HandleKeyUp(ManaBrowserKeyMap.FromDomCode(code));
+        }
+
+        [JSExport]
+        internal static void OnKeyChar(string character)
+        {
+            if (!string.IsNullOrEmpty(character))
+            {
+                ManaBrowserInputContext.Current?.Keyboard.HandleKeyChar(character[0]);
+            }
+        }
+
+        [JSExport]
+        internal static void OnFocusLost()
+        {
+            ManaBrowserInputContext.Current?.ReleaseAll();
+        }
+
+        [JSExport]
+        internal static void OnMouseMove(double x, double y)
+        {
+            ManaBrowserInputContext.Current?.Mouse.HandleMove((float)x, (float)y);
+        }
+
+        [JSExport]
+        internal static void OnMouseDelta(double deltaX, double deltaY)
+        {
+            ManaBrowserInputContext.Current?.Mouse.HandleDelta((float)deltaX, (float)deltaY);
+        }
+
+        [JSExport]
+        internal static void OnMouseDown(int button)
+        {
+            ManaBrowserInputContext.Current?.Mouse.HandleButtonDown(button);
+        }
+
+        [JSExport]
+        internal static void OnMouseUp(int button)
+        {
+            ManaBrowserInputContext.Current?.Mouse.HandleButtonUp(button);
+        }
+
+        [JSExport]
+        internal static void OnMouseWheel(double x, double y)
+        {
+            ManaBrowserInputContext.Current?.Mouse.HandleWheel((float)x, (float)y);
         }
 
         [JSExport]

@@ -52,6 +52,7 @@ namespace ManaGraphics.Code.Graphics.Browser
 
             RefreshSizeFromCanvas();
             ManaBrowserInterop.ObserveResize();
+            ManaBrowserInterop.InstallInput();
             Load?.Invoke();
         }
 
