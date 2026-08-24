@@ -570,6 +570,14 @@ silently a complete no-op seems unlikely — but nothing tried has been able to 
     `AddCubeFace`'s first face color, UV `(0, 1)`). Every single piece of GPU-side data this
     session could inspect — per-object uniform, per-frame uniform, and now vertex buffer — is
     confirmed byte-correct.
+12. **Not the material's bind-group complexity.** Temporarily forced `GetOrCreatePipeline` to
+    always use `colored_mesh.wgsl` (3 group-1 bindings: object uniform, one sampler, one plain
+    2D texture) instead of `pbr_irradiance.wgsl`'s 14 (multiple cube maps, a BRDF LUT, six
+    material maps) for the demo cube specifically — a completely different, much simpler
+    pipeline and bind-group shape. **Still invisible**, pixel-identical to every other attempt.
+    This rules out bind-group size/texture-cube-usage as the cause: the failure is universal
+    across at least two structurally different materials, not specific to the PBR shader's
+    complexity.
 - **Tried, inconclusive**: cross-checking against Firefox (`playwright install firefox`,
   `dom.webgpu.enabled`/`gfx.webgpu.force-enabled` prefs). Firefox fails much earlier and
   differently — `wgpuInstanceCreateSurface` itself returns a null surface
