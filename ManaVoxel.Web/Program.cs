@@ -28,7 +28,7 @@ Console.WriteLine("Browser interop module loaded.");
 
 // The real game: ground, the bundled level, a pawn controller and a follow camera -- the same
 // engine lifecycle the desktop play mode drives, minus the editor. See BrowserPlayGameMode.
-var playMode = new BrowserPlayGameMode("Levels/Sample Course.manalevel", ManaGraphicsBackendKind.WebGpu);
+var playMode = new BrowserPlayGameMode("Levels/Little Train Yard.manalevel", ManaGraphicsBackendKind.WebGpu);
 playMode.RunWebGpu();
 Console.WriteLine("GameSilkWebGpu.Run() returned (expected: browser bring-up is async and non-blocking; " +
     "watch the console above/after this line for how far it actually got).");

@@ -216,8 +216,15 @@ namespace Mana.Code.Shapes.Loaders
 
                     normals.Add(normalArray != null ? Vector3.Normalize(normalArray[i]) : Vector3.UnitY);
                     colors.Add(colorArray != null ? colorArray[i] : Vector4.One);
-                    uv0.Add(uv0Array != null ? uv0Array[i] : Vector2.Zero);
-                    uv1.Add(uv1Array != null ? uv1Array[i] : Vector2.Zero);
+                    // V is flipped to match the convention the rest of the engine expects.
+                    // glTF puts UV (0,0) at the image's top-left; Assimp -- which the desktop
+                    // loader uses -- normalizes to its own bottom-left origin, so every consumer
+                    // downstream (notably ManaWebGpuMeshTextureCache, which flips every texture it
+                    // uploads to match) is written against the flipped convention. Emitting raw
+                    // glTF UVs here instead made characters sample the mirrored row of their
+                    // palette atlas and render almost black.
+                    uv0.Add(uv0Array != null ? new Vector2(uv0Array[i].X, 1.0f - uv0Array[i].Y) : Vector2.Zero);
+                    uv1.Add(uv1Array != null ? new Vector2(uv1Array[i].X, 1.0f - uv1Array[i].Y) : Vector2.Zero);
 
                     if (jointsArray != null && weightsArray != null)
                     {

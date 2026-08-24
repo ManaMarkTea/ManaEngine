@@ -180,6 +180,7 @@ namespace ManaVoxel.Web
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
 
             Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
+
         }
 
         public override void Update(double deltaTime)

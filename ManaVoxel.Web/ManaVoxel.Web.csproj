@@ -146,11 +146,20 @@
     <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_mini-characters.zip">
       <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>
+    <!-- Little Train Yard's mesh nodes resolve into this pack (decoded from their zipasset-rel
+         references). 5.3 MB, so it is the single largest thing in the bundle; drop it again if the
+         browser build ever goes back to a level that does not need meshes. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_train-kit.zip">
+      <TargetPath>Assets/kenney_train-kit.zip</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
     <!-- The level the browser build boots into. Sample Course is pure procedural shapes and
          voxels with no external mesh/texture references, so it needs nothing bundled alongside it;
          mesh-based levels (Little Train Yard) additionally need their Assets/*.zip. -->
     <WasmFilesToIncludeInFileSystem Include="..\Levels\Sample Course.manalevel">
       <TargetPath>Levels/Sample Course.manalevel</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="..\Levels\Little Train Yard.manalevel">
+      <TargetPath>Levels/Little Train Yard.manalevel</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
       <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
