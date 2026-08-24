@@ -54,27 +54,33 @@ namespace ManaGraphics.Code.Graphics
         // await a TaskCompletionSource that OnRequestAdapter/OnRequestDevice complete, once the
         // callback actually arrives -- split into a separate non-unsafe partial file because this
         // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
-        // at all, regardless of whether the awaiting method itself touches a pointer. Not yet
-        // confirmed against a real browser: the M0 spike only proved the shim mechanism for plain
-        // synchronous functions, not this callback-after-a-microtask path (see WebPort-Plan.md M2).
+        // at all, regardless of whether the awaiting method itself touches a pointer.
+        //
+        // UPDATE: wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice's own callback-delivery path
+        // turned out to hit a confirmed Emscripten runtime bug (RuntimeError: getWasmTableEntry(...)
+        // is not a function -- a known category of Emscripten scoping bug, not fixed by AOT
+        // compilation or by forcing getWasmTableEntry past tree-shaking). ManaWebGpuContext.
+        // BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync now go through
+        // ManaBrowserWebGpuCallbackBridge instead (EM_JS-injected plain JS calling
+        // navigator.gpu.requestAdapter()/adapter.requestDevice() directly, registering the result
+        // into library_webgpu.js's own id tables, delivered back via [JSExport] -- the same
+        // mechanism ManaBrowserInterop.cs already used successfully for the RAF loop/resize).
+        // SetAdapterFromId/SetDeviceFromId below just assign the resulting integer id as the
+        // opaque Adapter*/Device* handle Silk.NET's other (still-working) calls expect; see
+        // WebPort-Plan.md M2 for the full writeup.
         private System.Threading.Tasks.TaskCompletionSource<bool>? _adapterRequestTcs;
         private System.Threading.Tasks.TaskCompletionSource<bool>? _deviceRequestTcs;
 
-        private void StartAdapterRequest()
-        {
-            var options = new RequestAdapterOptions
-            {
-                CompatibleSurface = _surface,
-                PowerPreference = PowerPreference.HighPerformance
-            };
+        internal int AdapterIdForBrowser => (int)(nint)_adapter;
 
-            _api.InstanceRequestAdapter(_instance, &options, _requestAdapterCallback, null);
+        internal void SetAdapterFromId(int adapterId)
+        {
+            _adapter = (Adapter*)(nint)adapterId;
         }
 
-        private void StartDeviceRequest()
+        internal void SetDeviceFromId(int deviceId)
         {
-            var descriptor = new DeviceDescriptor();
-            _api.AdapterRequestDevice(_adapter, &descriptor, _requestDeviceCallback, null);
+            _device = (Device*)(nint)deviceId;
         }
 #endif
 

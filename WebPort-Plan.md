@@ -200,10 +200,138 @@ mechanism above:
 - Desktop verified unaffected throughout (`ManaVoxel`/`ManaSceneViewer` build, ManaTests
   1660/1661 — same pre-existing unrelated failure — after every change in this section).
 
-**Still not started at all**: the custom browser
-`IWindow`/`IInputContext` (M1), and — see "M2's real remaining work" below — the actual
-70-function WebGPU shim (`ManaBrowserWebGpuNativeContext`/`ManaBrowserWebGpuSurface` are
-currently stubs that compile but always fail at runtime).
+**M1 and M2 are now both real and live-browser-confirmed** (this session, continuing past
+where the paragraph above leaves off) — see the "M2 CLOSED" section immediately below for
+the full writeup. The "M2's real remaining work" section after it is kept for its accurate
+blow-by-blow of the 70-function shim build-out, but its framing of M2 as still-blocked is
+stale; skip to "M2 CLOSED" first.
+
+### M2 CLOSED: full WebGPU-in-browser render loop is live, through the real engine code path
+
+`GameSilkWebGpu` → `ManaWebGpuContext` → the browser canvas now runs end to end with **zero
+console errors**, confirmed live in Chrome: the canvas clears to a solid color every frame,
+driven by the actual engine bring-up path (not a throwaway M0-style spike). This closes M1
+(the window/canvas/framebuffer-size path was already working silently; see `RunBrowser`'s
+`[RunBrowser] Window initialized, framebuffer size = <…>` breadcrumb) and M2 (WebGPU
+surface + adapter/device + render loop) together. Four distinct bugs had to be found and
+fixed to get here, on top of the already-proven `INativeContext`/shim mechanism:
+
+1. **Mono wasm interpreter crash passing a C# delegate as a native callback pointer**
+   (`RuntimeError: memory access out of bounds` inside `mono_assembly_name_get_name`,
+   building a native-to-interp trampoline for `RequestAdapterCallback`). Interpreter-only —
+   identical in Debug and Release, ruling out trimming. **Fixed** by adding
+   `<RunAOTCompilation>true</RunAOTCompilation>` to `ManaVoxel.Web.csproj`. AOT compiles
+   32 assemblies and meaningfully lengthens every publish, but there is no known
+   interpreter-mode workaround.
+
+2. **`library_webgpu.js`'s own callback-delivery path is broken in this exact bundling**:
+   `wgpuInstanceRequestAdapter`/`wgpuAdapterRequestDevice` resolve their JS Promise by
+   invoking the native callback via `getWasmTableEntry(callback)(...)`
+   (`makeDynCall`-generated), and `getWasmTableEntry` — confirmed present at module scope
+   in the generated `dotnet.native.js` — is not reachable from where `library_webgpu.js`'s
+   code calls it: `TypeError: getWasmTableEntry(...) is not a function`. Matches known
+   Emscripten scoping issues (GitHub #19145, #15521, #12559, #13502) with no direct fix for
+   this scenario. Ruled out: `-sEXPORTED_RUNTIME_METHODS=getWasmTableEntry` (emcc rejects it
+   outright — wrong mechanism, that flag is for `Module.*`-visible JS calling in, not an
+   internal library dependency) and `-sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$getWasmTableEntry`
+   (applies cleanly per the `.rsp` file, zero effect on the runtime error). Ruled out:
+   Emscripten's newer `emdawnwebgpu` port (a real Dawn-based, non-legacy WebGPU binding that
+   doesn't have this bug) — **not present at all** in the .NET 10 SDK's pinned Emscripten
+   3.1.56 (confirmed by listing `tools/emscripten/tools/ports/`: zero Dawn/webgpu files).
+   Upgrading the SDK's bundled Emscripten independently is not viable.
+   **The actual fix**, prompted by asking "how does Bevy avoid this" (Bevy/wgpu-rust calls
+   `navigator.gpu` directly via `wasm-bindgen`/`web-sys`, no C-ABI translation layer at all):
+   bypass *only* these two broken callback paths with `EM_JS`-injected plain JS
+   (`ManaGraphics/Native/mana_webgpu.c`'s `mana_request_adapter_impl`/
+   `mana_request_device_impl`) that calls `navigator.gpu.requestAdapter()`/
+   `adapter.requestDevice()` directly and manually replicates `library_webgpu.js`'s own
+   object-registration steps (`WebGPU.mgrAdapter.create()`/`WebGPU.mgrDevice.create()`/
+   `WebGPU.mgrQueue.create()`, read from that exact installed version's source, not
+   guessed), delivering the resulting integer id back to C# via `[JSExport]`
+   (`ManaBrowserWebGpuCallbackBridge.OnAdapterResult`/`OnDeviceResult`) and a
+   `TaskCompletionSource` (`ManaWebGpuContext.BrowserAsync.cs`). All other ~65 already-working
+   synchronous `wgpu*` shim calls are untouched.
+   - **`EM_JS` functions cannot go directly into `EmccExportedFunction`**: an `EM_JS`
+     function's C-visible name is only an `extern` declaration satisfied later by a JS
+     import, not a defined body — `wasm-ld --export` fails with "symbol exported via
+     --export not found" trying to export it directly. Fix: name the `EM_JS` function
+     `_impl` and export a tiny real C wrapper that calls it (same shape as every other
+     `mana_wgpuXxx` forwarding function) — `mana_request_adapter`/`mana_request_device` are
+     the wrappers actually declared via `[LibraryImport]`/`EmccExportedFunction`.
+   - **`globalThis.ManaExports` was never actually populated** — `main.js` called
+     `dotnet.create()`/`runMain()` but nothing set the global every JS-side call site
+     (`mana_webgpu.c`'s new `EM_JS` blocks, and `mana_interop.js`'s pre-existing
+     `OnResize`/`OnFrame` calls) guards on with `if (globalThis.ManaExports)`. Silently
+     no-oped instead of erroring, so it went unnoticed until the adapter request round-trip
+     stalled indefinitely with no visible error. **Fixed**: `main.js` now does
+     `const runtime = await dotnet.create(); globalThis.ManaExports = await
+     runtime.getAssemblyExports('ManaGraphics');` before `runMain()`.
+     `getAssemblyExports` is a method on the runtime instance `dotnet.create()` resolves to,
+     **not** a named export of `dotnet.js` itself (`import { getAssemblyExports } from
+     './_framework/dotnet.js'` fails at parse time — confirmed live).
+   - This also means **`mana_interop.js`'s resize/frame callbacks had been silently
+     no-oping this entire session** until this fix, independent of the adapter/device work —
+     worth remembering if browser resize/frame-driven behavior seemed inert earlier.
+
+3. **Two `webgpu.h` enum ABI mismatches** between Silk.NET.WebGPU's bindings and this
+   Emscripten SDK's bundled (older/different-revision) native header — both found by
+   decompiling `Silk.NET.WebGPU.dll` (`ilspycmd`) and diffing against
+   `.../Emscripten.3.1.56.Cache.osx-arm64/…/cache/sysroot/include/webgpu/webgpu.h` after
+   the browser's own WebGPU validator named the wrong enumerator in its error text:
+   - `TextureDimension`: Silk.NET has no `Undefined` member (`1D=0, 2D=1, 3D=2`); the native
+     header does (`Undefined=0, 1D=1, 2D=2, 3D=3`). A C# call site requesting `2D` (raw `1`)
+     was read natively as `1D` (raw `1`) — surfaced as a `TextureDimension::e1D` validation
+     error on what should have been a 2D render-attachment texture. **Fixed** in
+     `mana_wgpuDeviceCreateTexture`: `descriptor->dimension = (WGPUTextureDimension)((int)descriptor->dimension + 1);`
+     before forwarding.
+   - `TextureAspect`: same shape (`All=0, StencilOnly=1, DepthOnly=2` vs. native
+     `Undefined=0, All=1, StencilOnly=2, DepthOnly=3`) — a `DepthOnly` (raw `2`) request was
+     read natively as `StencilOnly` (raw `2`), surfaced as "Texture format
+     (TextureFormat::Depth24Plus) does not have the texture view's selected aspect
+     (TextureAspect::StencilOnly)". **Fixed** the same way in `mana_wgpuTextureCreateView`.
+   - `TextureViewDimension` was checked too and does **not** have this problem (matches the
+     native header exactly, `Undefined=0` first on both sides) — don't blanket-assume every
+     WebGPU enum needs a `+1` remap; check each one against the actual installed header.
+   - `RenderPassColorAttachment`'s struct layout was checked field-by-field against the
+     native header and matches exactly (no field insertion/reordering) — the `depthSlice`
+     issue below is a spec-conformance gap, not a struct ABI mismatch.
+
+4. **`depthSlice` render-pass validation**: no call site in this codebase ever sets
+   `RenderPassColorAttachment.DepthSlice` explicitly, so it defaults to `0` — a *valid*
+   3D-texture slice index, which the WebGPU spec requires be the sentinel
+   `WGPU_DEPTH_SLICE_UNDEFINED` (`UINT32_MAX`) instead for any non-3D-texture attachment
+   view (all of ours). Real Dawn (this browser) validates this strictly; `wgpu-native`
+   (desktop) evidently doesn't. **Fixed** in `mana_wgpuCommandEncoderBeginRenderPass`: forces
+   every attachment's `depthSlice` to `WGPU_DEPTH_SLICE_UNDEFINED` before forwarding, since
+   no call site anywhere in this engine intentionally targets a 3D-texture array slice.
+
+5. **Fatal abort calling `Present`**: `library_webgpu.js` deliberately aborts
+   `wgpuSwapChainPresent` ("unsupported, use requestAnimationFrame via html5.h instead") —
+   a browser canvas WebGPU context has no explicit present step; whatever was drawn shows
+   automatically once the current `requestAnimationFrame` callback returns, which is exactly
+   how `mana_interop.js`'s render loop is already structured. **Fixed**: `mana_wgpuSurfacePresent`
+   is a no-op in the browser build (nothing else changed; the swap-chain-based `Configure`/
+   `GetCurrentTexture`/`Unconfigure` adapter functions are untouched and still needed).
+
+6. **`DeviceSetUncapturedErrorCallback` hits the same broken callback-delivery path as
+   finding #2**, but wasn't worth its own `EM_JS` bridge: every WebGPU validation error
+   triggered a secondary `getWasmTableEntry(...) is not a function` crash trying to deliver
+   it to `_errorCallback`, on top of (and drowning out) the actual validation message —
+   which the browser's real WebGPU implementation prints straight to the devtools console
+   on its own regardless of whether any error callback is registered. **Fixed**: skipped
+   registering it at all in the browser build (`ManaWebGpuContext.cs`'s `FinishInitialization`,
+   `#if !MANA_BROWSER` around the `DeviceSetUncapturedErrorCallback` call).
+
+**Verified**: `dotnet build ManaVoxel/ManaVoxel.csproj` and `dotnet run --project ManaTests`
+both still green (1660/1661, same pre-existing unrelated font/emoji failure) after all of
+the above — every change is either browser-only C code or behind `#if MANA_BROWSER`.
+**Not yet done**: cleanup of the now-fully-dead native-callback path
+(`OnRequestAdapter`/`OnRequestDevice` in `ManaWebGpuContext.Device.cs`, never invoked once
+finding #2's `EM_JS` bridge replaced it) and the diagnostic `Console.WriteLine` breadcrumbs
+scattered through `ManaWebGpuContext.cs`/`ManaBrowserWebGpuSurface.cs`/
+`ManaBrowserWebGpuNativeContext.cs`/`GameSilkWebGpu.cs` — left in deliberately for now since
+they're still useful for the next round of browser debugging (mesh rendering, input, resize)
+and are harmless on desktop (compiled out entirely; `MANA_BROWSER`-gated).
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 

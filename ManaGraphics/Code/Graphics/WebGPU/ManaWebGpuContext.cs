@@ -266,7 +266,18 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnostic("WGPU native extension unavailable; falling back to InstanceProcessEvents for async GPU callback pumping.");
             }
 #endif
+#if !MANA_BROWSER
             _api.DeviceSetUncapturedErrorCallback(_device, _errorCallback, null);
+#else
+            // Skipped in the browser build: this callback's delivery goes through the same
+            // getWasmTableEntry-dependent dynCall path as the adapter/device request callbacks
+            // that ManaBrowserWebGpuCallbackBridge already had to bypass (see mana_webgpu.c),
+            // and hitting it here just spams "getWasmTableEntry(...) is not a function" on every
+            // validation error instead of ever calling _errorCallback. Not worth its own EM_JS
+            // bridge: the browser's real WebGPU implementation already prints validation errors
+            // straight to the devtools console on its own, unconditionally, regardless of
+            // whether an uncaptured-error callback is registered at all.
+#endif
             _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())

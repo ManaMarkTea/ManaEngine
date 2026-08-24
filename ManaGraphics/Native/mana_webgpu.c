@@ -1,6 +1,80 @@
 #include <webgpu/webgpu.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <emscripten/em_js.h>
+
+// Bypasses library_webgpu.js's own wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice
+// entirely for these two calls: their callback-delivery path (a `dynCall`/getWasmTableEntry
+// invocation of the C# callback function pointer) hits a confirmed Emscripten runtime bug
+// (RuntimeError: getWasmTableEntry(...) is not a function) when combined with .NET's wasm
+// bundling -- reproducible, not fixed by AOT compilation, not fixed by explicitly forcing
+// getWasmTableEntry past tree-shaking. See WebPort-Plan.md M2.
+//
+// The actual browser-vendor async operations (navigator.gpu.requestAdapter()/
+// adapter.requestDevice(), both real Promises) still have to happen somehow, so these use
+// EM_JS instead: plain synchronous JS injected directly into this compilation unit (not
+// routed through library_webgpu.js's callback machinery at all), which starts the Promise
+// and, on resolution, registers the resulting JS object into library_webgpu.js's OWN
+// internal id-to-object tables (WebGPU.mgrAdapter/WebGPU.mgrDevice/WebGPU.mgrQueue) --
+// exactly what library_webgpu.js's own working implementation does internally, replicated
+// here by reading its source (src/library_webgpu.js in this Emscripten install) rather than
+// guessed. This keeps every OTHER already-proven-working wgpu* call (AdapterGetLimits,
+// DeviceCreateBuffer, DeviceGetQueue, etc.) operating on ordinary integer handles, unmodified.
+// The result is delivered back to C# via a [JSExport] call (globalThis.ManaExports, the same
+// mechanism ManaBrowserInterop.cs already uses successfully for the RAF loop/resize), not a
+// native callback -- so it never touches the broken code path at all.
+// wasm-ld can only --export a symbol that has a real defined body in the linked object; an
+// EM_JS function's C-visible name is just an `extern` declaration satisfied later by JS (an
+// import, not an export), so trying to put mana_request_adapter/mana_request_device directly
+// into EmccExportedFunction fails at link time ("symbol exported via --export not found").
+// Confirmed live: naming the EM_JS function itself and exporting a tiny real wrapper around it
+// (mirroring the mana_wgpuXxx forwarding pattern below) fixes it.
+EM_JS(void, mana_request_adapter_impl, (), {
+    if (!('gpu' in navigator)) {
+        if (globalThis.ManaExports) {
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(0);
+        }
+        return;
+    }
+    navigator.gpu.requestAdapter().then((adapter) => {
+        var adapterId = adapter ? WebGPU.mgrAdapter.create(adapter) : 0;
+        if (globalThis.ManaExports) {
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(adapterId);
+        }
+    }, (ex) => {
+        console.error('mana_request_adapter failed', ex);
+        if (globalThis.ManaExports) {
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(0);
+        }
+    });
+});
+
+EM_JS(void, mana_request_device_impl, (int adapterId), {
+    var adapter = WebGPU.mgrAdapter.get(adapterId);
+    adapter.requestDevice().then((device) => {
+        // Mirrors library_webgpu.js's own wgpuAdapterRequestDevice exactly: DeviceGetQueue
+        // later reads WebGPU.mgrDevice.objects[deviceId].queueId, so the default queue has to
+        // be pre-registered into the device's wrapper object at creation time, not lazily.
+        var deviceWrapper = { queueId: WebGPU.mgrQueue.create(device.queue) };
+        var deviceId = WebGPU.mgrDevice.create(device, deviceWrapper);
+        if (globalThis.ManaExports) {
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(deviceId);
+        }
+    }, (ex) => {
+        console.error('mana_request_device failed', ex);
+        if (globalThis.ManaExports) {
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(0);
+        }
+    });
+});
+
+void mana_request_adapter(void) {
+    mana_request_adapter_impl();
+}
+
+void mana_request_device(int adapterId) {
+    mana_request_device_impl(adapterId);
+}
 
 size_t mana_wgpuAdapterEnumerateFeatures(WGPUAdapter adapter, WGPUFeatureName * features) {
     return wgpuAdapterEnumerateFeatures(adapter, features);
@@ -51,6 +125,17 @@ WGPUComputePassEncoder mana_wgpuCommandEncoderBeginComputePass(WGPUCommandEncode
 }
 
 WGPURenderPassEncoder mana_wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder commandEncoder, WGPURenderPassDescriptor * descriptor) {
+    // No call site in this codebase sets RenderPassColorAttachment.DepthSlice explicitly, so it
+    // is always the struct's default 0 -- a valid slice index, which the spec (and this
+    // browser's real Dawn, strictly) requires be WGPU_DEPTH_SLICE_UNDEFINED instead whenever the
+    // attachment's view isn't a 3D-texture slice, which none of ours are. Confirmed live: "0 is
+    // defined for a non-3D attachment" render-pass validation error without this. wgpu-native
+    // (desktop) evidently tolerates the 0 default; the browser does not.
+    if (descriptor != NULL) {
+        for (size_t i = 0; i < descriptor->colorAttachmentCount; i++) {
+            ((WGPURenderPassColorAttachment*)descriptor->colorAttachments)[i].depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+        }
+    }
     return wgpuCommandEncoderBeginRenderPass(commandEncoder, descriptor);
 }
 
@@ -142,6 +227,15 @@ WGPUShaderModule mana_wgpuDeviceCreateShaderModule(WGPUDevice device, WGPUShader
 }
 
 WGPUTexture mana_wgpuDeviceCreateTexture(WGPUDevice device, WGPUTextureDescriptor * descriptor) {
+    // Silk.NET.WebGPU's TextureDimension enum has no Undefined member (TextureDimension1D=0,
+    // TextureDimension2D=1, TextureDimension3D=2), but this Emscripten SDK's bundled webgpu.h
+    // is an older/different header revision that does (WGPUTextureDimension_Undefined=0,
+    // _1D=1, _2D=2, _3D=3) -- so a raw value Silk.NET wrote meaning "2D" (1) is read natively
+    // as "1D" (1), which is exactly the "TextureDimension::e1D" validation error seen live in
+    // the browser console for what should have been a 2D render-attachment texture. Only this
+    // field is known to be shifted (TextureViewDimension already matches natively); remap it
+    // here rather than in every caller.
+    descriptor->dimension = (WGPUTextureDimension)((int)descriptor->dimension + 1);
     return wgpuDeviceCreateTexture(device, descriptor);
 }
 
@@ -302,9 +396,12 @@ WGPUTextureFormat mana_wgpuSurfaceGetPreferredFormat(WGPUSurface surface, WGPUAd
 }
 
 void mana_wgpuSurfacePresent(WGPUSurface surface) {
-    if (mana_g_swapChain) {
-        wgpuSwapChainPresent(mana_g_swapChain);
-    }
+    // library_webgpu.js deliberately aborts wgpuSwapChainPresent ("unsupported, use
+    // requestAnimationFrame via html5.h instead") -- confirmed live in the browser console,
+    // not a theoretical concern. A browser canvas WebGPU context has no explicit present step:
+    // whatever was drawn to it is shown automatically once the current requestAnimationFrame
+    // callback returns control to the browser, which is exactly how mana_interop.js's render
+    // loop is already structured. So there is nothing to do here in the browser build.
 }
 
 void mana_wgpuSurfaceRelease(WGPUSurface surface) {
@@ -319,6 +416,16 @@ void mana_wgpuSurfaceUnconfigure(WGPUSurface surface) {
 }
 
 WGPUTextureView mana_wgpuTextureCreateView(WGPUTexture texture, WGPUTextureViewDescriptor * descriptor) {
+    // Same ABI drift as mana_wgpuDeviceCreateTexture's dimension remap, this time for
+    // TextureAspect: Silk.NET's enum has no Undefined member (All=0, StencilOnly=1,
+    // DepthOnly=2), but this SDK's native webgpu.h has one first (Undefined=0, All=1,
+    // StencilOnly=2, DepthOnly=3) -- so Silk.NET's DepthOnly (2) was read natively as
+    // StencilOnly (2), confirmed live by the browser's "does not have the texture view's
+    // selected aspect (TextureAspect::StencilOnly)" validation error for a Depth24Plus
+    // (no-stencil) view whose C# call site actually requested TextureAspect.DepthOnly.
+    if (descriptor != NULL) {
+        descriptor->aspect = (WGPUTextureAspect)((int)descriptor->aspect + 1);
+    }
     return wgpuTextureCreateView(texture, descriptor);
 }
 

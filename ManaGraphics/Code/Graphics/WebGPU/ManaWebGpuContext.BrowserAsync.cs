@@ -32,19 +32,53 @@ namespace ManaGraphics.Code.Graphics
         private async Task RequestAdapterAsync()
         {
             _adapterRequestTcs = new TaskCompletionSource<bool>();
-            StartAdapterRequest();
-            Console.WriteLine("[BrowserAsync] StartAdapterRequest returned synchronously; awaiting callback...");
+            ManaBrowserWebGpuCallbackBridge.PendingContext = this;
+            ManaBrowserWebGpuCallbackBridge.RequestAdapter();
+            Console.WriteLine("[BrowserAsync] mana_request_adapter returned synchronously; awaiting JS Promise...");
             await _adapterRequestTcs.Task;
-            Console.WriteLine("[BrowserAsync] Adapter callback arrived.");
+            Console.WriteLine("[BrowserAsync] Adapter result arrived.");
         }
 
         private async Task RequestDeviceAsync()
         {
             _deviceRequestTcs = new TaskCompletionSource<bool>();
-            StartDeviceRequest();
-            Console.WriteLine("[BrowserAsync] StartDeviceRequest returned synchronously; awaiting callback...");
+            ManaBrowserWebGpuCallbackBridge.PendingContext = this;
+            ManaBrowserWebGpuCallbackBridge.RequestDevice(AdapterIdForBrowser);
+            Console.WriteLine("[BrowserAsync] mana_request_device returned synchronously; awaiting JS Promise...");
             await _deviceRequestTcs.Task;
-            Console.WriteLine("[BrowserAsync] Device callback arrived.");
+            Console.WriteLine("[BrowserAsync] Device result arrived.");
+        }
+
+        /// <summary>
+        /// Called from ManaBrowserWebGpuCallbackBridge's [JSExport] (JS calling back into C#, not
+        /// the broken native-callback path -- see mana_webgpu.c). Not itself unsafe; the actual
+        /// pointer assignment is in ManaWebGpuContext.Device.cs's SetAdapterFromId, since this
+        /// partial declaration deliberately isn't `unsafe` (see the class-level remarks).
+        /// </summary>
+        internal void OnAdapterResultFromJs(int adapterId)
+        {
+            if (adapterId == 0)
+            {
+                _adapterRequestTcs?.TrySetException(
+                    new InvalidOperationException("WebGPU adapter request failed (see browser console for the JS-side error)."));
+                return;
+            }
+
+            SetAdapterFromId(adapterId);
+            _adapterRequestTcs?.TrySetResult(true);
+        }
+
+        internal void OnDeviceResultFromJs(int deviceId)
+        {
+            if (deviceId == 0)
+            {
+                _deviceRequestTcs?.TrySetException(
+                    new InvalidOperationException("WebGPU device request failed (see browser console for the JS-side error)."));
+                return;
+            }
+
+            SetDeviceFromId(deviceId);
+            _deviceRequestTcs?.TrySetResult(true);
         }
     }
 }

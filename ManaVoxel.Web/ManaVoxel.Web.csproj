@@ -17,13 +17,28 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WasmMainJSPath>main.js</WasmMainJSPath>
     <DefineConstants>$(DefineConstants);MANA_BROWSER</DefineConstants>
+    <!-- AOT-compiling (not just interpreting) avoids a Mono wasm interpreter-specific crash
+         (memory access out of bounds building a native-to-interp trampoline) that happened the
+         moment a C# delegate was passed as a native callback parameter to
+         wgpuInstanceRequestAdapter; confirmed live in-browser, not just theorized. See
+         WebPort-Plan.md M2. -->
+    <RunAOTCompilation>true</RunAOTCompilation>
     <!-- Activates Emscripten's own library_webgpu.js (the old USE_WEBGPU=1 API, not the newer
          emdawnwebgpu port; see WebPort-Plan.md M0/M2), which is what
          ManaGraphics/Native/mana_webgpu.c's shims forward into. This has to live here, not in
          ManaGraphics.csproj: confirmed by testing that NativeFileReference/EmccExportedFunction/
          EmccExtraLDFlags items declared in a referenced project are silently ignored during the
-         top-level app's publish; only the entry project's own native-link step runs them. -->
-    <EmccExtraLDFlags>$(EmccExtraLDFlags) -sUSE_WEBGPU=1</EmccExtraLDFlags>
+         top-level app's publish; only the entry project's own native-link step runs them.
+         getWasmTableEntry is an internal ($-prefixed) Emscripten library helper library_webgpu.js
+         depends on to turn our native callback's function-pointer parameter into a JS-callable
+         wrapper (needed to resolve the JS Promise from navigator.gpu.requestAdapter() back into
+         our callback); the .NET wasm build's own tree-shaking drops it since nothing else in this
+         app's JS-visible call graph references it statically. EXPORTED_RUNTIME_METHODS doesn't
+         apply here (that's for external JS calling into Module.*, not an internal library
+         dependency); confirmed by emcc itself rejecting "getWasmTableEntry" as an invalid
+         EXPORTED_RUNTIME_METHODS item. DEFAULT_LIBRARY_FUNCS_TO_INCLUDE is the correct flag to
+         force-include an internal library function past tree-shaking. -->
+    <EmccExtraLDFlags>$(EmccExtraLDFlags) -sUSE_WEBGPU=1 -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$getWasmTableEntry</EmccExtraLDFlags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -52,6 +67,10 @@
     <NativeFileReference Include="..\ManaGraphics\Native\mana_webgpu.c" />
     <!-- Hand-added, not part of the mechanically-generated 69; see mana_webgpu.c. -->
     <EmccExportedFunction Include="_mana_wgpuInstanceCreateSurface" />
+    <!-- EM_JS-based bypass around the broken InstanceRequestAdapter/AdapterRequestDevice
+         callback path; see mana_webgpu.c and ManaBrowserWebGpuCallbackBridge.cs. -->
+    <EmccExportedFunction Include="_mana_request_adapter" />
+    <EmccExportedFunction Include="_mana_request_device" />
     <EmccExportedFunction Include="_mana_wgpuAdapterEnumerateFeatures" />
     <EmccExportedFunction Include="_mana_wgpuAdapterGetLimits" />
     <EmccExportedFunction Include="_mana_wgpuAdapterGetProperties" />
