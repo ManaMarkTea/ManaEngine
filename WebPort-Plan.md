@@ -436,10 +436,62 @@ probe's default viewport (1280x800, ~1.6 aspect) doesn't match `CreateDemoRender
 hardcoded `16.0f/9.0f` (~1.778) projection aspect ratio — unlikely to cause total invisibility
 on its own, but untested and easy to rule out by matching the viewport or reading the aspect
 ratio from the actual framebuffer size instead of hardcoding it.
-**The next concrete step**: use the same headless-probe loop to add one WGSL-compile-error
-`EM_JS` bridge (mirroring the adapter/device one) and/or a screenshot-diffing approach to
-narrow down why the cube doesn't appear — this is now a self-contained, well-scoped, live-
-verifiable follow-up, not a hypothetical.
+**Update (live-confirmed by the user, then investigated further)**: the user tested this
+build live and saw the exact same result the headless probe did — full skybox, zero console
+errors, no cube — confirming this is a real, reproducible bug, not a headless-Chrome-specific
+quirk. A further investigation session (still using the headless probe as the fast iteration
+loop) systematically ruled out every architecturally-plausible cause found so far:
+
+- **Not a depth-test issue**: temporarily forcing the demo pipeline's `depthCompare` to
+  `CompareFunction.Always` (bypassing the real `Less` compare entirely) made no difference.
+- **Not the IBL/texture data path**: `pbr_irradiance.wgsl` has a built-in per-object debug
+  visualization mode (`object.debug_mode_override`, wired to
+  `ManaRenderMeshInstance.PbrDebugMode`) that bypasses every texture sample and IBL
+  calculation, computing color from nothing but the view vector. Setting it to `1` (View
+  Vector mode) on the demo cube still produced no visible geometry at all — ruling out
+  every texture/cubemap/BRDF-LUT/compute-shader-output path in the shader as the cause,
+  since none of that code runs in this mode.
+- **Not a WGSL compilation problem**: added a genuinely new diagnostic capability —
+  `wgpuShaderModuleGetCompilationInfo` is itself an async, callback-based WebGPU call (same
+  category of API as the adapter/device requests), so it needed its own tiny `EM_JS` bridge
+  (`mana_log_shader_compilation_info_impl` in `mana_webgpu.c`, reaching
+  `WebGPU.mgrShaderModule`'s id table the same way `mana_request_adapter`/
+  `mana_request_device` reach `mgrAdapter`/`mgrDevice`) since Dawn's compilation diagnostics
+  are NOT covered by the unconditional validation-error console logging already relied on
+  elsewhere (confirmed: this is a separate, opt-in reporting path). Result: **zero messages,
+  for both shader modules** (skybox and `pbr_irradiance.wgsl`) — the shader compiles
+  perfectly cleanly under Dawn. Needed a ~15s wait in the probe for the compile promise to
+  resolve; the original ~4s probes reported nothing at all for this, which briefly looked
+  like the bridge wasn't firing before the longer wait resolved it.
+- **Ruled out by code inspection** (all confirmed correct, no fix needed): the object
+  uniform's first-write path (`TryUpdateObjectUniform`'s `_lastUploadedObjectUniform is {
+  }` check correctly treats "never written" as "changed", so the world-transform matrix
+  does get uploaded before the first draw); `ManaWebGpuObjectUniform`'s C# struct layout
+  against `include/uniforms.wgsl`'s `ObjectUniform` (field-for-field identical, and every
+  field is a platform-size-independent `float`/`Vector4`/`Matrix4x4`, ruling out a
+  wasm32-vs-desktop64 pointer-size packing difference); `CreateNormalizedWorldTransform`
+  (pure deterministic arithmetic, no platform dependency); vertex/index buffer upload
+  (`ManaWebGpuMesh.CreateFromMeshData`, identical code path on both platforms, no
+  browser-specific branch); the frame composition order (skybox draws into the same
+  offscreen HDR scene texture as the cube, in the same render pass, before the cube — no
+  separate later full-screen skybox pass that could be overwriting a correctly-composited
+  scene); viewport/scissor (never explicitly set, so WebGPU's spec-mandated default of "the
+  whole render target" applies — and the skybox proves that default is being hit correctly
+  since it fills the screen).
+
+**Not yet ruled out, and the most likely remaining candidates**: something in the actual
+GPU-side *execution* of the draw call that creation-time validation doesn't catch — most
+plausibly the bind-group-layout/pipeline-layout compatibility between `GetOrCreatePipeline`'s
+shared `_customUniformPipelineLayout` (used for every material pipeline, per its own comment,
+an existing desktop-proven design) and the large per-object bind group `CreateSceneMesh`
+actually builds (14 entries: uniform, 2 samplers, color/environment/irradiance/prefiltered/
+brdf-lut textures, plus 6 material maps) — not independently re-verified this session since
+it's shared, unmodified, desktop-working code, but never explicitly confirmed compatible
+either. Also not yet tried: a raw GPU-side readback of the actual uploaded vertex/uniform
+buffer bytes (via `wgpuBufferMapAsync`, which — like `DeviceSetUncapturedErrorCallback` — is
+disabled for browser due to the same `getWasmTableEntry` bug, so would need its own `EM_JS`
+bridge, following the same recipe as the compilation-info one above) to directly confirm
+what the GPU actually received, rather than continuing to infer it from C# source reading.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 

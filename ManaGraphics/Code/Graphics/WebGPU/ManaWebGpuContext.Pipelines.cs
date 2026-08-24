@@ -637,6 +637,11 @@ namespace ManaGraphics.Code.Graphics
                     throw new InvalidOperationException($"Failed to create WebGPU shader module from {path}.");
                 }
 
+#if MANA_BROWSER
+                // TEMP DIAGNOSTIC: see mana_webgpu.c's mana_log_shader_compilation_info_impl.
+                ManaBrowserWebGpuCallbackBridge.LogShaderCompilationInfo((int)(nint)shaderModule);
+#endif
+
                 return shaderModule;
             }
             finally

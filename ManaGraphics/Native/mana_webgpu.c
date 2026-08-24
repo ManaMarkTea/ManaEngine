@@ -76,6 +76,48 @@ void mana_request_device(int adapterId) {
     mana_request_device_impl(adapterId);
 }
 
+// Diagnostic only, not part of the real render path: WebGPU's wgpuShaderModuleGetCompilationInfo
+// is itself a callback-taking async call and would hit the exact same getWasmTableEntry bug the
+// adapter/device requests did if called through Silk.NET's normal binding, so this reaches
+// library_webgpu.js's own shader-module id table (WebGPU.mgrShaderModule, confirmed present by
+// reading src/library_webgpu.js in this Emscripten install) directly via EM_JS instead, and just
+// logs the result -- there is no consumer on the C# side, nothing to round-trip. Added to
+// investigate why the demo mesh pipeline's shader draws nothing despite a clean render pipeline,
+// zero WebGPU validation errors, and the mesh/uniform data all confirmed present; Dawn's
+// validation-error console logging (confirmed unconditional and independent of any registered
+// error callback -- see the TextureAspect findings) turned out NOT to cover WGSL compilation
+// results, which are reported through this separate, opt-in API instead.
+EM_JS(void, mana_log_shader_compilation_info_impl, (int shaderModuleId), {
+    var shaderModule = WebGPU.mgrShaderModule.get(shaderModuleId);
+    if (!shaderModule) {
+        console.error('mana_log_shader_compilation_info: no shader module for id', shaderModuleId);
+        return;
+    }
+    shaderModule.getCompilationInfo().then((info) => {
+        if (info.messages.length === 0) {
+            console.log('[ShaderCompilationInfo] shader module ' + shaderModuleId + ': no messages.');
+            return;
+        }
+        for (var i = 0; i < info.messages.length; i++) {
+            var m = info.messages[i];
+            var text = '[ShaderCompilationInfo] shader module ' + shaderModuleId + ' (' + m.type + ') line ' + m.lineNum + ':' + m.linePos + ': ' + m.message;
+            if (m.type === 'error') {
+                console.error(text);
+            } else if (m.type === 'warning') {
+                console.warn(text);
+            } else {
+                console.log(text);
+            }
+        }
+    }, (ex) => {
+        console.error('mana_log_shader_compilation_info: getCompilationInfo rejected', ex);
+    });
+});
+
+void mana_log_shader_compilation_info(int shaderModuleId) {
+    mana_log_shader_compilation_info_impl(shaderModuleId);
+}
+
 // ---- Enum ABI remapping between Silk.NET.WebGPU 2.23.0 and this Emscripten SDK's bundled
 // webgpu.h ----
 // Both target structurally identical structs (every struct relevant to the render pipeline

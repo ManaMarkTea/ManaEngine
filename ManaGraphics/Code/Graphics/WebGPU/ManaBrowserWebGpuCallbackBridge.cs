@@ -24,6 +24,11 @@ namespace ManaGraphics.Code.Graphics
         [LibraryImport("mana_webgpu", EntryPoint = "mana_request_device")]
         internal static partial void RequestDevice(int adapterId);
 
+        // Diagnostic only -- see mana_webgpu.c's mana_log_shader_compilation_info_impl. No C#-side
+        // handler needed: it just logs straight to the browser console.
+        [LibraryImport("mana_webgpu", EntryPoint = "mana_log_shader_compilation_info")]
+        internal static partial void LogShaderCompilationInfo(int shaderModuleId);
+
         [JSExport]
         internal static void OnAdapterResult(int adapterId)
         {

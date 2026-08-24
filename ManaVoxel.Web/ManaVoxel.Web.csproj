@@ -103,6 +103,8 @@
          callback path; see mana_webgpu.c and ManaBrowserWebGpuCallbackBridge.cs. -->
     <EmccExportedFunction Include="_mana_request_adapter" />
     <EmccExportedFunction Include="_mana_request_device" />
+    <!-- Diagnostic only; see mana_webgpu.c's mana_log_shader_compilation_info_impl. -->
+    <EmccExportedFunction Include="_mana_log_shader_compilation_info" />
     <EmccExportedFunction Include="_mana_wgpuAdapterEnumerateFeatures" />
     <EmccExportedFunction Include="_mana_wgpuAdapterGetLimits" />
     <EmccExportedFunction Include="_mana_wgpuAdapterGetProperties" />
