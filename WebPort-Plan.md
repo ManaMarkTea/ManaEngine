@@ -481,6 +481,29 @@ loop) systematically ruled out every architecturally-plausible cause found so fa
 
 ### M3 continued: exhaustive bisection, still unresolved — this is a hard blocker for a runnable game
 
+> **Handoff note for whoever picks this up next (including a fresh AI agent with no memory of
+> this session):** read this whole section before touching anything — it documents an
+> unusually thorough bisection, and re-running an already-ruled-out experiment wastes time.
+> The one-paragraph version: WebGPU genuinely works in this browser port (skybox/IBL render
+> correctly, zero console errors) but **no mesh ever renders** — not the demo cube, and by
+> extension not voxels or characters either, since they share the identical code path. Every
+> data layer (vertex buffer, per-object uniform, per-frame uniform — all read back directly
+> from GPU memory and confirmed byte-correct), the shader (compiles clean, even with a
+> hardcoded-magenta fragment shader and a hardcoded-fixed-position vertex shader bypassing all
+> real logic), the pipeline, the bind groups, and Emscripten's own enum-translation tables have
+> all been individually verified correct — see the numbered list below for the full sequence.
+> **Fastest way back into this**: reuse the headless-Chrome-probe technique (a `pw_test` scratch
+> dir with `npm install playwright`, `chromium.launch({ channel: 'chrome', headless: true })`,
+> navigate to the local dev server, capture `console`/`pageerror` events and a screenshot) —
+> it's what made every experiment below possible without needing a human to click refresh each
+> time. Start the dev server from `ManaVoxel.Web/bin/Release/net10.0/browser-wasm/AppBundle`
+> with `python3 -m http.server 8000` after `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c
+> Release` (clean `obj`/`bin` first if you hit a stale-parallel-build file-lock error — it's a
+> known transient issue with this SDK, not a real problem; just retry). The single biggest
+> unknown left is genuine GPU/driver-level introspection (real Chrome DevTools' GPU/WebGPU
+> panel, or a proper frame-capture tool) — nothing in this session's toolkit could get lower
+> than "the command buffer is valid and submitted" without that.
+
 **Why this matters more than a cosmetic gap**: an `Explore` agent traced the full rendering
 call graph and confirmed voxel geometry (`ManaVoxelsNode`/`ManaVoxelShape`, wrapped in a
 `MeshRendererComponent`) and character meshes (static or skinned, from
