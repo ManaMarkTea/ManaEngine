@@ -61,7 +61,7 @@ namespace ManaVoxel.Code.Levels
 
         // ---- File I/O ---------------------------------------------------------------------------------
 
-        private static readonly JsonSerializerOptions SerializerOptions = new()
+        internal static readonly JsonSerializerOptions SerializerOptions = new()
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -152,6 +152,8 @@ namespace ManaVoxel.Code.Levels
 
         public ManaLevelVoxels? Voxels { get; set; }
 
+        public List<ManaLevelScript>? Scripts { get; set; }
+
         public List<ManaLevelNode>? Children { get; set; }
     }
 
@@ -162,6 +164,14 @@ namespace ManaVoxel.Code.Levels
         public float[] Size { get; set; } = new float[3];
 
         public float[] Offset { get; set; } = new float[3];
+    }
+
+    /// <summary>Scene-node behavior data, like a tiny Godot-style script attachment.</summary>
+    public sealed class ManaLevelScript
+    {
+        public string Type { get; set; } = string.Empty;
+
+        public Dictionary<string, JsonElement> Properties { get; set; } = new();
     }
 
     /// <summary>

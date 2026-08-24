@@ -6,7 +6,9 @@ using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.Gameplay.Trains;
 using ManaVoxel.Code.Services;
+using System.Text.Json;
 
 namespace ManaVoxel.Code.Levels
 {
@@ -239,12 +241,14 @@ namespace ManaVoxel.Code.Levels
                     var shape = LoadShape(entry, state.Context, state.Scene);
                     AttachToParent(state.Context, parent, shape);
                     AddCollisionIfPresent(entry, state.Context, shape);
+                    AddScriptsIfPresent(entry, shape);
                     return shape;
 
                 case ManaLevelSourceKind.Mesh:
                     var mesh = LoadMesh(entry, state.Context);
                     AttachToParent(state.Context, parent, mesh);
                     AddCollisionIfPresent(entry, state.Context, mesh);
+                    AddScriptsIfPresent(entry, mesh);
                     return mesh;
 
                 case ManaLevelSourceKind.Voxels:
@@ -252,6 +256,7 @@ namespace ManaVoxel.Code.Levels
                     state.ReusableVoxelsNode = null;
                     LoadVoxels(entry, voxels);
                     AttachToParent(state.Context, parent, voxels);
+                    AddScriptsIfPresent(entry, voxels);
                     state.VoxelNodes.Add(voxels);
                     return voxels;
 
@@ -266,6 +271,7 @@ namespace ManaVoxel.Code.Levels
                     }
 
                     AttachToParent(state.Context, parent, start);
+                    AddScriptsIfPresent(entry, start);
                     return start;
 
                 default:
@@ -288,6 +294,7 @@ namespace ManaVoxel.Code.Levels
             }
 
             AttachToParent(state.Context, parent, group);
+            AddScriptsIfPresent(entry, group);
 
             if (entry.Children != null)
             {
@@ -374,6 +381,46 @@ namespace ManaVoxel.Code.Levels
             {
                 context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset));
             }
+        }
+
+        private static void AddScriptsIfPresent(ManaLevelNode entry, ManaSceneNode node)
+        {
+            if (entry.Scripts == null)
+            {
+                return;
+            }
+
+            foreach (var script in entry.Scripts)
+            {
+                if (string.Equals(script.Type, TrainCarComponent.ScriptType, StringComparison.OrdinalIgnoreCase))
+                {
+                    AddTrainCarScript(node, script);
+                }
+            }
+        }
+
+        private static void AddTrainCarScript(ManaSceneNode node, ManaLevelScript script)
+        {
+            var settings = ReadScriptProperties<TrainCarComponent.TrainCarScriptSettings>(script);
+            if (settings == null)
+            {
+                return;
+            }
+
+            var component = node.GetComponents<TrainCarComponent>().FirstOrDefault();
+            if (component == null)
+            {
+                component = new TrainCarComponent(node);
+                node.Components.Add(component);
+            }
+
+            component.ApplySettings(settings);
+        }
+
+        private static TSettings? ReadScriptProperties<TSettings>(ManaLevelScript script)
+        {
+            var json = JsonSerializer.Serialize(script.Properties, ManaLevel.SerializerOptions);
+            return JsonSerializer.Deserialize<TSettings>(json, ManaLevel.SerializerOptions);
         }
 
         /// <summary>

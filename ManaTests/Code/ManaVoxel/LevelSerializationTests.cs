@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Mana;
 using Mana.Code;
 using Mana.Code.Levels;
@@ -5,6 +6,7 @@ using Mana.Code.Nodes;
 using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.Gameplay.Trains;
 using ManaVoxel.Code.Levels;
 
 namespace ManaTests;
@@ -50,6 +52,19 @@ public static class LevelSerializationChecks
                     {
                         Size = new[] { 3.0f, 0.5f, 3.0f },
                         Offset = new[] { 0.0f, 0.0f, 0.0f }
+                    },
+                    Scripts = new List<ManaLevelScript>
+                    {
+                        new ManaLevelScript
+                        {
+                            Type = TrainCarComponent.ScriptType,
+                            Properties =
+                            {
+                                ["routeKey"] = JsonValue("A"),
+                                ["carIndex"] = JsonValue(2),
+                                ["speed"] = JsonValue(6.25f)
+                            }
+                        }
                     }
                 },
                 new ManaLevelNode
@@ -76,6 +91,13 @@ public static class LevelSerializationChecks
             && platform.Color![2] == 0.75f
             && platform.Size![1] == 0.25f
             && platform.Collision!.Size[0] == 3.0f);
+
+        var platformScript = platform.Scripts?.FirstOrDefault();
+        Check("a node keeps script component data",
+            platformScript?.Type == TrainCarComponent.ScriptType
+            && platformScript.Properties["routeKey"].GetString() == "A"
+            && platformScript.Properties["carIndex"].GetInt32() == 2
+            && Math.Abs(platformScript.Properties["speed"].GetSingle() - 6.25f) < 0.001f);
 
         Check("the player start round trips with its facing",
             reloaded.PlayerStart != null
@@ -130,6 +152,10 @@ public static class LevelSerializationChecks
             Name = "Scene B Box",
             LevelSource = ManaLevelSource.ForShape("Cube", Vector4.One, Vector3.One)
         };
+        var trainScript = new TrainCarComponent(sceneANode);
+        trainScript.ConfigureDefaultRoute("B", 1, 0.25f);
+        trainScript.Speed = 7.5f;
+        sceneANode.Components.Add(trainScript);
 
         sceneA.Children.Add(sceneANode);
         sceneB.Children.Add(sceneBNode);
@@ -140,6 +166,13 @@ public static class LevelSerializationChecks
         Check("capturing one scene keeps only that scene's authored nodes",
             sceneOnly.Nodes.Count == 1 && sceneOnly.Nodes[0].Name == "Scene A Box",
             string.Join(", ", sceneOnly.Nodes.Select(node => node.Name)));
+
+        var capturedScript = sceneOnly.Nodes[0].Scripts?.FirstOrDefault();
+        Check("capturing a scene writes train scripts",
+            capturedScript?.Type == TrainCarComponent.ScriptType
+            && capturedScript.Properties["routeKey"].GetString() == "B"
+            && capturedScript.Properties["carIndex"].GetInt32() == 1
+            && Math.Abs(capturedScript.Properties["speed"].GetSingle() - 7.5f) < 0.001f);
 
         var wholeWorld = ManaLevelCapture.Capture(world, "World");
         Check("capturing the world still walks every scene",
@@ -307,5 +340,11 @@ public static class LevelSerializationChecks
         {
             return true;
         }
+    }
+
+    private static JsonElement JsonValue<T>(T value)
+    {
+        using var document = JsonSerializer.SerializeToDocument(value);
+        return document.RootElement.Clone();
     }
 }

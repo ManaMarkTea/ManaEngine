@@ -4,6 +4,8 @@ using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
+using ManaVoxel.Code.Gameplay.Trains;
+using System.Text.Json;
 
 namespace ManaVoxel.Code.Levels
 {
@@ -181,7 +183,36 @@ namespace ManaVoxel.Code.Levels
                     return null;
             }
 
+            entry.Scripts = CaptureScripts(node);
             return entry;
+        }
+
+        private static List<ManaLevelScript>? CaptureScripts(ManaSceneNode node)
+        {
+            List<ManaLevelScript>? scripts = null;
+            foreach (var trainCar in node.GetComponents<TrainCarComponent>())
+            {
+                scripts ??= new List<ManaLevelScript>();
+                scripts.Add(CreateScript(TrainCarComponent.ScriptType, trainCar.CaptureSettings()));
+            }
+
+            return scripts;
+        }
+
+        private static ManaLevelScript CreateScript<TSettings>(string type, TSettings settings)
+        {
+            using var document = JsonSerializer.SerializeToDocument(settings, ManaLevel.SerializerOptions);
+            var properties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                properties[property.Name] = property.Value.Clone();
+            }
+
+            return new ManaLevelScript
+            {
+                Type = type,
+                Properties = properties
+            };
         }
 
         /// <summary>
