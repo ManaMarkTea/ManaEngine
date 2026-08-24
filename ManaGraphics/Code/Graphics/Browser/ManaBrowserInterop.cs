@@ -27,7 +27,16 @@ namespace ManaGraphics.Code.Graphics.Browser
             // module's own location (dotnet.runtime.js, inside _framework/), not the app root --
             // confirmed by an actual ERR_MODULE_NOT_FOUND for "_framework/mana_interop.js" (where
             // it's deployed one level up, alongside index.html/main.js), not assumed.
-            await JSHost.ImportAsync(ModuleName, "../mana_interop.js");
+            // The ?v= token is not decoration. This module is fetched by a dynamic import at
+            // runtime, not as a subresource of the document, and Chrome will happily serve that
+            // from its HTTP cache even through a hard reload -- which means a freshly built .wasm
+            // can end up calling into a stale copy of this JS. That surfaces as
+            // "installInput must be a Function but was undefined": new C# calling a function the
+            // cached module predates. Confirmed live, twice, including with no-store response
+            // headers already in place. Making the URL itself differ per process start sidesteps
+            // every layer of caching, and the file is a few KB.
+            var cacheBuster = Guid.NewGuid().ToString("N");
+            await JSHost.ImportAsync(ModuleName, $"../mana_interop.js?v={cacheBuster}");
         }
 
         [JSImport("selectCanvas", ModuleName)]
