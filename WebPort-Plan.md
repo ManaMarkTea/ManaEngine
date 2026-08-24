@@ -365,18 +365,69 @@ var nothing sets in the browser build, so `CreateDemoMeshPipeline()` (and theref
 *never been exercised in a real browser at all* as of this commit. This was a deliberate
 stop, not an oversight: `RunBrowser`'s `try/catch` around
 `CompleteBrowserInitializationAsync()` re-throws on failure, and `CreateDemoMeshPipeline()`
-runs *before* `browserWindow.StartRenderLoop()` — so if it throws (a bad WGSL parse under
-Dawn's stricter/different validator than desktop wgpu-native's, another Silk.NET/webgpu.h
-enum ABI mismatch like the two already found for `TextureDimension`/`TextureAspect`, a
-missing bind-group/vertex-layout field, etc.), the *entire* render loop would never start —
-regressing all the way back past the now-confirmed-working blue clear, with no live feedback
-loop available to diagnose or fix it. Given real ABI drift was already found in two other
-enums this session, more is plausible in the render-pipeline structs
-(`VertexFormat`/`PrimitiveTopology`/`CullMode`/`CompareFunction`/`BlendFactor`/etc. were not
-individually checked). **The next concrete step**, when live testing resumes: add
+runs *before* `browserWindow.StartRenderLoop()` — so if it throws, the *entire* render loop
+would never start, regressing all the way back past the now-confirmed-working blue clear,
+with no live feedback loop available to diagnose or fix it.
+
+**A full enum ABI audit (this session, done proactively, unverified live) found and fixed 10
+more Silk.NET/webgpu.h enum mismatches beyond the two already found live
+(`TextureDimension`/`TextureAspect`) — this drift is much more pervasive than those two
+isolated findings suggested.** Rather than wait to discover each one individually via live
+trial and error (as `TextureDimension`/`TextureAspect` were), every enum
+`Silk.NET.WebGPU.dll` (v2.23.0) declares was mechanically compared against this exact
+installed Emscripten SDK's `webgpu.h`: decompiled the whole assembly to source
+(`ilspycmd -p`), parsed every `[NativeName]`-annotated enum member's C# value out of each
+file, parsed every native `typedef enum WGPUXxx {...}` block's values out of the header, and
+diffed them by shared native name. 47 enums compared; 19 differ. Of those, cross-referenced
+against actual usage in `ManaGraphics/Code/Graphics/WebGPU/*.cs` to find which ones the
+render pipeline path can actually hit: **10 are used and needed a fix** —
+`PrimitiveTopology`, `FrontFace`, `CullMode`, `StencilOperation`, `FilterMode`,
+`MipmapFilterMode`, `BlendFactor`, `BlendOperation` (each a uniform "+1": native inserted an
+`Undefined = 0` member Silk.NET's declaration doesn't have, shifting every value after it by
+exactly one, confirmed across every member of each, not just the ones that happened to
+collide) and `AddressMode`/`CompareFunction`/`VertexStepMode` (genuinely
+*reordered* — e.g. Silk.NET's `AddressMode` is `Repeat=0, MirrorRepeat=1, ClampToEdge=2`
+while native is `Undefined=0, ClampToEdge=1, Repeat=2, MirrorRepeat=3` — confirmed by reading
+each decompiled enum file directly, not inferred, since a uniform offset can't explain it).
+The other 9 mismatched enums (`AdapterType`, `ErrorFilter`, `BufferMapState`, `PresentMode`,
+`QueryType`, `CompilationMessageType`, `DeviceLostReason`, `BackendType`,
+`CompilationInfoRequestStatus`/`CreatePipelineAsyncStatus`/status-callback enums) either
+don't cross the C ABI boundary at all in this codebase (only read via `.ToString()` for
+logging) or aren't used anywhere in `ManaGraphics` — left alone. 28 of the 47 already match
+exactly (including, reassuringly, `VertexFormat`, `IndexFormat`, `TextureViewDimension`,
+`TextureFormat`, `SamplerBindingType`, `TextureSampleType`, `BufferBindingType`,
+`StorageTextureAccess`, `SType`, and every bit-flag enum checked —
+`BufferUsage`/`TextureUsage`/`ColorWriteMask`/`ShaderStage` — so this is real, spot-checkable
+drift in specific enums, not a wholesale header mismatch).
+**Struct layouts were also verified, separately from enum values**: every struct in the
+`wgpuDeviceCreateRenderPipeline`/`wgpuDeviceCreateSampler` call graph
+(`RenderPipelineDescriptor`, `PrimitiveState`, `DepthStencilState`, `StencilFaceState`,
+`VertexState`, `VertexBufferLayout`, `VertexAttribute`, `FragmentState`, `ColorTargetState`,
+`BlendState`, `BlendComponent`, `SamplerDescriptor`) was diffed field-by-field (order, name,
+shape) between the decompiled Silk.NET source and the native header — all match exactly, no
+insertions/removals/reordering. So this is purely an enum-numbering problem, not a deeper
+memory-layout one.
+**Fixed** in `mana_webgpu.c`: a block of `mana_remap_*` static helper functions (uniform +1
+for the eight, explicit `switch` tables for the three reordered ones), applied by walking
+and mutating `WGPUSamplerDescriptor`'s fields directly in `mana_wgpuDeviceCreateSampler`, and
+by walking `WGPURenderPipelineDescriptor`'s vertex-buffer array, `primitive`, the nullable
+`depthStencil` struct (both `StencilFaceState`s), and the nullable `fragment`'s
+`ColorTargetState` array (each's nullable `BlendState`) in
+`mana_wgpuDeviceCreateRenderPipeline` — casting away `const` on the nullable/array pointers
+the same way the earlier `depthSlice` fix did, since these are C#-owned buffers this shim is
+free to mutate in place before forwarding. Compiles clean (`dotnet publish
+ManaVoxel.Web` succeeds, zero new warnings on `mana_webgpu.c`); desktop unaffected (`dotnet
+build ManaVoxel` + `ManaTests` 1660/1661, same pre-existing unrelated failure) since none of
+this touches anything outside `MANA_BROWSER`-gated/browser-only files.
+**Still entirely unverified live** — same caveat as the shader bundling above, for the same
+reason (flipping on the demo pipeline to actually exercise this code is the risky step, not
+yet taken). **The next concrete step**, when live testing resumes: add
 `<WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />` to
-`ManaVoxel.Web.csproj`, republish, and test live — expect to find and fix new bugs, the same
-one-per-cycle way M2 itself was closed.
+`ManaVoxel.Web.csproj`, republish, and test live — this enum audit should have closed off a
+whole category of likely failures in advance, but there could still be others this static
+analysis couldn't catch (WGSL syntax/feature differences between wgpu-native's and Dawn's
+shader compilers, for instance, which no amount of enum-diffing addresses) — expect to find
+and fix what's left the same one-per-cycle way M2 itself was closed.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 

@@ -76,6 +76,73 @@ void mana_request_device(int adapterId) {
     mana_request_device_impl(adapterId);
 }
 
+// ---- Enum ABI remapping between Silk.NET.WebGPU 2.23.0 and this Emscripten SDK's bundled
+// webgpu.h ----
+// Both target structurally identical structs (every struct relevant to the render pipeline
+// path was checked field-for-field against Silk.NET.WebGPU.dll decompiled via ilspycmd: same
+// order, same shape, no insertions/removals), but many enums were renumbered between the two
+// webgpu.h revisions -- discovered by mechanically diffing every Silk.NET.WebGPU enum's
+// declared ordinals against this exact installed header (see WebPort-Plan.md's "M2 CLOSED"
+// section, findings #3, for the two found and fixed earlier this same way: TextureDimension,
+// TextureAspect, inline in their own shim functions instead of here since only one field each).
+// Most of the rest are a uniform "add 1" (native inserted an Undefined=0 member Silk.NET's
+// enum doesn't have, shifting everything after it by exactly one -- confirmed uniform across
+// every member, not just the ones that happened to collide). Three
+// (AddressMode/CompareFunction/VertexStepMode) are genuinely reordered, not just shifted, and
+// need an explicit table. NOT yet live-verified: no live browser session was available to
+// confirm the render pipeline actually creates successfully with these in place -- see
+// WebPort-Plan.md's M3 prep note for why the demo pipeline itself is still deliberately
+// disabled.
+static WGPUPrimitiveTopology mana_remap_primitive_topology(WGPUPrimitiveTopology v) { return (WGPUPrimitiveTopology)((int)v + 1); }
+static WGPUFrontFace mana_remap_front_face(WGPUFrontFace v) { return (WGPUFrontFace)((int)v + 1); }
+static WGPUCullMode mana_remap_cull_mode(WGPUCullMode v) { return (WGPUCullMode)((int)v + 1); }
+static WGPUStencilOperation mana_remap_stencil_operation(WGPUStencilOperation v) { return (WGPUStencilOperation)((int)v + 1); }
+static WGPUFilterMode mana_remap_filter_mode(WGPUFilterMode v) { return (WGPUFilterMode)((int)v + 1); }
+static WGPUMipmapFilterMode mana_remap_mipmap_filter_mode(WGPUMipmapFilterMode v) { return (WGPUMipmapFilterMode)((int)v + 1); }
+static WGPUBlendFactor mana_remap_blend_factor(WGPUBlendFactor v) { return (WGPUBlendFactor)((int)v + 1); }
+static WGPUBlendOperation mana_remap_blend_operation(WGPUBlendOperation v) { return (WGPUBlendOperation)((int)v + 1); }
+
+static WGPUAddressMode mana_remap_address_mode(WGPUAddressMode v) {
+    // Silk.NET: Repeat=0, MirrorRepeat=1, ClampToEdge=2 (no Undefined).
+    // Native:   Undefined=0, ClampToEdge=1, Repeat=2, MirrorRepeat=3.
+    switch ((int)v) {
+        case 0: return WGPUAddressMode_Repeat;
+        case 1: return WGPUAddressMode_MirrorRepeat;
+        case 2: return WGPUAddressMode_ClampToEdge;
+        default: return WGPUAddressMode_Undefined;
+    }
+}
+
+static WGPUCompareFunction mana_remap_compare_function(WGPUCompareFunction v) {
+    // Silk.NET: Undefined=0, Never=1, Less=2, LessEqual=3, Greater=4, GreaterEqual=5, Equal=6,
+    //           NotEqual=7, Always=8.
+    // Native:   Undefined=0, Never=1, Less=2, Equal=3, LessEqual=4, Greater=5, NotEqual=6,
+    //           GreaterEqual=7, Always=8.
+    switch ((int)v) {
+        case 0: return WGPUCompareFunction_Undefined;
+        case 1: return WGPUCompareFunction_Never;
+        case 2: return WGPUCompareFunction_Less;
+        case 3: return WGPUCompareFunction_LessEqual;
+        case 4: return WGPUCompareFunction_Greater;
+        case 5: return WGPUCompareFunction_GreaterEqual;
+        case 6: return WGPUCompareFunction_Equal;
+        case 7: return WGPUCompareFunction_NotEqual;
+        case 8: return WGPUCompareFunction_Always;
+        default: return WGPUCompareFunction_Undefined;
+    }
+}
+
+static WGPUVertexStepMode mana_remap_vertex_step_mode(WGPUVertexStepMode v) {
+    // Silk.NET: Vertex=0, Instance=1, VertexBufferNotUsed=2 (no Undefined).
+    // Native:   Undefined=0, VertexBufferNotUsed=1, Vertex=2, Instance=3.
+    switch ((int)v) {
+        case 0: return WGPUVertexStepMode_Vertex;
+        case 1: return WGPUVertexStepMode_Instance;
+        case 2: return WGPUVertexStepMode_VertexBufferNotUsed;
+        default: return WGPUVertexStepMode_Undefined;
+    }
+}
+
 size_t mana_wgpuAdapterEnumerateFeatures(WGPUAdapter adapter, WGPUFeatureName * features) {
     return wgpuAdapterEnumerateFeatures(adapter, features);
 }
@@ -215,10 +282,58 @@ WGPUPipelineLayout mana_wgpuDeviceCreatePipelineLayout(WGPUDevice device, WGPUPi
 }
 
 WGPURenderPipeline mana_wgpuDeviceCreateRenderPipeline(WGPUDevice device, WGPURenderPipelineDescriptor * descriptor) {
+    if (descriptor != NULL) {
+        WGPUVertexBufferLayout* buffers = (WGPUVertexBufferLayout*)descriptor->vertex.buffers;
+        for (size_t i = 0; i < descriptor->vertex.bufferCount; i++) {
+            buffers[i].stepMode = mana_remap_vertex_step_mode(buffers[i].stepMode);
+        }
+
+        descriptor->primitive.topology = mana_remap_primitive_topology(descriptor->primitive.topology);
+        descriptor->primitive.frontFace = mana_remap_front_face(descriptor->primitive.frontFace);
+        descriptor->primitive.cullMode = mana_remap_cull_mode(descriptor->primitive.cullMode);
+
+        if (descriptor->depthStencil != NULL) {
+            WGPUDepthStencilState* depthStencil = (WGPUDepthStencilState*)descriptor->depthStencil;
+            depthStencil->depthCompare = mana_remap_compare_function(depthStencil->depthCompare);
+            depthStencil->stencilFront.compare = mana_remap_compare_function(depthStencil->stencilFront.compare);
+            depthStencil->stencilFront.failOp = mana_remap_stencil_operation(depthStencil->stencilFront.failOp);
+            depthStencil->stencilFront.depthFailOp = mana_remap_stencil_operation(depthStencil->stencilFront.depthFailOp);
+            depthStencil->stencilFront.passOp = mana_remap_stencil_operation(depthStencil->stencilFront.passOp);
+            depthStencil->stencilBack.compare = mana_remap_compare_function(depthStencil->stencilBack.compare);
+            depthStencil->stencilBack.failOp = mana_remap_stencil_operation(depthStencil->stencilBack.failOp);
+            depthStencil->stencilBack.depthFailOp = mana_remap_stencil_operation(depthStencil->stencilBack.depthFailOp);
+            depthStencil->stencilBack.passOp = mana_remap_stencil_operation(depthStencil->stencilBack.passOp);
+        }
+
+        if (descriptor->fragment != NULL) {
+            WGPUFragmentState* fragment = (WGPUFragmentState*)descriptor->fragment;
+            WGPUColorTargetState* targets = (WGPUColorTargetState*)fragment->targets;
+            for (size_t i = 0; i < fragment->targetCount; i++) {
+                if (targets[i].blend != NULL) {
+                    WGPUBlendState* blend = (WGPUBlendState*)targets[i].blend;
+                    blend->color.operation = mana_remap_blend_operation(blend->color.operation);
+                    blend->color.srcFactor = mana_remap_blend_factor(blend->color.srcFactor);
+                    blend->color.dstFactor = mana_remap_blend_factor(blend->color.dstFactor);
+                    blend->alpha.operation = mana_remap_blend_operation(blend->alpha.operation);
+                    blend->alpha.srcFactor = mana_remap_blend_factor(blend->alpha.srcFactor);
+                    blend->alpha.dstFactor = mana_remap_blend_factor(blend->alpha.dstFactor);
+                }
+            }
+        }
+    }
     return wgpuDeviceCreateRenderPipeline(device, descriptor);
 }
 
 WGPUSampler mana_wgpuDeviceCreateSampler(WGPUDevice device, WGPUSamplerDescriptor * descriptor) {
+    if (descriptor != NULL) {
+        descriptor->addressModeU = mana_remap_address_mode(descriptor->addressModeU);
+        descriptor->addressModeV = mana_remap_address_mode(descriptor->addressModeV);
+        descriptor->addressModeW = mana_remap_address_mode(descriptor->addressModeW);
+        descriptor->magFilter = mana_remap_filter_mode(descriptor->magFilter);
+        descriptor->minFilter = mana_remap_filter_mode(descriptor->minFilter);
+        descriptor->mipmapFilter = mana_remap_mipmap_filter_mode(descriptor->mipmapFilter);
+        descriptor->compare = mana_remap_compare_function(descriptor->compare);
+    }
     return wgpuDeviceCreateSampler(device, descriptor);
 }
 
