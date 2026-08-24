@@ -207,6 +207,18 @@ namespace ManaGraphics.Code.Graphics
                 _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
             }
 
+            // Group 0 must be (re)bound AFTER SetPipeline, not once up front in DrawDemoMesh:
+            // setPipeline with a layout incompatible with the currently-bound one unsets every bind
+            // group from the first incompatible index onward. The skybox draws immediately before
+            // this and its group 0 is {uniform, sampler, texture_cube} vs. this pipeline's
+            // {uniform} -- incompatible at index 0, so switching to this pipeline drops group 0
+            // (and 1 and 2) on the floor. Binding it here matches what DrawOverlays already does
+            // correctly (SetPipeline first, then group 0).
+            if (_frameBindGroup != null)
+            {
+                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+            }
+
             if (sceneMesh.ObjectBindGroup != null)
             {
                 _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);

@@ -349,7 +349,11 @@ too, pulled in transitively via `ManaGraphics.csproj`'s unconditioned
 only calling into one at runtime would fail). Confirmed via `grep` that no other file
 references `ManaDpiScale`.
 
-### M3: demo mesh pipeline verified live via a self-driven headless Chrome probe — skybox/IBL render correctly, cube visibility still open
+### M3: demo mesh pipeline brought up live via a self-driven headless Chrome probe
+
+> **Note:** the "cube visibility still open" problem described in this section was later fully
+> resolved — see "M3 RESOLVED" below for the root cause. Kept for the enum-ABI and
+> descriptor-double-remap fixes it documents, which are real and still load-bearing.
 
 Done overnight, autonomously, without the user present to test live — using a technique
 worth reusing for any future browser verification in this repo: **a headless Chrome instance
@@ -479,187 +483,51 @@ loop) systematically ruled out every architecturally-plausible cause found so fa
   whole render target" applies — and the skybox proves that default is being hit correctly
   since it fills the screen).
 
-### M3 continued: exhaustive bisection, still unresolved — this is a hard blocker for a runnable game
+### M3 RESOLVED: the invisible mesh was never a rendering bug at all
 
-> **Handoff note for whoever picks this up next (including a fresh AI agent with no memory of
-> this session):** read this whole section before touching anything — it documents an
-> unusually thorough bisection, and re-running an already-ruled-out experiment wastes time.
-> The one-paragraph version: WebGPU genuinely works in this browser port (skybox/IBL render
-> correctly, zero console errors) but **no mesh ever renders** — not the demo cube, and by
-> extension not voxels or characters either, since they share the identical code path. Every
-> data layer (vertex buffer, per-object uniform, per-frame uniform — all read back directly
-> from GPU memory and confirmed byte-correct), the shader (compiles clean, even with a
-> hardcoded-magenta fragment shader and a hardcoded-fixed-position vertex shader bypassing all
-> real logic), the pipeline, the bind groups, and Emscripten's own enum-translation tables have
-> all been individually verified correct — see the numbered list below for the full sequence.
-> **Fastest way back into this**: reuse the headless-Chrome-probe technique (a `pw_test` scratch
-> dir with `npm install playwright`, `chromium.launch({ channel: 'chrome', headless: true })`,
-> navigate to the local dev server, capture `console`/`pageerror` events and a screenshot) —
-> it's what made every experiment below possible without needing a human to click refresh each
-> time. Start the dev server from `ManaVoxel.Web/bin/Release/net10.0/browser-wasm/AppBundle`
-> with `python3 -m http.server 8000` after `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c
-> Release` (clean `obj`/`bin` first if you hit a stale-parallel-build file-lock error — it's a
-> known transient issue with this SDK, not a real problem; just retry). The single biggest
-> unknown left is genuine GPU/driver-level introspection (real Chrome DevTools' GPU/WebGPU
-> panel, or a proper frame-capture tool) — nothing in this session's toolkit could get lower
-> than "the command buffer is valid and submitted" without that.
+**Root cause: `CheckPendingEnvironmentMap()` released every scene mesh and nothing ever rebuilt
+them.** When the background environment-map load completes, that method calls
+`ReleaseSceneMeshes()` — correct on its own, since each mesh's bind group points at the old
+environment textures and must be rebuilt. On desktop this is invisible: `RefreshRenderScene()`
+runs every frame against a real `_renderSceneProvider` and re-uploads immediately. The browser
+demo path has **no provider** (`CreateDemoMeshPipeline` falls back to `CreateDemoRenderScene()`),
+so `RefreshRenderScene()` returns early forever, nothing re-uploads, and `_sceneMeshes` stays
+empty for the rest of the process. **Fixed** in `ManaWebGpuContext.Environment.cs`: after
+releasing, re-upload from `_activeRenderScene` when there is no provider to do it.
 
-**Why this matters more than a cosmetic gap**: an `Explore` agent traced the full rendering
-call graph and confirmed voxel geometry (`ManaVoxelsNode`/`ManaVoxelShape`, wrapped in a
-`MeshRendererComponent`) and character meshes (static or skinned, from
-`CharacterSpawnService`'s glTF import) are **ordinary `ManaMesh` instances that flow through
-this exact same `ManaRenderMeshInstance` → `DrawSceneMesh` → `ManaWebGpuMesh.Draw()` →
-`GetOrCreatePipeline("ManaPbrShader")` path** — there is no separate voxel or character
-renderer. Whatever is hiding the demo cube will hide voxels and characters too. This is not
-a side quest; it blocks "runnable game" directly.
+**Why it burned so much time — worth internalizing.** The mesh *did* render correctly on frame 1,
+then disappeared ~1 frame later when the async environment load finished. Every screenshot was
+taken ~900 frames after that. So every draw-call-level diagnostic was perfect *and meaningless*:
+the vertex/uniform/frame buffers all read back byte-correct (they were), the shader compiled
+clean (it did), the pipeline and bind groups were valid (they were), and there were zero
+validation errors — because **there was no draw call left to validate**. Hardcoding the fragment
+shader to solid magenta and the vertex shader to fixed on-screen NDC coordinates changed nothing,
+for the same reason. The one clue that pointed at the truth was ignored for too long: *every
+experiment produced a pixel-identical screenshot*, including pure-data changes (10x scale) that
+could not possibly interact with shader or pipeline caching. Pixel-identical output across
+unrelated changes means the code under test is not running — not that it is running and subtly
+wrong. **Lesson: before bisecting *how* a draw call renders, confirm it still executes on the
+frame you are actually looking at.** A single frame counter logging `_sceneMeshes.Count` found in
+minutes what a 13-step bisection of the draw path could not find at all.
 
-**Confirmed live** (both by the user's own browser and the headless probe, independently):
-the bug reproduces identically in both — full skybox/IBL renders correctly, zero console
-errors, the mesh's own draw call fires with sane parameters (`IndexCount=36`, valid non-null
-pipeline and bind-group handles), and the mesh is never visible.
+**Also fixed along the way (a real latent bug, though not the cause):** `DrawDemoMesh` bound
+group 0 once up front, while the *skybox* pipeline was still active, then switched pipelines
+per-mesh inside `DrawSceneMesh` without rebinding it. Per spec, `setPipeline` with an
+incompatible layout unsets bind groups from the first incompatible index onward — and the
+skybox's group 0 (`{uniform, sampler, texture_cube}`) is incompatible with the mesh pipeline's
+(`{uniform}`), so group 0 was being dropped. `DrawOverlays` already did this correctly
+(`SetPipeline` first, then group 0); `DrawSceneMesh` now matches.
 
-**A second self-driven headless-Chrome bisection session ruled out every remaining
-architecturally-plausible cause, using direct, decisive tests rather than more inference**:
+**Status: meshes render in-browser.** The demo cube draws over the HDR skybox with correct
+geometry, depth, and vertex colors, zero console errors. Since voxels and characters flow
+through this identical `ManaRenderMeshInstance` → `DrawSceneMesh` → `ManaWebGpuMesh` path (no
+separate voxel or character renderer exists), this unblocks real level content.
 
-1. **Not the HDR/tonemap compositing step.** Routing the base scene render pass directly to
-   the swapchain surface (bypassing `_hdrPostProcessor` entirely — matching color format too,
-   via a temporary `GetSceneColorFormat()` override) still renders the sky (now un-tonemapped,
-   visibly darker/more saturated as expected) with no cube. Rules out the entire
-   post-process/composite system.
-2. **Not a GPU buffer-readback bug in the earlier enum-remap fixes.** Read back the actual
-   GPU-side bytes of both the per-object uniform buffer (`mana_debug_readback_buffer`, a new
-   `EM_JS` bridge doing the standard copy-to-staging-buffer-then-map readback pattern, since
-   the source buffers need `BufferUsage.CopySrc` added — kept permanently, it's free) and the
-   per-frame uniform buffer, and compared byte-for-byte against a C#-side dump taken
-   immediately before upload. **Both matched exactly** — the model matrix read back as
-   `scale(2,2,2,1)` with no translation, exactly right for the normalized unit cube; the frame
-   uniform's view-projection and camera position matched the C# source construction bit for
-   bit. All object/frame data reaches the GPU intact.
-3. **Not `SetIndexBuffer`/`DrawIndexed` specifically.** Temporarily switched
-   `ManaWebGpuMesh.Draw()` to a non-indexed `RenderPassEncoderDraw(vertexCount, ...)` (dropping
-   `SetIndexBuffer` and `DrawIndexed` entirely) — no change, no cube.
-4. **Not `stackalloc` failing to interop with JS reads under Mono's browser-wasm runtime.**
-   `CreateDemoRenderPipeline`'s `stackalloc VertexAttribute[4]` was swapped for a
-   pinned-managed-array (`fixed`) equivalent — no change.
-5. **Not the render-pipeline enum-remap fix itself.** Temporarily bypassed
-   `mana_wgpuDeviceCreateRenderPipeline`'s entire remap block (a straight passthrough to the
-   real `wgpuDeviceCreateRenderPipeline`) to rule out a self-inflicted regression — this
-   instead **broke the previously-working skybox too** (new Dawn warnings about "a mix of
-   explicit and defaulted members" on the blend state, screen reverted to the M2 flat-blue
-   baseline), confirming the remap is correct and necessary, not the cause.
-6. **Not the fragment shader's logic, data, or texture/IBL dependencies at all.** Hardcoded
-   `fs_main` to `return vec4<f32>(1.0, 0.0, 1.0, 1.0);` (solid magenta) as the very first line
-   — compiled clean (one expected "code is unreachable" warning, confirmed via the
-   compilation-info diagnostic, not an error) — **still nothing visible**.
-7. **Not the vertex shader's transform math, attribute reading, or the vertex buffer's
-   contents.** Hardcoded `vs_main`'s `clip_position` output to one of three fixed,
-   known-good NDC coordinates selected by `vertex_index % 3u` (ignoring `position`/`object.model`/
-   `frame.view_projection` entirely for placement), combined with the non-indexed draw from
-   (3) so `vertex_index` is a simple sequential 0..35 counter (guaranteeing well-formed,
-   non-degenerate triangles rather than index-buffer-value-dependent ones) and the hardcoded
-   magenta output from (6). This is as close to "draw *something*, *anywhere*, with this exact
-   pipeline/bind-groups/buffers" as a test can get. **Still nothing visible.**
-8. **Not group-1's bind group being invalid or mismatched.** As a sanity check on the testing
-   method itself: commenting out `SetBindGroup(1, sceneMesh.ObjectBindGroup, ...)` entirely
-   correctly produces `"No bind group set at group index 1."` plus `[Invalid CommandBuffer]` —
-   proving Dawn's validation reporting *does* work for a real, unambiguous mistake here, which
-   makes the silence for the actual (correctly-bound) production draw calls a genuine signal,
-   not a blind spot in how errors surface.
-9. **Not vertex buffer layout/stride.** `ManaWebGpuVertex`'s C# field order (Position, Normal,
-   Color, TexCoord0 — 3+3+4+2 = 12 floats = 48 bytes) matches `CreateDemoRenderPipeline`'s
-   vertex attribute offsets exactly, field for field.
-10. **Not object scale/near-plane clipping.** Temporarily changed `CreateNormalizedWorldTransform`
-   to scale the cube 10x larger (span ±10 world units instead of ±1, dwarfing the ~4.3-unit
-   camera distance) — still invisible, and the screenshot is **pixel-identical** to the
-   unscaled baseline, which is itself a strange result worth flagging (see below).
-
-**The single most suspicious finding across all of this**: every one of these experiments —
-including ones that are pure runtime data changes with no possible interaction with shader
-compilation or pipeline caching (the 10x scale change; the non-indexed draw switch) — produced
-a screenshot **indistinguishable from the "do nothing different" baseline**. That is not what
-a genuinely-executing-but-subtly-wrong draw call should look like; it reads more like this
-specific draw call's effect never reaches the presented framebuffer at all, through some
-mechanism invisible to every diagnostic tried (WebGPU validation, shader compilation info, C#
-side data dumps, GPU-side buffer readback). Test (2.5) shows the pipeline *object* itself is
-accepted and *matters* (breaking its enum values broke the skybox too), so a pipeline that's
-silently a complete no-op seems unlikely — but nothing tried has been able to distinguish
-"executing with wrong/invisible output" from "not executing at all" beyond what's listed here.
-
-11. **Not the vertex buffer's actual GPU-side bytes either.** Read back the real vertex
-    buffer contents via the same `mana_debug_readback_buffer` bridge (added `BufferUsage.CopySrc`
-    to the vertex/index buffers too, kept permanently, same as the uniform buffers) — all 24
-    vertices decoded exactly as expected for the unit cube (e.g. vertex 0:
-    position `(-0.5, -0.5, 0.5)`, normal `(0, 0, 1)`, color `(0.12, 0.95, 1.0, 1.0)` matching
-    `AddCubeFace`'s first face color, UV `(0, 1)`). Every single piece of GPU-side data this
-    session could inspect — per-object uniform, per-frame uniform, and now vertex buffer — is
-    confirmed byte-correct.
-12. **Not the material's bind-group complexity.** Temporarily forced `GetOrCreatePipeline` to
-    always use `colored_mesh.wgsl` (3 group-1 bindings: object uniform, one sampler, one plain
-    2D texture) instead of `pbr_irradiance.wgsl`'s 14 (multiple cube maps, a BRDF LUT, six
-    material maps) for the demo cube specifically — a completely different, much simpler
-    pipeline and bind-group shape. **Still invisible**, pixel-identical to every other attempt.
-    This rules out bind-group size/texture-cube-usage as the cause: the failure is universal
-    across at least two structurally different materials, not specific to the PBR shader's
-    complexity.
-- **Tried, inconclusive**: cross-checking against Firefox (`playwright install firefox`,
-  `dom.webgpu.enabled`/`gfx.webgpu.force-enabled` prefs). Firefox fails much earlier and
-  differently — `wgpuInstanceCreateSurface` itself returns a null surface
-  (`InstanceCreateSurface returned: 0x0`) before WebGPU bring-up gets anywhere near pipeline
-  creation, let alone drawing. This codebase's canvas-surface-creation shim
-  (`ManaBrowserWebGpuSurface`/`SurfaceDescriptorFromCanvasHTMLSelector`) was built and tuned
-  against Chrome/Dawn's exact behavior only; Firefox's WebGPU implementation apparently doesn't
-  accept the same canvas-selector chain (or needs different setup this session didn't
-  investigate). Not useful as a Dawn-vs-not-Dawn cross-check without first getting Firefox's
-  surface creation working at all, which is a separate, unstarted piece of work.
-- **Web search turned up nothing matching this exact symptom.** Found and ruled out two
-  superficially-similar issues: [emscripten-core/emscripten#23432](https://github.com/emscripten-core/emscripten/issues/23432)
-  (Emscripten's `webgpu.h` lacking newer templated async `Buffer` APIs — unrelated, about C++
-  API surface, not rendering) and [ocornut/imgui#8038](https://github.com/ocornut/imgui/issues/8038)
-  (an Emscripten 3.1.68 regression where ImGui's vertex/index buffers were undersized, causing
-  `QueueWriteBuffer` to fail outright with a clear "does not fit in buffer size" validation
-  error — a real, cited, version-specific Emscripten regression, but this codebase pins 3.1.56
-  and our own buffer-size validation already succeeds cleanly, so it's a different bug).
-  Confirmed (searched, not just assumed) that Emscripten's `USE_WEBGPU`/legacy `webgpu.h` is
-  explicitly deprecated upstream in favor of `emdawnwebgpu` — already known and ruled out as
-  unavailable in this pinned SDK (see M2's original findings) — but found no specific bug
-  report matching "geometry silently doesn't render, zero validation errors, works for
-  non-vertex-buffer draws."
-13. **Not `library_webgpu.js`'s own pipeline-descriptor-reading code, checked directly against
-    its source rather than inferred.** Read `generateRenderPipelineDesc`/`makeVertexBuffer` in
-    this exact installed Emscripten's `library_webgpu.js` and found it treats
-    `stepMode === VertexStepMode.VertexBufferNotUsed` (native value `1`) as "this vertex buffer
-    slot is absent" (returns `null`, dropping all its attributes) — a real, legitimate
-    mechanism, and initially a promising lead since a stray remap bug could plausibly hit it.
-    Added a temporary `printf` directly in `mana_wgpuDeviceCreateRenderPipeline` and confirmed
-    live: the cube's vertex buffer layout arrives with raw (pre-remap) `stepMode=0` (Silk.NET's
-    `Vertex`) and correctly remaps to native `2` (`Vertex`), never `1`
-    (`VertexBufferNotUsed`) — so this mechanism is not being triggered. Also directly read
-    Emscripten's `VertexFormat`/`VertexStepMode` JS string-lookup tables (a third translation
-    layer beyond "Silk.NET enum" and "native C header enum" that hadn't been checked before)
-    and confirmed both are correctly index-aligned with the native header's ordinals (e.g.
-    `VertexStepMode[2] === 'vertex'`, `VertexFormat[21] === 'float32x3'`) — ruling out a bug in
-    Emscripten's own enum-to-JS-string translation as well.
-
-**Genuine remaining next steps**, now that data/shader/pipeline/bind-groups are all confirmed
-correct at every layer this session's tooling can reach:
-- Attaching real Chrome DevTools (not headless, not the console-log-only surface this session
-  had access to) to the running page and using the actual "WebGPU" / GPU inspection panels, or
-  a proper GPU frame-capture tool, to see the actual recorded command buffer and render-pass
-  state Dawn ends up with — this session's tooling (console logs, screenshots, and three custom
-  `EM_JS` diagnostic bridges: adapter/device request, shader compilation info, buffer readback)
-  is a real but limited substitute for that.
-- Re-running the *exact* bisection sequence above but starting from the fixed/magenta
-  vertex+fragment shader combination and *re-adding* pieces one at a time (real transform,
-  then real color, then indexed draw) instead of subtracting them from the real shader — in
-  case something about the specific edit sequence (rather than the final state) matters,
-  though this is a weaker theory than it sounds since each test rebuilt and republished fresh.
-- Getting Firefox's surface creation working (separate, real work) to get a genuine
-  Dawn-vs-independent-implementation cross-check.
-- Considering whether this might be a genuine Dawn/Chrome bug specific to this exact
-  browser/driver combination, reportable upstream (https://bugs.chromium.org, component
-  Internals>GPU>WebGPU) with a minimal repro extracted from this codebase's exact
-  pipeline/bind-group/buffer shape, given static analysis has now ruled out essentially every
-  plausible cause on this codebase's own side.
+**Diagnostic infrastructure kept** (all browser-only, all free at runtime): `EM_JS` bridges for
+shader compilation info (`mana_log_shader_compilation_info`) and GPU buffer readback
+(`mana_debug_readback_buffer`), plus `BufferUsage.CopySrc` on the uniform/vertex buffers so the
+latter works. The headless-Chrome probe technique (Playwright, `channel: 'chrome'`, capture
+console + screenshot) is what made every experiment above possible without a human in the loop.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 
