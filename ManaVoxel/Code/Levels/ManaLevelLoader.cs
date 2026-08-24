@@ -54,53 +54,30 @@ namespace ManaVoxel.Code.Levels
             // previous one's model standing in the new one.
             reusableVoxelsNode?.VoxelShape.ClearVoxels(logStats: false);
 
-            var voxelNodes = new List<ManaVoxelsNode>();
+            var state = new LoadState(context, scene, result, reusableVoxelsNode);
 
             foreach (var entry in level.Nodes)
             {
-                try
-                {
-                    if (entry.Kind == ManaLevelSourceKind.Voxels)
-                    {
-                        var target = reusableVoxelsNode ?? CreateVoxelsNode(context, scene, entry);
-                        reusableVoxelsNode = null;
-                        LoadVoxels(entry, target);
-                        voxelNodes.Add(target);
-                        continue;
-                    }
-
-                    var node = LoadNode(entry, context, scene);
-                    if (node == null)
-                    {
-                        continue;
-                    }
-
-                    result.Nodes.Add(node);
-                    if (node is ManaPlayerStartNode start)
-                    {
-                        result.PlayerStart = start;
-                    }
-                }
-                catch (Exception exception)
-                {
-                    result.Warnings.Add($"'{entry.Name}' ({entry.Kind}) could not be loaded: {exception.Message}");
-                }
+                TryLoadNode(entry, state, parent: null);
             }
 
             // An untouched reusable node still needs committing: it was cleared above, and without this the
             // previous level's geometry stays on screen with no voxels behind it.
-            if (reusableVoxelsNode != null)
+            if (state.ReusableVoxelsNode != null)
             {
-                voxelNodes.Add(reusableVoxelsNode);
+                state.VoxelNodes.Add(state.ReusableVoxelsNode);
             }
 
-            foreach (var voxelNode in voxelNodes)
+            foreach (var voxelNode in state.VoxelNodes)
             {
                 voxelNode.VoxelShape.CommitData();
-                result.Nodes.Add(voxelNode);
+                if (!result.Nodes.Contains(voxelNode))
+                {
+                    result.Nodes.Add(voxelNode);
+                }
             }
 
-            result.VoxelsNode = voxelNodes.FirstOrDefault();
+            result.VoxelsNode = state.VoxelNodes.FirstOrDefault();
 
             if (level.Camera != null && world.CameraNode != null)
             {
@@ -110,6 +87,31 @@ namespace ManaVoxel.Code.Levels
             }
 
             return result;
+        }
+
+        private sealed class LoadState
+        {
+            public LoadState(
+                ManaContext context,
+                ManaScene scene,
+                ManaLevelLoadResult result,
+                ManaVoxelsNode? reusableVoxelsNode)
+            {
+                Context = context;
+                Scene = scene;
+                Result = result;
+                ReusableVoxelsNode = reusableVoxelsNode;
+            }
+
+            public ManaContext Context { get; }
+
+            public ManaScene Scene { get; }
+
+            public ManaLevelLoadResult Result { get; }
+
+            public ManaVoxelsNode? ReusableVoxelsNode { get; set; }
+
+            public List<ManaVoxelsNode> VoxelNodes { get; } = new();
         }
 
         /// <summary>
@@ -194,31 +196,101 @@ namespace ManaVoxel.Code.Levels
             return null;
         }
 
-        private static ManaSceneNode? LoadNode(ManaLevelNode entry, ManaContext context, ManaScene scene)
+        private static ManaSceneNode? TryLoadNode(ManaLevelNode entry, LoadState state, ManaSceneNode? parent)
+        {
+            try
+            {
+                var node = LoadNode(entry, state, parent);
+                if (node == null)
+                {
+                    return null;
+                }
+
+                state.Result.Nodes.Add(node);
+                if (node is ManaPlayerStartNode start)
+                {
+                    state.Result.PlayerStart = start;
+                }
+
+                return node;
+            }
+            catch (Exception exception)
+            {
+                state.Result.Warnings.Add($"'{entry.Name}' ({entry.Kind}) could not be loaded: {exception.Message}");
+                return null;
+            }
+        }
+
+        private static ManaSceneNode? LoadNode(ManaLevelNode entry, LoadState state, ManaSceneNode? parent)
         {
             switch (entry.Kind)
             {
+                case ManaLevelSourceKind.Group:
+                    return LoadGroup(entry, state, parent);
+
                 case ManaLevelSourceKind.Shape:
-                    return LoadShape(entry, context, scene);
+                    var shape = LoadShape(entry, state.Context, state.Scene);
+                    AttachToParent(state.Context, parent, shape);
+                    AddCollisionIfPresent(entry, state.Context, shape);
+                    return shape;
 
                 case ManaLevelSourceKind.Mesh:
-                    return LoadMesh(entry, context);
+                    var mesh = LoadMesh(entry, state.Context);
+                    AttachToParent(state.Context, parent, mesh);
+                    AddCollisionIfPresent(entry, state.Context, mesh);
+                    return mesh;
+
+                case ManaLevelSourceKind.Voxels:
+                    var voxels = state.ReusableVoxelsNode ?? CreateVoxelsNode(state.Context, state.Scene, entry);
+                    state.ReusableVoxelsNode = null;
+                    LoadVoxels(entry, voxels);
+                    AttachToParent(state.Context, parent, voxels);
+                    state.VoxelNodes.Add(voxels);
+                    return voxels;
 
                 case ManaLevelSourceKind.PlayerStart:
-                    var start = new ManaPlayerStartNode(context, ToVector3(entry.Position));
+                    var start = new ManaPlayerStartNode(state.Context, ToVector3(entry.Position));
                     start.Name = string.IsNullOrWhiteSpace(entry.Name) ? start.Name : entry.Name;
                     start.Rotation = ToVector3(entry.Rotation);
                     start.UpdateTransform();
-                    lock (context.World.SceneLock)
+                    lock (state.Context.World.SceneLock)
                     {
-                        scene.Children.Add(start);
+                        state.Scene.Children.Add(start);
                     }
 
+                    AttachToParent(state.Context, parent, start);
                     return start;
 
                 default:
                     return null;
             }
+        }
+
+        private static ManaSceneNode LoadGroup(ManaLevelNode entry, LoadState state, ManaSceneNode? parent)
+        {
+            var group = new ManaSceneNode(state.Context, Matrix4x4.Identity)
+            {
+                Name = string.IsNullOrWhiteSpace(entry.Name) ? "Group" : entry.Name,
+                LevelSource = ManaLevelSource.Group
+            };
+
+            ApplyTransform(group, entry);
+            lock (state.Context.World.SceneLock)
+            {
+                state.Scene.Children.Add(group);
+            }
+
+            AttachToParent(state.Context, parent, group);
+
+            if (entry.Children != null)
+            {
+                foreach (var child in entry.Children)
+                {
+                    TryLoadNode(child, state, group);
+                }
+            }
+
+            return group;
         }
 
         private static ManaSceneNode LoadShape(ManaLevelNode entry, ManaContext context, ManaScene scene)
@@ -244,13 +316,8 @@ namespace ManaVoxel.Code.Levels
                 };
             }
 
+            node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             ApplyTransform(node, entry);
-
-            if (entry.Collision is { } collision)
-            {
-                context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset));
-            }
-
             return node;
         }
 
@@ -261,13 +328,45 @@ namespace ManaVoxel.Code.Levels
             node.LevelSource = ManaLevelSource.ForMesh(asset);
             node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             ApplyTransform(node, entry);
+            return node;
+        }
 
+        private static void AttachToParent(ManaContext context, ManaSceneNode? parent, ManaSceneNode node)
+        {
+            if (parent == null)
+            {
+                node.UpdateTransform();
+                return;
+            }
+
+            lock (context.World.SceneLock)
+            {
+                for (var i = context.World.Scenes.Count - 1; i >= 0; i--)
+                {
+                    var scene = context.World.Scenes[i];
+                    if (!scene.Children.Remove(node))
+                    {
+                        continue;
+                    }
+
+                    if (!ReferenceEquals(scene, context.World.DefaultScene) && scene.Children.Count == 0)
+                    {
+                        context.World.Scenes.RemoveAt(i);
+                    }
+                }
+
+                parent.AddChild(node);
+            }
+
+            node.UpdateTransform();
+        }
+
+        private static void AddCollisionIfPresent(ManaLevelNode entry, ManaContext context, ManaSceneNode node)
+        {
             if (entry.Collision is { } collision)
             {
                 context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset));
             }
-
-            return node;
         }
 
         /// <summary>
@@ -317,6 +416,7 @@ namespace ManaVoxel.Code.Levels
                 return;
             }
 
+            node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             node.Position = ToVector3(entry.Position);
             node.Rotation = ToVector3(entry.Rotation);
             node.Scale = ToVector3(entry.Scale);

@@ -43,6 +43,7 @@ namespace ManaVoxel.Code.Assets
         };
 
         private const string ZipAssetPrefix = "zipasset:";
+        private const string RelativeZipAssetPrefix = "zipasset-rel:";
 
         /// <summary>
         /// How long to wait after the last file-system event before actually rescanning. A copy or unzip
@@ -528,17 +529,44 @@ namespace ManaVoxel.Code.Assets
             return $"{ZipAssetPrefix}{zip}:{entry}";
         }
 
+        /// <summary>
+        /// A zip-packed mesh reference that stays valid when a built-in level is moved with the repo.
+        /// Runtime resolution tries the working directory and the executable's project roots.
+        /// </summary>
+        public static string EncodeRelativeZip(string zipPath, string entryPath)
+        {
+            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(zipPath.Replace('\\', '/')));
+            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
+            return $"{RelativeZipAssetPrefix}{zip}:{entry}";
+        }
+
         public static bool TryDecodeZip(string asset, out string zipPath, out string entryPath)
         {
             zipPath = string.Empty;
             entryPath = string.Empty;
 
-            if (!asset.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
+            if (asset.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
             {
-                return false;
+                return TryDecodeZipBody(asset[ZipAssetPrefix.Length..], resolveRelative: false, out zipPath, out entryPath);
             }
 
-            var body = asset[ZipAssetPrefix.Length..];
+            if (asset.StartsWith(RelativeZipAssetPrefix, StringComparison.Ordinal))
+            {
+                return TryDecodeZipBody(asset[RelativeZipAssetPrefix.Length..], resolveRelative: true, out zipPath, out entryPath);
+            }
+
+            return false;
+        }
+
+        private static bool TryDecodeZipBody(
+            string body,
+            bool resolveRelative,
+            out string zipPath,
+            out string entryPath)
+        {
+            zipPath = string.Empty;
+            entryPath = string.Empty;
+
             var separator = body.IndexOf(':');
             if (separator <= 0 || separator >= body.Length - 1)
             {
@@ -547,7 +575,8 @@ namespace ManaVoxel.Code.Assets
 
             try
             {
-                zipPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[..separator]));
+                var decodedZipPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[..separator]));
+                zipPath = resolveRelative ? ResolveRelativeZipPath(decodedZipPath) : decodedZipPath;
                 entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[(separator + 1)..]));
                 return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
             }
@@ -557,6 +586,42 @@ namespace ManaVoxel.Code.Assets
                 // stray colon in a filename should do.
                 return false;
             }
+        }
+
+        private static string ResolveRelativeZipPath(string zipPath)
+        {
+            if (Path.IsPathRooted(zipPath))
+            {
+                return Path.GetFullPath(zipPath);
+            }
+
+            var normalized = zipPath.Replace('/', Path.DirectorySeparatorChar);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var root in RelativeZipRoots())
+            {
+                var fullRoot = Path.GetFullPath(root);
+                if (!seen.Add(fullRoot))
+                {
+                    continue;
+                }
+
+                var candidate = Path.GetFullPath(Path.Combine(fullRoot, normalized));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, normalized));
+        }
+
+        private static IEnumerable<string> RelativeZipRoots()
+        {
+            yield return Environment.CurrentDirectory;
+            yield return AppContext.BaseDirectory;
+            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..");
+            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..");
         }
 
         private static string Relative(string path)

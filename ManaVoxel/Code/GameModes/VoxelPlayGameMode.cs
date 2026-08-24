@@ -34,6 +34,7 @@ namespace Mana.Code.GameModes
         private ManaPawnController? _pawnController;
         private ManaPawnNode? _player;
         private ManaWebGpuContext? _webGpuContext;
+        private TrainLoopController? _trainLoop;
 
         public VoxelPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
             : base(graphicsBackend)
@@ -150,6 +151,8 @@ namespace Mana.Code.GameModes
             {
                 Trace.TraceWarning($"Level load warning: {warning}");
             }
+
+            _trainLoop = TrainLoopController.Create(Context.World);
         }
 
         /// <summary>
@@ -200,12 +203,16 @@ namespace Mana.Code.GameModes
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
 
-            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump, C camera, Esc quit";
+            var trainHint = _trainLoop?.HasTrains == true ? ", watch the trains" : string.Empty;
+            var boundsHint = _trainLoop?.HasTrackBounds == true ? ", B track debug" : string.Empty;
+            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump, C camera, Esc quit{trainHint}{boundsHint}";
         }
 
         public override void Update(double deltaTime)
         {
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+            _trainLoop?.UpdateDebugInput(Context, UiWantsKeyboard);
+            _trainLoop?.Update(deltaTime);
 
             // Escape quits rather than releasing the character: there is no editor to hand control back to.
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();

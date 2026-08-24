@@ -11,10 +11,10 @@ namespace ManaVoxel.Code.Levels
     /// Walks a world and writes down what somebody placed in it.
     /// <para>
     /// The rule is one line long: a node is captured when it carries a <see cref="ManaLevelSource"/>, and
-    /// its subtree is not walked any further once it is. That second half matters -- an imported GLB
-    /// arrives as a whole hierarchy of mesh nodes under the one node that knows which asset it came from,
-    /// and capturing the children as well would save the same model twice, once as a reference and once as
-    /// a pile of nodes nothing knows how to rebuild.
+    /// its subtree is not walked any further once it is, except for authored groups. That second half
+    /// matters -- an imported GLB arrives as a whole hierarchy of mesh nodes under the one node that knows
+    /// which asset it came from, and capturing the children as well would save the same model twice, once
+    /// as a reference and once as a pile of nodes nothing knows how to rebuild.
     /// </para>
     /// </summary>
     public static class ManaLevelCapture
@@ -68,8 +68,8 @@ namespace ManaVoxel.Code.Levels
                     output.Add(captured);
                 }
 
-                // Whether or not it produced an entry, an authored node's subtree belongs to it -- see
-                // the class comment.
+                // Whether or not it produced an entry, an authored non-group node's subtree belongs to it
+                // -- see the class comment.
                 return;
             }
 
@@ -92,6 +92,15 @@ namespace ManaVoxel.Code.Levels
 
             switch (source.Kind)
             {
+                case ManaLevelSourceKind.Group:
+                    entry.Children = new List<ManaLevelNode>();
+                    foreach (var child in node.Children)
+                    {
+                        CaptureNode(child, entry.Children);
+                    }
+
+                    break;
+
                 case ManaLevelSourceKind.Shape:
                     entry.Shape = source.Shape;
                     entry.Color = ToArray(source.Color);

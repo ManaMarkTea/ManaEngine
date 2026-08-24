@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code.Levels;
 using ManaCore.Graphics;
 using ManaUI;
+using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Levels;
 
 namespace ManaTests;
@@ -78,6 +79,39 @@ public static class LevelSerializationChecks
             reloaded.PlayerStart != null
             && reloaded.PlayerStart.Position[0] == 10.0f
             && reloaded.PlayerStart.Rotation[1] == 3.0f);
+
+        var groupedLevel = new ManaLevel
+        {
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Gameplay",
+                    Kind = ManaLevelSourceKind.Group,
+                    Position = new[] { 0.0f, 0.0f, 0.0f },
+                    Rotation = new[] { 0.0f, 0.0f, 0.0f },
+                    Scale = new[] { 1.0f, 1.0f, 1.0f },
+                    Children = new List<ManaLevelNode>
+                    {
+                        new()
+                        {
+                            Name = "Nested Player Start",
+                            Kind = ManaLevelSourceKind.PlayerStart,
+                            Position = new[] { 7.0f, 0.0f, 8.0f },
+                            Rotation = new[] { 0.0f, 1.0f, 0.0f }
+                        }
+                    }
+                }
+            }
+        };
+
+        var groupedReloaded = ManaLevel.FromJson(groupedLevel.ToJson());
+        Check("a group keeps its named children",
+            groupedReloaded.Nodes[0].Kind == ManaLevelSourceKind.Group
+            && groupedReloaded.Nodes[0].Children?[0].Name == "Nested Player Start");
+
+        Check("player start lookup walks grouped children",
+            groupedReloaded.PlayerStart?.Position[0] == 7.0f);
 
         // ---------------------------------------------------------------- format guards
         Check("a foreign json is rejected by name, not by null reference",
@@ -220,6 +254,13 @@ public static class LevelSerializationChecks
 
         Check("a mesh source carries its asset reference",
             ManaLevelSource.ForMesh("pack.zip|models/tree.glb").Asset == "pack.zip|models/tree.glb");
+
+        var relativeZipAsset = MeshAssetLibrary.EncodeRelativeZip("Assets/pack.zip", "Models/train.glb");
+        Check("a relative zip asset keeps its zip filename and entry",
+            MeshAssetLibrary.TryDecodeZip(relativeZipAsset, out var decodedZip, out var decodedEntry)
+            && Path.GetFileName(decodedZip).Equals("pack.zip", StringComparison.OrdinalIgnoreCase)
+            && decodedEntry == "Models/train.glb",
+            $"{decodedZip} | {decodedEntry}");
     }
 
     private static bool Throws(Action action)

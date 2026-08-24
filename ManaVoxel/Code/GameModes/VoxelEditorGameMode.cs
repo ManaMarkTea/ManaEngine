@@ -46,6 +46,7 @@ namespace Mana.Code.GameModes
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
         private PlayModeController? _playMode;
+        private TrainLoopController? _trainLoop;
         private const string ZipAssetPrefix = "zipasset:";
         private bool _firstFrame = true;
         private bool _meshPickerDragWasDown;
@@ -2592,6 +2593,8 @@ namespace Mana.Code.GameModes
             {
                 PumpPlanetStreaming();
                 _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+                _trainLoop?.UpdateDebugInput(Context, UiWantsKeyboard);
+                _trainLoop?.Update(ManaTime.GlobalTime.DeltaTime.TotalSeconds);
                 return;
             }
 

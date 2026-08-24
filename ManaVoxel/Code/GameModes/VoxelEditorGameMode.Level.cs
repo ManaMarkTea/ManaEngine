@@ -47,7 +47,12 @@ namespace Mana.Code.GameModes
                 {
                     Context.World.Selection.SelectedNode = null;
                     Context.World.Selection.SelectedComponent = null;
+                    _trainLoop = TrainLoopController.Create(Context.World);
+                    return;
                 }
+
+                _trainLoop?.Restore();
+                _trainLoop = null;
             };
         }
 
@@ -109,7 +114,9 @@ namespace Mana.Code.GameModes
         {
             var player = _playMode?.Player;
             var name = player?.Name ?? "Character";
-            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop";
+            var trainHint = _trainLoop?.HasTrains == true ? ", watch the trains" : string.Empty;
+            var boundsHint = _trainLoop?.HasTrackBounds == true ? ", B track debug" : string.Empty;
+            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop{trainHint}{boundsHint}";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------
