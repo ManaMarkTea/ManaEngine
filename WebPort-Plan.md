@@ -562,26 +562,45 @@ accepted and *matters* (breaking its enum values broke the skybox too), so a pip
 silently a complete no-op seems unlikely — but nothing tried has been able to distinguish
 "executing with wrong/invisible output" from "not executing at all" beyond what's listed here.
 
-**Not yet tried** (genuine next steps, roughly in order of expected value):
-- A raw GPU-side readback of the **vertex buffer's** actual bytes (not just the uniform
-  buffers) via the same `mana_debug_readback_buffer` bridge — confirms whether vertex
-  positions/attributes themselves are intact, the one remaining piece of GPU-side data never
-  directly inspected this round.
+11. **Not the vertex buffer's actual GPU-side bytes either.** Read back the real vertex
+    buffer contents via the same `mana_debug_readback_buffer` bridge (added `BufferUsage.CopySrc`
+    to the vertex/index buffers too, kept permanently, same as the uniform buffers) — all 24
+    vertices decoded exactly as expected for the unit cube (e.g. vertex 0:
+    position `(-0.5, -0.5, 0.5)`, normal `(0, 0, 1)`, color `(0.12, 0.95, 1.0, 1.0)` matching
+    `AddCubeFace`'s first face color, UV `(0, 1)`). Every single piece of GPU-side data this
+    session could inspect — per-object uniform, per-frame uniform, and now vertex buffer — is
+    confirmed byte-correct.
+- **Tried, inconclusive**: cross-checking against Firefox (`playwright install firefox`,
+  `dom.webgpu.enabled`/`gfx.webgpu.force-enabled` prefs). Firefox fails much earlier and
+  differently — `wgpuInstanceCreateSurface` itself returns a null surface
+  (`InstanceCreateSurface returned: 0x0`) before WebGPU bring-up gets anywhere near pipeline
+  creation, let alone drawing. This codebase's canvas-surface-creation shim
+  (`ManaBrowserWebGpuSurface`/`SurfaceDescriptorFromCanvasHTMLSelector`) was built and tuned
+  against Chrome/Dawn's exact behavior only; Firefox's WebGPU implementation apparently doesn't
+  accept the same canvas-selector chain (or needs different setup this session didn't
+  investigate). Not useful as a Dawn-vs-not-Dawn cross-check without first getting Firefox's
+  surface creation working at all, which is a separate, unstarted piece of work.
+
+**Genuine remaining next steps**, now that data/shader/pipeline/bind-groups are all confirmed
+correct at every layer this session's tooling can reach:
+- Attaching real Chrome DevTools (not headless, not the console-log-only surface this session
+  had access to) to the running page and using the actual "WebGPU" / GPU inspection panels, or
+  a proper GPU frame-capture tool, to see the actual recorded command buffer and render-pass
+  state Dawn ends up with — this session's tooling (console logs, screenshots, and three custom
+  `EM_JS` diagnostic bridges: adapter/device request, shader compilation info, buffer readback)
+  is a real but limited substitute for that.
 - Re-running the *exact* bisection sequence above but starting from the fixed/magenta
   vertex+fragment shader combination and *re-adding* pieces one at a time (real transform,
   then real color, then indexed draw) instead of subtracting them from the real shader — in
   case something about the specific edit sequence (rather than the final state) matters,
   though this is a weaker theory than it sounds since each test rebuilt and republished fresh.
-- Attaching real Chrome DevTools (not headless, not the console-log-only surface this session
-  had access to) to the running page and using the actual "WebGPU" / GPU inspection panels, or
-  a proper GPU frame-capture tool, to see the actual recorded command buffer and render-pass
-  state Dawn ends up with — this session's tooling (console logs, screenshots, and two custom
-  `EM_JS` diagnostic bridges) is a real but limited substitute for that.
-- Checking whether this reproduces on `Firefox`/an entirely different WebGPU implementation
-  (available via Playwright's `firefox` channel, though Firefox's WebGPU support maturity as
-  of this session is unverified) — would help separate "Dawn/Chrome-specific bug" from
-  "something wrong in this codebase's own C shim/enum handling" that just happens to matter
-  only for this specific draw shape.
+- Getting Firefox's surface creation working (separate, real work) to get a genuine
+  Dawn-vs-independent-implementation cross-check.
+- Considering whether this might be a genuine Dawn/Chrome bug specific to this exact
+  browser/driver combination, reportable upstream (https://bugs.chromium.org, component
+  Internals>GPU>WebGPU) with a minimal repro extracted from this codebase's exact
+  pipeline/bind-group/buffer shape, given static analysis has now ruled out essentially every
+  plausible cause on this codebase's own side.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 
