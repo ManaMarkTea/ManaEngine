@@ -14,35 +14,56 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return new Expander()
                 .Header("Transform")
                 .Section(theme.Spacing,
-                    InspectorControls.Row(context, "Position", InspectorControls.Vector(
+                    InspectorControls.Row(context, "Position", TransformVector(
+                        node,
+                        context,
                         () => node.Position,
-                        value =>
-                        {
-                            node.Position = value;
-                            node.UpdateTransform();
-                        },
-                        step: 0.1f)),
+                        value => node.Position = value,
+                        step: 0.1f,
+                        "Move")),
 
-                    InspectorControls.Row(context, "Rotation", Rotation(node)),
+                    InspectorControls.Row(context, "Rotation", Rotation(node, context)),
 
-                    InspectorControls.Row(context, "Scale", InspectorControls.Vector(
+                    InspectorControls.Row(context, "Scale", TransformVector(
+                        node,
+                        context,
                         () => node.Scale,
-                        value =>
-                        {
-                            node.Scale = value;
-                            node.UpdateTransform();
-                        },
-                        step: 0.05f)));
+                        value => node.Scale = value,
+                        step: 0.05f,
+                        "Scale")));
         }
 
         /// <summary>
         /// Rotation is stored in radians and shown in degrees, so it round-trips through a conversion
         /// rather than binding straight to the property the way position and scale do.
         /// </summary>
-        private static VectorBox Rotation(ManaSceneNode node)
+        private static VectorBox Rotation(ManaSceneNode node, InspectorContext context)
         {
-            var box = new VectorBox().Step(1.0f).Places(2);
-            box.Value = node.RotationDegrees;
+            return TransformVector(
+                node,
+                context,
+                () => node.RotationDegrees,
+                value => node.Rotation = new Vector3(
+                    value.X.ToRadians(),
+                    value.Y.ToRadians(),
+                    value.Z.ToRadians()),
+                step: 1.0f,
+                "Rotate",
+                places: 2);
+        }
+
+        private static VectorBox TransformVector(
+            ManaSceneNode node,
+            InspectorContext context,
+            Func<Vector3> read,
+            Action<Vector3> write,
+            float step,
+            string verb,
+            int places = 3)
+        {
+            var box = new VectorBox().Step(step).Places(places);
+            box.Value = read();
+            SceneNodeTransformState? editStart = null;
 
             box.ValueChanged += (_, value) =>
             {
@@ -54,14 +75,28 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     return;
                 }
 
-                node.Rotation = new Vector3(
-                    value.X.ToRadians(),
-                    value.Y.ToRadians(),
-                    value.Z.ToRadians());
+                editStart ??= SceneNodeTransformState.Capture(node);
+                write(new Vector3(value.X, value.Y, value.Z));
                 node.UpdateTransform();
             };
 
-            box.BindPolled(b => b.Value, () => node.RotationDegrees);
+            box.ValueCommitted += (_, _) =>
+            {
+                if (!editStart.HasValue)
+                {
+                    return;
+                }
+
+                context.History?.RecordTransform(
+                    node,
+                    editStart.Value,
+                    SceneNodeTransformState.Capture(node),
+                    $"{verb} {node.Name}",
+                    context.Selection);
+                editStart = null;
+            };
+
+            box.BindPolled(b => b.Value, read);
             return box;
         }
     }

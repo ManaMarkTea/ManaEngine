@@ -40,6 +40,7 @@ namespace ManaGeoTools.Code.Planet
         public float Radius { get; }
         public int Resolution { get; }
         public int PatchesPerFaceEdge { get; }
+        public int OceanResolution { get; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
 
         // Serializes patch/ocean rebuilds: a background tile finishing and a main-thread
@@ -334,6 +335,7 @@ namespace ManaGeoTools.Code.Planet
             Radius = radius;
             Resolution = resolution;
             PatchesPerFaceEdge = Math.Max(1, patchesPerFaceEdge);
+            OceanResolution = oceanResolution;
             _heightExaggeration = heightExaggeration;
             Name = "Planet";
 

@@ -77,6 +77,8 @@
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
     <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />
     <Compile Include="..\ManaVoxel\Code\Services\CharacterSpawnService.cs" Link="Services\CharacterSpawnService.cs" />
+    <Compile Include="..\ManaVoxel\Code\Loaders\MagicaVoxLoader.cs" Link="Levels\MagicaVoxLoader.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelComponentScripts.cs" Link="Levels\ManaLevelComponentScripts.cs" />
     <!-- Only the zip-handling halves of these two: their other partials are editor-facing
          (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
          Splitting them was pure code movement; desktop compiles the same class from both files. -->

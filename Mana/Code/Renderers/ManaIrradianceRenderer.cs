@@ -183,7 +183,7 @@ namespace Mana.Code.Renderers
         {
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
-                if (renderer.OutlineEnabled)
+                if (renderer.IsVisible && renderer.OutlineEnabled)
                 {
                     yield return (node, renderer);
                 }

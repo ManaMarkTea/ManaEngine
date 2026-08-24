@@ -220,16 +220,26 @@ namespace Mana.Code
         public SpringSettings ContactSpringiness;
         public float MaximumRecoveryVelocity;
         public float FrictionCoefficient;
+        public float CharacterSlopeFrictionCoefficient;
+
+        private const float MinimumWalkableNormalY = 0.5f;
+        private const float FlatGroundNormalY = 0.999f;
 
         // Optional. When set, character capsules get zero friction against walls.
         public ManaCharacterRegistry? Characters;
 
-        public DemoNarrowPhaseCallbacks(SpringSettings contactSpringiness, float maximumRecoveryVelocity = 2f, float frictionCoefficient = 1f, ManaCharacterRegistry? characters = null)
+        public DemoNarrowPhaseCallbacks(
+            SpringSettings contactSpringiness,
+            float maximumRecoveryVelocity = 2f,
+            float frictionCoefficient = 1f,
+            ManaCharacterRegistry? characters = null,
+            float characterSlopeFrictionCoefficient = 0.8f)
         {
             ContactSpringiness = contactSpringiness;
             MaximumRecoveryVelocity = maximumRecoveryVelocity;
             FrictionCoefficient = frictionCoefficient;
             Characters = characters;
+            CharacterSlopeFrictionCoefficient = characterSlopeFrictionCoefficient;
         }
 
         public void Initialize(Simulation simulation)
@@ -240,6 +250,7 @@ namespace Mana.Code
                 ContactSpringiness = new(30, 1);
                 MaximumRecoveryVelocity = 2f;
                 FrictionCoefficient = 1f;
+                CharacterSlopeFrictionCoefficient = 0.8f;
             }
         }
 
@@ -265,7 +276,9 @@ namespace Mana.Code
             pairMaterial.MaximumRecoveryVelocity = MaximumRecoveryVelocity;
             pairMaterial.SpringSettings = ContactSpringiness;
 
-            // Character capsules get frictionless contacts, everywhere, not just on walls.
+            // Character capsules keep frictionless contacts on flat floors and walls. A walkable
+            // slope gets enough grip to resist gravity pulling the capsule downhill between
+            // controller updates.
             //
             // Against a wall, friction is what makes a character cling in mid-air for as long as the
             // movement key is held instead of sliding down. On the floor it is just as wrong: the
@@ -274,15 +287,30 @@ namespace Mana.Code
             // at a coefficient of 1, that dragged a character walking at a requested 2.73 u/s down to
             // an actual 0.67.
             //
-            // Nothing is lost by removing it. The controller zeroes horizontal velocity itself when
-            // grounded with no input, so a character still stands still on a platform rather than
-            // drifting; it simply does so under its own control instead of the solver's.
+            // The controller zeroes horizontal velocity itself when grounded with no input, so flat
+            // ground needs no solver friction. On a slope, however, gravity is resolved sideways by
+            // the contact between controller updates; slope-only friction closes that small drift.
             if (Characters != null && Characters.Involves(pair))
             {
                 pairMaterial.FrictionCoefficient = 0.0f;
+                for (var contactIndex = 0; contactIndex < manifold.Count; contactIndex++)
+                {
+                    if (IsWalkableSlope(manifold.GetNormal(contactIndex)))
+                    {
+                        pairMaterial.FrictionCoefficient = CharacterSlopeFrictionCoefficient;
+                        break;
+                    }
+                }
             }
 
             return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsWalkableSlope(Vector3 normal)
+        {
+            var normalY = MathF.Abs(normal.Y);
+            return normalY >= MinimumWalkableNormalY && normalY < FlatGroundNormalY;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

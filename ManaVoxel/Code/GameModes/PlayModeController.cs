@@ -112,6 +112,7 @@ namespace Mana.Code.GameModes
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
 
             IsPlaying = true;
+            _context.World.BeginPlay();
             PlayStateChanged?.Invoke(true);
             return true;
         }
@@ -124,6 +125,7 @@ namespace Mana.Code.GameModes
             }
 
             IsPlaying = false;
+            _context.World.EndPlay();
 
             // Released before the pawn is removed: unregistering a possessed pawn releases it anyway, but
             // does so after the boom has already been torn off a node that is on its way out of the scene.

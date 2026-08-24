@@ -44,10 +44,12 @@ namespace Mana.Code
 
         public ManaCollisionComponent AddBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset)
         {
-            var worldPosition = node.WorldTransform.Translation;
             Box boxShape = new Box(size.X, size.Y, size.Z);
             TypedIndex boxIndex = Simulation.Shapes.Add(boxShape);
-            BodyDescription boxBody = BodyDescription.CreateKinematic(new RigidPose(worldPosition + offset), new CollidableDescription(boxIndex), new BodyActivityDescription());
+            BodyDescription boxBody = BodyDescription.CreateKinematic(
+                ManaCollisionComponent.CreateBodyPose(node, offset),
+                new CollidableDescription(boxIndex),
+                new BodyActivityDescription());
             BodyHandle handle = Simulation.Bodies.Add(boxBody);
 
             ManaCollisionComponent collisionComponent = new ManaCollisionComponent(node);
@@ -64,15 +66,49 @@ namespace Mana.Code
             return collisionComponent;
         }
 
+        public ManaCollisionComponent AddConvexHullBody(
+            ManaSceneNode node,
+            ReadOnlySpan<Vector3> points,
+            Vector3 offset)
+        {
+            var hullPoints = points.ToArray();
+            for (var i = 0; i < hullPoints.Length; i++)
+            {
+                hullPoints[i] += offset;
+            }
+
+            var hullShape = new ConvexHull(hullPoints, BufferPool, out var hullCenter);
+            var hullIndex = Simulation.Shapes.Add(hullShape);
+            var hullBody = BodyDescription.CreateKinematic(
+                ManaCollisionComponent.CreateBodyPose(node, hullCenter),
+                new CollidableDescription(hullIndex),
+                new BodyActivityDescription());
+            var handle = Simulation.Bodies.Add(hullBody);
+
+            var collisionComponent = new ManaCollisionComponent(node)
+            {
+                Position = hullCenter,
+                Shape = hullShape,
+                ShapeIndex = hullIndex,
+                Body = handle
+            };
+            PhysicsMap[handle] = collisionComponent;
+            lock (Context.World.SceneLock)
+            {
+                node.Components.Add(collisionComponent);
+            }
+
+            return collisionComponent;
+        }
+
         public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f, Vector3? initialLinearVelocity = null)
         {
-            var worldPosition = node.WorldTransform.Translation;
             Box boxShape = new Box(size.X, size.Y, size.Z);
             TypedIndex boxIndex = Simulation.Shapes.Add(boxShape);
 
             var boxInertia = boxShape.ComputeInertia(mass);
             BodyDescription boxBody = BodyDescription.CreateDynamic(
-                new RigidPose(worldPosition + offset),
+                ManaCollisionComponent.CreateBodyPose(node, offset),
                 boxInertia,
                 new CollidableDescription(boxIndex),
                 new BodyActivityDescription());
@@ -105,8 +141,10 @@ namespace Mana.Code
 
         public void RemoveBody(BodyHandle handle)
         {
+            ManaCollisionComponent? removedCollision = null;
             if (PhysicsMap.Remove(handle, out var collisionComponent))
             {
+                removedCollision = collisionComponent;
                 lock (Context.World.SceneLock)
                 {
                     collisionComponent.Owner.Components.Remove(collisionComponent);
@@ -118,6 +156,11 @@ namespace Mana.Code
             if (Simulation.Bodies.BodyExists(handle))
             {
                 Simulation.Bodies.Remove(handle);
+            }
+
+            if (removedCollision != null && removedCollision.ShapeIndex.Exists)
+            {
+                Simulation.Shapes.RemoveAndDispose(removedCollision.ShapeIndex, BufferPool);
             }
         }
 

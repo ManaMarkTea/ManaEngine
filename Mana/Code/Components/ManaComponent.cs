@@ -24,6 +24,12 @@ namespace Mana
         /// </summary>
         public virtual bool UpdatesBeforeNodeTransform => false;
 
+        /// <summary>Called once when the owning world enters play.</summary>
+        public virtual void BeginPlay() { }
+
+        /// <summary>Called once when the owning world leaves play.</summary>
+        public virtual void EndPlay() { }
+
         public virtual void UpdateComponent() { }
         public virtual void DrawComponent() { }
     }

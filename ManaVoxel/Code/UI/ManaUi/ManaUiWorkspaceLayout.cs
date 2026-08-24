@@ -70,7 +70,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public DockLayoutNode? Right { get; set; }
 
-        /// <summary>The strip under the menu, dedicated to Voxel Tools.</summary>
+        /// <summary>The strip under the menu, dedicated to the editor toolbar.</summary>
         public DockLayoutNode? Top { get; set; }
 
         /// <summary>The strip along the bottom, dedicated to Import -- spans the left column and the viewport, not the right column.</summary>

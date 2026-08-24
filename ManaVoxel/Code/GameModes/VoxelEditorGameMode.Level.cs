@@ -15,6 +15,8 @@ namespace Mana.Code.GameModes
     {
         private bool _playKeyWasDown;
         private bool _stopKeyWasDown;
+        private bool _undoKeyWasDown;
+        private bool _redoKeyWasDown;
 
         /// <summary>Remembered so a second window launches on the backend this one is running.</summary>
         private string? _requestedWebGpuBackend;
@@ -48,12 +50,7 @@ namespace Mana.Code.GameModes
                     Context.World.Selection.SelectedScene = null;
                     Context.World.Selection.SelectedNode = null;
                     Context.World.Selection.SelectedComponent = null;
-                    _trainLoop = TrainLoopController.Create(Context.World);
-                    return;
                 }
-
-                _trainLoop?.Restore();
-                _trainLoop = null;
             };
         }
 
@@ -110,14 +107,44 @@ namespace Mana.Code.GameModes
             _stopKeyWasDown = stopKeyDown;
         }
 
+        private void UpdateUndoRedoShortcuts()
+        {
+            var keyboard = Context.Input?.Keyboards.FirstOrDefault();
+            if (keyboard == null)
+            {
+                _undoKeyWasDown = false;
+                _redoKeyWasDown = false;
+                return;
+            }
+
+            var control = keyboard.IsKeyPressed(Key.ControlLeft) || keyboard.IsKeyPressed(Key.ControlRight);
+            var shift = keyboard.IsKeyPressed(Key.ShiftLeft) || keyboard.IsKeyPressed(Key.ShiftRight);
+            var z = keyboard.IsKeyPressed(Key.Z);
+            var y = keyboard.IsKeyPressed(Key.Y);
+            var undoKeyDown = control && z && !shift;
+            var redoKeyDown = control && (y || (shift && z));
+            var canEdit = !UiWantsKeyboard && _playMode is not { IsPlaying: true };
+
+            if (canEdit && undoKeyDown && !_undoKeyWasDown)
+            {
+                _viewModel.History.Undo();
+            }
+
+            if (canEdit && redoKeyDown && !_redoKeyWasDown)
+            {
+                _viewModel.History.Redo();
+            }
+
+            _undoKeyWasDown = undoKeyDown;
+            _redoKeyWasDown = redoKeyDown;
+        }
+
         /// <summary>What the play HUD reads out, so the controls are on screen rather than in a menu.</summary>
         private string GetPlayHudText()
         {
             var player = _playMode?.Player;
             var name = player?.Name ?? "Character";
-            var trainHint = _trainLoop?.HasTrains == true ? ", watch the trains" : string.Empty;
-            var boundsHint = _trainLoop?.HasTrackBounds == true ? ", B track debug" : string.Empty;
-            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop{trainHint}{boundsHint}";
+            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------
@@ -136,6 +163,9 @@ namespace Mana.Code.GameModes
             }
 
             StopPlayBeforeEditing();
+            _viewModel.History.Clear();
+            ResetLoadedPlanet();
+            _water = null;
             ManaLevelLoader.RemoveAuthoredNodes(Context);
             RemoveOpenedLevelScenes();
             _viewModel.AttachScene(Context, Context.World.DefaultScene);
@@ -156,6 +186,9 @@ namespace Mana.Code.GameModes
             try
             {
                 var level = ManaLevel.Load(path);
+                _viewModel.History.Clear();
+                ResetLoadedPlanet();
+                _water = null;
                 ManaLevelLoader.RemoveAuthoredNodes(Context);
                 RemoveOpenedLevelScenes();
                 _viewModel.ResetVoxelLayersAfterLevelChange();
@@ -178,6 +211,9 @@ namespace Mana.Code.GameModes
                 {
                     _viewModel.AttachVoxelData(result.VoxelsNode.VoxelShape, result.VoxelsNode);
                 }
+
+                AdoptLoadedPlanet(result.Planet);
+                _water = result.Water;
 
                 // Excluded from picking for the same reason the grid planes are: clicking the marker should
                 // place a voxel on the ground it stands on, not on the marker.
@@ -236,6 +272,27 @@ namespace Mana.Code.GameModes
             {
                 _viewModel.Levels.SetStatus($"Could not save '{Path.GetFileName(path)}': {exception.Message}");
                 Trace.TraceWarning($"Failed to save level '{path}': {exception}");
+            }
+        }
+
+        private void ResetLoadedPlanet()
+        {
+            DetachKmlAirspace();
+            _planet = null;
+            _countryBorders = null;
+            _stateBorders = null;
+            lock (_drapedOverlays)
+            {
+                _drapedOverlays.Clear();
+            }
+        }
+
+        private void AdoptLoadedPlanet(ManaGeoTools.Code.Planet.PlanetNode? planet)
+        {
+            _planet = planet;
+            if (_planet != null && _viewModel.ShowKmlAirspace)
+            {
+                AttachKmlAirspace();
             }
         }
 

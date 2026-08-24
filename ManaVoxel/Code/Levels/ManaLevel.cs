@@ -7,10 +7,9 @@ namespace ManaVoxel.Code.Levels
     /// <summary>
     /// A saved level: the things somebody placed, and where the camera was looking when they saved.
     /// <para>
-    /// Deliberately not a snapshot of the whole world. The demo scenery the game mode builds in code --
-    /// grid planes, the streamed planet, border overlays -- has no <see cref="ManaLevelSource"/> and is
-    /// never captured, because none of it could be rebuilt from a file anyway; it comes back the same way
-    /// it arrived the first time, from the code that generates it.
+    /// Deliberately not a snapshot of the whole world. Editor infrastructure such as construction planes,
+    /// cursor markers, and transient diagnostics has no <see cref="ManaLevelSource"/> and is never captured.
+    /// Models, voxel assets, and streamed planets are authored nodes and therefore live in level files.
     /// </para>
     /// </summary>
     public sealed class ManaLevel
@@ -121,7 +120,8 @@ namespace ManaVoxel.Code.Levels
     /// <summary>
     /// One placed thing. <see cref="Kind"/> decides which of the optional members below carry meaning --
     /// a mesh has an <see cref="Asset"/>, a primitive has a <see cref="Shape"/>, a voxel node has
-    /// <see cref="Voxels"/>, a group has <see cref="Children"/>, and a player start has none of them.
+    /// <see cref="Voxels"/> or an external asset, a planet has <see cref="Planet"/>, water has
+    /// <see cref="Water"/>, a group has <see cref="Children"/>, and a player start has none of them.
     /// </summary>
     public sealed class ManaLevelNode
     {
@@ -143,8 +143,7 @@ namespace ManaVoxel.Code.Levels
         public float[]? Color { get; set; }
 
         /// <summary>
-        /// The size the shape factory was called with, which is not the same as <see cref="Scale"/> --
-        /// see the note on <see cref="ManaLevelSource"/>.
+        /// Visual size passed to the shape factory; see the note on <see cref="ManaLevelSource"/>.
         /// </summary>
         public float[]? Size { get; set; }
 
@@ -152,18 +151,34 @@ namespace ManaVoxel.Code.Levels
 
         public ManaLevelVoxels? Voxels { get; set; }
 
+        public ManaLevelPlanet? Planet { get; set; }
+
+        public ManaLevelWater? Water { get; set; }
+
         public List<ManaLevelScript>? Scripts { get; set; }
 
         public List<ManaLevelNode>? Children { get; set; }
     }
 
-    /// <summary>A kinematic box collider, so a platform you jumped on before is still solid after loading.</summary>
+    /// <summary>A kinematic collider, so authored terrain is still solid after loading.</summary>
     public sealed class ManaLevelCollision
     {
-        /// <summary>Full extent, as Bepu's Box takes it -- twice a ManaCube's half-extent.</summary>
-        public float[] Size { get; set; } = new float[3];
+        /// <summary>
+        /// When true, the box is rebuilt from the rendered mesh bounds instead of a separate size.
+        /// This keeps platform-style collision authored as part of the visual object.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool UseVisualBounds { get; set; }
 
-        public float[] Offset { get; set; } = new float[3];
+        /// <summary>When true, collision is rebuilt as a convex hull of the rendered mesh.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool UseVisualHull { get; set; }
+
+        /// <summary>Full extent, as Bepu's Box takes it. Explicit colliders require this.</summary>
+        public float[]? Size { get; set; }
+
+        /// <summary>Local offset. Omitted visual-bounds colliders use the visual bounds center.</summary>
+        public float[]? Offset { get; set; }
     }
 
     /// <summary>Scene-node behavior data, like a tiny Godot-style script attachment.</summary>
@@ -172,6 +187,32 @@ namespace ManaVoxel.Code.Levels
         public string Type { get; set; } = string.Empty;
 
         public Dictionary<string, JsonElement> Properties { get; set; } = new();
+    }
+
+    /// <summary>Construction settings for a streamed cube-sphere planet.</summary>
+    public sealed class ManaLevelPlanet
+    {
+        public int PatchesPerFaceEdge { get; set; } = 6;
+
+        public float Radius { get; set; } = 40.0f;
+
+        public int Resolution { get; set; } = 24;
+
+        public float HeightExaggeration { get; set; } = 1.0f;
+
+        public int OceanResolution { get; set; } = 97;
+
+        public bool AutoLodEnabled { get; set; }
+
+        public bool NearOceanEnabled { get; set; } = true;
+    }
+
+    /// <summary>Construction settings for a ripple-capable water surface.</summary>
+    public sealed class ManaLevelWater
+    {
+        public float[] Size { get; set; } = new[] { 16.0f, 16.0f };
+
+        public int Resolution { get; set; } = 64;
     }
 
     /// <summary>

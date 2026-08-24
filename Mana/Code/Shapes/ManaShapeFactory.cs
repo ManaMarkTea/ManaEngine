@@ -31,6 +31,14 @@ namespace Mana.Code.Shapes
         {
             return AddPyramid(position, color, new Vector3(size, size, size));
         }
+        public ManaSceneNode AddWedge(Vector3 position, Vector4 color, float size)
+        {
+            return AddWedge(position, color, new Vector3(size, size, size));
+        }
+        public ManaSceneNode AddDisk(Vector3 position, Vector4 color, float size)
+        {
+            return AddDisk(position, color, new Vector3(size, size, size));
+        }
         public ManaSceneNode AddTorus(Vector3 position, Vector4 color, float size)
         {
             return AddTorus(position, color, new Vector3(size, size, size));
@@ -74,6 +82,26 @@ namespace Mana.Code.Shapes
             extraCube.LevelSource = ManaLevelSource.ForShape("Pyramid", color, size);
             Scene.Children.Add(extraCube);
             return extraCube;
+        }
+
+        public ManaSceneNode AddWedge(Vector3 position, Vector4 color, Vector3 size)
+        {
+            var wedgeNode = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            wedgeNode.Name = "Wedge";
+            wedgeNode.Components.Add(new MeshRendererComponent(wedgeNode, new ManaWedge(Context, color, size)));
+            wedgeNode.LevelSource = ManaLevelSource.ForShape("Wedge", color, size);
+            Scene.Children.Add(wedgeNode);
+            return wedgeNode;
+        }
+
+        public ManaSceneNode AddDisk(Vector3 position, Vector4 color, Vector3 size)
+        {
+            var diskNode = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            diskNode.Name = "Disk";
+            diskNode.Components.Add(new MeshRendererComponent(diskNode, new ManaDisk(Context, color, size)));
+            diskNode.LevelSource = ManaLevelSource.ForShape("Disk", color, size);
+            Scene.Children.Add(diskNode);
+            return diskNode;
         }
 
         public ManaSceneNode AddTorus(Vector3 position, Vector4 color, Vector3 size)

@@ -9,7 +9,7 @@ using Button = ManaUI.Button;
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
-    /// The editor's ManaUI workspace: a full-width menu, a toolbar strip for Voxel Tools, two resizable
+    /// The editor's ManaUI workspace: a full-width menu, a toolbar strip, two resizable
     /// columns, and a status bar -- arranged from a named preset and remembered across restarts.
     /// </summary>
     public static class ManaUiDockDemo
@@ -33,7 +33,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// when a strip's content changes shape enough that a saved size for it is stale -- 18 is the compact
         /// toolbar, whose old saved height was more than twice what its content now measures.
         /// </summary>
-        private const int LayoutVersion = 19;
+        private const int LayoutVersion = 20;
 
         private static string DefaultLayoutPath =>
             ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
@@ -42,7 +42,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static readonly Dictionary<string, string> PanelTitles = new(StringComparer.Ordinal)
         {
             ["level"] = "Level",
-            ["tools"] = "Voxel Tools",
+            ["tools"] = "Toolbar",
             ["import"] = "Import",
             ["search"] = "Search",
             ["blurtest"] = "Blur Test",
@@ -170,8 +170,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     LevelManaView.Build(theme, editor.Levels).Scrollable()) { Id = "level" },
 
                 "tools" when editor != null => new DockItem(
-                    "Voxel Tools",
-                    VoxelToolPaletteManaView.Build(theme, editor)) { Id = "tools" },
+                    "Toolbar",
+                    VoxelEditorToolbarManaView.Build(theme, editor, world)) { Id = "tools" },
 
                 "import" when editor != null => new DockItem(
                     "Import",
@@ -211,7 +211,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                     SceneOutlinerManaView.Build(theme, world, world.Selection, saveScene, sceneHasChanges)) { Id = "outliner" },
                 "inspector" when world != null => new DockItem(
                     "Inspector",
-                    SceneInspectorManaView.Build(theme, world.Selection, world.Context)) { Id = "inspector" },
+                    SceneInspectorManaView.Build(
+                        theme,
+                        world.Selection,
+                        world.Context,
+                        history: editor?.History)) { Id = "inspector" },
                 "worldperf" when world != null => new DockItem(
                     "World Perf",
                     WorldPerfManaView.Build(theme, world).Scrollable()) { Id = "worldperf" },
@@ -609,7 +613,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             foreach (var id in PanelIds)
             {
-                if (present.Contains(id) || resolve(id) is not { } item)
+                if (present.Contains(id) || !OpensByDefault(id) || resolve(id) is not { } item)
                 {
                     continue;
                 }
@@ -719,7 +723,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             foreach (var id in PanelIds)
             {
-                if (present.Contains(id))
+                if (present.Contains(id) || !OpensByDefault(id))
                 {
                     continue;
                 }
@@ -747,6 +751,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 var host = right.RootNode != null ? right : left;
                 host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
+        }
+
+        private static bool OpensByDefault(string id)
+        {
+            return !string.Equals(id, "level", StringComparison.Ordinal);
         }
 
         /// <summary>One-time migration: moves a panel that used to live in a column into its own dedicated strip.</summary>
@@ -868,14 +877,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             return bar.AddRange(
-                new MenuItem("Debug").WithItems(
-                    DebugItem("Element bounds", UiDebugFlags.ElementBounds, debug),
-                    DebugItem("Clip rects", UiDebugFlags.ClipRects, debug),
-                    DebugItem("Hover path", UiDebugFlags.HoverPath, debug),
-                    DebugItem("Stats", UiDebugFlags.Stats, debug),
-                    MenuItem.Separator(),
-                    new MenuItem("All on", () => debug.Flags = UiDebugFlags.All),
-                    new MenuItem("All off", () => debug.Flags = UiDebugFlags.None)),
+                BuildDebugMenu(editor, debug),
 
                 new MenuItem("Layout").WithItems(
                     PresetItem("Right column", WorkspacePreset.RightColumn, state, choose),
@@ -968,6 +970,62 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             return new MenuItem(label, () => debug.Flags ^= flag)
                 .Checkable(() => (debug.Flags & flag) != 0);
+        }
+
+        private static MenuItem BuildDebugMenu(VoxelEditorViewModel? editor, UiDebugOverlay debug)
+        {
+            var menu = new MenuItem("Debug");
+
+            if (editor != null)
+            {
+                menu.Items.Add(new MenuItem("Scene").WithItems(
+                    Toggle("Selected collider bounds",
+                        () => editor.ShowSelectedColliderBounds,
+                        value => editor.ShowSelectedColliderBounds = value),
+                    Toggle("Track visual bounds",
+                        () => editor.ShowTrackBounds,
+                        value => editor.ShowTrackBounds = value),
+                    Toggle("Track pivots",
+                        () => editor.ShowTrackPivots,
+                        value => editor.ShowTrackPivots = value),
+                    Toggle("Track snap points",
+                        () => editor.ShowTrackSnapPoints,
+                        value => editor.ShowTrackSnapPoints = value),
+                    MenuItem.Separator(),
+                    new MenuItem("All scene debug off", () =>
+                    {
+                        editor.ShowSelectedColliderBounds = false;
+                        editor.ShowTrackBounds = false;
+                        editor.ShowTrackPivots = false;
+                        editor.ShowTrackSnapPoints = false;
+                    })));
+                menu.Items.Add(MenuItem.Separator());
+            }
+
+            menu.Items.Add(new MenuItem("UI").WithItems(
+                DebugItem("Element bounds", UiDebugFlags.ElementBounds, debug),
+                DebugItem("Clip rects", UiDebugFlags.ClipRects, debug),
+                DebugItem("Hover path", UiDebugFlags.HoverPath, debug),
+                DebugItem("Stats", UiDebugFlags.Stats, debug)));
+            menu.Items.Add(MenuItem.Separator());
+            menu.Items.Add(new MenuItem("All UI debug on", () => debug.Flags = UiDebugFlags.All));
+            menu.Items.Add(new MenuItem("All debug off", () =>
+            {
+                debug.Flags = UiDebugFlags.None;
+                if (editor != null)
+                {
+                    editor.ShowSelectedColliderBounds = false;
+                    editor.ShowTrackBounds = false;
+                    editor.ShowTrackPivots = false;
+                    editor.ShowTrackSnapPoints = false;
+                }
+            }));
+            return menu;
+        }
+
+        private static MenuItem Toggle(string label, Func<bool> read, Action<bool> write)
+        {
+            return new MenuItem(label, () => write(!read())).Checkable(read);
         }
 
         private static MenuItem PresetItem(

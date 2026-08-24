@@ -5,10 +5,21 @@ using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
+#if !MANA_BROWSER
+using ManaGeoTools.Code.Geo;
+#endif
+#if !MANA_BROWSER
+using ManaGeoTools.Code.GeoTiff;
+#endif
+#if !MANA_BROWSER
+using ManaGeoTools.Code.Planet;
+#endif
+#if !MANA_BROWSER
+using ManaGeoTools.Code.Shapefile;
+#endif
 using ManaVoxel.Code.Assets;
-using ManaVoxel.Code.Gameplay.Trains;
+using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
-using System.Text.Json;
 
 namespace ManaVoxel.Code.Levels
 {
@@ -21,6 +32,12 @@ namespace ManaVoxel.Code.Levels
         public ManaVoxelsNode? VoxelsNode { get; set; }
 
         public ManaPlayerStartNode? PlayerStart { get; set; }
+
+#if !MANA_BROWSER
+        public PlanetNode? Planet { get; set; }
+#endif
+
+        public ManaWaterNode? Water { get; set; }
 
         /// <summary>Non-fatal problems -- a missing mesh file, an unknown shape name -- surfaced to the user.</summary>
         public List<string> Warnings { get; } = new();
@@ -38,6 +55,9 @@ namespace ManaVoxel.Code.Levels
     /// </summary>
     public static class ManaLevelLoader
     {
+        private static readonly object WaterMaskLock = new();
+        private static bool _waterMaskLoadAttempted;
+
         /// <summary>
         /// Loads <paramref name="level"/> into <paramref name="scene"/>. By default this replaces the world's
         /// authored content; callers can opt out when composing separate level-backed scenes.
@@ -221,6 +241,18 @@ namespace ManaVoxel.Code.Levels
                     state.Result.PlayerStart = start;
                 }
 
+#if !MANA_BROWSER
+                if (node is PlanetNode planet)
+                {
+                    state.Result.Planet = planet;
+                }
+#endif
+
+                if (node is ManaWaterNode water)
+                {
+                    state.Result.Water = water;
+                }
+
                 return node;
             }
             catch (Exception exception)
@@ -274,6 +306,20 @@ namespace ManaVoxel.Code.Levels
                     AddScriptsIfPresent(entry, start);
                     return start;
 
+#if !MANA_BROWSER
+                case ManaLevelSourceKind.Planet:
+                    var planet = LoadPlanet(entry, state.Context, state.Scene);
+                    AttachToParent(state.Context, parent, planet);
+                    AddScriptsIfPresent(entry, planet);
+                    return planet;
+#endif
+
+                case ManaLevelSourceKind.Water:
+                    var water = LoadWater(entry, state.Context, state.Scene);
+                    AttachToParent(state.Context, parent, water);
+                    AddScriptsIfPresent(entry, water);
+                    return water;
+
                 default:
                     return null;
             }
@@ -322,6 +368,8 @@ namespace ManaVoxel.Code.Levels
                     "Cube" => shapes.AddCube(position, color, size),
                     "Sphere" => shapes.AddSphere(position, color, size),
                     "Pyramid" => shapes.AddPyramid(position, color, size),
+                    "Wedge" => shapes.AddWedge(position, color, size),
+                    "Disk" => shapes.AddDisk(position, color, size),
                     "Torus" => shapes.AddTorus(position, color, size),
                     "Icosahedron" => shapes.AddIcosahedron(position, color, size),
                     "Icosphere" => shapes.AddIsoSphere(position, color, size),
@@ -343,6 +391,73 @@ namespace ManaVoxel.Code.Levels
             node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             ApplyTransform(node, entry);
             return node;
+        }
+
+#if !MANA_BROWSER
+        // Planet levels are backed by ManaGeoTools (GeoTIFF/shapefile terrain), which has no
+        // browser-wasm build; this file is source-linked into ManaVoxel.Web (see its csproj). No
+        // browser level uses a Planet node, so the whole path compiles out there rather than
+        // dragging that project in.
+        private static PlanetNode LoadPlanet(ManaLevelNode entry, ManaContext context, ManaScene scene)
+        {
+            EnsureWaterMask();
+            var settings = entry.Planet ?? new ManaLevelPlanet();
+            var planet = new PlanetNode(
+                context,
+                Math.Max(1, settings.PatchesPerFaceEdge),
+                MathF.Max(0.01f, settings.Radius),
+                Math.Max(2, settings.Resolution),
+                MathF.Max(0.0f, settings.HeightExaggeration),
+                Math.Max(2, settings.OceanResolution))
+            {
+                Name = string.IsNullOrWhiteSpace(entry.Name) ? "Planet" : entry.Name,
+                AutoLodEnabled = settings.AutoLodEnabled,
+                NearOceanEnabled = settings.NearOceanEnabled,
+                LevelSource = ManaLevelSource.ForPlanet(entry.Asset)
+            };
+
+            ApplyTransform(planet, entry);
+            lock (context.World.SceneLock)
+            {
+                scene.Children.Add(planet);
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.Asset))
+            {
+                var baselinePath = ResolveAssetPath(entry.Asset);
+                if (File.Exists(baselinePath))
+                {
+                    planet.LoadHeightDataAsync(new GeoTiffLibrary(Path.GetDirectoryName(baselinePath)!));
+                }
+            }
+
+            return planet;
+        }
+#endif
+
+        private static ManaWaterNode LoadWater(ManaLevelNode entry, ManaContext context, ManaScene scene)
+        {
+            var settings = entry.Water ?? new ManaLevelWater();
+            var width = settings.Size.Length > 0 ? settings.Size[0] : 16.0f;
+            var depth = settings.Size.Length > 1 ? settings.Size[1] : width;
+            var water = new ManaWaterNode(
+                context,
+                new Vector2(MathF.Max(0.1f, width), MathF.Max(0.1f, depth)),
+                Math.Clamp(settings.Resolution, 1, 512))
+            {
+                Name = string.IsNullOrWhiteSpace(entry.Name) ? "Water" : entry.Name,
+                LevelSource = ManaLevelSource.ForWater(
+                    new Vector2(MathF.Max(0.1f, width), MathF.Max(0.1f, depth)),
+                    Math.Clamp(settings.Resolution, 1, 512))
+            };
+
+            ApplyTransform(water, entry);
+            lock (context.World.SceneLock)
+            {
+                scene.Children.Add(water);
+            }
+
+            return water;
         }
 
         private static void AttachToParent(ManaContext context, ManaSceneNode? parent, ManaSceneNode node)
@@ -379,7 +494,28 @@ namespace ManaVoxel.Code.Levels
         {
             if (entry.Collision is { } collision)
             {
-                context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset));
+                if (collision.UseVisualHull
+                    && ManaCollisionBounds.TryGetVisualHullPoints(node, out var visualPoints))
+                {
+                    context.Physics.AddConvexHullBody(
+                        node,
+                        visualPoints,
+                        collision.Offset != null ? ToVector3(collision.Offset) : Vector3.Zero);
+                    return;
+                }
+
+                if (collision.UseVisualBounds
+                    && ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset))
+                {
+                    var offset = collision.Offset != null ? ToVector3(collision.Offset) : visualOffset;
+                    context.Physics.AddBoxBody(node, visualSize, offset);
+                    return;
+                }
+
+                if (collision.Size != null)
+                {
+                    context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset));
+                }
             }
         }
 
@@ -392,35 +528,8 @@ namespace ManaVoxel.Code.Levels
 
             foreach (var script in entry.Scripts)
             {
-                if (string.Equals(script.Type, TrainCarComponent.ScriptType, StringComparison.OrdinalIgnoreCase))
-                {
-                    AddTrainCarScript(node, script);
-                }
+                ManaLevelComponentScripts.AddToNode(node, script);
             }
-        }
-
-        private static void AddTrainCarScript(ManaSceneNode node, ManaLevelScript script)
-        {
-            var settings = ReadScriptProperties<TrainCarComponent.TrainCarScriptSettings>(script);
-            if (settings == null)
-            {
-                return;
-            }
-
-            var component = node.GetComponents<TrainCarComponent>().FirstOrDefault();
-            if (component == null)
-            {
-                component = new TrainCarComponent(node);
-                node.Components.Add(component);
-            }
-
-            component.ApplySettings(settings);
-        }
-
-        private static TSettings? ReadScriptProperties<TSettings>(ManaLevelScript script)
-        {
-            var json = JsonSerializer.Serialize(script.Properties, ManaLevel.SerializerOptions);
-            return JsonSerializer.Deserialize<TSettings>(json, ManaLevel.SerializerOptions);
         }
 
         /// <summary>
@@ -444,12 +553,43 @@ namespace ManaVoxel.Code.Levels
                 return world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
             }
 
+            assetReference = ResolveAssetPath(assetReference);
+
             if (!File.Exists(assetReference))
             {
                 throw new FileNotFoundException($"Mesh asset '{assetReference}' is missing.", assetReference);
             }
 
             return world.LoadFromGltf(assetReference);
+        }
+
+        public static string ResolveAssetPath(string assetReference)
+        {
+            if (Path.IsPathRooted(assetReference))
+            {
+                return Path.GetFullPath(assetReference);
+            }
+
+            var normalized = assetReference.Replace('/', Path.DirectorySeparatorChar);
+            string[] roots =
+            {
+                Environment.CurrentDirectory,
+                Path.Combine(Environment.CurrentDirectory, "Mana"),
+                AppContext.BaseDirectory,
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana")
+            };
+
+            foreach (var root in roots)
+            {
+                var candidate = Path.GetFullPath(Path.Combine(root, normalized));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, normalized));
         }
 
         private static ManaVoxelsNode CreateVoxelsNode(ManaContext context, ManaScene scene, ManaLevelNode entry)
@@ -465,25 +605,64 @@ namespace ManaVoxel.Code.Levels
 
         private static void LoadVoxels(ManaLevelNode entry, ManaVoxelsNode node)
         {
-            if (entry.Voxels == null)
-            {
-                return;
-            }
-
             node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             node.Position = ToVector3(entry.Position);
             node.Rotation = ToVector3(entry.Rotation);
             node.Scale = ToVector3(entry.Scale);
+            node.LevelSource = ManaLevelSource.ForVoxels(entry.Asset);
             node.UpdateTransform();
+
+            IReadOnlyList<ManaVoxelData> voxels;
+            if (entry.Voxels != null)
+            {
+                voxels = ManaLevelVoxelCodec.Decode(entry.Voxels);
+            }
+            else if (!string.IsNullOrWhiteSpace(entry.Asset))
+            {
+                var loader = new MagicaVoxLoader();
+                loader.Load(ResolveAssetPath(entry.Asset));
+                voxels = loader.Voxels
+                    .Select(voxel => new ManaVoxelData
+                    {
+                        Position = voxel.Position + Vector3.One * 0.5f,
+                        Color = voxel.Color
+                    })
+                    .ToArray();
+            }
+            else
+            {
+                return;
+            }
 
             // AddVoxel rather than ReplaceCommittedVoxels, so each voxel gets its kinematic collider the
             // same way one placed by hand does. CommitData is left to the caller, which does it once for
             // the whole level rather than once per entry.
-            foreach (var voxel in ManaLevelVoxelCodec.Decode(entry.Voxels))
+            foreach (var voxel in voxels)
             {
                 node.VoxelShape.AddVoxel(voxel.Position, voxel.Color);
             }
         }
+
+#if !MANA_BROWSER
+        private static void EnsureWaterMask()
+        {
+            lock (WaterMaskLock)
+            {
+                if (_waterMaskLoadAttempted)
+                {
+                    return;
+                }
+
+                _waterMaskLoadAttempted = true;
+                var mask = new GeoWaterMask();
+                var lakesPath = ResolveAssetPath(Path.Combine("Data", "ne_10m_lakes.zip"));
+                var oceanPath = ResolveAssetPath(Path.Combine("Data", "ne_10m_ocean.zip"));
+                mask.AddLakes(GeoPolygonSet.TryLoadFromZip(lakesPath, "ne_10m_lakes.shp"));
+                mask.Add(GeoPolygonSet.TryLoadFromZip(oceanPath, "ne_10m_ocean.shp"));
+                GeoWaterMask.Shared = mask;
+            }
+        }
+#endif
 
         private static void ApplyTransform(ManaSceneNode node, ManaLevelNode entry)
         {

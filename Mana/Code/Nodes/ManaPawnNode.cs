@@ -493,6 +493,23 @@ namespace Mana.Code.Nodes
                 isGrounded = false;
                 wasGrounded = false;
             }
+            else if (grounded)
+            {
+                if (!heading.HasValue)
+                {
+                    // Counter the portion of next frame's gravity that lies along the ground plane.
+                    // The solver still receives the normal component, so the pawn remains planted
+                    // without accumulating the tiny downhill step that causes idle slope creep.
+                    velocity = ComputeIdleGroundSupportVelocity(
+                        Context.Physics.Gravity,
+                        body.GroundNormal,
+                        deltaSeconds);
+                }
+                else if (velocity.Y < 0.0f)
+                {
+                    velocity.Y = 0.0f;
+                }
+            }
             else if (velocity.Y < 0.0f)
             {
                 // Extra fall gravity, on top of what the pose integrator already applies.
@@ -508,6 +525,15 @@ namespace Mana.Code.Nodes
             var solvedHorizontal = new Vector3(velocityBeforeInput.X, 0.0f, velocityBeforeInput.Z);
             CurrentSpeed = solvedHorizontal.Length();
             Position = body.FootPosition;
+        }
+
+        private static Vector3 ComputeIdleGroundSupportVelocity(
+            Vector3 gravity,
+            Vector3 groundNormal,
+            float deltaSeconds)
+        {
+            var tangentGravity = gravity - Vector3.Dot(gravity, groundNormal) * groundNormal;
+            return -tangentGravity * deltaSeconds;
         }
 
         private float ResolveWorldHeight()

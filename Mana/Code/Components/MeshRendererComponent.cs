@@ -10,6 +10,7 @@ namespace Mana
     public class MeshRendererComponent : ManaComponent
     {
         public ManaMesh Mesh { get; set; }
+        public bool IsVisible { get; set; } = true;
         public bool DrawAfterScene { get; set; }
         public bool OutlineEnabled { get; set; }
         public Vector4 OutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
@@ -195,12 +196,14 @@ namespace Mana
         {
             base.DrawComponent();
 #if !MANA_BROWSER
-            if (Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
+            if (!IsVisible || Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
                 return;
             }
 #else
-            if (Mesh == null)
+            // Same visibility contract as desktop; the VertexBufferObject half of that check is
+            // OpenGL-only and has no browser equivalent (WebGPU uploads through its own path).
+            if (!IsVisible || Mesh == null)
             {
                 return;
             }

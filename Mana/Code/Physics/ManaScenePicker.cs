@@ -27,7 +27,8 @@ namespace Mana.Code
             IEnumerable<ManaScene> scenes,
             Vector3 rayOrigin,
             Vector3 rayDirection,
-            HashSet<ManaSceneNode>? excludeNodes = null)
+            HashSet<ManaSceneNode>? excludeNodes = null,
+            bool useBoundsFallback = false)
         {
             ManaSceneNode? closestNode = null;
             MeshRendererComponent? closestRenderer = null;
@@ -37,7 +38,15 @@ namespace Mana.Code
             {
                 foreach (var node in scene.Children)
                 {
-                    PickNode(node, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestRenderer, ref closestDistance);
+                    PickNode(
+                        node,
+                        rayOrigin,
+                        rayDirection,
+                        excludeNodes,
+                        useBoundsFallback,
+                        ref closestNode,
+                        ref closestRenderer,
+                        ref closestDistance);
                 }
             }
 
@@ -83,13 +92,15 @@ namespace Mana.Code
             Vector3 rayOrigin,
             Vector3 rayDirection,
             HashSet<ManaSceneNode>? excludeNodes,
+            bool useBoundsFallback,
             ref ManaSceneNode? closestNode,
             ref MeshRendererComponent? closestRenderer,
             ref float closestDistance)
         {
             if (excludeNodes == null || !excludeNodes.Contains(node))
             {
-                if (TryIntersect(node, rayOrigin, rayDirection, out var distance, out var renderer) && distance < closestDistance)
+                if (TryIntersect(node, rayOrigin, rayDirection, useBoundsFallback, out var distance, out var renderer)
+                    && distance < closestDistance)
                 {
                     closestDistance = distance;
                     closestNode = node;
@@ -99,7 +110,15 @@ namespace Mana.Code
 
             foreach (var child in node.Children)
             {
-                PickNode(child, rayOrigin, rayDirection, excludeNodes, ref closestNode, ref closestRenderer, ref closestDistance);
+                PickNode(
+                    child,
+                    rayOrigin,
+                    rayDirection,
+                    excludeNodes,
+                    useBoundsFallback,
+                    ref closestNode,
+                    ref closestRenderer,
+                    ref closestDistance);
             }
         }
 
@@ -142,7 +161,13 @@ namespace Mana.Code
             }
         }
 
-        private static bool TryIntersect(ManaSceneNode node, Vector3 rayOrigin, Vector3 rayDirection, out float worldDistance, out MeshRendererComponent? hitRenderer)
+        private static bool TryIntersect(
+            ManaSceneNode node,
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            bool useBoundsFallback,
+            out float worldDistance,
+            out MeshRendererComponent? hitRenderer)
         {
             worldDistance = float.PositiveInfinity;
             hitRenderer = null;
@@ -164,7 +189,7 @@ namespace Mana.Code
 
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
-                if (renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
                 {
                     continue;
                 }
@@ -199,7 +224,7 @@ namespace Mana.Code
                     hitAny = true;
                     hitRenderer = renderer;
                 }
-                else if (node.LevelSource != null && boxLocalT < bestLocalT)
+                else if ((useBoundsFallback || node.LevelSource != null) && boxLocalT < bestLocalT)
                 {
                     // Authored editor objects should remain easy to select even when very flat geometry
                     // grazes the ray closely enough that triangle precision rejects it.
@@ -252,7 +277,7 @@ namespace Mana.Code
 
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
-                if (renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
                 {
                     continue;
                 }

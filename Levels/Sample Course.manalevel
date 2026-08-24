@@ -3,21 +3,21 @@
   "version": 1,
   "name": "Sample Course",
   "camera": {
-    "position": [ 12, 14, 32 ],
+    "position": [ 44, 14, 64 ],
     "rotation": [ -0.35, 0, 0 ]
   },
   "nodes": [
     {
       "name": "Player Start",
       "kind": "PlayerStart",
-      "position": [ 8, 0, 8 ],
+      "position": [ 40, 0, 40 ],
       "rotation": [ 0, 3.1415927, 0 ],
       "scale": [ 1, 1, 1 ]
     },
     {
       "name": "Platform Step 1",
       "kind": "Shape",
-      "position": [ 14, 0.25, 8 ],
+      "position": [ 46, 0.25, 40 ],
       "rotation": [ 0, 0, 0 ],
       "scale": [ 1, 1, 1 ],
       "shape": "Cube",
@@ -31,7 +31,7 @@
     {
       "name": "Platform Step 2",
       "kind": "Shape",
-      "position": [ 18, 1.25, 8 ],
+      "position": [ 50, 1.25, 40 ],
       "rotation": [ 0, 0, 0 ],
       "scale": [ 1, 1, 1 ],
       "shape": "Cube",
@@ -45,7 +45,7 @@
     {
       "name": "Platform Summit",
       "kind": "Shape",
-      "position": [ 22.5, 2.25, 8 ],
+      "position": [ 54.5, 2.25, 40 ],
       "rotation": [ 0, 0, 0 ],
       "scale": [ 1, 1, 1 ],
       "shape": "Cube",
@@ -59,7 +59,7 @@
     {
       "name": "Marker Ball",
       "kind": "Shape",
-      "position": [ 8, 3, 14 ],
+      "position": [ 40, 3, 46 ],
       "rotation": [ 0, 0, 0 ],
       "scale": [ 1, 1, 1 ],
       "shape": "Sphere",
