@@ -4,6 +4,8 @@ namespace Mana.Code.UI
 {
     public sealed class SceneSelectionState
     {
+        private int _sceneGraphRevision;
+
         public global::Mana.ManaScene? SelectedScene { get; set; }
 
         public ManaSceneNode? SelectedNode { get; set; }
@@ -13,5 +15,18 @@ namespace Mana.Code.UI
         // non-null, SelectedNode should also be set to SelectedComponent.Owner in the same place, so
         // node-level consumers keep working unchanged; component-aware code checks this directly.
         public ManaComponent? SelectedComponent { get; set; }
+
+        /// <summary>
+        /// Bumped by editor commands that mutate the scene graph but do not otherwise notify UI trees.
+        /// </summary>
+        public int SceneGraphRevision => _sceneGraphRevision;
+
+        public void NotifySceneGraphChanged()
+        {
+            unchecked
+            {
+                _sceneGraphRevision++;
+            }
+        }
     }
 }

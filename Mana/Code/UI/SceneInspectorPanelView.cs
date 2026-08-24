@@ -207,6 +207,11 @@ namespace Mana.Code.UI
                 ImGui.EndTable();
             }
 
+            if (DrawNodeActions(node))
+            {
+                return;
+            }
+
             ImGui.SeparatorText("Transform");
             DrawTransformEditor(node);
 
@@ -294,8 +299,61 @@ namespace Mana.Code.UI
             }
         }
 
+        private bool DrawNodeActions(ManaSceneNode node)
+        {
+            if (ImGui.Button("Add Light Source"))
+            {
+                var light = new ManaLightSourceComponent(node);
+                lock (node.Context.World.SceneLock)
+                {
+                    node.Components.Add(light);
+                }
+
+                selectionState.SelectedScene = null;
+                selectionState.SelectedNode = node;
+                selectionState.SelectedComponent = light;
+                selectionState.NotifySceneGraphChanged();
+                return false;
+            }
+
+            ImGui.SameLine();
+
+            var canAddPickupMotion = !node.Components.OfType<ManaPickupMotionComponent>().Any();
+            ImGui.BeginDisabled(!canAddPickupMotion);
+            if (ImGui.Button("Add Pickup Motion"))
+            {
+                var pickupMotion = new ManaPickupMotionComponent(node);
+                lock (node.Context.World.SceneLock)
+                {
+                    node.Components.Add(pickupMotion);
+                }
+
+                selectionState.SelectedScene = null;
+                selectionState.SelectedNode = node;
+                selectionState.SelectedComponent = pickupMotion;
+                selectionState.NotifySceneGraphChanged();
+                ImGui.EndDisabled();
+                return false;
+            }
+            ImGui.EndDisabled();
+
+            ImGui.SameLine();
+
+            var canDelete = SceneEditorOperations.CanDeleteNode(node.Context.World, node);
+            ImGui.BeginDisabled(!canDelete);
+            var delete = ImGui.Button("Delete Node");
+            ImGui.EndDisabled();
+
+            return delete && SceneEditorOperations.DeleteNode(node.Context.World, selectionState, node);
+        }
+
         private void DrawComponentInspector(ManaComponent component)
         {
+            if (DrawComponentActions(component))
+            {
+                return;
+            }
+
             if (component is MeshRendererComponent meshRenderer)
             {
                 DrawMeshRendererInspector(meshRenderer);
@@ -327,6 +385,21 @@ namespace Mana.Code.UI
             }
 
             ImGui.TextUnformatted(GetComponentLabel(component));
+        }
+
+        private bool DrawComponentActions(ManaComponent component)
+        {
+            var canRemove = SceneEditorOperations.CanRemoveComponent(component);
+            ImGui.BeginDisabled(!canRemove);
+            var remove = ImGui.SmallButton("Remove Component");
+            ImGui.EndDisabled();
+
+            if (!remove)
+            {
+                return false;
+            }
+
+            return SceneEditorOperations.RemoveComponent(selectionState, component);
         }
 
         private void DrawMeshRendererInspector(MeshRendererComponent meshRenderer)

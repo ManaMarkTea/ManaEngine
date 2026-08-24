@@ -1,4 +1,5 @@
 using Mana;
+using Mana.Code.UI;
 using ManaUI;
 
 namespace ManaVoxel.Code.UI.ManaUi.Inspectors
@@ -9,13 +10,18 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
     /// </summary>
     public sealed class InspectorContext
     {
-        public InspectorContext(UiTheme theme, ManaContext? engine, InspectorWidgetFactory? widgets = null)
+        public InspectorContext(
+            UiTheme theme,
+            ManaContext? engine,
+            InspectorWidgetFactory? widgets = null,
+            SceneSelectionState? selection = null)
         {
             ArgumentNullException.ThrowIfNull(theme);
 
             Theme = theme;
             Engine = engine;
             Widgets = widgets ?? InspectorWidgetFactory.CreateDefault();
+            Selection = selection;
         }
 
         public UiTheme Theme { get; }
@@ -28,6 +34,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         public ManaContext? Engine { get; }
 
         public InspectorWidgetFactory Widgets { get; }
+
+        public SceneSelectionState? Selection { get; }
 
         /// <summary>
         /// Measurements shared by every row -- the width of the name column, which the divider moves.

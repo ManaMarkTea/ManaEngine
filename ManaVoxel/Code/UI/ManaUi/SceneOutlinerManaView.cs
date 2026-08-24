@@ -49,8 +49,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // instead. Counting the top two levels is enough to notice nodes being added or removed
                 // without walking the whole graph every frame.
                 RowHeight = MathF.Max(theme.ControlHeight, 28.0f),
-                ItemTemplate = item => BuildRow(theme, item, saveScene, sceneHasChanges),
-                StructureSignature = () => StructureSignature(world)
+                ItemTemplate = item => BuildRow(theme, world, selection, item, saveScene, sceneHasChanges),
+                StructureSignature = () => StructureSignature(world, selection)
             };
 
             tree.BindPolled(t => t.RevealedSelectedItem, () => CurrentSelectionItem(selection));
@@ -114,6 +114,8 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static UiElement BuildRow(
             UiTheme theme,
+            ManaWorld world,
+            SceneSelectionState selection,
             object item,
             Action<ManaScene>? saveScene,
             Func<ManaScene, bool>? sceneHasChanges)
@@ -139,7 +141,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             if (item is not ManaScene scene || saveScene == null || string.IsNullOrWhiteSpace(scene.LevelPath))
             {
-                return labelRow;
+                return new OutlinerActionRow(world, selection, item, labelRow, saveScene);
             }
 
             var saveButton = new Button()
@@ -155,9 +157,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             saveButton.BindPolled(button => button.Text, () => SaveLabel(scene, sceneHasChanges));
 
-            return new Grid().Columns("*, Auto", theme.Spacing).Rows("*").Children(
+            var row = new Grid().Columns("*, Auto", theme.Spacing).Rows("*").Children(
                 labelRow.GridColumn(0),
                 saveButton.GridColumn(1));
+
+            return new OutlinerActionRow(world, selection, item, row, saveScene);
         }
 
         private static string SaveLabel(ManaScene scene, Func<ManaScene, bool>? sceneHasChanges)
@@ -320,9 +324,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// frame would cost more than the rebuild it is trying to avoid, and adding or removing anything
         /// visible at the top two levels is what actually needs to be noticed.
         /// </summary>
-        private static int StructureSignature(ManaWorld world)
+        private static int StructureSignature(ManaWorld world, SceneSelectionState selection)
         {
-            var signature = world.Scenes.Count;
+            var signature = world.Scenes.Count * 397 + selection.SceneGraphRevision;
 
             foreach (var scene in world.Scenes)
             {
@@ -335,6 +339,100 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             return signature;
+        }
+
+        private sealed class OutlinerActionRow : Decorator
+        {
+            private readonly ManaWorld _world;
+            private readonly SceneSelectionState _selection;
+            private readonly object _item;
+            private readonly Action<ManaScene>? _saveScene;
+
+            public OutlinerActionRow(
+                ManaWorld world,
+                SceneSelectionState selection,
+                object item,
+                UiElement content,
+                Action<ManaScene>? saveScene)
+            {
+                _world = world;
+                _selection = selection;
+                _item = item;
+                _saveScene = saveScene;
+                Child = content;
+                IsHitTestVisible = true;
+                HorizontalAlignment = HorizontalAlignment.Stretch;
+            }
+
+            protected override bool IsSelfHitTestVisible => true;
+
+            protected override void OnPointerPressed(UiPointerEventArgs e)
+            {
+                if (e.Button != PointerButton.Right)
+                {
+                    return;
+                }
+
+                ApplySelection(_selection, _item);
+                if (Root != null)
+                {
+                    MenuFlyout.ShowAt(Root, e.Position, BuildMenu());
+                }
+
+                e.Handled = true;
+            }
+
+            private List<MenuItem> BuildMenu()
+            {
+                return _item switch
+                {
+                    ManaScene scene => BuildSceneMenu(scene),
+                    ManaSceneNode node => BuildNodeMenu(node),
+                    _ => new List<MenuItem> { MenuItem.Label("No actions") }
+                };
+            }
+
+            private List<MenuItem> BuildSceneMenu(ManaScene scene)
+            {
+                var items = new List<MenuItem>
+                {
+                    MenuItem.Label(Fallback(scene.Name, "Scene"))
+                };
+
+                if (_saveScene != null && !string.IsNullOrWhiteSpace(scene.LevelPath))
+                {
+                    items.Add(MenuItem.Separator());
+                    items.Add(new MenuItem("Save", () => _saveScene(scene))
+                        .WithTooltip("Save this scene to its level JSON."));
+                }
+
+                return items;
+            }
+
+            private List<MenuItem> BuildNodeMenu(ManaSceneNode node)
+            {
+                var addComponent = new MenuItem("Add Component");
+                foreach (var definition in SceneComponentCatalog.Definitions)
+                {
+                    addComponent.Items.Add(new MenuItem(
+                            definition.Label,
+                            () => SceneComponentCatalog.AddToNode(node, definition, _selection))
+                        .EnabledWhen(() => definition.CanAdd(node))
+                        .WithTooltip(definition.Description));
+                }
+
+                return new List<MenuItem>
+                {
+                    MenuItem.Label(Fallback(node.Name, node.GetType().Name)),
+                    MenuItem.Separator(),
+                    addComponent,
+                    MenuItem.Separator(),
+                    new MenuItem("Delete Node",
+                            () => SceneEditorOperations.DeleteNode(_world, _selection, node))
+                        .EnabledWhen(() => SceneEditorOperations.CanDeleteNode(_world, node))
+                        .WithTooltip("Delete this node and its children from the scene.")
+                };
+            }
         }
 
         private enum OutlinerIconKind

@@ -5,6 +5,8 @@ using Mana.Code.UI;
 using ManaUI;
 using ManaVoxel.Code.UI.ManaUi.Inspectors;
 
+using Button = ManaUI.Button;
+
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
@@ -32,7 +34,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaContext? context = null,
             InspectorWidgetFactory? widgets = null)
         {
-            var inspector = new InspectorContext(theme, context, widgets);
+            var inspector = new InspectorContext(theme, context, widgets, selection);
             var target = new SelectionTarget(selection);
 
             // The tree is retained, so the panel cannot simply re-run when the selection changes -- it has
@@ -82,6 +84,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var node = snapshot.Node!;
             var sections = (StackPanel)BuildSubject(node, inspector);
+            sections.Children.Add(BuildNodeActions(node, inspector));
 
             var showing = ComponentsToShow(node, snapshot.Component, out var hidden);
 
@@ -102,6 +105,55 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             return sections;
+        }
+
+        private static UiElement BuildNodeActions(ManaSceneNode node, InspectorContext inspector)
+        {
+            var theme = inspector.Theme;
+            var add = new ComboBox
+            {
+                Placeholder = "Add component"
+            }.WithTooltip("Attach a component to this node.");
+            add.SetItems(SceneComponentCatalog.Definitions, definition => definition.Label);
+            add.SelectionChanged += (_, index) =>
+            {
+                if (index < 0 || index >= add.Items.Count)
+                {
+                    return;
+                }
+
+                if (add.Items[index] is SceneComponentDefinition definition)
+                {
+                    SceneComponentCatalog.AddToNode(node, definition, inspector.Selection);
+                }
+
+                add.SelectedIndex = -1;
+            };
+
+            var delete = new Button()
+                .Label("Delete Node")
+                .Variant(ButtonVariant.Danger)
+                .Enabled(inspector.Engine != null && SceneEditorOperations.CanDeleteNode(inspector.Engine.World, node))
+                .WithTooltip("Delete this node and its children from the scene.")
+                .OnClick(() =>
+                {
+                    if (inspector.Engine != null)
+                    {
+                        SceneEditorOperations.DeleteNode(inspector.Engine.World, inspector.Selection, node);
+                    }
+                });
+            delete.BindPolled(
+                button => button.IsEnabled,
+                () => inspector.Engine != null && SceneEditorOperations.CanDeleteNode(inspector.Engine.World, node));
+
+            return new Grid().Columns("Auto, *, Auto", theme.Spacing).Rows("Auto").Children(
+                new TextBlock()
+                    .BindTextPolled(() => $"{node.Components.Count} component{(node.Components.Count == 1 ? "" : "s")}")
+                    .Foreground(theme.TextMuted)
+                    .CenterV()
+                    .GridColumn(0),
+                add.GridColumn(1),
+                delete.GridColumn(2));
         }
 
         /// <summary>
@@ -227,8 +279,53 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             foreach (var section in built)
             {
+                AttachRemoveAccessory(section, component, inspector);
                 sections.Children.Add(section);
             }
+        }
+
+        private static bool AttachRemoveAccessory(
+            UiElement section,
+            ManaComponent component,
+            InspectorContext inspector)
+        {
+            if (section is Expander expander)
+            {
+                expander.HeaderAccessory ??= RemoveComponentButton(component, inspector);
+                return true;
+            }
+
+            if (section is Panel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    if (AttachRemoveAccessory(child, component, inspector))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static Button RemoveComponentButton(ManaComponent component, InspectorContext inspector)
+        {
+            var button = new Button()
+                .Label("Remove")
+                .Variant(ButtonVariant.Subtle)
+                .Height(MathF.Max(20.0f, inspector.Theme.ControlHeight - 6.0f))
+                .Enabled(SceneEditorOperations.CanRemoveComponent(component))
+                .WithTooltip("Remove this component from the node.")
+                .OnClick(() => SceneEditorOperations.RemoveComponent(inspector.Selection, component));
+
+            button.Padding = new Thickness(6.0f, 1.0f);
+            button.BindPolled(
+                b => b.IsEnabled,
+                () => component.Owner.Components.Contains(component)
+                    && SceneEditorOperations.CanRemoveComponent(component));
+
+            return button;
         }
     }
 }

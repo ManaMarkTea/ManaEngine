@@ -3,10 +3,12 @@ using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
+using Mana.Code.UI;
 using Mana.Code.UI.ManaUi;
 using ManaUI;
 using Mana.Code.Materials;
 using ManaCore.Graphics;
+using ManaVoxel.Code.Gameplay.Trains;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.UI.ManaUi;
 using ManaVoxel.Code.UI.ManaUi.Inspectors;
@@ -675,6 +677,71 @@ public static class InspectorChecks
             Check("toggling the light writes to the component", !light.Enabled, $"{light.Enabled}");
         }
 
+        // ---------------------------------------------------------------- add/remove components and delete nodes
+        world.Selection.SelectedComponent = null;
+        world.Selection.SelectedNode = first;
+        root.UpdateLayout(new Vector2(420, 700));
+
+        var addComponent = FindAll<ComboBox>(view)
+            .FirstOrDefault(combo => combo.Placeholder == "Add component");
+        var trainChoice = addComponent?.Items
+            .Select((item, index) => (Label: item.ToString(), Index: index))
+            .FirstOrDefault(item => item.Label == "Train Car");
+
+        Check("the inspector offers component creation",
+            addComponent != null && trainChoice?.Label == "Train Car",
+            string.Join(", ", addComponent?.Items.Select(item => item.ToString()) ?? Array.Empty<string>()));
+
+        if (addComponent != null && trainChoice?.Label == "Train Car")
+        {
+            addComponent.SelectedIndex = trainChoice.Value.Index;
+            root.UpdateLayout(new Vector2(420, 700));
+        }
+
+        var trainComponent = first.Components.OfType<TrainCarComponent>().FirstOrDefault();
+        Check("adding a train component attaches it to the selected node",
+            trainComponent != null && ReferenceEquals(world.Selection.SelectedComponent, trainComponent),
+            world.Selection.SelectedComponent?.GetType().Name ?? "none");
+
+        var removeTrain = FindAll<Button>(view).FirstOrDefault(button => button.Text == "Remove");
+        Check("component sections offer removal", removeTrain != null);
+        if (removeTrain != null)
+        {
+            root.Input.InjectPointerMoved(removeTrain.Bounds.Center);
+            root.Input.InjectPointerPressed(removeTrain.Bounds.Center, PointerButton.Left, 7.0);
+            root.Input.InjectPointerReleased(removeTrain.Bounds.Center, PointerButton.Left);
+            root.UpdateLayout(new Vector2(420, 700));
+        }
+
+        Check("removing a component detaches it and keeps the node selected",
+            first.Components.OfType<TrainCarComponent>().Count() == 0
+            && ReferenceEquals(world.Selection.SelectedNode, first)
+            && world.Selection.SelectedComponent == null,
+            $"{first.Components.OfType<TrainCarComponent>().Count()} train components");
+
+        var doomed = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Doomed" };
+        var doomedChild = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Doomed Child" };
+        doomed.AddChild(doomedChild);
+        scene.Children.Add(doomed);
+        var doomedCollision = context.Physics.AddBoxBody(doomed, Vector3.One, Vector3.Zero);
+        world.Selection.SelectedNode = doomedChild;
+
+        var deleted = SceneEditorOperations.DeleteNode(world, world.Selection, doomed);
+        Check("deleting a node removes it from the scene graph",
+            deleted && !scene.Children.Contains(doomed) && doomed.Parent == null);
+        Check("deleting a node cleans up physics bodies",
+            !context.Physics.PhysicsMap.ContainsKey(doomedCollision.Body)
+            && !context.Physics.Simulation.Bodies.BodyExists(doomedCollision.Body));
+        Check("deleting the selected subtree clears to its scene",
+            ReferenceEquals(world.Selection.SelectedScene, scene)
+            && world.Selection.SelectedNode == null
+            && world.Selection.SelectedComponent == null);
+
+        world.Selection.SelectedScene = null;
+        world.Selection.SelectedNode = lit;
+        root.UpdateLayout(new Vector2(420, 700));
+        expanders = FindAll<Expander>(view);
+
         // ---------------------------------------------------------------- rendering
         Check("the inspector renders", root.Render().InstanceCount > 20,
             $"{root.Render().InstanceCount} instances");
@@ -906,7 +973,8 @@ public static class InspectorChecks
 
         // Something only a polled binding ever writes: the slot tooltips are set nowhere else, so a
         // tooltip present here means the new subtree's bindings ran on the pass that created it.
-        var settled = FindAll<Button>(view).Count(b => b.Tooltip != null);
+        var settled = FindAll<Button>(view).Count(b =>
+            b.Tooltip?.Contains(" map", StringComparison.OrdinalIgnoreCase) == true);
         Check("a rebuilt panel is populated in the same pass that built it", settled == 7,
             $"{settled} of 7 slots bound after one pass");
 
