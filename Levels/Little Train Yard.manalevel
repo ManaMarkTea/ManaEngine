@@ -1,0 +1,1355 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Little Train Yard",
+  "camera": {
+    "position": [
+      26.899595,
+      4.8226156,
+      63.480167
+    ],
+    "rotation": [
+      -0.4583995,
+      -0.37759978,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "name": "Gameplay",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Player Start",
+          "kind": "PlayerStart",
+          "position": [
+            32,
+            0,
+            58
+          ],
+          "rotation": [
+            0,
+            3.1415927,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Yard Ground",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Rail Yard Grass",
+          "kind": "Shape",
+          "position": [
+            32,
+            0.015,
+            32
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.22,
+            0.47,
+            0.27,
+            1
+          ],
+          "size": [
+            30,
+            0.015,
+            24
+          ]
+        },
+        {
+          "name": "Ballast Oval Bed",
+          "kind": "Shape",
+          "position": [
+            32,
+            0.035,
+            32
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.33,
+            0.34,
+            0.34,
+            1
+          ],
+          "size": [
+            25,
+            0.02,
+            19
+          ]
+        },
+        {
+          "name": "Inner Picnic Green",
+          "kind": "Shape",
+          "position": [
+            32,
+            0.07,
+            32
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.28,
+            0.58,
+            0.35,
+            1
+          ],
+          "size": [
+            11.5,
+            0.03,
+            7.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Station Structures",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Station Platform",
+          "kind": "Shape",
+          "position": [
+            32,
+            0.08,
+            50.8
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.5,
+            0.51,
+            0.49,
+            1
+          ],
+          "size": [
+            8.75,
+            1.25,
+            3.2
+          ],
+          "collision": {
+            "size": [
+              17.5,
+              2.5,
+              6.4
+            ],
+            "offset": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "Station Platform Safety Stripe",
+          "kind": "Shape",
+          "position": [
+            32,
+            0.1725,
+            50.26
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.94,
+            0.78,
+            0.12,
+            1
+          ],
+          "size": [
+            6.85,
+            0.0125,
+            0.04
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Signals and Crossing",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Signal Mast",
+          "kind": "Shape",
+          "position": [
+            18.5,
+            1.05,
+            51.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.08,
+            0.09,
+            0.1,
+            1
+          ],
+          "size": [
+            0.12,
+            1.05,
+            0.12
+          ]
+        },
+        {
+          "name": "Signal Red",
+          "kind": "Shape",
+          "position": [
+            18.5,
+            1.75,
+            51.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.28,
+            0.28,
+            0.28
+          ],
+          "shape": "Sphere",
+          "color": [
+            1,
+            0.08,
+            0.06,
+            1
+          ],
+          "size": [
+            0.28,
+            0.28,
+            0.28
+          ]
+        },
+        {
+          "name": "Signal Green",
+          "kind": "Shape",
+          "position": [
+            18.5,
+            1.5,
+            51.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.24,
+            0.24,
+            0.24
+          ],
+          "shape": "Sphere",
+          "color": [
+            0.05,
+            0.92,
+            0.35,
+            1
+          ],
+          "size": [
+            0.24,
+            0.24,
+            0.24
+          ]
+        },
+        {
+          "name": "Crossing Gate",
+          "kind": "Shape",
+          "position": [
+            21.2,
+            1.25,
+            51.6
+          ],
+          "rotation": [
+            0,
+            0,
+            0.25
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.95,
+            0.94,
+            0.86,
+            1
+          ],
+          "size": [
+            1.25,
+            0.03,
+            0.04
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Track Loop",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Track Corner NW",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            20
+          ],
+          "rotation": [
+            0,
+            3.1415927,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+        },
+        {
+          "name": "Track Corner NE",
+          "kind": "Mesh",
+          "position": [
+            50,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+        },
+        {
+          "name": "Track Corner SE",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            44
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+        },
+        {
+          "name": "Track Corner SW",
+          "kind": "Mesh",
+          "position": [
+            14,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            -1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+        },
+        {
+          "name": "Track Straight North 00",
+          "kind": "Mesh",
+          "position": [
+            14,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 01",
+          "kind": "Mesh",
+          "position": [
+            18,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 02",
+          "kind": "Mesh",
+          "position": [
+            22,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 03",
+          "kind": "Mesh",
+          "position": [
+            26,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 04",
+          "kind": "Mesh",
+          "position": [
+            30,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 05",
+          "kind": "Mesh",
+          "position": [
+            34,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 06",
+          "kind": "Mesh",
+          "position": [
+            38,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 07",
+          "kind": "Mesh",
+          "position": [
+            42,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight North 08",
+          "kind": "Mesh",
+          "position": [
+            46,
+            0.08,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 00",
+          "kind": "Mesh",
+          "position": [
+            14,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 01",
+          "kind": "Mesh",
+          "position": [
+            18,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 02",
+          "kind": "Mesh",
+          "position": [
+            22,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 03",
+          "kind": "Mesh",
+          "position": [
+            26,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 04",
+          "kind": "Mesh",
+          "position": [
+            30,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 05",
+          "kind": "Mesh",
+          "position": [
+            34,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 06",
+          "kind": "Mesh",
+          "position": [
+            38,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 07",
+          "kind": "Mesh",
+          "position": [
+            42,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight South 08",
+          "kind": "Mesh",
+          "position": [
+            46,
+            0.08,
+            48
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight West 00",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            20
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight West 01",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            24
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight West 02",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            28
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight West 03",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            32
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight West 04",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            36
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight West 05",
+          "kind": "Mesh",
+          "position": [
+            10,
+            0.08,
+            40
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight East 00",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            20
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight East 01",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            24
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight East 02",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            28
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight East 03",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            32
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight East 04",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            36
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        },
+        {
+          "name": "Track Straight East 05",
+          "kind": "Mesh",
+          "position": [
+            54,
+            0.08,
+            40
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+        }
+      ]
+    },
+    {
+      "name": "Moving Trains",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Loop Train A 00 Locomotive",
+          "kind": "Mesh",
+          "position": [
+            18,
+            0.18,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1.1,
+            1.1,
+            1.1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tbG9jb21vdGl2ZS1hLmdsYg=="
+        },
+        {
+          "name": "Loop Train A 01 Boxcar",
+          "kind": "Mesh",
+          "position": [
+            14.5,
+            0.18,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1.1,
+            1.1,
+            1.1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtYm94LmdsYg=="
+        },
+        {
+          "name": "Loop Train A 02 Blue Container",
+          "kind": "Mesh",
+          "position": [
+            11,
+            0.18,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1.1,
+            1.1,
+            1.1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtY29udGFpbmVyLWJsdWUuZ2xi"
+        },
+        {
+          "name": "Loop Train A 03 Tanker",
+          "kind": "Mesh",
+          "position": [
+            7.5,
+            0.18,
+            16
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1.1,
+            1.1,
+            1.1
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtdGFuay5nbGI="
+        },
+        {
+          "name": "Loop Train B 00 Tram Nose",
+          "kind": "Mesh",
+          "position": [
+            46,
+            0.18,
+            48
+          ],
+          "rotation": [
+            0,
+            -1.5707964,
+            0
+          ],
+          "scale": [
+            1.05,
+            1.05,
+            1.05
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1hLmdsYg=="
+        },
+        {
+          "name": "Loop Train B 01 Tram Middle",
+          "kind": "Mesh",
+          "position": [
+            49,
+            0.18,
+            48
+          ],
+          "rotation": [
+            0,
+            -1.5707964,
+            0
+          ],
+          "scale": [
+            1.05,
+            1.05,
+            1.05
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1iLmdsYg=="
+        },
+        {
+          "name": "Loop Train B 02 Tram Tail",
+          "kind": "Mesh",
+          "position": [
+            52,
+            0.18,
+            48
+          ],
+          "rotation": [
+            0,
+            -1.5707964,
+            0
+          ],
+          "scale": [
+            1.05,
+            1.05,
+            1.05
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1jLmdsYg=="
+        }
+      ]
+    },
+    {
+      "name": "Station Guests",
+      "kind": "Group",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "name": "Station Visitor",
+          "kind": "Mesh",
+          "position": [
+            28.5,
+            0.17,
+            51.05
+          ],
+          "rotation": [
+            0,
+            0.35,
+            0
+          ],
+          "scale": [
+            3,
+            3,
+            3
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV9taW5pLWNoYXJhY3RlcnMuemlw:TW9kZWxzL0dMQiBmb3JtYXQvY2hhcmFjdGVyLWZlbWFsZS1hLmdsYg=="
+        },
+        {
+          "name": "Station Visitor Friend",
+          "kind": "Mesh",
+          "position": [
+            36,
+            0.17,
+            50.95
+          ],
+          "rotation": [
+            0,
+            -0.55,
+            0
+          ],
+          "scale": [
+            3,
+            3,
+            3
+          ],
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV9taW5pLWNoYXJhY3RlcnMuemlw:TW9kZWxzL0dMQiBmb3JtYXQvY2hhcmFjdGVyLW1hbGUtYi5nbGI="
+        }
+      ]
+    }
+  ],
+  "playerStart": {
+    "name": "Player Start",
+    "kind": "PlayerStart",
+    "position": [
+      32,
+      0,
+      58
+    ],
+    "rotation": [
+      0,
+      3.1415927,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  }
+}

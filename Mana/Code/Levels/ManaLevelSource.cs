@@ -13,7 +13,10 @@ namespace Mana.Code.Levels
         Voxels,
 
         /// <summary>A <see cref="Nodes.ManaPlayerStartNode"/> -- where Play drops the character.</summary>
-        PlayerStart
+        PlayerStart,
+
+        /// <summary>An empty scene node that owns authored children.</summary>
+        Group
     }
 
     /// <summary>
@@ -52,6 +55,8 @@ namespace Mana.Code.Levels
 
         public static ManaLevelSource ForMesh(string asset) =>
             new() { Kind = ManaLevelSourceKind.Mesh, Asset = asset };
+
+        public static ManaLevelSource Group { get; } = new() { Kind = ManaLevelSourceKind.Group };
 
         public static ManaLevelSource Voxels { get; } = new() { Kind = ManaLevelSourceKind.Voxels };
 

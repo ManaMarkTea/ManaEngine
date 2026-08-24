@@ -205,6 +205,14 @@ namespace Mana.Code.Nodes
         // ManaSkeletalActorNode, which poses bones before the walk and skins after it.
         public virtual void UpdateTransform()
         {
+            foreach (ManaComponent component in Components)
+            {
+                if (component.UpdatesBeforeNodeTransform)
+                {
+                    component.UpdateComponent();
+                }
+            }
+
             if (_needsLocalTransformRebuild)
             {
                 var localTransform = Matrix4x4.Identity;
@@ -235,7 +243,10 @@ namespace Mana.Code.Nodes
 
             foreach (ManaComponent component in Components)
             {
-                component.UpdateComponent();
+                if (!component.UpdatesBeforeNodeTransform)
+                {
+                    component.UpdateComponent();
+                }
             }
         }
 

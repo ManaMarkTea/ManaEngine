@@ -1,5 +1,6 @@
 using ManaUI;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.UI;
 
 // ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
 using Button = ManaUI.Button;
@@ -324,10 +325,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             // more than it has when its fixed rows already exceed the space, and the overflow lands on top
             // of whatever is below rather than disappearing.
             //
-            // Three fixed rows rather than five: the filter row now carries the count, the formats and
-            // Rescan, and the footer carries the selection and Place. That is two rows of height back, in a
-            // panel where the tile grid is the only thing that wanted more.
-            return new Grid().Rows("Auto, Auto, *, Auto", theme.Spacing).Columns("*").Clip().Children(
+            // The fixed rows stay terse: the filter row carries the count and Rescan, formats keep their
+            // own wrap row, the size slider gets a short row, and the footer carries selection plus Place.
+            // The tile grid remains the only stretch row because it is the part that benefits from space.
+            return new Grid().Rows("Auto, Auto, Auto, *, Auto", theme.Spacing).Columns("*").Clip().Children(
                 new Grid().Columns("*, Auto, Auto", theme.Spacing).Rows("Auto").GridRow(0).Children(
                     filter.GridColumn(0),
                     count.GridColumn(1),
@@ -339,22 +340,59 @@ namespace ManaVoxel.Code.UI.ManaUi
                     warning.GridColumn(0),
                     Formats(theme, library).GridColumn(1)),
 
+                TileSizeControl(theme).GridRow(2),
+
                 // No minimum height. A minimum on the star row does not shrink when the panel does -- it
                 // holds its size, the grid overflows, and the content runs out through the footer underneath
                 // it. Whatever is left over is the right amount, including none.
-                grid.GridRow(2),
+                grid.GridRow(3),
 
-                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(3).Children(
+                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(4).Children(
                     selection.GridColumn(0),
                     place.GridColumn(1)));
         }
 
         // ----- thumbnail grid ---------------------------------------------------------------------------
 
-        /// <summary>Edge of one tile. The thumbnail is square at the cache's size; the rest is the caption.</summary>
-        private const float TileWidth = 76.0f;
+        private const float MinThumbnailDisplaySize = 56.0f;
+        private const float DefaultThumbnailDisplaySize = 76.0f;
+        private const float MaxThumbnailDisplaySize = MeshThumbnailCache.ThumbnailSize;
+        private const float ThumbnailDisplaySizeStep = 4.0f;
+        private const float TileHorizontalChrome = 14.0f;
+        private const float TileVerticalChrome = 36.0f;
 
-        private const float TileHeight = 96.0f;
+        private static float _thumbnailDisplaySize = DefaultThumbnailDisplaySize;
+
+        private static float ThumbnailDisplaySize =>
+            Math.Clamp(_thumbnailDisplaySize, MinThumbnailDisplaySize, MaxThumbnailDisplaySize);
+
+        /// <summary>Tile frame size in the wrapping asset grid, derived from the visible preview size.</summary>
+        private static float TileWidth => ThumbnailDisplaySize + TileHorizontalChrome;
+
+        private static float TileHeight => ThumbnailDisplaySize + TileVerticalChrome;
+
+        private static UiElement TileSizeControl(UiTheme theme)
+        {
+            var readSize = () => ThumbnailDisplaySize;
+
+            var slider = new Slider()
+                .Range(MinThumbnailDisplaySize, MaxThumbnailDisplaySize, ThumbnailDisplaySizeStep)
+                .Value(readSize())
+                .OnChanged(value => _thumbnailDisplaySize = value)
+                .BindPolled(s => s.Value, readSize);
+            slider.Tooltip = "Thumbnail size";
+
+            var value = new TextBlock()
+                .Foreground(theme.TextMuted)
+                .FontSize(theme.FontSizeSmall)
+                .CenterV()
+                .BindTextPolled(readSize, size => $"{size:0}px");
+
+            return new Grid().Columns("Auto, *, 40", 6.0f).Rows("Auto").Children(
+                new TextBlock().Text("Size").Foreground(theme.TextMuted).FontSize(theme.FontSizeSmall).CenterV().GridColumn(0),
+                slider.GridColumn(1).CenterV(),
+                value.GridColumn(2));
+        }
 
         /// <summary>
         /// The asset list as a wrapping grid of previews.
@@ -364,9 +402,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// assets, and each says what it is by looking like it rather than by being named.
         /// </para>
         /// <para>
-        /// Tiles are rebuilt only when the filtered list actually changes, and each asks the cache for its
-        /// thumbnail as it is built. Requesting is idempotent, so this stays cheap when the list is rebuilt
-        /// for an unrelated reason.
+        /// Tiles are rebuilt only when the filtered list actually changes. Each tile asks for its thumbnail
+        /// once a cache exists; that is deliberately polled because the workspace can be built before the
+        /// WebGPU host has installed the shared cache.
         /// </para>
         /// </summary>
         private static UiElement ThumbnailGrid(
@@ -404,19 +442,44 @@ namespace ManaVoxel.Code.UI.ManaUi
             MeshAssetEntry entry)
         {
             var path = entry.PrimaryPath;
+            MeshAssetRow? draggable = null;
 
-            // Asked for as the tile is built rather than when it scrolls into view. Visibility-driven
-            // requests would be the frugal choice, but the cache already collapses repeats and a filtered
-            // folder is a few hundred assets -- so the simpler thing is also fast enough, and the grid fills
-            // in from the top rather than only where the pointer has been.
-            // Resolved per tile rather than trusting the captured argument: the workspace is built during load,
-            // before the host has a graphics context to make a cache with, so the argument is null on the very
-            // build that creates every tile. Reading the shared one here picks it up as soon as it exists.
-            (thumbnails ?? ManaUiDockDemo.MeshThumbnails)?.Request(path);
+            // Asked for by a tile-level poll rather than only here. The workspace is built before the host has
+            // a WebGPU cache ready, so construction-time-only requests strand the grid until a manual refresh
+            // queues one asset later. The local flag keeps the per-frame poll cheap after the one real request.
+            var thumbnailRequested = false;
+            void RequestThumbnailIfAvailable()
+            {
+                if (!IsThumbnailRequestVisible(draggable))
+                {
+                    return;
+                }
+
+                if (draggable?.Root is { } root)
+                {
+                    MeshThumbnailImages.Touch(root, path);
+                }
+
+                if (thumbnailRequested)
+                {
+                    return;
+                }
+
+                var cache = thumbnails ?? ManaUiDockDemo.MeshThumbnails;
+                if (cache == null)
+                {
+                    return;
+                }
+
+                cache.Request(path);
+                thumbnailRequested = true;
+            }
 
             var preview = new UiImage { Fit = UiImageFit.Contain };
-            preview.Width = MeshThumbnailCache.ThumbnailSize;
-            preview.Height = MeshThumbnailCache.ThumbnailSize;
+            preview.Width = ThumbnailDisplaySize;
+            preview.Height = ThumbnailDisplaySize;
+            preview.BindPolled(image => image.Width, () => ThumbnailDisplaySize);
+            preview.BindPolled(image => image.Height, () => ThumbnailDisplaySize);
 
             // Required, not optional: a UV is normalised against the atlas, so it carries neither the image's
             // size nor its aspect ratio. Without this the Contain fit has nothing to fit and draws nothing --
@@ -429,8 +492,15 @@ namespace ManaVoxel.Code.UI.ManaUi
             var badge = FormatBadge(theme, path);
 
             preview.BindPolled(image => image.Visibility, () =>
-                MeshThumbnailImages.HasImage(path) ? Visibility.Visible : Visibility.Collapsed);
-            preview.BindPolled(image => image.SourceUv, () => MeshThumbnailImages.UvFor(path));
+            {
+                RequestThumbnailIfAvailable();
+                return MeshThumbnailImages.HasImage(path) ? Visibility.Visible : Visibility.Collapsed;
+            });
+            preview.BindPolled(image => image.SourceUv, () =>
+            {
+                RequestThumbnailIfAvailable();
+                return MeshThumbnailImages.UvFor(path);
+            });
             badge.BindPolled(element => element.Visibility, () =>
                 MeshThumbnailImages.HasImage(path) ? Visibility.Collapsed : Visibility.Visible);
 
@@ -453,24 +523,52 @@ namespace ManaVoxel.Code.UI.ManaUi
             frame.BindPolled(b => b.BorderThickness, () => IsSelected(library, path) ? 2.0f : 0.0f);
 
             var tile = frame;
-            tile.Tooltip = entry.HasVariants
-                ? $"{path}\n{entry.Variants.Count} formats available"
-                : path;
+            tile.Tooltip = TooltipFor(entry);
 
             // Wrapped in the same MeshAssetRow the list rows used, so dragging a tile into the scene still
             // works -- that gesture is half of what this panel is for, and the Place button's tooltip promises
             // it. The row handles press, threshold and ghost; the button inside it handles click and hover.
-            var draggable = new MeshAssetRow(entry) { Child = tile };
+            draggable = new MeshAssetRow(entry) { Child = tile };
             draggable.Clicked += (_, _) => library.SelectedAsset = path;
             draggable.Width = TileWidth;
             draggable.Height = TileHeight;
+            draggable.BindPolled(row => row.Width, () => TileWidth);
+            draggable.BindPolled(row => row.Height, () => TileHeight);
 
             // Mirrored onto the outer element: it is what the pointer meets first, so a tooltip only on the
             // button inside would be shadowed by the drag handler wrapping it.
-            draggable.Tooltip = entry.HasVariants
-                ? $"{path} ({entry.Variants.Count} formats available)"
-                : path;
+            draggable.Tooltip = TooltipFor(entry);
             return draggable;
+        }
+
+        private static bool IsThumbnailRequestVisible(UiElement? element)
+        {
+            if (element == null || element.Root == null || element.Bounds.IsEmpty)
+            {
+                return false;
+            }
+
+            var visible = element.Bounds;
+            for (var current = element.Parent; current != null; current = current.Parent)
+            {
+                if (current.Bounds.IsEmpty)
+                {
+                    return false;
+                }
+
+                if (!current.ClipToBounds)
+                {
+                    continue;
+                }
+
+                visible = visible.Intersect(current.Bounds);
+                if (visible.IsEmpty)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static bool IsSelected(MeshAssetLibrary library, string path)
@@ -480,13 +578,13 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static UiElement FormatBadge(UiTheme theme, string path)
         {
-            var extension = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
+            var (label, _) = MeshAssetLibrary.Badge(path);
 
             return new Border()
                 .Fill(theme.SurfaceRaised)
                 .Rounded(3.0f)
                 .Content(new TextBlock()
-                    .Text(extension.Length == 0 ? "?" : extension)
+                    .Text(label)
                     .FontSize(theme.FontSizeSmall)
                     .Foreground(theme.TextMuted)
                     .Margin(5.0f, 2.0f));
@@ -643,7 +741,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             for (var i = 1; i < entry.Variants.Count; i++)
             {
                 lines.AppendLine();
-                lines.Append("  ").Append(MeshAssetLibrary.FileName(entry.Variants[i]));
+                lines.Append("  ").Append(MeshAssetLibrary.DisplayName(entry.Variants[i]));
             }
 
             return lines.ToString();
@@ -719,6 +817,14 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         private const float DragThreshold = 4.0f;
 
+        // The one row (if any) currently dragging, so a mouse-up the OS delivered outside this window --
+        // losing focus mid-drag skips MouseUp entirely -- can still be recovered from. VoxelEditorGameMode
+        // polls the real button state every frame for its own placement logic and calls ForceEndActiveDrag
+        // the frame it sees the button go up; without this, OnPointerReleased simply never came and the
+        // ghost and this row's pointer capture were stuck until something else happened to drag over the
+        // same row and let go there.
+        private static MeshAssetRow? _activeDraggingRow;
+
         private readonly MeshAssetEntry _entry;
 
         private UiDragGhost? _ghost;
@@ -777,9 +883,61 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private bool IsOverUi(Vector2 position) => Root?.HitTest(position) != null;
 
+        /// <summary>
+        /// Right-click actions for one asset. Resolves the shared thumbnail cache the same way <see
+        /// cref="MeshImportManaView.Tile"/> does rather than taking one in the constructor -- this row also
+        /// backs a plain tree row (<see cref="MeshImportManaView.BuildRow"/>), which is built before a
+        /// cache exists at all.
+        /// </summary>
+        private void ShowContextMenu(Vector2 position)
+        {
+            if (Root is not { } root)
+            {
+                return;
+            }
+
+            var path = _entry.PrimaryPath;
+            var isZip = MeshAssetLibrary.TryDecodeZip(path, out var zipPath, out var entryPath);
+
+            var items = new List<MenuItem>
+            {
+                new MenuItem("Place", () => MeshImportRequests.RequestPlacement(path)),
+                MenuItem.Separator(),
+
+                new MenuItem("Refresh Thumbnail",
+                    () => (ManaUiDockDemo.MeshThumbnails)?.ForceRefresh(path)),
+
+                new MenuItem("Show in Explorer",
+                    () =>
+                    {
+                        if (isZip)
+                        {
+                            FileExplorer.RevealZipEntry(zipPath, entryPath);
+                        }
+                        else
+                        {
+                            FileExplorer.Reveal(path);
+                        }
+                    })
+                    .WithTooltip(isZip ? "Attempts to select the asset inside the archive." : string.Empty),
+
+                new MenuItem("Copy Path",
+                    () => TextBox.Clipboard.Text = isZip ? $"{zipPath} :: {entryPath}" : path)
+            };
+
+            MenuFlyout.ShowAt(root, position, items);
+        }
+
         protected override void OnPointerPressed(UiPointerEventArgs e)
         {
             base.OnPointerPressed(e);
+
+            if (e.Button == PointerButton.Right)
+            {
+                e.Handled = true;
+                ShowContextMenu(e.Position);
+                return;
+            }
 
             if (e.Button != PointerButton.Left)
             {
@@ -821,6 +979,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // as a drop left the request set forever -- and every later drag was ignored because something
             // was already being dragged. That is the drag silently dying after a while.
             _dragging = true;
+            _activeDraggingRow = this;
             MeshImportRequests.RequestDrag(_entry.PrimaryPath);
             MeshImportRequests.SetPointerOverUi(IsOverUi(e.Position));
 
@@ -845,6 +1004,23 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return;
             }
 
+            // The last word on where the drop landed. Hit-tested rather than read from the router's own
+            // hover, which reports the captured element for the whole gesture and so would say the pointer
+            // was over this row no matter where it actually was.
+            EndDrag(_dragging ? IsOverUi(e.Position) : MeshImportRequests.PointerOverUi);
+        }
+
+        /// <summary>
+        /// Ends whichever row is mid-drag, even though its own OnPointerReleased never fired -- see
+        /// <see cref="_activeDraggingRow"/>. Idempotent: a no-op once the row has already ended normally.
+        /// </summary>
+        public static void ForceEndActiveDrag()
+        {
+            _activeDraggingRow?.EndDrag(MeshImportRequests.PointerOverUi);
+        }
+
+        private void EndDrag(bool pointerOverUi)
+        {
             _pressed = false;
             ReleasePointerCapture();
 
@@ -853,10 +1029,12 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             if (_dragging)
             {
-                // The last word on where the drop landed. Hit-tested rather than read from the router's
-                // own hover, which reports the captured element for the whole gesture and so would say the
-                // pointer was over this row no matter where it actually was.
-                MeshImportRequests.SetPointerOverUi(IsOverUi(e.Position));
+                MeshImportRequests.SetPointerOverUi(pointerOverUi);
+            }
+
+            if (ReferenceEquals(_activeDraggingRow, this))
+            {
+                _activeDraggingRow = null;
             }
 
             // Deliberately left set. The release is the drop: whoever acts on it reads the mailbox later in

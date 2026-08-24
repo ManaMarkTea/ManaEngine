@@ -64,6 +64,7 @@ namespace ManaGraphics.Code.Graphics
             _hdrPostProcessor = null;
 
             ReleaseSceneCaptureDepthResources();
+            ReleaseThumbnailResources();
 
             if (_sceneCapturePipelineLayout != null)
             {

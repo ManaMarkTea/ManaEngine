@@ -135,16 +135,40 @@ namespace ManaUI
         public object? SelectedItem
         {
             get => _selectedItem;
+            set => SetSelectedItem(value, notify: true);
+        }
+
+        private void SetSelectedItem(object? value, bool notify)
+        {
+            if (ReferenceEquals(_selectedItem, value))
+            {
+                return;
+            }
+
+            _selectedItem = value;
+            InvalidateVisual();
+
+            if (notify)
+            {
+                SelectionChanged?.Invoke(this, value);
+            }
+        }
+
+        /// <summary>
+        /// Selection target for external model selection. Setting this mirrors <see cref="SelectedItem"/>
+        /// and expands the ancestor chain so the selected row is actually visible in the tree.
+        /// </summary>
+        public object? RevealedSelectedItem
+        {
+            get => SelectedItem;
             set
             {
-                if (ReferenceEquals(_selectedItem, value))
-                {
-                    return;
-                }
+                SetSelectedItem(value, notify: false);
 
-                _selectedItem = value;
-                InvalidateVisual();
-                SelectionChanged?.Invoke(this, value);
+                if (value != null)
+                {
+                    ExpandTo(value);
+                }
             }
         }
 
@@ -650,6 +674,16 @@ namespace ManaUI
             ExpanderWidth,
             Bounds.Height);
 
+        protected override void OnPreviewPointerPressed(UiPointerEventArgs e)
+        {
+            if (e.Button != PointerButton.Left || IsNestedControlTarget(e.Source))
+            {
+                return;
+            }
+
+            SelectOrToggle(e);
+        }
+
         protected override void OnPointerPressed(UiPointerEventArgs e)
         {
             if (e.Button != PointerButton.Left)
@@ -657,6 +691,11 @@ namespace ManaUI
                 return;
             }
 
+            SelectOrToggle(e);
+        }
+
+        private void SelectOrToggle(UiPointerEventArgs e)
+        {
             _owner.Focus();
 
             if (_hasChildren && ExpanderRect.Contains(e.Position))
@@ -680,6 +719,19 @@ namespace ManaUI
             }
 
             e.Handled = true;
+        }
+
+        private bool IsNestedControlTarget(UiElement? target)
+        {
+            for (var current = target; current != null && !ReferenceEquals(current, this); current = current.Parent)
+            {
+                if (current is Control)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

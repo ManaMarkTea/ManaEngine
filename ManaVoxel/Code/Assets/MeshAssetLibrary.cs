@@ -13,7 +13,7 @@ namespace ManaVoxel.Code.Assets
     /// the part worth testing. A view on top of this only has to render rows.
     /// </para>
     /// </summary>
-    public sealed class MeshAssetLibrary
+    public sealed class MeshAssetLibrary : IDisposable
     {
         /// <summary>Extensions worth scanning for. Anything Assimp will open that we have a reason to import.</summary>
         public static readonly string[] SupportedExtensions =
@@ -43,9 +43,14 @@ namespace ManaVoxel.Code.Assets
         };
 
         private const string ZipAssetPrefix = "zipasset:";
+        private const string RelativeZipAssetPrefix = "zipasset-rel:";
 
-        /// <summary>Rescan no more often than this. A deep asset tree is not free to walk.</summary>
-        private static readonly TimeSpan ScanInterval = TimeSpan.FromSeconds(2.0);
+        /// <summary>
+        /// How long to wait after the last file-system event before actually rescanning. A copy or unzip
+        /// touches a folder many times in a burst; without this a rescan would fire, and rebuild the panel,
+        /// once per file instead of once for the whole drop.
+        /// </summary>
+        private static readonly TimeSpan DebounceDelay = TimeSpan.FromMilliseconds(400);
 
         private readonly List<string> _assets = new();
 
@@ -55,7 +60,17 @@ namespace ManaVoxel.Code.Assets
         private List<MeshAssetEntry>? _flat;
 
         private Task<MeshScanResult>? _scan;
-        private DateTime _nextScanUtc = DateTime.MinValue;
+
+        // Starts true so the first RequestScan (there is no other way to populate the list) always runs.
+        // Set again only by a watcher event or an explicit force -- there is no timer rescanning on a clock
+        // any more, because a panel open the whole time was rebuilding its tile grid, and killing whatever
+        // tooltip happened to be open, every couple of seconds whether anything on disk had changed or not.
+        private volatile bool _dirty = true;
+
+        private readonly object _watchGate = new();
+        private List<FileSystemWatcher>? _watchers;
+        private Timer? _debounceTimer;
+        private bool _disposed;
 
         private string _filter = string.Empty;
         private MeshAssetFormats _formats = MeshAssetFormats.Default;
@@ -172,24 +187,25 @@ namespace ManaVoxel.Code.Assets
         }
 
         /// <summary>
-        /// Starts a scan if one is due. Cheap to call every frame -- it is rate limited and will not stack a
-        /// second scan on top of one already running.
+        /// Starts a scan if one is due -- a watcher saw a real change under one of the asset roots, or the
+        /// caller forced it. Cheap to call every frame: with nothing dirty it is a bool check, and it will
+        /// not stack a second scan on top of one already running.
         /// </summary>
         public void RequestScan(bool force = false)
         {
-            var now = DateTime.UtcNow;
-            if (!force && now < _nextScanUtc)
+            EnsureWatching();
+
+            if (!force && !_dirty)
             {
                 return;
             }
-
-            _nextScanUtc = now.Add(ScanInterval);
 
             if (IsScanning)
             {
                 return;
             }
 
+            _dirty = false;
             _scan = Task.Run(Scan);
         }
 
@@ -203,19 +219,40 @@ namespace ManaVoxel.Code.Assets
 
             _scan = null;
             var result = task.GetAwaiter().GetResult();
-            SetAssets(result.Assets);
+            var changed = SetAssets(result.Assets, markClean: false);
             ScanError = result.Error;
-            return true;
+            return changed;
         }
 
         /// <summary>
         /// Replaces the asset list outright. The seam the tests use -- everything below this point is
         /// decisions about a list of paths, and none of it needs a disk.
+        /// <para>
+        /// Manual callers mark the library clean by default; scan results pass false so a watcher event that
+        /// happened during the scan can still trigger another one.
+        /// </para>
+        /// <para>
+        /// Returns false, and touches nothing, when the new list is identical to what is already held --
+        /// a watcher can fire for a change that nets out to nothing (a save that rewrites a file with the
+        /// same content, a rename and rename back), and a rebuild the list does not actually need is exactly
+        /// the kind of surprise this replaced the polling rescan to avoid.
+        /// </para>
         /// </summary>
-        public void SetAssets(IEnumerable<string> assets)
+        public bool SetAssets(IEnumerable<string> assets, bool markClean = true)
         {
+            var incoming = assets as ICollection<string> ?? assets.ToList();
+            if (markClean)
+            {
+                _dirty = false;
+            }
+
+            if (incoming.Count == _assets.Count && incoming.SequenceEqual(_assets, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             _assets.Clear();
-            _assets.AddRange(assets);
+            _assets.AddRange(incoming);
 
             // A selection that survived a rescan but not the files is worse than none: the buttons acting on
             // it would still be enabled.
@@ -225,6 +262,7 @@ namespace ManaVoxel.Code.Assets
             }
 
             Invalidate();
+            return true;
         }
 
         private void Invalidate()
@@ -324,7 +362,7 @@ namespace ManaVoxel.Code.Assets
 
             foreach (var asset in assets)
             {
-                var key = Path.GetFileNameWithoutExtension(FileName(asset));
+                var key = VariantGroupKey(asset);
                 if (!groups.TryGetValue(key, out var variants))
                 {
                     variants = new List<string>();
@@ -340,14 +378,24 @@ namespace ManaVoxel.Code.Assets
                 group.Value.Sort(static (a, b) =>
                 {
                     var order = Priority(a).CompareTo(Priority(b));
-                    return order != 0 ? order : StringComparer.OrdinalIgnoreCase.Compare(FileName(a), FileName(b));
+                    return order != 0 ? order : StringComparer.OrdinalIgnoreCase.Compare(DisplayName(a), DisplayName(b));
                 });
 
-                entries.Add(new MeshAssetEntry(group.Value[0], FileName(group.Value[0]), group.Value));
+                entries.Add(new MeshAssetEntry(group.Value[0], DisplayName(group.Value[0]), group.Value));
             }
 
             entries.Sort(static (a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.DisplayName, b.DisplayName));
             return entries;
+        }
+
+        private static string VariantGroupKey(string asset)
+        {
+            if (TryDecodeZip(asset, out var zip, out var entry))
+            {
+                return $"{zip}|{PathWithoutExtension(entry.Replace('\\', '/'))}";
+            }
+
+            return Path.GetFileNameWithoutExtension(FileName(asset));
         }
 
         private static int Priority(string asset)
@@ -405,9 +453,41 @@ namespace ManaVoxel.Code.Assets
             return TryDecodeZip(asset, out _, out var entry) ? Path.GetFileName(entry) : Path.GetFileName(asset);
         }
 
+        public static string DisplayName(string asset)
+        {
+            if (!TryDecodeZip(asset, out _, out var entry))
+            {
+                return Path.GetFileName(asset);
+            }
+
+            var normalized = entry.Replace('\\', '/').Trim('/');
+            var file = Path.GetFileName(normalized);
+            var stem = Path.GetFileNameWithoutExtension(file);
+
+            // A lot of asset packs put every mesh in its own folder as "model.glb" or "scene.gltf". Showing
+            // only that file name makes a grid of distinct assets read as duplicates, so generic names keep
+            // enough archive path to identify what they really are.
+            return IsGenericArchiveFileName(stem) ? normalized : file;
+        }
+
         public static string Extension(string asset)
         {
             return TryDecodeZip(asset, out _, out var entry) ? Path.GetExtension(entry) : Path.GetExtension(asset);
+        }
+
+        private static bool IsGenericArchiveFileName(string stem)
+        {
+            return stem.Equals("model", StringComparison.OrdinalIgnoreCase)
+                || stem.Equals("scene", StringComparison.OrdinalIgnoreCase)
+                || stem.Equals("asset", StringComparison.OrdinalIgnoreCase)
+                || stem.Equals("mesh", StringComparison.OrdinalIgnoreCase)
+                || stem.Equals("untitled", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string PathWithoutExtension(string path)
+        {
+            var extension = Path.GetExtension(path);
+            return extension.Length == 0 ? path : path[..^extension.Length];
         }
 
         /// <summary>The path as shown in the tree -- workspace relative, forward slashed, archives prefixed.</summary>
@@ -449,17 +529,44 @@ namespace ManaVoxel.Code.Assets
             return $"{ZipAssetPrefix}{zip}:{entry}";
         }
 
+        /// <summary>
+        /// A zip-packed mesh reference that stays valid when a built-in level is moved with the repo.
+        /// Runtime resolution tries the working directory and the executable's project roots.
+        /// </summary>
+        public static string EncodeRelativeZip(string zipPath, string entryPath)
+        {
+            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(zipPath.Replace('\\', '/')));
+            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
+            return $"{RelativeZipAssetPrefix}{zip}:{entry}";
+        }
+
         public static bool TryDecodeZip(string asset, out string zipPath, out string entryPath)
         {
             zipPath = string.Empty;
             entryPath = string.Empty;
 
-            if (!asset.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
+            if (asset.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
             {
-                return false;
+                return TryDecodeZipBody(asset[ZipAssetPrefix.Length..], resolveRelative: false, out zipPath, out entryPath);
             }
 
-            var body = asset[ZipAssetPrefix.Length..];
+            if (asset.StartsWith(RelativeZipAssetPrefix, StringComparison.Ordinal))
+            {
+                return TryDecodeZipBody(asset[RelativeZipAssetPrefix.Length..], resolveRelative: true, out zipPath, out entryPath);
+            }
+
+            return false;
+        }
+
+        private static bool TryDecodeZipBody(
+            string body,
+            bool resolveRelative,
+            out string zipPath,
+            out string entryPath)
+        {
+            zipPath = string.Empty;
+            entryPath = string.Empty;
+
             var separator = body.IndexOf(':');
             if (separator <= 0 || separator >= body.Length - 1)
             {
@@ -468,7 +575,8 @@ namespace ManaVoxel.Code.Assets
 
             try
             {
-                zipPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[..separator]));
+                var decodedZipPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[..separator]));
+                zipPath = resolveRelative ? ResolveRelativeZipPath(decodedZipPath) : decodedZipPath;
                 entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[(separator + 1)..]));
                 return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
             }
@@ -478,6 +586,42 @@ namespace ManaVoxel.Code.Assets
                 // stray colon in a filename should do.
                 return false;
             }
+        }
+
+        private static string ResolveRelativeZipPath(string zipPath)
+        {
+            if (Path.IsPathRooted(zipPath))
+            {
+                return Path.GetFullPath(zipPath);
+            }
+
+            var normalized = zipPath.Replace('/', Path.DirectorySeparatorChar);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var root in RelativeZipRoots())
+            {
+                var fullRoot = Path.GetFullPath(root);
+                if (!seen.Add(fullRoot))
+                {
+                    continue;
+                }
+
+                var candidate = Path.GetFullPath(Path.Combine(fullRoot, normalized));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, normalized));
+        }
+
+        private static IEnumerable<string> RelativeZipRoots()
+        {
+            yield return Environment.CurrentDirectory;
+            yield return AppContext.BaseDirectory;
+            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..");
+            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..");
         }
 
         private static string Relative(string path)
@@ -497,6 +641,150 @@ namespace ManaVoxel.Code.Assets
             }
 
             return false;
+        }
+
+        // ----- watching -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Starts a <see cref="FileSystemWatcher"/> on every asset root that exists, the first time a scan is
+        /// asked for. Lazy, and not in the constructor, for the same reason scanning itself is driven from the
+        /// panel rather than the render loop -- a library nobody has opened a picker for yet should not be
+        /// asking the OS to watch a folder tree.
+        /// </summary>
+        private void EnsureWatching()
+        {
+            if (_watchers != null)
+            {
+                return;
+            }
+
+            lock (_watchGate)
+            {
+                if (_watchers != null)
+                {
+                    return;
+                }
+
+                var watchers = new List<FileSystemWatcher>();
+
+                foreach (var root in Roots())
+                {
+                    if (!Directory.Exists(root))
+                    {
+                        continue;
+                    }
+
+                    FileSystemWatcher watcher;
+
+                    try
+                    {
+                        watcher = new FileSystemWatcher(root)
+                        {
+                            IncludeSubdirectories = true,
+                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite
+                        };
+                    }
+                    catch (ArgumentException)
+                    {
+                        // A root that resolved to a path the watcher itself rejects (case differences, an
+                        // inaccessible drive) -- skip it rather than take the panel down over a folder nobody
+                        // needed watched anyway.
+                        continue;
+                    }
+
+                    watcher.Changed += OnFileSystemEvent;
+                    watcher.Created += OnFileSystemEvent;
+                    watcher.Deleted += OnFileSystemEvent;
+                    watcher.Renamed += OnFileSystemEvent;
+                    watcher.Error += OnWatcherError;
+
+                    try
+                    {
+                        watcher.EnableRaisingEvents = true;
+                    }
+                    catch
+                    {
+                        watcher.Dispose();
+                        continue;
+                    }
+
+                    watchers.Add(watcher);
+                }
+
+                _watchers = watchers;
+            }
+        }
+
+        /// <summary>
+        /// A file changed under a watched root. Filtered to extensions the library cares about -- a watcher
+        /// with no filter set fires on every touch of every file in the tree, and most of those (a texture
+        /// saved next to a model, an editor's swap file) have nothing to do with what this list shows.
+        /// </summary>
+        private void OnFileSystemEvent(object sender, FileSystemEventArgs e)
+        {
+            if (!IsRelevant(e))
+            {
+                return;
+            }
+
+            // Debounced rather than marking dirty straight away: a copy or an unzip fires this many times in
+            // quick succession, and without a delay the first one lands mid-copy -- a scan that finds half
+            // the files and misses the rest.
+            lock (_watchGate)
+            {
+                _debounceTimer ??= new Timer(_ => _dirty = true, null, Timeout.Infinite, Timeout.Infinite);
+                _debounceTimer.Change(DebounceDelay, Timeout.InfiniteTimeSpan);
+            }
+        }
+
+        private void OnWatcherError(object sender, ErrorEventArgs e)
+        {
+            // The watcher itself died (an overflowed internal buffer, a removable drive pulled out from under
+            // it). The list it was watching is not wrong yet, but the next real change would go unseen, so
+            // mark dirty once rather than leave the panel silently stale forever.
+            _dirty = true;
+        }
+
+        private static bool IsRelevant(FileSystemEventArgs e)
+        {
+            if (e is RenamedEventArgs renamed && IsRelevantPath(renamed.OldFullPath))
+            {
+                return true;
+            }
+
+            return IsRelevantPath(e.FullPath);
+        }
+
+        private static bool IsRelevantPath(string path)
+        {
+            var extension = Path.GetExtension(path);
+            return IsSupported(extension) || extension.Equals(".zip", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            lock (_watchGate)
+            {
+                if (_watchers != null)
+                {
+                    foreach (var watcher in _watchers)
+                    {
+                        watcher.Dispose();
+                    }
+
+                    _watchers = null;
+                }
+
+                _debounceTimer?.Dispose();
+                _debounceTimer = null;
+            }
         }
 
         // ----- scanning -----------------------------------------------------------------------------------

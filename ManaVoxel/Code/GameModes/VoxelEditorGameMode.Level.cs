@@ -45,9 +45,15 @@ namespace Mana.Code.GameModes
             {
                 if (playing)
                 {
+                    Context.World.Selection.SelectedScene = null;
                     Context.World.Selection.SelectedNode = null;
                     Context.World.Selection.SelectedComponent = null;
+                    _trainLoop = TrainLoopController.Create(Context.World);
+                    return;
                 }
+
+                _trainLoop?.Restore();
+                _trainLoop = null;
             };
         }
 
@@ -109,7 +115,9 @@ namespace Mana.Code.GameModes
         {
             var player = _playMode?.Player;
             var name = player?.Name ?? "Character";
-            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop";
+            var trainHint = _trainLoop?.HasTrains == true ? ", watch the trains" : string.Empty;
+            var boundsHint = _trainLoop?.HasTrackBounds == true ? ", B track debug" : string.Empty;
+            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop{trainHint}{boundsHint}";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------
@@ -129,6 +137,8 @@ namespace Mana.Code.GameModes
 
             StopPlayBeforeEditing();
             ManaLevelLoader.RemoveAuthoredNodes(Context);
+            RemoveOpenedLevelScenes();
+            _viewModel.AttachScene(Context, Context.World.DefaultScene);
             _viewModel.ResetVoxelLayersAfterLevelChange();
             _viewModel.Levels.MarkNew();
             _viewModel.Levels.SetStatus("New level.");
@@ -146,9 +156,24 @@ namespace Mana.Code.GameModes
             try
             {
                 var level = ManaLevel.Load(path);
-                var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
-
+                ManaLevelLoader.RemoveAuthoredNodes(Context);
+                RemoveOpenedLevelScenes();
                 _viewModel.ResetVoxelLayersAfterLevelChange();
+
+                var levelScene = new ManaScene(Context)
+                {
+                    Name = string.IsNullOrWhiteSpace(level.Name) ? ManaLevelLibrary.DisplayName(path) : level.Name,
+                    LevelPath = path
+                };
+
+                lock (Context.World.SceneLock)
+                {
+                    Context.World.Scenes.Add(levelScene);
+                }
+
+                var result = ManaLevelLoader.Load(level, Context, levelScene, replaceAuthoredNodes: false);
+                MarkSceneSaved(levelScene, path);
+                _viewModel.AttachScene(Context, levelScene);
                 if (result.VoxelsNode != null)
                 {
                     _viewModel.AttachVoxelData(result.VoxelsNode.VoxelShape, result.VoxelsNode);
@@ -190,11 +215,20 @@ namespace Mana.Code.GameModes
 
             try
             {
+                var currentScene = CurrentLevelScene();
+                var levelName = currentScene != null && !string.IsNullOrWhiteSpace(currentScene.Name)
+                    ? currentScene.Name
+                    : ManaLevelLibrary.DisplayName(path);
                 var level = ManaLevelCapture.Capture(
                     Context.World,
-                    ManaLevelLibrary.DisplayName(path),
+                    levelName,
                     _playMode?.EditorCameraPose);
                 level.Save(path);
+                if (currentScene != null)
+                {
+                    MarkSceneSaved(currentScene, path);
+                }
+
                 _viewModel.Levels.MarkSaved(path);
                 _viewModel.Levels.SetStatus($"Saved {level.Nodes.Count} object(s) to {Path.GetFileName(path)}.");
             }
@@ -202,6 +236,64 @@ namespace Mana.Code.GameModes
             {
                 _viewModel.Levels.SetStatus($"Could not save '{Path.GetFileName(path)}': {exception.Message}");
                 Trace.TraceWarning($"Failed to save level '{path}': {exception}");
+            }
+        }
+
+        public void SaveScene(ManaScene scene)
+        {
+            if (IsLoading)
+            {
+                return;
+            }
+
+            var path = scene.LevelPath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                path = ManaLevelLibrary.ResolvePath(string.IsNullOrWhiteSpace(scene.Name) ? "Scene" : scene.Name);
+            }
+
+            try
+            {
+                var levelName = string.IsNullOrWhiteSpace(scene.Name)
+                    ? ManaLevelLibrary.DisplayName(path)
+                    : scene.Name;
+                var level = ManaLevelCapture.CaptureScene(
+                    Context.World,
+                    scene,
+                    levelName,
+                    _playMode?.EditorCameraPose);
+                level.Save(path);
+                scene.LevelPath = path;
+                scene.Name = levelName;
+                MarkSceneSaved(scene, path);
+                _viewModel.Levels.MarkSaved(path);
+                _viewModel.Levels.SetStatus($"Saved scene '{scene.Name}' ({level.Nodes.Count} objects).");
+            }
+            catch (Exception exception)
+            {
+                _viewModel.Levels.SetStatus($"Could not save scene '{scene.Name}': {exception.Message}");
+                Trace.TraceWarning($"Failed to save scene '{scene.Name}' to '{path}': {exception}");
+            }
+        }
+
+        public bool SceneHasChanges(ManaScene scene)
+        {
+            if (string.IsNullOrWhiteSpace(scene.LevelPath) || string.IsNullOrWhiteSpace(scene.SavedLevelContentJson))
+            {
+                return false;
+            }
+
+            try
+            {
+                return !string.Equals(
+                    scene.SavedLevelContentJson,
+                    CaptureSceneContentJson(scene, scene.LevelPath),
+                    StringComparison.Ordinal);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning($"Could not compute dirty state for scene '{scene.Name}': {exception}");
+                return true;
             }
         }
 
@@ -228,9 +320,10 @@ namespace Mana.Code.GameModes
             }
 
             var start = new ManaPlayerStartNode(Context, position);
+            var targetScene = CurrentLevelScene() ?? Context.World.DefaultScene;
             lock (Context.World.SceneLock)
             {
-                Context.World.DefaultScene.Children.Add(start);
+                targetScene.Children.Add(start);
             }
 
             // A start marker is scenery to click through, exactly like the grid planes: picking it would
@@ -337,6 +430,111 @@ namespace Mana.Code.GameModes
             {
                 _playMode.Stop();
             }
+        }
+
+        private ManaScene? CurrentLevelScene()
+        {
+            var currentPath = _viewModel.Levels.CurrentPath;
+            if (string.IsNullOrWhiteSpace(currentPath))
+            {
+                return null;
+            }
+
+            lock (Context.World.SceneLock)
+            {
+                foreach (var scene in Context.World.Scenes)
+                {
+                    if (string.Equals(scene.LevelPath, currentPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return scene;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private void MarkSceneSaved(ManaScene scene, string path)
+        {
+            scene.LevelPath = path;
+            scene.SavedLevelContentJson = CaptureSceneContentJson(scene, path);
+        }
+
+        private string CaptureSceneContentJson(ManaScene scene, string path)
+        {
+            var levelName = string.IsNullOrWhiteSpace(scene.Name)
+                ? ManaLevelLibrary.DisplayName(path)
+                : scene.Name;
+            return ManaLevelCapture.CaptureSceneContentJson(Context.World, scene, levelName);
+        }
+
+        private void RemoveOpenedLevelScenes()
+        {
+            var removed = new List<ManaScene>();
+            lock (Context.World.SceneLock)
+            {
+                for (var i = Context.World.Scenes.Count - 1; i >= 0; i--)
+                {
+                    var scene = Context.World.Scenes[i];
+                    if (string.IsNullOrWhiteSpace(scene.LevelPath))
+                    {
+                        continue;
+                    }
+
+                    removed.Add(scene);
+                    Context.World.Scenes.RemoveAt(i);
+                }
+            }
+
+            if (removed.Count == 0)
+            {
+                return;
+            }
+
+            var selection = Context.World.Selection;
+            if (selection.SelectedScene != null && removed.Contains(selection.SelectedScene))
+            {
+                selection.SelectedScene = null;
+            }
+
+            if (selection.SelectedNode != null && removed.Any(scene => ContainsNode(scene, selection.SelectedNode)))
+            {
+                selection.SelectedNode = null;
+                selection.SelectedComponent = null;
+            }
+
+            _pickingExclusions.RemoveWhere(node => removed.Any(scene => ContainsNode(scene, node)));
+        }
+
+        private static bool ContainsNode(ManaScene scene, ManaSceneNode node)
+        {
+            foreach (var child in scene.Children)
+            {
+                if (ContainsNode(child, node))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsNode(ManaSceneNode root, ManaSceneNode node)
+        {
+            if (ReferenceEquals(root, node))
+            {
+                return true;
+            }
+
+            foreach (var child in root.Children)
+            {
+                if (ContainsNode(child, node))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Opens the level named by <c>--play</c>, once the world has finished loading.</summary>

@@ -9,6 +9,18 @@ namespace Mana
     {
         public List<ManaSceneNode> Children { get; set; }
 
+        /// <summary>
+        /// The level JSON this scene was opened from, or null for runtime/import scenes. Editor-only
+        /// metadata: the level file itself remains just the authored nodes it contains.
+        /// </summary>
+        public string? LevelPath { get; set; }
+
+        /// <summary>
+        /// Editor-only snapshot of the level-backed scene content at the last open/save. Used for dirty
+        /// indicators; it deliberately excludes camera pose so navigating the editor does not mark a level.
+        /// </summary>
+        public string? SavedLevelContentJson { get; set; }
+
 
         public ManaScene(ManaContext context) : base(context)
         {

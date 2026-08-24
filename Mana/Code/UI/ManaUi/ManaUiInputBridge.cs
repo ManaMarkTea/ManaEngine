@@ -70,6 +70,13 @@ namespace Mana.Code.UI.ManaUi
         /// </summary>
         public bool IsPointerOverUi => _root.Input.IsPointerOverUi;
 
+        /// <summary>
+        /// True when the mouse is currently over a hit-testable ManaUI element, even if no move event has
+        /// refreshed hover yet. Game code polls mouse state, so this closes the click-through gap between
+        /// the platform button event and the next UI hover update.
+        /// </summary>
+        public bool IsPointerOverInteractiveUi => _mouse != null && _root.HitTest(_mouse.Position) != null;
+
         /// <summary>True when a focused control wants raw keystrokes, so editor shortcuts should stand down.</summary>
         public bool IsKeyboardCaptured => _root.Input.IsKeyboardCaptured;
 

@@ -1,6 +1,13 @@
+using System.IO.Compression;
+using System.Text;
+using Mana;
+using Mana.Code;
+using Mana.Code.Nodes;
+using Mana.Code.Shapes.Loaders;
 using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -18,8 +25,14 @@ namespace ManaTests;
 /// </summary>
 public static class MeshThumbnailChecks
 {
-    private const int Size = 64;
+    private const int Size = MeshThumbnailCache.ThumbnailSize;
     private static readonly Vector4 Tint = new(0.82f, 0.84f, 0.88f, 1.0f);
+    private static readonly Vector3 ThumbnailForwardWorld = Vector3.Normalize(new Vector3(-1.0f, -1.35f, -1.0f));
+    private static readonly Vector3 ThumbnailUpWorld = Vector3.UnitY;
+    private static readonly Matrix4x4 ThumbnailView = CreateThumbnailView();
+    private static readonly Vector3 ThumbnailLightDirection = Vector3.Normalize(Vector3.TransformNormal(
+        Vector3.Normalize(new Vector3(-0.45f, 0.85f, 0.35f)),
+        ThumbnailView));
 
     /// <summary>A unit cube centred on the origin, as two triangles per face.</summary>
     private static ManaMeshCpuData Cube(float scale = 1.0f, float offsetZ = 0.0f)
@@ -145,6 +158,13 @@ public static class MeshThumbnailChecks
             offset != null && Math.Abs(OpaquePixels(offset) - covered) <= 4,
             $"{(offset == null ? 0 : OpaquePixels(offset))} vs {covered}");
 
+        // The CPU fallback loader used by thumbnails has to flatten the glTF scene in the same rest pose as
+        // the real importer. Some asset packs store mesh vertices in a local basis and rotate the node upright
+        // in the scene; ignoring that node transform makes the thumbnail lie sideways while the dropped model
+        // is correct.
+        CheckCpuOnlyLoaderMatchesNodeTransforms(Check);
+        CheckKenneyToiletNodeRotations(Check);
+
         // ---------------------------------------------------------------- depth
         // Two cubes, one behind the other, must produce the near one's silhouette rather than the far one's
         // painted over it -- the depth test is the only thing standing between this and triangle-soup order.
@@ -226,7 +246,7 @@ public static class MeshThumbnailChecks
             $"{(flat == null ? 0 : OpaquePixels(flat))} pixels");
 
         // ---------------------------------------------------------------- shading direction
-        // Two mesh-space normals chosen so that, after the rasterizer's fixed three-quarter rotation, one
+        // Two mesh-space normals chosen so that, after the rasterizer's fixed top-down isometric view, one
         // lands well-aligned with its light direction and the other well AGAINST it -- while both already
         // face the camera, so neither needs the camera-facing flip and this isolates the light term alone.
         //
@@ -235,8 +255,8 @@ public static class MeshThumbnailChecks
         // (MathF.Abs(lambert) instead of a clamp), so it deliberately mirrors the rasterizer's rotation and
         // light constants rather than avoiding them -- there is no way to aim a specific direction at "well
         // lit" vs "well shadowed" without knowing where the light and camera actually are.
-        var view = Matrix4x4.CreateRotationY(-0.62f) * Matrix4x4.CreateRotationX(0.42f);
-        var lightDirection = Vector3.Normalize(new Vector3(-0.4f, 0.75f, 0.5f));
+        var view = ThumbnailView;
+        var lightDirection = ThumbnailLightDirection;
         Matrix4x4.Invert(view, out var inverseView);
 
         // Already facing the camera (negative view-space Z) and pointing opposite the light: the darkest a
@@ -316,8 +336,9 @@ public static class MeshThumbnailChecks
         // hole that also incorrectly occluded.
         var fullyTransparent = SolidColorPng(0, 0, 0, alpha: 0);
         var invisible = SingleTriangle(camera, 2.0f, albedoTextureBytes: fullyTransparent, uvs: uvSpread);
+        var invisiblePixels = MeshThumbnailRasterizer.Render(invisible, Size, Tint);
         Check("a fully transparent texture paints nothing, not black",
-            OpaquePixels(MeshThumbnailRasterizer.Render(invisible, Size, Tint)) == 0);
+            invisiblePixels != null && OpaquePixels(invisiblePixels) == 0);
 
         // Left half opaque blue, right half fully transparent -- one texture, two UV regions, so both
         // triangles below share the single albedo a mesh actually carries.
@@ -345,6 +366,165 @@ public static class MeshThumbnailChecks
 
         Check("and what is behind it is genuinely visible there, not occluded by the invisible cutout",
             IsChannelDominant(layered, channel: 2));
+    }
+
+    private static void CheckCpuOnlyLoaderMatchesNodeTransforms(Action<string, bool, string> Check)
+    {
+        var gltf = Encoding.UTF8.GetBytes(NodeRotatedTriangleGltf());
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        var fullLoader = new ManaGltfLoader(context);
+        var cpuLoader = new ManaGltfLoader(context);
+
+        try
+        {
+            var root = fullLoader.LoadFileFromMemory(gltf, "node-rotated.gltf");
+            root.UpdateTransform();
+
+            var renderInstances = new List<ManaRenderMeshInstance>();
+            root.CollectRenderMeshInstances(renderInstances);
+            var fullBounds = BoundsOf(renderInstances.SelectMany(instance =>
+                instance.MeshData.Positions.Select(position => Vector3.Transform(position, instance.WorldTransform))));
+
+            var cpuMesh = cpuLoader.LoadFirstMeshCpuOnlyFromMemory(gltf, "node-rotated.gltf");
+            var cpuBounds = BoundsOf(cpuMesh.CpuData?.Positions ?? Array.Empty<Vector3>());
+
+            Check("CPU fallback thumbnails compose glTF node transforms",
+                NearlyEqual(cpuBounds.Min, fullBounds.Min) && NearlyEqual(cpuBounds.Max, fullBounds.Max),
+                $"full {Format(fullBounds.Min)}..{Format(fullBounds.Max)}, cpu {Format(cpuBounds.Min)}..{Format(cpuBounds.Max)}");
+        }
+        catch (Exception ex)
+        {
+            Check("CPU fallback thumbnails compose glTF node transforms", false, ex.Message);
+        }
+    }
+
+    private static string NodeRotatedTriangleGltf()
+    {
+        var positions = new[]
+        {
+            0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 2.0f
+        };
+
+        var bytes = new byte[positions.Length * sizeof(float)];
+        Buffer.BlockCopy(positions, 0, bytes, 0, bytes.Length);
+        var base64 = Convert.ToBase64String(bytes);
+
+        return $$"""
+        {
+          "asset": { "version": "2.0" },
+          "buffers": [
+            { "uri": "data:application/octet-stream;base64,{{base64}}", "byteLength": {{bytes.Length}} }
+          ],
+          "bufferViews": [
+            { "buffer": 0, "byteOffset": 0, "byteLength": {{bytes.Length}}, "target": 34962 }
+          ],
+          "accessors": [
+            {
+              "bufferView": 0,
+              "componentType": 5126,
+              "count": 3,
+              "type": "VEC3",
+              "min": [0, 0, 0],
+              "max": [1, 0, 2]
+            }
+          ],
+          "meshes": [
+            { "primitives": [ { "attributes": { "POSITION": 0 }, "mode": 4 } ] }
+          ],
+          "nodes": [
+            { "mesh": 0, "translation": [3, 4, 5], "rotation": [0.70710677, 0, 0, 0.70710677] }
+          ],
+          "scenes": [
+            { "nodes": [0] }
+          ],
+          "scene": 0
+        }
+        """;
+    }
+
+    private static Matrix4x4 CreateThumbnailView()
+    {
+        var view = Matrix4x4.CreateLookAt(-ThumbnailForwardWorld, Vector3.Zero, ThumbnailUpWorld);
+        return view * Matrix4x4.CreateScale(1.0f, 1.0f, -1.0f);
+    }
+
+    private static (Vector3 Min, Vector3 Max) BoundsOf(IEnumerable<Vector3> positions)
+    {
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        var found = false;
+
+        foreach (var position in positions)
+        {
+            min = Vector3.Min(min, position);
+            max = Vector3.Max(max, position);
+            found = true;
+        }
+
+        return found ? (min, max) : (Vector3.Zero, Vector3.Zero);
+    }
+
+    private static bool NearlyEqual(Vector3 a, Vector3 b)
+    {
+        return MathF.Abs(a.X - b.X) < 0.001f
+            && MathF.Abs(a.Y - b.Y) < 0.001f
+            && MathF.Abs(a.Z - b.Z) < 0.001f;
+    }
+
+    private static string Format(Vector3 value) =>
+        $"{value.X:0.###}, {value.Y:0.###}, {value.Z:0.###}";
+
+    private static void CheckKenneyToiletNodeRotations(Action<string, bool, string> Check)
+    {
+        var zipPath = Path.Combine(Environment.CurrentDirectory, "Assets", "kenney_furniture-kit.zip");
+        if (!File.Exists(zipPath))
+        {
+            Check("Kenney toilet asset exists for transform regression", false, zipPath);
+            return;
+        }
+
+        try
+        {
+            var toilet = LoadZipGltf(zipPath, "Models/GLTF format/toilet.glb");
+            toilet.UpdateTransform();
+            var toiletForward = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, toilet.LocalTransform));
+            Check("toilet.glb keeps its imported yaw on the Y axis",
+                MathF.Abs(toiletForward.X) > 0.9f && MathF.Abs(toiletForward.Y) < 0.01f,
+                Format(toiletForward));
+
+            var square = LoadZipGltf(zipPath, "Models/GLTF format/toiletSquare.glb");
+            square.UpdateTransform();
+            var lid = square.Children.FirstOrDefault(node => string.Equals(node.Name, "Group", StringComparison.Ordinal));
+            var lidForward = lid == null
+                ? Vector3.Zero
+                : Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, lid.LocalTransform));
+            Check("toiletSquare.glb keeps the lid rotation on the Y axis",
+                lid != null && MathF.Abs(lidForward.X) > 0.9f && MathF.Abs(lidForward.Y) < 0.01f,
+                lid == null ? "missing lid node" : Format(lidForward));
+        }
+        catch (Exception ex)
+        {
+            Check("Kenney toilet node transforms load", false, ex.Message);
+        }
+    }
+
+    private static ManaSceneNode LoadZipGltf(string zipPath, string entryPath)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        var entry = archive.GetEntry(entryPath)
+            ?? throw new FileNotFoundException($"Entry '{entryPath}' not found in '{zipPath}'.", zipPath);
+
+        using var stream = entry.Open();
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        var loader = new ManaGltfLoader(context);
+        return loader.LoadFileFromMemory(memory.ToArray(), entryPath, VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath));
     }
 
     /// <summary>A single-colour PNG, encoded in memory -- what a decoded albedo texture looks like.</summary>

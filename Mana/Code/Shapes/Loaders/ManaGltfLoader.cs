@@ -229,16 +229,15 @@ namespace Mana.Code.Shapes.Loaders
         /// whole silhouette.
         /// </para>
         /// <para>
-        /// Node transforms are deliberately not composed in: these kits model every part already sitting at
-        /// its resting position (the joints exist for runtime animation, not to place the part at rest), so
-        /// the raw per-mesh vertex data already assembles into the right shape. A model that instead relies on
-        /// its node transforms to position parts would combine wrong here -- acceptable for a preview
-        /// thumbnail, not for anything that has to be geometrically exact.
+        /// Node transforms are baked into the preview mesh. The thumbnail cache is allowed to be approximate
+        /// about material choice, but orientation has to match the real import path: many glTF files keep the
+        /// mesh data in one local basis and rotate the node upright in the scene.
         /// </para>
         /// </summary>
         private unsafe ManaMesh BuildCpuOnlyMesh(Scene* scene, string fallbackName, Func<string, byte[]?>? externalAssetResolver)
         {
-            var firstMesh = scene->MMeshes[0];
+            var placements = CollectCpuOnlyMeshPlacements(scene);
+            var firstMesh = scene->MMeshes[placements[0].MeshIndex];
             var output = new ManaMesh(Context)
             {
                 Name = string.IsNullOrWhiteSpace(firstMesh->MName) ? fallbackName : firstMesh->MName
@@ -251,9 +250,9 @@ namespace Mana.Code.Shapes.Loaders
             var hasUv0 = true;
             var hasUv1 = true;
 
-            for (var mi = 0; mi < scene->MNumMeshes; mi++)
+            foreach (var placement in placements)
             {
-                var part = scene->MMeshes[mi];
+                var part = scene->MMeshes[placement.MeshIndex];
                 totalVertices += part->MNumVertices;
                 totalFaces += part->MNumFaces;
                 hasNormals &= part->MNormals != null;
@@ -273,20 +272,28 @@ namespace Mana.Code.Shapes.Loaders
             var maxSize = Vector3.One * float.MinValue;
             var vertexOffset = 0u;
 
-            for (var mi = 0; mi < scene->MNumMeshes; mi++)
+            foreach (var placement in placements)
             {
-                var part = scene->MMeshes[mi];
+                var part = scene->MMeshes[placement.MeshIndex];
+                var transform = placement.WorldTransform;
+                var normalTransform = transform;
+                if (Matrix4x4.Invert(transform, out var inverseTransform))
+                {
+                    normalTransform = Matrix4x4.Transpose(inverseTransform);
+                }
 
                 for (var i = 0u; i < part->MNumVertices; i++)
                 {
-                    var position = new Vector3(part->MVertices[i].X, part->MVertices[i].Y, part->MVertices[i].Z);
+                    var localPosition = new Vector3(part->MVertices[i].X, part->MVertices[i].Y, part->MVertices[i].Z);
+                    var position = Vector3.Transform(localPosition, transform);
                     positions[vertexOffset + i] = position;
                     minSize = Vector3.Min(minSize, position);
                     maxSize = Vector3.Max(maxSize, position);
 
                     if (hasNormals)
                     {
-                        normals[vertexOffset + i] = new Vector3(part->MNormals[i].X, part->MNormals[i].Y, part->MNormals[i].Z).Normalized();
+                        var localNormal = new Vector3(part->MNormals[i].X, part->MNormals[i].Y, part->MNormals[i].Z);
+                        normals[vertexOffset + i] = Vector3.TransformNormal(localNormal, normalTransform).Normalized();
                     }
 
                     if (hasColors)
@@ -353,6 +360,67 @@ namespace Mana.Code.Shapes.Loaders
             });
 
             return output;
+        }
+
+        private unsafe List<(int MeshIndex, Matrix4x4 WorldTransform)> CollectCpuOnlyMeshPlacements(Scene* scene)
+        {
+            var placements = new List<(int MeshIndex, Matrix4x4 WorldTransform)>();
+            if (scene->MRootNode != null)
+            {
+                CollectCpuOnlyMeshPlacements(scene->MRootNode, Matrix4x4.Identity, placements);
+            }
+
+            if (placements.Count == 0)
+            {
+                for (var meshIndex = 0; meshIndex < scene->MNumMeshes; meshIndex++)
+                {
+                    placements.Add(((int)meshIndex, Matrix4x4.Identity));
+                }
+            }
+
+            return placements;
+        }
+
+        private unsafe void CollectCpuOnlyMeshPlacements(
+            Node* node,
+            Matrix4x4 parentWorld,
+            List<(int MeshIndex, Matrix4x4 WorldTransform)> placements)
+        {
+            var local = CanonicalizeCpuOnlyNodeTransform(Matrix4x4.Transpose(node->MTransformation));
+            var world = local * parentWorld;
+
+            for (var i = 0u; i < node->MNumMeshes; i++)
+            {
+                placements.Add(((int)node->MMeshes[i], world));
+            }
+
+            for (var i = 0u; i < node->MNumChildren; i++)
+            {
+                CollectCpuOnlyMeshPlacements(node->MChildren[i], world, placements);
+            }
+        }
+
+        private static Matrix4x4 CanonicalizeCpuOnlyNodeTransform(Matrix4x4 local)
+        {
+            if (!Matrix4x4.Decompose(local, out var scale, out var rotation, out var position))
+            {
+                return local;
+            }
+
+            var euler = rotation.ToEuler();
+            euler = new Vector3(WrapRadians(euler.X), WrapRadians(euler.Y), WrapRadians(euler.Z));
+
+            var rebuilt = Matrix4x4.Identity;
+            rebuilt *= Matrix4x4.CreateScale(scale);
+            rebuilt *= Matrix4x4.CreateFromQuaternion(euler.ToQuaternionFromEuler());
+            rebuilt *= Matrix4x4.CreateTranslation(position);
+            return rebuilt;
+        }
+
+        private static float WrapRadians(float radians)
+        {
+            var wrapped = MathF.IEEERemainder(radians, MathF.Tau);
+            return float.IsFinite(wrapped) ? wrapped : 0.0f;
         }
 
         /// <summary>

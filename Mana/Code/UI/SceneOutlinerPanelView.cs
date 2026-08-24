@@ -1,4 +1,5 @@
 using ImGuiNET;
+using Mana;
 using Mana.Code.Nodes;
 
 namespace Mana.Code.UI
@@ -96,7 +97,21 @@ namespace Mana.Code.UI
             ImGui.PushID($"scene_{sceneIndex}");
 
             var label = $"{GetDisplayName(scene, $"Scene {sceneIndex}")} ({scene.Children.Count})";
-            if (ImGui.TreeNodeEx(label, ImGuiTreeNodeFlags.DefaultOpen))
+            var flags = ImGuiTreeNodeFlags.DefaultOpen;
+            if (selectionState.SelectedScene == scene)
+            {
+                flags |= ImGuiTreeNodeFlags.Selected;
+            }
+
+            var open = ImGui.TreeNodeEx(label, flags);
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+            {
+                selectionState.SelectedScene = scene;
+                selectionState.SelectedNode = null;
+                selectionState.SelectedComponent = null;
+            }
+
+            if (open)
             {
                 if (scene.Children.Count == 0)
                 {
@@ -140,8 +155,20 @@ namespace Mana.Code.UI
             var open = ImGui.TreeNodeEx(label, flags);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
+                selectionState.SelectedScene = null;
                 selectionState.SelectedNode = node;
                 selectionState.SelectedComponent = null;
+            }
+
+            if (DrawNodeContextMenu(node))
+            {
+                if (hasContents && open)
+                {
+                    ImGui.TreePop();
+                }
+
+                ImGui.PopID();
+                return;
             }
 
             if (isSelected && _pendingRevealAncestors != null)
@@ -164,6 +191,59 @@ namespace Mana.Code.UI
             }
 
             ImGui.PopID();
+        }
+
+        private bool DrawNodeContextMenu(ManaSceneNode node)
+        {
+            if (!ImGui.BeginPopupContextItem("node_context"))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (ImGui.MenuItem("Add Light Source"))
+                {
+                    var light = new ManaLightSourceComponent(node);
+                    lock (node.Context.World.SceneLock)
+                    {
+                        node.Components.Add(light);
+                    }
+
+                    selectionState.SelectedScene = null;
+                    selectionState.SelectedNode = node;
+                    selectionState.SelectedComponent = light;
+                    selectionState.NotifySceneGraphChanged();
+                }
+
+                var canAddPickupMotion = !node.Components.OfType<ManaPickupMotionComponent>().Any();
+                if (ImGui.MenuItem("Add Pickup Motion", string.Empty, false, canAddPickupMotion))
+                {
+                    var pickupMotion = new ManaPickupMotionComponent(node);
+                    lock (node.Context.World.SceneLock)
+                    {
+                        node.Components.Add(pickupMotion);
+                    }
+
+                    selectionState.SelectedScene = null;
+                    selectionState.SelectedNode = node;
+                    selectionState.SelectedComponent = pickupMotion;
+                    selectionState.NotifySceneGraphChanged();
+                }
+
+                ImGui.Separator();
+                var canDelete = SceneEditorOperations.CanDeleteNode(node.Context.World, node);
+                if (ImGui.MenuItem("Delete Node", string.Empty, false, canDelete))
+                {
+                    return SceneEditorOperations.DeleteNode(node.Context.World, selectionState, node);
+                }
+
+                return false;
+            }
+            finally
+            {
+                ImGui.EndPopup();
+            }
         }
 
         private void DrawComponents(ManaSceneNode node)
@@ -209,6 +289,7 @@ namespace Mana.Code.UI
             var open = ImGui.TreeNodeEx(label, flags);
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
+                selectionState.SelectedScene = null;
                 selectionState.SelectedComponent = meshRenderer;
                 selectionState.SelectedNode = meshRenderer.Owner;
             }

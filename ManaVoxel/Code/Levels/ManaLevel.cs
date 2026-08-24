@@ -35,11 +35,33 @@ namespace ManaVoxel.Code.Levels
         public List<ManaLevelNode> Nodes { get; set; } = new();
 
         public ManaLevelNode? PlayerStart =>
-            Nodes.FirstOrDefault(node => node.Kind == ManaLevelSourceKind.PlayerStart);
+            FindPlayerStart(Nodes);
+
+        private static ManaLevelNode? FindPlayerStart(IEnumerable<ManaLevelNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.Kind == ManaLevelSourceKind.PlayerStart)
+                {
+                    return node;
+                }
+
+                if (node.Children is { Count: > 0 })
+                {
+                    var childStart = FindPlayerStart(node.Children);
+                    if (childStart != null)
+                    {
+                        return childStart;
+                    }
+                }
+            }
+
+            return null;
+        }
 
         // ---- File I/O ---------------------------------------------------------------------------------
 
-        private static readonly JsonSerializerOptions SerializerOptions = new()
+        internal static readonly JsonSerializerOptions SerializerOptions = new()
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -99,7 +121,7 @@ namespace ManaVoxel.Code.Levels
     /// <summary>
     /// One placed thing. <see cref="Kind"/> decides which of the optional members below carry meaning --
     /// a mesh has an <see cref="Asset"/>, a primitive has a <see cref="Shape"/>, a voxel node has
-    /// <see cref="Voxels"/>, and a player start has none of them.
+    /// <see cref="Voxels"/>, a group has <see cref="Children"/>, and a player start has none of them.
     /// </summary>
     public sealed class ManaLevelNode
     {
@@ -129,6 +151,10 @@ namespace ManaVoxel.Code.Levels
         public ManaLevelCollision? Collision { get; set; }
 
         public ManaLevelVoxels? Voxels { get; set; }
+
+        public List<ManaLevelScript>? Scripts { get; set; }
+
+        public List<ManaLevelNode>? Children { get; set; }
     }
 
     /// <summary>A kinematic box collider, so a platform you jumped on before is still solid after loading.</summary>
@@ -138,6 +164,14 @@ namespace ManaVoxel.Code.Levels
         public float[] Size { get; set; } = new float[3];
 
         public float[] Offset { get; set; } = new float[3];
+    }
+
+    /// <summary>Scene-node behavior data, like a tiny Godot-style script attachment.</summary>
+    public sealed class ManaLevelScript
+    {
+        public string Type { get; set; } = string.Empty;
+
+        public Dictionary<string, JsonElement> Properties { get; set; } = new();
     }
 
     /// <summary>

@@ -73,6 +73,7 @@ public static class TestRunner
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "tab rows", TabRowChecks.Run),
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
+        ("Mana", "rotation conversion", RotationChecks.Run),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),

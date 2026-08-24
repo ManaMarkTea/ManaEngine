@@ -25,6 +25,9 @@ public static class InputChecks
         root.UpdateLayout(new Vector2(400, 300));
 
         Check("button arranged", button.Bounds == new UiRect(50, 40, 120, 30), button.Bounds.ToString());
+        Check("hit testing can claim a control before hover updates",
+            ReferenceEquals(root.HitTest(100, 50), button),
+            root.HitTest(100, 50)?.GetType().Name ?? "null");
 
         var clicks = 0;
         button.Click += (_, _) => clicks++;

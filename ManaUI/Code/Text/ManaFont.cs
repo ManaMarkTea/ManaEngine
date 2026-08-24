@@ -25,6 +25,7 @@ namespace ManaUI
 
         private GCHandle _dataPin;
         private int _atlasGeneration;
+        private int _imageAtlasGeneration = -1;
         private bool _disposed;
 
         /// <summary>
@@ -154,6 +155,16 @@ namespace ManaUI
                 _glyphs.Clear();
                 _colorGlyphs.Clear();
                 _atlasGeneration = _atlas.Generation;
+            }
+
+            // Colour glyph UVs live in the image atlas, which mesh and texture thumbnails can reset
+            // independently from the text glyph atlas. Ordinary glyphs stay valid; only colour glyphs need
+            // to be decoded and packed again.
+            var imageAtlasGeneration = ImageAtlas?.Generation ?? -1;
+            if (_imageAtlasGeneration != imageAtlasGeneration)
+            {
+                _colorGlyphs.Clear();
+                _imageAtlasGeneration = imageAtlasGeneration;
             }
 
             // Invisible by definition, and no font is obliged to have them -- so left to the normal path

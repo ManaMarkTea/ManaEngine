@@ -185,7 +185,7 @@ namespace ManaVoxel.Code.Services
                 var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entry.FullName);
                 var loaded = world.LoadFromGltfMemory(
                     memory.ToArray(),
-                    entry.Name,
+                    entry.FullName,
                     sidecarResolver,
                     (context, localTransform) => new ManaPawnNode(context, localTransform));
 

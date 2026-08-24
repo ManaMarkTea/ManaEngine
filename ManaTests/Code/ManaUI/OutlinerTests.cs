@@ -23,7 +23,9 @@ public static class OutlinerChecks
         // window or a graphics device -- which is what lets the real outliner be driven headlessly.
         var context = new ManaContext(null!, null!, world);
 
-        var scene = new ManaScene(context) { Name = "Default Scene" };
+        ManaScene? savedScene = null;
+        var sceneDirty = false;
+        var scene = new ManaScene(context) { Name = "Default Scene", LevelPath = "C:/levels/default.manalevel" };
         var parent = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Parent" };
         var childA = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Child A" };
         var childB = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Child B" };
@@ -36,7 +38,16 @@ public static class OutlinerChecks
         UiElement? view = null;
         try
         {
-            view = SceneOutlinerManaView.Build(root.Theme, world, world.Selection);
+            view = SceneOutlinerManaView.Build(
+                root.Theme,
+                world,
+                world.Selection,
+                sceneToSave =>
+                {
+                    savedScene = sceneToSave;
+                    sceneDirty = false;
+                },
+                sceneToCheck => sceneDirty && ReferenceEquals(sceneToCheck, scene));
             Check("outliner constructs over a real world", true);
         }
         catch (Exception ex)
@@ -67,6 +78,33 @@ public static class OutlinerChecks
         var drawn = root.Render();
         Check("outliner renders", drawn.InstanceCount > 5, $"{drawn.InstanceCount} instances");
 
+        var saveButton = FindAll<Button>(root).FirstOrDefault(button => button.Text == "Save");
+        Check("a level-backed scene offers a save button", saveButton != null);
+
+        sceneDirty = true;
+        root.UpdateLayout(new Vector2(360, 640));
+        Check("a dirty level-backed scene marks its save button",
+            FindAll<Button>(root).Any(button => button.Text == "Save*"));
+
+        world.Selection.SelectedNode = parent;
+        world.Selection.SelectedScene = null;
+        root.UpdateLayout(new Vector2(360, 640));
+        saveButton = FindAll<Button>(root).FirstOrDefault(button => button.Text == "Save*");
+
+        if (saveButton != null)
+        {
+            root.Input.InjectPointerPressed(saveButton.Bounds.Center, PointerButton.Left, 1.0);
+            root.Input.InjectPointerReleased(saveButton.Bounds.Center, PointerButton.Left);
+        }
+
+        Check("the scene save button reports its scene", ReferenceEquals(savedScene, scene));
+        Check("saving from the outliner leaves node selection alone",
+            ReferenceEquals(world.Selection.SelectedNode, parent),
+            world.Selection.SelectedNode?.Name ?? "null");
+        root.UpdateLayout(new Vector2(360, 640));
+        Check("saving clears the dirty marker",
+            FindAll<Button>(root).Any(button => button.Text == "Save"));
+
         // ---------------------------------------------------------------- hierarchy
         tree.Expand(scene);
         root.UpdateLayout(new Vector2(360, 640));
@@ -80,14 +118,41 @@ public static class OutlinerChecks
             $"{tree.VisibleItems.Count} rows");
 
         // ---------------------------------------------------------------- selection shared with the editor
+        world.Selection.SelectedNode = null;
+        world.Selection.SelectedScene = null;
+        world.Selection.SelectedComponent = null;
+        root.UpdateLayout(new Vector2(360, 640));
+
+        var childBRow = tree.Children[3];
+        root.Input.InjectPointerMoved(childBRow.Bounds.Center);
+        root.Input.InjectPointerPressed(childBRow.Bounds.Center, PointerButton.Left, 2.0);
+        root.Input.InjectPointerReleased(childBRow.Bounds.Center, PointerButton.Left);
+
+        Check("clicking an outliner row selects its node",
+            ReferenceEquals(world.Selection.SelectedNode, childB),
+            world.Selection.SelectedNode?.Name ?? "null");
+        Check("clicking an outliner row keeps the shared selection populated",
+            world.Selection.SelectedNode != null || world.Selection.SelectedScene != null,
+            DescribeItem(world.Selection.SelectedNode ?? (object?)world.Selection.SelectedScene ?? "null"));
+
+        tree.SelectedItem = scene;
+        Check("selecting a scene updates the shared scene selection",
+            ReferenceEquals(world.Selection.SelectedScene, scene),
+            world.Selection.SelectedScene?.Name ?? "null");
+        Check("selecting a scene clears node selection",
+            world.Selection.SelectedNode == null && world.Selection.SelectedComponent == null);
+
         tree.SelectedItem = childB;
         Check("selecting a node updates the shared selection",
             ReferenceEquals(world.Selection.SelectedNode, childB),
             world.Selection.SelectedNode?.Name ?? "null");
         Check("selecting a node clears any component selection",
             world.Selection.SelectedComponent == null);
+        Check("selecting a node clears scene selection",
+            world.Selection.SelectedScene == null);
 
-        // A component selects itself and its owner, matching what the ImGui outliner does.
+        // Components are visible as compact icons on their owning node. The inspector owns component
+        // editing, so they no longer spend full rows in the outliner hierarchy.
         var withComponent = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Lit" };
         var component = new ManaLightSourceComponent(withComponent);
         withComponent.Components.Add(component);
@@ -97,15 +162,36 @@ public static class OutlinerChecks
         tree.Expand(withComponent);
         root.UpdateLayout(new Vector2(360, 640));
 
-        Check("components appear beneath their node",
-            tree.VisibleItems.Any(i => ReferenceEquals(i, component)),
+        Check("components do not appear as hierarchy rows",
+            !tree.VisibleItems.Any(i => ReferenceEquals(i, component)),
             string.Join(", ", tree.VisibleItems.Select(DescribeItem)));
+        Check("component presence is shown as an inline icon",
+            FindAll<UiElement>(root).Any(element => element.Tooltip == "Light source"));
 
-        tree.SelectedItem = component;
-        Check("selecting a component selects it", ReferenceEquals(world.Selection.SelectedComponent, component));
-        Check("selecting a component also selects its owner",
+        var lightIcon = FindAll<UiElement>(root).FirstOrDefault(element =>
+            element.Tooltip == "Light source" && !element.Bounds.IsEmpty);
+        if (lightIcon != null)
+        {
+            world.Selection.SelectedNode = null;
+            world.Selection.SelectedScene = null;
+            world.Selection.SelectedComponent = null;
+            root.Input.InjectPointerMoved(lightIcon.Bounds.Center);
+            root.Input.InjectPointerPressed(lightIcon.Bounds.Center, PointerButton.Left, 3.0);
+            root.Input.InjectPointerReleased(lightIcon.Bounds.Center, PointerButton.Left);
+        }
+
+        Check("clicking a component icon selects its owner node",
             ReferenceEquals(world.Selection.SelectedNode, withComponent),
             world.Selection.SelectedNode?.Name ?? "null");
+
+        world.Selection.SelectedComponent = component;
+        world.Selection.SelectedNode = withComponent;
+        root.UpdateLayout(new Vector2(360, 640));
+        Check("an external component selection reveals its owner node",
+            ReferenceEquals(tree.SelectedItem, withComponent),
+            DescribeItem(tree.SelectedItem ?? "null"));
+        Check("external component selection clears scene selection",
+            world.Selection.SelectedScene == null);
 
         // ---------------------------------------------------------------- live graph
         // The scene graph announces nothing, so the tree watches a cheap signature instead.

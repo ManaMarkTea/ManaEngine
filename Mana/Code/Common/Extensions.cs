@@ -374,9 +374,9 @@ namespace Mana
         public static Vector3 ToEuler(this Quaternion r)
         {
             float yaw = MathF.Atan2(2.0f * (r.Y * r.W + r.X * r.Z), 1.0f - 2.0f * (r.X * r.X + r.Y * r.Y));
-            float pitch = MathF.Asin(2.0f * (r.X * r.W - r.Y * r.Z));
+            float pitch = MathF.Asin(Math.Clamp(2.0f * (r.X * r.W - r.Y * r.Z), -1.0f, 1.0f));
             float roll = MathF.Atan2(2.0f * (r.X * r.Y + r.Z * r.W), 1.0f - 2.0f * (r.X * r.X + r.Z * r.Z));
-            return new Vector3(yaw, pitch, roll);
+            return new Vector3(pitch, yaw, roll);
         }
 
         public static Quaternion ToQuaternionFromEuler(this Vector3 eulerAngles)

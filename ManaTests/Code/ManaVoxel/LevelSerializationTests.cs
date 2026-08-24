@@ -1,7 +1,12 @@
+using System.Text.Json;
 using Mana;
+using Mana.Code;
 using Mana.Code.Levels;
+using Mana.Code.Nodes;
 using ManaCore.Graphics;
 using ManaUI;
+using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.Gameplay.Trains;
 using ManaVoxel.Code.Levels;
 
 namespace ManaTests;
@@ -47,6 +52,19 @@ public static class LevelSerializationChecks
                     {
                         Size = new[] { 3.0f, 0.5f, 3.0f },
                         Offset = new[] { 0.0f, 0.0f, 0.0f }
+                    },
+                    Scripts = new List<ManaLevelScript>
+                    {
+                        new ManaLevelScript
+                        {
+                            Type = TrainCarComponent.ScriptType,
+                            Properties =
+                            {
+                                ["routeKey"] = JsonValue("A"),
+                                ["carIndex"] = JsonValue(2),
+                                ["speed"] = JsonValue(6.25f)
+                            }
+                        }
                     }
                 },
                 new ManaLevelNode
@@ -74,10 +92,92 @@ public static class LevelSerializationChecks
             && platform.Size![1] == 0.25f
             && platform.Collision!.Size[0] == 3.0f);
 
+        var platformScript = platform.Scripts?.FirstOrDefault();
+        Check("a node keeps script component data",
+            platformScript?.Type == TrainCarComponent.ScriptType
+            && platformScript.Properties["routeKey"].GetString() == "A"
+            && platformScript.Properties["carIndex"].GetInt32() == 2
+            && Math.Abs(platformScript.Properties["speed"].GetSingle() - 6.25f) < 0.001f);
+
         Check("the player start round trips with its facing",
             reloaded.PlayerStart != null
             && reloaded.PlayerStart.Position[0] == 10.0f
             && reloaded.PlayerStart.Rotation[1] == 3.0f);
+
+        var groupedLevel = new ManaLevel
+        {
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Gameplay",
+                    Kind = ManaLevelSourceKind.Group,
+                    Position = new[] { 0.0f, 0.0f, 0.0f },
+                    Rotation = new[] { 0.0f, 0.0f, 0.0f },
+                    Scale = new[] { 1.0f, 1.0f, 1.0f },
+                    Children = new List<ManaLevelNode>
+                    {
+                        new()
+                        {
+                            Name = "Nested Player Start",
+                            Kind = ManaLevelSourceKind.PlayerStart,
+                            Position = new[] { 7.0f, 0.0f, 8.0f },
+                            Rotation = new[] { 0.0f, 1.0f, 0.0f }
+                        }
+                    }
+                }
+            }
+        };
+
+        var groupedReloaded = ManaLevel.FromJson(groupedLevel.ToJson());
+        Check("a group keeps its named children",
+            groupedReloaded.Nodes[0].Kind == ManaLevelSourceKind.Group
+            && groupedReloaded.Nodes[0].Children?[0].Name == "Nested Player Start");
+
+        Check("player start lookup walks grouped children",
+            groupedReloaded.PlayerStart?.Position[0] == 7.0f);
+
+        // ---------------------------------------------------------------- scene capture
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world);
+        var sceneA = new ManaScene(context) { Name = "Scene A", LevelPath = "C:/levels/a.manalevel" };
+        var sceneB = new ManaScene(context) { Name = "Scene B", LevelPath = "C:/levels/b.manalevel" };
+        var sceneANode = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Scene A Box",
+            LevelSource = ManaLevelSource.ForShape("Cube", Vector4.One, Vector3.One)
+        };
+        var sceneBNode = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Scene B Box",
+            LevelSource = ManaLevelSource.ForShape("Cube", Vector4.One, Vector3.One)
+        };
+        var trainScript = new TrainCarComponent(sceneANode);
+        trainScript.ConfigureDefaultRoute("B", 1, 0.25f);
+        trainScript.Speed = 7.5f;
+        sceneANode.Components.Add(trainScript);
+
+        sceneA.Children.Add(sceneANode);
+        sceneB.Children.Add(sceneBNode);
+        world.Scenes.Add(sceneA);
+        world.Scenes.Add(sceneB);
+
+        var sceneOnly = ManaLevelCapture.CaptureScene(world, sceneA, "Scene A");
+        Check("capturing one scene keeps only that scene's authored nodes",
+            sceneOnly.Nodes.Count == 1 && sceneOnly.Nodes[0].Name == "Scene A Box",
+            string.Join(", ", sceneOnly.Nodes.Select(node => node.Name)));
+
+        var capturedScript = sceneOnly.Nodes[0].Scripts?.FirstOrDefault();
+        Check("capturing a scene writes train scripts",
+            capturedScript?.Type == TrainCarComponent.ScriptType
+            && capturedScript.Properties["routeKey"].GetString() == "B"
+            && capturedScript.Properties["carIndex"].GetInt32() == 1
+            && Math.Abs(capturedScript.Properties["speed"].GetSingle() - 7.5f) < 0.001f);
+
+        var wholeWorld = ManaLevelCapture.Capture(world, "World");
+        Check("capturing the world still walks every scene",
+            wholeWorld.Nodes.Count == 2,
+            string.Join(", ", wholeWorld.Nodes.Select(node => node.Name)));
 
         // ---------------------------------------------------------------- format guards
         Check("a foreign json is rejected by name, not by null reference",
@@ -220,6 +320,13 @@ public static class LevelSerializationChecks
 
         Check("a mesh source carries its asset reference",
             ManaLevelSource.ForMesh("pack.zip|models/tree.glb").Asset == "pack.zip|models/tree.glb");
+
+        var relativeZipAsset = MeshAssetLibrary.EncodeRelativeZip("Assets/pack.zip", "Models/train.glb");
+        Check("a relative zip asset keeps its zip filename and entry",
+            MeshAssetLibrary.TryDecodeZip(relativeZipAsset, out var decodedZip, out var decodedEntry)
+            && Path.GetFileName(decodedZip).Equals("pack.zip", StringComparison.OrdinalIgnoreCase)
+            && decodedEntry == "Models/train.glb",
+            $"{decodedZip} | {decodedEntry}");
     }
 
     private static bool Throws(Action action)
@@ -233,5 +340,11 @@ public static class LevelSerializationChecks
         {
             return true;
         }
+    }
+
+    private static JsonElement JsonValue<T>(T value)
+    {
+        using var document = JsonSerializer.SerializeToDocument(value);
+        return document.RootElement.Clone();
     }
 }

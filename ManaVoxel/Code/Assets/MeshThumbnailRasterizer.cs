@@ -9,7 +9,7 @@ namespace ManaVoxel.Code.Assets
     /// Draws a small shaded preview of a mesh on the CPU.
     /// <para>
     /// On the CPU, and not through the renderer, on purpose. A thumbnail needs no pipeline, no bind group and
-    /// no render pass -- it needs a few thousand triangles projected into 64 pixels square, which is less
+    /// no render pass -- it needs a few thousand triangles projected into a tiny square, which is less
     /// work than the GPU path's setup would be. More importantly it can run on a background thread, which is
     /// what lets a folder of a thousand assets fill in gradually instead of stalling the frame that opened
     /// it; a render-to-texture path would have to be marshalled onto the render thread and read back, one
@@ -25,11 +25,19 @@ namespace ManaVoxel.Code.Assets
     {
         private const int BytesPerPixel = 4;
 
+        // Same fixed top-down isometric angle used by the WebGPU thumbnail renderer. The extra Z flip keeps
+        // this CPU rasterizer's older depth convention: lower Z is nearer, larger Z is farther away.
+        private static readonly Vector3 ViewForwardWorld = Vector3.Normalize(new Vector3(-1.0f, -1.35f, -1.0f));
+        private static readonly Vector3 ViewUpWorld = Vector3.UnitY;
+        private static readonly Matrix4x4 ViewTransform = CreateViewTransform();
+
         /// <summary>
         /// Where the light comes from, in view space. Above, in front and to the left: the standard
         /// three-quarter key light, which is what makes a silhouette read as a solid rather than a blob.
         /// </summary>
-        private static readonly Vector3 LightDirection = Vector3.Normalize(new Vector3(-0.4f, 0.75f, 0.5f));
+        private static readonly Vector3 LightDirection = Vector3.Normalize(Vector3.TransformNormal(
+            Vector3.Normalize(new Vector3(-0.45f, 0.85f, 0.35f)),
+            ViewTransform));
 
         /// <summary>Floor under the shading, so a face turned away is dim rather than black.</summary>
         private const float AmbientLight = 0.28f;
@@ -80,9 +88,7 @@ namespace ManaVoxel.Code.Assets
                 return null;
             }
 
-            // Rotated a little around both axes before projecting: a model authored facing the camera shows
-            // one flat face head-on, which says nothing about its shape. Three-quarter view says everything.
-            var view = Matrix4x4.CreateRotationY(-0.62f) * Matrix4x4.CreateRotationX(0.42f);
+            var view = ViewTransform;
 
             var (centre, radius) = BoundingSphere(mesh.Positions);
             if (radius <= 0.0f)
@@ -129,7 +135,7 @@ namespace ManaVoxel.Code.Assets
                 var c = ToScreen(vc, scale, size);
 
                 // A face normal from the triangle itself, so a mesh that shipped without normals still
-                // shades. Flat rather than smooth, which at 64px is indistinguishable.
+                // shades. Flat rather than smooth, which at thumbnail size is indistinguishable.
                 var normal = normals != null
                     ? Vector3.TransformNormal(normals[ia] + normals[ib] + normals[ic], view)
                     : Vector3.Cross(vb - va, vc - va);
@@ -157,6 +163,12 @@ namespace ManaVoxel.Code.Assets
             }
 
             return pixels;
+        }
+
+        private static Matrix4x4 CreateViewTransform()
+        {
+            var view = Matrix4x4.CreateLookAt(-ViewForwardWorld, Vector3.Zero, ViewUpWorld);
+            return view * Matrix4x4.CreateScale(1.0f, 1.0f, -1.0f);
         }
 
         /// <summary>

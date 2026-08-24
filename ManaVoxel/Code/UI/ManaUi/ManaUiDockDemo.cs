@@ -149,6 +149,12 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // Read each frame: the main camera is replaced on scene load.
             global::Mana.CameraComponent? camera() => world?.MainCamera;
+            Action<global::Mana.ManaScene>? saveScene = editor == null
+                ? null
+                : scene => editor.Levels.SaveScene(scene);
+            Func<global::Mana.ManaScene, bool>? sceneHasChanges = editor == null
+                ? null
+                : scene => editor.Levels.SceneHasChanges(scene);
 
             // Persistence stores ids and asks for the panel back by name, since content is application-owned.
             DockItem? Resolve(string id) => id switch
@@ -202,7 +208,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // world.Selection is the same instance the ImGui outliner and viewport use, so they can't drift apart.
                 "outliner" when world != null => new DockItem(
                     "Outliner",
-                    SceneOutlinerManaView.Build(theme, world, world.Selection)) { Id = "outliner" },
+                    SceneOutlinerManaView.Build(theme, world, world.Selection, saveScene, sceneHasChanges)) { Id = "outliner" },
                 "inspector" when world != null => new DockItem(
                     "Inspector",
                     SceneInspectorManaView.Build(theme, world.Selection, world.Context)) { Id = "inspector" },

@@ -202,9 +202,30 @@ public static class MeshAssetLibraryChecks
 
         Check("and reads as a normal asset",
             MeshAssetLibrary.FileName(zipRef) == "ship.glb"
+                && MeshAssetLibrary.DisplayName(zipRef) == "ship.glb"
                 && MeshAssetLibrary.Extension(zipRef) == ".glb"
                 && MeshAssetLibrary.FormatOf(zipRef) == MeshAssetFormats.Glb,
             MeshAssetLibrary.FileName(zipRef));
+
+        var genericChair = MeshAssetLibrary.EncodeZip(zipPath, "models/chair/model.glb");
+        var genericTable = MeshAssetLibrary.EncodeZip(zipPath, "models/table/model.glb");
+        var genericZipLibrary = new MeshAssetLibrary { Formats = MeshAssetFormats.All };
+        genericZipLibrary.SetAssets(new[] { genericChair, genericTable });
+        var genericZipEntries = AllEntries(genericZipLibrary.Tree).ToList();
+
+        Check("archive entries with generic file names keep their path",
+            genericZipEntries.Any(e => e.DisplayName == "models/chair/model.glb")
+                && genericZipEntries.Any(e => e.DisplayName == "models/table/model.glb"),
+            string.Join(", ", genericZipEntries.Select(e => e.DisplayName)));
+
+        Check("and same-named archive entries in different folders stay separate",
+            genericZipEntries.Count == 2,
+            string.Join(", ", genericZipEntries.Select(e => e.DisplayName)));
+
+        Check("archive tooltips decode to paths, not the internal token",
+            MeshAssetLibrary.Tooltip(genericChair).Contains("models/chair/model.glb", StringComparison.Ordinal)
+                && !MeshAssetLibrary.Tooltip(genericChair).Contains("zipasset:", StringComparison.Ordinal),
+            MeshAssetLibrary.Tooltip(genericChair));
 
         Check("a plain path is not mistaken for one",
             !MeshAssetLibrary.TryDecodeZip("/w/Assets/ship.glb", out _, out _));
