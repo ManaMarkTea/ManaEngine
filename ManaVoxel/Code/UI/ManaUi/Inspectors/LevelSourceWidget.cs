@@ -46,7 +46,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                         () => node.LevelSource?.Color ?? Vector4.One,
                         value => UpdateShapeSource(node, color: value))));
                     rows.Add(InspectorControls.Row(context, SizeLabel(node), InspectorControls.Vector(
-                        () => node.LevelSource?.Size ?? Vector3.One,
+                        () => DisplaySize(node.LevelSource?.Shape, node.LevelSource?.Size ?? Vector3.One),
                         value => UpdateShapeSource(node, size: Positive(value)),
                         step: 0.05f)));
                     break;
@@ -65,6 +65,15 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     break;
 
                 case ManaLevelSourceKind.PlayerStart:
+                    break;
+
+                case ManaLevelSourceKind.Planet:
+                    rows.Add(InspectorControls.Row(context, "Baseline", ReadOnly(theme, () => AssetLabel(node))));
+                    break;
+
+                case ManaLevelSourceKind.Water:
+                    rows.Add(InspectorControls.Row(context, "Surface", ReadOnly(theme, () => WaterSize(node))));
+                    rows.Add(InspectorControls.Row(context, "Resolution", ReadOnly(theme, () => WaterResolution(node))));
                     break;
             }
 
@@ -108,7 +117,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             var previousShape = source.Shape ?? "Cube";
             var nextShape = shape ?? previousShape;
             var nextColor = color ?? source.Color;
-            var nextSize = Positive(size ?? source.Size);
+            var displaySize = Positive(size ?? DisplaySize(previousShape, source.Size));
+            var nextSize = SourceSizeFromDisplaySize(nextShape, displaySize);
             var shapeChanged = !string.Equals(previousShape, nextShape, StringComparison.Ordinal);
 
             node.LevelSource = ManaLevelSource.ForShape(nextShape, nextColor, nextSize);
@@ -142,7 +152,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             }
 
             node.UpdateTransform();
-            ResizeBoxCollisionToShape(node, shape, size);
+            ResizeBoxCollisionToVisualBounds(node, shape, size);
         }
 
         private static ManaMesh CreateShapeMesh(ManaContext context, string shape, Vector4 color, Vector3 size)
@@ -166,28 +176,45 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 || string.Equals(shape, "Quad", StringComparison.Ordinal);
         }
 
-        private static void ResizeBoxCollisionToShape(ManaSceneNode node, string shape, Vector3 size)
+        private static Vector3 DisplaySize(string? shape, Vector3 sourceSize)
+        {
+            return sourceSize;
+        }
+
+        private static Vector3 SourceSizeFromDisplaySize(string? shape, Vector3 displaySize)
+        {
+            return displaySize;
+        }
+
+        private static void ResizeBoxCollisionToVisualBounds(ManaSceneNode node, string shape, Vector3 size)
         {
             if (!TryGetBoxCollision(node, out var collision, out _))
             {
                 return;
             }
 
+            var colliderSize = ColliderSizeForShape(shape, size);
             var offset = collision.Position;
+            if (ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset))
+            {
+                colliderSize = visualSize;
+                offset = visualOffset;
+            }
+
             node.Context.Physics.RemoveBody(collision.Body);
-            node.Context.Physics.AddBoxBody(node, ColliderSizeForShape(shape, size), offset);
+            node.Context.Physics.AddBoxBody(node, colliderSize, offset);
         }
 
         private static Vector3 ColliderSizeForShape(string shape, Vector3 size)
         {
-            return ShapeBakesSize(shape) ? size * 2.0f : size;
+            return size;
         }
 
         private static string SizeLabel(ManaSceneNode node)
         {
             return node.LevelSource?.Shape switch
             {
-                "Cube" => "Half size",
+                "Cube" => "Size",
                 "Quad" => "Quad size",
                 _ => "Source scale"
             };
@@ -239,6 +266,20 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         {
             return node is ManaVoxelsNode voxels
                 ? voxels.VoxelShape.CommittedVoxels.Count.ToString("N0")
+                : "0";
+        }
+
+        private static string WaterSize(ManaSceneNode node)
+        {
+            return node is ManaWaterNode water
+                ? $"{water.Mesh.Size.X:0.##} x {water.Mesh.Size.Y:0.##}"
+                : "missing";
+        }
+
+        private static string WaterResolution(ManaSceneNode node)
+        {
+            return node is ManaWaterNode water
+                ? water.Mesh.Resolution.ToString("N0")
                 : "0";
         }
 

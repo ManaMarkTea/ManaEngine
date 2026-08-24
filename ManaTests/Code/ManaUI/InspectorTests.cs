@@ -1,3 +1,4 @@
+using BepuPhysics.Collidables;
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
@@ -920,6 +921,44 @@ public static class InspectorChecks
             Check("pinning collider debug writes to the collision component",
                 collision.ShowDebug,
                 $"{collision.ShowDebug}");
+        }
+
+        var cubeNode = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Platform Cube",
+            LevelSource = ManaLevelSource.ForShape("Cube", Vector4.One, new Vector3(6.0f, 2.0f, 10.0f))
+        };
+        cubeNode.Components.Add(new MeshRendererComponent(cubeNode, new ManaCube(context, Vector4.One, new Vector3(6.0f, 2.0f, 10.0f))));
+        scene.Children.Add(cubeNode);
+        context.Physics.AddBoxBody(cubeNode, new Vector3(6.0f, 2.0f, 10.0f), Vector3.Zero);
+
+        world.Selection.SelectedNode = cubeNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
+        var cubeText = string.Join(" | ", FindAll<TextBlock>(view).Select(t => t.Text));
+        Check("cube level source labels the editable value as full size",
+            cubeText.Contains("Size", StringComparison.Ordinal) && !cubeText.Contains("Half size", StringComparison.Ordinal),
+            cubeText);
+
+        var cubeSize = FindAll<VectorBox>(view)
+            .FirstOrDefault(box => box.Value == new Vector3(6.0f, 2.0f, 10.0f));
+        Check("cube level source presents full visual size",
+            cubeSize != null,
+            string.Join(", ", FindAll<VectorBox>(view).Select(box => box.Value.ToString())));
+
+        if (cubeSize != null)
+        {
+            cubeSize.Value = new Vector3(8.0f, 1.0f, 4.0f);
+            var resizedCollision = cubeNode.GetComponents<ManaCollisionComponent>()
+                .FirstOrDefault(component => component.Shape is Box);
+            Box? resizedBox = resizedCollision?.Shape is Box box ? box : null;
+
+            Check("editing cube full size stores the visual size in the level recipe",
+                cubeNode.LevelSource?.Size == new Vector3(8.0f, 1.0f, 4.0f),
+                cubeNode.LevelSource?.Size.ToString() ?? "null");
+            Check("editing cube full size resizes the box collider to full extents",
+                resizedBox is { Width: 8.0f, Height: 1.0f, Length: 4.0f },
+                resizedBox == null ? "missing" : $"{resizedBox.Value.Width}, {resizedBox.Value.Height}, {resizedBox.Value.Length}");
         }
 
         var levelChild = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Level Mesh Child" };

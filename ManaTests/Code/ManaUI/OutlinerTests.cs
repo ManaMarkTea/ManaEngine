@@ -29,9 +29,15 @@ public static class OutlinerChecks
         var parent = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Parent" };
         var childA = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Child A" };
         var childB = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Child B" };
+        var transient = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Transform Gizmo (Transient)",
+            IsEditorTransient = true
+        };
 
         parent.Children.Add(childA);
         parent.Children.Add(childB);
+        parent.Children.Add(transient);
         scene.Children.Add(parent);
         world.Scenes.Add(scene);
 
@@ -113,6 +119,9 @@ public static class OutlinerChecks
 
         tree.Expand(parent);
         root.UpdateLayout(new Vector2(360, 640));
+        Check("editor transient nodes stay out of the hierarchy",
+            !tree.VisibleItems.Contains(transient),
+            string.Join(", ", tree.VisibleItems.Select(item => item.ToString())));
         Check("expanding a node shows its children",
             tree.VisibleItems.Contains(childA) && tree.VisibleItems.Contains(childB),
             $"{tree.VisibleItems.Count} rows");

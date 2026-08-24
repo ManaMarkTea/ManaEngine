@@ -4,7 +4,6 @@ using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Mana.Code.UI;
-using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.Assets;
@@ -48,7 +47,8 @@ namespace Mana.Code.GameModes
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
         private PlayModeController? _playMode;
-        private TrainLoopController? _trainLoop;
+        private TrackDebugVisualization? _trackDebugVisualization;
+        private SceneTransformGizmo? _transformGizmo;
         private const string ZipAssetPrefix = "zipasset:";
         private bool _firstFrame = true;
         private bool _meshPickerDragWasDown;
@@ -212,6 +212,8 @@ namespace Mana.Code.GameModes
             InitCustomNodeInspectorHooks();
 
             var world = Context.World;
+            _transformGizmo = new SceneTransformGizmo(world);
+            _trackDebugVisualization = new TrackDebugVisualization(world);
 
             // Shares the editor's picking exclusions so a click-to-move order falls through the grid
             // planes onto the ground plane, exactly like the voxel placement raycast does.
@@ -257,7 +259,7 @@ namespace Mana.Code.GameModes
 
                     float gridSize = 256.0f;
                     float halfGridSize = gridSize * 0.5f;
-                    ManaSceneNode xzPlane, yxPlane, zyPlane, voxelsNode;
+                    ManaSceneNode xzPlane, yxPlane, zyPlane;
 
                     ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
 
@@ -286,8 +288,6 @@ namespace Mana.Code.GameModes
                         pickup.Name = "Pickup Donut";
                         pickup.Components.Add(new ManaPickupMotionComponent(pickup));
                         pickup.LevelSource = null;
-
-                        voxelsNode = shapes.AddVoxels(Vector3.Zero);
                     }
 
                     Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
@@ -300,64 +300,12 @@ namespace Mana.Code.GameModes
                     _pickingExclusions.Add(zyPlane);
                     _pickingExclusions.Add(Cursor);
 
-                    // 2. Load voxel model
-                    Loading.Report(new ManaLoadingProgress("Loading MagicaVox model", 0.5f));
-                    MagicaVoxLoader vox = new MagicaVoxLoader();
-                    vox.Load();
-                    var voxelNode = (ManaVoxelsNode)voxelsNode;
-                    voxelNode.Name = "Startup Voxels";
-                    var voxelShapes = voxelsNode.FindShapes<ManaVoxelShape>();
-                    Debug.Assert(voxelShapes.Count == 1);
-
-                    var voxelProgressInterval = Math.Max(1, vox.Voxels.Count / 100);
-                    for (var voxelIndex = 0; voxelIndex < vox.Voxels.Count; voxelIndex++)
-                    {
-                        var voxel = vox.Voxels[voxelIndex];
-                        voxelShapes[0].AddVoxel(voxel.Position + Vector3.One * 0.5f, voxel.Color);
-                        if (voxelIndex == vox.Voxels.Count - 1 || voxelIndex % voxelProgressInterval == 0)
-                        {
-                            var importedVoxelFraction = (voxelIndex + 1) / (float)Math.Max(1, vox.Voxels.Count);
-                            Loading.Report(new ManaLoadingProgress(
-                                $"Building voxel model ({voxelIndex + 1:N0}/{vox.Voxels.Count:N0})",
-                                0.5f + importedVoxelFraction * 0.25f));
-                        }
-                    }
-
-                    voxelShapes[0].CommitData();
-                    _viewModel.AttachVoxelData(voxelShapes[0], voxelNode);
-
-                    // 3. Load Flight Helmet scene model
-                    Loading.Report(new ManaLoadingProgress("Loading FlightHelmet GLTF model", 0.8f));
-                    lock (world.SceneLock)
-                    {
-                        AddFlightHelmetReferenceModel();
-                    }
-
-                    // 4. Add a demo planet node. Water polygons load first -- patch colouring reads
-                    // GeoWaterMask.Shared as the meshes generate.
-                    Loading.Report(new ManaLoadingProgress("Loading water polygons", 0.88f));
-                    LoadWaterMask();
-
-                    Loading.Report(new ManaLoadingProgress("Generating planet", 0.9f));
-                    lock (world.SceneLock)
-                    {
-                        AddPlanetDemo();
-                    }
-
-                    // 5. Probe for demo KML placemarks (real-world airspace boundaries). Deliberately only
+                    // Probe for optional KML placemarks. Deliberately only
                     // a file-existence check -- the actual parse/mesh build happens lazily the first time
                     // View > Show Airspace (KML) is switched on, so startup never pays for an overlay
                     // that's off by default (see SyncKmlAirspaceVisibility).
-                    Loading.Report(new ManaLoadingProgress("Checking for KML placemarks", 0.95f));
+                    Loading.Report(new ManaLoadingProgress("Checking for KML placemarks", 0.9f));
                     _viewModel.KmlAirspaceAvailable = File.Exists(KmlDemoFilePath);
-
-                    // 6. Add boundary line overlays (Natural Earth admin-0/admin-1 boundaries)
-                    Loading.Report(new ManaLoadingProgress("Loading boundary lines", 0.98f));
-                    lock (world.SceneLock)
-                    {
-                        AddCountryBordersDemo();
-                        AddStateBordersDemo();
-                    }
 
                     LoadingCoordinator.CompleteBackgroundWork();
                 }
@@ -394,12 +342,6 @@ namespace Mana.Code.GameModes
                 liquidRenderer.DrawAfterScene = true;
             }
 
-            // Built here (not in the background asset-loading task like the demo spheres above)
-            // because ManaWaterPlane.GenerateMaterial() constructs its ManaWaterShader eagerly,
-            // which needs a live graphics context rather than the deferred-upload path.
-            _water = new ManaWaterNode(Context, new Vector2(48, 48), 128);
-            _water.Position = new Vector3(64, 16, 64);
-            _water.UpdateTransform();
         }
 
         protected override bool CanCompleteLoading()
@@ -433,48 +375,7 @@ namespace Mana.Code.GameModes
                 0.95f + environmentLoading.Fraction * 0.05f));
         }
 
-        private void AddFlightHelmetReferenceModel()
-        {
-            var helmetPath = ResolveManaAssetPath(Path.Combine("Assets", "Models", "FlightHelmet", "glTF", "FlightHelmet.gltf"));
-            try
-            {
-                var helmetRoot = Context.World.LoadFromGltf(helmetPath);
-                helmetRoot.Name = "Flight Helmet";
-                helmetRoot.Position = new Vector3(96.0f, 32.0f, 32.0f);
-                helmetRoot.Rotation = new Vector3(0.0f, 35.0f.ToRadians(), 0.0f);
-                helmetRoot.Scale = Vector3.One * 80.0f;
-                helmetRoot.UpdateTransform();
-
-                if (Context.World.Scenes.Count > 0)
-                {
-                    Context.World.Scenes[^1].Name = "Flight Helmet Scene";
-                }
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to load Flight Helmet reference model: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to load Flight Helmet reference model: {ex}");
-            }
-        }
-
-        // Bundled baseline: NOAA ETOPO 2022 at 60 arc-second resolution, one global GeoTIFF
-        // (~444MB, tracked via Git LFS — see .gitattributes), ships with the project under
-        // Mana/Assets/Planet/ and is what the whole-globe patch grid loads by default.
-        //
-        // A separate, much finer 15 arc-second regional set (288 tiles, ~4.9GB, covering lat
-        // 15N-45N/lon 90W-135W) already lives locally at PlanetDetailCacheFolder — that's *not* a
-        // repo asset, it's the future on-demand streaming cache: once camera-distance patch
-        // streaming exists, approaching that region should swap in those tiles for real detail
-        // instead of the coarse global baseline. Not wired up yet — this method only reads the
-        // bundled baseline for now.
-        private const string PlanetBaselineAssetRelativePath = @"Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif";
         private const string PlanetDetailCacheFolder = @"C:\Users\night\Code\ManaAirSpace\Textures\HeightMaps\ETOPO2022";
-
-        // Planet patches are cube-sphere tiles (6 faces x this many x this many), not lat/long-degree
-        // tiles — see PlanetNode's doc comment for why (uniform patch size everywhere, no polar
-        // wedge degeneration). 6 gives 216 total patches, comparable to (actually fewer than) the
-        // 288 the old 15-degree lat/long grid produced.
-        private const int PlanetPatchesPerFaceEdge = 6;
 
         // SceneInspectorPanelView (Mana) can't reference PlanetNode/ManaLineMesh-using nodes
         // (ManaGeoTools) directly — wrong dependency direction — so it exposes a hook that ManaVoxel
@@ -855,51 +756,6 @@ namespace Mana.Code.GameModes
             world.RecordFrameStat("GPU: Draw Meshes", TimeSpan.FromMilliseconds(_webGpuContext.LastDrawMs));
             world.RecordFrameStat("GPU: Submit + Present", TimeSpan.FromMilliseconds(_webGpuContext.LastSubmitMs));
             world.RecordFrameStat("GPU: ClearFrame Total", TimeSpan.FromMilliseconds(_webGpuContext.LastFrameTotalMs));
-        }
-
-        private void AddPlanetDemo()
-        {
-            try
-            {
-                // Radius/position sized for this scene (256-unit grid), not the ManaGeoTools default
-                // of 100 — placed in a clear corner, elevated well above the ground plane.
-                // heightExaggeration=300 makes real terrain/bathymetry read as a visible bump at this
-                // radius; true-scale relief (exaggeration=1) is nearly flat at planet scale, same as
-                // it looks on the real Earth from orbit.
-                // resolution=24 is only the smooth placeholder grid. Once the ETOPO baseline decodes,
-                // PlanetNode raises baseline terrain patches up to its bounded baseline cap; still no
-                // camera-distance LOD/streaming, so the whole globe builds and stays resident up front.
-                //
-                // Construction itself is instant (a smooth placeholder sphere, no GeoTIFF decode);
-                // LoadHeightDataAsync below kicks off the real ~9s decode in the background and swaps
-                // in real terrain/color as it completes, without blocking this load task or the
-                // loading screen.
-                _planet = new PlanetNode(
-                    Context,
-                    patchesPerFaceEdge: PlanetPatchesPerFaceEdge,
-                    radius: 40.0f, resolution: 24,
-                    heightExaggeration: 1.0f,
-                    // Keep the ocean's startup mesh on the same baseline-resolution knob as terrain.
-                    // This is a numeric match, not exact spatial density: exact matching would require
-                    // a tiled ocean mesh or a much higher per-face resolution.
-                    oceanResolution: PlanetNode.DefaultBaselineMaxPatchMeshResolution);
-                _planet.Position = new Vector3(200.0f, 60.0f, 200.0f);
-                _planet.UpdateTransform();
-
-                Context.World.DefaultScene.Children.Add(_planet);
-
-                var baselinePath = ResolveManaAssetPath(PlanetBaselineAssetRelativePath);
-                if (File.Exists(baselinePath))
-                {
-                    var heightLibrary = new GeoTiffLibrary(Path.GetDirectoryName(baselinePath)!);
-                    _planet.LoadHeightDataAsync(heightLibrary);
-                }
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to build demo planet: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to build demo planet: {ex}");
-            }
         }
 
         // Local convenience path to real-world KML airspace data (AirspaceConverter output, sourced
@@ -1744,7 +1600,7 @@ namespace Mana.Code.GameModes
             // sibling stuck outlined forever.
             var selectedNode = Context.World.Selection.SelectedNode;
             var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
-            SyncSelectionColliderDebug(selectedNode);
+            SyncSelectionColliderDebug(_viewModel.ShowSelectedColliderBounds ? selectedNode : null);
 
             HashSet<MeshRendererComponent> targetOutlinedComponents;
             if (selectedComponent != null)
@@ -2153,9 +2009,17 @@ namespace Mana.Code.GameModes
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();
                 _viewModel.ClearHoveredVoxel();
-                UpdateSelectionPointerInteraction(inputCaptured, MouseState);
+                var gizmoCaptured = _transformGizmo?.Update(
+                    Context.World.Selection.SelectedNode,
+                    _viewModel.TransformGizmoMode,
+                    _viewModel.ShowTransformGizmo,
+                    inputCaptured,
+                    MouseState) == true;
+                UpdateSelectionPointerInteraction(inputCaptured || gizmoCaptured, MouseState);
                 return;
             }
+
+            _transformGizmo?.Hide();
 
             var toolKind = VoxelToolCatalog.GetToolKind(_viewModel.SelectedToolIndex);
             if (toolKind is VoxelToolKind.Paint or VoxelToolKind.FloodFill or VoxelToolKind.Erase)
@@ -2582,6 +2446,7 @@ namespace Mana.Code.GameModes
                 {
                     Name = "Selection Collider Debug (Transient)",
                     IncludeInEnvironmentCapture = false,
+                    IsEditorTransient = true,
                     LevelSource = null
                 };
 
@@ -2604,6 +2469,7 @@ namespace Mana.Code.GameModes
                     {
                         Name = $"Collider {CollisionOwnerName(collision.Owner)}",
                         IncludeInEnvironmentCapture = false,
+                        IsEditorTransient = true,
                         LevelSource = null
                     };
 
@@ -2858,17 +2724,20 @@ namespace Mana.Code.GameModes
             OpenStartupLevelIfRequested();
 
             UpdatePlayModeShortcuts();
+            _trackDebugVisualization?.SetVisibility(
+                _viewModel.ShowTrackBounds,
+                _viewModel.ShowTrackPivots,
+                _viewModel.ShowTrackSnapPoints);
 
             // While playing, everything below this line is the editor acting on a pointer that now belongs
             // to the game: picking, voxel placement, mesh drag-and-drop, selection outlines. Only the things
             // the world needs regardless -- streaming, and the character's own input -- carry on.
             if (_playMode is { IsPlaying: true })
             {
+                _transformGizmo?.Hide();
                 ClearSelectionColliderDebug();
                 PumpPlanetStreaming();
                 _pawnController?.UpdateDriveInput(UiWantsKeyboard);
-                _trainLoop?.UpdateDebugInput(Context, UiWantsKeyboard);
-                _trainLoop?.Update(ManaTime.GlobalTime.DeltaTime.TotalSeconds);
                 return;
             }
 
@@ -2912,7 +2781,7 @@ namespace Mana.Code.GameModes
             // sibling stuck outlined forever.
             var selectedNode = Context.World.Selection.SelectedNode;
             var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
-            SyncSelectionColliderDebug(selectedNode);
+            SyncSelectionColliderDebug(_viewModel.ShowSelectedColliderBounds ? selectedNode : null);
 
             HashSet<MeshRendererComponent> targetOutlinedComponents;
             if (selectedComponent != null)
@@ -3068,18 +2937,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var sceneChildren = Context.World.DefaultScene.Children;
-            if (_viewModel.ShowWater)
-            {
-                if (!sceneChildren.Contains(_water))
-                {
-                    sceneChildren.Add(_water);
-                }
-            }
-            else
-            {
-                sceneChildren.Remove(_water);
-            }
+            _water.MeshRenderer.IsVisible = _viewModel.ShowWater;
         }
 
         // Bridges the View menu's plain bool (VoxelEditorViewModel, ManaVoxel layer) into the renderer-
@@ -3146,20 +3004,27 @@ namespace Mana.Code.GameModes
             var mouseEnd = new Vector3(mouse.Position, 1.0f);
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
 
-            var waterY = water.Position.Y;
-            if (MathF.Abs(ray.Direction.Y) < 0.0001f)
+            var waterOrigin = water.WorldTransform.Translation;
+            var waterNormal = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, water.WorldTransform));
+            var denominator = Vector3.Dot(ray.Direction, waterNormal);
+            if (MathF.Abs(denominator) < 0.0001f)
             {
                 return;
             }
 
-            var travel = (waterY - ray.Origin.Y) / ray.Direction.Y;
+            var travel = Vector3.Dot(waterOrigin - ray.Origin, waterNormal) / denominator;
             if (travel <= 0.0f)
             {
                 return;
             }
 
             var worldHit = ray.Origin + ray.Direction * travel;
-            var localHit = worldHit - water.Position;
+            if (!Matrix4x4.Invert(water.WorldTransform, out var worldToWater))
+            {
+                return;
+            }
+
+            var localHit = Vector3.Transform(worldHit, worldToWater);
             var halfSize = water.Mesh.Size * 0.5f;
             if (MathF.Abs(localHit.X) > halfSize.X || MathF.Abs(localHit.Z) > halfSize.Y)
             {

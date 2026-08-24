@@ -1,9 +1,12 @@
 using System.Text.Json;
+using BepuPhysics.Collidables;
 using Mana;
 using Mana.Code;
+using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using ManaCore.Graphics;
+using ManaGeoTools.Code.Planet;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Gameplay.Trains;
@@ -26,6 +29,23 @@ public static class LevelSerializationChecks
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        static IEnumerable<ManaLevelNode> WalkNodes(IEnumerable<ManaLevelNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                yield return node;
+                if (node.Children == null)
+                {
+                    continue;
+                }
+
+                foreach (var child in WalkNodes(node.Children))
+                {
+                    yield return child;
+                }
+            }
+        }
 
         // ---------------------------------------------------------------- json round trip
         var level = new ManaLevel
@@ -90,7 +110,7 @@ public static class LevelSerializationChecks
             platform.Shape == "Cube"
             && platform.Color![2] == 0.75f
             && platform.Size![1] == 0.25f
-            && platform.Collision!.Size[0] == 3.0f);
+            && platform.Collision!.Size![0] == 3.0f);
 
         var platformScript = platform.Scripts?.FirstOrDefault();
         Check("a node keeps script component data",
@@ -137,6 +157,229 @@ public static class LevelSerializationChecks
         Check("player start lookup walks grouped children",
             groupedReloaded.PlayerStart?.Position[0] == 7.0f);
 
+        var waterReloaded = ManaLevel.FromJson(new ManaLevel
+        {
+            Name = "Water Round Trip",
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Pond Water",
+                    Kind = ManaLevelSourceKind.Water,
+                    Position = new[] { 32.0f, 0.2f, 32.0f },
+                    Water = new ManaLevelWater
+                    {
+                        Size = new[] { 18.0f, 12.0f },
+                        Resolution = 72
+                    }
+                }
+            }
+        }.ToJson());
+        Check("water construction settings survive JSON",
+            waterReloaded.Nodes.SingleOrDefault() is
+            {
+                Kind: ManaLevelSourceKind.Water,
+                Water: { Resolution: 72 }
+            } waterEntry
+            && waterEntry.Water.Size.SequenceEqual(new[] { 18.0f, 12.0f }));
+
+        var gizmoType = typeof(Mana.Code.GameModes.VoxelEditorGameMode).Assembly.GetType(
+            "Mana.Code.GameModes.SceneTransformGizmo");
+        var projectAxis = gizmoType?.GetMethod(
+            "TryAxisParameterOnPlane",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var distanceToHandle = gizmoType?.GetMethod(
+            "DistanceFromRayToSegment",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Check("gizmo drag projection helpers are available", projectAxis != null && distanceToHandle != null);
+
+        if (projectAxis != null)
+        {
+            object?[] centerRay =
+            {
+                new Vector3(0, 0, 10),
+                Vector3.Normalize(new Vector3(0, 0, -10)),
+                Vector3.Zero,
+                Vector3.UnitX,
+                Vector3.UnitZ,
+                0.0f
+            };
+            object?[] rightRay =
+            {
+                new Vector3(0, 0, 10),
+                Vector3.Normalize(new Vector3(1, 0, -10)),
+                Vector3.Zero,
+                Vector3.UnitX,
+                Vector3.UnitZ,
+                0.0f
+            };
+            object?[] upRay =
+            {
+                new Vector3(0, 0, 10),
+                Vector3.Normalize(new Vector3(0, 1, -10)),
+                Vector3.Zero,
+                Vector3.UnitY,
+                Vector3.UnitZ,
+                0.0f
+            };
+
+            var centerProjected = projectAxis.Invoke(null, centerRay) is true;
+            var rightProjected = projectAxis.Invoke(null, rightRay) is true;
+            var upProjected = projectAxis.Invoke(null, upRay) is true;
+            var centerParameter = centerRay[5] is float center ? center : float.NaN;
+            var rightParameter = rightRay[5] is float right ? right : float.NaN;
+            var upParameter = upRay[5] is float up ? up : float.NaN;
+            Check("gizmo X follows the mouse right at scene scale",
+                centerProjected && rightProjected
+                && MathF.Abs(centerParameter) < 0.001f
+                && MathF.Abs(rightParameter - 1.0f) < 0.001f,
+                $"{centerParameter:0.###} -> {rightParameter:0.###}");
+            Check("gizmo Y follows the mouse up at scene scale",
+                upProjected && MathF.Abs(upParameter - 1.0f) < 0.001f,
+                upParameter.ToString("0.###"));
+        }
+
+        if (distanceToHandle != null)
+        {
+            var directHit = (float)distanceToHandle.Invoke(null, new object[]
+            {
+                new Vector3(0, 0, 10),
+                Vector3.Normalize(new Vector3(1, 0, -10)),
+                Vector3.Zero,
+                new Vector3(2, 0, 0)
+            })!;
+            var clearMiss = (float)distanceToHandle.Invoke(null, new object[]
+            {
+                new Vector3(0, 0, 10),
+                Vector3.Normalize(new Vector3(0, 1, -10)),
+                Vector3.Zero,
+                new Vector3(2, 0, 0)
+            })!;
+            Check("gizmo shafts have stable analytic hit targets",
+                directHit < 0.001f && clearMiss > 0.5f,
+                $"hit {directHit:0.###}, miss {clearMiss:0.###}");
+        }
+
+        var planetWorld = new ManaWorld();
+        var planetContext = new ManaContext(null!, null!, planetWorld) { DeferGpuUploads = true };
+        var planetScene = new ManaScene(planetContext) { Name = "Planet Scene" };
+        planetWorld.Scenes.Add(planetScene);
+        var planetResult = ManaLevelLoader.Load(
+            new ManaLevel
+            {
+                Nodes =
+                {
+                    new ManaLevelNode
+                    {
+                        Name = "Tiny Planet",
+                        Kind = ManaLevelSourceKind.Planet,
+                        Position = new[] { 1.0f, 2.0f, 3.0f },
+                        Scale = new[] { 1.0f, 1.0f, 1.0f },
+                        Planet = new ManaLevelPlanet
+                        {
+                            PatchesPerFaceEdge = 1,
+                            Radius = 3.0f,
+                            Resolution = 2,
+                            OceanResolution = 2,
+                            HeightExaggeration = 4.0f,
+                            AutoLodEnabled = true,
+                            NearOceanEnabled = false
+                        }
+                    }
+                }
+            },
+            planetContext,
+            planetScene,
+            replaceAuthoredNodes: false);
+        Check("planet level data constructs a planet node",
+            planetResult.Planet is
+            {
+                Name: "Tiny Planet",
+                PatchesPerFaceEdge: 1,
+                Radius: 3.0f,
+                Resolution: 2,
+                OceanResolution: 2,
+                AutoLodEnabled: true,
+                NearOceanEnabled: false
+            }
+            && planetResult.Planet.Position == new Vector3(1.0f, 2.0f, 3.0f));
+
+        var capturedPlanet = ManaLevelCapture.CaptureScene(planetWorld, planetScene, "Planet Scene");
+        Check("saving a planet preserves its construction settings",
+            capturedPlanet.Nodes.SingleOrDefault()?.Planet is
+            {
+                PatchesPerFaceEdge: 1,
+                Radius: 3.0f,
+                OceanResolution: 2,
+                HeightExaggeration: 4.0f
+            });
+
+        var builtInLevelNames = new[]
+        {
+            "Voxel Showcase",
+            "Flight Helmet",
+            "Planet Showcase",
+            "PBR Gallery",
+            "Little Pond"
+        };
+        var builtInLevels = builtInLevelNames
+            .Select(name => ManaLevelLibrary.ResolvePath(name))
+            .Where(File.Exists)
+            .Select(ManaLevel.Load)
+            .ToList();
+        Check("showcase content lives in separate level files",
+            builtInLevels.Count == builtInLevelNames.Length,
+            string.Join(", ", builtInLevels.Select(item => item.Name)));
+
+        var voxelShowcase = builtInLevels.FirstOrDefault(item => item.Name == "Voxel Showcase");
+        Check("the voxel showcase references the Captain asset",
+            voxelShowcase?.Nodes.Any(node =>
+                node.Kind == ManaLevelSourceKind.Voxels
+                && node.Asset?.EndsWith("Captain.vox", StringComparison.OrdinalIgnoreCase) == true) == true);
+
+        var planetShowcase = builtInLevels.FirstOrDefault(item => item.Name == "Planet Showcase");
+        Check("the planet showcase carries authored streaming settings",
+            planetShowcase?.Nodes.SingleOrDefault(node => node.Kind == ManaLevelSourceKind.Planet)?.Planet is
+            {
+                PatchesPerFaceEdge: 6,
+                Radius: 40.0f
+            });
+
+        var gallery = builtInLevels.FirstOrDefault(item => item.Name == "PBR Gallery");
+        var galleryMeshes = WalkNodes(gallery?.Nodes ?? Enumerable.Empty<ManaLevelNode>())
+            .Where(node => node.Kind == ManaLevelSourceKind.Mesh)
+            .ToList();
+        Check("the PBR gallery presents four material-rich models",
+            galleryMeshes.Count == 4,
+            string.Join(", ", galleryMeshes.Select(node => node.Name)));
+        Check("every gallery model resolves from its portable asset path",
+            galleryMeshes.All(node =>
+                node.Asset != null && File.Exists(ManaLevelLoader.ResolveAssetPath(node.Asset))),
+            string.Join(", ", galleryMeshes.Select(node => node.Asset)));
+
+        var pond = builtInLevels.FirstOrDefault(item => item.Name == "Little Pond");
+        var pondWater = WalkNodes(pond?.Nodes ?? Enumerable.Empty<ManaLevelNode>())
+            .SingleOrDefault(node => node.Kind == ManaLevelSourceKind.Water);
+        Check("the pond owns a ripple-capable water surface",
+            pondWater?.Water is { Resolution: 96 } pondSettings
+            && pondSettings.Size.SequenceEqual(new[] { 16.0f, 16.0f }));
+
+        var allBundledLevels = Directory
+            .EnumerateFiles(Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!, "*.manalevel")
+            .Select(ManaLevel.Load)
+            .ToList();
+        Check("bundled level cameras stay clear of the zero-axis grid walls",
+            allBundledLevels.All(item => item.Camera is { Position.Length: >= 3 }
+                && item.Camera.Position[0] >= 32.0f
+                && item.Camera.Position[2] >= 32.0f),
+            string.Join(", ", allBundledLevels.Select(item => item.Name)));
+        Check("bundled level roots use the 32,0,32 scene offset",
+            allBundledLevels.All(item => item.Nodes.Count > 0
+                && item.Nodes.All(node => node.Position.Length >= 3
+                    && node.Position[0] >= 32.0f
+                    && node.Position[2] >= 32.0f)),
+            string.Join(", ", allBundledLevels.Select(item => item.Name)));
+
         // ---------------------------------------------------------------- scene capture
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world);
@@ -173,6 +416,129 @@ public static class LevelSerializationChecks
             && capturedScript.Properties["routeKey"].GetString() == "B"
             && capturedScript.Properties["carIndex"].GetInt32() == 1
             && Math.Abs(capturedScript.Properties["speed"].GetSingle() - 7.5f) < 0.001f);
+
+        Check("runtime train state is transient",
+            capturedScript != null && !capturedScript.Properties.ContainsKey("paused"));
+
+        var scriptedWorld = new ManaWorld();
+        var scriptedContext = new ManaContext(null!, null!, scriptedWorld);
+        var scriptedScene = new ManaScene(scriptedContext) { Name = "Scripted Scene" };
+        scriptedWorld.Scenes.Add(scriptedScene);
+
+        var scriptedLevel = new ManaLevel
+        {
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Scripted Train",
+                    Kind = ManaLevelSourceKind.Group,
+                    Scripts = new List<ManaLevelScript>
+                    {
+                        new()
+                        {
+                            Type = TrainCarComponent.ScriptType,
+                            Properties =
+                            {
+                                ["routeKey"] = JsonValue("C"),
+                                ["carIndex"] = JsonValue(4),
+                                ["speed"] = JsonValue(8.75f),
+                                ["paused"] = JsonValue(false)
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var scriptedResult = ManaLevelLoader.Load(
+            scriptedLevel,
+            scriptedContext,
+            scriptedScene,
+            replaceAuthoredNodes: false);
+        var loadedTrain = scriptedResult.Nodes[0].GetComponents<TrainCarComponent>().FirstOrDefault();
+        Check("script json applies directly to the train component",
+            loadedTrain != null
+            && loadedTrain.RouteKey == "C"
+            && loadedTrain.CarIndex == 4
+            && Math.Abs(loadedTrain.Speed - 8.75f) < 0.001f);
+
+        Check("transient train state is not applied from json",
+            loadedTrain?.Paused == true);
+
+        var scriptedTrainStart = loadedTrain?.Owner.Position ?? Vector3.Zero;
+        scriptedWorld.BeginPlay();
+        Check("world play starts scripted components",
+            scriptedWorld.IsPlaying && loadedTrain?.Paused == false);
+
+        if (loadedTrain != null)
+        {
+            loadedTrain.Owner.Position = new Vector3(99.0f, 88.0f, 77.0f);
+        }
+
+        scriptedWorld.EndPlay();
+        Check("world stop restores scripted component state",
+            !scriptedWorld.IsPlaying
+            && loadedTrain?.Paused == true
+            && loadedTrain.Owner.Position == scriptedTrainStart);
+
+        var visualCollisionWorld = new ManaWorld();
+        var visualCollisionContext = new ManaContext(null!, null!, visualCollisionWorld);
+        visualCollisionContext.Physics = new ManaPhysics(visualCollisionContext);
+        var visualCollisionScene = new ManaScene(visualCollisionContext) { Name = "Visual Collision Scene" };
+        visualCollisionWorld.Scenes.Add(visualCollisionScene);
+
+        var visualCollisionLevel = new ManaLevel
+        {
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Visual Platform",
+                    Kind = ManaLevelSourceKind.Shape,
+                    Shape = "Cube",
+                    Position = new[] { 0.0f, 0.0f, 0.0f },
+                    Rotation = new[] { 0.0f, 0.0f, 0.0f },
+                    Scale = new[] { 1.0f, 1.0f, 1.0f },
+                    Color = new[] { 1.0f, 1.0f, 1.0f, 1.0f },
+                    Size = new[] { 2.0f, 0.25f, 3.0f },
+                    Collision = new ManaLevelCollision
+                    {
+                        UseVisualBounds = true
+                    }
+                }
+            }
+        };
+
+        var visualCollisionResult = ManaLevelLoader.Load(
+            visualCollisionLevel,
+            visualCollisionContext,
+            visualCollisionScene,
+            replaceAuthoredNodes: false);
+        var visualCollision = visualCollisionResult.Nodes[0]
+            .GetComponents<ManaCollisionComponent>()
+            .FirstOrDefault();
+        var visualBox = visualCollision?.Shape is Box box ? box : (Box?)null;
+        var visualSize = visualBox.HasValue
+            ? new Vector3(visualBox.Value.Width, visualBox.Value.Height, visualBox.Value.Length)
+            : Vector3.Zero;
+
+        Check("visual-bounds collision loads from the rendered cube bounds",
+            NearlyEqual(visualSize, new Vector3(2.0f, 0.25f, 3.0f))
+            && NearlyEqual(visualCollision?.Position ?? new Vector3(float.NaN), Vector3.Zero),
+            visualBox == null
+                ? "missing"
+                : $"{visualBox.Value.Width}, {visualBox.Value.Height}, {visualBox.Value.Length}; offset {visualCollision?.Position}");
+
+        var capturedVisualCollision = ManaLevelCapture.CaptureScene(
+            visualCollisionWorld,
+            visualCollisionScene,
+            "Visual Collision Scene").Nodes[0].Collision;
+        Check("visual-bounds collision saves as mesh-derived collision",
+            capturedVisualCollision is { UseVisualBounds: true, Size: null },
+            capturedVisualCollision == null
+                ? "missing"
+                : $"useVisualBounds={capturedVisualCollision.UseVisualBounds}, size={capturedVisualCollision.Size?.Length}");
 
         var wholeWorld = ManaLevelCapture.Capture(world, "World");
         Check("capturing the world still walks every scene",
@@ -315,7 +681,7 @@ public static class LevelSerializationChecks
             ManaLaunchOptions.Parse(Array.Empty<string>()) is { PlayLevelPath: null, EditLevelPath: null });
 
         // ---------------------------------------------------------------- level source tagging
-        Check("a shape source records the factory argument, not the node scale",
+        Check("a shape source records the visual factory size, not the node scale",
             ManaLevelSource.ForShape("Cube", Vector4.One, new Vector3(2.0f, 1.0f, 2.0f)).Size.X == 2.0f);
 
         Check("a mesh source carries its asset reference",
@@ -340,6 +706,13 @@ public static class LevelSerializationChecks
         {
             return true;
         }
+    }
+
+    private static bool NearlyEqual(Vector3 left, Vector3 right, float epsilon = 0.001f)
+    {
+        return MathF.Abs(left.X - right.X) <= epsilon
+            && MathF.Abs(left.Y - right.Y) <= epsilon
+            && MathF.Abs(left.Z - right.Z) <= epsilon;
     }
 
     private static JsonElement JsonValue<T>(T value)

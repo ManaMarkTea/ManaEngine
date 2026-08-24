@@ -48,12 +48,7 @@ namespace Mana.Code.GameModes
                     Context.World.Selection.SelectedScene = null;
                     Context.World.Selection.SelectedNode = null;
                     Context.World.Selection.SelectedComponent = null;
-                    _trainLoop = TrainLoopController.Create(Context.World);
-                    return;
                 }
-
-                _trainLoop?.Restore();
-                _trainLoop = null;
             };
         }
 
@@ -115,9 +110,7 @@ namespace Mana.Code.GameModes
         {
             var player = _playMode?.Player;
             var name = player?.Name ?? "Character";
-            var trainHint = _trainLoop?.HasTrains == true ? ", watch the trains" : string.Empty;
-            var boundsHint = _trainLoop?.HasTrackBounds == true ? ", B track debug" : string.Empty;
-            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop{trainHint}{boundsHint}";
+            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------
@@ -136,6 +129,8 @@ namespace Mana.Code.GameModes
             }
 
             StopPlayBeforeEditing();
+            ResetLoadedPlanet();
+            _water = null;
             ManaLevelLoader.RemoveAuthoredNodes(Context);
             RemoveOpenedLevelScenes();
             _viewModel.AttachScene(Context, Context.World.DefaultScene);
@@ -156,6 +151,8 @@ namespace Mana.Code.GameModes
             try
             {
                 var level = ManaLevel.Load(path);
+                ResetLoadedPlanet();
+                _water = null;
                 ManaLevelLoader.RemoveAuthoredNodes(Context);
                 RemoveOpenedLevelScenes();
                 _viewModel.ResetVoxelLayersAfterLevelChange();
@@ -178,6 +175,9 @@ namespace Mana.Code.GameModes
                 {
                     _viewModel.AttachVoxelData(result.VoxelsNode.VoxelShape, result.VoxelsNode);
                 }
+
+                AdoptLoadedPlanet(result.Planet);
+                _water = result.Water;
 
                 // Excluded from picking for the same reason the grid planes are: clicking the marker should
                 // place a voxel on the ground it stands on, not on the marker.
@@ -236,6 +236,27 @@ namespace Mana.Code.GameModes
             {
                 _viewModel.Levels.SetStatus($"Could not save '{Path.GetFileName(path)}': {exception.Message}");
                 Trace.TraceWarning($"Failed to save level '{path}': {exception}");
+            }
+        }
+
+        private void ResetLoadedPlanet()
+        {
+            DetachKmlAirspace();
+            _planet = null;
+            _countryBorders = null;
+            _stateBorders = null;
+            lock (_drapedOverlays)
+            {
+                _drapedOverlays.Clear();
+            }
+        }
+
+        private void AdoptLoadedPlanet(ManaGeoTools.Code.Planet.PlanetNode? planet)
+        {
+            _planet = planet;
+            if (_planet != null && _viewModel.ShowKmlAirspace)
+            {
+                AttachKmlAirspace();
             }
         }
 

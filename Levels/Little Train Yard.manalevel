@@ -4,9 +4,9 @@
   "name": "Little Train Yard",
   "camera": {
     "position": [
-      26.899595,
+      58.899593,
       4.8226156,
-      63.480167
+      95.480164
     ],
     "rotation": [
       -0.4583995,
@@ -19,9 +19,9 @@
       "name": "Gameplay",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -59,9 +59,9 @@
       "name": "Yard Ground",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -173,9 +173,9 @@
       "name": "Station Structures",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -215,20 +215,11 @@
           ],
           "size": [
             8.75,
-            1.25,
-            3.2
+            0.08,
+            1.6
           ],
           "collision": {
-            "size": [
-              17.5,
-              2.5,
-              6.4
-            ],
-            "offset": [
-              0,
-              0,
-              0
-            ]
+            "useVisualBounds": true
           }
         },
         {
@@ -268,9 +259,9 @@
       "name": "Signals and Crossing",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -413,9 +404,9 @@
       "name": "Track Loop",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -1114,9 +1105,9 @@
       "name": "Moving Trains",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -1147,7 +1138,28 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tbG9jb21vdGl2ZS1hLmdsYg=="
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tbG9jb21vdGl2ZS1hLmdsYg==",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "A",
+                "carIndex": 0,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.45,
+                "initialDistance": 0,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         },
         {
           "name": "Loop Train A 01 Boxcar",
@@ -1167,7 +1179,28 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtYm94LmdsYg=="
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtYm94LmdsYg==",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "A",
+                "carIndex": 1,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.45,
+                "initialDistance": 0,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         },
         {
           "name": "Loop Train A 02 Blue Container",
@@ -1187,7 +1220,28 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtY29udGFpbmVyLWJsdWUuZ2xi"
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtY29udGFpbmVyLWJsdWUuZ2xi",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "A",
+                "carIndex": 2,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.45,
+                "initialDistance": 0,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         },
         {
           "name": "Loop Train A 03 Tanker",
@@ -1207,7 +1261,28 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtdGFuay5nbGI="
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtdGFuay5nbGI=",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "A",
+                "carIndex": 3,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.45,
+                "initialDistance": 0,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         },
         {
           "name": "Loop Train B 00 Tram Nose",
@@ -1227,7 +1302,28 @@
             1.05,
             1.05
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1hLmdsYg=="
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1hLmdsYg==",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "B",
+                "carIndex": 0,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.1,
+                "initialDistance": 72,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         },
         {
           "name": "Loop Train B 01 Tram Middle",
@@ -1247,7 +1343,28 @@
             1.05,
             1.05
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1iLmdsYg=="
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1iLmdsYg==",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "B",
+                "carIndex": 1,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.1,
+                "initialDistance": 72,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         },
         {
           "name": "Loop Train B 02 Tram Tail",
@@ -1267,7 +1384,28 @@
             1.05,
             1.05
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1jLmdsYg=="
+          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1jLmdsYg==",
+          "scripts": [
+            {
+              "type": "TrainCar",
+              "properties": {
+                "routeKey": "B",
+                "carIndex": 2,
+                "loopCenterX": 32,
+                "loopCenterZ": 32,
+                "loopHalfSizeX": 22,
+                "loopHalfSizeZ": 16,
+                "cornerRadius": 4,
+                "railHeight": 0.18,
+                "speed": 5.25,
+                "carSpacing": 3.1,
+                "initialDistance": 72,
+                "reverse": false,
+                "modelYawOffset": 0,
+                "rideHeightOffset": 0
+              }
+            }
+          ]
         }
       ]
     },
@@ -1275,9 +1413,9 @@
       "name": "Station Guests",
       "kind": "Group",
       "position": [
+        32,
         0,
-        0,
-        0
+        32
       ],
       "rotation": [
         0,
@@ -1337,9 +1475,9 @@
     "name": "Player Start",
     "kind": "PlayerStart",
     "position": [
-      32,
+      64,
       0,
-      58
+      90
     ],
     "rotation": [
       0,

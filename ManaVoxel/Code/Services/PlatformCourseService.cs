@@ -65,8 +65,7 @@ namespace ManaVoxel.Code.Services
                 "Platform Summit");
         }
 
-        // size is the platform's full extent; ManaCube takes half-extents (its geometry spans -size to
-        // +size) while Bepu's Box takes the full width, so the two differ by a factor of two here.
+        // size is the platform's full visual extent, matching Bepu's Box width/height/length.
         private void AddPlatform(
             ManaContext context,
             ManaShapeFactory shapes,
@@ -75,7 +74,7 @@ namespace ManaVoxel.Code.Services
             Vector4 color,
             string name)
         {
-            var node = shapes.AddCube(center, color, size * 0.5f);
+            var node = shapes.AddCube(center, color, size);
             node.Name = name;
 
             context.Physics.AddBoxBody(node, size, Vector3.Zero);

@@ -44,10 +44,12 @@ namespace Mana.Code
 
         public ManaCollisionComponent AddBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset)
         {
-            var worldPosition = node.WorldTransform.Translation;
             Box boxShape = new Box(size.X, size.Y, size.Z);
             TypedIndex boxIndex = Simulation.Shapes.Add(boxShape);
-            BodyDescription boxBody = BodyDescription.CreateKinematic(new RigidPose(worldPosition + offset), new CollidableDescription(boxIndex), new BodyActivityDescription());
+            BodyDescription boxBody = BodyDescription.CreateKinematic(
+                ManaCollisionComponent.CreateBodyPose(node, offset),
+                new CollidableDescription(boxIndex),
+                new BodyActivityDescription());
             BodyHandle handle = Simulation.Bodies.Add(boxBody);
 
             ManaCollisionComponent collisionComponent = new ManaCollisionComponent(node);
@@ -66,13 +68,12 @@ namespace Mana.Code
 
         public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f, Vector3? initialLinearVelocity = null)
         {
-            var worldPosition = node.WorldTransform.Translation;
             Box boxShape = new Box(size.X, size.Y, size.Z);
             TypedIndex boxIndex = Simulation.Shapes.Add(boxShape);
 
             var boxInertia = boxShape.ComputeInertia(mass);
             BodyDescription boxBody = BodyDescription.CreateDynamic(
-                new RigidPose(worldPosition + offset),
+                ManaCollisionComponent.CreateBodyPose(node, offset),
                 boxInertia,
                 new CollidableDescription(boxIndex),
                 new BodyActivityDescription());

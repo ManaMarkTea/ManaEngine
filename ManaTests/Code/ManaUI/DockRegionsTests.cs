@@ -7,7 +7,7 @@ using ManaVoxel.Code.UI.ManaUi;
 namespace ManaTests;
 
 /// <summary>
-/// The workspace's outer chrome: the full-width, unrounded menu bar; the top toolbar strip Voxel Tools
+/// The workspace's outer chrome: the full-width, unrounded menu bar; the top editor toolbar strip
 /// gets to itself; the bottom strip Import gets to itself, spanning the left column and the viewport but
 /// not the right column; the status bar (with the performance readout riding in it) along the very
 /// bottom; the columns sitting flush under the toolbar; and the retirement of the Layers demo panel and

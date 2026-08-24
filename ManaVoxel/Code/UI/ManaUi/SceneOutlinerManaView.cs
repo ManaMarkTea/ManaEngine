@@ -84,8 +84,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             return item switch
             {
-                ManaScene scene => scene.Children.Count > 0,
-                ManaSceneNode node => node.Children.Count > 0,
+                ManaScene scene => scene.Children.Any(node => !node.IsEditorTransient),
+                ManaSceneNode node => node.Children.Any(child => !child.IsEditorTransient),
                 _ => false
             };
         }
@@ -104,9 +104,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             switch (item)
             {
                 case ManaScene scene:
-                    return scene.Children;
+                    return scene.Children.Where(node => !node.IsEditorTransient);
                 case ManaSceneNode node:
-                    return node.Children;
+                    return node.Children.Where(child => !child.IsEditorTransient);
                 default:
                     return null;
             }
@@ -330,11 +330,13 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             foreach (var scene in world.Scenes)
             {
-                signature = signature * 397 + scene.Children.Count;
+                signature = signature * 397 + scene.Children.Count(node => !node.IsEditorTransient);
 
-                foreach (var node in scene.Children)
+                foreach (var node in scene.Children.Where(node => !node.IsEditorTransient))
                 {
-                    signature = signature * 397 + node.Children.Count + node.Components.Count;
+                    signature = signature * 397
+                        + node.Children.Count(child => !child.IsEditorTransient)
+                        + node.Components.Count;
                 }
             }
 

@@ -22,6 +22,16 @@ namespace Mana.Code.Components
 
         }
 
+        public static RigidPose CreateBodyPose(ManaSceneNode owner, Vector3 localOffset)
+        {
+            if (!Matrix4x4.Decompose(owner.WorldTransform, out _, out var orientation, out _))
+            {
+                orientation = Quaternion.Identity;
+            }
+
+            return new RigidPose(Vector3.Transform(localOffset, owner.WorldTransform), orientation);
+        }
+
         public override void UpdateComponent()
         {
             base.UpdateComponent();
@@ -31,8 +41,9 @@ namespace Mana.Code.Components
 
             if (SyncNodeToPhysics)
             {
-                var worldPosition = Owner.WorldTransform.Translation + Position;
-                pose.Position = worldPosition;
+                var ownerPose = CreateBodyPose(Owner, Position);
+                pose.Position = ownerPose.Position;
+                pose.Orientation = ownerPose.Orientation;
                 return;
             }
 

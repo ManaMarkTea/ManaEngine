@@ -4,6 +4,7 @@ using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Graphics;
+using ManaGeoTools.Code.Planet;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.UI.ManaUi;
@@ -34,7 +35,7 @@ namespace Mana.Code.GameModes
         private ManaPawnController? _pawnController;
         private ManaPawnNode? _player;
         private ManaWebGpuContext? _webGpuContext;
-        private TrainLoopController? _trainLoop;
+        private PlanetNode? _planet;
 
         public VoxelPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
             : base(graphicsBackend)
@@ -146,13 +147,13 @@ namespace Mana.Code.GameModes
 
             var level = ManaLevel.Load(_levelPath);
             var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
+            _planet = result.Planet;
 
             foreach (var warning in result.Warnings)
             {
                 Trace.TraceWarning($"Level load warning: {warning}");
             }
 
-            _trainLoop = TrainLoopController.Create(Context.World);
         }
 
         /// <summary>
@@ -202,17 +203,19 @@ namespace Mana.Code.GameModes
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
+            Context.World.BeginPlay();
 
-            var trainHint = _trainLoop?.HasTrains == true ? ", watch the trains" : string.Empty;
-            var boundsHint = _trainLoop?.HasTrackBounds == true ? ", B track debug" : string.Empty;
-            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump, C camera, Esc quit{trainHint}{boundsHint}";
+            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump, C camera, Esc quit";
         }
 
         public override void Update(double deltaTime)
         {
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
-            _trainLoop?.UpdateDebugInput(Context, UiWantsKeyboard);
-            _trainLoop?.Update(deltaTime);
+            _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateNearOcean(Context.World.MainCamera);
+            _planet?.UpdateDetailChase();
+            _planet?.ProcessPendingSplits();
+            _planet?.ProcessPendingMerges();
 
             // Escape quits rather than releasing the character: there is no editor to hand control back to.
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();

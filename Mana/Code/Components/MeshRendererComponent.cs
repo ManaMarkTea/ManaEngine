@@ -7,6 +7,7 @@ namespace Mana
     public class MeshRendererComponent : ManaComponent
     {
         public ManaMesh Mesh { get; set; }
+        public bool IsVisible { get; set; } = true;
         public bool DrawAfterScene { get; set; }
         public bool OutlineEnabled { get; set; }
         public Vector4 OutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
@@ -191,7 +192,7 @@ namespace Mana
         public override void DrawComponent()
         {
             base.DrawComponent();
-            if (Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
+            if (!IsVisible || Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
                 return;
             }

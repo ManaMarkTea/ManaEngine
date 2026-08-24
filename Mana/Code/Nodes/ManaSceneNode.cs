@@ -103,6 +103,13 @@ namespace Mana.Code.Nodes
         public bool IncludeInEnvironmentCapture { get; set; } = true;
 
         /// <summary>
+        /// Editor-owned helper geometry such as transform handles and debug bounds. Transient nodes render
+        /// normally, but editor hierarchy views omit them and level capture ignores them because they have
+        /// no <see cref="LevelSource"/>.
+        /// </summary>
+        public bool IsEditorTransient { get; set; }
+
+        /// <summary>
         /// How this node was authored, or null for scenery the game mode builds in code. Saving a level
         /// keeps the nodes that have one and skips the rest -- see <see cref="Levels.ManaLevelSource"/>.
         /// </summary>
@@ -271,7 +278,7 @@ namespace Mana.Code.Nodes
         {
             foreach (var component in Components)
             {
-                if (component is not MeshRendererComponent renderer || renderer.Mesh == null)
+                if (component is not MeshRendererComponent renderer || !renderer.IsVisible || renderer.Mesh == null)
                 {
                     continue;
                 }

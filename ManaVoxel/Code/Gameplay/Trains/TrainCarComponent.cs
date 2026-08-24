@@ -1,5 +1,7 @@
 using Mana;
+using Mana.Code.Components;
 using Mana.Code.Nodes;
+using System.Text.Json.Serialization;
 
 namespace ManaVoxel.Code.Gameplay.Trains
 {
@@ -18,6 +20,7 @@ namespace ManaVoxel.Code.Gameplay.Trains
         private Vector3 _baseRotation;
         private bool _hasBasePose;
         private double _elapsedSeconds;
+        private float _visualRideHeightOffset;
 
         public TrainCarComponent(ManaSceneNode owner) : base(owner)
         {
@@ -54,8 +57,22 @@ namespace ManaVoxel.Code.Gameplay.Trains
 
         public float RideHeightOffset { get; set; }
 
-        /// <summary>Paused in the editor; the play-mode bootstrap enables it.</summary>
+        /// <summary>Transient runtime pause state. The world lifecycle enables it during play.</summary>
+        [JsonIgnore]
         public bool Paused { get; set; } = true;
+
+        public override void BeginPlay()
+        {
+            CaptureBasePose(force: true);
+            _elapsedSeconds = 0.0;
+            _visualRideHeightOffset = EstimateVisualRideHeightOffset();
+            Paused = false;
+        }
+
+        public override void EndPlay()
+        {
+            Restore();
+        }
 
         public void ConfigureDefaultRoute(string routeKey, int carIndex, float railTopHeight)
         {
@@ -74,41 +91,10 @@ namespace ManaVoxel.Code.Gameplay.Trains
             ModelYawOffset = 0.0f;
         }
 
-        public TrainCarScriptSettings CaptureSettings() =>
-            new()
-            {
-                RouteKey = RouteKey,
-                CarIndex = CarIndex,
-                LoopCenterX = LoopCenterX,
-                LoopCenterZ = LoopCenterZ,
-                LoopHalfSizeX = LoopHalfSizeX,
-                LoopHalfSizeZ = LoopHalfSizeZ,
-                CornerRadius = CornerRadius,
-                RailHeight = RailHeight,
-                Speed = Speed,
-                CarSpacing = CarSpacing,
-                InitialDistance = InitialDistance,
-                Reverse = Reverse,
-                ModelYawOffset = ModelYawOffset,
-                RideHeightOffset = RideHeightOffset
-            };
-
-        public void ApplySettings(TrainCarScriptSettings settings)
+        internal void ResetAfterLevelPropertiesApplied()
         {
-            RouteKey = string.IsNullOrWhiteSpace(settings.RouteKey) ? "A" : settings.RouteKey;
-            CarIndex = Math.Max(0, settings.CarIndex);
-            LoopCenterX = settings.LoopCenterX;
-            LoopCenterZ = settings.LoopCenterZ;
-            LoopHalfSizeX = settings.LoopHalfSizeX;
-            LoopHalfSizeZ = settings.LoopHalfSizeZ;
-            CornerRadius = settings.CornerRadius;
-            RailHeight = settings.RailHeight;
-            Speed = settings.Speed;
-            CarSpacing = settings.CarSpacing;
-            InitialDistance = settings.InitialDistance;
-            Reverse = settings.Reverse;
-            ModelYawOffset = settings.ModelYawOffset;
-            RideHeightOffset = settings.RideHeightOffset;
+            RouteKey = string.IsNullOrWhiteSpace(RouteKey) ? "A" : RouteKey;
+            CarIndex = Math.Max(0, CarIndex);
             Paused = true;
             _elapsedSeconds = 0.0;
             CaptureBasePose(force: true);
@@ -161,43 +147,24 @@ namespace ManaVoxel.Code.Gameplay.Trains
 
             Owner.Position = new Vector3(
                 sample.Position.X,
-                sample.Position.Y + RideHeightOffset,
+                sample.Position.Y + _visualRideHeightOffset + RideHeightOffset,
                 sample.Position.Z);
             Owner.Rotation = new Vector3(_baseRotation.X, yaw, _baseRotation.Z);
         }
 
-        private readonly record struct TrainSample(Vector3 Position, Vector3 Direction);
-
-        public sealed class TrainCarScriptSettings
+        private float EstimateVisualRideHeightOffset()
         {
-            public string RouteKey { get; set; } = "A";
+            if (!ManaCollisionBounds.TryGetVisualBox(Owner, out var size, out var offset)
+                || !Matrix4x4.Decompose(Owner.WorldTransform, out var scale, out _, out _))
+            {
+                return 0.0f;
+            }
 
-            public int CarIndex { get; set; }
-
-            public float LoopCenterX { get; set; } = 32.0f;
-
-            public float LoopCenterZ { get; set; } = 32.0f;
-
-            public float LoopHalfSizeX { get; set; } = 22.0f;
-
-            public float LoopHalfSizeZ { get; set; } = 16.0f;
-
-            public float CornerRadius { get; set; } = 4.0f;
-
-            public float RailHeight { get; set; } = DefaultRailTopHeight;
-
-            public float Speed { get; set; } = DefaultLoopSpeed;
-
-            public float CarSpacing { get; set; } = 3.45f;
-
-            public float InitialDistance { get; set; }
-
-            public bool Reverse { get; set; }
-
-            public float ModelYawOffset { get; set; }
-
-            public float RideHeightOffset { get; set; }
+            var visualBottom = offset.Y * MathF.Abs(scale.Y) - size.Y * 0.5f;
+            return -visualBottom;
         }
+
+        private readonly record struct TrainSample(Vector3 Position, Vector3 Direction);
 
         private sealed class TrainLoopRoute
         {

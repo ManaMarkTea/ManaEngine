@@ -1,0 +1,28 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Planet Showcase",
+  "camera": {
+    "position": [ 32, 52, 144 ],
+    "rotation": [ -0.08, 0, 0 ]
+  },
+  "nodes": [
+    {
+      "name": "Earth",
+      "kind": "Planet",
+      "position": [ 32, 40, 32 ],
+      "rotation": [ 0, 0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "asset": "Mana/Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif",
+      "planet": {
+        "patchesPerFaceEdge": 6,
+        "radius": 40,
+        "resolution": 24,
+        "heightExaggeration": 1,
+        "oceanResolution": 97,
+        "autoLodEnabled": false,
+        "nearOceanEnabled": true
+      }
+    }
+  ]
+}

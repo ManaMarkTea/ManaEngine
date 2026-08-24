@@ -5,6 +5,13 @@ using ManaVoxel.Code.Tools;
 
 namespace ManaVoxel.Code.UI
 {
+    public enum SceneTransformGizmoMode
+    {
+        Translate,
+        Rotate,
+        Scale
+    }
+
     /// <summary>
     /// A queued "load this place as a true-scale cartesian region" request -- see RegionNode.
     /// HexRadiusMeters/StepStrength are only the tiling's STARTING style; both stay adjustable on the
@@ -133,6 +140,12 @@ namespace ManaVoxel.Code.UI
         public bool ShowNormals;
         public bool ShowVertexNormals;
         public float VertexNormalLength = 1.0f;
+        public bool ShowSelectedColliderBounds;
+        public bool ShowTrackBounds;
+        public bool ShowTrackPivots;
+        public bool ShowTrackSnapPoints;
+        public bool ShowTransformGizmo = true;
+        public SceneTransformGizmoMode TransformGizmoMode = SceneTransformGizmoMode.Translate;
 
         // Off by default -- the demo KML is a ~10.5MB external file whose parse + mesh build cost is not
         // worth paying on every startup. Toggling this on is what triggers the (lazy, background) load;

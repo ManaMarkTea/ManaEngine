@@ -278,6 +278,28 @@ public static class PortedMainMenuChecks
         Check("choosing a row through the workspace reaches the editor", vm.ShowWater != before, $"{vm.ShowWater}");
         water.Invoke();
 
+        var debugMenu = bars[0].Menus.First(m => m.Text == "Debug");
+        var sceneDebug = debugMenu.Items.FirstOrDefault(item => item.Text == "Scene");
+        Check("scene visualizations live in the Debug menu",
+            sceneDebug?.Items.Any(item => item.Text == "Track visual bounds") == true
+            && sceneDebug.Items.Any(item => item.Text == "Track pivots")
+            && sceneDebug.Items.Any(item => item.Text == "Track snap points")
+            && sceneDebug.Items.Any(item => item.Text == "Selected collider bounds"));
+        Check("scene visualizations start off",
+            !vm.ShowTrackBounds
+            && !vm.ShowTrackPivots
+            && !vm.ShowTrackSnapPoints
+            && !vm.ShowSelectedColliderBounds);
+
+        sceneDebug?.Items.First(item => item.Text == "Track visual bounds").Invoke();
+        Check("a scene debug menu row reaches the editor", vm.ShowTrackBounds, $"{vm.ShowTrackBounds}");
+        debugMenu.Items.First(item => item.Text == "All debug off").Invoke();
+        Check("all debug off clears scene visualization too", !vm.ShowTrackBounds, $"{vm.ShowTrackBounds}");
+
+        Check("the transform gizmo starts visible in move mode",
+            vm.ShowTransformGizmo && vm.TransformGizmoMode == SceneTransformGizmoMode.Translate,
+            $"{vm.ShowTransformGizmo}, {vm.TransformGizmoMode}");
+
         Check("the workspace still renders in one draw call", root.Render().Batches.Count == 1,
             $"{root.Render().Batches.Count} batches");
 
@@ -432,7 +454,7 @@ public static class PortedMainMenuChecks
     /// </summary>
     private static string? TitleToId(string title) => title switch
     {
-        "Voxel Tools" => "tools",
+        "Toolbar" => "tools",
         "Import" => "import",
         "Search" => "search",
         "Blur Test" => "blurtest",

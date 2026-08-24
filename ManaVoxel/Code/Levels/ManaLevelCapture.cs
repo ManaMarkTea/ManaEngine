@@ -4,8 +4,7 @@ using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
-using ManaVoxel.Code.Gameplay.Trains;
-using System.Text.Json;
+using ManaGeoTools.Code.Planet;
 
 namespace ManaVoxel.Code.Levels
 {
@@ -173,10 +172,43 @@ namespace ManaVoxel.Code.Levels
                         return null;
                     }
 
+                    entry.Asset = source.Asset;
                     entry.Voxels = ManaLevelVoxelCodec.Encode(voxels);
                     break;
 
                 case ManaLevelSourceKind.PlayerStart:
+                    break;
+
+                case ManaLevelSourceKind.Planet:
+                    if (node is not PlanetNode planet)
+                    {
+                        return null;
+                    }
+
+                    entry.Asset = source.Asset;
+                    entry.Planet = new ManaLevelPlanet
+                    {
+                        PatchesPerFaceEdge = planet.PatchesPerFaceEdge,
+                        Radius = planet.Radius,
+                        Resolution = planet.Resolution,
+                        HeightExaggeration = planet.HeightExaggeration,
+                        OceanResolution = planet.OceanResolution,
+                        AutoLodEnabled = planet.AutoLodEnabled,
+                        NearOceanEnabled = planet.NearOceanEnabled
+                    };
+                    break;
+
+                case ManaLevelSourceKind.Water:
+                    if (node is not ManaWaterNode water)
+                    {
+                        return null;
+                    }
+
+                    entry.Water = new ManaLevelWater
+                    {
+                        Size = new[] { water.Mesh.Size.X, water.Mesh.Size.Y },
+                        Resolution = water.Mesh.Resolution
+                    };
                     break;
 
                 default:
@@ -189,30 +221,7 @@ namespace ManaVoxel.Code.Levels
 
         private static List<ManaLevelScript>? CaptureScripts(ManaSceneNode node)
         {
-            List<ManaLevelScript>? scripts = null;
-            foreach (var trainCar in node.GetComponents<TrainCarComponent>())
-            {
-                scripts ??= new List<ManaLevelScript>();
-                scripts.Add(CreateScript(TrainCarComponent.ScriptType, trainCar.CaptureSettings()));
-            }
-
-            return scripts;
-        }
-
-        private static ManaLevelScript CreateScript<TSettings>(string type, TSettings settings)
-        {
-            using var document = JsonSerializer.SerializeToDocument(settings, ManaLevel.SerializerOptions);
-            var properties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (var property in document.RootElement.EnumerateObject())
-            {
-                properties[property.Name] = property.Value.Clone();
-            }
-
-            return new ManaLevelScript
-            {
-                Type = type,
-                Properties = properties
-            };
+            return ManaLevelComponentScripts.Capture(node);
         }
 
         /// <summary>
@@ -229,14 +238,31 @@ namespace ManaVoxel.Code.Levels
                     continue;
                 }
 
+                var size = new Vector3(box.Width, box.Height, box.Length);
+                var offset = collision.Position;
+                if (ManaCollisionBounds.MatchesVisualBox(node, size, offset))
+                {
+                    return new ManaLevelCollision
+                    {
+                        UseVisualBounds = true
+                    };
+                }
+
                 return new ManaLevelCollision
                 {
-                    Size = new[] { box.Width, box.Height, box.Length },
-                    Offset = ToArray(collision.Position)
+                    Size = ToArray(size),
+                    Offset = IsNearlyZero(offset) ? null : ToArray(offset)
                 };
             }
 
             return null;
+        }
+
+        private static bool IsNearlyZero(Vector3 value)
+        {
+            return MathF.Abs(value.X) <= 0.001f
+                && MathF.Abs(value.Y) <= 0.001f
+                && MathF.Abs(value.Z) <= 0.001f;
         }
 
         private static float[] ToArray(Vector3 value) => new[] { value.X, value.Y, value.Z };

@@ -38,15 +38,29 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 });
             syncToNode.BindPolled(box => box.IsChecked, () => ReadSyncNodeToPhysics(node));
 
+            var fitVisualBounds = new ManaUI.Button()
+                .Label("Fit visual bounds")
+                .Variant(ButtonVariant.Subtle)
+                .OnClick(() => FitToVisualBounds(node));
+            fitVisualBounds.BindPolled(button => button.IsEnabled, () =>
+                TryGetBoxCollision(node, out var owner, out _, out _)
+                && ManaCollisionBounds.TryGetVisualBox(owner, out _, out _));
+
             return new Expander()
                 .Header("Collision")
                 .Section(theme.Spacing,
                     showCollider,
                     syncToNode,
+                    fitVisualBounds,
 
                     InspectorControls.Row(context, "Owner",
                         ReadOnly(theme, () => TryGetBoxCollision(node, out var owner, out _, out _)
                             ? DisplayName(owner)
+                            : string.Empty)),
+
+                    InspectorControls.Row(context, "Source",
+                        ReadOnly(theme, () => TryGetBoxCollision(node, out var owner, out var collision, out var box)
+                            ? SourceOf(owner, collision, box)
                             : string.Empty)),
 
                     InspectorControls.Row(context, "Size",
@@ -79,6 +93,30 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return TryGetBoxCollision(node, out _, out _, out var box)
                 ? new Vector3(box.Width, box.Height, box.Length)
                 : Vector3.Zero;
+        }
+
+        private static string SourceOf(ManaSceneNode owner, ManaCollisionComponent collision, Box box)
+        {
+            var size = new Vector3(box.Width, box.Height, box.Length);
+            return ManaCollisionBounds.MatchesVisualBox(owner, size, collision.Position)
+                ? "Visual bounds"
+                : "Explicit box";
+        }
+
+        private static void FitToVisualBounds(ManaSceneNode node)
+        {
+            if (!TryGetBoxCollision(node, out var owner, out var collision, out _)
+                || !ManaCollisionBounds.TryGetVisualBox(owner, out var size, out var offset))
+            {
+                return;
+            }
+
+            var showDebug = collision.ShowDebug;
+            var syncNodeToPhysics = collision.SyncNodeToPhysics;
+            owner.Context.Physics.RemoveBody(collision.Body);
+            var replacement = owner.Context.Physics.AddBoxBody(owner, size, offset);
+            replacement.ShowDebug = showDebug;
+            replacement.SyncNodeToPhysics = syncNodeToPhysics;
         }
 
         private static bool TryGetBoxCollision(

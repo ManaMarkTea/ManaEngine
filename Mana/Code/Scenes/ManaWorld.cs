@@ -93,6 +93,9 @@ namespace Mana
         public ManaSceneNode CameraNode = null!;
         public CameraComponent MainCamera = null!;
 
+        /// <summary>True between <see cref="BeginPlay"/> and <see cref="EndPlay"/>.</summary>
+        public bool IsPlaying { get; private set; }
+
         public ManaRenderer Renderer = null!;
         public ManaIrradianceSettings IrradianceSettings { get; } = new();
         public ManaEnvironmentReflectionSource EnvironmentReflectionSource { get; set; } = new();
@@ -208,6 +211,67 @@ namespace Mana
                 activeFuture();
             }
             activeFutures.Clear();
+        }
+
+        /// <summary>Starts every component currently in the scene graph.</summary>
+        public void BeginPlay()
+        {
+            lock (SceneLock)
+            {
+                if (IsPlaying)
+                {
+                    return;
+                }
+
+                IsPlaying = true;
+                foreach (var component in CollectSceneComponentsNoLock())
+                {
+                    component.BeginPlay();
+                }
+            }
+        }
+
+        /// <summary>Stops components in reverse scene order so play-time state can be restored.</summary>
+        public void EndPlay()
+        {
+            lock (SceneLock)
+            {
+                if (!IsPlaying)
+                {
+                    return;
+                }
+
+                var components = CollectSceneComponentsNoLock();
+                for (var i = components.Count - 1; i >= 0; i--)
+                {
+                    components[i].EndPlay();
+                }
+
+                IsPlaying = false;
+            }
+        }
+
+        private List<ManaComponent> CollectSceneComponentsNoLock()
+        {
+            var components = new List<ManaComponent>();
+            foreach (var scene in Scenes)
+            {
+                foreach (var node in scene.Children)
+                {
+                    CollectNodeComponents(node, components);
+                }
+            }
+
+            return components;
+        }
+
+        private static void CollectNodeComponents(ManaSceneNode node, List<ManaComponent> output)
+        {
+            output.AddRange(node.Components);
+            foreach (var child in node.Children)
+            {
+                CollectNodeComponents(child, output);
+            }
         }
 
         public void Update()
