@@ -325,13 +325,58 @@ fixed to get here, on top of the already-proven `INativeContext`/shim mechanism:
 **Verified**: `dotnet build ManaVoxel/ManaVoxel.csproj` and `dotnet run --project ManaTests`
 both still green (1660/1661, same pre-existing unrelated font/emoji failure) after all of
 the above — every change is either browser-only C code or behind `#if MANA_BROWSER`.
-**Not yet done**: cleanup of the now-fully-dead native-callback path
-(`OnRequestAdapter`/`OnRequestDevice` in `ManaWebGpuContext.Device.cs`, never invoked once
-finding #2's `EM_JS` bridge replaced it) and the diagnostic `Console.WriteLine` breadcrumbs
-scattered through `ManaWebGpuContext.cs`/`ManaBrowserWebGpuSurface.cs`/
-`ManaBrowserWebGpuNativeContext.cs`/`GameSilkWebGpu.cs` — left in deliberately for now since
-they're still useful for the next round of browser debugging (mesh rendering, input, resize)
-and are harmless on desktop (compiled out entirely; `MANA_BROWSER`-gated).
+**Done since**: the now-fully-dead native-callback path (`OnRequestAdapter`/`OnRequestDevice`
+in `ManaWebGpuContext.Device.cs`, never invoked once finding #2's `EM_JS` bridge replaced it)
+is now scoped to `#if !MANA_BROWSER`. **Still not done**: the diagnostic `Console.WriteLine`
+breadcrumbs scattered through `ManaWebGpuContext.cs`/`ManaBrowserWebGpuSurface.cs`/
+`ManaBrowserWebGpuNativeContext.cs`/`GameSilkWebGpu.cs` — left in deliberately since they're
+still useful for the next round of browser debugging (mesh rendering, input, resize) and are
+harmless on desktop (compiled out entirely; `MANA_BROWSER`-gated). Confirmed they're a
+one-time setup cost, not a per-frame leak: Silk.NET's generated bindings resolve each
+function's pointer once per `slot` and cache it, matching the `GetProcAddress(proc, slot)`
+signature — the console trace's apparent flood is really just every *distinct* function used
+once, not the same function every frame.
+
+**M6 (stray native calls) turns out to already be a non-issue, no fix needed.**
+`ManaDpiScale.cs`'s `Glfw.GetApi()`/`GetMonitorContentScale` calls are real and unconditional,
+but its only two callers (`QueryUiScale`/`QueryContentScale`) are called exclusively from
+`Code\UI\ImGui\BaseGameMode.ImGuiDpi.cs` — already `Compile Remove`d for browser (ImGui is a
+desktop/editor-only concern; see the "M4 done"/ImGui-exclusion paragraph above). So the GLFW
+call is simply unreachable on browser, not merely tolerated by its own `catch (Exception)`
+fallback (which would also have handled it — `Silk.NET.GLFW` compiles fine on browser-wasm
+too, pulled in transitively via `ManaGraphics.csproj`'s unconditioned
+`Silk.NET.Windowing.Glfw` reference, since neither package carries a native runtime asset;
+only calling into one at runtime would fail). Confirmed via `grep` that no other file
+references `ManaDpiScale`.
+
+**M3 prep (this session, unverified live): WGSL shaders bundled into the wasm virtual
+filesystem, demo mesh pipeline deliberately left off.** `ManaVoxel.Web.csproj` now has a
+`WasmFilesToIncludeInFileSystem` item bundling all of `ManaGraphics/Assets/Shaders/WebGpu/**/*.wgsl`
+(22 files, 148 KB) with `TargetPath="Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)"`
+— confirmed present at the right nested virtual paths (including the `include/uniforms.wgsl`
+subdirectory `ManaWgslPreprocessor`'s sibling-relative `#include` resolution needs) by
+grepping the generated `_framework/dotnet.boot.js` after a clean publish. `TargetPath` is
+required, not optional: decompiling `WasmAppBuilder.dll` (via `ilspycmd`) confirmed an unset
+`TargetPath` collapses to just the bare filename, discarding the directory structure
+`ResolveAssetPath`/`ManaWgslPreprocessor` both depend on.
+**Deliberately not wired to anything yet** — `IsDemoMeshPipelineEnabled()` still reads an env
+var nothing sets in the browser build, so `CreateDemoMeshPipeline()` (and therefore
+`CreateShaderModule`/`wgpuDeviceCreateRenderPipeline`/the rest of the pipeline path) has
+*never been exercised in a real browser at all* as of this commit. This was a deliberate
+stop, not an oversight: `RunBrowser`'s `try/catch` around
+`CompleteBrowserInitializationAsync()` re-throws on failure, and `CreateDemoMeshPipeline()`
+runs *before* `browserWindow.StartRenderLoop()` — so if it throws (a bad WGSL parse under
+Dawn's stricter/different validator than desktop wgpu-native's, another Silk.NET/webgpu.h
+enum ABI mismatch like the two already found for `TextureDimension`/`TextureAspect`, a
+missing bind-group/vertex-layout field, etc.), the *entire* render loop would never start —
+regressing all the way back past the now-confirmed-working blue clear, with no live feedback
+loop available to diagnose or fix it. Given real ABI drift was already found in two other
+enums this session, more is plausible in the render-pipeline structs
+(`VertexFormat`/`PrimitiveTopology`/`CullMode`/`CompareFunction`/`BlendFactor`/etc. were not
+individually checked). **The next concrete step**, when live testing resumes: add
+`<WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />` to
+`ManaVoxel.Web.csproj`, republish, and test live — expect to find and fix new bugs, the same
+one-per-cycle way M2 itself was closed.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 

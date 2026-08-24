@@ -62,6 +62,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- M3 prep: bundles the WGSL shaders into the wasm app's virtual filesystem so
+         ManaWebGpuContext.Demo.cs's ResolveAssetPath (File.Exists probing against
+         AppContext.BaseDirectory) and ManaWgslPreprocessor's sibling-relative #include
+         resolution both work unmodified once the demo mesh pipeline is actually enabled;
+         see WebPort-Plan.md's "M3 prep" note. TargetPath (not the default filename-only
+         mapping) is required to preserve the Assets/Shaders/WebGpu/... directory structure;
+         confirmed via WasmAppBuilder.dll (ilspycmd) that an unset TargetPath drops the
+         directory entirely. Deliberately NOT wired to anything yet: the demo mesh
+         pipeline stays off by default (IsDemoMeshPipelineEnabled reads an env var that
+         nothing sets here), so this has zero runtime effect until that's deliberately
+         flipped on for a live test. -->
+    <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
+      <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Physically lives in ManaGraphics (the project whose ManaBrowserWebGpuNativeContext.cs
          consumes it) but must be declared here; see the EmccExtraLDFlags comment above. -->
     <NativeFileReference Include="..\ManaGraphics\Native\mana_webgpu.c" />
