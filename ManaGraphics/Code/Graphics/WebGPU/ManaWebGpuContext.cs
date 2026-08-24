@@ -29,8 +29,10 @@ namespace ManaGraphics.Code.Graphics
         private readonly IWindow _window;
         private readonly IInputContext? _input;
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
+#if !MANA_BROWSER
         private readonly RequestAdapterCallback _requestAdapterCallback;
         private readonly RequestDeviceCallback _requestDeviceCallback;
+#endif
         private readonly ErrorCallback _errorCallback;
         private readonly string? _requestedBackend;
 #if !MANA_BROWSER
@@ -183,8 +185,10 @@ namespace ManaGraphics.Code.Graphics
 #else
             _api = WebGPU.GetApi();
 #endif
+#if !MANA_BROWSER
             _requestAdapterCallback = OnRequestAdapter;
             _requestDeviceCallback = OnRequestDevice;
+#endif
             _errorCallback = OnError;
 
             ManaConsole.WriteDiagnostic("Creating WebGPU instance.");

@@ -44,30 +44,22 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 #else
-        // wgpu-native's desktop implementation invokes the callback synchronously, within the same
-        // call stack as InstanceRequestAdapter/AdapterRequestDevice, which is what lets the
-        // desktop RequestAdapter/RequestDevice above check _adapter/_device immediately after
-        // calling it. A real browser's navigator.gpu.requestAdapter()/requestDevice() resolve on a
-        // later JS microtask via Emscripten's library_webgpu.js calling back into this same
-        // callback -- genuinely asynchronous, not just async-shaped. These two just fire the
-        // native request; ManaWebGpuContext.BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync
-        // await a TaskCompletionSource that OnRequestAdapter/OnRequestDevice complete, once the
-        // callback actually arrives -- split into a separate non-unsafe partial file because this
-        // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
-        // at all, regardless of whether the awaiting method itself touches a pointer.
-        //
-        // UPDATE: wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice's own callback-delivery path
-        // turned out to hit a confirmed Emscripten runtime bug (RuntimeError: getWasmTableEntry(...)
-        // is not a function -- a known category of Emscripten scoping bug, not fixed by AOT
-        // compilation or by forcing getWasmTableEntry past tree-shaking). ManaWebGpuContext.
-        // BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync now go through
-        // ManaBrowserWebGpuCallbackBridge instead (EM_JS-injected plain JS calling
+        // wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice's own callback-delivery path hits a
+        // confirmed Emscripten runtime bug in this exact SDK/bundling (RuntimeError:
+        // getWasmTableEntry(...) is not a function -- not fixed by AOT compilation or by forcing
+        // getWasmTableEntry past tree-shaking), so the browser build never uses OnRequestAdapter/
+        // OnRequestDevice (below, #if !MANA_BROWSER) at all. Instead, ManaWebGpuContext.
+        // BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync go through
+        // ManaBrowserWebGpuCallbackBridge (EM_JS-injected plain JS calling
         // navigator.gpu.requestAdapter()/adapter.requestDevice() directly, registering the result
         // into library_webgpu.js's own id tables, delivered back via [JSExport] -- the same
         // mechanism ManaBrowserInterop.cs already used successfully for the RAF loop/resize).
         // SetAdapterFromId/SetDeviceFromId below just assign the resulting integer id as the
-        // opaque Adapter*/Device* handle Silk.NET's other (still-working) calls expect; see
-        // WebPort-Plan.md M2 for the full writeup.
+        // opaque Adapter*/Device* handle Silk.NET's other (still-working) calls expect. Split into
+        // a separate non-unsafe partial file (ManaWebGpuContext.BrowserAsync.cs) because this
+        // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
+        // at all, regardless of whether the awaiting method itself touches a pointer. See
+        // WebPort-Plan.md's "M2 CLOSED" section for the full writeup.
         private System.Threading.Tasks.TaskCompletionSource<bool>? _adapterRequestTcs;
         private System.Threading.Tasks.TaskCompletionSource<bool>? _deviceRequestTcs;
 
@@ -84,26 +76,16 @@ namespace ManaGraphics.Code.Graphics
         }
 #endif
 
+#if !MANA_BROWSER
         private void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
         {
-#if MANA_BROWSER
-            Console.WriteLine($"[OnRequestAdapter] callback fired! status={status}");
-#endif
             if (status == RequestAdapterStatus.Success)
             {
                 _adapter = adapter;
-#if MANA_BROWSER
-                _adapterRequestTcs?.TrySetResult(true);
-#endif
                 return;
             }
 
-#if MANA_BROWSER
-            _adapterRequestTcs?.TrySetException(
-                new InvalidOperationException($"WebGPU adapter request failed: {status} {ReadMessage(message)}"));
-#else
             throw new InvalidOperationException($"WebGPU adapter request failed: {status} {ReadMessage(message)}");
-#endif
         }
 
         private void OnRequestDevice(RequestDeviceStatus status, Device* device, byte* message, void* userdata)
@@ -111,19 +93,12 @@ namespace ManaGraphics.Code.Graphics
             if (status == RequestDeviceStatus.Success)
             {
                 _device = device;
-#if MANA_BROWSER
-                _deviceRequestTcs?.TrySetResult(true);
-#endif
                 return;
             }
 
-#if MANA_BROWSER
-            _deviceRequestTcs?.TrySetException(
-                new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}"));
-#else
             throw new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}");
-#endif
         }
+#endif
 
         private void OnError(ErrorType type, byte* message, void* userdata)
         {
