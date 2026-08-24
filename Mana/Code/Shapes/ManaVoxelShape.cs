@@ -1,6 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 
 using System.Diagnostics;
+using Mana.Code;
+using Mana.Code.Materials;
+using Mana.Code.Shapes;
 
 namespace Mana
 {
@@ -391,6 +394,7 @@ namespace Mana
             LastSavedVertexCount = Math.Max(0, LastNaiveVertexCount - LastGeneratedVertexCount);
 
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
+#if !MANA_BROWSER
             if (Context.OpenGl != null)
             {
                 if (VertexBufferObject != null)
@@ -409,6 +413,7 @@ namespace Mana
                     VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
                 }
             }
+#endif
 
             if (logStats && (inputVoxelCount > 0 || duplicateVoxelCount > 0))
             {

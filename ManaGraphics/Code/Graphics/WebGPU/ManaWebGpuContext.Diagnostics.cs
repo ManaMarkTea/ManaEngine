@@ -3,7 +3,9 @@ using System.Linq;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -38,7 +40,11 @@ namespace ManaGraphics.Code.Graphics
                         adapterType: properties.AdapterType.ToString(),
                         architecture: ReadDiagnosticString(properties.Architecture),
                         backend: properties.BackendType.ToString(),
+#if MANA_BROWSER
+                        contextProfile: $"instance=browser; requested={(_requestedBackend ?? "Automatic")}",
+#else
                         contextProfile: $"instance={_instanceBackend}; requested={(_requestedBackend ?? "Automatic")}",
+#endif
                         powerPreference: PowerPreference.HighPerformance.ToString()),
                     CreateVideoMemorySection(properties),
                     ManaGraphicsDiagnosticsCommonSections.CreateCommonLimits(
@@ -94,6 +100,11 @@ namespace ManaGraphics.Code.Graphics
                 var totalWebGpuPolygons = (_sceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
                 var totalWebGpuVertices = _sceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
 
+#if MANA_BROWSER
+                var imguiInitialized = false;
+#else
+                var imguiInitialized = _imGuiController != null;
+#endif
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
                     sceneMeshes: _sceneMeshes.Count.ToString("N0"),
                     meshTextures: _meshTextures.Count.ToString("N0"),
@@ -101,7 +112,7 @@ namespace ManaGraphics.Code.Graphics
                     pipelines: _pipelines.Count.ToString("N0"),
                     totalPolygons: totalWebGpuPolygons,
                     totalVertices: totalWebGpuVertices,
-                    imguiInitialized: FormatBoolean(_imGuiController != null)));
+                    imguiInitialized: FormatBoolean(imguiInitialized)));
 
                 return new ManaGraphicsDiagnosticsSnapshot(DateTimeOffset.Now, sections);
             }
@@ -256,6 +267,7 @@ namespace ManaGraphics.Code.Graphics
             return value ? "Yes" : "No";
         }
 
+#if !MANA_BROWSER
         private void LogWebGpuDiagnostics(string? requestedBackend, InstanceBackend instanceBackend)
         {
             try
@@ -308,7 +320,11 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
                     $"shaderModules={_shaderModules.Count}; renderPipelines={_pipelines.Count}; " +
+#if MANA_BROWSER
+                    $"environmentMap={_environmentReflectionMap != null}; ImGui=false.");
+#else
                     $"environmentMap={_environmentReflectionMap != null}; ImGui={_imGuiController != null}.");
+#endif
 
                 LogVideoMemoryDiagnostics(properties);
                 CaptureInitializationSnapshot();
@@ -320,6 +336,7 @@ namespace ManaGraphics.Code.Graphics
                     $"[WebGPU Diagnostics] Capability report failed without affecting renderer startup: {exception}");
             }
         }
+#endif
 
         private void LogAdapterLimits()
         {

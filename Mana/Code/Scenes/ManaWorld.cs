@@ -1,11 +1,14 @@
+#if !MANA_BROWSER
 using ImGuiNET;
+#endif
 using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
+using Mana.Code.Renderers;
+using Mana.Code.Shapes;
 using Mana.Code.UI;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Graphics;
-using Silk.NET.Assimp;
 using Silk.NET.Maths;
 using System.Diagnostics;
 using System.Numerics;
@@ -18,7 +21,7 @@ namespace Mana
         public TimeSpan Duration { get; set; }
     }
 
-    public class ManaWorld : ManaObject
+    public partial class ManaWorld : ManaObject
     {
         public bool UseRayTracing = false;
 
@@ -57,10 +60,12 @@ namespace Mana
         public int LastMeshCount { get; private set; }
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
         public SceneSelectionState Selection => sceneSelectionState;
+#if !MANA_BROWSER
         private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
         private readonly SceneInspectorPanelView sceneInspectorPanelView;
         private readonly CameraComponentImGuiView cameraComponentImGuiView = new CameraComponentImGuiView();
         private readonly IrradianceSettingsPanelView irradianceSettingsPanelView = new IrradianceSettingsPanelView();
+#endif
         private ManaIrradianceDebugScene? irradianceDebugScene;
 
         public readonly object SceneLock = new();
@@ -102,8 +107,10 @@ namespace Mana
         
         public ManaWorld() : base(null!)
         {
+#if !MANA_BROWSER
             sceneOutlinerPanelView = new SceneOutlinerPanelView(sceneSelectionState);
             sceneInspectorPanelView = new SceneInspectorPanelView(sceneSelectionState);
+#endif
 
             Meshes = new List<ManaMesh>();
             Scenes = new List<ManaScene>();
@@ -134,6 +141,7 @@ namespace Mana
             CameraNode.Components.Add(MainCamera);
 
 
+#if !MANA_BROWSER
             if (createRenderer)
             {
                 //this.Renderer = new ManaDeferredRenderer(context);
@@ -144,6 +152,7 @@ namespace Mana
                     this.Renderer.Initialize();
                 }
             }
+#endif
 
             DefaultScene = new ManaScene(context);
             DefaultScene.Name = "Default Scene";
@@ -157,50 +166,6 @@ namespace Mana
             Renderer?.Resize(obj.X, obj.Y);
         }
        
-
-        public unsafe ManaSceneNode LoadFromGltf(
-            string sceneFile,
-            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
-        {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
-            ManaGltfLoader loader = new ManaGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
-            var rootSceneNode = loader.LoadFile(sceneFile);
-
-            stopwatch.Stop();
-            manaPerformanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
-
-            Scenes.AddRange(loader.Scenes);
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
-
-            return rootSceneNode;
-        }
-
-        public unsafe ManaSceneNode LoadFromGltfMemory(
-            ReadOnlyMemory<byte> sceneBytes,
-            string virtualFileName,
-            Func<string, byte[]?>? externalAssetResolver = null,
-            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
-        {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
-            ManaGltfLoader loader = new ManaGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
-            var rootSceneNode = loader.LoadFileFromMemory(sceneBytes.Span, virtualFileName, externalAssetResolver);
-
-            stopwatch.Stop();
-            manaPerformanceLogs.Add(new ManaPerformanceLog()
-            {
-                Name = $"Loading {virtualFileName} (memory)",
-                Duration = stopwatch.Elapsed
-            });
-
-            Scenes.AddRange(loader.Scenes);
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
-
-            return rootSceneNode;
-        }
 
         private void RunFutures(List<Action> futures, List<Action> activeFutures)
         {
@@ -357,6 +322,7 @@ namespace Mana
             Renderer.Render(drawScenes);
         }
 
+#if !MANA_BROWSER
         public void DrawImGui()
         {
             // Tab order within a dock node follows Begin() submission order, so Inspector
@@ -430,6 +396,7 @@ namespace Mana
 
             ImGui.End();
         }
+#endif
 
         private void CollectLightsFromNode(ManaSceneNode node, List<(Vector3 Position, Vector3 Color)> output)
         {

@@ -8,7 +8,9 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -195,6 +197,21 @@ namespace ManaGraphics.Code.Graphics
                 EnvironmentLoading.Complete("WebGPU environment maps ready");
 
                 ReleaseSceneMeshes();
+
+                // Releasing is only half the job: these meshes have to come BACK, rebuilt against the
+                // new environment textures. Normally RefreshRenderScene() does that on the next frame
+                // -- but it bails out immediately when there's no _renderSceneProvider, which is
+                // exactly the case for a scene built from CreateDemoRenderScene() rather than supplied
+                // by a game mode. Without this, the meshes vanish permanently the moment the
+                // background environment-map load completes (~1 frame in), with no error anywhere:
+                // no provider, no re-upload, no geometry, forever. Cost the browser port a long
+                // debugging detour -- every draw-call-level diagnostic looked perfect because by the
+                // time anything was screenshotted there was no draw call left to inspect.
+                if (_renderSceneProvider == null && _activeRenderScene != null)
+                {
+                    UploadSceneMeshes(_activeRenderScene);
+                }
+
                 ManaConsole.WriteDiagnostic($"WebGPU environment reflection targets swapped: {environmentPath}");
             }
         }

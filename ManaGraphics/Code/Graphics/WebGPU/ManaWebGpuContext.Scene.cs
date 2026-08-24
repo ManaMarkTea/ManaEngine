@@ -7,7 +7,9 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -74,7 +76,9 @@ namespace ManaGraphics.Code.Graphics
 
             var bufferDescriptor = new BufferDescriptor
             {
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                // CopySrc costs nothing functionally and lets mana_debug_readback_buffer (see
+                // mana_webgpu.c) inspect this buffer's real GPU-side bytes during future debugging.
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.CopySrc,
                 Size = (ulong)sizeof(ManaWebGpuObjectUniform)
             };
             var uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);

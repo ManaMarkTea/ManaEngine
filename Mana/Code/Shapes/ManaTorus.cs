@@ -88,7 +88,9 @@ namespace Mana.Code.Shapes
             SetCpuData(container.CreateCpuData());
             if (Context.OpenGl != null)
             {
+#if !MANA_BROWSER
                 VertexBufferObject = container.CreateVertexBufferObject(Context);
+#endif
             }
         }
     }

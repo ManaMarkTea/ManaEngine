@@ -1,4 +1,7 @@
-﻿namespace Mana
+﻿using Mana.Code;
+using Mana.Code.Shapes;
+
+namespace Mana
 {
     public class ManaCube : ManaProceduralMesh
     {
@@ -54,7 +57,9 @@
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
             if (Context?.OpenGl != null)
             {
+#if !MANA_BROWSER
                 VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+#endif
             }
         }
 

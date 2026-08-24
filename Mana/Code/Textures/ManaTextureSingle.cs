@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using Mana.Code;
+using Silk.NET.OpenGL;
 
 namespace Mana
 {

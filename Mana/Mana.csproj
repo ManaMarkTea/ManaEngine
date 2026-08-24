@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -12,6 +13,8 @@
          "missing XML comment" warning, which would otherwise fire on every undocumented public member. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- See ManaGraphics.csproj. -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -339,17 +342,75 @@
   <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
-    <PackageReference Include="Silk.NET.Assimp" Version="2.23.0" />
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.6" />
     <PackageReference Include="Silk.NET.Core" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Stateless" Version="5.14.0" />
+    <!-- Pure managed bindings, no native runtime asset at all; see ManaGraphics.csproj. Core
+         types (ManaContext, ManaTexture, ManaMaterial, ManaMesh) reference GL/GLEnum/TextureTarget
+         etc. directly even though they're also usable under WebGPU (Context.OpenGl is already
+         nullable and null-checked throughout for exactly that case), so excluding the package
+         itself isn't needed or wanted for the browser target. -->
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.23.0" />
+  </ItemGroup>
+
+  <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
+       Assimp has no WebAssembly build in this dependency chain (see WebPort-Plan.md
+       M4); GLFW is desktop windowing, unused on the WebGPU-only browser target.
+       Silk.NET.OpenGL.Extensions.ImGui pulls in ImGui.NET (a native cimgui binary)
+       transitively; see ManaGraphics.csproj. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <PackageReference Include="Silk.NET.Assimp" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
+  </ItemGroup>
+
+  <!-- ManaGltfLoader.cs is Assimp-backed (desktop only); ManaWorld.Gltf.Desktop.cs is its
+       ManaWorld-facing half. ManaWorld.Gltf.Browser.cs (SharpGLTF-backed) replaces both on
+       the browser target. See WebPort-Plan.md M4. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\Shapes\Loaders\ManaGltfLoader.cs" />
+    <Compile Remove="Code\Scenes\ManaWorld.Gltf.Desktop.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <Compile Remove="Code\Scenes\ManaWorld.Gltf.Browser.cs" />
+  </ItemGroup>
+
+  <!-- ImGui.NET has no browser-wasm asset (see ManaGraphics.csproj). These are confirmed
+       editor-UI-shell concerns (docking layout persistence, font presets, theme colors,
+       inspector/outliner panels) with no play-mode-relevant caller left once
+       BaseGameMode.cs's own call sites are guarded (see MANA_BROWSER usage there);
+       excluded outright rather than guarded internally. SceneViewerMode.cs is Mana's own
+       desktop test harness (GLFW-windowed scene viewer; its Main() lives in the separate
+       ManaSceneViewer project now), not part of what a browser host needs. See
+       WebPort-Plan.md for the still-unresolved rest of Mana.csproj's browser-wasm compile
+       scope. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiDocking.cs" />
+    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiDpi.cs" />
+    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiFonts.cs" />
+    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiTheme.cs" />
+    <Compile Remove="Code\UI\ImGui\ImGuiDockNative.cs" />
+    <Compile Remove="Code\UI\CameraComponentImGuiView.cs" />
+    <Compile Remove="Code\UI\IrradianceSettingsPanelView.cs" />
+    <Compile Remove="Code\UI\SceneInspectorPanelView.cs" />
+    <Compile Remove="Code\UI\SceneOutlinerPanelView.cs" />
+    <Compile Remove="Code\UI\ManaLoadingScreenView.cs" />
+    <Compile Remove="Code\GameModes\SceneViewerMode.cs" />
+  </ItemGroup>
+
+  <!-- ManaIrradianceRenderer/ManaDeferredRenderer are only ever constructed when
+       ManaWorld.Initialize's createRenderer parameter is true, which the WebGPU path
+       (ManaWorld.Renderer stays null there; rendering goes through ManaWebGpuContext
+       instead) never passes; confirmed via BaseGameMode.LoadForGraphicsBackend's only
+       caller. Genuinely OpenGL-legacy-only, not just OpenGL-adjacent. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\Renderers\ManaDeferredRenderer.cs" />
+    <Compile Remove="Code\Renderers\ManaIrradianceRenderer.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -527,12 +588,24 @@
 
   <!-- Transitional bridge: these implementations now live with the graphics
        subsystem, but still compile into Mana until their ManaContext-era
-       dependencies are replaced with ManaCore contracts. -->
-  <ItemGroup>
+       dependencies are replaced with ManaCore contracts.
+       Desktop only: ManaImGuiClipboardBridge.cs needs ImGuiNET (no browser-wasm asset;
+       see ManaGraphics.csproj) and the OpenGL Legacy files need the OpenGL backend,
+       which the WebGPU-only browser target excludes entirely. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <Compile Include="..\ManaGraphics\Code\Graphics\ManaImGuiClipboardBridge.cs"
              Link="Code\Graphics\ManaImGuiClipboardBridge.cs" />
     <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
              Link="Code\Graphics\OpenGL\Legacy\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!-- ManaGameModeGraphicsBridge.cs is the one exception to the exclusion above; see
+       ManaGraphics.csproj for why. BaseGameMode.cs (compiled into this same assembly)
+       calls it directly regardless of backend. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\ManaGameModeGraphicsBridge.cs"
+             Link="Code\Graphics\OpenGL\Legacy\ManaGameModeGraphicsBridge.cs" />
+  </ItemGroup>
+
 
 </Project>

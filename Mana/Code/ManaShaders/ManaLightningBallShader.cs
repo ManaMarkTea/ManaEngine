@@ -24,11 +24,11 @@ namespace Mana.Code
         public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             if (Context.OpenGl == null) return;
-            Context.RequireOpenGl().Enable(EnableCap.Blend);
-            Context.RequireOpenGl().BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            Context.RequireOpenGl().DepthMask(false);
-            Context.RequireOpenGl().Enable(EnableCap.CullFace);
-            Context.RequireOpenGl().CullFace(TriangleFace.Back);
+            Context.OpenGl!.Enable(EnableCap.Blend);
+            Context.OpenGl!.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            Context.OpenGl!.DepthMask(false);
+            Context.OpenGl!.Enable(EnableCap.CullFace);
+            Context.OpenGl!.CullFace(TriangleFace.Back);
 
             base.BindShader(material, objectMatrix, camera, owner);
         }
@@ -38,9 +38,9 @@ namespace Mana.Code
             if (Context.OpenGl == null) return;
             base.UnbindShader();
 
-            Context.RequireOpenGl().DepthMask(true);
-            Context.RequireOpenGl().Disable(EnableCap.CullFace);
-            Context.RequireOpenGl().Disable(EnableCap.Blend);
+            Context.OpenGl!.DepthMask(true);
+            Context.OpenGl!.Disable(EnableCap.CullFace);
+            Context.OpenGl!.Disable(EnableCap.Blend);
         }
     }
 }

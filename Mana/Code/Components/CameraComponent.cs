@@ -1,5 +1,9 @@
+#if !MANA_BROWSER
 using ImGuiNET;
+#endif
+using Mana.Code;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using ManaCore.Graphics;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -476,6 +480,9 @@ namespace Mana
         /// <summary>Fallback for a camera running without a game mode, such as in a test harness.</summary>
         private static bool GetImGuiWantsCaptureMouse()
         {
+#if MANA_BROWSER
+            return false;
+#else
             try
             {
                 if (ImGui.GetCurrentContext() == IntPtr.Zero)
@@ -489,10 +496,14 @@ namespace Mana
             {
                 return false;
             }
+#endif
         }
 
         private static bool GetImGuiWantsCaptureKeyboard()
         {
+#if MANA_BROWSER
+            return false;
+#else
             try
             {
                 if (ImGui.GetCurrentContext() == IntPtr.Zero)
@@ -506,6 +517,7 @@ namespace Mana
             {
                 return false;
             }
+#endif
         }
 
         public float[] GetMouseDeltaHistoryXSnapshot() => _deltaHistoryX.ToArray();

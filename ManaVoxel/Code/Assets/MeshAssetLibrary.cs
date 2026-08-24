@@ -13,7 +13,7 @@ namespace ManaVoxel.Code.Assets
     /// the part worth testing. A view on top of this only has to render rows.
     /// </para>
     /// </summary>
-    public sealed class MeshAssetLibrary : IDisposable
+    public sealed partial class MeshAssetLibrary : IDisposable
     {
         /// <summary>Extensions worth scanning for. Anything Assimp will open that we have a reason to import.</summary>
         public static readonly string[] SupportedExtensions =
@@ -42,8 +42,6 @@ namespace ManaVoxel.Code.Assets
             ".ply"
         };
 
-        private const string ZipAssetPrefix = "zipasset:";
-        private const string RelativeZipAssetPrefix = "zipasset-rel:";
 
         /// <summary>
         /// How long to wait after the last file-system event before actually rescanning. A copy or unzip
@@ -540,89 +538,6 @@ namespace ManaVoxel.Code.Assets
             return $"{RelativeZipAssetPrefix}{zip}:{entry}";
         }
 
-        public static bool TryDecodeZip(string asset, out string zipPath, out string entryPath)
-        {
-            zipPath = string.Empty;
-            entryPath = string.Empty;
-
-            if (asset.StartsWith(ZipAssetPrefix, StringComparison.Ordinal))
-            {
-                return TryDecodeZipBody(asset[ZipAssetPrefix.Length..], resolveRelative: false, out zipPath, out entryPath);
-            }
-
-            if (asset.StartsWith(RelativeZipAssetPrefix, StringComparison.Ordinal))
-            {
-                return TryDecodeZipBody(asset[RelativeZipAssetPrefix.Length..], resolveRelative: true, out zipPath, out entryPath);
-            }
-
-            return false;
-        }
-
-        private static bool TryDecodeZipBody(
-            string body,
-            bool resolveRelative,
-            out string zipPath,
-            out string entryPath)
-        {
-            zipPath = string.Empty;
-            entryPath = string.Empty;
-
-            var separator = body.IndexOf(':');
-            if (separator <= 0 || separator >= body.Length - 1)
-            {
-                return false;
-            }
-
-            try
-            {
-                var decodedZipPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[..separator]));
-                zipPath = resolveRelative ? ResolveRelativeZipPath(decodedZipPath) : decodedZipPath;
-                entryPath = Encoding.UTF8.GetString(Convert.FromBase64String(body[(separator + 1)..]));
-                return !string.IsNullOrWhiteSpace(zipPath) && !string.IsNullOrWhiteSpace(entryPath);
-            }
-            catch
-            {
-                // Not a reference we wrote. Treated as a plain path rather than thrown on, which is what a
-                // stray colon in a filename should do.
-                return false;
-            }
-        }
-
-        private static string ResolveRelativeZipPath(string zipPath)
-        {
-            if (Path.IsPathRooted(zipPath))
-            {
-                return Path.GetFullPath(zipPath);
-            }
-
-            var normalized = zipPath.Replace('/', Path.DirectorySeparatorChar);
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var root in RelativeZipRoots())
-            {
-                var fullRoot = Path.GetFullPath(root);
-                if (!seen.Add(fullRoot))
-                {
-                    continue;
-                }
-
-                var candidate = Path.GetFullPath(Path.Combine(fullRoot, normalized));
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-            }
-
-            return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, normalized));
-        }
-
-        private static IEnumerable<string> RelativeZipRoots()
-        {
-            yield return Environment.CurrentDirectory;
-            yield return AppContext.BaseDirectory;
-            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..");
-            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..");
-        }
 
         private static string Relative(string path)
         {

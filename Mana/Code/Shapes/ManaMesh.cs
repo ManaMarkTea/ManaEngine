@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using Mana.Code.Graphics;
 using Mana.Code.Shapes.Modifiers;
@@ -20,12 +21,15 @@ namespace Mana.Code.Shapes
         public string RenderKey { get; } = Guid.NewGuid().ToString("N");
         public ulong CpuDataVersion { get; private set; }
 
+#if !MANA_BROWSER
         private ManaVertexBufferObject? vertexBufferObject;
+#endif
 
         public IManaGpuMesh? GpuMesh { get; private set; }
 
         public IManaImmediateGpuMesh? ImmediateGpuMesh => GpuMesh as IManaImmediateGpuMesh;
 
+#if !MANA_BROWSER
         public ManaVertexBufferObject? VertexBufferObject
         {
             get => vertexBufferObject;
@@ -35,6 +39,7 @@ namespace Mana.Code.Shapes
                 GpuMesh = value == null ? null : new ManaOpenGlMesh(value);
             }
         }
+#endif
 
         public ManaDynamicGeometryContainer DynamicGeometryContainer { get; internal set; }
 
@@ -116,6 +121,7 @@ namespace Mana.Code.Shapes
                 return meshData;
             }
 
+#if !MANA_BROWSER
             if (VertexBufferObject != null)
             {
                 var meshData = new ManaMeshCpuData
@@ -133,6 +139,7 @@ namespace Mana.Code.Shapes
 
                 return meshData;
             }
+#endif
 
             throw new InvalidOperationException($"Mesh '{Name}' does not have CPU geometry data available.");
         }

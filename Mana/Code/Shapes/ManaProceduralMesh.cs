@@ -1,4 +1,5 @@
 using Mana.Code.ManaShaders;
+using Mana.Code.Materials;
 
 namespace Mana.Code.Shapes
 {
@@ -54,7 +55,9 @@ namespace Mana.Code.Shapes
         protected virtual void GenerateData() 
         {
             DynamicGeometryContainer = new ManaDynamicGeometryContainer();
+#if !MANA_BROWSER
             VertexBufferObject = null;
+#endif
 
             if (Materials.Length == 0)
             {

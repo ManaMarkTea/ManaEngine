@@ -1,3 +1,4 @@
+using Mana.Code;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
 using Silk.NET.OpenGL;
@@ -75,7 +76,7 @@ namespace Mana
 
         public void UpdateParameters()
         {
-            var gl = Context.RequireOpenGl();
+            var gl = Context.OpenGl!;
 
             var targetType = TextureTargetType;
 
@@ -128,6 +129,20 @@ namespace Mana
 
         public virtual void Load()
         {
+#if MANA_BROWSER
+            // CPU pixels are the whole job on the browser target: there is no OpenGL, and WebGPU
+            // uploads textures through its own bind groups from this data rather than through a
+            // bound texture unit. Without this branch, anything that loads a texture while
+            // DeferGpuUploads is false takes the OpenGL path below and throws
+            // PlatformNotSupportedException -- which is exactly what happened in
+            // ManaGameModeGraphicsBridge.FinalizeGpuUploads: it clears DeferGpuUploads first, then
+            // walks every material calling Load(). The throw was swallowed by
+            // ManaLoadingCoordinator.Update()'s catch into Fail(), so loading simply never
+            // completed and, because BaseGameMode.update() only ticks the loading coordinator
+            // while IsLoading, the game never simulated a single frame: no physics, no input, and
+            // no finalized GPU uploads, with nothing logged anywhere.
+            LoadCpuPixelData();
+#else
             if (Context.DeferGpuUploads)
             {
                 LoadCpuPixelData();
@@ -136,6 +151,7 @@ namespace Mana
             {
                 EnsureOpenGlTexture().Load();
             }
+#endif
         }
 
         internal void LoadOpenGlTextureData()
@@ -145,7 +161,7 @@ namespace Mana
 
         protected virtual unsafe void LoadTextureData()
         {
-            var gl = Context.RequireOpenGl();
+            var gl = Context.OpenGl!;
 
             if (PixelData != null && PixelData.Length > 0)
             {
@@ -269,8 +285,16 @@ namespace Mana
                 return openGlTexture;
             }
 
+#if MANA_BROWSER
+            // No OpenGL on the browser target (WebGPU-only; see WebPort-Plan.md) -- this
+            // legacy per-texture-unit Bind(int) path is OpenGL-only; WebGPU binds
+            // textures through its own bind groups instead, never through here.
+            throw new PlatformNotSupportedException(
+                "ManaTexture.Bind (OpenGL texture units) is not supported on the browser target.");
+#else
             GpuTexture = new ManaOpenGlTexture(this);
             return (IManaBindableGpuTexture)GpuTexture;
+#endif
         }
 
         /// <summary>

@@ -3,7 +3,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 
 namespace ManaGraphics.Code.Graphics
 {

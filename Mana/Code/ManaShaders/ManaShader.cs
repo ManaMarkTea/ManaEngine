@@ -1,3 +1,6 @@
+using Mana.Code;
+using Mana.Code.ManaShaders;
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using Silk.NET.OpenGL;
 using System.Diagnostics;

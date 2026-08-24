@@ -8,7 +8,9 @@ using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using ManaGraphics.Code.Graphics.Overlays;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -256,7 +258,9 @@ namespace ManaGraphics.Code.Graphics
 
             var frameBufferDescriptor = new BufferDescriptor
             {
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                // CopySrc costs nothing functionally and lets mana_debug_readback_buffer (see
+                // mana_webgpu.c) inspect this buffer's real GPU-side bytes during future debugging.
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.CopySrc,
                 Size = (ulong)sizeof(ManaWebGpuFrameUniform)
             };
             _frameUniformBuffer = _api.DeviceCreateBuffer(_device, &frameBufferDescriptor);
@@ -634,6 +638,12 @@ namespace ManaGraphics.Code.Graphics
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU shader module from {path}.");
                 }
+
+#if MANA_BROWSER
+                // Kept as a standing diagnostic: logs any WGSL compilation warnings/errors straight
+                // to the browser console. See mana_webgpu.c's mana_log_shader_compilation_info_impl.
+                ManaBrowserWebGpuCallbackBridge.LogShaderCompilationInfo((int)(nint)shaderModule);
+#endif
 
                 return shaderModule;
             }

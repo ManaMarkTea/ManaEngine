@@ -1,4 +1,8 @@
-﻿namespace Mana
+﻿using Mana.Code;
+using Mana.Code.Materials;
+using Mana.Code.Shapes;
+
+namespace Mana
 {
     public enum ManaQuadPlanes
     {
@@ -121,7 +125,9 @@
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
             if (Context.OpenGl != null)
             {
+#if !MANA_BROWSER
                 VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+#endif
             }
         }
 

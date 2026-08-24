@@ -46,7 +46,9 @@ namespace Mana.Code.Shapes
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
             if (Context.OpenGl != null)
             {
+#if !MANA_BROWSER
                 VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+#endif
             }
         }
 

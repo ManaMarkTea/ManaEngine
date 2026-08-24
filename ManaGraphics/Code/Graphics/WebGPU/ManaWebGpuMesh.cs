@@ -34,7 +34,9 @@ namespace ManaGraphics.Code.Graphics
 
             var vertexBufferDescriptor = new BufferDescriptor
             {
-                Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+                // CopySrc costs nothing functionally and lets mana_debug_readback_buffer (see
+                // mana_webgpu.c) inspect this buffer's real GPU-side bytes during future debugging.
+                Usage = BufferUsage.Vertex | BufferUsage.CopyDst | BufferUsage.CopySrc,
                 Size = (ulong)vertices.Length * VertexStride
             };
             var vertexBuffer = api.DeviceCreateBuffer(device, &vertexBufferDescriptor);

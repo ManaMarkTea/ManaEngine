@@ -5,10 +5,18 @@ using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
+#if !MANA_BROWSER
 using ManaGeoTools.Code.Geo;
+#endif
+#if !MANA_BROWSER
 using ManaGeoTools.Code.GeoTiff;
+#endif
+#if !MANA_BROWSER
 using ManaGeoTools.Code.Planet;
+#endif
+#if !MANA_BROWSER
 using ManaGeoTools.Code.Shapefile;
+#endif
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
@@ -25,7 +33,9 @@ namespace ManaVoxel.Code.Levels
 
         public ManaPlayerStartNode? PlayerStart { get; set; }
 
+#if !MANA_BROWSER
         public PlanetNode? Planet { get; set; }
+#endif
 
         public ManaWaterNode? Water { get; set; }
 
@@ -231,10 +241,12 @@ namespace ManaVoxel.Code.Levels
                     state.Result.PlayerStart = start;
                 }
 
+#if !MANA_BROWSER
                 if (node is PlanetNode planet)
                 {
                     state.Result.Planet = planet;
                 }
+#endif
 
                 if (node is ManaWaterNode water)
                 {
@@ -294,11 +306,13 @@ namespace ManaVoxel.Code.Levels
                     AddScriptsIfPresent(entry, start);
                     return start;
 
+#if !MANA_BROWSER
                 case ManaLevelSourceKind.Planet:
                     var planet = LoadPlanet(entry, state.Context, state.Scene);
                     AttachToParent(state.Context, parent, planet);
                     AddScriptsIfPresent(entry, planet);
                     return planet;
+#endif
 
                 case ManaLevelSourceKind.Water:
                     var water = LoadWater(entry, state.Context, state.Scene);
@@ -379,6 +393,11 @@ namespace ManaVoxel.Code.Levels
             return node;
         }
 
+#if !MANA_BROWSER
+        // Planet levels are backed by ManaGeoTools (GeoTIFF/shapefile terrain), which has no
+        // browser-wasm build; this file is source-linked into ManaVoxel.Web (see its csproj). No
+        // browser level uses a Planet node, so the whole path compiles out there rather than
+        // dragging that project in.
         private static PlanetNode LoadPlanet(ManaLevelNode entry, ManaContext context, ManaScene scene)
         {
             EnsureWaterMask();
@@ -414,6 +433,7 @@ namespace ManaVoxel.Code.Levels
 
             return planet;
         }
+#endif
 
         private static ManaWaterNode LoadWater(ManaLevelNode entry, ManaContext context, ManaScene scene)
         {
@@ -623,6 +643,7 @@ namespace ManaVoxel.Code.Levels
             }
         }
 
+#if !MANA_BROWSER
         private static void EnsureWaterMask()
         {
             lock (WaterMaskLock)
@@ -641,6 +662,7 @@ namespace ManaVoxel.Code.Levels
                 GeoWaterMask.Shared = mask;
             }
         }
+#endif
 
         private static void ApplyTransform(ManaSceneNode node, ManaLevelNode entry)
         {

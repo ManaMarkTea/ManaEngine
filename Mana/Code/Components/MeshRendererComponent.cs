@@ -1,4 +1,7 @@
+using Mana.Code;
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using System.Threading;
 using ManaCore.Graphics;
 
@@ -192,10 +195,19 @@ namespace Mana
         public override void DrawComponent()
         {
             base.DrawComponent();
+#if !MANA_BROWSER
             if (!IsVisible || Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
             {
                 return;
             }
+#else
+            // Same visibility contract as desktop; the VertexBufferObject half of that check is
+            // OpenGL-only and has no browser equivalent (WebGPU uploads through its own path).
+            if (!IsVisible || Mesh == null)
+            {
+                return;
+            }
+#endif
 
             if (DrawAfterScene)
             {

@@ -10,7 +10,9 @@ using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using ManaGraphics.Code.Graphics.Overlays;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -27,21 +29,27 @@ namespace ManaGraphics.Code.Graphics
         private readonly IWindow _window;
         private readonly IInputContext? _input;
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
+#if !MANA_BROWSER
         private readonly RequestAdapterCallback _requestAdapterCallback;
         private readonly RequestDeviceCallback _requestDeviceCallback;
+#endif
         private readonly ErrorCallback _errorCallback;
         private readonly string? _requestedBackend;
+#if !MANA_BROWSER
         private readonly InstanceBackend _instanceBackend;
+#endif
 
         private Instance* _instance;
         private Surface* _surface;
         private Adapter* _adapter;
         private Device* _device;
         private Queue* _queue;
+#if !MANA_BROWSER
         // Resolved once, right after _device/_queue exist -- wgpu-native's own extension for pumping
         // async callbacks (BufferMapAsync, QueueOnSubmittedWorkDone) to actually fire. Falls back to the
         // portable InstanceProcessEvents if this build's WebGPU implementation doesn't expose it.
         private Wgpu? _wgpuNativeExtension;
+#endif
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
         private volatile bool _disposed;
         private Texture* _depthTexture;
@@ -57,7 +65,9 @@ namespace ManaGraphics.Code.Graphics
         // Work handed in from background threads that must run on the render thread instead -- see
         // EnqueueRenderThreadWork for why submitting from anywhere else deadlocks wgpu-native.
         private readonly ConcurrentQueue<Action> _renderThreadWork = new();
-        private readonly ManaWebGpuMeshTextureCache _meshTextures;
+        // Not readonly: set from FinishInitialization, which for MANA_BROWSER runs after the
+        // constructor returns (see ManaWebGpuContext.BrowserAsync.cs), not inside it.
+        private ManaWebGpuMeshTextureCache _meshTextures = null!;
         private ManaRenderScene? _activeRenderScene;
         private ulong _frameSerial;
         private Vector3 _demoMeshCenter;
@@ -96,7 +106,9 @@ namespace ManaGraphics.Code.Graphics
         private int _framesSinceEnvironmentCapture = int.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
+#if !MANA_BROWSER
         private ManaWebGpuImGuiController? _imGuiController;
+#endif
         private ManaWebGpuUiRenderer? _uiRenderer;
         private ManaWebGpuSkybox? _skybox;
 
@@ -138,6 +150,7 @@ namespace ManaGraphics.Code.Graphics
 
         private readonly record struct DeferredSceneMeshDisposal(ulong DisposeAfterFrame, ManaWebGpuSceneMesh SceneMesh);
 
+#if !MANA_BROWSER
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate void WgpuLogCallback(WgpuLogLevel level, string message, nint userdata);
 
@@ -157,6 +170,7 @@ namespace ManaGraphics.Code.Graphics
         private static extern void WgpuSetLogCallback(WgpuLogCallback callback, nint userdata);
 
         private static readonly WgpuLogCallback NativeLogCallback = OnNativeLog;
+#endif
 
         public ManaWebGpuContext(IWindow window, IInputContext? input, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
         {
@@ -166,12 +180,28 @@ namespace ManaGraphics.Code.Graphics
             _requestedBackend = requestedBackend;
 
             ManaConsole.WriteDiagnostic("Creating Silk WebGPU API.");
+#if MANA_BROWSER
+            _api = new WebGPU(new ManaBrowserWebGpuNativeContext());
+#else
             _api = WebGPU.GetApi();
+#endif
+#if !MANA_BROWSER
             _requestAdapterCallback = OnRequestAdapter;
             _requestDeviceCallback = OnRequestDevice;
+#endif
             _errorCallback = OnError;
 
             ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
+#if MANA_BROWSER
+            // No wgpu-native-style backend selection in-browser -- the browser's own WebGPU
+            // implementation picks its backend internally. Deliberately a real null pointer, NOT
+            // `&(new InstanceDescriptor())`: a pointer to a zeroed-but-real struct silently hung
+            // forever inside Emscripten's legacy wgpuCreateInstance (confirmed by isolating the
+            // exact call via a raw function pointer probe -- null succeeded instantly, a pointer to
+            // an identical zeroed struct never returned). Matches the M0 spike's own
+            // wgpuCreateInstance(NULL) call, which is the only shape ever actually proven to work.
+            _instance = _api.CreateInstance((InstanceDescriptor*)null);
+#else
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MANA_WGPU_NATIVE_TRACE")))
             {
                 EnableNativeBackendTracing();
@@ -192,32 +222,66 @@ namespace ManaGraphics.Code.Graphics
             };
 
             _instance = _api.CreateInstance(&instanceDescriptor);
+#endif
             if (_instance == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU instance.");
             }
 
             ManaConsole.WriteDiagnostic("Creating WebGPU surface.");
+#if MANA_BROWSER
+            Console.WriteLine("[ManaWebGpuContext] Calling CreateFromCanvas...");
+            _surface = ManaBrowserWebGpuSurface.CreateFromCanvas(window, _api, _instance);
+            Console.WriteLine($"[ManaWebGpuContext] CreateFromCanvas returned: {(nint)_surface:X}");
+#else
             _surface = WebGPUSurface.CreateWebGPUSurface(window, _api, _instance);
+#endif
             if (_surface == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU surface.");
             }
 
+#if !MANA_BROWSER
             ManaConsole.WriteDiagnosticElapsed("Requesting WebGPU adapter.");
             RequestAdapter(requestedBackend);
             ManaConsole.WriteDiagnosticElapsed("Adapter granted; requesting WebGPU device.");
             RequestDevice();
             ManaConsole.WriteDiagnosticElapsed("Device granted.");
+            FinishInitialization(requestedBackend, window);
+#endif
+            // MANA_BROWSER: adapter/device request is genuinely asynchronous in a real browser
+            // (navigator.gpu.requestAdapter() resolves on a JS microtask, not synchronously within
+            // this call the way wgpu-native's desktop implementation does) -- a constructor can't
+            // await that, and this whole class is declared `unsafe`, which C# doesn't allow an
+            // `await` to appear within at all (regardless of whether the specific method touches a
+            // pointer). See ManaWebGpuContext.BrowserAsync.cs's CompleteBrowserInitializationAsync,
+            // a separate non-unsafe partial declaration of this same class, which callers must
+            // await before this context is usable; not yet confirmed working against a real browser.
+        }
 
+        private void FinishInitialization(string? requestedBackend, IWindow window)
+        {
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
             _queue = _api.DeviceGetQueue(_device);
             _meshTextures = new ManaWebGpuMeshTextureCache(_api, _device, _queue);
+#if !MANA_BROWSER
             if (!_api.TryGetDeviceExtension(_device, out _wgpuNativeExtension))
             {
                 ManaConsole.WriteDiagnostic("WGPU native extension unavailable; falling back to InstanceProcessEvents for async GPU callback pumping.");
             }
+#endif
+#if !MANA_BROWSER
             _api.DeviceSetUncapturedErrorCallback(_device, _errorCallback, null);
+#else
+            // Skipped in the browser build: this callback's delivery goes through the same
+            // getWasmTableEntry-dependent dynCall path as the adapter/device request callbacks
+            // that ManaBrowserWebGpuCallbackBridge already had to bypass (see mana_webgpu.c),
+            // and hitting it here just spams "getWasmTableEntry(...) is not a function" on every
+            // validation error instead of ever calling _errorCallback. Not worth its own EM_JS
+            // bridge: the browser's real WebGPU implementation already prints validation errors
+            // straight to the devtools console on its own, unconditionally, regardless of
+            // whether an uncaptured-error callback is registered at all.
+#endif
             _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
@@ -249,7 +313,9 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnostic("WebGPU mesh pipeline disabled. Set MANA_WEBGPU_DEMO_MESH=1 to test the fallback demo pipeline on the current backend.");
             }
             ManaConsole.WriteDiagnostic($"WebGPU surface configured: {window.FramebufferSize.X}x{window.FramebufferSize.Y}, format={_surfaceFormat}.");
+#if !MANA_BROWSER
             LogWebGpuDiagnostics(requestedBackend, _instanceBackend);
+#endif
         }
 
         public void Resize(Vector2D<int> framebufferSize)
@@ -259,8 +325,14 @@ namespace ManaGraphics.Code.Graphics
 
         public IManaImGuiController CreateImGuiController(IInputContext input)
         {
+#if MANA_BROWSER
+            // ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset. Play
+            // mode's actual UI is ManaUi-based, not ImGui-based -- see ManaGraphics.csproj.
+            return new ManaCore.Graphics.NullManaImGuiController();
+#else
             _imGuiController = new ManaWebGpuImGuiController(_api, _device, _queue, _surfaceFormat, _window, input);
             return _imGuiController;
+#endif
         }
 
         /// <summary>
@@ -380,6 +452,7 @@ namespace ManaGraphics.Code.Graphics
                 (uint)Math.Max(0, framebufferSize.Y));
         }
 
+#if !MANA_BROWSER
         // Opt-in only (MANA_WGPU_NATIVE_TRACE env var) -- Trace is the noisiest level across the whole
         // wgpu-native stack (wgpu_core/wgpu_hal/wgpu), and the native log callback fires synchronously,
         // routed through ManaLog's single global lock, for every internal wgpu-native operation on
@@ -434,6 +507,7 @@ namespace ManaGraphics.Code.Graphics
 
             ManaConsole.WriteDiagnostic($"[wgpu:{levelName}] {message}");
         }
+#endif
 
         // Callable from any thread; runs FIFO on the render thread via DrainRenderThreadWork.
         // wgpu-native takes device locks in opposite orders for surface-present and queue-submit, so a
@@ -542,6 +616,9 @@ namespace ManaGraphics.Code.Graphics
             // every frame, unconditionally, before either early-return path below, so a pending readback
             // never stalls while the window is minimized/mid-resize/reconfiguring. Cheap (near-no-op) when
             // nothing's pending, so not worth gating behind a pending-count check.
+#if MANA_BROWSER
+            _api.InstanceProcessEvents(_instance);
+#else
             if (_wgpuNativeExtension != null)
             {
                 _wgpuNativeExtension.DevicePoll(_device, false, null);
@@ -550,6 +627,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 _api.InstanceProcessEvents(_instance);
             }
+#endif
 
             _frameSerial++;
             DrainDeferredSceneMeshDisposals();
@@ -726,7 +804,9 @@ namespace ManaGraphics.Code.Graphics
             using (ManaFrameProfiler.Measure("GPU: Tone Map + ImGui"))
             {
                 _hdrPostProcessor?.Draw(toneMapRenderPass);
+#if !MANA_BROWSER
                 _imGuiController?.Render(toneMapRenderPass);
+#endif
             }
 
             // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
@@ -767,6 +847,9 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
             }
 
+#if MANA_BROWSER
+            _api.InstanceProcessEvents(_instance);
+#else
             if (_wgpuNativeExtension != null)
             {
                 _wgpuNativeExtension.DevicePoll(_device, false, null);
@@ -775,6 +858,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 _api.InstanceProcessEvents(_instance);
             }
+#endif
 
             LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
 

@@ -1,3 +1,5 @@
+using Mana.Code.Materials;
+
 namespace Mana.Code.Shapes
 {
     /// <summary>One polyline: a sequence of points in the owning mesh's local space, plus whether the
@@ -381,7 +383,9 @@ namespace Mana.Code.Shapes
             // Same instance, same arrays -- this call is purely the version bump the backends key off, exactly
             // as ManaSkinnedMeshComponent.PublishSkinnedGeometry does for a skinned rig.
             SetCpuData(cpuData);
+#if !MANA_BROWSER
             VertexBufferObject?.UpdateDynamicData(positions, normals, colors);
+#endif
             return true;
         }
 

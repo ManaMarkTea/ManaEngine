@@ -1,3 +1,4 @@
+using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using Silk.NET.OpenGL;
 using System;
@@ -99,7 +100,7 @@ namespace Mana.Code.ManaShaders
             {
                 return;
             }
-            var gl = Context.gl;
+            var gl = Context.OpenGl!;
 
             vertexShaderObject = gl.CreateShader(ShaderType.VertexShader);
             fragmentShaderObject = gl.CreateShader(ShaderType.FragmentShader);
@@ -169,7 +170,7 @@ namespace Mana.Code.ManaShaders
             {
                 return;
             }
-            var gl = Context.gl;
+            var gl = Context.OpenGl!;
 
             UniformMap.Clear();
             UniformNames.Clear();
@@ -217,14 +218,14 @@ namespace Mana.Code.ManaShaders
         {
             if (Context.OpenGl == null || Context.DeferGpuUploads) return;
             EnsureCompiled();
-            Context.gl.UseProgram(shaderProgram);
+            Context.OpenGl!.UseProgram(shaderProgram);
         }
 
         public unsafe virtual void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
             if (Context.OpenGl == null || Context.DeferGpuUploads) return;
             EnsureCompiled();
-            var gl = Context.gl;
+            var gl = Context.OpenGl!;
 
             gl.UseProgram(shaderProgram);
 
@@ -414,7 +415,7 @@ namespace Mana.Code.ManaShaders
         public void UnbindShader()
         {
             if (Context.OpenGl == null || Context.DeferGpuUploads) return;
-            Context.gl.UseProgram(0);
+            Context.OpenGl!.UseProgram(0);
         }
 
     }

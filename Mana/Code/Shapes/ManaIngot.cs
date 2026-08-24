@@ -58,7 +58,9 @@
             builtQuad.D.Position = builtQuad.D.Position - (builtQuad.D.Position - builtQuad.Center).Normalized() * 0.25f;
 
 
+#if !MANA_BROWSER
             VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
+#endif
         }
 
     }

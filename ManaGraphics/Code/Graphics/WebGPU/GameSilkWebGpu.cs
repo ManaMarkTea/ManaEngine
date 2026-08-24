@@ -4,6 +4,9 @@ using Silk.NET.Input;
 using Silk.NET.Windowing;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
+#if MANA_BROWSER
+using ManaGraphics.Code.Graphics.Browser;
+#endif
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -45,6 +48,9 @@ namespace ManaGraphics.Code.Graphics
 
         public void Run()
         {
+#if MANA_BROWSER
+            RunBrowser();
+#else
             ManaConsole.WriteDiagnostic("Creating WebGPU Silk window.");
             var options = WindowOptions.Default;
             options.API = new GraphicsAPI(ContextAPI.None, new APIVersion(0, 0));
@@ -62,7 +68,46 @@ namespace ManaGraphics.Code.Graphics
             _window.Closing += Closing;
             ManaConsole.WriteDiagnostic("Running WebGPU Silk window.");
             _window.Run();
+#endif
         }
+
+#if MANA_BROWSER
+        // Not yet confirmed working end to end against a real browser -- see WebPort-Plan.md M1/M2.
+        private async void RunBrowser()
+        {
+            try
+            {
+                Console.WriteLine("[RunBrowser] Creating browser WebGPU window.");
+                var browserWindow = new ManaBrowserWindow("#manaCanvas");
+                _window = browserWindow;
+                _window.FramebufferResize += Resize;
+                browserWindow.Initialize();
+                Console.WriteLine($"[RunBrowser] Window initialized, framebuffer size = {_window.FramebufferSize}.");
+
+                _input = new ManaBrowserInputContext();
+                _inputReady?.Invoke(_window, _input);
+
+                Console.WriteLine("[RunBrowser] Constructing ManaWebGpuContext (sync part: instance + surface)...");
+                var browserWebGpu = new ManaWebGpuContext(_window, _input, _requestedBackend, _renderSceneProvider);
+                Console.WriteLine("[RunBrowser] Sync part done. Awaiting CompleteBrowserInitializationAsync (adapter/device request)...");
+                await browserWebGpu.CompleteBrowserInitializationAsync();
+                Console.WriteLine("[RunBrowser] CompleteBrowserInitializationAsync returned.");
+                _webGpu = browserWebGpu;
+
+                _webGpuReady?.Invoke(_webGpu, _input);
+
+                browserWindow.Render += Render;
+                browserWindow.StartRenderLoop();
+                Console.WriteLine("[RunBrowser] Render loop started.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[RunBrowser] Browser WebGPU bring-up failed.");
+                Console.WriteLine(ex);
+                throw;
+            }
+        }
+#endif
 
         private void Load()
         {

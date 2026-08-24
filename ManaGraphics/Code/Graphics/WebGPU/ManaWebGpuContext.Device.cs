@@ -7,7 +7,9 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
+#if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
+#endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -16,6 +18,7 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
+#if !MANA_BROWSER
         private void RequestAdapter(string? requestedBackend)
         {
             var options = new RequestAdapterOptions
@@ -40,7 +43,40 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to request WebGPU device.");
             }
         }
+#else
+        // wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice's own callback-delivery path hits a
+        // confirmed Emscripten runtime bug in this exact SDK/bundling (RuntimeError:
+        // getWasmTableEntry(...) is not a function -- not fixed by AOT compilation or by forcing
+        // getWasmTableEntry past tree-shaking), so the browser build never uses OnRequestAdapter/
+        // OnRequestDevice (below, #if !MANA_BROWSER) at all. Instead, ManaWebGpuContext.
+        // BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync go through
+        // ManaBrowserWebGpuCallbackBridge (EM_JS-injected plain JS calling
+        // navigator.gpu.requestAdapter()/adapter.requestDevice() directly, registering the result
+        // into library_webgpu.js's own id tables, delivered back via [JSExport] -- the same
+        // mechanism ManaBrowserInterop.cs already used successfully for the RAF loop/resize).
+        // SetAdapterFromId/SetDeviceFromId below just assign the resulting integer id as the
+        // opaque Adapter*/Device* handle Silk.NET's other (still-working) calls expect. Split into
+        // a separate non-unsafe partial file (ManaWebGpuContext.BrowserAsync.cs) because this
+        // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
+        // at all, regardless of whether the awaiting method itself touches a pointer. See
+        // WebPort-Plan.md's "M2 CLOSED" section for the full writeup.
+        private System.Threading.Tasks.TaskCompletionSource<bool>? _adapterRequestTcs;
+        private System.Threading.Tasks.TaskCompletionSource<bool>? _deviceRequestTcs;
 
+        internal int AdapterIdForBrowser => (int)(nint)_adapter;
+
+        internal void SetAdapterFromId(int adapterId)
+        {
+            _adapter = (Adapter*)(nint)adapterId;
+        }
+
+        internal void SetDeviceFromId(int deviceId)
+        {
+            _device = (Device*)(nint)deviceId;
+        }
+#endif
+
+#if !MANA_BROWSER
         private void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
         {
             if (status == RequestAdapterStatus.Success)
@@ -62,12 +98,14 @@ namespace ManaGraphics.Code.Graphics
 
             throw new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}");
         }
+#endif
 
         private void OnError(ErrorType type, byte* message, void* userdata)
         {
             ManaConsole.WriteDiagnostic($"[WebGPU] {type}: {ReadMessage(message)}");
         }
 
+#if !MANA_BROWSER
         private static InstanceBackend ParseInstanceBackend(string? requestedBackend)
         {
             if (!string.IsNullOrWhiteSpace(requestedBackend))
@@ -99,6 +137,7 @@ namespace ManaGraphics.Code.Graphics
 
             return InstanceBackend.Vulkan;
         }
+#endif
 
         private static string ReadMessage(byte* message)
         {

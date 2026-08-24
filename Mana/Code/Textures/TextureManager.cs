@@ -1,3 +1,5 @@
+using Mana.Code;
+
 namespace Mana
 {
     public class TextureManager : ManaObject

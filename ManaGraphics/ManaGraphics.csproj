@@ -2,12 +2,26 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
     <ManaCopyWebGpuNativeRuntime>true</ManaCopyWebGpuNativeRuntime>
+    <!-- Compile-time symbol for the growing number of small browser-vs-desktop branches
+         (see WebPort-Plan.md) that don't warrant a full partial-class split. -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
+
+  <!-- mana_webgpu.c (ManaBrowserWebGpuNativeContext.cs's forwarding shims) lives physically in
+       this project (Native\mana_webgpu.c) since that's the class that consumes it, but the
+       NativeFileReference/EmccExportedFunction/EmccExtraLDFlags items that actually make it
+       part of the native wasm link are declared in ManaVoxel.Web.csproj instead: confirmed by
+       testing that these items declared here are silently ignored during a top-level app's
+       publish; they don't flow across a ProjectReference edge the way ordinary MSBuild items
+       don't, and only the top-level executable's own native-link step gets invoked. Any future
+       second browser executable referencing ManaGraphics would need to repeat that wiring. -->
+
 
   <ItemGroup>
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
@@ -20,19 +34,53 @@
     <Compile Remove="Code\Graphics\OpenGL\Legacy\**\*.cs" />
   </ItemGroup>
 
+  <!-- Browser target is WebGPU-only (see WebPort-Plan.md); OpenGL has no browser-wasm
+       backend and isn't needed there. Unlike Mana.csproj (whose BaseGameMode.cs calls
+       ManaGameModeGraphicsBridge directly and so re-includes it via a Link for browser),
+       nothing inside ManaGraphics itself references that dispatcher outside this same
+       excluded OpenGL/Legacy folder, so no re-include is needed here: the unconditional
+       exclusion above already covers it correctly for both desktop and browser. A
+       browser-only re-include used to sit here too (copied from Mana.csproj's fix without
+       checking whether ManaGraphics needed the same treatment) and broke standalone
+       `dotnet build ManaGraphics.csproj -r browser-wasm`; the file needs Mana.Code.*
+       types (ManaContext, ManaSceneNode, ManaMaterial, ManaTexture) that only Mana.csproj
+       can see; ManaGraphics has no reference to Mana.csproj (that would be circular). -->
+
+  <!-- ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset (same
+       problem as GLFW/Assimp/wgpu-native). Play mode's actual UI is ManaUi-based, not
+       ImGui-based, so the browser target gets a no-op IManaImGuiController instead (see
+       ManaWebGpuContext.cs's CreateImGuiController) rather than porting cimgui to wasm. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\Graphics\ManaImGuiClipboardBridge.cs" />
+    <Compile Remove="Code\Graphics\WebGPU\ManaWebGpuImGuiController.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <!-- Pure managed bindings, no native runtime asset at all (GL functions are loaded via a
+         GetProcAddress delegate supplied at runtime, e.g. from a live GLFW/GL context); unlike
+         GLFW/Assimp/wgpu-native/ImGui.NET below, nothing here stops it compiling for
+         browser-wasm, even though the actual OpenGL backend files (excluded below) never run
+         there. Verified via the package's own lack of a runtimes/ folder. -->
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+  </ItemGroup>
+
+  <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
+       wgpu-native (WGPU.Native/.Extensions.WGPU) is the desktop WebGPU backend;
+       GLFW is desktop windowing. The browser target uses Emscripten's own WebGPU
+       glue and a custom canvas-backed IWindow instead. Silk.NET.OpenGL.Extensions.ImGui
+       pulls in ImGui.NET (a native cimgui binary, see below) transitively. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,5 +96,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
 
 </Project>

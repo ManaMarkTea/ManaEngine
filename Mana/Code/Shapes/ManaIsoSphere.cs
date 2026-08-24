@@ -133,6 +133,7 @@ namespace Mana.Code.Shapes
             };
 
             SetCpuData(meshData);
+#if !MANA_BROWSER
             if (Context.OpenGl != null && !Context.DeferGpuUploads)
             {
                 var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, meshData);
@@ -141,6 +142,7 @@ namespace Mana.Code.Shapes
                     VertexBufferObject = openGlMesh.VertexBufferObject;
                 }
             }
+#endif
         }
 
         // return index of point in the middle of p1 and p2

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Standalone desktop scene-viewer dev harness, split out of Mana.csproj so Mana.csproj
+       can be a plain Library. A RID-specific executable (ManaVoxel.Web) referencing
+       Mana.csproj triggers a "ridless companion" reference-assembly build of it internally
+       (standard .NET SDK behavior for any project reference from a RID-specific exe); that
+       companion pass can't be told apart from a normal no-RID desktop build by RuntimeIdentifier
+       alone, so Mana.csproj's OutputType could not stay conditionally WinExe without breaking
+       one or the other. See WebPort-Plan.md M8. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mana\Mana.csproj" />
+  </ItemGroup>
+
+</Project>
