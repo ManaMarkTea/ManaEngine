@@ -351,17 +351,52 @@ namespace Mana.Code.Shapes.Loaders
                 return;
             }
 
-            var parameters = channel.Value.Parameters;
+            if (TryReadColorParameters(channel.Value.Parameters, out var color))
+            {
+                target.Value = color;
+            }
+
+            target.TextureValue = LoadChannelTexture(material, channelKey, channel.Value.Texture);
+        }
+
+        /// <summary>
+        /// Reads a colour channel's RGBA factor, tolerating both shapes SharpGLTF has used.
+        /// <para>
+        /// 1.0.x exposes a colour channel as a SINGLE parameter whose value is already a
+        /// <see cref="Vector4"/>; older builds exposed three or four separate float scalars. Only
+        /// handling the scalar form meant the count check failed silently and the factor was left
+        /// at <see cref="ManaMaterial"/>'s default of <c>Colors.Orange</c> -- which the PBR shader
+        /// multiplies every albedo sample by, zeroing the blue channel and tinting the entire
+        /// scene orange.
+        /// </para>
+        /// </summary>
+        private static bool TryReadColorParameters(
+            IReadOnlyList<SharpGLTF.Schema2.IMaterialParameter> parameters,
+            out Vector4 color)
+        {
+            color = Vector4.One;
+            if (parameters == null || parameters.Count == 0)
+            {
+                return false;
+            }
+
+            if (parameters[0].Value is Vector4 packed)
+            {
+                color = packed;
+                return true;
+            }
+
             if (parameters.Count >= 3)
             {
-                target.Value = new Vector4(
+                color = new Vector4(
                     Convert.ToSingle(parameters[0].Value),
                     Convert.ToSingle(parameters[1].Value),
                     Convert.ToSingle(parameters[2].Value),
                     parameters.Count > 3 ? Convert.ToSingle(parameters[3].Value) : 1f);
+                return true;
             }
 
-            target.TextureValue = LoadChannelTexture(material, channelKey, channel.Value.Texture);
+            return false;
         }
 
         // Normal/Occlusion carry a texture only (a strength scalar for Occlusion lives in

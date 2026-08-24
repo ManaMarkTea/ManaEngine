@@ -138,6 +138,7 @@ namespace ManaVoxel.Web
             }
 
             Console.WriteLine($"[BrowserPlay] Loaded '{level.Name}': {Context.World.DefaultScene.Children.Count} root nodes in the default scene.");
+
         }
 
         /// <summary>
@@ -178,6 +179,12 @@ namespace ManaVoxel.Web
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
+
+            // Components sit dormant until play actually begins -- TrainCarComponent, for one,
+            // ships Paused = true so trains hold still in the editor and only run once BeginPlay
+            // reaches them. Without this the level loads and renders correctly but nothing in it
+            // moves, which looks like a broken animation rather than a lifecycle step never taken.
+            Context.World.BeginPlay();
 
             Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
 
