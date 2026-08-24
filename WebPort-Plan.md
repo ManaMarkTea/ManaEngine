@@ -588,6 +588,34 @@ silently a complete no-op seems unlikely — but nothing tried has been able to 
   accept the same canvas-selector chain (or needs different setup this session didn't
   investigate). Not useful as a Dawn-vs-not-Dawn cross-check without first getting Firefox's
   surface creation working at all, which is a separate, unstarted piece of work.
+- **Web search turned up nothing matching this exact symptom.** Found and ruled out two
+  superficially-similar issues: [emscripten-core/emscripten#23432](https://github.com/emscripten-core/emscripten/issues/23432)
+  (Emscripten's `webgpu.h` lacking newer templated async `Buffer` APIs — unrelated, about C++
+  API surface, not rendering) and [ocornut/imgui#8038](https://github.com/ocornut/imgui/issues/8038)
+  (an Emscripten 3.1.68 regression where ImGui's vertex/index buffers were undersized, causing
+  `QueueWriteBuffer` to fail outright with a clear "does not fit in buffer size" validation
+  error — a real, cited, version-specific Emscripten regression, but this codebase pins 3.1.56
+  and our own buffer-size validation already succeeds cleanly, so it's a different bug).
+  Confirmed (searched, not just assumed) that Emscripten's `USE_WEBGPU`/legacy `webgpu.h` is
+  explicitly deprecated upstream in favor of `emdawnwebgpu` — already known and ruled out as
+  unavailable in this pinned SDK (see M2's original findings) — but found no specific bug
+  report matching "geometry silently doesn't render, zero validation errors, works for
+  non-vertex-buffer draws."
+13. **Not `library_webgpu.js`'s own pipeline-descriptor-reading code, checked directly against
+    its source rather than inferred.** Read `generateRenderPipelineDesc`/`makeVertexBuffer` in
+    this exact installed Emscripten's `library_webgpu.js` and found it treats
+    `stepMode === VertexStepMode.VertexBufferNotUsed` (native value `1`) as "this vertex buffer
+    slot is absent" (returns `null`, dropping all its attributes) — a real, legitimate
+    mechanism, and initially a promising lead since a stray remap bug could plausibly hit it.
+    Added a temporary `printf` directly in `mana_wgpuDeviceCreateRenderPipeline` and confirmed
+    live: the cube's vertex buffer layout arrives with raw (pre-remap) `stepMode=0` (Silk.NET's
+    `Vertex`) and correctly remaps to native `2` (`Vertex`), never `1`
+    (`VertexBufferNotUsed`) — so this mechanism is not being triggered. Also directly read
+    Emscripten's `VertexFormat`/`VertexStepMode` JS string-lookup tables (a third translation
+    layer beyond "Silk.NET enum" and "native C header enum" that hadn't been checked before)
+    and confirmed both are correctly index-aligned with the native header's ordinals (e.g.
+    `VertexStepMode[2] === 'vertex'`, `VertexFormat[21] === 'float32x3'`) — ruling out a bug in
+    Emscripten's own enum-to-JS-string translation as well.
 
 **Genuine remaining next steps**, now that data/shader/pipeline/bind-groups are all confirmed
 correct at every layer this session's tooling can reach:
