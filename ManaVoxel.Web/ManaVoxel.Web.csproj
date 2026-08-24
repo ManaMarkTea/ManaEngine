@@ -62,19 +62,34 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Enables ManaWebGpuContext.Device.cs's IsDemoMeshPipelineEnabled() so
+         FinishInitialization actually attempts CreateDemoMeshPipeline() (shader modules,
+         render pipeline, buffer upload, per-frame draw) instead of just clearing the canvas.
+         Exercising this now under a self-driven headless Chrome probe (Playwright), not live
+         user testing; see WebPort-Plan.md's M3-prep/enum-audit notes for why this was
+         deliberately left off before a way to verify it existed. -->
+    <WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- M3 prep: bundles the WGSL shaders into the wasm app's virtual filesystem so
          ManaWebGpuContext.Demo.cs's ResolveAssetPath (File.Exists probing against
          AppContext.BaseDirectory) and ManaWgslPreprocessor's sibling-relative #include
-         resolution both work unmodified once the demo mesh pipeline is actually enabled;
-         see WebPort-Plan.md's "M3 prep" note. TargetPath (not the default filename-only
-         mapping) is required to preserve the Assets/Shaders/WebGpu/... directory structure;
-         confirmed via WasmAppBuilder.dll (ilspycmd) that an unset TargetPath drops the
-         directory entirely. Deliberately NOT wired to anything yet: the demo mesh
-         pipeline stays off by default (IsDemoMeshPipelineEnabled reads an env var that
-         nothing sets here), so this has zero runtime effect until that's deliberately
-         flipped on for a live test. -->
+         resolution both work unmodified with the demo mesh pipeline enabled above; see
+         WebPort-Plan.md's "M3 prep" note. TargetPath (not the default filename-only mapping)
+         is required to preserve the Assets/Shaders/WebGpu/... directory structure; confirmed
+         via WasmAppBuilder.dll (ilspycmd) that an unset TargetPath drops the directory
+         entirely. -->
     <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
       <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <!-- ManaEnvironmentReflectionSource.DefaultSourcePath: the demo pipeline's environment
+         reflection map (IBL) needs this HDR-ish environment texture; ResolveAssetPath's
+         File.Exists probing throws FileNotFoundException without it, confirmed live via the
+         headless Chrome probe (see WebPort-Plan.md's M3-prep note). 5.1 MB; the only texture
+         asset the demo pipeline actually needs (procedural cube geometry, no other textures). -->
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
+      <TargetPath>Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png</TargetPath>
     </WasmFilesToIncludeInFileSystem>
   </ItemGroup>
 

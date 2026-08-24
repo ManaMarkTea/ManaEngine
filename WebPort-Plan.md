@@ -349,85 +349,97 @@ too, pulled in transitively via `ManaGraphics.csproj`'s unconditioned
 only calling into one at runtime would fail). Confirmed via `grep` that no other file
 references `ManaDpiScale`.
 
-**M3 prep (this session, unverified live): WGSL shaders bundled into the wasm virtual
-filesystem, demo mesh pipeline deliberately left off.** `ManaVoxel.Web.csproj` now has a
-`WasmFilesToIncludeInFileSystem` item bundling all of `ManaGraphics/Assets/Shaders/WebGpu/**/*.wgsl`
-(22 files, 148 KB) with `TargetPath="Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)"`
-— confirmed present at the right nested virtual paths (including the `include/uniforms.wgsl`
-subdirectory `ManaWgslPreprocessor`'s sibling-relative `#include` resolution needs) by
-grepping the generated `_framework/dotnet.boot.js` after a clean publish. `TargetPath` is
-required, not optional: decompiling `WasmAppBuilder.dll` (via `ilspycmd`) confirmed an unset
-`TargetPath` collapses to just the bare filename, discarding the directory structure
-`ResolveAssetPath`/`ManaWgslPreprocessor` both depend on.
-**Deliberately not wired to anything yet** — `IsDemoMeshPipelineEnabled()` still reads an env
-var nothing sets in the browser build, so `CreateDemoMeshPipeline()` (and therefore
-`CreateShaderModule`/`wgpuDeviceCreateRenderPipeline`/the rest of the pipeline path) has
-*never been exercised in a real browser at all* as of this commit. This was a deliberate
-stop, not an oversight: `RunBrowser`'s `try/catch` around
-`CompleteBrowserInitializationAsync()` re-throws on failure, and `CreateDemoMeshPipeline()`
-runs *before* `browserWindow.StartRenderLoop()` — so if it throws, the *entire* render loop
-would never start, regressing all the way back past the now-confirmed-working blue clear,
-with no live feedback loop available to diagnose or fix it.
+### M3: demo mesh pipeline verified live via a self-driven headless Chrome probe — skybox/IBL render correctly, cube visibility still open
 
-**A full enum ABI audit (this session, done proactively, unverified live) found and fixed 10
-more Silk.NET/webgpu.h enum mismatches beyond the two already found live
-(`TextureDimension`/`TextureAspect`) — this drift is much more pervasive than those two
-isolated findings suggested.** Rather than wait to discover each one individually via live
-trial and error (as `TextureDimension`/`TextureAspect` were), every enum
-`Silk.NET.WebGPU.dll` (v2.23.0) declares was mechanically compared against this exact
-installed Emscripten SDK's `webgpu.h`: decompiled the whole assembly to source
-(`ilspycmd -p`), parsed every `[NativeName]`-annotated enum member's C# value out of each
-file, parsed every native `typedef enum WGPUXxx {...}` block's values out of the header, and
-diffed them by shared native name. 47 enums compared; 19 differ. Of those, cross-referenced
-against actual usage in `ManaGraphics/Code/Graphics/WebGPU/*.cs` to find which ones the
-render pipeline path can actually hit: **10 are used and needed a fix** —
-`PrimitiveTopology`, `FrontFace`, `CullMode`, `StencilOperation`, `FilterMode`,
-`MipmapFilterMode`, `BlendFactor`, `BlendOperation` (each a uniform "+1": native inserted an
-`Undefined = 0` member Silk.NET's declaration doesn't have, shifting every value after it by
-exactly one, confirmed across every member of each, not just the ones that happened to
-collide) and `AddressMode`/`CompareFunction`/`VertexStepMode` (genuinely
-*reordered* — e.g. Silk.NET's `AddressMode` is `Repeat=0, MirrorRepeat=1, ClampToEdge=2`
-while native is `Undefined=0, ClampToEdge=1, Repeat=2, MirrorRepeat=3` — confirmed by reading
-each decompiled enum file directly, not inferred, since a uniform offset can't explain it).
-The other 9 mismatched enums (`AdapterType`, `ErrorFilter`, `BufferMapState`, `PresentMode`,
-`QueryType`, `CompilationMessageType`, `DeviceLostReason`, `BackendType`,
-`CompilationInfoRequestStatus`/`CreatePipelineAsyncStatus`/status-callback enums) either
-don't cross the C ABI boundary at all in this codebase (only read via `.ToString()` for
-logging) or aren't used anywhere in `ManaGraphics` — left alone. 28 of the 47 already match
-exactly (including, reassuringly, `VertexFormat`, `IndexFormat`, `TextureViewDimension`,
-`TextureFormat`, `SamplerBindingType`, `TextureSampleType`, `BufferBindingType`,
-`StorageTextureAccess`, `SType`, and every bit-flag enum checked —
-`BufferUsage`/`TextureUsage`/`ColorWriteMask`/`ShaderStage` — so this is real, spot-checkable
-drift in specific enums, not a wholesale header mismatch).
-**Struct layouts were also verified, separately from enum values**: every struct in the
-`wgpuDeviceCreateRenderPipeline`/`wgpuDeviceCreateSampler` call graph
-(`RenderPipelineDescriptor`, `PrimitiveState`, `DepthStencilState`, `StencilFaceState`,
-`VertexState`, `VertexBufferLayout`, `VertexAttribute`, `FragmentState`, `ColorTargetState`,
-`BlendState`, `BlendComponent`, `SamplerDescriptor`) was diffed field-by-field (order, name,
-shape) between the decompiled Silk.NET source and the native header — all match exactly, no
-insertions/removals/reordering. So this is purely an enum-numbering problem, not a deeper
-memory-layout one.
-**Fixed** in `mana_webgpu.c`: a block of `mana_remap_*` static helper functions (uniform +1
-for the eight, explicit `switch` tables for the three reordered ones), applied by walking
-and mutating `WGPUSamplerDescriptor`'s fields directly in `mana_wgpuDeviceCreateSampler`, and
-by walking `WGPURenderPipelineDescriptor`'s vertex-buffer array, `primitive`, the nullable
-`depthStencil` struct (both `StencilFaceState`s), and the nullable `fragment`'s
-`ColorTargetState` array (each's nullable `BlendState`) in
-`mana_wgpuDeviceCreateRenderPipeline` — casting away `const` on the nullable/array pointers
-the same way the earlier `depthSlice` fix did, since these are C#-owned buffers this shim is
-free to mutate in place before forwarding. Compiles clean (`dotnet publish
-ManaVoxel.Web` succeeds, zero new warnings on `mana_webgpu.c`); desktop unaffected (`dotnet
-build ManaVoxel` + `ManaTests` 1660/1661, same pre-existing unrelated failure) since none of
-this touches anything outside `MANA_BROWSER`-gated/browser-only files.
-**Still entirely unverified live** — same caveat as the shader bundling above, for the same
-reason (flipping on the demo pipeline to actually exercise this code is the risky step, not
-yet taken). **The next concrete step**, when live testing resumes: add
-`<WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />` to
-`ManaVoxel.Web.csproj`, republish, and test live — this enum audit should have closed off a
-whole category of likely failures in advance, but there could still be others this static
-analysis couldn't catch (WGSL syntax/feature differences between wgpu-native's and Dawn's
-shader compilers, for instance, which no amount of enum-diffing addresses) — expect to find
-and fix what's left the same one-per-cycle way M2 itself was closed.
+Done overnight, autonomously, without the user present to test live — using a technique
+worth reusing for any future browser verification in this repo: **a headless Chrome instance
+driven by Playwright** (`npm install playwright` in a scratch dir;
+`chromium.launch({ channel: 'chrome', headless: true })` reuses the system-installed Google
+Chrome, no separate browser download needed), navigated at the local dev server, capturing
+`console`/`pageerror` events and a screenshot. This closed the loop entirely independently of
+live user testing, and caught a real bug (below) before it could ever reach the user.
+
+**Prep work, all zero-risk since the demo pipeline stayed off while doing it:**
+- WGSL shaders bundled into the wasm virtual filesystem: `ManaVoxel.Web.csproj` has a
+  `WasmFilesToIncludeInFileSystem` item for all of `ManaGraphics/Assets/Shaders/WebGpu/**/*.wgsl`
+  (22 files, 148 KB) with `TargetPath="Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)"`
+  — `TargetPath` is required, not optional: decompiling `WasmAppBuilder.dll` (via `ilspycmd`)
+  confirmed an unset `TargetPath` collapses to just the bare filename, discarding the
+  directory structure `ResolveAssetPath`/`ManaWgslPreprocessor`'s `#include` resolution both
+  depend on.
+- A full enum ABI audit found and fixed 10 more Silk.NET/webgpu.h enum mismatches beyond the
+  two already found live (`TextureDimension`/`TextureAspect`) — this drift turned out to be
+  much more pervasive than those two isolated findings suggested. Every enum
+  `Silk.NET.WebGPU.dll` (v2.23.0) declares was mechanically compared against this exact
+  installed Emscripten SDK's `webgpu.h` (decompile via `ilspycmd -p`, parse both sides, diff
+  by shared native name): 47 enums compared, 19 differ, 10 of those are actually used in
+  `ManaGraphics/Code/Graphics/WebGPU/*.cs`'s render-pipeline path —
+  `PrimitiveTopology`/`FrontFace`/`CullMode`/`StencilOperation`/`FilterMode`/
+  `MipmapFilterMode`/`BlendFactor`/`BlendOperation` (each a uniform "+1": native inserted a
+  leading `Undefined=0` Silk.NET's declaration lacks) and
+  `AddressMode`/`CompareFunction`/`VertexStepMode` (genuinely *reordered*, not just shifted —
+  e.g. Silk.NET's `AddressMode` is `Repeat=0, MirrorRepeat=1, ClampToEdge=2` while native is
+  `Undefined=0, ClampToEdge=1, Repeat=2, MirrorRepeat=3`). Every struct in the
+  `CreateRenderPipeline`/`CreateSampler` call graph was also diffed field-by-field and matches
+  exactly — this is purely an enum-numbering problem, not a struct-layout one. Fixed with
+  `mana_remap_*` helpers in `mana_webgpu.c`.
+
+**The headless probe immediately paid for itself**: enabling the demo pipeline
+(`<WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />`) and running the
+probe surfaced spurious `TextureAspect::StencilOnly` validation errors on plain color render
+targets that every C# call site actually requests `TextureAspect.All` for. Root cause: **the
+enum remaps were mutating the caller's own descriptor struct in place**
+(`descriptor->aspect = ...`), and this codebase routinely copy-and-tweaks a descriptor for a
+second use (`var outlineMaskViewDescriptor = viewDescriptor;` then overwrites just `.Format`).
+The first `TextureCreateView` call correctly remapped `viewDescriptor.Aspect` from Silk's
+`All` (0) to native's `All` (1) — **in the caller's own local variable**. The copy then
+carried that already-remapped value 1 into a second call, which remapped it *again* (1+1=2 =
+`StencilOnly`). This would have hit every remap added this session
+(`TextureDimension`/`TextureAspect`/the 10 pipeline enums) the moment any of them was reused
+this way — a real, subtle bug the enum audit's static analysis alone could never have caught,
+exactly the kind of thing live (or self-driven headless) testing is for. **Fixed**: every
+affected shim (`mana_wgpuDeviceCreateTexture`, `mana_wgpuTextureCreateView`,
+`mana_wgpuDeviceCreateSampler`, `mana_wgpuDeviceCreateRenderPipeline`) now remaps on a *local
+copy* of the descriptor (and, for `RenderPipelineDescriptor`'s pointer-based nested
+arrays/structs — vertex buffers, `depthStencil`, `fragment`'s color targets, each target's
+`blend` — local scratch copies with the top-level local's pointers redirected at them) and
+passes `&local` to the real `wgpuXxx` call, leaving the caller's own memory completely
+untouched. Re-ran the probe after the fix: the spurious errors are gone.
+
+Also needed: the demo pipeline's environment reflection map (IBL) requires
+`ManaEnvironmentReflectionSource.DefaultSourcePath`
+(`Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png`, 5.1 MB) — bundled
+the same way as the shaders (a second `WasmFilesToIncludeInFileSystem` item).
+
+**Result, confirmed via the headless probe's screenshot**: the real
+`GameSilkWebGpu`/`ManaWebGpuContext` pipeline — real shader modules, a real render pipeline,
+the full environment-reflection/HDR/skybox system — renders a correct HDR sky with cloud
+reflections in-browser, via WebGPU, with **zero console errors**. This is strictly more than
+the M2-closed blue clear and is now the default (`MANA_WEBGPU_DEMO_MESH=1` is unconditionally
+set in `ManaVoxel.Web.csproj`, not just available for opt-in testing).
+**Still open, not yet chased down**: the demo cube itself (`CreateDemoRenderScene`'s single
+mesh) isn't visible in the screenshot — confirmed via a temporary diagnostic that
+`_sceneMeshes.Count == 1` and `DrawDemoMesh` does proceed past its early-return, so the mesh
+*is* uploaded and *is* attempted to be drawn; the skybox renders correctly in front of/behind
+it with no validation errors either way. This points at a geometry/camera/depth-test
+correctness issue rather than a missing-resource or ABI one (which the enum audit and
+pipeline-creation success both make less likely, though not impossible — e.g. an untested
+`BindGroupLayoutEntry`/`WGSLFeatureName`/uniform-buffer-layout mismatch is still possible;
+only the enums actually confirmed reachable from this exact path were checked, not
+exhaustively every WebGPU struct in the codebase). Diagnosing this further would need either
+shader compilation diagnostics (Dawn reports WGSL errors asynchronously via
+`GetCompilationInfo`, which — like `DeviceSetUncapturedErrorCallback` — likely hits the same
+broken `getWasmTableEntry` callback path and would need its own `EM_JS` bridge to read) or
+direct inspection of the uploaded vertex data/camera matrices/depth buffer state, none of
+which this session had time to pursue. Also worth checking first, cheaply: the headless
+probe's default viewport (1280x800, ~1.6 aspect) doesn't match `CreateDemoRenderScene`'s
+hardcoded `16.0f/9.0f` (~1.778) projection aspect ratio — unlikely to cause total invisibility
+on its own, but untested and easy to rule out by matching the viewport or reading the aspect
+ratio from the actual framebuffer size instead of hardcoding it.
+**The next concrete step**: use the same headless-probe loop to add one WGSL-compile-error
+`EM_JS` bridge (mirroring the adapter/device one) and/or a screenshot-diffing approach to
+narrow down why the cube doesn't appear — this is now a self-contained, well-scoped, live-
+verifiable follow-up, not a hypothetical.
 
 ### M2's real remaining work (unblocked to start, but needs live browser access)
 

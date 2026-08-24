@@ -281,60 +281,116 @@ WGPUPipelineLayout mana_wgpuDeviceCreatePipelineLayout(WGPUDevice device, WGPUPi
     return wgpuDeviceCreatePipelineLayout(device, descriptor);
 }
 
+// Generous caps for the render-pipeline scratch-copy arrays below -- this is a hobby game
+// engine's pipelines, not a AAA renderer's; comfortably above anything GetOrCreatePipeline/
+// CreateDemoRenderPipeline/CreateHdrPostProcessor/etc. actually construct. Deliberately a hard
+// cap with a console warning rather than a dynamic allocation: pipeline creation is rare
+// (cached per shader name), not a hot path, so simplicity wins over avoiding a fixed size.
+#define MANA_MAX_VERTEX_BUFFERS 8
+#define MANA_MAX_COLOR_TARGETS 8
+
 WGPURenderPipeline mana_wgpuDeviceCreateRenderPipeline(WGPUDevice device, WGPURenderPipelineDescriptor * descriptor) {
-    if (descriptor != NULL) {
-        WGPUVertexBufferLayout* buffers = (WGPUVertexBufferLayout*)descriptor->vertex.buffers;
-        for (size_t i = 0; i < descriptor->vertex.bufferCount; i++) {
-            buffers[i].stepMode = mana_remap_vertex_step_mode(buffers[i].stepMode);
+    // Every remap below runs on LOCAL COPIES, never the caller's own descriptor/array/struct
+    // memory -- see mana_wgpuDeviceCreateSampler's comment for why in-place mutation is unsafe
+    // in this codebase (copy-and-tweak descriptor reuse silently double-remaps on a second use).
+    // RenderPipelineDescriptor's vertex.buffers/depthStencil/fragment/fragment->targets/
+    // target.blend are all POINTERS the caller owns, so a shallow top-level copy alone isn't
+    // enough (it copies the pointer VALUE, not what it points to) -- each pointed-to
+    // array/struct that needs a field remapped gets its own scratch copy here, and the local
+    // top-level descriptor's pointer fields are redirected at those scratch copies instead.
+    if (descriptor == NULL) {
+        return wgpuDeviceCreateRenderPipeline(device, descriptor);
+    }
+
+    WGPURenderPipelineDescriptor local = *descriptor;
+
+    WGPUVertexBufferLayout bufferScratch[MANA_MAX_VERTEX_BUFFERS];
+    size_t bufferCount = local.vertex.bufferCount;
+    if (bufferCount > MANA_MAX_VERTEX_BUFFERS) {
+        bufferCount = MANA_MAX_VERTEX_BUFFERS;
+    }
+    if (local.vertex.buffers != NULL && bufferCount > 0) {
+        for (size_t i = 0; i < bufferCount; i++) {
+            bufferScratch[i] = local.vertex.buffers[i];
+            bufferScratch[i].stepMode = mana_remap_vertex_step_mode(bufferScratch[i].stepMode);
         }
+        local.vertex.buffers = bufferScratch;
+        local.vertex.bufferCount = bufferCount;
+    }
 
-        descriptor->primitive.topology = mana_remap_primitive_topology(descriptor->primitive.topology);
-        descriptor->primitive.frontFace = mana_remap_front_face(descriptor->primitive.frontFace);
-        descriptor->primitive.cullMode = mana_remap_cull_mode(descriptor->primitive.cullMode);
+    local.primitive.topology = mana_remap_primitive_topology(local.primitive.topology);
+    local.primitive.frontFace = mana_remap_front_face(local.primitive.frontFace);
+    local.primitive.cullMode = mana_remap_cull_mode(local.primitive.cullMode);
 
-        if (descriptor->depthStencil != NULL) {
-            WGPUDepthStencilState* depthStencil = (WGPUDepthStencilState*)descriptor->depthStencil;
-            depthStencil->depthCompare = mana_remap_compare_function(depthStencil->depthCompare);
-            depthStencil->stencilFront.compare = mana_remap_compare_function(depthStencil->stencilFront.compare);
-            depthStencil->stencilFront.failOp = mana_remap_stencil_operation(depthStencil->stencilFront.failOp);
-            depthStencil->stencilFront.depthFailOp = mana_remap_stencil_operation(depthStencil->stencilFront.depthFailOp);
-            depthStencil->stencilFront.passOp = mana_remap_stencil_operation(depthStencil->stencilFront.passOp);
-            depthStencil->stencilBack.compare = mana_remap_compare_function(depthStencil->stencilBack.compare);
-            depthStencil->stencilBack.failOp = mana_remap_stencil_operation(depthStencil->stencilBack.failOp);
-            depthStencil->stencilBack.depthFailOp = mana_remap_stencil_operation(depthStencil->stencilBack.depthFailOp);
-            depthStencil->stencilBack.passOp = mana_remap_stencil_operation(depthStencil->stencilBack.passOp);
+    WGPUDepthStencilState depthStencilScratch;
+    if (local.depthStencil != NULL) {
+        depthStencilScratch = *local.depthStencil;
+        depthStencilScratch.depthCompare = mana_remap_compare_function(depthStencilScratch.depthCompare);
+        depthStencilScratch.stencilFront.compare = mana_remap_compare_function(depthStencilScratch.stencilFront.compare);
+        depthStencilScratch.stencilFront.failOp = mana_remap_stencil_operation(depthStencilScratch.stencilFront.failOp);
+        depthStencilScratch.stencilFront.depthFailOp = mana_remap_stencil_operation(depthStencilScratch.stencilFront.depthFailOp);
+        depthStencilScratch.stencilFront.passOp = mana_remap_stencil_operation(depthStencilScratch.stencilFront.passOp);
+        depthStencilScratch.stencilBack.compare = mana_remap_compare_function(depthStencilScratch.stencilBack.compare);
+        depthStencilScratch.stencilBack.failOp = mana_remap_stencil_operation(depthStencilScratch.stencilBack.failOp);
+        depthStencilScratch.stencilBack.depthFailOp = mana_remap_stencil_operation(depthStencilScratch.stencilBack.depthFailOp);
+        depthStencilScratch.stencilBack.passOp = mana_remap_stencil_operation(depthStencilScratch.stencilBack.passOp);
+        local.depthStencil = &depthStencilScratch;
+    }
+
+    WGPUFragmentState fragmentScratch;
+    WGPUColorTargetState targetScratch[MANA_MAX_COLOR_TARGETS];
+    WGPUBlendState blendScratch[MANA_MAX_COLOR_TARGETS];
+    if (local.fragment != NULL) {
+        fragmentScratch = *local.fragment;
+        size_t targetCount = fragmentScratch.targetCount;
+        if (targetCount > MANA_MAX_COLOR_TARGETS) {
+            targetCount = MANA_MAX_COLOR_TARGETS;
         }
-
-        if (descriptor->fragment != NULL) {
-            WGPUFragmentState* fragment = (WGPUFragmentState*)descriptor->fragment;
-            WGPUColorTargetState* targets = (WGPUColorTargetState*)fragment->targets;
-            for (size_t i = 0; i < fragment->targetCount; i++) {
-                if (targets[i].blend != NULL) {
-                    WGPUBlendState* blend = (WGPUBlendState*)targets[i].blend;
-                    blend->color.operation = mana_remap_blend_operation(blend->color.operation);
-                    blend->color.srcFactor = mana_remap_blend_factor(blend->color.srcFactor);
-                    blend->color.dstFactor = mana_remap_blend_factor(blend->color.dstFactor);
-                    blend->alpha.operation = mana_remap_blend_operation(blend->alpha.operation);
-                    blend->alpha.srcFactor = mana_remap_blend_factor(blend->alpha.srcFactor);
-                    blend->alpha.dstFactor = mana_remap_blend_factor(blend->alpha.dstFactor);
+        if (fragmentScratch.targets != NULL && targetCount > 0) {
+            for (size_t i = 0; i < targetCount; i++) {
+                targetScratch[i] = fragmentScratch.targets[i];
+                if (targetScratch[i].blend != NULL) {
+                    blendScratch[i] = *targetScratch[i].blend;
+                    blendScratch[i].color.operation = mana_remap_blend_operation(blendScratch[i].color.operation);
+                    blendScratch[i].color.srcFactor = mana_remap_blend_factor(blendScratch[i].color.srcFactor);
+                    blendScratch[i].color.dstFactor = mana_remap_blend_factor(blendScratch[i].color.dstFactor);
+                    blendScratch[i].alpha.operation = mana_remap_blend_operation(blendScratch[i].alpha.operation);
+                    blendScratch[i].alpha.srcFactor = mana_remap_blend_factor(blendScratch[i].alpha.srcFactor);
+                    blendScratch[i].alpha.dstFactor = mana_remap_blend_factor(blendScratch[i].alpha.dstFactor);
+                    targetScratch[i].blend = &blendScratch[i];
                 }
             }
+            fragmentScratch.targets = targetScratch;
+            fragmentScratch.targetCount = targetCount;
         }
+        local.fragment = &fragmentScratch;
     }
-    return wgpuDeviceCreateRenderPipeline(device, descriptor);
+
+    return wgpuDeviceCreateRenderPipeline(device, &local);
 }
 
 WGPUSampler mana_wgpuDeviceCreateSampler(WGPUDevice device, WGPUSamplerDescriptor * descriptor) {
-    if (descriptor != NULL) {
-        descriptor->addressModeU = mana_remap_address_mode(descriptor->addressModeU);
-        descriptor->addressModeV = mana_remap_address_mode(descriptor->addressModeV);
-        descriptor->addressModeW = mana_remap_address_mode(descriptor->addressModeW);
-        descriptor->magFilter = mana_remap_filter_mode(descriptor->magFilter);
-        descriptor->minFilter = mana_remap_filter_mode(descriptor->minFilter);
-        descriptor->mipmapFilter = mana_remap_mipmap_filter_mode(descriptor->mipmapFilter);
-        descriptor->compare = mana_remap_compare_function(descriptor->compare);
+    // Remap on a LOCAL COPY, never the caller's own descriptor memory: C# call sites routinely
+    // copy-and-tweak a descriptor for a second use (e.g. `var x = someDescriptor; x.Format =
+    // ...;`), so mutating *descriptor in place would leave the caller's own struct holding an
+    // already-remapped (native-numbered) value. A second call built from that copy would then
+    // remap it AGAIN, silently producing a different, wrong enum value. Confirmed live: this
+    // exact bug, for mana_wgpuTextureCreateView's old in-place version, turned a legitimate
+    // TextureAspect.All view into TextureAspect.StencilOnly on the second use of a copied
+    // descriptor. See WebPort-Plan.md's M2 CLOSED / enum-audit sections for the remap tables
+    // themselves.
+    if (descriptor == NULL) {
+        return wgpuDeviceCreateSampler(device, descriptor);
     }
-    return wgpuDeviceCreateSampler(device, descriptor);
+    WGPUSamplerDescriptor local = *descriptor;
+    local.addressModeU = mana_remap_address_mode(local.addressModeU);
+    local.addressModeV = mana_remap_address_mode(local.addressModeV);
+    local.addressModeW = mana_remap_address_mode(local.addressModeW);
+    local.magFilter = mana_remap_filter_mode(local.magFilter);
+    local.minFilter = mana_remap_filter_mode(local.minFilter);
+    local.mipmapFilter = mana_remap_mipmap_filter_mode(local.mipmapFilter);
+    local.compare = mana_remap_compare_function(local.compare);
+    return wgpuDeviceCreateSampler(device, &local);
 }
 
 WGPUShaderModule mana_wgpuDeviceCreateShaderModule(WGPUDevice device, WGPUShaderModuleDescriptor * descriptor) {
@@ -350,8 +406,17 @@ WGPUTexture mana_wgpuDeviceCreateTexture(WGPUDevice device, WGPUTextureDescripto
     // the browser console for what should have been a 2D render-attachment texture. Only this
     // field is known to be shifted (TextureViewDimension already matches natively); remap it
     // here rather than in every caller.
-    descriptor->dimension = (WGPUTextureDimension)((int)descriptor->dimension + 1);
-    return wgpuDeviceCreateTexture(device, descriptor);
+    //
+    // Remapped on a LOCAL COPY, not *descriptor itself -- see mana_wgpuDeviceCreateSampler's
+    // comment for why in-place mutation of the caller's own descriptor memory is unsafe here
+    // (copy-and-tweak reuse, e.g. `var x = textureDescriptor; x.Format = ...;`, would otherwise
+    // silently double-remap on the second use).
+    if (descriptor == NULL) {
+        return wgpuDeviceCreateTexture(device, descriptor);
+    }
+    WGPUTextureDescriptor local = *descriptor;
+    local.dimension = (WGPUTextureDimension)((int)local.dimension + 1);
+    return wgpuDeviceCreateTexture(device, &local);
 }
 
 size_t mana_wgpuDeviceEnumerateFeatures(WGPUDevice device, WGPUFeatureName * features) {
@@ -538,10 +603,23 @@ WGPUTextureView mana_wgpuTextureCreateView(WGPUTexture texture, WGPUTextureViewD
     // StencilOnly (2), confirmed live by the browser's "does not have the texture view's
     // selected aspect (TextureAspect::StencilOnly)" validation error for a Depth24Plus
     // (no-stencil) view whose C# call site actually requested TextureAspect.DepthOnly.
-    if (descriptor != NULL) {
-        descriptor->aspect = (WGPUTextureAspect)((int)descriptor->aspect + 1);
+    //
+    // Remapped on a LOCAL COPY, not *descriptor itself -- mutating the caller's own descriptor
+    // memory in place is unsafe here: this codebase copy-and-tweaks a TextureViewDescriptor for
+    // a second view (`var x = viewDescriptor; x.Format = ...;`), so an in-place +1 here would
+    // leave the caller's original struct holding the already-remapped native value, and the
+    // COPY built from it would then get remapped a second time -- turning a legitimate
+    // TextureAspect.All (Silk 0 -> native 1 -> would-be native 2) into TextureAspect.StencilOnly
+    // on that second view. Confirmed live via a self-driven headless-Chrome probe (Playwright)
+    // after enabling the demo mesh pipeline: exactly this double-remap produced spurious
+    // "selected aspect (TextureAspect::StencilOnly)" errors on plain RGBA8Unorm/RGBA16Float
+    // color targets that every C# call site actually requests TextureAspect.All for.
+    if (descriptor == NULL) {
+        return wgpuTextureCreateView(texture, descriptor);
     }
-    return wgpuTextureCreateView(texture, descriptor);
+    WGPUTextureViewDescriptor local = *descriptor;
+    local.aspect = (WGPUTextureAspect)((int)local.aspect + 1);
+    return wgpuTextureCreateView(texture, &local);
 }
 
 void mana_wgpuTextureDestroy(WGPUTexture texture) {
