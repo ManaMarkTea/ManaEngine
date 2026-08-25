@@ -212,7 +212,9 @@ namespace Mana.Code.GameModes
                     _viewModel.AttachVoxelData(result.VoxelsNode.VoxelShape, result.VoxelsNode);
                 }
 
+#if !MANA_BROWSER
                 AdoptLoadedPlanet(result.Planet);
+#endif
                 _water = result.Water;
 
                 // Excluded from picking for the same reason the grid planes are: clicking the marker should

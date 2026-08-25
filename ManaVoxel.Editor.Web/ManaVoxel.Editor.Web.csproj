@@ -1,0 +1,233 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Browser-wasm executable for the EDITOR (see WebPort-Plan.md's M9). Sibling of
+       ManaVoxel.Web (play mode only): that project deliberately keeps ManaVoxel.csproj out of its
+       reference graph (see its own comment on this), because at the time it was written
+       ManaVoxel.csproj had no browser-wasm build to reference at all. M9 changed that; see
+       ManaVoxel.csproj's own RuntimeIdentifiers/SetTargetFramework wiring; so this project
+       exists to reference the real thing (VoxelEditorGameMode and everything under it) rather
+       than re-linking a hand-picked subset of its files by source the way ManaVoxel.Web has to
+       for play mode's handful of Levels/Services types. Same "always browser-wasm, permanently
+       fixed RuntimeIdentifier, never invoked two ways" reasoning as ManaVoxel.Web.csproj: nothing
+       else references THIS project, so there is no RID-conditioned-restore poisoning risk here
+       either. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WasmMainJSPath>main.js</WasmMainJSPath>
+    <DefineConstants>$(DefineConstants);MANA_BROWSER</DefineConstants>
+    <!-- See ManaVoxel.Web.csproj: avoids a Mono wasm interpreter crash building a native-to-interp
+         trampoline for a C# delegate passed as a native callback (wgpuInstanceRequestAdapter). -->
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <!-- See ManaVoxel.Web.csproj: ManaLevel.Load and ManaUiWorkspaceLayout's docking-layout JSON
+         both go through System.Text.Json's reflection-based path. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- See ManaVoxel.Web.csproj's identical property for the full explanation. -->
+    <EmccExtraLDFlags>$(EmccExtraLDFlags) -sUSE_WEBGPU=1 -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$getWasmTableEntry</EmccExtraLDFlags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ManaVoxel.csproj itself, not a hand-picked subset of its files; the whole point of M9
+         was making that project compile for browser-wasm so it wouldn't need re-linking the way
+         ManaVoxel.Web does. ManaGeoTools comes along transitively through it. -->
+    <ProjectReference Include="..\ManaCore\ManaCore.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <ProjectReference Include="..\ManaVoxel\ManaVoxel.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Same reasoning as ManaVoxel.Web.csproj: the .manalevel/docking-layout DTOs are only ever
+         constructed by System.Text.Json's reflection, invisible to the trimmer. -->
+    <TrimmerRootAssembly Include="ManaVoxel.Editor.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WasmExtraFilesToDeploy Include="index.html" />
+    <WasmExtraFilesToDeploy Include="..\ManaGraphics\Native\mana_interop.js" Link="mana_interop.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- See ManaWebGpuContext.cs:287; redundant with the real render-scene provider
+         VoxelEditorGameMode.RunWebGpu already supplies (`_renderSceneProvider != null` alone
+         already enables the real mesh pipeline), kept for parity with ManaVoxel.Web.csproj and in
+         case that ever changes. -->
+    <WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- See ManaVoxel.Web.csproj: BepuPhysics crashes Mono's LLVM AOT compiler outright on its
+         SIMD generics; interpreting just this one assembly sidesteps it. -->
+    <_AOT_InternalForceInterpretAssemblies Include="BepuPhysics" />
+    <_AOT_InternalForceInterpretAssemblies Include="BepuUtilities" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shaders: same as ManaVoxel.Web.csproj; Content/CopyToOutputDirectory items on
+         ManaGraphics.csproj don't reach the wasm virtual filesystem; WasmFilesToIncludeInFileSystem
+         is the only thing that does. -->
+    <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
+      <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+
+    <!-- ManaEnvironmentReflectionSource.DefaultSourcePath: VoxelEditorGameMode.Load() decodes this
+         unconditionally on startup (the IBL environment map), editor or play mode alike. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
+      <TargetPath>Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <!-- TextureManager's default/fallback texture; VoxelEditorGameMode.Load() loads it unconditionally
+         (confirmed live via the headless Chrome probe: FileNotFoundException without it). Same file
+         ManaVoxel.Web.csproj bundles for its ground quad. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\DebugTexture_Grid.png">
+      <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+
+    <!-- ManaUiHost.GetFontDirectories() looks under AppContext.BaseDirectory/Assets/Fonts first,
+         before falling back to OS system font directories; which don't exist in the wasm VFS, so
+         this is the only source ManaUi's text rendering has here at all. Whole tree (10 MB, every
+         weight of Roboto plus Barlow Condensed) rather than hand-picking files: unlike the shader
+         glob above, nothing here declares which specific weights UiTheme/menus/panels actually
+         request by name, and an editor missing a glyph run is a much worse failure than the extra
+         download. Worth narrowing once that's mapped out. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\**\*.ttf">
+      <TargetPath>Assets/Fonts/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+
+    <!-- MeshAssetLibrary.Roots() walks AppContext.BaseDirectory/Assets among other candidates looking for
+         *.zip mesh packs (same path ManaVoxel.Web.csproj bundles these two at, for CharacterSpawnService).
+         EnsureWatching() is a no-op on MANA_BROWSER (FileSystemWatcher has no browser-wasm support), but
+         Scan() itself is a plain one-time Directory.EnumerateFiles walk with no such restriction, so the
+         Import panel's asset list works here as long as something is actually bundled to find, which
+         nothing was until now (an empty AppContext.BaseDirectory/Assets, silently correct, just empty).
+         Same two packs ManaVoxel.Web already ships, not a new asset choice. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_mini-characters.zip">
+      <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_train-kit.zip">
+      <TargetPath>Assets/kenney_train-kit.zip</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Identical to ManaVoxel.Web.csproj's own copy of this block; see its comments for the full
+         story (native-link items don't flow across a ProjectReference edge, only the entry
+         project's own publish step runs them). Kept as an exact duplicate rather than factored out
+         because MSBuild doesn't let these items live in a shared referenced project either; see
+         ManaGraphics.csproj's comment on the same limitation. -->
+    <NativeFileReference Include="..\ManaGraphics\Native\mana_webgpu.c" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceCreateSurface" />
+    <EmccExportedFunction Include="_mana_request_adapter" />
+    <EmccExportedFunction Include="_mana_request_device" />
+    <EmccExportedFunction Include="_mana_log_shader_compilation_info" />
+    <EmccExportedFunction Include="_mana_debug_readback_buffer" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterEnumerateFeatures" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterGetLimits" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterGetProperties" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterRelease" />
+    <EmccExportedFunction Include="_mana_wgpuAdapterRequestDevice" />
+    <EmccExportedFunction Include="_mana_wgpuBindGroupLayoutRelease" />
+    <EmccExportedFunction Include="_mana_wgpuBindGroupRelease" />
+    <EmccExportedFunction Include="_mana_wgpuBufferDestroy" />
+    <EmccExportedFunction Include="_mana_wgpuBufferMapAsync" />
+    <EmccExportedFunction Include="_mana_wgpuBufferRelease" />
+    <EmccExportedFunction Include="_mana_wgpuCommandBufferRelease" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderBeginComputePass" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderBeginRenderPass" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderCopyBufferToBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderCopyTextureToTexture" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderFinish" />
+    <EmccExportedFunction Include="_mana_wgpuCommandEncoderRelease" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderDispatchWorkgroups" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderEnd" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderRelease" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderSetBindGroup" />
+    <EmccExportedFunction Include="_mana_wgpuComputePassEncoderSetPipeline" />
+    <EmccExportedFunction Include="_mana_wgpuComputePipelineRelease" />
+    <EmccExportedFunction Include="_mana_wgpuCreateInstance" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateBindGroup" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateBindGroupLayout" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateCommandEncoder" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateComputePipeline" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreatePipelineLayout" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateRenderPipeline" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateSampler" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateShaderModule" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceCreateTexture" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceEnumerateFeatures" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceGetLimits" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceGetQueue" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceRelease" />
+    <EmccExportedFunction Include="_mana_wgpuDeviceSetUncapturedErrorCallback" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceProcessEvents" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceRelease" />
+    <EmccExportedFunction Include="_mana_wgpuInstanceRequestAdapter" />
+    <EmccExportedFunction Include="_mana_wgpuPipelineLayoutRelease" />
+    <EmccExportedFunction Include="_mana_wgpuQueueRelease" />
+    <EmccExportedFunction Include="_mana_wgpuQueueSubmit" />
+    <EmccExportedFunction Include="_mana_wgpuQueueWriteBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuQueueWriteTexture" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderDraw" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderDrawIndexed" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderEnd" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderRelease" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetBindGroup" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetIndexBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetPipeline" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetScissorRect" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetVertexBuffer" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPipelineRelease" />
+    <EmccExportedFunction Include="_mana_wgpuSamplerRelease" />
+    <EmccExportedFunction Include="_mana_wgpuShaderModuleRelease" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceConfigure" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceGetCurrentTexture" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceGetPreferredFormat" />
+    <EmccExportedFunction Include="_mana_wgpuSurfacePresent" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceRelease" />
+    <EmccExportedFunction Include="_mana_wgpuSurfaceUnconfigure" />
+    <EmccExportedFunction Include="_mana_wgpuTextureCreateView" />
+    <EmccExportedFunction Include="_mana_wgpuTextureDestroy" />
+    <EmccExportedFunction Include="_mana_wgpuTextureRelease" />
+    <EmccExportedFunction Include="_mana_wgpuTextureViewRelease" />
+  </ItemGroup>
+
+  <!-- Same download-size-manifest mechanism as ManaVoxel.Web.csproj, for the same loading screen;
+       see that file's comment for why _WasmGenerateAppBundle specifically. -->
+  <UsingTask TaskName="ManaWriteEditorDownloadSize" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <AppBundleDir ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+long total = 0;
+var directory = Path.Combine(AppBundleDir, "_framework");
+foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+{
+    if (file.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+    {
+        continue;
+    }
+
+    total += new FileInfo(file).Length;
+}
+
+File.WriteAllText(
+    Path.Combine(AppBundleDir, "mana-download-size.json"),
+    "{\"totalBytes\":" + total + "}");
+
+Log.LogMessage(MessageImportance.High, "Loading screen: download total is " + total + " bytes.");
+]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="ManaWriteEditorDownloadSizeManifest" AfterTargets="_WasmGenerateAppBundle">
+    <ManaWriteEditorDownloadSize AppBundleDir="$(WasmAppDir)" />
+  </Target>
+
+</Project>

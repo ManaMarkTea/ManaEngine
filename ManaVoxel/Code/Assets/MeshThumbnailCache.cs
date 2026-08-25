@@ -374,8 +374,17 @@ namespace ManaVoxel.Code.Assets
                 return null;
             }
 
+#if !MANA_BROWSER
             var loader = new ManaGltfLoader(_context);
             return loader.LoadFirstMeshCpuOnly(assetPath).CpuData;
+#else
+            // ManaGltfLoader is Assimp-backed (no browser-wasm asset; see Mana.csproj). The browser
+            // equivalent, ManaSharpGltfLoader, only exposes scene-node-producing loaders, not this
+            // CPU-only path a thumbnail render needs -- no thumbnails on this target yet rather than a
+            // half-working port. Same treatment as MeshThumbnailCache.cs/MeshAssetLibrary.cs generally:
+            // WebPort-Plan.md scoped the whole editor asset browser out of the play-mode-only v1.
+            return null;
+#endif
         }
 
         /// <summary>
@@ -397,9 +406,13 @@ namespace ManaVoxel.Code.Assets
             using var memory = new MemoryStream();
             entryStream.CopyTo(memory);
 
+#if !MANA_BROWSER
             var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
             var loader = new ManaGltfLoader(_context);
             return loader.LoadFirstMeshCpuOnlyFromMemory(memory.ToArray(), entryPath, resolver).CpuData;
+#else
+            return null;
+#endif
         }
 
         // ----- disk tier ---------------------------------------------------------------------------------

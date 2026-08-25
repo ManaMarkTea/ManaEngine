@@ -1,5 +1,199 @@
 # Compiling ManaRenderer to run in the browser (WebAssembly)
 
+## M9 — the editor, not just play mode (LIVE: boots, renders, and is interactive in a real browser)
+
+**Confirmed working end to end via the headless Chrome probe**: a new `ManaVoxel.Editor.Web`
+project (sibling of `ManaVoxel.Web`, referencing `ManaVoxel.csproj` directly now that it compiles
+for browser-wasm) boots `VoxelEditorGameMode` for real. The screenshot is the actual editor —
+menu bar (File/Edit/Play/Character/View/Debug/Layout/Panels/Appearance), toolbar, viewport with
+the orientation gizmo, docked Import/Outliner/Debug/Inspector panels, live frame-time graph, FPS
+counter — running through WebGPU in a browser tab, not a mock. 36 FPS, 121 MB, first real frame at
+~6.8s cold over an unthrottled local connection (the editor is a heavier download than play mode:
+57 MB vs. 44 MB, mostly the font bundle — see below).
+
+Two real bugs found and fixed getting here, both by the same headless-probe methodology the M0-M8
+work already established, and both worth understanding if `manaui.wgsl` changes again:
+
+- **Missing texture.** `VoxelEditorGameMode.Load()` loads `DebugTexture_Grid.png` unconditionally
+  as `TextureManager`'s fallback texture, not bundled by the new project. Mechanical fix, same
+  file `ManaVoxel.Web.csproj` already bundles for its ground quad.
+- **`manaui.wgsl` violated WGSL's uniform-control-flow rule for derivative-requiring calls, and
+  desktop's wgpu-native backend never caught it.** `textureSample` (glyph atlas, image atlas) and
+  `fwidth` (inside `coverage()`, used for antialiasing) both need implicit screen-space
+  derivatives, which requires every invocation in the same 2x2 fragment quad to reach the same
+  call — so WGSL forbids calling either from inside a branch on per-fragment data. The original
+  shader had both: `textureSample` inside `if (flags & FLAG_GLYPH)`/`if (flags & FLAG_TEXTURE)`,
+  `fwidth` (via `coverage()`) inside `if (border_width > 0.0)`. Chrome's real WebGPU validator
+  (Naga) rejected the whole shader module outright, cascading into every subsequent draw call
+  submitted with it being `[Invalid CommandBuffer]` — this is `ManaUI`'s entire draw pipeline
+  (CLAUDE.md: "everything draws as one instanced SDF primitive"), so the whole UI was invisible,
+  not just glyphs/borders.
+
+  **Non-obvious part, found by trial**: the fix isn't "move the call outside its own `if`." Naga's
+  uniformity analysis taints ALL code textually after the FIRST fragment-input-dependent branch in
+  the function, not just code nested inside it — hoisting `coverage(distance + border_width)` out
+  of `if (border_width > 0.0)` alone (a narrower first attempt, still after the earlier
+  `if (flags & FLAG_GLYPH)` branch) still failed with the identical error. The real fix hoists
+  `local`/`half_size`/`distance`/`outer`/`inner` — everything `fwidth` and `textureSample` touch —
+  to the very top of `fs_main`, before ANY branch at all, same treatment as the two texture
+  samples. Verified this doesn't change desktop's actual rendering (ManaVoxel launched locally,
+  loaded a level, rendered normally, no WGSL errors in the log) — the fix is a genuine portability
+  correction to shared shader code, not a browser-only workaround; desktop's backend was simply
+  never strict enough to catch that this was already wrong.
+
+**Also found, mechanical**: publishing `ManaVoxel.Editor.Web.csproj` piped through `tail` masked a
+real failure exit code twice in a row (an XML-comment `--` MSB4025 the first time, meaning the
+"successful" republish was silently serving a stale bundle both times) — worth remembering
+generally: never trust a piped build's reported success without checking the actual exit code or
+the output content itself, especially mid-iteration on a file a browser will cache/bundle.
+
+**What M9's compile-clean status (below) undersold**: `ManaUiWorkspaceLayout`'s docking-layout
+save/load and `ManaUiDensity.RestorePreset()`'s settings file both work against the wasm virtual
+filesystem with no changes needed — both were already wrapped in `try/catch IOException` for
+unrelated desktop reasons (corrupt file, read-only disk), and a wasm `File.Exists`/`File.WriteAllText`
+against the writable in-memory FS just behaves like an ordinary (if ephemeral, lost on reload) disk
+turned out to need zero porting work. `ManaUiKeyboardSettings.Read()` (OS keyboard repeat timing)
+already falls through to its documented fallback on any non-Windows/non-macOS platform, no change
+needed either.
+
+**Follow-up session — three of the four gaps above closed, and one turned out not to be a gap
+at all**:
+
+- **Docking layout / UI density persistence now survives a reload.** A small
+  `ManaCore.Browser.ManaBrowserSettingsBridge` (JSImport'd `manaSettingsGet`/`Set`/`Remove` against
+  `localStorage`, added to `mana_interop.js`) backs both `ManaUiWorkspaceLayout.Load`/`Save`
+  (ManaVoxel) and `ManaUiDensity.RestorePreset`/`PersistPreset` (Mana) on `MANA_BROWSER`, keyed by
+  `Path.GetFileName(path)` rather than the full desktop path (which means nothing on this target).
+  Lives in ManaCore specifically because neither caller's project references ManaGraphics (where
+  the existing `ManaBrowserInterop` bridge lives) but both already sit on ManaCore. Verified live
+  with a throwaway self-test in `Program.cs` (`Set` then `TryGet` through the real JSImport path,
+  not just a compile check) before removing it — console read back `roundtrip-ok`. ManaCore needed
+  `AllowUnsafeBlocks` added (`JSImportAttribute` requires it) and the same `MANA_BROWSER`
+  `DefineConstants` wiring every other project already has.
+- **The asset browser now shows real assets: 387, scanned automatically.** `MeshAssetLibrary.Roots()`
+  already walks `AppContext.BaseDirectory/Assets` among its candidates — the same path
+  `WasmFilesToIncludeInFileSystem` already lands things at — so bundling the same two zip packs
+  `ManaVoxel.Web.csproj` ships for play mode (`kenney_mini-characters.zip`,
+  `kenney_train-kit.zip`) was enough with no code change: `Scan()` is a plain one-time
+  `Directory.EnumerateFiles` walk, unaffected by `EnsureWatching()` being a no-op. Push the total
+  download to 64.8 MB from M9-live's 57 MB.
+- **Interactive mesh import already worked for GLB/glTF — this was never actually a gap.**
+  `VoxelFileImportService.ImportModelFile`/`ImportZipAsset` (the real drag-and-drop/Place-button
+  path, confirmed live: placed assets from the panel above render in the viewport) call
+  `world.LoadFromGltf`/`LoadFromGltfMemory`, which is the SAME `ManaWorld.Gltf.Desktop.cs`
+  (Assimp) / `ManaWorld.Gltf.Browser.cs` (SharpGLTF) split M4 already built for play mode's
+  character loading. The earlier "Assimp-only" note conflated this with `MeshThumbnailCache.cs`'s
+  separate, thumbnail-only `ManaGltfLoader` usage (still Assimp-only, still stubbed to no
+  thumbnail on browser — that part was accurate). **Genuinely still a gap**: OBJ/FBX/DAE/STL/PLY,
+  which only Assimp reads at all; SharpGLTF has nothing to fall back to for those, not a matter of
+  wiring.
+- **Ctrl+F5's `PlayInNewWindow()` needed no change at all.** Its `Process.Start` call was already
+  inside a broad `catch (Exception)` for an unrelated desktop reason (executable path resolution
+  failing, launch permissions) — `PlatformNotSupportedException` on browser-wasm falls into the
+  same catch, surfacing as an ordinary "Could not launch a play window: ..." status message rather
+  than a crash. Checked, not guessed: read the method, confirmed the try block's extent covers the
+  call.
+
+**Actually still open**: OBJ/FBX/DAE/STL/PLY import (see above); the font bundle is still 10 MB of
+the 64.8 MB total, bundled wholesale.
+
+## M9 (original) — compile-clean, not yet bootstrapped
+
+Superseded by the section above (M9 is now live); kept for the full list of what it took to get
+`ManaVoxel.csproj` itself compiling for browser-wasm, which the live version doesn't repeat.
+
+**`ManaVoxel.csproj` — the actual editor, ImGui/Assimp and all — now compiles cleanly for
+`browser-wasm`.** `dotnet build ManaVoxel/ManaVoxel.csproj -r browser-wasm --self-contained
+false` succeeds from a cold `obj`/`bin` wipe: 0 errors, 64 warnings (all `CA1416`
+platform-availability advisories on `FileSystemWatcher`/`Process.Start` call sites still live in
+the tree — real gaps, not compile blockers — plus two pre-existing trim warnings). Desktop build
+and the full `ManaTests` suite are unaffected: 1784/1785 pass, the same one pre-existing
+font/emoji failure noted above, confirmed unrelated.
+
+This was not expected going in — `ManaVoxel.csproj` is `EnableManaUi => true` already (the
+editor's real UI has been ManaUi, not ImGui, for a while), which turned out to mean nearly every
+ImGui-only code path in it was **already dead on desktop**, just not provably so to the compiler.
+`BaseGameMode.Render`'s `if (!EnableManaUi)` gate means `DrawMainMenuBar`/`DrawImGui`/
+`InitializeDockLayout` never run; `InitializeDockLayout`'s only caller
+(`BaseGameMode.ImGuiDocking.cs`) is itself already excluded from the browser build in
+`Mana.csproj`. Confirming that chain, file by file, was most of the work:
+
+- **The RID-propagation recipe** (`RuntimeIdentifiers` on the referenced project +
+  `SetTargetFramework` on the referencing `ProjectReference`, documented under M8 below) had a gap:
+  `ManaGeoTools.csproj` referenced `Mana.csproj` with neither, so `Mana.csproj` silently built
+  ridless through that edge even with `-r browser-wasm` on the command line pointed at
+  `ManaVoxel.csproj`. Fixed in both `ManaGeoTools.csproj` and `ManaVoxel.csproj`'s own
+  `ProjectReference`s. **`ManaGeoTools` itself needed no exclusions at all** — it's pure geo math
+  (GeoTIFF/shapefile/planet), no native dependency — and now compiles for browser-wasm clean. The
+  `ManaLevelLoader.cs` guard that excludes `ManaLevelSourceKind.Planet`/`PlanetNode` loading on
+  `MANA_BROWSER` predates this and was left as-is rather than second-guessed here (Planet levels
+  pull in `TerrariumTileFetcher`'s tile-fetching/GeoTIFF decode path, untested under wasm's
+  single-threaded, virtual-filesystem constraints — a real follow-up, not a mechanical unblock).
+- **Five ImGui-era views are now excluded outright on `browser-wasm`**
+  (`VoxelEditorMainMenuView.cs`, `VoxelEditorPanelsView.cs`, `VoxelToolPaletteView.cs`,
+  `VoxelSearchPanelView.cs`, `VoxelEditorAboutPanelView.cs`) — confirmed dead by the
+  `EnableManaUi` chain above, same reasoning `Mana.csproj` already used for its own dead ImGui
+  panel files.
+- **`VoxelEditorGameMode.cs`'s `DrawMainMenuBar`/`DrawImGui`/`InitializeDockLayout` overrides**,
+  plus the ImGui-only `SceneInspectorPanelView` custom-node hooks and the terrain-cache-size
+  polling machinery that only fed them (confirmed unused by `TerrainCacheWidget.cs`, ManaUi's
+  independent replacement), are now `#if !MANA_BROWSER`.
+- **One live (non-dead) method needed real `#if` branches, not exclusion**:
+  `ProcessMeshPickerPlacement` reads `_panelsView.ConsumePendingMeshSpawnPath()` as a `??`
+  fallback ahead of `MeshImportRequests` (ManaUi's own channel) — always null already on desktop
+  since nothing populates `_panelsView`'s state without `Draw()` ever running, but the compiler
+  can't know that. Guarded per-line rather than simplified away, to keep desktop's code path
+  byte-for-byte the same rather than "cleaning up" live code as a side effect.
+- **`VoxelEditorMainMenuManaView.cs`** (ManaUi, i.e. the view that actually IS live on both
+  platforms) had its own three ImGui-only menu items — Emoji Fallback, Reset Layout, the whole
+  Font submenu — guarded out; all three call `BaseGameMode` members that live in the
+  browser-excluded `BaseGameMode.ImGuiFonts.cs`/`BaseGameMode.ImGuiDocking.cs`. Also guarded:
+  Light/Dark Theme's `host?.ApplyLightImGuiTheme()`/`ApplyDarkImGuiTheme()` calls specifically —
+  the `viewModel.UseLightTheme` flag they sit beside stays, since **nothing currently wires it to
+  ManaUi's own `UiTheme`** on any platform; the toggle exists but doesn't yet retheme ManaUi
+  either way, browser or desktop. A real light/dark ManaUi theme switch is unclaimed follow-up
+  work, not something this pass could quietly add.
+- **`MeshThumbnailCache.cs`'s two `ManaGltfLoader` (Assimp) call sites** now return `null` (no
+  thumbnail) on `MANA_BROWSER` rather than porting thumbnail generation to `ManaSharpGltfLoader`,
+  which has no CPU-only mesh-data path to extract from, only scene-node-producing loaders.
+- **`Program.cs`** (`ManaVoxel.exe`'s desktop CLI entry point) now throws
+  `PlatformNotSupportedException` on `MANA_BROWSER` rather than reaching its GLFW-only `.Run()`/
+  ImGui-only `PurgeStaleDockLayout()` calls, which don't exist there. **This is a real gap, not
+  cosmetic** — there is still no browser bootstrap for the editor. `ManaVoxel.Web`'s `Program.cs`
+  (canvas selection, `ManaBrowserInterop.InitializeAsync()`, `GameSilkWebGpu`'s async
+  `RunBrowser()` path) is the pattern to follow; it can't just be reused as-is since it hardcodes
+  play mode. The natural shape, matching `ManaVoxel.Web`'s own relationship to `ManaVoxel.csproj`
+  (a separate small entry-point project, not a shared `Main`): a new `ManaVoxel.Editor.Web`
+  project referencing `ManaVoxel.csproj` with the now-proven `RuntimeIdentifiers`+
+  `SetTargetFramework` recipe, constructing `VoxelEditorGameMode` directly instead of
+  `BrowserPlayGameMode`.
+
+**Deliberately not attempted yet, and each is a real design question, not a mechanical unblock**:
+- No live browser bootstrap exists — the compile above proves the code CAN run there, not that it
+  DOES yet. Untested: `GameSilkWebGpu.RunBrowser()`'s async bring-up interacting with
+  `VoxelEditorGameMode.Load()`'s (synchronous, editor-sized) startup sequence; whether
+  `ManaUiWorkspaceLayout.cs`'s docking-layout persistence (currently a disk file) needs a
+  localStorage-backed path for browser; whether `ManaUiDensity.RestorePreset()` (`Program.cs`,
+  reads a settings file) needs the same.
+  - `MeshAssetLibrary.cs`'s `FileSystemWatcher`-based live directory scanning for the asset
+  browser has no browser equivalent (no filesystem to watch) — needs a bundled-manifest approach
+  like `ManaVoxel.Web`'s `WasmFilesToIncludeInFileSystem` list, or an upload-based flow, not yet
+  decided.
+- Interactive mesh import (drag a `.glb`/`.obj` onto the viewport) goes through
+  `VoxelFileImportService`/`MeshAssetLibrary`, Assimp-backed for non-glTF formats; a browser
+  editor would need a `SharpGltfMeshImportBackend`-shaped seam (M4 above sketches this for
+  play-mode's `ManaWorld.LoadFromGltf` already; the editor's import path is a different, larger
+  call graph) and would lose OBJ/FBX/DAE/STL/PLY support unless something else replaces Assimp for
+  those.
+- Ctrl+F5's "save the level and launch `--play` in a second process" has no browser analogue at
+  all (no process to launch) — would need to become an in-page mode switch, reusing
+  `PlayModeController` directly the way `VoxelEditorGameMode`'s own in-editor F5 already does,
+  rather than the second-process path.
+- File dialogs: none found in this pass (`Process.Start` calls are all "reveal in Finder/Explorer",
+  not open/save pickers — level save/open currently goes through `ManaVoxel`'s own ManaUi file
+  browser panels, not a native dialog, so this may be less of a gap than expected; not fully
+  verified).
+
 ## Status (resume-from-here notes)
 
 **Real (non-spike) code has landed on the `web` branch**, verified against the full

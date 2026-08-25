@@ -573,6 +573,15 @@ namespace ManaVoxel.Code.Assets
                 return;
             }
 
+#if MANA_BROWSER
+            // FileSystemWatcher throws PlatformNotSupportedException on browser-wasm; there is nothing
+            // resembling a live directory tree to watch there anyway (assets are a fixed, publish-time
+            // bundle -- see WasmFilesToIncludeInFileSystem in ManaVoxel.Editor.Web.csproj). Scanning
+            // itself (Roots()/directory enumeration, called separately) still works against whatever the
+            // bundle contains; this only skips the "notice new files without a rescan" half.
+            return;
+#endif
+
             lock (_watchGate)
             {
                 if (_watchers != null)

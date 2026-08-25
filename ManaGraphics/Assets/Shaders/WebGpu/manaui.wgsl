@@ -177,6 +177,39 @@ fn coverage(distance : f32) -> f32 {
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
+    // Everything in this block runs unconditionally, before any flag branch, and stays that way even
+    // though most of it is only meaningful for one particular flag combination. WGSL requires both
+    // textureSample (unlike textureSampleLevel, used for the backdrop further down) and fwidth (inside
+    // coverage(), called for `outer`/`inner` below) to run in uniform control flow, since the implicit
+    // derivative either needs comes from comparing this invocation against its neighbours in the same 2x2
+    // quad -- and the taint isn't just "textually inside an `if`": Chrome's real WGSL validator (Naga)
+    // treats ALL code textually after the first flag-dependent branch as non-uniform for the rest of the
+    // function, not only code nested inside that branch, which is why hoisting `inner`'s own computation
+    // out of `if (input.border_width > 0.0)` alone (a narrower first attempt) still failed with the same
+    // error -- confirmed live, twice, via the headless Chrome probe used elsewhere in this file's own
+    // porting work. Desktop's wgpu-native backend enforces none of this and let the original, narrower
+    // code compile silently (wrong or merely lucky, not verified either way). A fragment that ends up not
+    // needing one of these values just paid for computing it -- cheap next to a whole draw call being
+    // invalid.
+    let glyph_sample = textureSample(glyph_atlas, atlas_sampler, input.uv);
+    let image_sample = textureSample(image_atlas, atlas_sampler, input.uv);
+
+    let centre = (input.rect.xy + input.rect.zw) * 0.5;
+    let half_size = (input.rect.zw - input.rect.xy) * 0.5;
+
+    // Rotating the sample point the other way is the same as rotating the box, and costs nothing when the
+    // rotation is zero.
+    var local = input.local_position - centre;
+    if (input.rotation != 0.0) {
+        let c = cos(-input.rotation);
+        let s = sin(-input.rotation);
+        local = vec2<f32>(local.x * c - local.y * s, local.x * s + local.y * c);
+    }
+
+    let distance = sd_rounded_box(local, half_size, input.corners);
+    let outer = coverage(distance);
+    let inner = coverage(distance + input.border_width);
+
     // Per-instance clipping. Shadows are exempt on their own quad but still respect the clip rect.
     let p = input.local_position;
     if (p.x < input.clip.x || p.y < input.clip.y || p.x > input.clip.z || p.y > input.clip.w) {
@@ -185,7 +218,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     // Text: the atlas red channel is coverage, modulating the fill colour.
     if ((input.flags & FLAG_GLYPH) != 0u) {
-        let glyph_coverage = textureSample(glyph_atlas, atlas_sampler, input.uv).r;
+        let glyph_coverage = glyph_sample.r;
         let alpha = input.fill_color.a * glyph_coverage;
         if (alpha <= 0.0) {
             discard;
@@ -193,18 +226,6 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         // Premultiplied: the blend state is (One, OneMinusSrcAlpha).
         return vec4<f32>(input.fill_color.rgb * alpha, alpha);
-    }
-
-    let centre = (input.rect.xy + input.rect.zw) * 0.5;
-    let half_size = (input.rect.zw - input.rect.xy) * 0.5;
-
-    // Rotating the sample point the other way is the same as rotating the box, and costs nothing when the
-    // rotation is zero.
-    var local = p - centre;
-    if (input.rotation != 0.0) {
-        let c = cos(-input.rotation);
-        let s = sin(-input.rotation);
-        local = vec2<f32>(local.x * c - local.y * s, local.x * s + local.y * c);
     }
 
     if ((input.flags & FLAG_SHADOW) != 0u) {
@@ -246,8 +267,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         base_fill = mix(input.fill_color, input.gradient_color, t);
     }
 
-    let distance = sd_rounded_box(local, half_size, input.corners);
-    let outer = coverage(distance);
+    // distance/outer/inner: computed once, up top, alongside local/half_size -- see the comment there.
     if (outer <= 0.0) {
         discard;
     }
@@ -258,12 +278,11 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     if (input.border_width > 0.0) {
         // Fill occupies everything inside the border; the ring is the difference between the two coverages,
         // which keeps the seam between them exactly antialiased rather than double-blended.
-        let inner = coverage(distance + input.border_width);
         let ring = max(outer - inner, 0.0);
 
         var fill = base_fill;
         if ((input.flags & FLAG_TEXTURE) != 0u) {
-            fill = fill * textureSample(image_atlas, atlas_sampler, input.uv);
+            fill = fill * image_sample;
         }
 
         rgb = fill.rgb * fill.a * inner + input.border_color.rgb * input.border_color.a * ring;
@@ -271,7 +290,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     } else {
         var fill = base_fill;
         if ((input.flags & FLAG_TEXTURE) != 0u) {
-            fill = fill * textureSample(image_atlas, atlas_sampler, input.uv);
+            fill = fill * image_sample;
         }
 
         alpha = fill.a * outer;
