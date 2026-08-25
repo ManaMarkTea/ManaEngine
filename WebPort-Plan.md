@@ -94,8 +94,20 @@ at all**:
   than a crash. Checked, not guessed: read the method, confirmed the try block's extent covers the
   call.
 
-**Actually still open**: OBJ/FBX/DAE/STL/PLY import (see above); the font bundle is still 10 MB of
-the 64.8 MB total, bundled wholesale.
+**Font bundle narrowed from 10 MB to 311 KB (64.8 MB total down to 54.5 MB)**, once mapped out:
+`ManaFontManager.ResolvePath` is a filename search, not a font-metadata parse, and grepping every
+`.FontFamily(...)`/`theme.FontFamilyMono`/`FontFamilyMedium` call site across ManaVoxel/Mana/ManaUI
+turned up exactly two family names ever requested — `"Roboto"` and `"Roboto-Medium"`. Bundling just
+those two files instead of the whole `Mana/Assets/Fonts` tree (every Roboto weight plus Barlow
+Condensed, which is ImGui-font-preset-only and browser-excluded already) regresses nothing:
+`"RobotoMono-Regular"` (`UiTheme.FontFamilyMono`'s default) never resolved from that bundle on
+*any* platform, desktop included — no file of that exact name exists anywhere under
+`Mana/Assets/Fonts` — so it was already silently falling through before this change too. Verified
+live: identical rendering before and after in the headless probe's screenshot, no missing-glyph
+boxes, no console errors.
+
+**Actually still open**: OBJ/FBX/DAE/STL/PLY import (see above) — the one real remaining gap from
+this session that would need new work (a parser SharpGLTF has no equivalent of), not just wiring.
 
 ## M9 (original) — compile-clean, not yet bootstrapped
 

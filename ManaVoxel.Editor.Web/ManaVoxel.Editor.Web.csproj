@@ -89,13 +89,24 @@
 
     <!-- ManaUiHost.GetFontDirectories() looks under AppContext.BaseDirectory/Assets/Fonts first,
          before falling back to OS system font directories; which don't exist in the wasm VFS, so
-         this is the only source ManaUi's text rendering has here at all. Whole tree (10 MB, every
-         weight of Roboto plus Barlow Condensed) rather than hand-picking files: unlike the shader
-         glob above, nothing here declares which specific weights UiTheme/menus/panels actually
-         request by name, and an editor missing a glyph run is a much worse failure than the extra
-         download. Worth narrowing once that's mapped out. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\**\*.ttf">
-      <TargetPath>Assets/Fonts/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+         this is the only source ManaUi's text rendering has here at all. ManaFontManager.ResolvePath
+         is a filename search, not a font-metadata parse (grep-audited every `.FontFamily(...)` /
+         `theme.FontFamilyMono`/`FontFamilyMedium` call site in ManaVoxel/Mana/ManaUI to confirm):
+         exactly two family names are ever requested by name, "Roboto" (-> Roboto-Regular.ttf, also
+         TextBlock's default when nothing is specified) and "Roboto-Medium" (-> Roboto-Medium.ttf).
+         "RobotoMono-Regular" (UiTheme.FontFamilyMono's default) never resolves from this bundle on
+         ANY platform, desktop included; no file of that exact name exists anywhere under
+         Mana/Assets/Fonts, Roboto Mono not being one of the weights shipped; so it was already
+         silently falling through to whatever ManaFontManager does when nothing matches (an OS
+         system font if one happens to be installed, otherwise nothing), with or without this
+         change; trimming the bundle down to what actually resolves regresses nothing. Barlow
+         Condensed is ImGui-font-preset-only (BaseGameMode.ImGuiFonts.cs, browser-excluded), not
+         referenced by ManaUi at all. 311 KB total instead of the whole tree's 10 MB. -->
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\Roboto\Roboto-Regular.ttf">
+      <TargetPath>Assets/Fonts/Roboto-Regular.ttf</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\Roboto\Roboto-Medium.ttf">
+      <TargetPath>Assets/Fonts/Roboto-Medium.ttf</TargetPath>
     </WasmFilesToIncludeInFileSystem>
 
     <!-- MeshAssetLibrary.Roots() walks AppContext.BaseDirectory/Assets among other candidates looking for
