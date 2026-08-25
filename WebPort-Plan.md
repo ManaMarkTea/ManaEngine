@@ -106,8 +106,12 @@ Condensed, which is ImGui-font-preset-only and browser-excluded already) regress
 live: identical rendering before and after in the headless probe's screenshot, no missing-glyph
 boxes, no console errors.
 
-**Actually still open**: OBJ/FBX/DAE/STL/PLY import (see above) — the one real remaining gap from
-this session that would need new work (a parser SharpGLTF has no equivalent of), not just wiring.
+**OBJ/FBX/DAE/STL/PLY import — confirmed not worth building.** Real content is glTF/GLB only, so
+the gap never bites in practice; SharpGLTF's existing coverage already matches actual usage.
+Leaving this as a known, deliberate limitation rather than a queued task — writing a parser for
+formats nothing actually imports would be speculative work with no one to validate it against.
+
+M9 has no other open items.
 
 ## M9 (original) — compile-clean, not yet bootstrapped
 

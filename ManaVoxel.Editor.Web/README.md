@@ -55,9 +55,9 @@ references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a ha
 
 - **Importing OBJ/FBX/DAE/STL/PLY.** `VoxelFileImportService` routes every import through
   `ManaWorld.LoadFromGltf`, which is Assimp-backed on desktop (reads all five formats plus glTF)
-  and SharpGLTF-backed here (glTF/GLB only). This is a real gap, not a wiring problem — SharpGLTF
-  has no equivalent parser for the other formats, so it would need one written, not just plumbed
-  in. GLB and glTF import work fine.
+  and SharpGLTF-backed here (glTF/GLB only). Deliberately not being built: real content is
+  glTF/GLB only, so this gap doesn't bite in practice, and writing a parser for formats nothing
+  actually imports would be speculative work with nothing to validate it against.
 - **Mesh thumbnails in the asset browser.** `MeshThumbnailCache`'s CPU-only render path is
   Assimp-backed and has no browser equivalent yet (SharpGLTF only exposes scene-node-producing
   loaders); assets show without a preview image rather than with a broken one.
