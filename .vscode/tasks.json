@@ -130,6 +130,60 @@
       "problemMatcher": []
     },
     {
+      "label": "publish ManaVoxel.Web (browser-wasm)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "${workspaceFolder}/ManaVoxel.Web/ManaVoxel.Web.csproj",
+        "-c",
+        "Release"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "serve ManaVoxel.Web (browser play, :8000)",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/ManaVoxel.Web/serve.py"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "publish ManaVoxel.Editor.Web (browser-wasm)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "${workspaceFolder}/ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj",
+        "-c",
+        "Release"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "serve ManaVoxel.Editor.Web (browser editor, :8002)",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/ManaVoxel.Editor.Web/serve.py"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "build Mana solution",
       "type": "process",
       "command": "dotnet",
