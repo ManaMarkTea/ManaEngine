@@ -50,6 +50,13 @@ references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a ha
 - **Ctrl+F5** ("Play in New Window") fails gracefully with a status message rather than crashing —
   its `Process.Start` call was already wrapped in a broad `catch (Exception)` for unrelated desktop
   reasons, and `PlatformNotSupportedException` falls into the same catch.
+- **Mesh thumbnails in the asset browser**, generated on the fly from the same
+  `ManaSharpGltfLoader.LoadFile`/`LoadFileFromMemory` the real import already uses.
+  `ManaSharpGltfLoader` only exposes scene-node-producing loaders (no CPU-only path the way
+  `ManaGltfLoader`'s Assimp side has), so `MeshThumbnailCache` walks the resulting node tree and
+  concatenates every mesh with its node transform baked in — the same thing the Assimp path does,
+  and for the same reason: a rigged Kenney character is several separate rigid meshes, not one, and
+  previewing only the first would show a single limb instead of the whole character.
 
 ## What doesn't (yet)
 
@@ -58,9 +65,6 @@ references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a ha
   and SharpGLTF-backed here (glTF/GLB only). Deliberately not being built: real content is
   glTF/GLB only, so this gap doesn't bite in practice, and writing a parser for formats nothing
   actually imports would be speculative work with nothing to validate it against.
-- **Mesh thumbnails in the asset browser.** `MeshThumbnailCache`'s CPU-only render path is
-  Assimp-backed and has no browser equivalent yet (SharpGLTF only exposes scene-node-producing
-  loaders); assets show without a preview image rather than with a broken one.
 - **Ctrl+F5 doesn't actually open a second window** — see above; it degrades to a status message,
   which is the intended behavior here rather than a bug to fix, since there is no second-process
   concept in a browser tab. A real fix would be an in-page mode switch reusing

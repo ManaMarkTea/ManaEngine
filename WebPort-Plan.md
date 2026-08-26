@@ -111,6 +111,21 @@ the gap never bites in practice; SharpGLTF's existing coverage already matches a
 Leaving this as a known, deliberate limitation rather than a queued task — writing a parser for
 formats nothing actually imports would be speculative work with no one to validate it against.
 
+**Mesh thumbnails in the asset browser — done, not a gap after all.** `MeshThumbnailCache`'s
+`GenerateFromFile`/`GenerateFromZip` were stubbed to return null on `MANA_BROWSER` back when this
+was first scoped, on the assumption that `ManaSharpGltfLoader` had no CPU-only equivalent of
+`ManaGltfLoader.LoadFirstMeshCpuOnly`. Closer look: it doesn't need one. `ManaSharpGltfLoader.LoadMesh`
+already calls `SetCpuData()` on every `ManaMesh` unconditionally, before the (already
+`#if !MANA_BROWSER`) GPU-upload block — real `ManaMeshCpuData`, no device or scene required, just
+sitting there on every mesh `LoadFile`/`LoadFileFromMemory` produces. The one thing actually missing
+was `ManaGltfLoader.BuildCpuOnlyMesh`'s multi-part concatenation (necessary because a rigged Kenney
+character is several separate rigid meshes, not one — reading only the first showed a single limb).
+Added `MeshThumbnailCache.FlattenSharpGltfSceneToCpuMesh`, walking the loaded `ManaSceneNode` tree
+and baking each node's transform into its mesh's vertices before concatenating — `WorldTransform`
+itself is no good for this, since it's only correct after a node has been through
+`UpdateTransform()`, which these freshly-loaded, never-attached nodes never are. Verified live:
+real mesh silhouettes now render in the asset browser where blank placeholders were before.
+
 M9 has no other open items.
 
 ## M9 (original) — compile-clean, not yet bootstrapped
