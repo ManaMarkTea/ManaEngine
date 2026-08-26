@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Workstation GC (the default) handles this app's allocation pattern poorly: planet patch
@@ -30,18 +31,37 @@
   <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these. See
        Mana.csproj/ManaGraphics.csproj for the same treatment; this project redeclares the
        packages a third time rather than inheriting them. Silk.NET.OpenGL.Extensions.ImGui
-       pulls in ImGui.NET (a native cimgui binary) transitively. -->
+       pulls in ImGui.NET (a native cimgui binary) transitively. Assimp used to be here for
+       MeshThumbnailCache.cs's preview render; that's SharpGLTF-backed now too, same loader
+       ManaWorld.Gltf.cs uses everywhere; see that file's comment. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
-    <PackageReference Include="Silk.NET.Assimp" Version="2.23.0" />
     <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" />
-    <ProjectReference Include="..\Mana\Mana.csproj" />
-    <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" />
+    <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <ProjectReference Include="..\Mana\Mana.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+  </ItemGroup>
+
+  <!-- ImGui.NET has no browser-wasm asset (see ManaGraphics.csproj). These five are the ImGui-era
+       editor UI: main menu bar, panels, tool palette, search panel, about panel; superseded by
+       their ManaUi counterparts (VoxelEditorMainMenuManaView.cs and siblings). Confirmed dead even on
+       desktop once EnableManaUi is on: their only call sites are VoxelEditorGameMode's
+       DrawMainMenuBar/DrawImGui overrides, which BaseGameMode.Render never invokes while EnableManaUi
+       is true (see VoxelEditorGameMode.cs:186), itself now guarded out here with #if !MANA_BROWSER,
+       same reasoning as Mana.csproj's own dead-ImGui-panel exclusions. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <Compile Remove="Code\UI\VoxelEditorMainMenuView.cs" />
+    <Compile Remove="Code\UI\VoxelEditorPanelsView.cs" />
+    <Compile Remove="Code\UI\VoxelToolPaletteView.cs" />
+    <Compile Remove="Code\UI\VoxelSearchPanelView.cs" />
+    <Compile Remove="Code\UI\VoxelEditorAboutPanelView.cs" />
   </ItemGroup>
 
 </Project>

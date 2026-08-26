@@ -1,4 +1,6 @@
+#if !MANA_BROWSER  // ImGui.NET has no browser-wasm asset; see ManaGraphics.csproj
 using ImGuiNET;
+#endif
 using BepuPhysics.Collidables;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
@@ -37,12 +39,16 @@ namespace Mana.Code.GameModes
         private uint _manaDockId;
         private uint _utilityDockId;
         private readonly VoxelEditorViewModel _viewModel = new();
+#if !MANA_BROWSER  // legacy ImGui-only panel views, superseded by their ManaUi counterparts
         private readonly VoxelEditorMainMenuView _mainMenuView = new();
         private readonly VoxelToolPaletteView _toolPaletteView = new();
         private readonly VoxelEditorPanelsView _panelsView = new();
+#endif
         private readonly PlaceSearchNavigator _navigator = new();
+#if !MANA_BROWSER  // legacy ImGui-only panel views, superseded by their ManaUi counterparts
         private readonly VoxelEditorAboutPanelView _aboutPanelView = new();
         private readonly VoxelSearchPanelView _searchPanelView = new();
+#endif
         private readonly VoxelToolController _toolController = new();
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
@@ -90,6 +96,7 @@ namespace Mana.Code.GameModes
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
+#if !MANA_BROWSER  // state for the dead terrain-cache-size block below
         private static readonly object TerrainCacheSizeLock = new();
         private static Task<TerrainCacheSizeRefreshResult>? _terrainCacheSizeRefreshTask;
         private static int _terrainCacheSizeRefreshGeneration;
@@ -101,6 +108,7 @@ namespace Mana.Code.GameModes
             int Generation,
             long? Bytes,
             string? Error);
+#endif
 
         private sealed record ColliderDebugEntry(
             ManaCollisionComponent Collision,
@@ -158,6 +166,7 @@ namespace Mana.Code.GameModes
                         ManaGraphicsDiagnosticsProviderFactory.Create(Context, webGpuContext)?.DiagnosticsSnapshot;
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
                     _ImGui = webGpuContext.CreateImGuiController(input);
+#if !MANA_BROWSER  // ImGui-only setup (docking flag, style, default font) -- ImGui itself is a no-op controller on browser
                     var io = ImGuiNET.ImGui.GetIO();
                     io.ConfigFlags |= ImGuiNET.ImGuiConfigFlags.DockingEnable;
                     ConfigImStyle();
@@ -166,6 +175,7 @@ namespace Mana.Code.GameModes
                     {
                         RequestImGuiFontPreset(ImGuiFontPreset.SegoeUIMono);
                     }
+#endif
                 }
             ).Run();
         }
@@ -210,7 +220,9 @@ namespace Mana.Code.GameModes
         public override void Load()
         {
             LoadingCoordinator.Begin();
+#if !MANA_BROWSER  // see the InitCustomNodeInspectorHooks definition below
             InitCustomNodeInspectorHooks();
+#endif
 
             var world = Context.World;
             _transformGizmo = new SceneTransformGizmo(world, _viewModel.History);
@@ -382,6 +394,7 @@ namespace Mana.Code.GameModes
         // (ManaGeoTools) directly — wrong dependency direction — so it exposes a hook that ManaVoxel
         // (which references both) fills in. One hook body, not one registration per node type, since
         // CustomNodeInspectorHook is a single delegate slot.
+#if !MANA_BROWSER  // SceneInspectorPanelView custom-node ImGui hooks + the terrain-cache-size machinery that only feeds them -- SceneInspectorPanelView itself is browser-excluded (Mana.csproj); TerrainCacheWidget.cs is ManaUi's independent replacement, doesn't call any of this
         private static void InitCustomNodeInspectorHooks()
         {
             SceneInspectorPanelView.CustomNodeInspectorHook = node =>
@@ -706,6 +719,7 @@ namespace Mana.Code.GameModes
                 _ => $"{bytes} B",
             };
         }
+#endif
 
         private static string FormatMetersPerPixel(double metersPerPixel)
         {
@@ -1432,10 +1446,12 @@ namespace Mana.Code.GameModes
         }
 
         public const float TimestepDuration = 1 / 60f;
+#if !MANA_BROWSER  // ImGui main menu bar; superseded by VoxelEditorMainMenuManaView (EnableManaUi=true means this never runs)
         protected override void DrawMainMenuBar()
         {
             _mainMenuView.Draw(_viewModel, this);
         }
+#endif
 
         public override void Update(double deltaTime)
         {
@@ -1549,6 +1565,7 @@ namespace Mana.Code.GameModes
             }
         }
 
+#if !MANA_BROWSER  // ImGui editor panels; superseded by ManaUi (EnableManaUi=true means this never runs)
         protected override void DrawImGui(double deltaTime)
         {
             PushWebGpuFrameStats();
@@ -1738,18 +1755,27 @@ namespace Mana.Code.GameModes
                 _navigator.FlyTo(destination, Context, _planet, Context.World.MainCamera);
             }
         }
+#endif
 
         private void ProcessMeshPickerPlacement(Silk.NET.Input.IMouse mouseState, Vector2 sceneMin, Vector2 sceneMax)
         {
             if (HandleMeshPickerEscapeCancel())
             {
+#if !MANA_BROWSER
                 _panelsView.ClearDraggedMeshAssetPath();
+#endif
                 MeshImportRequests.Clear();
             }
 
             // Both import panels feed this while ImGui is still on. They cannot both have a request pending
             // in the same frame -- only one of them can be under the pointer.
+#if !MANA_BROWSER
             var pendingPath = _panelsView.ConsumePendingMeshSpawnPath() ?? MeshImportRequests.TakePlacement();
+#else
+            // _panelsView (VoxelEditorPanelsView, ImGui) doesn't exist here; MeshImportRequests
+            // (fed by VoxelEditorPanelsManaView) is the only source on this target.
+            var pendingPath = MeshImportRequests.TakePlacement();
+#endif
             if (!string.IsNullOrWhiteSpace(pendingPath))
             {
                 BeginMeshPickerPlacementPreview(pendingPath);
@@ -1761,12 +1787,20 @@ namespace Mana.Code.GameModes
                               mousePosition.X <= sceneMax.X &&
                               mousePosition.Y >= sceneMin.Y &&
                               mousePosition.Y <= sceneMax.Y;
+#if !MANA_BROWSER
             var draggedPath = _panelsView.CurrentDraggedMeshAssetPath ?? MeshImportRequests.Dragging;
+#else
+            var draggedPath = MeshImportRequests.Dragging;
+#endif
 
             // The scene rectangle is the whole ImGui viewport, which the ManaUI columns sit on top of -- so
             // "over the scene" is true above a panel as well. The picker reports what is actually under the
             // cursor, and only that says whether there is scene there to drop onto.
+#if !MANA_BROWSER
             var overPanel = _panelsView.CurrentDraggedMeshAssetPath == null && MeshImportRequests.PointerOverUi;
+#else
+            var overPanel = MeshImportRequests.PointerOverUi;
+#endif
             var canDrop = isOverScene && !overPanel;
 
             if (!string.IsNullOrWhiteSpace(draggedPath) && canDrop)
@@ -1792,7 +1826,9 @@ namespace Mana.Code.GameModes
                         CancelMeshPickerPlacementPreview();
                     }
 
+#if !MANA_BROWSER
                     _panelsView.ClearDraggedMeshAssetPath();
+#endif
                     MeshImportRequests.TakeDrag();
                 }
 
@@ -2301,7 +2337,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var selectedNode = ResolveEditorSelectableNode(pickResult?.Node);
+            var selectedNode = ResolveEditorSelectableNode(pickResult?.Node, Context.World.Selection.SelectedNode);
             Context.World.Selection.SelectedScene = null;
             Context.World.Selection.SelectedNode = selectedNode;
             Context.World.Selection.SelectedComponent = ReferenceEquals(selectedNode, pickResult?.Node)
@@ -2326,9 +2362,39 @@ namespace Mana.Code.GameModes
             }
         }
 
-        private static ManaSceneNode? ResolveEditorSelectableNode(ManaSceneNode? pickedNode)
+        /// <summary>
+        /// A click always resolves up to the whole authored object first -- so a FlightHelmet import
+        /// (one <see cref="ManaLevelSource"/> on the root, none on its Lens/Metal/etc. child meshes)
+        /// selects as one thing no matter which part the ray actually hit -- unless that same object is
+        /// already the selection, in which case a further click drills straight to the specific part
+        /// under the cursor instead of just reselecting the whole thing again. Clicking a different
+        /// object resets back to "select the whole thing" for it; clicking back into an object you're
+        /// already drilled into (any of its parts already selected, not just the root) keeps drilling
+        /// directly between parts rather than bouncing back up each time.
+        /// </summary>
+        // Public: SceneSelectionDrillDownTests exercises this directly against a small synthetic
+        // hierarchy, rather than only through a live click, since it's a pure function of the pick and
+        // the current selection with no other dependency.
+        public static ManaSceneNode? ResolveEditorSelectableNode(ManaSceneNode? pickedNode, ManaSceneNode? currentSelection)
         {
-            for (var current = pickedNode; current != null; current = current.Parent)
+            if (pickedNode == null)
+            {
+                return null;
+            }
+
+            var authoredRoot = FindAuthoredRoot(pickedNode) ?? pickedNode;
+
+            if (currentSelection != null && ReferenceEquals(FindAuthoredRoot(currentSelection) ?? currentSelection, authoredRoot))
+            {
+                return pickedNode;
+            }
+
+            return authoredRoot;
+        }
+
+        private static ManaSceneNode? FindAuthoredRoot(ManaSceneNode node)
+        {
+            for (var current = node; current != null; current = current.Parent)
             {
                 if (current.LevelSource != null)
                 {
@@ -2336,7 +2402,7 @@ namespace Mana.Code.GameModes
                 }
             }
 
-            return pickedNode;
+            return null;
         }
 
         private void SyncSelectionColliderDebug(ManaSceneNode? selectedNode)
@@ -2699,6 +2765,7 @@ namespace Mana.Code.GameModes
             return _toolController.IsDrawing || mouse?.IsButtonPressed(Silk.NET.Input.MouseButton.Left) == true;
         }
 
+#if !MANA_BROWSER  // ImGui docking layout; only caller (BaseGameMode.ImGuiDocking.cs) is itself browser-excluded
         protected override void InitializeDockLayout(uint dockspaceId, Vector2 dockspaceSize)
         {
             ImGuiDockNative.DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
@@ -2757,6 +2824,7 @@ namespace Mana.Code.GameModes
             BaseGameMode.OutlinerDockId = _outlinerDockId;
             ImGuiDockNative.DockBuilderFinish(dockspaceId);
         }
+#endif
 
         public override void Render(double deltaTime)
         {

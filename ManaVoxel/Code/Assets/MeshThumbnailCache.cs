@@ -5,6 +5,7 @@ using System.Text;
 using Mana;
 using Mana.Code;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Diagnostics;
 using ManaCore.Graphics;
@@ -18,13 +19,13 @@ namespace ManaVoxel.Code.Assets
     /// <summary>
     /// Thumbnails for mesh assets: generated on a worker, cached on disk, handed to the UI a few at a time.
     /// <para>
-    /// Three tiers, because generating one costs an Assimp import and the answer never changes. In memory for
+    /// Three tiers, because generating one costs a glTF import and the answer never changes. In memory for
     /// this session; on disk keyed by the file's path, size and write time, so a second run of the editor
     /// shows a full grid immediately; and generated only for assets somebody actually looked at, since a
     /// library of a thousand models would otherwise spend minutes rendering previews nobody scrolled to.
     /// </para>
     /// <para>
-    /// One worker, not a pool. Assimp is being asked to import arbitrary files off the main thread and the
+    /// One worker, not a pool. SharpGLTF is being asked to import arbitrary files off the main thread and the
     /// point here is to keep the frame moving, not to finish the whole library as fast as possible -- a
     /// single worker does that with none of the questions a pool would raise.
     /// </para>
@@ -374,8 +375,15 @@ namespace ManaVoxel.Code.Assets
                 return null;
             }
 
-            var loader = new ManaGltfLoader(_context);
-            return loader.LoadFirstMeshCpuOnly(assetPath).CpuData;
+            // ManaSharpGltfLoader.LoadFile already builds real per-mesh ManaMeshCpuData -- LoadMesh()
+            // calls SetCpuData() unconditionally, before its GPU-upload block runs, so no device or scene
+            // ever needs to exist for this. The one thing it doesn't do on its own is concatenate every
+            // part of a multi-mesh scene with its node transform baked in; skipping that would show one
+            // bone's mesh (a leg, an arm) for a rigged Kenney character instead of the whole silhouette --
+            // see FlattenSharpGltfSceneToCpuMesh's own comment.
+            var loader = new ManaSharpGltfLoader(_context);
+            var root = loader.LoadFile(assetPath);
+            return FlattenSharpGltfSceneToCpuMesh(root);
         }
 
         /// <summary>
@@ -398,8 +406,139 @@ namespace ManaVoxel.Code.Assets
             entryStream.CopyTo(memory);
 
             var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-            var loader = new ManaGltfLoader(_context);
-            return loader.LoadFirstMeshCpuOnlyFromMemory(memory.ToArray(), entryPath, resolver).CpuData;
+            var loader = new ManaSharpGltfLoader(_context);
+            var root = loader.LoadFileFromMemory(memory.ToArray(), entryPath, resolver);
+            return FlattenSharpGltfSceneToCpuMesh(root);
+        }
+
+        /// <summary>
+        /// Concatenates every mesh in a SharpGLTF-loaded scene into one preview mesh, with each part's node
+        /// transform baked into its vertices.
+        /// <para>
+        /// Mirrors <c>ManaGltfLoader.BuildCpuOnlyMesh</c>'s reasoning exactly (see its own comment): a rigged
+        /// Kenney character -- most of what's actually bundled for this target -- is several separate rigid
+        /// meshes (<c>leg-left</c>, <c>arm-right</c>, <c>head</c>, <c>torso</c>...) each parented to its own
+        /// joint, not one skinned mesh. Taking only the scene's first mesh would preview whichever part
+        /// happened to load first, typically a single small box.
+        /// </para>
+        /// <para>
+        /// Transforms are baked here rather than read off <see cref="ManaSceneNode.WorldTransform"/> because
+        /// that property is only correct after a node has gone through at least one
+        /// <see cref="ManaSceneNode.UpdateTransform"/> pass (normally driven by the world's per-frame walk) --
+        /// these nodes are freshly constructed by the loader and never attached to a live scene, so it would
+        /// still read back as each node's own <c>LocalTransform</c>, parent offset not included.
+        /// </para>
+        /// </summary>
+        // Public: MeshThumbnailTests exercises this directly to verify node-transform composition,
+        // the same way it used to exercise ManaGltfLoader.LoadFirstMeshCpuOnlyFromMemory.
+        public static ManaMeshCpuData? FlattenSharpGltfSceneToCpuMesh(ManaSceneNode root)
+        {
+            var placements = new List<(ManaMesh Mesh, System.Numerics.Matrix4x4 Transform)>();
+            CollectMeshPlacements(root, System.Numerics.Matrix4x4.Identity, placements);
+            if (placements.Count == 0)
+            {
+                return null;
+            }
+
+            var totalVertices = 0;
+            var totalIndices = 0;
+            foreach (var (mesh, _) in placements)
+            {
+                var part = mesh.CpuData ?? mesh.GetOrCreateCpuData();
+                totalVertices += part.Positions.Length;
+                totalIndices += part.Indexes.Length;
+            }
+
+            var positions = new Vector3[totalVertices];
+            var normals = new Vector3[totalVertices];
+            var colors = new Vector4[totalVertices];
+            var uv0 = new Vector2[totalVertices];
+            var uv1 = new Vector2[totalVertices];
+            var indexes = new List<uint>(totalIndices);
+
+            var minSize = Vector3.One * float.MaxValue;
+            var maxSize = Vector3.One * float.MinValue;
+            var vertexOffset = 0u;
+            byte[]? albedoTextureBytes = null;
+            Vector4? albedoFactor = null;
+
+            foreach (var (mesh, transform) in placements)
+            {
+                var part = mesh.CpuData ?? mesh.GetOrCreateCpuData();
+
+                // Same normal-matrix reasoning as the Assimp path: a non-uniform scale needs the inverse
+                // transpose, not the transform itself, or normals shear away from perpendicular.
+                var normalTransform = transform;
+                if (System.Numerics.Matrix4x4.Invert(transform, out var inverse))
+                {
+                    normalTransform = System.Numerics.Matrix4x4.Transpose(inverse);
+                }
+
+                for (var i = 0; i < part.Positions.Length; i++)
+                {
+                    var position = Vector3.Transform(part.Positions[i], transform);
+                    positions[vertexOffset + i] = position;
+                    minSize = Vector3.Min(minSize, position);
+                    maxSize = Vector3.Max(maxSize, position);
+
+                    normals[vertexOffset + i] = i < part.Normals.Length
+                        ? Vector3.TransformNormal(part.Normals[i], normalTransform).Normalized()
+                        : Vector3.UnitY;
+                    colors[vertexOffset + i] = i < part.Colors.Length ? part.Colors[i] : Vector4.One;
+                    uv0[vertexOffset + i] = i < part.TextureCoordinates0.Length ? part.TextureCoordinates0[i] : Vector2.Zero;
+                    uv1[vertexOffset + i] = i < part.TextureCoordinates1.Length ? part.TextureCoordinates1[i] : Vector2.Zero;
+                }
+
+                foreach (var index in part.Indexes)
+                {
+                    indexes.Add(index + vertexOffset);
+                }
+
+                vertexOffset += (uint)part.Positions.Length;
+
+                // The first part's material stands in for the whole preview, same trade the Assimp path
+                // makes: ManaMeshCpuData carries one albedo, and a multi-part character has no single
+                // correct answer for which of its several materials that should be.
+                if (albedoTextureBytes == null && albedoFactor == null)
+                {
+                    albedoTextureBytes = part.AlbedoTextureBytes;
+                    albedoFactor = part.AlbedoFactor;
+                }
+            }
+
+            return new ManaMeshCpuData
+            {
+                Indexes = indexes.ToArray(),
+                Positions = positions,
+                Normals = normals,
+                Colors = colors,
+                TextureCoordinates0 = uv0,
+                TextureCoordinates1 = uv1,
+                AlbedoTexturePath = null,
+                AlbedoTextureBytes = albedoTextureBytes,
+                AlbedoFactor = albedoFactor
+            };
+        }
+
+        private static void CollectMeshPlacements(
+            ManaSceneNode node,
+            System.Numerics.Matrix4x4 parentTransform,
+            List<(ManaMesh Mesh, System.Numerics.Matrix4x4 Transform)> placements)
+        {
+            var transform = node.LocalTransform * parentTransform;
+
+            foreach (var component in node.Components)
+            {
+                if (component is MeshRendererComponent renderer)
+                {
+                    placements.Add((renderer.Mesh, transform));
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                CollectMeshPlacements(child, transform, placements);
+            }
         }
 
         // ----- disk tier ---------------------------------------------------------------------------------

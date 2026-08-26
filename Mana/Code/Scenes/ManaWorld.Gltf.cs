@@ -6,10 +6,12 @@ using System.Numerics;
 
 namespace Mana
 {
-    // Pure-managed (SharpGLTF) glTF/GLB import for the browser-wasm target, where no native
-    // Assimp build exists (see WebPort-Plan.md M4). ManaWorld.Gltf.Desktop.cs is the
-    // Assimp-backed counterpart, which also covers OBJ/FBX/DAE/STL/PLY -- those stay
-    // desktop-only for now.
+    // Pure-managed (SharpGLTF) glTF/GLB import, used on every platform. Originally the
+    // browser-wasm-only counterpart to an Assimp-backed desktop path (see WebPort-Plan.md M4);
+    // that path also read OBJ/FBX/DAE/STL/PLY, but nothing in this codebase's actual content
+    // uses those formats, and carrying a native Assimp dependency for that on desktop only,
+    // with browser using a completely different loader for the same asset type, wasn't worth
+    // it once confirmed. Assimp is no longer referenced anywhere.
     public partial class ManaWorld
     {
         public unsafe ManaSceneNode LoadFromGltf(

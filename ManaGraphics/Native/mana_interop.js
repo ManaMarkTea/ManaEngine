@@ -173,3 +173,71 @@ export function startRenderLoop() {
     }
     requestAnimationFrame(frame);
 }
+
+// --- Loading screen ------------------------------------------------------
+// The overlay itself lives in index.html and is already on screen before any of this exists --
+// it has to be, since the wasm download is the longest part of the wait and nothing here is
+// running during it. These are just the C# side's handle on it, so the same screen carries
+// straight through from "downloading" to "loading the level" to gone.
+//
+// Guarded rather than assumed: mana_interop.js is also loadable from a host page that has no
+// such overlay, and a missing loading screen must never take the engine down with it.
+function manaLoading() {
+    return globalThis.ManaLoading || null;
+}
+
+export function setLoadingProgress(status, fraction) {
+    const loading = manaLoading();
+    if (loading) {
+        loading.engine(status, fraction);
+    }
+}
+
+export function failLoading(message) {
+    const loading = manaLoading();
+    if (loading) {
+        loading.fail(message);
+    }
+}
+
+export function hideLoadingOverlay() {
+    const loading = manaLoading();
+    if (loading) {
+        loading.hide();
+    }
+}
+
+// --- Settings storage --------------------------------------------------------
+// Backs ManaCore.Browser.ManaBrowserSettingsBridge: a plain localStorage key/value store for the
+// handful of desktop settings files (docking layout, UI density) that would otherwise write to
+// the wasm virtual filesystem and vanish on the next page load. A single "mana:" prefix keeps
+// these out of the way of anything else that might use localStorage on the same origin (an
+// embedding page, browser extensions) rather than namespacing every call site individually.
+const SETTINGS_PREFIX = 'mana:';
+
+export function manaSettingsGet(key) {
+    try {
+        return globalThis.localStorage.getItem(SETTINGS_PREFIX + key);
+    } catch (error) {
+        // A private-browsing tab or a denied storage permission throws on access, not just on
+        // quota -- same "never worth taking the app down over" reasoning as the rest of this file.
+        console.warn('[ManaBrowserSettingsBridge] getItem failed: ' + error);
+        return null;
+    }
+}
+
+export function manaSettingsSet(key, value) {
+    try {
+        globalThis.localStorage.setItem(SETTINGS_PREFIX + key, value);
+    } catch (error) {
+        console.warn('[ManaBrowserSettingsBridge] setItem failed: ' + error);
+    }
+}
+
+export function manaSettingsRemove(key) {
+    try {
+        globalThis.localStorage.removeItem(SETTINGS_PREFIX + key);
+    } catch (error) {
+        console.warn('[ManaBrowserSettingsBridge] removeItem failed: ' + error);
+    }
+}

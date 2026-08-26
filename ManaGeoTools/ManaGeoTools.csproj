@@ -2,12 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- See Mana.csproj/ManaGraphics.csproj for the RuntimeIdentifiers+SetTargetFramework recipe
+       this needs on both ends to build for browser-wasm at all. -->
   <ItemGroup>
-    <ProjectReference Include="..\Mana\Mana.csproj" />
+    <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Mana\Mana.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,7 @@
 using ManaCore.Graphics;
+#if MANA_BROWSER
+using ManaCore.Browser;
+#endif
 
 namespace Mana
 {
@@ -78,6 +81,13 @@ namespace Mana
 
         public static void RestorePreset()
         {
+#if MANA_BROWSER
+            var text = ManaBrowserSettingsBridge.TryGet(DensitySettingsKey)?.Trim();
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+#else
             var path = DensityPresetFilePath;
             if (!File.Exists(path))
             {
@@ -85,6 +95,7 @@ namespace Mana
             }
 
             var text = File.ReadAllText(path).Trim();
+#endif
             if (!Enum.TryParse<ManaUiDensityPreset>(text, ignoreCase: true, out var preset))
             {
                 return;
@@ -93,9 +104,17 @@ namespace Mana
             SetPreset(preset, persist: false);
         }
 
+        // Filename-derived, not a separate literal: keeps this in step with DensityPresetFilePath without
+        // the two ever being able to drift apart.
+        private static string DensitySettingsKey => Path.GetFileName(DensityPresetFilePath);
+
         private static void PersistPreset()
         {
+#if MANA_BROWSER
+            ManaBrowserSettingsBridge.Set(DensitySettingsKey, CurrentPreset.ToString());
+#else
             File.WriteAllText(DensityPresetFilePath, CurrentPreset.ToString());
+#endif
         }
     }
 }

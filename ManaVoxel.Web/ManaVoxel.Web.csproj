@@ -259,4 +259,66 @@
     <EmccExportedFunction Include="_mana_wgpuTextureViewRelease" />
   </ItemGroup>
 
+  <!-- Exact download size for the loading screen's progress bar, written into the app bundle at
+       publish time.
+
+       Without it the bar is useless. main.js can only add a resource's size to the denominator
+       once that resource's response headers have arrived, so early on the ratio is bytes-received
+       over bytes-of-what-has-started; which is close to 1 no matter how little of the app is
+       actually down. Measured live: the bar read "1.1 / 1.1 MB, 70%" with 57 MB still to come and
+       then sat there for the whole download. A total known before the first byte fixes it.
+
+       Deliberately measured off the produced bundle rather than declared by hand: this number is
+       exactly the kind that rots silently the first time an asset is added to the csproj above.
+       main.js treats a missing or stale manifest as non-fatal and falls back to the growing total,
+       so a build that skips this target still gets a working (if lazier) screen. -->
+  <UsingTask TaskName="ManaWriteDownloadSize" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <AppBundleDir ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+long total = 0;
+
+// Recursive, and _framework alone is the whole download: the bundled VFS assets (the environment
+// map and the asset zips, the largest single items after dotnet.native.wasm) land in
+// _framework/supportFiles, not beside it. Same set of files main.js counts on the way in.
+var directory = Path.Combine(AppBundleDir, "_framework");
+foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+{
+    // Served, but never fetched unless devtools is open and goes looking for them.
+    if (file.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+    {
+        continue;
+    }
+
+    total += new FileInfo(file).Length;
+}
+
+// Overcounts by roughly 1.5 MB: all three icudt_*.dat shards are in the bundle and the runtime
+// downloads exactly one, but which one depends on the culture it resolves at runtime. That errs
+// in the safe direction -- the bar finishes the download phase slightly short and the engine
+// phase takes over, rather than pinning at 100% with bytes still arriving.
+File.WriteAllText(
+    Path.Combine(AppBundleDir, "mana-download-size.json"),
+    "{\"totalBytes\":" + total + "}");
+
+Log.LogMessage(MessageImportance.High, "Loading screen: download total is " + total + " bytes.");
+]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- _WasmGenerateAppBundle, not Publish or Build. It is a private SDK target, and hooking one is
+       a real coupling; the alternatives are worse. A publish runs the bundle generation inside a
+       nested WasmNestedPublishApp build that happens AFTER the outer Publish target, so anything
+       written from AfterTargets="Publish" is produced first and then wiped when the bundle is
+       regenerated: measured, the manifest simply was not there afterwards. This is the point where
+       the app bundle exists and is final, for both build and publish. If a future SDK renames it,
+       the manifest stops being written and the screen silently falls back; grep the build log for
+       "Loading screen:" to confirm it still runs. -->
+  <Target Name="ManaWriteDownloadSizeManifest" AfterTargets="_WasmGenerateAppBundle">
+    <ManaWriteDownloadSize AppBundleDir="$(WasmAppDir)" />
+  </Target>
+
 </Project>

@@ -74,6 +74,77 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("isPointerLocked", ModuleName)]
         internal static partial bool IsPointerLocked();
 
+        // --- Loading screen ----------------------------------------------------------------
+        // The screen itself is HTML, in index.html, and is already up before the runtime exists --
+        // it has to be, because the 45 MB of wasm plus the bundled assets are downloaded before a
+        // single line of C# runs, and that is the longest part of the wait by far. These three
+        // hand the engine's own load the same screen, so one bar runs from the first byte off the
+        // network to the first rendered frame instead of a progress bar handing over to a black
+        // canvas.
+        //
+        // Every call is swallowed on failure and then given up on. A loading screen is presentation:
+        // it is never worth taking the game down for, and the one place these are called from is a
+        // load path where an exception would surface as "loading failed" and hide the actual cause.
+
+        private static bool _loadingBridgeBroken;
+
+        [JSImport("setLoadingProgress", ModuleName)]
+        private static partial void SetLoadingProgressCore(string status, double fraction);
+
+        [JSImport("failLoading", ModuleName)]
+        private static partial void FailLoadingCore(string message);
+
+        [JSImport("hideLoadingOverlay", ModuleName)]
+        private static partial void HideLoadingOverlayCore();
+
+        /// <summary>
+        /// Updates the loading screen. <paramref name="fraction"/> is 0..1 across the engine's own
+        /// load; the screen maps it into whatever is left of the bar after the download.
+        /// </summary>
+        public static void ReportLoadingProgress(string status, float fraction)
+        {
+            Invoke(() => SetLoadingProgressCore(status, fraction));
+        }
+
+        /// <summary>
+        /// Leaves the loading screen up showing why nothing started. Without this a failed load is
+        /// a blank canvas and a stack trace in a console nobody had open.
+        /// </summary>
+        public static void ReportLoadingFailed(string message)
+        {
+            Invoke(() => FailLoadingCore(message));
+        }
+
+        /// <summary>
+        /// Fades the loading screen out and removes it. Call after a real frame has been presented,
+        /// not when loading merely finishes -- the two are a frame or more apart, and the gap shows
+        /// as a flash of empty canvas.
+        /// </summary>
+        public static void HideLoadingScreen()
+        {
+            Invoke(HideLoadingOverlayCore);
+        }
+
+        private static void Invoke(Action call)
+        {
+            if (_loadingBridgeBroken)
+            {
+                return;
+            }
+
+            try
+            {
+                call();
+            }
+            catch (Exception exception)
+            {
+                // Once, not per frame: ReportLoadingProgress runs on every progress change, and a
+                // broken bridge would otherwise fill the console with the same message.
+                _loadingBridgeBroken = true;
+                Console.WriteLine($"[ManaLoading] JS bridge unavailable; continuing without a loading screen. {exception.Message}");
+            }
+        }
+
         // JS -> C#. JS calls these directly via the assembly-exports object main.js stashes on
         // globalThis (see main.js) rather than passing .NET delegates into the JSImport calls
         // above, which keeps the marshaling on both sides to plain primitives.

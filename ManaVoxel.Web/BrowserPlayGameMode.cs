@@ -1,8 +1,11 @@
 using Mana;
 using Mana.Code.Nodes;
+using ManaCore.Loading;
 using ManaGraphics.Code.Graphics;
+using ManaGraphics.Code.Graphics.Browser;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.Services;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace ManaVoxel.Web
@@ -39,6 +42,28 @@ namespace ManaVoxel.Web
             : base(graphicsBackend)
         {
             _levelPath = levelPath;
+
+            // Desktop shows the loading screen through ManaUI (or ImGui), neither of which exists
+            // here: EnableManaUi is off below, and the ImGui fallback in BaseGameMode.Render is
+            // inside a !MANA_BROWSER block. The browser's screen is the HTML overlay in index.html
+            // instead, which has the decisive advantage of already being on screen during the wasm
+            // download -- the longest part of the wait, and one no in-engine screen can ever cover
+            // because no C# is running yet. This forwards the same ManaLoadingViewModel the
+            // in-engine screens bind to, so all three show the same progress from the same source.
+            Loading.PropertyChanged += OnLoadingProgressChanged;
+        }
+
+        private void OnLoadingProgressChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            var snapshot = Loading.Snapshot;
+
+            if (LoadingCoordinator.Stage == ManaLoadingStage.Failed)
+            {
+                ManaBrowserInterop.ReportLoadingFailed(snapshot.Status);
+                return;
+            }
+
+            ManaBrowserInterop.ReportLoadingProgress(snapshot.Status, snapshot.Fraction);
         }
 
         public override bool DeferGpuUploadsOnStartup => true;
@@ -76,12 +101,20 @@ namespace ManaVoxel.Web
 
                 var world = Context.World;
 
+                // The fractions below span 0..0.85, where ManaLoadingCoordinator.Update picks up
+                // with "Initializing graphics renderer". They are weighted by what each step
+                // actually costs in the browser -- the environment map is a 5 MB PNG decoded by
+                // ImageSharp, and the level pulls meshes out of a 5 MB zip, so those two dominate.
+                Loading.Report(new ManaLoadingProgress("Preparing scene", 0.05f));
+
                 _pawnController = new ManaPawnController(Context)
                 {
                     GroundPlaneHeight = 0.0f,
                     ReleaseOnEscape = false
                 };
                 world.MainCamera.ShouldCaptureKeyboardInput = () => _pawnController?.IsCapturingMovementKeys == true;
+
+                Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.15f));
 
                 var envPath = world.EnvironmentReflectionSource.SourcePath;
                 var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
@@ -108,7 +141,10 @@ namespace ManaVoxel.Web
                     new Vector3(GroundSize, 0.1f, GroundSize),
                     new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f));
 
+                Loading.Report(new ManaLoadingProgress("Loading level", 0.45f));
                 LoadLevel();
+
+                Loading.Report(new ManaLoadingProgress("Spawning character", 0.75f));
                 SpawnPlayer();
 
                 LoadingCoordinator.CompleteBackgroundWork();
@@ -117,6 +153,9 @@ namespace ManaVoxel.Web
             {
                 Trace.TraceError($"Browser play mode failed to load: {exception}");
                 Console.WriteLine($"[BrowserPlay] Load failed: {exception}");
+
+                // Fail() drives the overlay through OnLoadingProgressChanged, so the page shows the
+                // reason instead of a blank canvas. The message alone there; the full trace here.
                 LoadingCoordinator.Fail(exception);
             }
         }
@@ -188,6 +227,29 @@ namespace ManaVoxel.Web
 
             Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
 
+        }
+
+        private bool _dismissedLoadingScreen;
+
+        /// <summary>
+        /// Takes the loading screen down one frame after loading finishes rather than the moment it
+        /// does. <c>OnLoadingComplete</c> runs a line before the coordinator marks loading finished,
+        /// and the frame carrying the first real picture has not been submitted at that point -- so
+        /// hiding there swaps the screen for an empty canvas for a frame or two, which reads as the
+        /// game having crashed right at the end of a fifteen-second wait.
+        /// </summary>
+        public override void Render(double deltaTime)
+        {
+            base.Render(deltaTime);
+
+            if (_dismissedLoadingScreen || IsLoading)
+            {
+                return;
+            }
+
+            _dismissedLoadingScreen = true;
+            Loading.PropertyChanged -= OnLoadingProgressChanged;
+            ManaBrowserInterop.HideLoadingScreen();
         }
 
         public override void Update(double deltaTime)

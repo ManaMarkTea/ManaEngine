@@ -9,6 +9,11 @@
     <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- JSImportAttribute (ManaBrowserSettingsBridge) requires it; harmless off-browser since that whole
+         file is #if MANA_BROWSER. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- See ManaGraphics.csproj. -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

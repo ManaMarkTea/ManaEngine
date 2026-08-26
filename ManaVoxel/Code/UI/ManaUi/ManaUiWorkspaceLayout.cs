@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ManaUI;
+#if MANA_BROWSER
+using ManaCore.Browser;
+#endif
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
@@ -106,7 +109,18 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             try
             {
+#if MANA_BROWSER
+                // The wasm virtual filesystem is wiped on every page reload, so a layout written there
+                // would never actually be seen again -- localStorage is the one thing on this target that
+                // survives a reload. Keyed by filename, not the full path: the path is a desktop
+                // filesystem location (SharedSettingsFilePath/IniFilePath under LocalApplicationData) that
+                // means nothing here, but the filename alone ("manaui-dock.json") is still a stable,
+                // unique-enough key across the one workspace file this project ever saves.
+                var json = ManaBrowserSettingsBridge.TryGet(Path.GetFileName(path));
+                return string.IsNullOrEmpty(json) ? null : FromJson(json);
+#else
                 return File.Exists(path) ? FromJson(File.ReadAllText(path)) : null;
+#endif
             }
             catch (IOException)
             {
@@ -118,6 +132,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             try
             {
+#if MANA_BROWSER
+                ManaBrowserSettingsBridge.Set(Path.GetFileName(path), ToJson());
+#else
                 var directory = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(directory))
                 {
@@ -125,6 +142,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
 
                 File.WriteAllText(path, ToJson());
+#endif
             }
             catch (IOException)
             {

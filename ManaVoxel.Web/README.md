@@ -17,8 +17,8 @@ python3 ManaVoxel.Web/serve.py          # http://localhost:8000  (or pass a port
 ```
 
 Then open <http://localhost:8000>. First load takes **10–15 seconds** — it's AOT-compiled wasm
-plus a 5 MB environment map and two asset packs. The canvas stays blank until the level and
-character are in; the browser console reports progress.
+plus a 5 MB environment map and two asset packs. A loading screen covers the whole wait; see
+below.
 
 The server reads files off disk per request, so after a republish just refresh — no restart.
 
@@ -30,6 +30,41 @@ dynamic import, which Chrome will serve from cache even through a hard reload �
 `installInput must be a Function but was undefined`. The import URL also carries a
 per-load cache-buster for the same reason; belt and braces, because this bites hard when it
 happens.
+
+## The loading screen
+
+The wait here is much longer than desktop's and starts much earlier, so the screen is HTML
+(`index.html`) rather than the engine's own ManaUI/ImGui one. That is not a shortcut — it is the
+only thing that can cover the first and longest phase, because no C# is running during it:
+
+| Phase | Roughly | Driven by |
+|---|---|---|
+| Downloading ~45 MB of `_framework` + 13 MB of bundled assets | 10s on a fast link | `main.js`, counting bytes off the wire |
+| `BrowserPlayGameMode.Load` — env map decode, level, meshes, character | 2–4s | C# → `mana_interop.js` |
+| Renderer init and GPU uploads (`ManaLoadingCoordinator`) | <1s | same |
+
+The bar gives the download 70% and the engine load the other 30%.
+
+Two things worth knowing before changing any of it:
+
+- **Every animated property is `opacity` or `transform`, deliberately.** Browser wasm is
+  single-threaded, so `Load` holds the main thread for seconds at a stretch. Those two properties
+  animate on the compositor and keep moving through it; anything else (a `width` transition, a
+  JS-driven spinner) freezes solid at exactly the moment the screen most needs to look alive.
+- **Download progress counts bytes, not files.** `dotnet.js` offers
+  `onDownloadResourceProgress(loaded, total)`, but that counts resources, and `dotnet.native.wasm`
+  alone is 23 MB of ~60 files — a file count sits near zero for most of the wait and then leaps.
+  `main.js` wraps `globalThis.fetch` instead (the loader looks it up per call, so replacing it
+  before `dotnet.create()` is enough). The wrapper copies response headers wholesale because
+  `dotnet.native.wasm` goes through `WebAssembly.instantiateStreaming`, which drops to buffering
+  the whole 23 MB if the `application/wasm` content type goes missing.
+
+The colours and metrics in `index.html` are copied from ManaUI's dark `UiTheme` and
+`ManaLoadingScreenManaView`, so this and the in-engine screen are the same picture. If the theme
+moves, move them with it.
+
+A boot failure keeps the screen up and prints the reason on it, rather than leaving a black canvas
+and a stack trace in a console nobody had open.
 
 ## Controls
 

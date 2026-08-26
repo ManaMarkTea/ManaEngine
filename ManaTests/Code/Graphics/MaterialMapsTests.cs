@@ -178,7 +178,7 @@ public static class MaterialMapChecks
 
         var world = new Mana.ManaWorld();
         var context = new Mana.Code.ManaContext(null!, null!, world) { DeferGpuUploads = true };
-        var loader = new Mana.Code.Shapes.Loaders.ManaGltfLoader(context);
+        var loader = new Mana.Code.Shapes.Loaders.ManaSharpGltfLoader(context);
 
         try
         {
@@ -209,8 +209,6 @@ public static class MaterialMapChecks
         Check("and its cutoff comes across too",
             Math.Abs(lenses.AlphaCutoff - 0.5) < 0.001, lenses.AlphaCutoff.ToString("F2"));
 
-        // Assimp reports glTF's occlusionTexture as a lightmap. Nothing read that, so ambient occlusion
-        // was 1 everywhere no matter what the model shipped.
         Check("the occlusion map is picked up", lenses.Occlusion?.TextureValue != null,
             lenses.Occlusion?.TextureValue?.OriginalFilename ?? "none");
 

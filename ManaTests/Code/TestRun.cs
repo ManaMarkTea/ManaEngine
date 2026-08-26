@@ -77,6 +77,7 @@ public static class TestRunner
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),
+        ("ManaVoxel", "scene click-selection drill-down", SceneSelectionDrillDownChecks.Run),
         ("ManaVoxel", "mesh thumbnail rasterizer", MeshThumbnailChecks.Run),
         ("ManaVoxel", "voxel rasterizer (circle/sphere rim and fill)", VoxelRasterizerChecks.Run),
         ("ManaVoxel", "voxel shape direct edit (paint/erase/flood fill)", VoxelShapeDirectEditChecks.Run),

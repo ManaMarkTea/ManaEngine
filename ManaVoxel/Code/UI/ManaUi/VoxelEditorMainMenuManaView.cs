@@ -300,14 +300,20 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new MenuItem("Light Theme", () =>
                     {
                         viewModel.UseLightTheme = true;
+#if !MANA_BROWSER
+                        // Repaints ImGui's own style; ManaUi's own theme isn't wired to this flag yet
+                        // (still the single Dark UiTheme everywhere -- see UiTheme.cs), on any platform.
                         host?.ApplyLightImGuiTheme();
+#endif
                     })
                     .Checkable(() => viewModel.UseLightTheme),
 
                 new MenuItem("Dark Theme", () =>
                     {
                         viewModel.UseLightTheme = false;
+#if !MANA_BROWSER
                         host?.ApplyDarkImGuiTheme();
+#endif
                     })
                     .Checkable(() => !viewModel.UseLightTheme),
 
@@ -317,6 +323,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new MenuItem("Compact", () => ManaUiDensity.SetPreset(ManaUiDensityPreset.Compact))
                         .Checkable(() => ManaUiDensity.CurrentPreset == ManaUiDensityPreset.Compact)),
 
+#if !MANA_BROWSER
+                // Emoji fallback substitution, layout reset and font-preset selection are all ImGui glyph
+                // atlas / docking concerns (BaseGameMode.ImGuiFonts.cs / BaseGameMode.ImGuiDocking.cs),
+                // both excluded entirely on browser -- see Mana.csproj. Nothing ManaUi-equivalent exists
+                // for any of the three yet.
                 new MenuItem("Emoji Fallback (Experimental)",
                         () => host?.SetEmojiFallbackEnabled(!host.EmojiFallbackEnabled))
                     .Checkable(() => host?.EmojiFallbackEnabled ?? false)
@@ -328,6 +339,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 MenuItem.Separator(),
 
                 Font(host),
+#endif
 
                 MenuItem.Separator(),
 
@@ -335,6 +347,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Checkable(() => viewModel.ShowAboutWindow));
         }
 
+#if !MANA_BROWSER
+        // BaseGameMode.ImGuiMonoSizeTier/ImGuiFontPreset are ImGui glyph-atlas concepts
+        // (BaseGameMode.ImGuiFonts.cs), excluded entirely on browser -- see Mana.csproj. Nothing calls
+        // Font() there; see its one call site above.
         /// <summary>
         /// The font presets the host reports it can actually load, rather than a hardcoded list -- the
         /// original named twenty and hid the ones that were missing, which is the same thing said twice.
@@ -393,6 +409,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             (BaseGameMode.ImGuiFontPreset.SourceCodePro, "Source Code Pro"),
             (BaseGameMode.ImGuiFontPreset.CourierNew, "Courier New (Mono)")
         };
+#endif
 
         /// <summary>A checkable row that flips the thing it reports. Most of this menu is these.</summary>
         private static MenuItem Toggle(string text, Func<bool> read, Action<bool> write)

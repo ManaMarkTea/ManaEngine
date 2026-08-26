@@ -147,7 +147,9 @@ namespace Mana.Code.GameModes
 
             var level = ManaLevel.Load(_levelPath);
             var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
+#if !MANA_BROWSER
             _planet = result.Planet;
+#endif
 
             foreach (var warning in result.Warnings)
             {
