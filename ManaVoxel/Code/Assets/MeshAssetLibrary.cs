@@ -15,16 +15,15 @@ namespace ManaVoxel.Code.Assets
     /// </summary>
     public sealed partial class MeshAssetLibrary : IDisposable
     {
-        /// <summary>Extensions worth scanning for. Anything Assimp will open that we have a reason to import.</summary>
+        /// <summary>
+        /// Extensions worth scanning for. Used to cover whatever Assimp would open; narrowed to what
+        /// ManaWorld.LoadFromGltf's SharpGLTF backend actually reads once Assimp was dropped entirely (see
+        /// that file's comment) -- real content was glTF/GLB only anyway, so nothing was lost in practice.
+        /// </summary>
         public static readonly string[] SupportedExtensions =
         {
             ".gltf",
-            ".glb",
-            ".obj",
-            ".fbx",
-            ".dae",
-            ".stl",
-            ".ply"
+            ".glb"
         };
 
         /// <summary>
@@ -34,12 +33,7 @@ namespace ManaVoxel.Code.Assets
         private static readonly string[] FormatPreference =
         {
             ".glb",
-            ".gltf",
-            ".fbx",
-            ".dae",
-            ".obj",
-            ".stl",
-            ".ply"
+            ".gltf"
         };
 
 

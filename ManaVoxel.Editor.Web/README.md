@@ -42,8 +42,8 @@ references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a ha
 - The asset browser: 387 assets scanned from two bundled Kenney packs (same ones
   `ManaVoxel.Web.csproj` ships for play mode's character loading), no live directory watching
   needed since `Scan()` is a one-time walk.
-- Placing a GLB/glTF asset from the panel into the scene — goes through the same
-  `ManaWorld.Gltf.Browser.cs` (SharpGLTF) path play mode's character loading already used.
+- Placing a GLB/glTF asset from the panel into the scene — goes through `ManaWorld.Gltf.cs`
+  (SharpGLTF), the only mesh-import path on any platform since M10 removed Assimp entirely.
 - Docking layout and UI density preset now survive a page reload, via a small `localStorage`
   bridge (`ManaCore.Browser.ManaBrowserSettingsBridge`) standing in for the desktop settings files,
   which would otherwise write to the wasm virtual filesystem and vanish on the next load.
@@ -52,19 +52,19 @@ references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a ha
   reasons, and `PlatformNotSupportedException` falls into the same catch.
 - **Mesh thumbnails in the asset browser**, generated on the fly from the same
   `ManaSharpGltfLoader.LoadFile`/`LoadFileFromMemory` the real import already uses.
-  `ManaSharpGltfLoader` only exposes scene-node-producing loaders (no CPU-only path the way
-  `ManaGltfLoader`'s Assimp side has), so `MeshThumbnailCache` walks the resulting node tree and
-  concatenates every mesh with its node transform baked in — the same thing the Assimp path does,
-  and for the same reason: a rigged Kenney character is several separate rigid meshes, not one, and
-  previewing only the first would show a single limb instead of the whole character.
+  `ManaSharpGltfLoader` only exposes scene-node-producing loaders (no CPU-only fast path), so
+  `MeshThumbnailCache.FlattenSharpGltfSceneToCpuMesh` walks the resulting node tree and
+  concatenates every mesh with its node transform baked in — necessary because a rigged Kenney
+  character is several separate rigid meshes, not one, and previewing only the first would show a
+  single limb instead of the whole character. Same implementation on every platform now (see M10).
 
 ## What doesn't (yet)
 
 - **Importing OBJ/FBX/DAE/STL/PLY.** `VoxelFileImportService` routes every import through
-  `ManaWorld.LoadFromGltf`, which is Assimp-backed on desktop (reads all five formats plus glTF)
-  and SharpGLTF-backed here (glTF/GLB only). Deliberately not being built: real content is
-  glTF/GLB only, so this gap doesn't bite in practice, and writing a parser for formats nothing
-  actually imports would be speculative work with nothing to validate it against.
+  `ManaWorld.Gltf.cs`, SharpGLTF-backed (glTF/GLB only) on every platform since M10 removed the
+  Assimp-backed desktop path entirely. Deliberately not being built: real content is glTF/GLB
+  only, so this gap doesn't bite in practice, and writing a parser for formats nothing actually
+  imports would be speculative work with nothing to validate it against.
 - **Ctrl+F5 doesn't actually open a second window** — see above; it degrades to a status message,
   which is the intended behavior here rather than a bug to fix, since there is no second-process
   concept in a browser tab. A real fix would be an in-page mode switch reusing

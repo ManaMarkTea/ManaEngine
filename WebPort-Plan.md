@@ -128,6 +128,49 @@ real mesh silhouettes now render in the asset browser where blank placeholders w
 
 M9 has no other open items.
 
+## M10 — Assimp removed entirely; SharpGLTF is the only loader on every platform
+
+**Note added retroactively to M9 above**: the "Genuinely still a gap" callout and the "confirmed
+not worth building" note both describe a state that no longer exists — as of this section, there
+is no Assimp anywhere in the codebase to be a gap relative to. Left as-is above rather than
+rewritten, since they accurately describe the reasoning at the time; this section is the current
+state.
+
+Confirmed with the user: real content is glTF/GLB only on desktop too, not just browser, so
+carrying a native Assimp dependency (and a second loader implementation) for formats nothing
+imports wasn't worth it once actually named. `ManaWorld.Gltf.Desktop.cs` (Assimp) and
+`ManaGltfLoader.cs` are deleted outright, not `#if`-excluded; `ManaWorld.Gltf.Browser.cs`
+(SharpGLTF) is renamed to `ManaWorld.Gltf.cs` and is now the one `LoadFromGltf`/`LoadFromGltfMemory`
+implementation for every platform. `Silk.NET.Assimp` is gone from both `Mana.csproj` and
+`ManaVoxel.csproj`. `MeshThumbnailCache.cs`'s `#if MANA_BROWSER`/`#if !MANA_BROWSER` split
+(added earlier this same session, see M9 above) is gone too — `FlattenSharpGltfSceneToCpuMesh`
+now runs unconditionally, since there's only one loader to flatten output from.
+`MeshAssetLibrary.SupportedExtensions`/`FormatPreference` are narrowed to `.gltf`/`.glb`, matching
+what's actually importable now (they used to list OBJ/FBX/DAE/STL/PLY, which Assimp read and
+SharpGLTF cannot).
+
+**One real regression found and fixed, not just a mechanical rename.** Running the full test suite
+after the swap caught it immediately: `MaterialMapsTests`' "and it is the packed ORM texture" check
+failed. `ManaSharpGltfLoader.LoadChannelTexture` never set `ManaTexture.OriginalFilename` the way
+Assimp's loader did (it decodes embedded image bytes directly and never needed a path) — harmless
+for actually loading the texture (`PixelStream` is already set, which `ManaTexture` always checks
+first), but it meant nothing downstream could tell two channels shared one packed source image by
+name. Fixed by reading `SharpGLTF.Schema2.Image.Content.SourcePath` (falls back to the glTF-authored
+image `Name` for an embedded/GLB image with no separate file). Full suite is back to 1784/1785 (the
+one pre-existing, unrelated font/emoji failure) after the fix.
+
+**Verified, not assumed**: full `ManaTests` suite (1784/1785, same baseline as every other change
+this session), a live desktop editor launch (loads a level, generates thumbnails, no new errors —
+the one error present, `Duck.gltf` failing on Draco mesh compression, is a pre-existing limitation
+neither loader ever handled, confirmed by comparing against this session's own earlier
+pre-swap console capture of the identical failure), and both browser projects (`ManaVoxel.Web`,
+`ManaVoxel.Editor.Web`) still build clean — they already used the SharpGLTF path, so this was a
+no-op for them by construction, confirmed rather than assumed.
+
+**Known, unchanged limitation, now true on both platforms instead of just browser**: OBJ/FBX/DAE/
+STL/PLY import doesn't exist anywhere any more. This was a deliberate trade the user confirmed
+before asking for the swap, not a side effect discovered afterward.
+
 ## M9 (original) — compile-clean, not yet bootstrapped
 
 Superseded by the section above (M9 is now live); kept for the full list of what it took to get

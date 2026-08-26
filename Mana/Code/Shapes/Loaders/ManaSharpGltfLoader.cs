@@ -442,6 +442,17 @@ namespace Mana.Code.Shapes.Loaders
             var key = $"gltf:{material.LogicalIndex}:{channelKey}:{bytes.Length}";
             var texture = TextureManager.GetInstance(Context).CreateTexture(key);
             texture.Name = $"{material.Name}_{channelKey}";
+
+            // Never used to actually load the texture -- PixelStream below is set unconditionally, and
+            // ManaTexture only falls back to resolving OriginalFilename from disk when PixelStream is
+            // null -- but callers elsewhere (packed-texture identity checks, error messages, "reveal in
+            // Finder") read it as a human-meaningful name, the same thing the desktop Assimp path filled
+            // in from the referenced file's own path. SourcePath is empty for a GLB/embedded image (no
+            // separate file exists), where the glTF-authored image name is the best available label.
+            texture.OriginalFilename = !string.IsNullOrEmpty(image.Content.SourcePath)
+                ? image.Content.SourcePath
+                : image.Name ?? string.Empty;
+
             texture.PixelStream = new System.IO.MemoryStream(bytes, writable: false);
             if (Context.OpenGl != null && !texture.IsLoaded)
             {

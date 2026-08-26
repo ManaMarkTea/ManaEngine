@@ -373,8 +373,8 @@ public static class MeshThumbnailChecks
         var gltf = Encoding.UTF8.GetBytes(NodeRotatedTriangleGltf());
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
-        var fullLoader = new ManaGltfLoader(context);
-        var cpuLoader = new ManaGltfLoader(context);
+        var fullLoader = new ManaSharpGltfLoader(context);
+        var cpuLoader = new ManaSharpGltfLoader(context);
 
         try
         {
@@ -386,8 +386,13 @@ public static class MeshThumbnailChecks
             var fullBounds = BoundsOf(renderInstances.SelectMany(instance =>
                 instance.MeshData.Positions.Select(position => Vector3.Transform(position, instance.WorldTransform))));
 
-            var cpuMesh = cpuLoader.LoadFirstMeshCpuOnlyFromMemory(gltf, "node-rotated.gltf");
-            var cpuBounds = BoundsOf(cpuMesh.CpuData?.Positions ?? Array.Empty<Vector3>());
+            // The thumbnail cache's own flatten step, not a second loader method: ManaSharpGltfLoader has
+            // no CPU-only fast path the way Assimp's ManaGltfLoader did, so MeshThumbnailCache builds the
+            // preview mesh by walking the full scene graph and baking node transforms in itself -- this is
+            // exactly what that walk is meant to get right.
+            var cpuRoot = cpuLoader.LoadFileFromMemory(gltf, "node-rotated.gltf");
+            var cpuMesh = MeshThumbnailCache.FlattenSharpGltfSceneToCpuMesh(cpuRoot);
+            var cpuBounds = BoundsOf(cpuMesh?.Positions ?? Array.Empty<Vector3>());
 
             Check("CPU fallback thumbnails compose glTF node transforms",
                 NearlyEqual(cpuBounds.Min, fullBounds.Min) && NearlyEqual(cpuBounds.Max, fullBounds.Max),
@@ -523,7 +528,7 @@ public static class MeshThumbnailChecks
 
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
-        var loader = new ManaGltfLoader(context);
+        var loader = new ManaSharpGltfLoader(context);
         return loader.LoadFileFromMemory(memory.ToArray(), entryPath, VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath));
     }
 

@@ -19,13 +19,13 @@ namespace ManaVoxel.Code.Assets
     /// <summary>
     /// Thumbnails for mesh assets: generated on a worker, cached on disk, handed to the UI a few at a time.
     /// <para>
-    /// Three tiers, because generating one costs an Assimp import and the answer never changes. In memory for
+    /// Three tiers, because generating one costs a glTF import and the answer never changes. In memory for
     /// this session; on disk keyed by the file's path, size and write time, so a second run of the editor
     /// shows a full grid immediately; and generated only for assets somebody actually looked at, since a
     /// library of a thousand models would otherwise spend minutes rendering previews nobody scrolled to.
     /// </para>
     /// <para>
-    /// One worker, not a pool. Assimp is being asked to import arbitrary files off the main thread and the
+    /// One worker, not a pool. SharpGLTF is being asked to import arbitrary files off the main thread and the
     /// point here is to keep the frame moving, not to finish the whole library as fast as possible -- a
     /// single worker does that with none of the questions a pool would raise.
     /// </para>
@@ -375,23 +375,15 @@ namespace ManaVoxel.Code.Assets
                 return null;
             }
 
-#if !MANA_BROWSER
-            var loader = new ManaGltfLoader(_context);
-            return loader.LoadFirstMeshCpuOnly(assetPath).CpuData;
-#else
-            // ManaGltfLoader is Assimp-backed (no browser-wasm asset; see Mana.csproj). Everything this
-            // target actually imports is glTF/GLB (confirmed: no other format is in real use), and
-            // ManaSharpGltfLoader.LoadFile already builds real per-mesh ManaMeshCpuData for exactly that
-            // -- LoadMesh() calls SetCpuData() unconditionally, before the (already #if !MANA_BROWSER)
-            // GPU-upload block, so no device or scene ever needs to exist for this. The one thing it
-            // doesn't do is what BuildCpuOnlyMesh above does for Assimp: concatenate every part of a
-            // multi-mesh scene with its node transform baked in. Skipping that would show one bone's mesh
-            // (a leg, an arm) for a rigged Kenney character instead of the whole silhouette -- see
-            // FlattenSharpGltfSceneToCpuMesh's own comment.
-            var sharpLoader = new ManaSharpGltfLoader(_context);
-            var root = sharpLoader.LoadFile(assetPath);
+            // ManaSharpGltfLoader.LoadFile already builds real per-mesh ManaMeshCpuData -- LoadMesh()
+            // calls SetCpuData() unconditionally, before its GPU-upload block runs, so no device or scene
+            // ever needs to exist for this. The one thing it doesn't do on its own is concatenate every
+            // part of a multi-mesh scene with its node transform baked in; skipping that would show one
+            // bone's mesh (a leg, an arm) for a rigged Kenney character instead of the whole silhouette --
+            // see FlattenSharpGltfSceneToCpuMesh's own comment.
+            var loader = new ManaSharpGltfLoader(_context);
+            var root = loader.LoadFile(assetPath);
             return FlattenSharpGltfSceneToCpuMesh(root);
-#endif
         }
 
         /// <summary>
@@ -413,19 +405,12 @@ namespace ManaVoxel.Code.Assets
             using var memory = new MemoryStream();
             entryStream.CopyTo(memory);
 
-#if !MANA_BROWSER
             var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-            var loader = new ManaGltfLoader(_context);
-            return loader.LoadFirstMeshCpuOnlyFromMemory(memory.ToArray(), entryPath, resolver).CpuData;
-#else
-            var sharpResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-            var sharpLoader = new ManaSharpGltfLoader(_context);
-            var root = sharpLoader.LoadFileFromMemory(memory.ToArray(), entryPath, sharpResolver);
+            var loader = new ManaSharpGltfLoader(_context);
+            var root = loader.LoadFileFromMemory(memory.ToArray(), entryPath, resolver);
             return FlattenSharpGltfSceneToCpuMesh(root);
-#endif
         }
 
-#if MANA_BROWSER
         /// <summary>
         /// Concatenates every mesh in a SharpGLTF-loaded scene into one preview mesh, with each part's node
         /// transform baked into its vertices.
@@ -444,7 +429,9 @@ namespace ManaVoxel.Code.Assets
         /// still read back as each node's own <c>LocalTransform</c>, parent offset not included.
         /// </para>
         /// </summary>
-        private static ManaMeshCpuData? FlattenSharpGltfSceneToCpuMesh(ManaSceneNode root)
+        // Public: MeshThumbnailTests exercises this directly to verify node-transform composition,
+        // the same way it used to exercise ManaGltfLoader.LoadFirstMeshCpuOnlyFromMemory.
+        public static ManaMeshCpuData? FlattenSharpGltfSceneToCpuMesh(ManaSceneNode root)
         {
             var placements = new List<(ManaMesh Mesh, System.Numerics.Matrix4x4 Transform)>();
             CollectMeshPlacements(root, System.Numerics.Matrix4x4.Identity, placements);
@@ -553,7 +540,6 @@ namespace ManaVoxel.Code.Assets
                 CollectMeshPlacements(child, transform, placements);
             }
         }
-#endif
 
         // ----- disk tier ---------------------------------------------------------------------------------
 
