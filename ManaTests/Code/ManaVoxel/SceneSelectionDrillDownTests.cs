@@ -1,0 +1,68 @@
+using Mana;
+using Mana.Code;
+using Mana.Code.GameModes;
+using Mana.Code.Levels;
+using Mana.Code.Nodes;
+using ManaUI;
+
+namespace ManaTests;
+
+/// <summary>
+/// Click-to-select resolution: a raw ray pick almost never lands on the node that should actually get
+/// selected -- an imported FlightHelmet is one <see cref="ManaLevelSource"/> on its root and none on the
+/// Lens/Metal/etc. children a click actually hits, so the picked node has to be walked up to the whole
+/// authored object first. What makes this worth a suite of its own rather than folding into the pick
+/// tests: a second click, while that object is already the selection, needs to invert the walk and drill
+/// straight to the specific part instead -- two behaviours from one function, verified against a small
+/// synthetic hierarchy rather than only by clicking a real window.
+/// </summary>
+public static class SceneSelectionDrillDownChecks
+{
+    public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+
+        static ManaSceneNode Node(ManaContext context, string name) =>
+            new(context, System.Numerics.Matrix4x4.Identity) { Name = name };
+
+        // One authored object (FlightHelmet-shaped: a root the importer tagged, two untagged mesh-part
+        // children) and a second, separate authored object to prove switching targets resets the walk.
+        var helmetRoot = Node(context, "FlightHelmet");
+        helmetRoot.LevelSource = ManaLevelSource.ForMesh("FlightHelmet.gltf");
+        var lens = Node(context, "Lens");
+        var metal = Node(context, "Metal");
+        helmetRoot.AddChild(lens);
+        helmetRoot.AddChild(metal);
+
+        var crateRoot = Node(context, "Crate");
+        crateRoot.LevelSource = ManaLevelSource.ForMesh("crate.glb");
+
+        Check("clicking any part with nothing selected resolves up to the whole object",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(lens, null), helmetRoot),
+            "expected the FlightHelmet root, not the Lens child");
+
+        Check("clicking a different part with the whole object already selected drills to that part",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(metal, helmetRoot), metal),
+            "expected the Metal child, not a re-selected root");
+
+        Check("clicking a sibling part while already drilled into a different part keeps drilling, not bouncing back to the root",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(lens, metal), lens),
+            "expected the Lens child directly, since Metal's own authored root is still the same FlightHelmet");
+
+        Check("clicking a genuinely different object always selects its whole object first, even with a part of another object selected",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(crateRoot, lens), crateRoot),
+            "expected the Crate root, not drilled-into behaviour carried over from the unrelated FlightHelmet selection");
+
+        Check("clicking empty space (no pick) clears rather than reselecting",
+            VoxelEditorGameMode.ResolveEditorSelectableNode(null, helmetRoot) == null,
+            "expected null");
+
+        var untagged = Node(context, "Untagged");
+        Check("an untagged node with no LevelSource anywhere up its chain selects itself",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(untagged, null), untagged),
+            "expected the node itself as a fallback, since FindAuthoredRoot found nothing to walk up to");
+    }
+}

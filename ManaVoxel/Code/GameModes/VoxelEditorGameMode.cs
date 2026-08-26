@@ -2337,7 +2337,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var selectedNode = ResolveEditorSelectableNode(pickResult?.Node);
+            var selectedNode = ResolveEditorSelectableNode(pickResult?.Node, Context.World.Selection.SelectedNode);
             Context.World.Selection.SelectedScene = null;
             Context.World.Selection.SelectedNode = selectedNode;
             Context.World.Selection.SelectedComponent = ReferenceEquals(selectedNode, pickResult?.Node)
@@ -2362,9 +2362,39 @@ namespace Mana.Code.GameModes
             }
         }
 
-        private static ManaSceneNode? ResolveEditorSelectableNode(ManaSceneNode? pickedNode)
+        /// <summary>
+        /// A click always resolves up to the whole authored object first -- so a FlightHelmet import
+        /// (one <see cref="ManaLevelSource"/> on the root, none on its Lens/Metal/etc. child meshes)
+        /// selects as one thing no matter which part the ray actually hit -- unless that same object is
+        /// already the selection, in which case a further click drills straight to the specific part
+        /// under the cursor instead of just reselecting the whole thing again. Clicking a different
+        /// object resets back to "select the whole thing" for it; clicking back into an object you're
+        /// already drilled into (any of its parts already selected, not just the root) keeps drilling
+        /// directly between parts rather than bouncing back up each time.
+        /// </summary>
+        // Public: SceneSelectionDrillDownTests exercises this directly against a small synthetic
+        // hierarchy, rather than only through a live click, since it's a pure function of the pick and
+        // the current selection with no other dependency.
+        public static ManaSceneNode? ResolveEditorSelectableNode(ManaSceneNode? pickedNode, ManaSceneNode? currentSelection)
         {
-            for (var current = pickedNode; current != null; current = current.Parent)
+            if (pickedNode == null)
+            {
+                return null;
+            }
+
+            var authoredRoot = FindAuthoredRoot(pickedNode) ?? pickedNode;
+
+            if (currentSelection != null && ReferenceEquals(FindAuthoredRoot(currentSelection) ?? currentSelection, authoredRoot))
+            {
+                return pickedNode;
+            }
+
+            return authoredRoot;
+        }
+
+        private static ManaSceneNode? FindAuthoredRoot(ManaSceneNode node)
+        {
+            for (var current = node; current != null; current = current.Parent)
             {
                 if (current.LevelSource != null)
                 {
@@ -2372,7 +2402,7 @@ namespace Mana.Code.GameModes
                 }
             }
 
-            return pickedNode;
+            return null;
         }
 
         private void SyncSelectionColliderDebug(ManaSceneNode? selectedNode)
