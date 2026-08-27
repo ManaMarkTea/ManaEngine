@@ -22,6 +22,25 @@ link — AOT-compiled wasm, the environment map, two bundled asset packs, and tw
 loading screen covers the whole wait; see `ManaVoxel.Web/README.md`'s own section on it, which
 this project's `index.html`/`main.js` are identical copies of.
 
+## Itch.io upload
+
+Publishing writes the itch-ready archive under the repo root's `Binaries/` folder:
+
+```text
+Binaries/ManaEditor.zip
+```
+
+If you need to make the zip by hand, zip the contents of:
+
+```text
+ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle/
+```
+
+That is the actual static website: it contains `index.html`, `main.js`, and `_framework/`.
+Do not zip the generic SDK `publish/` directory; that folder can contain unhosted referenced-project
+build artifacts. In particular, the full desktop ETOPO source GeoTIFF is intentionally not part of
+the browser app bundle.
+
 The server reads files off disk per request, so after a republish just refresh — no restart. See
 `ManaVoxel.Web/README.md` for why `serve.py` sends `no-store` rather than a plain
 `python3 -m http.server`.
