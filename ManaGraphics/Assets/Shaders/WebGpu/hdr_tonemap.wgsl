@@ -129,14 +129,5 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     mapped = mix(mapped, outline_color, best_coverage);
 
-#if MANA_BROWSER
-    // The browser cannot give us an sRGB surface: WebGPU requires the canvas be configured with
-    // navigator.gpu.getPreferredCanvasFormat(), which is always a plain Unorm format, and Dawn
-    // rejects the -srgb variant outright ("Unsupported canvas context format"). Desktop
-    // wgpu-native does hand back an Srgb surface, which encodes this transfer for free on write.
-    // So on browser the encode has to happen here, or every frame presents about a gamma too dark.
-    mapped = pow(max(mapped, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.2));
-#endif
-
     return vec4<f32>(mapped, 1.0);
 }

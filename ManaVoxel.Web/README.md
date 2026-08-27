@@ -111,10 +111,19 @@ here is download weight.
 - **BepuPhysics is interpreted, not AOT'd.** It crashes Mono's LLVM AOT compiler outright
   (internal assertion in `mini-llvm.c` on its SIMD generics). `_AOT_InternalForceInterpretAssemblies`
   scopes that to Bepu; everything else is still AOT.
-- **The tonemap shader encodes sRGB itself.** WebGPU requires the canvas use
-  `getPreferredCanvasFormat()`, always a non-sRGB format, so the browser can't get the automatic
-  linear→sRGB transfer desktop's `Srgb` surface provides. `ManaWgslPreprocessor` understands
-  `#if MANA_BROWSER` for this.
+- **The canvas is configured with an sRGB `viewFormats` entry.** WebGPU requires
+  `configure()` be given `getPreferredCanvasFormat()`, always a non-sRGB format, and Dawn rejects
+  the `-srgb` variant outright. Passing `viewFormats: ['bgra8unorm-srgb']` is the sanctioned way
+  back: the canvas stays `bgra8unorm`, but `getCurrentTexture()` will hand out an sRGB view, and
+  `ManaWebGpuContext` promotes `_surfaceFormat` to the `Srgb` variant so every pipeline targets it.
+  That gets the automatic linear→sRGB transfer on write, exactly as desktop's `Srgb` surface does.
+  The legacy Emscripten swapchain can't express `viewFormats`, so `mana_webgpu.c` calls
+  `context.configure()` directly through `EM_JS` instead (`mana_wgpuSurfaceConfigure`).
+
+  Encoding sRGB in `hdr_tonemap.wgsl` instead — the first attempt — is the wrong layer, and the
+  editor build is what proves it: the tonemap pass is only one of three things that write to the
+  surface, with ImGui and ManaUI drawing into the same pass afterwards. Those came out a gamma
+  dark, and encoding per-shader would still have blended the UI in the wrong space.
 - **Reflection-based JSON and trimmer roots are on.** Level DTOs are only ever constructed by
   `System.Text.Json`'s reflection, which the trimmer can't see.
 - **No editor, no ImGui.** `ManaVoxel.csproj` is never referenced; the handful of level-loading

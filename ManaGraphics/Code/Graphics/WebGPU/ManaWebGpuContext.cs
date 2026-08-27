@@ -283,6 +283,18 @@ namespace ManaGraphics.Code.Graphics
             // whether an uncaptured-error callback is registered at all.
 #endif
             _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
+#if MANA_BROWSER
+            // getPreferredCanvasFormat() is always non-sRGB, but the canvas is configured with the
+            // sRGB variant in viewFormats (see mana_configure_surface_impl), so everything that
+            // renders to the surface targets the sRGB view and gets the linear-to-sRGB transfer on
+            // write -- matching desktop, where wgpu-native hands back an Srgb surface directly.
+            _surfaceFormat = _surfaceFormat switch
+            {
+                TextureFormat.Bgra8Unorm => TextureFormat.Bgra8UnormSrgb,
+                TextureFormat.Rgba8Unorm => TextureFormat.Rgba8UnormSrgb,
+                _ => _surfaceFormat
+            };
+#endif
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {

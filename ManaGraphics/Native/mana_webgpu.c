@@ -217,6 +217,46 @@ static WGPUVertexStepMode mana_remap_vertex_step_mode(WGPUVertexStepMode v) {
     }
 }
 
+// Configures the canvas directly rather than going through Emscripten's legacy
+// wgpuDeviceCreateSwapChain, for one reason: viewFormats.
+//
+// WebGPU requires a canvas be configured with navigator.gpu.getPreferredCanvasFormat(), which is
+// always a non-sRGB format -- Dawn rejects the -srgb variant outright. But it DOES allow listing
+// the -srgb variant in viewFormats and rendering into a view of that format, which gets the
+// automatic linear-to-sRGB transfer on write that desktop's Srgb surface provides for free.
+// Emscripten's swapchain path predates viewFormats and cannot express it, so everything drawing
+// straight to the surface (the tone-map pass, ImGui, ManaUI) came out about a gamma too dark.
+//
+// Doing it here rather than encoding in each shader also keeps blending correct: with a real sRGB
+// view the GPU decodes, blends in linear, and re-encodes, exactly as desktop does. Hand-encoding
+// in the shaders would blend already-encoded values and quietly change every UI alpha result.
+EM_JS(void, mana_configure_surface_impl, (int surfaceId, int deviceId, int formatInt), {
+    var context = WebGPU.mgrSurface.get(surfaceId);
+    var device = WebGPU.mgrDevice.get(deviceId);
+    var format = WebGPU.TextureFormat[formatInt];
+
+    // C# hands us the sRGB format it builds pipelines and views against; the canvas itself has to
+    // be configured with the plain variant, so strip the suffix for the format and keep the sRGB
+    // one as the view format.
+    var base = format.endsWith('-srgb') ? format.slice(0, -'-srgb'.length) : format;
+    var viewFormats = base === format ? [] : [format];
+
+    context.configure({
+        device: device,
+        format: base,
+        viewFormats: viewFormats,
+        alphaMode: 'opaque'
+    });
+});
+
+EM_JS(int, mana_surface_get_current_texture_impl, (int surfaceId), {
+    var context = WebGPU.mgrSurface.get(surfaceId);
+    if (!context) {
+        return 0;
+    }
+    return WebGPU.mgrTexture.create(context.getCurrentTexture());
+});
+
 size_t mana_wgpuAdapterEnumerateFeatures(WGPUAdapter adapter, WGPUFeatureName * features) {
     return wgpuAdapterEnumerateFeatures(adapter, features);
 }
@@ -623,26 +663,15 @@ typedef struct {
     uint32_t status;
 } ManaSurfaceTexture;
 
-static WGPUSwapChain mana_g_swapChain = 0;
-
 void mana_wgpuSurfaceConfigure(WGPUSurface surface, ManaSurfaceConfiguration const* config) {
-    if (mana_g_swapChain) {
-        wgpuSwapChainRelease(mana_g_swapChain);
-        mana_g_swapChain = 0;
-    }
-    WGPUSwapChainDescriptor scDesc = {0};
-    scDesc.usage = config->usage;
-    scDesc.format = config->format;
-    scDesc.width = config->width;
-    scDesc.height = config->height;
-    scDesc.presentMode = config->presentMode;
-    mana_g_swapChain = wgpuDeviceCreateSwapChain(config->device, surface, &scDesc);
+    mana_configure_surface_impl((int)(intptr_t)surface, (int)(intptr_t)config->device, (int)config->format);
 }
 
 void mana_wgpuSurfaceGetCurrentTexture(WGPUSurface surface, ManaSurfaceTexture* surfaceTexture) {
-    surfaceTexture->texture = mana_g_swapChain ? wgpuSwapChainGetCurrentTexture(mana_g_swapChain) : 0;
+    int textureId = mana_surface_get_current_texture_impl((int)(intptr_t)surface);
+    surfaceTexture->texture = (WGPUTexture)(intptr_t)textureId;
     surfaceTexture->suboptimal = 0;
-    surfaceTexture->status = surfaceTexture->texture ? 0 /* Success */ : 5 /* DeviceLost */;
+    surfaceTexture->status = textureId ? 0 /* Success */ : 5 /* DeviceLost */;
 }
 
 WGPUTextureFormat mana_wgpuSurfaceGetPreferredFormat(WGPUSurface surface, WGPUAdapter adapter) {
@@ -663,10 +692,9 @@ void mana_wgpuSurfaceRelease(WGPUSurface surface) {
 }
 
 void mana_wgpuSurfaceUnconfigure(WGPUSurface surface) {
-    if (mana_g_swapChain) {
-        wgpuSwapChainRelease(mana_g_swapChain);
-        mana_g_swapChain = 0;
-    }
+    // Nothing to release: the canvas context is configured in place (see
+    // mana_configure_surface_impl) rather than owning a swapchain object, and re-configuring it
+    // simply replaces the previous configuration.
 }
 
 WGPUTextureView mana_wgpuTextureCreateView(WGPUTexture texture, WGPUTextureViewDescriptor * descriptor) {
