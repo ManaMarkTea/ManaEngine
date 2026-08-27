@@ -185,7 +185,13 @@ namespace ManaVoxel.Code.Assets
             try
             {
                 var image = ImageSharpImage.Load<Rgba32>(textureBytes);
-                image.Mutate(x => x.Resize(TextureSampleSize, TextureSampleSize));
+
+                // Flipped for the same reason ManaWebGpuMeshTextureCache flips every texture it uploads:
+                // the loaders store V already flipped (see ManaSharpGltfLoader's uv0 comment), so a
+                // consumer that samples the image the way it was decoded reads the wrong row. Without
+                // this, a Kenney model's UVs -- which sit in the top fifth of its colormap -- landed in
+                // the opaque black band at the bottom instead, and every thumbnail drew as a silhouette.
+                image.Mutate(x => x.Flip(FlipMode.Vertical).Resize(TextureSampleSize, TextureSampleSize));
                 return image;
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
