@@ -36,9 +36,12 @@ namespace ManaCore.Diagnostics
             {
                 GetLogger().Debug("{DiagnosticMessage}", message);
             }
-            catch
+            catch (Exception exception)
             {
-                // Logging must never take down the renderer.
+                // Logging must never take down the renderer -- but a Serilog failure that silently
+                // eats every message (including real GPU/asset errors routed through this method) is
+                // itself worth seeing, so fall back to the one thing that can't also fail this way.
+                FallbackWrite(message, exception);
             }
         }
 
@@ -48,9 +51,21 @@ namespace ManaCore.Diagnostics
             {
                 GetLogger().Error(exception, "Graphics diagnostic exception");
             }
+            catch (Exception loggingException)
+            {
+                FallbackWrite(exception.ToString(), loggingException);
+            }
+        }
+
+        private static void FallbackWrite(string message, Exception loggingException)
+        {
+            try
+            {
+                Console.WriteLine($"[ManaLog fallback, logger threw {loggingException.GetType().Name}] {message}");
+            }
             catch
             {
-                // Logging must never take down the renderer.
+                // Truly nothing left to fall back to.
             }
         }
 
@@ -152,6 +167,19 @@ namespace ManaCore.Diagnostics
 
         private static Logger CreateLogger()
         {
+#if MANA_BROWSER
+            // Async's drain loop is a real background Thread, which doesn't exist on single-threaded
+            // browser-wasm -- every message (including GPU uncaptured errors routed through
+            // WriteDiagnostic) was being enqueued and never drained, so the browser console showed
+            // nothing at all regardless of what actually went wrong. Console output has to go out
+            // synchronously here instead; there's also no meaningful place to put DiagnosticLogPath
+            // (a desktop LocalApplicationData-style path) on the wasm virtual filesystem, so the file
+            // sink is dropped rather than silently failing on every write.
+            return new LoggerConfiguration()
+                .MinimumLevel.ControlledBy(LevelSwitch)
+                .WriteTo.Sink(new BrowserConsoleSink())
+                .CreateLogger();
+#else
             return new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(LevelSwitch)
                 .WriteTo.Async(
@@ -173,6 +201,7 @@ namespace ManaCore.Diagnostics
                     bufferSize: AsyncBufferSize,
                     blockWhenFull: false)
                 .CreateLogger();
+#endif
         }
 
         private static LogEventLevel ParseMinimumLevel()
@@ -198,5 +227,26 @@ namespace ManaCore.Diagnostics
                 WriteVerboseElapsed(_label, _startTimestamp);
             }
         }
+
+#if MANA_BROWSER
+        /// <summary>
+        /// Serilog's own Console sink produced no output at all on browser-wasm -- no exception, just
+        /// silence, even after Async (the actual known-broken piece) was removed -- so this writes
+        /// straight to Console.WriteLine instead, the one output path already proven throughout this
+        /// port to reach the browser's dev console reliably.
+        /// </summary>
+        private sealed class BrowserConsoleSink : ILogEventSink
+        {
+            private static readonly Serilog.Formatting.Display.MessageTemplateTextFormatter Formatter = new(
+                "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+            public void Emit(LogEvent logEvent)
+            {
+                using var writer = new StringWriter();
+                Formatter.Format(logEvent, writer);
+                Console.Write(writer.ToString());
+            }
+        }
+#endif
     }
 }
