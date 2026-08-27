@@ -105,16 +105,31 @@ namespace Mana
         }
 
         /// <summary>
-        /// A channel's map as a path the backend can open, or null when the channel is empty.
+        /// A channel's map as a path the backend can open, or null when there is no such file.
         /// <para>
         /// Resolved to an absolute path here: a material stores a relative one so a scene survives being
         /// moved or opened on another machine, and the backend does a plain File.Exists.
+        /// </para>
+        /// <para>
+        /// A name that resolves to nothing has to come back null rather than as the unresolved string,
+        /// because the caller reads "the material named a map" as "the material overrides this channel"
+        /// and drops the mesh's own embedded texture bytes on the strength of it. A glTF texture that
+        /// lives inside its own file has no path to give: OriginalFilename holds the image's internal
+        /// URI ("Textures/colormap.png") purely as a human-meaningful label, and returning that string
+        /// left the backend with a path it could not open and no bytes to fall back on, so every mesh
+        /// imported from a GLB rendered as untextured white.
         /// </para>
         /// </summary>
         private static string? PathOf(ManaTextureDynamic? channel)
         {
             var name = channel?.TextureValue?.OriginalFilename;
-            return string.IsNullOrWhiteSpace(name) ? null : ManaTexture.ResolveTexturePath(name);
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return null;
+            }
+
+            var resolved = ManaTexture.ResolveTexturePath(name);
+            return File.Exists(resolved) ? resolved : null;
         }
 
         private ManaMaterial? material;
