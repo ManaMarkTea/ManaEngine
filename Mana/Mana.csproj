@@ -466,7 +466,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Never</CopyToPublishDirectory>
     </None>
     <None Update="Assets\Shaders\BardPbr.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
