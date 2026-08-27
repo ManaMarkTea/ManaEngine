@@ -1,6 +1,7 @@
 using Mana;
 using Mana.Code.GameModes;
 using ManaCore.Graphics;
+using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics.Browser;
 
@@ -33,16 +34,35 @@ try
     // cover the gap before that exists: the wasm download and engine bring-up, not the frame
     // ManaUi's own screen is already there for. No "wait one more frame" precision needed for
     // that reason -- ManaUi's screen is the safety net under this one, not empty canvas.
+    //
+    // Still has to forward every intermediate status, not just completion -- confirmed live (a
+    // real itch.io deployment sat on "Starting engine" for the whole load) that skipping this
+    // half, unlike BrowserPlayGameMode.OnLoadingProgressChanged which forwards each one, leaves
+    // the overlay frozen on whatever it said last rather than showing VoxelEditorGameMode.Load()'s
+    // own "Loading environment reflection map"/"Generating procedural shapes"/etc. steps.
     var overlayHidden = false;
     editor.Loading.PropertyChanged += (_, _) =>
     {
-        if (overlayHidden || editor.IsLoading)
+        if (overlayHidden)
         {
             return;
         }
 
-        overlayHidden = true;
-        ManaBrowserInterop.HideLoadingScreen();
+        if (!editor.IsLoading)
+        {
+            overlayHidden = true;
+            ManaBrowserInterop.HideLoadingScreen();
+            return;
+        }
+
+        var snapshot = editor.Loading.Snapshot;
+        if (editor.LoadingCoordinator.Stage == ManaLoadingStage.Failed)
+        {
+            ManaBrowserInterop.ReportLoadingFailed(snapshot.Status);
+            return;
+        }
+
+        ManaBrowserInterop.ReportLoadingProgress(snapshot.Status, snapshot.Fraction);
     };
 
     // See ManaVoxel.Web/Program.cs's identical comment: browser wasm is single-threaded, so
