@@ -51,3 +51,12 @@ jobs:
               --title "Web editor (latest)" \
               --notes "Automatically rebuilt from master on every push. The ManaEditor.zip asset URL below is stable -- safe to point itch.io's external hosting at it."
           fi
+
+      - name: Upload web editor to itch.io
+        uses: KikimoraGames/itch-publish@v0.0.3
+        with:
+          butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
+          gameData: Binaries/ManaEditor.zip
+          itchUsername: manamarktea
+          itchGameId: mana-editor
+          buildChannel: web
