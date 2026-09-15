@@ -171,7 +171,10 @@ namespace ManaUI
                 width += ArrowColumnWidth;
             }
 
-            return new Vector2(width, theme.ControlHeight);
+            // See MenuBarHeading's matching comment: a condensed display font's baked-in line metrics can
+            // exceed theme.ControlHeight at the same nominal FontSize, so fall back to whichever is taller.
+            var height = MathF.Max(theme.ControlHeight, font.LineHeight);
+            return new Vector2(width, height);
         }
 
         protected override void OnRender(ManaUiDrawList drawList)

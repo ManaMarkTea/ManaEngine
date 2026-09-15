@@ -76,8 +76,14 @@ namespace Mana.Code.GameModes
 
             LastError = null;
 
+            // No Player Start falls back to the same spot Shift+F5 uses, not the world origin -- the
+            // origin is a room's corner in every game mode that builds a square floor, and a capsule
+            // dropped exactly onto a box collider's edge can land with no contact generated at all (the
+            // narrow phase has nothing but degenerate boundary geometry to test against), which reads as
+            // falling straight through a floor that is visibly right there. Wherever the camera is already
+            // looking is always solid ground by comparison.
             var start = ManaPlayerStartNode.Find(_context.World);
-            var spawnPosition = spawnOverride ?? start?.SpawnPosition ?? Vector3.Zero;
+            var spawnPosition = spawnOverride ?? start?.SpawnPosition ?? GetPlayFromCameraPosition();
             var spawnYaw = spawnOverride.HasValue ? 0.0f : start?.SpawnYawRadians ?? 0.0f;
 
             // Spawned a little clear of the floor so the capsule settles onto it rather than starting

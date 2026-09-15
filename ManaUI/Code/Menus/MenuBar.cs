@@ -132,7 +132,14 @@ namespace ManaUI
 
             var theme = root.Theme;
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
-            return new Vector2(font.MeasureWidth(Menu.Text) + 20.0f, theme.ControlHeight);
+
+            // theme.ControlHeight alone assumes every font's glyphs fit inside it at the theme's own
+            // FontSize -- true for the default typeface, but a condensed display face like LCARS's Antonio
+            // can carry taller baked-in ascent/descent/line-gap metrics at the same nominal size, and the
+            // heading would clip or crowd the text against a flat ControlHeight. Falling back to whichever
+            // is taller keeps the bar exactly as compact as before for themes where they already agree.
+            var height = MathF.Max(theme.ControlHeight, font.LineHeight);
+            return new Vector2(font.MeasureWidth(Menu.Text) + 20.0f, height);
         }
 
         protected override void OnRender(ManaUiDrawList drawList)

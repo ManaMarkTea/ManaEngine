@@ -119,10 +119,15 @@ namespace Mana.Code.GameModes
                             "Ground");
                     }
 
+                    // Extended downward from the visual floor (Y=0 stays the walkable surface) and much
+                    // thicker than a flush 0.1 units -- see VoxelEditorGameMode's matching comment for why
+                    // a slab that thin lets a character landing at normal fall speed tunnel straight
+                    // through before Bepu's narrow phase ever sees an overlap.
+                    const float GroundThickness = 2.0f;
                     Context.Physics.AddBoxBody(
                         ground,
-                        new Vector3(GroundSize, 0.1f, GroundSize),
-                        new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f));
+                        new Vector3(GroundSize, GroundThickness, GroundSize),
+                        new Vector3(GroundSize * 0.5f, -GroundThickness * 0.5f, GroundSize * 0.5f));
 
                     Loading.Report(new ManaLoadingProgress($"Loading {Path.GetFileName(_levelPath)}", 0.6f));
                     LoadLevel();
@@ -186,7 +191,11 @@ namespace Mana.Code.GameModes
                 start.IsMarkerVisible = false;
             }
 
-            var spawnPosition = start?.SpawnPosition ?? Vector3.Zero;
+            // The ground's centre, not the origin, when there is no Player Start -- a capsule dropped
+            // exactly onto a box collider's corner edge can land with no contact generated at all (see
+            // PlayModeController.DefaultSpawnPosition's matching comment), which reads as falling through
+            // a floor that is visibly right there.
+            var spawnPosition = start?.SpawnPosition ?? new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f);
             spawnPosition.Y += 0.5f;
 
             lock (Context.World.SceneLock)

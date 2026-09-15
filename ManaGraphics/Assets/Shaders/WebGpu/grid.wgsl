@@ -151,17 +151,14 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     var colorVal = mix(fillEven, fillOdd, smoothstep(0.0, 1.0, oddness));
 
-    // material_albedo.a marks a ManaGridCoveFillet (0) vs an ordinary flat plane (1): a cove's
-    // cross-axis UV is an arc length that starts at 0 at both ends, which cannot be phase-aligned with
-    // the flat planes' tile grid at both the wall and floor seam simultaneously -- so its own
-    // cross-axis line is suppressed and only the sweep-axis lines (which do stay aligned, since that
-    // axis is the same 0..1-over-256-units range as the plane it continues from) draw, letting the
-    // wall/floor lines bend smoothly over the curve instead of picking up a stray ring at the seam.
-    let isFillet = object.material_albedo.a < 0.5;
-    let cLineDist = select(min(cGrid.x, cGrid.y), cGrid.x, isFillet);
-    let bLineDist0 = select(min(bGrid0.x, bGrid0.y), bGrid0.x, isFillet);
-    let bLineDist1 = select(min(bGrid1.x, bGrid1.y), bGrid1.x, isFillet);
-    let aLineDist = select(min(aGrid.x, aGrid.y), aGrid.x, isFillet);
+    // A cove's cross-axis UV is an arc length that starts at 0 at both ends, so it can't be
+    // phase-aligned with the flat planes' tile grid at both the wall and floor seam simultaneously --
+    // every tier draws both axes anyway (same as a flat plane), since a visibly missing set of lines
+    // reads worse than a tier being slightly out of phase with one of the two walls it sits between.
+    let cLineDist = min(cGrid.x, cGrid.y);
+    let bLineDist0 = min(bGrid0.x, bGrid0.y);
+    let bLineDist1 = min(bGrid1.x, bGrid1.y);
+    let aLineDist = min(aGrid.x, aGrid.y);
 
     // Finest tier first so the coarser, brighter tiers draw over it at their shared boundaries. The
     // whole-plane boundary (aLineDist) is not faded -- see the pixelFootprint comment above.

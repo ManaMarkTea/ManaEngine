@@ -919,8 +919,22 @@ namespace ManaVoxel.Code.UI.ManaUi
                                 .Checkable(() => root.Theme.FontFamily == family))
                             .ToArray()),
                     MenuItem.Separator(),
-                    new MenuItem("Wireframe", () => vm.ShowWireframe = !vm.ShowWireframe)
-                        .Checkable(() => vm.ShowWireframe),
+                    // vm.ShowWireframe is the standalone ManaUiShowcase page's own dummy field (nothing
+                    // renders off it) -- with a live editor attached this has to flip the real one instead
+                    // (VoxelEditorGameMode.SyncWireframeViewOption reads editor.ShowWireframe), or toggling
+                    // this exact menu item silently did nothing in the one place it actually mattered.
+                    new MenuItem("Wireframe", () =>
+                        {
+                            if (editor != null)
+                            {
+                                editor.ShowWireframe = !editor.ShowWireframe;
+                            }
+                            else
+                            {
+                                vm.ShowWireframe = !vm.ShowWireframe;
+                            }
+                        })
+                        .Checkable(() => editor?.ShowWireframe ?? vm.ShowWireframe),
                     MenuItem.Separator(),
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
@@ -964,11 +978,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                         foreach (var renderer in node.GetComponents<global::Mana.MeshRendererComponent>())
                         {
-                            // Albedo's alpha marks a cove fillet (0) vs a flat plane (1) for the grid
-                            // shaders -- see ManaGridCoveFillet.GenerateMaterial -- so it has to survive a
-                            // recolour, not get reset to the theme colour's own (always 1) alpha.
-                            var isFillet = renderer.Material.Albedo.Value.W;
-                            renderer.Material.Albedo.Value = theme.GridFloor with { W = isFillet };
+                            renderer.Material.Albedo.Value = theme.GridFloor;
                             renderer.Material.Emission.Value = theme.GridLine;
                             renderer.Material.EmissionStrength = theme.GridLineThickness;
                         }

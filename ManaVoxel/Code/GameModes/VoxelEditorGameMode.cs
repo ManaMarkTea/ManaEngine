@@ -37,6 +37,10 @@ namespace Mana.Code.GameModes
     {
         private const string ManaWindowTitle = "Mana";
         private uint _toolDockId;
+        // The demo grid room's full width/depth -- see the matching comment where the room is built for
+        // why this can't just change there alone.
+        private const float GridSize = 512.0f;
+
         private uint _outlinerDockId;
         private uint _manaDockId;
         private uint _utilityDockId;
@@ -275,7 +279,7 @@ namespace Mana.Code.GameModes
                     // Doubled from the original 256 ("extend those grids farther") -- grid.wgsl/grid.frag's
                     // own whole-plane-boundary tier and UV-reconstruction scale are hardcoded to match, so
                     // changing this alone is not enough; see the RoomSize constant note there.
-                    float gridSize = 512.0f;
+                    const float gridSize = GridSize;
                     float halfGridSize = gridSize * 0.5f;
 
                     // The rounded cove is an LCARS-only flourish, not a general redesign of the grid -- the
@@ -403,12 +407,21 @@ namespace Mana.Code.GameModes
 
                     // Colliders stay full-size flat boxes regardless of the visual trim -- a voxel
                     // placement raycast does not need the coves' few units of curvature to be accurate.
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, gridSize, halfGridSize));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, gridSize));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(gridSize, halfGridSize, halfGridSize));
+                    //
+                    // Extended away from the room (not centred on the visual plane) and much thicker than
+                    // the old 0.1 units -- a character falling from the standard 0.5-unit spawn clearance
+                    // lands around 7-8 u/s, which alone covers ~0.13 units in a single 60 FPS physics step
+                    // (more under any hitch, since ManaPhysics.Update clamps as low as 30 FPS), comfortably
+                    // tunnelling through a 0.1-unit slab before Bepu's narrow phase ever sees an overlap.
+                    // Each box keeps the surface a character/voxel-raycast actually touches exactly where
+                    // it visually is, and only grows into the space nobody stands on.
+                    const float ColliderThickness = 2.0f;
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, ColliderThickness, gridSize), new Vector3(halfGridSize, -ColliderThickness * 0.5f, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, ColliderThickness, gridSize), new Vector3(halfGridSize, gridSize + ColliderThickness * 0.5f, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, ColliderThickness), new Vector3(halfGridSize, halfGridSize, -ColliderThickness * 0.5f));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, ColliderThickness), new Vector3(halfGridSize, halfGridSize, gridSize + ColliderThickness * 0.5f));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(ColliderThickness, gridSize, gridSize), new Vector3(-ColliderThickness * 0.5f, halfGridSize, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(ColliderThickness, gridSize, gridSize), new Vector3(gridSize + ColliderThickness * 0.5f, halfGridSize, halfGridSize));
 
                     // Ground/wall planes are raycast helpers for voxel placement, not meaningful selection targets.
                     _pickingExclusions.Add(xzPlane);
@@ -466,12 +479,7 @@ namespace Mana.Code.GameModes
 
                 foreach (var renderer in plane.GetComponents<MeshRendererComponent>())
                 {
-                    // Albedo's alpha is repurposed by ManaGridCoveFillet as an "is this a cove, not a flat
-                    // plane" flag the shader reads to suppress its cross-axis line (see grid.wgsl/grid.frag)
-                    // -- preserved here rather than overwritten so a later theme switch's recolour doesn't
-                    // silently turn every cove back into a flat plane as far as the shader can tell.
-                    var isFillet = renderer.Material.Albedo.Value.W;
-                    renderer.Material.Albedo.Value = theme.GridFloor with { W = isFillet };
+                    renderer.Material.Albedo.Value = theme.GridFloor;
                     renderer.Material.Emission.Value = theme.GridLine;
                     renderer.Material.EmissionStrength = theme.GridLineThickness;
                 }

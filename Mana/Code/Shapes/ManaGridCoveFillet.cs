@@ -75,15 +75,8 @@ namespace Mana
 
             // Same fallback colours as ManaQuad's grid planes -- overwritten once a UiTheme is available.
             // Left at the identity UV transform: the coordinates written below are already expressed in
-            // the same 256-unit space grid.wgsl/grid.frag expect, so nothing needs remapping.
-            //
-            // Albedo's alpha is repurposed (not an opacity here -- the grid shaders never read it as one)
-            // as an "is this a cove" flag: 0 marks a fillet, matching VoxelEditorGameMode.ApplyGridTheme's
-            // preservation of this bit across later recolours. grid.wgsl/grid.frag read it to suppress the
-            // cross-axis line -- the cove's own cross-direction UV isn't phase-aligned with the flat
-            // planes' tile grid (it can't be, at both ends of an arc at once), so without this a stray line
-            // showed up right at the seam instead of the curve reading as a clean continuation.
-            material.Albedo.Value = new Vector4(0.0784f, 0.0824f, 0.0941f, 0.0f);
+            // the same 512-unit (RoomSize) space grid.wgsl/grid.frag expect, so nothing needs remapping.
+            material.Albedo.Value = new Vector4(0.0784f, 0.0824f, 0.0941f, 1.0f);
             material.Emission.Value = new Vector4(0.2275f, 0.2392f, 0.2627f, 1.0f);
             material.EmissionStrength = 1.0;
 
@@ -100,9 +93,14 @@ namespace Mana
             // Arc length, not the straight chord: a quarter circle of radius R is noticeably longer than
             // the R-by-R corner it replaces, and using the chord would squeeze the grid's tiles as they
             // wrap the curve.
+            //
+            // Divide by 512, matching grid.wgsl/grid.frag's RoomSize/chunkSize constant (see
+            // VoxelEditorGameMode's gridSize) -- not some other span. This used to be a room-size-256
+            // layout; when the room doubled to a full 512-unit enclosure this divisor was missed, so the
+            // cove's tile grid ran at exactly double the density/phase of the flat walls it joins.
             var arcLength = Radius * MathF.PI * 0.5f;
-            var crossUvSpan = arcLength / 256.0f;
-            var sweepUvSpan = SweepLength / 256.0f;
+            var crossUvSpan = arcLength / 512.0f;
+            var sweepUvSpan = SweepLength / 512.0f;
 
             var ring = new ManaGeometryVertex[2, Segments + 1];
 
@@ -130,8 +128,13 @@ namespace Mana
 
                     var normal = Vector3.Normalize(CrossAxisA * cos + CrossAxisB * sin);
 
+                    // Centred on 0, not starting there: the arc is exactly mirror-symmetric about u=0.5
+                    // (swapping CrossAxisA/B above), but a grid line only ever falls on a multiple of the
+                    // tile spacing, and 0 is always one of those. Anchoring the coordinate to an edge left
+                    // whichever line happened to land near the middle looking arbitrarily off-centre;
+                    // centring it here instead guarantees one falls exactly on the curve's true midpoint.
                     var vertex = DynamicGeometryContainer.AddPoint(pos, normal);
-                    vertex.TexCoord0 = new Vector2(s * sweepUvSpan, u * crossUvSpan);
+                    vertex.TexCoord0 = new Vector2(s * sweepUvSpan, (u - 0.5f) * crossUvSpan);
                     vertex.Color = DefaultVertexColor;
                     ring[s, i] = vertex;
                 }

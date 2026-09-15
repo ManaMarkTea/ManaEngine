@@ -146,13 +146,12 @@ vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
         smoothstep(0.0, 1.0, (oddness))
     );
 
-    // gridFloor.a marks a ManaGridCoveFillet (0) vs an ordinary flat plane (1) -- see grid.wgsl's matching
-    // comment for why a cove's own cross-axis line has to be suppressed rather than drawn.
-    bool isFillet = gridFloor.a < 0.5;
-    float aLineDist = isFillet ? aGrid.x : min(aGrid.x, aGrid.y);
-    float bLineDist0 = isFillet ? bGrid0.x : min(bGrid0.x, bGrid0.y);
-    float bLineDist1 = isFillet ? bGrid1.x : min(bGrid1.x, bGrid1.y);
-    float cLineDist = isFillet ? cGrid.x : min(cGrid.x, cGrid.y);
+    // See grid.wgsl's matching comment: every tier draws both axes on a cove same as a flat plane,
+    // despite the cross-axis arc-length UV not being phase-aligned with both walls it joins at once.
+    float aLineDist = min(aGrid.x, aGrid.y);
+    float bLineDist0 = min(bGrid0.x, bGrid0.y);
+    float bLineDist1 = min(bGrid1.x, bGrid1.y);
+    float cLineDist = min(cGrid.x, cGrid.y);
 
     // Finest tier first so the coarser, brighter tiers draw over it at their shared boundaries.
     colorVal = mix(
