@@ -33,7 +33,10 @@ jobs:
         run: dotnet workload install wasm-tools
 
       - name: Publish web editor (also produces Binaries/ManaEditor.zip)
-        run: dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release
+        # ManaVoxel.Editor.Web's browser-wasm publish graph currently builds some referenced
+        # projects more than once; keep them serialized so GenerateDepsFile does not race on the
+        # shared browser-wasm output path (for example ManaCore.deps.json).
+        run: dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release -m:1
 
       - name: Publish (or update) the web-latest release
         env:
