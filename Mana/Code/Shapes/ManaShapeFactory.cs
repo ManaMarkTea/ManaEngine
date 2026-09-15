@@ -157,6 +157,24 @@ namespace Mana.Code.Shapes
             return extraCube;
         }
 
+        public ManaSceneNode AddGridCoveFillet(
+            Vector3 sweepAxis,
+            Vector3 crossAxisA,
+            Vector3 crossAxisB,
+            float sweepLength,
+            float radius,
+            float floorLift = 0.0f,
+            Vector3 position = default,
+            string name = "Grid Cove")
+        {
+            var fillet = new ManaSceneNode(Context, Matrix4x4.CreateTranslation(position));
+            fillet.Name = name;
+            fillet.Components.Add(new MeshRendererComponent(
+                fillet, new ManaGridCoveFillet(Context, sweepAxis, crossAxisA, crossAxisB, sweepLength, radius, floorLift)));
+            Scene.Children.Add(fillet);
+            return fillet;
+        }
+
         public ManaSceneNode AddVoxels(Vector3 position)
         {
             ManaSceneNode voxelNode = new ManaVoxelsNode(Context, Matrix4x4.CreateTranslation(position));            

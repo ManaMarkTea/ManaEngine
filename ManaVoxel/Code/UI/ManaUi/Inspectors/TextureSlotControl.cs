@@ -69,11 +69,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 {
                     button.Padding = new Thickness(0.0f);
                     button.IgnoreThemePadding = true;
-                    button.CornerRadius = theme.CornerRadius;
+                    button.CornerRadius = theme.CornerRadiusCompact;
                     button.Child = new Border()
                         .Fill(theme.SurfaceAlt)
                         .Outline(theme.BorderStrong, 1.0f)
-                        .Rounded(theme.CornerRadius)
+                        .Rounded(theme.CornerRadiusCompact)
                         .Size(size, size)
                         .Content(new Grid()
                             .Rows("*")

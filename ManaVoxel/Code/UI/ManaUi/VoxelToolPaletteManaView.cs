@@ -110,7 +110,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Child = icon,
                     IgnoreThemePadding = true,
                     Width = ToolButtonSize,
-                    Height = ToolButtonSize
+                    Height = ToolButtonSize,
+                    CornerRadius = theme.CornerRadiusCompact
                 }
                 .WithTooltip(tooltip)
                 .OnClick(onClick)

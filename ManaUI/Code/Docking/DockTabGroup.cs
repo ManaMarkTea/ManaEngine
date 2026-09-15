@@ -531,6 +531,12 @@ namespace ManaUI
 
             drawList.PushClip(strip);
 
+            // Theme-driven rather than a fixed 4px: LCARS's CornerRadius is a near-capsule (half the tab's
+            // own height), which is what makes a tab strip actually read as LCARS rather than merely
+            // recolouring an otherwise ordinary rounded-rectangle tab.
+            var tabRadius = CornerRadius.Top(theme.CornerRadius.TopLeft);
+            var accentRadius = CornerRadius.Top(theme.CornerRadius.TopLeft * 0.5f);
+
             for (var i = 0; i < _items.Count; i++)
             {
                 var tab = TabRect(i);
@@ -539,15 +545,14 @@ namespace ManaUI
 
                 if (selected)
                 {
-                    drawList.FillRect(tab, theme.Surface, CornerRadius.Top(4.0f));
+                    drawList.FillRect(tab, theme.Surface, tabRadius);
 
                     // A short accent bar along the top reads as "this one" more clearly than fill alone.
-                    drawList.FillRect(new UiRect(tab.X, tab.Y, tab.Width, 2.0f), theme.Accent,
-                        CornerRadius.Top(2.0f));
+                    drawList.FillRect(new UiRect(tab.X, tab.Y, tab.Width, 2.0f), theme.Accent, accentRadius);
                 }
                 else if (hovered)
                 {
-                    drawList.FillRect(tab, theme.Hover, CornerRadius.Top(4.0f));
+                    drawList.FillRect(tab, theme.Hover, tabRadius);
                 }
 
                 var layout = new TextLayout

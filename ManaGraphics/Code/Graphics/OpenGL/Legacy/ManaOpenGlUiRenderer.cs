@@ -141,6 +141,10 @@ flat in vec4 vSourceRect;
 uniform sampler2D uGlyphAtlas;
 uniform sampler2D uImageAtlas;
 
+// Same uniform the vertex shader declares -- GLSL links active uniforms by name across stages, so the one
+// glUniform1i call already made for the vertex stage's toTargetSpace() also reaches this declaration.
+uniform bool uConvertToLinear;
+
 out vec4 fragColor;
 
 const uint FLAG_GLYPH = 1u;
@@ -187,6 +191,20 @@ void main()
     if ((vFlags & FLAG_GLYPH) != 0u)
     {
         float glyphCoverage = texture(uGlyphAtlas, vUv).r;
+
+        // Only relevant when the target actually blends in linear space -- see manaui.wgsl's matching
+        // comment for why linear-space coverage blending under-represents dark text specifically. The
+        // default GL path (uConvertToLinear false) already blends this coverage directly against the
+        // authored sRGB fill colour, which is the conventional, already-correct behaviour text wants.
+        if (uConvertToLinear)
+        {
+            float textLuma = dot(vFill.rgb, vec3(0.2126, 0.7152, 0.0722));
+            if (textLuma < 0.5)
+            {
+                glyphCoverage = pow(glyphCoverage, 1.0 / 1.8);
+            }
+        }
+
         float alpha = vFill.a * glyphCoverage;
         if (alpha <= 0.0)
         {

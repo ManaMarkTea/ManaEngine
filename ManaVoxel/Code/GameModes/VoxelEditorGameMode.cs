@@ -2,6 +2,8 @@
 using ImGuiNET;
 #endif
 using BepuPhysics.Collidables;
+using ManaUI;
+using System.Linq;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
@@ -270,17 +272,101 @@ namespace Mana.Code.GameModes
                     _viewModel.AttachScene(Context, Context.World.DefaultScene);
                     Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
 
-                    float gridSize = 256.0f;
+                    // Doubled from the original 256 ("extend those grids farther") -- grid.wgsl/grid.frag's
+                    // own whole-plane-boundary tier and UV-reconstruction scale are hardcoded to match, so
+                    // changing this alone is not enough; see the RoomSize constant note there.
+                    float gridSize = 512.0f;
                     float halfGridSize = gridSize * 0.5f;
-                    ManaSceneNode xzPlane, yxPlane, zyPlane;
+
+                    // The rounded cove is an LCARS-only flourish, not a general redesign of the grid -- the
+                    // plain Dark/Light graph-paper floor keeps its original sharp corners. This is decided
+                    // once here rather than kept live against later theme switches: swapping the corners'
+                    // actual topology on the fly would mean tearing down and rebuilding these nodes (plus
+                    // their physics bodies and picking exclusions) from outside this method, which is a
+                    // bigger seam than a menu click warrants right now.
+                    bool rounded = ManaUi?.Root?.Theme?.Kind == UiThemeKind.Lcars;
+
+                    // How far each wall gets trimmed back from its two neighbours so a rounded cove (see
+                    // ManaGridCoveFillet) can fill each gap instead of a sharp seam. Floor and ceiling are
+                    // never trimmed -- every wall still meets them at its original, sharp edge. What rounds
+                    // is the four vertical seams where the walls meet each other, which is what actually
+                    // reads as a rounded room -- the flat walls blending into a cylindrical curve at every
+                    // corner -- rather than a bevel where wall meets floor or ceiling.
+                    float coveRadius = rounded ? 4.0f : 0.0f;
+                    float uvTrim = coveRadius / gridSize;
+                    float uvSpan = 1.0f - 2.0f * uvTrim;
+
+                    // Full enclosed box: floor, ceiling, and all four walls. xzPlane/yxPlane/zyPlane keep
+                    // their original names and positions (the "near" faces at Y=0/Z=0/X=0); the other three
+                    // are their mirrors at Y=gridSize/Z=gridSize/X=gridSize.
+                    ManaSceneNode xzPlane, yxPlane, zyPlane, ceilingPlane, wallZFar, wallXFar;
+                    ManaSceneNode?[] wallCoves = new ManaSceneNode?[4];
 
                     ManaShapeFactory shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
 
                     lock (world.SceneLock)
                     {
+                        // Floor and ceiling: full extent, never trimmed -- see the comment above.
                         xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane XZ");
-                        yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, 0, gridSize, "Grid Plane YX");
-                        zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, 0, gridSize, 0, gridSize, "Grid Plane ZY");
+                        ceilingPlane = shapes.AddQuad(new Vector3(0, gridSize, 0), Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane Ceiling");
+
+                        // The four walls. Each is trimmed at BOTH ends of its horizontal extent once rounded
+                        // -- every wall touches two of the room's four vertical corners, not one.
+                        yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, coveRadius, gridSize - coveRadius, "Grid Plane YX");
+                        zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, coveRadius, gridSize - coveRadius, 0, gridSize, "Grid Plane ZY");
+                        wallZFar = shapes.AddQuad(new Vector3(0, 0, gridSize), Colors.White, ManaQuadPlanes.YX, 0, gridSize, coveRadius, gridSize - coveRadius, "Grid Plane YX Far");
+                        wallXFar = shapes.AddQuad(new Vector3(gridSize, 0, 0), Colors.White, ManaQuadPlanes.ZY, coveRadius, gridSize - coveRadius, 0, gridSize, "Grid Plane ZY Far");
+
+                        if (rounded)
+                        {
+                            // UV remap so every trimmed wall's tiles keep their true 8-unit size and stay
+                            // aligned with their coves -- see grid.wgsl/grid.frag's use of uv_transform.
+                            // Floor and ceiling need none: their UV was never touched.
+                            //
+                            // ManaQuadPlanes.YX: axis=Y (untouched, full height), extrusion=X (trimmed) --
+                            // the quad's V (extrusion/UV.y) axis needs remapping for both Z walls.
+                            foreach (var yxWall in new[] { yxPlane, wallZFar })
+                            {
+                                if (yxWall.Components[0] is MeshRendererComponent yxRenderer)
+                                {
+                                    yxRenderer.Material.UvScale = new Vector2(1.0f, uvSpan);
+                                    yxRenderer.Material.UvOffset = new Vector2(0.0f, uvTrim);
+                                }
+                            }
+
+                            // ManaQuadPlanes.ZY: axis=Z (trimmed), extrusion=Y (untouched, full height) --
+                            // the U axis (UV.x) needs remapping for both X walls instead.
+                            foreach (var zyWall in new[] { zyPlane, wallXFar })
+                            {
+                                if (zyWall.Components[0] is MeshRendererComponent zyRenderer)
+                                {
+                                    zyRenderer.Material.UvScale = new Vector2(uvSpan, 1.0f);
+                                    zyRenderer.Material.UvOffset = new Vector2(uvTrim, 0.0f);
+                                }
+                            }
+
+                            // The four vertical wall-to-wall coves, each swept the full height and placed
+                            // at its own corner. crossA/crossB are the two adjoining walls' own inward
+                            // normals -- see ManaGridCoveFillet's doc comment for the general two-plane
+                            // shape, and crossA x crossB = +Y is kept the same at every corner so all four
+                            // sweep the same rotational direction and none end up wound backwards.
+                            var corners = new (Vector3 Position, Vector3 CrossA, Vector3 CrossB, string Name)[]
+                            {
+                                (new Vector3(0, 0, 0), Vector3.UnitZ, Vector3.UnitX, "Grid Cove X0-Z0"),
+                                (new Vector3(0, 0, gridSize), Vector3.UnitX, -Vector3.UnitZ, "Grid Cove X0-ZFar"),
+                                (new Vector3(gridSize, 0, gridSize), -Vector3.UnitZ, -Vector3.UnitX, "Grid Cove XFar-ZFar"),
+                                (new Vector3(gridSize, 0, 0), -Vector3.UnitX, Vector3.UnitZ, "Grid Cove XFar-Z0"),
+                            };
+
+                            for (var i = 0; i < corners.Length; i++)
+                            {
+                                var (position, crossA, crossB, name) = corners[i];
+                                var cove = shapes.AddGridCoveFillet(
+                                    Vector3.UnitY, crossA, crossB, gridSize, coveRadius, position: position, name: name);
+                                cove.LevelSource = null;
+                                wallCoves[i] = cove;
+                            }
+                        }
 
                         Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
                         Cursor.Name = "CursorBall";
@@ -290,8 +376,11 @@ namespace Mana.Code.GameModes
                         // Left tagged they would be saved into every level and then loaded a second time on
                         // top of the copies this code always makes. See ManaLevelSource.
                         xzPlane.LevelSource = null;
+                        ceilingPlane.LevelSource = null;
                         yxPlane.LevelSource = null;
                         zyPlane.LevelSource = null;
+                        wallZFar.LevelSource = null;
+                        wallXFar.LevelSource = null;
                         Cursor.LevelSource = null;
 
                         // A donut that spins and bobs like a pickup. Its motion component has no inspector
@@ -303,14 +392,39 @@ namespace Mana.Code.GameModes
                         pickup.LevelSource = null;
                     }
 
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
-                    Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
+                    // Painted with whatever theme the UI already came up in -- BuildManaUi runs before
+                    // Load, so ManaUi.Root.Theme reflects the real starting theme by the time this
+                    // background task gets here. Without this the planes would sit on the
+                    // ManaQuad.GenerateMaterial() fallback colour regardless of theme, since
+                    // ManaUiDockDemo's own ApplyGridTheme call fires from BuildManaUi -- before these
+                    // nodes exist -- and finds nothing to repaint.
+                    ApplyGridTheme(new[] { xzPlane, ceilingPlane, yxPlane, zyPlane, wallZFar, wallXFar }
+                        .Concat(wallCoves).ToArray());
 
-                    // Ground planes are raycast helpers for voxel placement, not meaningful selection targets.
+                    // Colliders stay full-size flat boxes regardless of the visual trim -- a voxel
+                    // placement raycast does not need the coves' few units of curvature to be accurate.
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, 0, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, 0.1f, gridSize), new Vector3(halfGridSize, gridSize, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, 0));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, 0.1f), new Vector3(halfGridSize, halfGridSize, gridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(0, halfGridSize, halfGridSize));
+                    Context.Physics.AddBoxBody(xzPlane, new Vector3(0.1f, gridSize, gridSize), new Vector3(gridSize, halfGridSize, halfGridSize));
+
+                    // Ground/wall planes are raycast helpers for voxel placement, not meaningful selection targets.
                     _pickingExclusions.Add(xzPlane);
+                    _pickingExclusions.Add(ceilingPlane);
                     _pickingExclusions.Add(yxPlane);
                     _pickingExclusions.Add(zyPlane);
+                    _pickingExclusions.Add(wallZFar);
+                    _pickingExclusions.Add(wallXFar);
+                    foreach (var cove in wallCoves)
+                    {
+                        if (cove != null)
+                        {
+                            _pickingExclusions.Add(cove);
+                        }
+                    }
+
                     _pickingExclusions.Add(Cursor);
 
                     // Probe for optional KML placemarks. Deliberately only
@@ -328,6 +442,40 @@ namespace Mana.Code.GameModes
                     LoadingCoordinator.Fail(ex);
                 }
             });
+        }
+
+        /// <summary>
+        /// Paints the ground-plane grid quads with the active UI theme's floor/line colours. Also called
+        /// from <see cref="ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo"/> on every later theme switch; this
+        /// call is the one that matters for the very first frame, since it runs after the planes exist.
+        /// </summary>
+        private void ApplyGridTheme(params ManaSceneNode?[] planes)
+        {
+            var theme = ManaUi?.Root?.Theme;
+            if (theme == null)
+            {
+                return;
+            }
+
+            foreach (var plane in planes)
+            {
+                if (plane == null)
+                {
+                    continue;
+                }
+
+                foreach (var renderer in plane.GetComponents<MeshRendererComponent>())
+                {
+                    // Albedo's alpha is repurposed by ManaGridCoveFillet as an "is this a cove, not a flat
+                    // plane" flag the shader reads to suppress its cross-axis line (see grid.wgsl/grid.frag)
+                    // -- preserved here rather than overwritten so a later theme switch's recolour doesn't
+                    // silently turn every cove back into a flat plane as far as the shader can tell.
+                    var isFillet = renderer.Material.Albedo.Value.W;
+                    renderer.Material.Albedo.Value = theme.GridFloor with { W = isFillet };
+                    renderer.Material.Emission.Value = theme.GridLine;
+                    renderer.Material.EmissionStrength = theme.GridLineThickness;
+                }
+            }
         }
 
         protected override void OnLoadingComplete()

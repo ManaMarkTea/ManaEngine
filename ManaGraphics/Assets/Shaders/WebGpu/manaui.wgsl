@@ -218,7 +218,21 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     // Text: the atlas red channel is coverage, modulating the fill colour.
     if ((input.flags & FLAG_GLYPH) != 0u) {
-        let glyph_coverage = glyph_sample.r;
+        // The atlas stores stb_truetype's raw geometric coverage, and fill_color was already converted to
+        // linear above to match this renderer's linear-blend/sRGB-encode swapchain -- physically correct,
+        // but not what text rasterizers conventionally calibrate for: blending a coverage alpha in linear
+        // light under-represents partial-coverage edge pixels far more for dark text than light text,
+        // which is what read as Light theme's text "not being crisp" (thinner strokes than Dark theme's
+        // text, which happened to look fine since light-on-dark isn't affected the same way). Boosting
+        // coverage with a gamma curve is the standard fix, applied only when the text itself is dark --
+        // i.e. only in the case that actually looked wrong -- so light text on a dark background, already
+        // correct, is left alone.
+        let text_luma = dot(input.fill_color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722));
+        var glyph_coverage = glyph_sample.r;
+        if (text_luma < 0.5) {
+            glyph_coverage = pow(glyph_coverage, 1.0 / 1.8);
+        }
+
         let alpha = input.fill_color.a * glyph_coverage;
         if (alpha <= 0.0) {
             discard;

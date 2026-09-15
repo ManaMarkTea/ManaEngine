@@ -1,0 +1,50 @@
+name: Build web editor
+
+# ManaVoxel.Editor.Web.csproj already zips its own publish output (see its
+# ManaZipEditorPublishOutput target) into Binaries/ManaEditor.zip -- this workflow just needs to
+# run `dotnet publish` with the wasm-tools workload installed, then hand that zip to a stable
+# download URL. The "web-latest" release below is re-used (not re-created) on every run, so its
+# asset URL never changes -- that's the URL to give itch.io's external-hosting option.
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # RunAOTCompilation + the emscripten native build in ManaVoxel.Editor.Web.csproj are both slow;
+    # give this real headroom rather than hitting the default 6-hour cap's opposite problem of no
+    # cap at all silently hanging a stuck build.
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Publish web editor (also produces Binaries/ManaEditor.zip)
+        run: dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release
+
+      - name: Publish (or update) the web-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view web-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload web-latest Binaries/ManaEditor.zip --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create web-latest Binaries/ManaEditor.zip \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Web editor (latest)" \
+              --notes "Automatically rebuilt from master on every push. The ManaEditor.zip asset URL below is stable -- safe to point itch.io's external hosting at it."
+          fi

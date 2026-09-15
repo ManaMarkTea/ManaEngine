@@ -26,20 +26,25 @@ in vec2 TexCoords;
 layout(location = 0) out vec4 FragColor;
 #endif
 
-//uniform vec2 chunkSize = vec2(64.0, 64.0);
-uniform vec2 chunkSize = vec2(256.0, 256.0);
+// Must match VoxelEditorGameMode.cs's gridSize -- see grid.wgsl's matching RoomSize constant.
+uniform vec2 chunkSize = vec2(512.0, 512.0);
 uniform vec2 tileSize = vec2(8.0, 8.0);
-uniform vec2 cellSize = vec2(1.0, 1.0);
 
 float chunkThickness = 4.0;
 float tileThickness = 2.0;
 float cellThickness = 1.0;
 
-vec4 fillEven = vec4(0xC6,0xC4,0xC7, 255.0) / 255.0;
-vec4 fillOdd = vec4(0xBF,0xBD,0xC0, 255.0) / 255.0;
+// Themed rather than fixed: ManaGridShader.BindShader pushes the active theme's GridFloor/GridLine here
+// per material, the same colours the WebGPU grid.wgsl reads from the object uniform. Defaults match the
+// original fixed light-mode palette, for the rare case nothing sets them. gridLine.a doubles as a
+// line-thickness multiplier (see UiTheme.GridLineThickness).
+uniform vec4 gridFloor = vec4(0xC6, 0xC4, 0xC7, 255.0) / 255.0;
+uniform vec4 gridLine = vec4(0x54, 0x54, 0x55, 255.0) / 255.0;
 
-vec4 cellStroke = vec4(0xAB, 0xBD, 0xD8, 255.0) / 255.0;
-vec4 stroke = vec4(0xF2, 0xD3, 0x98, 255.0) / 255.0;
+// Lets a trimmed plane (the floor/wall quads cut back for VoxelEditorGameMode's rounded-corner coves)
+// remap its own 0..1 UV back onto the coordinate the untrimmed room-sized grid expects, matching grid.wgsl's
+// use of object.uv_transform, so tiles keep their true size across the seam with each cove fillet mesh.
+uniform vec4 uvTransform = vec4(1.0, 1.0, 0.0, 0.0);
 
 uniform float near = 0.01;
 uniform float far = 100.0;
@@ -62,53 +67,114 @@ float computeLinearDepth(vec3 pos)
 
 vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
 {
-    vec2 uv = fragCoord.xy * chunkSize;
+    vec2 uv = (fragCoord.xy * uvTransform.xy + uvTransform.zw) * chunkSize;
     vec2 derivative = fwidth(uv);
 
-    float aa = length(fwidth(uv));
-    float aScale = chunkThickness;
-    float bScale = tileThickness;
-    float cScale = cellThickness;
+    // How many world units one screen pixel covers here -- not straight-line camera distance (`d`, now
+    // unused), which misses why a floor gets dense toward the horizon: a floor viewed at a grazing angle
+    // has a huge derivative long before it is actually far away, while a wall viewed face-on keeps a
+    // small, roughly constant derivative regardless of distance. See grid.wgsl's matching comment.
+    float pixelFootprint = max(derivative.x, derivative.y);
+
+    // Exponential rather than smoothstep -- see grid.wgsl's matching comment for why smoothstep's
+    // steepest-in-the-middle slope read as the fade hitting hardest at mid-distance, and this doesn't.
+    float fadeTau = 1.33;
+    float fadeT = 1.0 - exp(-pixelFootprint / fadeTau);
+
+    // Lines get thinner with distance, not just dimmer (below) -- every tier's antialiasing width is
+    // scaled by this alongside lineThickness (see UiTheme.GridLineThickness), so a line that would
+    // otherwise stay a constant N pixels wide forever instead narrows as it recedes.
+    float thicknessFade = mix(1.0, 0.35, fadeT);
+    float lineThickness = gridLine.a * thicknessFade;
+    float aScale = chunkThickness * lineThickness;
+    float bScale = tileThickness * lineThickness;
+    float cScale = cellThickness * lineThickness;
 
     vec2 halfChunkSize = chunkSize / 2.0;
     vec2 halfTileSize =  tileSize / 2.0;
-    vec2 halfCellSize =  cellSize / 2.0;
+    vec2 halfCellSize = vec2(0.5, 0.5);
 
     vec2 aGrid = abs(mod(uv - halfChunkSize, chunkSize) - halfChunkSize) / derivative;
-    vec2 bGrid = abs(mod(uv - halfTileSize, tileSize) - halfTileSize) / derivative;
-    vec2 cGrid = abs(mod(uv - halfCellSize, cellSize) - halfCellSize) / derivative;
-    
-    vec2 fillMod = floor(uv / tileSize);    
-    
+    vec2 cGrid = abs(mod(uv - halfCellSize, 1.0) - halfCellSize) / derivative;
+
+    vec2 fillMod = floor(uv / tileSize);
+
     float oddness = fract((fillMod.x + fillMod.y) / 2.0) * 2.0;
-    
-    vec4 cellStrokeDynamic = (fillEven + fillOdd) / 2.2;
-    vec4 strokeDynamic = (fillEven + fillOdd) / 2.4;
+
+    vec4 fillEven = gridFloor;
+
+    // 0.9645, not 0.92 -- see grid.wgsl's matching comment for where this ratio actually comes from.
+    vec4 fillOdd = vec4(gridFloor.rgb * 0.9645, 1.0);
+
+    // Fades toward the FLOOR colour, not toward black -- see grid.wgsl's matching comment for why
+    // multiplying toward black worked only by coincidence for LCARS's near-black floor and made Light's
+    // pale-floor lines pull toward black (more contrast, not less) as they receded.
+    float lineDim = mix(1.0, 0.12, fadeT);
+    vec4 dimmedLine = vec4(mix(gridFloor.rgb, gridLine.rgb, lineDim), 1.0);
+
+    // A dim tint of the line colour, not the line colour itself -- the 1-unit sub-grid is meant to read as
+    // fine graph-paper texture, not another tier of the same bright line. Darken the floor FIRST, then
+    // tint toward the line colour -- see grid.wgsl's matching comment for why blending straight from
+    // floor to line only darkens meaningfully when the two are far apart in the first place.
+    vec3 minorBase = gridFloor.rgb * 0.9;
+    vec4 minorLine = vec4(mix(minorBase, dimmedLine.rgb, 0.15), 1.0);
+
+    // The sub-grid fades outright (a plain opacity fade -- there is no coarser sub-grid tier to hand off
+    // to). The main tile lines instead double their spacing (8, 16, 32, ...) as the footprint grows, the
+    // way a mipmap halves resolution instead of fading a texture to grey -- see grid.wgsl's matching
+    // comment for why that reads as "every 2nd line fades out" rather than the whole tier dimming evenly.
+    float minorLineFade = 1.0 - smoothstep(0.15, 0.6, pixelFootprint);
+
+    float mainBaseSize = tileSize.x;
+
+    // The footprint at which the first doubling begins -- NOT mainBaseSize itself; see grid.wgsl's
+    // matching comment for why that was stuck permanently at LOD 0 with no visible effect.
+    float mainLodOnset = 1.2;
+    float mainLod = log2(max(pixelFootprint / mainLodOnset, 1.0));
+    float mainLodFloor = floor(mainLod);
+    float mainLodFrac = mainLod - mainLodFloor;
+    float mainSpacing0 = mainBaseSize * exp2(mainLodFloor);
+    float mainSpacing1 = mainSpacing0 * 2.0;
+    vec2 halfSpacing0 = vec2(mainSpacing0 * 0.5);
+    vec2 halfSpacing1 = vec2(mainSpacing1 * 0.5);
+    vec2 bGrid0 = abs(mod(uv - halfSpacing0, mainSpacing0) - halfSpacing0) / derivative;
+    vec2 bGrid1 = abs(mod(uv - halfSpacing1, mainSpacing1) - halfSpacing1) / derivative;
 
     vec4 colorVal = mix(
-        fillEven, 
-        fillOdd,  
+        fillEven,
+        fillOdd,
         smoothstep(0.0, 1.0, (oddness))
-    );       
+    );
 
+    // gridFloor.a marks a ManaGridCoveFillet (0) vs an ordinary flat plane (1) -- see grid.wgsl's matching
+    // comment for why a cove's own cross-axis line has to be suppressed rather than drawn.
+    bool isFillet = gridFloor.a < 0.5;
+    float aLineDist = isFillet ? aGrid.x : min(aGrid.x, aGrid.y);
+    float bLineDist0 = isFillet ? bGrid0.x : min(bGrid0.x, bGrid0.y);
+    float bLineDist1 = isFillet ? bGrid1.x : min(bGrid1.x, bGrid1.y);
+    float cLineDist = isFillet ? cGrid.x : min(cGrid.x, cGrid.y);
+
+    // Finest tier first so the coarser, brighter tiers draw over it at their shared boundaries.
     colorVal = mix(
-        colorVal, 
-        cellStrokeDynamic, 
-        smoothstep(cScale, .0, min(cGrid.x, cGrid.y))
+        colorVal,
+        minorLine,
+        smoothstep(cScale, .0, cLineDist) * minorLineFade
     );
 
     colorVal = mix(
-        colorVal, 
-        strokeDynamic, 
-        smoothstep(aScale, .0, min(aGrid.x, aGrid.y))
+        colorVal,
+        dimmedLine,
+        smoothstep(aScale, .0, aLineDist)
     );
 
+    float mainLineMix0 = smoothstep(bScale, .0, bLineDist0);
+    float mainLineMix1 = smoothstep(bScale, .0, bLineDist1);
     colorVal = mix(
-        colorVal, 
-        strokeDynamic, 
-        smoothstep(bScale, .0, min(bGrid.x, bGrid.y))
+        colorVal,
+        dimmedLine,
+        mix(mainLineMix0, mainLineMix1, mainLodFrac)
     );
-     
+
     return colorVal;
 }
 

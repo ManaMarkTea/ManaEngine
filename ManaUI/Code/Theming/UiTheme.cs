@@ -4,7 +4,8 @@ namespace ManaUI
     public enum UiThemeKind
     {
         Dark,
-        Light
+        Light,
+        Lcars
     }
 
     /// <summary>
@@ -138,10 +139,45 @@ namespace ManaUI
             };
         }
 
+        // ----- 3D viewport ---------------------------------------------------------------------------
+        // Not part of the 2D UI, but a skin as thorough as LCARS reaches the editor's ground-plane grid
+        // too, not just its panels. Mana/Code/GameModes/VoxelEditorGameMode.cs owns the actual grid
+        // quads; ManaUiDockDemo pushes these two into their material whenever the theme changes.
+
+        /// <summary>Base tint of the 3D viewport's ground-plane grid -- the checkerboard cells.</summary>
+        public Vector4 GridFloor { get; set; } = UiColor.FromHex("#141518");
+
+        /// <summary>Tint of the grid lines drawn over <see cref="GridFloor"/>.</summary>
+        public Vector4 GridLine { get; set; } = UiColor.FromHex("#3A3D43");
+
+        /// <summary>
+        /// Multiplier on grid line width. 1 leaves the base thickness alone; a theme whose lines are meant
+        /// to read as glowing (LCARS) wants them wider than a plain graph-paper grid does.
+        /// <para>
+        /// A grid material carries this via <c>ManaMaterial.EmissionStrength</c> (a separate double field),
+        /// not <see cref="GridLine"/>'s own alpha -- WebGPU's per-object uniform is built generically from
+        /// <c>ManaRenderMeshInstance</c>, which populates material_emission.a from EmissionStrength and
+        /// ignores the material's own Emission.Value.W entirely, so stuffing this into GridLine's alpha
+        /// worked only on OpenGL (ManaGridShader.BindShader pushes Emission.Value there directly) and left
+        /// WebGPU reading a hardcoded 0 -- degenerate smoothstep(0, 0, x), no lines, every grid theme.
+        /// </para>
+        /// </summary>
+        public float GridLineThickness { get; set; } = 1.0f;
+
         // ----- metrics -------------------------------------------------------------------------------
 
         public CornerRadius CornerRadius { get; set; } = new CornerRadius(4.0f);
         public CornerRadius CornerRadiusLarge { get; set; } = new CornerRadius(8.0f);
+
+        /// <summary>
+        /// Rounding for controls that are a perfect square -- an icon toggle, a texture-slot chip -- rather
+        /// than a wide bar. Kept apart from <see cref="CornerRadius"/> because a theme is free to make that
+        /// one a full capsule (radius equal to half <see cref="ControlHeight"/>), and a capsule radius on a
+        /// square control is not a rounder square, it is a circle that swallows whatever icon sits inside
+        /// it. Defaults to the same value as <see cref="CornerRadius"/> so a theme that never touches either
+        /// token sees no change from before this existed.
+        /// </summary>
+        public CornerRadius CornerRadiusCompact { get; set; } = new CornerRadius(4.0f);
 
         /// <summary>Standard height for buttons, inputs and rows. Everything else spaces off this.</summary>
         public float ControlHeight { get; set; } = 24.0f;
@@ -201,7 +237,12 @@ namespace ManaUI
 
         public static UiTheme Create(UiThemeKind kind)
         {
-            return kind == UiThemeKind.Light ? Light() : Dark();
+            return kind switch
+            {
+                UiThemeKind.Light => Light(),
+                UiThemeKind.Lcars => Lcars(),
+                _ => Dark()
+            };
         }
 
         public static UiTheme Dark()
@@ -244,7 +285,116 @@ namespace ManaUI
 
                 Hover = new Vector4(0.06f, 0.20f, 0.40f, 0.07f),
                 Pressed = new Vector4(0.06f, 0.20f, 0.40f, 0.14f),
-                Selected = UiColor.FromHex("#BBD4F5")
+                Selected = UiColor.FromHex("#BBD4F5"),
+
+                // The classic light grey graph-paper grid -- unlike every other token here, this is what
+                // the viewport has always looked like (it never read the theme before now), so it stays
+                // put while Dark's own default gets to change underneath it. GridLine is the original
+                // shader's own (fillEven+fillOdd)/2.4 line colour, computed out by hand -- an earlier,
+                // wrong hand-computation of this (#545455) rendered roughly half as bright as the real
+                // original line, which is what made every line look too dark even at close range,
+                // regardless of anything the distance fade was doing.
+                GridFloor = UiColor.FromHex("#C6C4C7"),
+                GridLine = UiColor.FromHex("#A2A0A3")
+            };
+        }
+
+        /// <summary>
+        /// Star Trek console styling: solid colour blocks on a black void, capsule controls, oversized type.
+        /// <para>
+        /// Buttons are full capsules -- radius half of <see cref="ControlHeight"/> -- which the SDF
+        /// primitive already supports per-corner, so no shader work was needed for the shape itself. The
+        /// one true LCARS trait this token set cannot express is the elbow panel (an L-bend with unequal
+        /// arm widths sweeping into one rounded corner); that needs a dedicated primitive, not a theme.
+        /// </para>
+        /// <para>
+        /// Structural lines carry real LCARS hues (lilac border, gold emphasis, periwinkle divider) rather
+        /// than the black-on-black "no border" look a first pass used -- a real console reads as colourful
+        /// because its frame lines are colourful, not just its buttons, and a near-invisible border was
+        /// part of why that first pass read as flat and monochrome instead.
+        /// </para>
+        /// </summary>
+        public static UiTheme Lcars()
+        {
+            return new UiTheme
+            {
+                Kind = UiThemeKind.Lcars,
+
+                Background = UiColor.FromHex("#000000"),
+                Surface = UiColor.FromHex("#000000"),
+                SurfaceAlt = UiColor.FromHex("#1A1005"),
+                SurfaceRaised = UiColor.FromHex("#140D06"),
+                RowAlternate = UiColor.FromHex("#170F08"),
+
+                // Text sits on the black void in the cool pale blue real consoles use; text on a colour
+                // block is always black, which is what TextOnAccent carries.
+                Text = UiColor.FromHex("#CCCCFF"),
+                TextMuted = UiColor.FromHex("#8888AA"),
+                TextDisabled = UiColor.FromHex("#4A4A5C"),
+                TextOnAccent = UiColor.FromHex("#000000"),
+
+                // The classic LCARS orange block. Buttons are flat colour, not lit from above, so both
+                // gradients stay at zero.
+                Accent = UiColor.FromHex("#FF9900"),
+                AccentHover = UiColor.FromHex("#FFB238"),
+                AccentPressed = UiColor.FromHex("#CC7A00"),
+                SurfaceGradient = 0.0f,
+                AccentGradient = 0.0f,
+
+                // Lilac frame, gold emphasis, periwinkle dividers -- the trio of secondary hues a real
+                // console spreads across its line work so the console reads as colourful everywhere, not
+                // just wherever a button happens to sit.
+                Border = UiColor.FromHex("#CC99CC"),
+                BorderStrong = UiColor.FromHex("#FFCC66"),
+                Divider = UiColor.FromHex("#9999CC"),
+                BorderThickness = 2.0f,
+
+                Hover = new Vector4(1.0f, 1.0f, 1.0f, 0.10f),
+                Pressed = new Vector4(0.0f, 0.0f, 0.0f, 0.25f),
+
+                // LCARS "selected" reads as the salmon/red alert block, not a tinted accent.
+                Selected = UiColor.FromHex("#CC6666"),
+                FocusRing = UiColor.FromHex("#66CCFF"),
+
+                Danger = UiColor.FromHex("#FF6666"),
+                Warning = UiColor.FromHex("#FFCC66"),
+                Success = UiColor.FromHex("#66CCCC"),
+
+                // Chunky capsule controls, sized up from the base theme's density: a real console is read
+                // from across a room, not scanned like a code editor, so both the controls and the gaps
+                // between them are noticeably larger than the working-editor defaults.
+                ControlHeight = 36.0f,
+                CornerRadius = new CornerRadius(18.0f),
+                CornerRadiusLarge = new CornerRadius(28.0f),
+
+                // A modest, non-circular round for icon toggles and texture-slot chips -- see
+                // CornerRadiusCompact's own doc comment for why this can't just be CornerRadius.
+                CornerRadiusCompact = new CornerRadius(8.0f),
+
+                Spacing = 10.0f,
+                Padding = new Thickness(14.0f, 9.0f),
+                ControlPadding = new Thickness(18.0f, 7.0f),
+                ScrollBarThickness = 14.0f,
+                ScrollBarGap = 6.0f,
+
+                // Bumped well past the base sizes -- LCARS type is a shouted, oversized display face, not
+                // body copy. Antonio is an ultra-condensed display face in the same family as the
+                // Swiss911/Okuda face real consoles use; Bold is its heaviest static weight.
+                FontFamily = "Antonio-Bold",
+                FontFamilyMedium = "Antonio-SemiBold",
+                FontSize = 17.0f,
+                FontSizeSmall = 15.0f,
+                FontSizeHeading = 26.0f,
+
+                // The holodeck floor: a near-black void carrying a warm cast rather than a neutral one, so
+                // it reads as the same material as the gold grid glowing over it rather than a separate
+                // grey floor with gold lines dropped on top.
+                // Thickness left at the theme default (1) rather than doubled -- a fatter line is a fixed
+                // fraction of the antialiasing derivative, which grows as the camera pulls back, so a
+                // thicker constant made the grid clog up densely at a distance where the 1x default still
+                // read cleanly. See grid.wgsl/grid.frag for the derivative-based line math this scales.
+                GridFloor = UiColor.FromHex("#0A0805"),
+                GridLine = UiColor.FromHex("#FFCC66")
             };
         }
     }

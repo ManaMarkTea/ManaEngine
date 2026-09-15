@@ -38,32 +38,140 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     return output;
 }
 
+// Must match VoxelEditorGameMode.cs's gridSize -- the whole-plane boundary tier and the UV
+// reconstruction below both assume a plane's 0..1 UV spans exactly this many world units.
+const RoomSize : f32 = 512.0;
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-    let uv = input.uv0 * 256.0;
-    
+    // object.uv_transform lets a trimmed plane (the floor/wall quads cut back for VoxelEditorGameMode's
+    // rounded-corner coves) remap its own 0..1 UV back onto the coordinate the untrimmed room-sized grid
+    // expects, so tiles keep their true size and stay aligned across the seam with each cove fillet mesh.
+    let uv = (input.uv0 * object.uv_transform.xy + object.uv_transform.zw) * RoomSize;
+
     // Compute derivative for antialiasing
     let derivative = fwidth(uv);
-    
-    let aGrid = abs(fract(uv / 256.0 - 0.5) - 0.5) / (derivative / 256.0);
-    let bGrid = abs(fract(uv / 8.0 - 0.5) - 0.5) / (derivative / 8.0);
+
+    let aGrid = abs(fract(uv / RoomSize - 0.5) - 0.5) / (derivative / RoomSize);
     let cGrid = abs(fract(uv / 1.0 - 0.5) - 0.5) / (derivative / 1.0);
-    
-    let fillEven = vec4<f32>(0.7764706, 0.76862746, 0.78039217, 1.0);
-    let fillOdd = vec4<f32>(0.7490196, 0.7411765, 0.7529412, 1.0);
-    
+
+    // How many world units one screen pixel covers here -- not straight-line camera distance, which
+    // misses why a floor gets dense toward the horizon: a floor viewed at a grazing angle has a huge
+    // derivative (a one-pixel move crosses many world units) long before it is actually far away, while a
+    // wall viewed face-on keeps a small, roughly constant derivative regardless of distance. Fading on
+    // this instead is what makes a wall you're looking straight at stay untouched -- exactly the "fine at
+    // this distance once the wall is facing us" case a distance-only fade got wrong -- while a receding
+    // floor still fades. The same idea a mip/anisotropic filter uses to pick its detail level.
+    let pixelFootprint = max(derivative.x, derivative.y);
+
+    // Themed rather than fixed: object.material_albedo is the floor tint, object.material_emission.rgb is
+    // the line tint, both set per-theme in C# (see UiTheme.GridFloor/GridLine and VoxelEditorGameMode's
+    // grid quads) so the same shader draws a light-mode graph-paper floor and an LCARS holodeck grid
+    // alike. material_emission.a doubles as a line-thickness multiplier (see UiTheme.GridLineThickness) --
+    // the alpha channel is otherwise unused here, the same way PBR shaders reuse it for emissive strength.
+    let fillEven = object.material_albedo;
+
+    // 0.9645, not a rounder-looking 0.92 -- this is the actual ratio between the original shader's two
+    // hardcoded checkerboard colours (0.7490.../0.7765... etc averaged across channels), from back when
+    // fillOdd was its own constant rather than computed from fillEven. 0.92 was a guess made when this
+    // became theme-driven, and it darkened the checkerboard's alternating squares distinctly more than
+    // the original ever did.
+    let fillOdd = vec4<f32>(object.material_albedo.rgb * 0.9645, 1.0);
+
+    // Exponential rather than smoothstep: smoothstep(a,b,x) has ZERO slope at both ends of its range but
+    // its STEEPEST slope right in the middle, which is exactly what read as the fade hitting hardest at
+    // mid-distance. An exponential approach curve front-loads the change instead -- fastest right as the
+    // footprint starts growing, tapering off more and more the further out it goes -- so there is no
+    // concentrated "hit" anywhere, just a gradual, ever-slowing approach toward the floor value. tau is
+    // the characteristic distance: the curve is ~95% of the way to its floor by 3*tau, ~98% by 4*tau.
+    let fadeTau = 1.33;
+    let fadeT = 1.0 - exp(-pixelFootprint / fadeTau);
+
+    // Fades every line tier -- sub-grid, main tile, and whole-plane boundary alike -- toward the FLOOR
+    // colour (not toward black) as the footprint grows, on top of (not instead of) the sub-grid's fade and
+    // the main tier's LOD doubling: a line that recedes into its own floor reads as fading away, in either
+    // a dark or a light theme. Multiplying toward black instead (an earlier version of this) worked only
+    // by coincidence for LCARS's near-black floor -- against Light's pale floor it made the line pull
+    // toward black, i.e. MORE contrast with distance, the opposite of fading. Never fully to the floor
+    // colour -- a perfectly invisible line at extreme distance would just be an odd-shaped hole in the
+    // checkerboard rather than a faded line, but close to it.
+    let lineDim = mix(1.0, 0.12, fadeT);
+    let dimmedLineRgb = mix(object.material_albedo.rgb, object.material_emission.rgb, lineDim);
+    let lineColor = vec4<f32>(dimmedLineRgb, 1.0);
+
+    // Lines also get thinner with distance, not just dimmer -- the antialiasing width every tier's
+    // smoothstep uses below is scaled by this alongside lineThickness (see UiTheme.GridLineThickness),
+    // so a line that would otherwise stay a constant N pixels wide forever instead narrows as it recedes.
+    let thicknessFade = mix(1.0, 0.35, fadeT);
+    let lineThickness = object.material_emission.a * thicknessFade;
+
+    // A dim tint of the line colour rather than the line colour itself -- the 1-unit sub-grid is meant to
+    // read as fine graph-paper texture, not another tier of the same bright line, which is what made
+    // removing it entirely feel necessary before this dimmer version existed.
+    //
+    // Darken the floor FIRST, then tint toward the line colour -- blending straight from floor to line
+    // only darkens meaningfully when the two are far apart (LCARS: near-black floor, bright gold line).
+    // Light's floor and line are both light greys close together, so 18% of that tiny gap barely moved
+    // the colour at all, reading as "still basically the floor" rather than a visible sub-grid line. A
+    // flat darken guarantees real contrast against the floor regardless of how close floor and line
+    // start out; the tint afterward is what still gives LCARS's sub-grid its warm gold cast.
+    let minorBase = object.material_albedo.rgb * 0.9;
+    let minorLineColor = vec4<f32>(mix(minorBase, dimmedLineRgb, 0.15), 1.0);
+
+    // The sub-grid's 1-unit cells alias into visual noise at a much smaller footprint than the main tile
+    // lines do, so it fades out first (a plain opacity fade -- there is no coarser sub-grid tier to hand
+    // off to, so there is nothing to double). The whole-plane boundary line is left unfaded entirely --
+    // one line at the room's edge is never dense.
+    let minorLineFade = 1.0 - smoothstep(0.15, 0.6, pixelFootprint);
+
+    // The main tile lines don't just fade -- they double their spacing (8, 16, 32, ...) as the footprint
+    // grows, the way a mipmap halves resolution instead of just fading a texture to grey. mainLod is
+    // fractional: at mainLod=0.3, say, spacing is already 8*2^0=8 but 30% of the way toward needing 16,
+    // so mainLineMix0 (spacing 8) and mainLineMix1 (spacing 16, its immediate coarser neighbour) blend by
+    // that fraction. Because 16's lines are a subset of 8's (every other one, same phase), this reads as
+    // the in-between lines fading out first while the ones that survive to the next tier stay full
+    // strength -- exactly "fade out every 2nd one" -- rather than the whole tier dimming uniformly.
+    let mainBaseSize = 8.0;
+
+    // The footprint at which the first doubling begins -- NOT mainBaseSize itself. That would only start
+    // doubling once a pixel already spanned an entire 8-unit tile, which in practice never happens at any
+    // distance this editor's camera reaches (measured against the same pixelFootprint the sub-grid fades
+    // over, which tops out around 0.6), so the LOD was permanently stuck at 0 with no visible effect.
+    let mainLodOnset = 1.2;
+    let mainLod = log2(max(pixelFootprint / mainLodOnset, 1.0));
+    let mainLodFloor = floor(mainLod);
+    let mainLodFrac = mainLod - mainLodFloor;
+    let mainSpacing0 = mainBaseSize * exp2(mainLodFloor);
+    let mainSpacing1 = mainSpacing0 * 2.0;
+    let bGrid0 = abs(fract(uv / mainSpacing0 - 0.5) - 0.5) / (derivative / mainSpacing0);
+    let bGrid1 = abs(fract(uv / mainSpacing1 - 0.5) - 0.5) / (derivative / mainSpacing1);
+
     let fillMod = floor(uv / 8.0);
     let oddness = fract((fillMod.x + fillMod.y) / 2.0) * 2.0;
-    
-    let cellStrokeDynamic = (fillEven + fillOdd) / 2.2;
-    let strokeDynamic = (fillEven + fillOdd) / 2.4;
-    
+
     var colorVal = mix(fillEven, fillOdd, smoothstep(0.0, 1.0, oddness));
-    
-    // Apply grid lines using smoothstep
-    colorVal = mix(colorVal, cellStrokeDynamic, 1.0 - smoothstep(0.0, 1.0, min(cGrid.x, cGrid.y)));
-    colorVal = mix(colorVal, strokeDynamic, 1.0 - smoothstep(0.0, 2.0, min(bGrid.x, bGrid.y)));
-    colorVal = mix(colorVal, strokeDynamic, 1.0 - smoothstep(0.0, 4.0, min(aGrid.x, aGrid.y)));
-    
+
+    // material_albedo.a marks a ManaGridCoveFillet (0) vs an ordinary flat plane (1): a cove's
+    // cross-axis UV is an arc length that starts at 0 at both ends, which cannot be phase-aligned with
+    // the flat planes' tile grid at both the wall and floor seam simultaneously -- so its own
+    // cross-axis line is suppressed and only the sweep-axis lines (which do stay aligned, since that
+    // axis is the same 0..1-over-256-units range as the plane it continues from) draw, letting the
+    // wall/floor lines bend smoothly over the curve instead of picking up a stray ring at the seam.
+    let isFillet = object.material_albedo.a < 0.5;
+    let cLineDist = select(min(cGrid.x, cGrid.y), cGrid.x, isFillet);
+    let bLineDist0 = select(min(bGrid0.x, bGrid0.y), bGrid0.x, isFillet);
+    let bLineDist1 = select(min(bGrid1.x, bGrid1.y), bGrid1.x, isFillet);
+    let aLineDist = select(min(aGrid.x, aGrid.y), aGrid.x, isFillet);
+
+    // Finest tier first so the coarser, brighter tiers draw over it at their shared boundaries. The
+    // whole-plane boundary (aLineDist) is not faded -- see the pixelFootprint comment above.
+    let minorLineMix = (1.0 - smoothstep(0.0, 1.0 * lineThickness, cLineDist)) * minorLineFade;
+    let mainLineMix0 = 1.0 - smoothstep(0.0, 2.0 * lineThickness, bLineDist0);
+    let mainLineMix1 = 1.0 - smoothstep(0.0, 2.0 * lineThickness, bLineDist1);
+    let mainLineMix = mix(mainLineMix0, mainLineMix1, mainLodFrac);
+    colorVal = mix(colorVal, minorLineColor, minorLineMix);
+    colorVal = mix(colorVal, lineColor, mainLineMix);
+    colorVal = mix(colorVal, lineColor, 1.0 - smoothstep(0.0, 4.0 * lineThickness, aLineDist));
+
     return vec4<f32>(srgb_to_linear(colorVal.rgb), -1.0);
 }

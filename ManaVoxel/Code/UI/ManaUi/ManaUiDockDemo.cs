@@ -124,6 +124,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 root.Theme.BackdropBlur = saved.BackdropBlur;
             }
 
+            ApplyGridTheme(world, root.Theme);
+
             // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
             var shell = new ContentHost();
             shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
@@ -412,6 +414,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 state.Theme = kind;
                 Save();
                 root.Theme = UiTheme.Create(kind);
+                ApplyGridTheme(world, root.Theme);
 
                 // Rebuilt, not repainted: views capture theme colours as they're constructed.
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
@@ -901,7 +904,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                         new MenuItem("Dark", () => chooseTheme(UiThemeKind.Dark))
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Dark),
                         new MenuItem("Light", () => chooseTheme(UiThemeKind.Light))
-                            .Checkable(() => root.Theme.Kind == UiThemeKind.Light)),
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Light),
+                        new MenuItem("LCARS", () => chooseTheme(UiThemeKind.Lcars))
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Lcars)),
 
                     new MenuItem("Backdrop blur").WithItems(
                         BlurChoices.Select(blur => new MenuItem(BlurLabel(blur), () => chooseBlur(blur))
@@ -920,6 +925,56 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
+        }
+
+        /// <summary>The room's six faces (and, in LCARS, its four wall-to-wall coves) VoxelEditorGameMode names when it builds the scene.</summary>
+        private static readonly string[] GridPlaneNames =
+        {
+            "Grid Plane XZ", "Grid Plane Ceiling",
+            "Grid Plane YX", "Grid Plane ZY", "Grid Plane YX Far", "Grid Plane ZY Far",
+            "Grid Cove X0-Z0", "Grid Cove X0-ZFar", "Grid Cove XFar-ZFar", "Grid Cove XFar-Z0"
+        };
+
+        /// <summary>
+        /// Pushes the theme's viewport grid colours onto the live grid quads' materials.
+        /// <para>
+        /// Looked up by name rather than through a GameMode reference -- the grid quads are plain scene
+        /// nodes VoxelEditorGameMode creates once at startup, and nothing in that engine layer needs to
+        /// know a UI theme exists. This runs once at startup and again on every theme switch, so both the
+        /// initial paint and a live switch land on the same nodes.
+        /// </para>
+        /// </summary>
+        private static void ApplyGridTheme(global::Mana.ManaWorld? world, UiTheme theme)
+        {
+            if (world == null)
+            {
+                return;
+            }
+
+            lock (world.SceneLock)
+            {
+                foreach (var scene in world.Scenes)
+                {
+                    foreach (var node in scene.Children)
+                    {
+                        if (Array.IndexOf(GridPlaneNames, node.Name) < 0)
+                        {
+                            continue;
+                        }
+
+                        foreach (var renderer in node.GetComponents<global::Mana.MeshRendererComponent>())
+                        {
+                            // Albedo's alpha marks a cove fillet (0) vs a flat plane (1) for the grid
+                            // shaders -- see ManaGridCoveFillet.GenerateMaterial -- so it has to survive a
+                            // recolour, not get reset to the theme colour's own (always 1) alpha.
+                            var isFillet = renderer.Material.Albedo.Value.W;
+                            renderer.Material.Albedo.Value = theme.GridFloor with { W = isFillet };
+                            renderer.Material.Emission.Value = theme.GridLine;
+                            renderer.Material.EmissionStrength = theme.GridLineThickness;
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>Powers of two: the blur is a mip chain, so anything between two levels is interpolated.</summary>
