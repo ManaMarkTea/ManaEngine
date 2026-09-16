@@ -362,6 +362,12 @@ namespace Mana.Code
             // camera that also followed it round would spin, exactly as a strafe used to.
             if (!pawn.LocomotionEnabled)
             {
+                // Keep the edge detector current so landing with Space held cannot trigger a fresh jump.
+                jumpKeyWasDown = keyboard?.IsKeyPressed(Key.Space) == true;
+                if (!jumpKeyWasDown && pawn.IsJumpHeld)
+                {
+                    pawn.ReleaseJump();
+                }
                 pawn.DriveDirection = Vector3.Zero;
                 pawn.DriveTurnInput = 0.0f;
                 pawn.DesiredFacingDirection = null;

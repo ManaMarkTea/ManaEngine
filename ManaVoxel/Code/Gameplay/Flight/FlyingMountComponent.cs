@@ -15,7 +15,7 @@ namespace ManaVoxel.Code.Gameplay.Flight
     /// nothing had to be unbound to make room for it.
     /// </para>
     /// <para>
-    /// <b>The flight model is an energy trade, not a throttle.</b> There is no "fly faster" key. Pitching
+    /// <b>The flight model is an energy trade.</b> Surge spends vigor for speed; pitching
     /// down converts altitude into speed and pitching up spends speed to climb, exactly as gravity along
     /// the direction of travel would: <c>dv = -g * sin(pitch)</c>. That single line is what makes diving to
     /// build speed and then pulling up to convert it into height the whole game, rather than a detail. Drag
@@ -23,8 +23,9 @@ namespace ManaVoxel.Code.Gameplay.Flight
     /// level cruise settles at a speed well under what a dive can reach.
     /// </para>
     /// <para>
-    /// <b>Steering is the camera.</b> Heading comes from the boom's yaw and pitch, so the existing look
-    /// controls fly the mount with nothing new bound, and -- the part that matters -- the mount is never
+    /// <b>Steering follows the camera.</b> Heading approaches the boom's yaw and pitch at a bounded rate.
+    /// Left-drag holds the flight course for free look until right-drag or a turn key resumes steering.
+    /// A/D and the arrows turn, S brakes, and the mount is never
     /// the thing the camera is derived from. The coupling stays one-way, the same rule the on-foot controls
     /// live by (ManaSpringArmComponent.FollowTargetYaw): the camera leads, the ridden thing follows.
     /// </para>
@@ -151,6 +152,16 @@ namespace ManaVoxel.Code.Gameplay.Flight
         /// </summary>
         public float SurgeSpeedGain { get; set; } = 32.0f;
 
+        // Lens effects are additive to the player's configured FOV. Set both amounts to zero to disable.
+        public float SpeedFovDegrees { get; set; } = 10.0f;
+        public float SurgeFovDegrees { get; set; } = 7.0f;
+        public float SurgeFovSeconds { get; set; } = 0.8f;
+        public float FovResponsePerSecond { get; set; } = 6.0f;
+        public float TurnRateDegreesPerSecond { get; set; } = 180.0f;
+        public float KeyboardTurnDegreesPerSecond { get; set; } = 110.0f;
+        public float BrakeDeceleration { get; set; } = 35.0f;
+        public float FlightCameraDistance { get; set; } = 17.6f;
+
         // ---- Mounting ---------------------------------------------------------------------------------
 
         /// <summary>Clearance kept above whatever the ground probe finds.</summary>
@@ -194,7 +205,12 @@ namespace ManaVoxel.Code.Gameplay.Flight
         private bool surgeRightKeyWasDown;
         private float wingPhase;
 
-        private float savedArmLength;
+        private float yawRadians;
+        private float aimedYaw;
+        private float aimedPitch;
+        private bool orbitDetached;
+        private float surgeFovTimer;
+        private ManaSpringArmComponent? effectArm;
         private bool hadPhysics;
 
         private ManaPawnNode Pawn => (ManaPawnNode)Owner;
@@ -225,12 +241,21 @@ namespace ManaVoxel.Code.Gameplay.Flight
                     TrySurge();
                 }
 
-                UpdateFlight(deltaSeconds);
+                // Small bounded steps keep steering and ground contact stable during uneven frames.
+                var remaining = MathF.Min(deltaSeconds, 0.25f);
+                while (remaining > 0.0f && IsMounted)
+                {
+                    var step = MathF.Min(remaining, 1.0f / 120.0f);
+                    UpdateFlight(step);
+                    remaining -= step;
+                }
             }
             else if (jumpPressed && CanTakeOff())
             {
                 Mount();
             }
+
+            UpdateFlightCamera(deltaSeconds);
         }
 
         /// <summary>
@@ -264,6 +289,11 @@ namespace ManaVoxel.Code.Gameplay.Flight
             if (IsMounted)
             {
                 Dismount();
+            }
+            if (effectArm != null)
+            {
+                effectArm.FieldOfViewOffsetDegrees = 0.0f;
+                effectArm = null;
             }
         }
 
@@ -304,6 +334,11 @@ namespace ManaVoxel.Code.Gameplay.Flight
             // landing and dismount immediately.
             Speed = TakeoffSpeed;
             pitchRadians = 0.0f;
+            yawRadians = springArm != null ? springArm.YawRadians + MathF.PI : pawn.Rotation.Y;
+            aimedYaw = yawRadians;
+            aimedPitch = springArm?.PitchRadians ?? 0.0f;
+            orbitDetached = false;
+            surgeFovTimer = 0.0f;
             bankRadians = 0.0f;
             boostLift = 0.0f;
             boostClimbTimer = 0.0f;
@@ -314,12 +349,11 @@ namespace ManaVoxel.Code.Gameplay.Flight
 
             if (springArm != null)
             {
-                savedArmLength = springArm.ArmLength;
-
-                // Pulled back, because the mount is several times the character's size and a boom framed
-                // for a person puts the viewer inside the wings.
-                springArm.ArmLength = MathF.Min(savedArmLength * 2.2f, springArm.MaxArmLength);
-                springArm.SnapToTarget();
+                // A minimum framing distance, not a multiplier: repeated takeoffs must not keep zooming out.
+                springArm.ArmLength = Math.Clamp(MathF.Max(springArm.ArmLength,
+                    FlightCameraDistance * riderHeight / 2.0f), springArm.MinArmLength, springArm.MaxArmLength);
+                springArm.FollowTargetYaw = false;
+                effectArm = springArm;
             }
 
             ApplyTransforms(position);
@@ -371,6 +405,7 @@ namespace ManaVoxel.Code.Gameplay.Flight
 
             Charges -= 1.0f;
             Speed = MathF.Min(Speed + SurgeSpeedGain, MaxSpeed);
+            surgeFovTimer = SurgeFovSeconds;
             return true;
         }
 
@@ -402,14 +437,15 @@ namespace ManaVoxel.Code.Gameplay.Flight
             }
 
             var springArm = FindSpringArm();
-            if (springArm != null && savedArmLength > 0.0f)
+            if (springArm != null)
             {
-                springArm.ArmLength = savedArmLength;
-                springArm.SnapToTarget();
+                // Keep the player's current zoom and exclude the newly-created capsule from the probe.
+                springArm.IgnoreBody = pawn.Body;
             }
 
             Speed = 0.0f;
             boostLift = 0.0f;
+            surgeFovTimer = 0.0f;
             IsStalling = false;
 
             MountStateChanged?.Invoke(false);
@@ -424,10 +460,38 @@ namespace ManaVoxel.Code.Gameplay.Flight
             // Heading is the camera's. The boom's yaw is a camera yaw, and a camera looks down its own -Z
             // while this rig faces +Z, so the two are half a turn apart -- the same conversion the walking
             // controls make.
-            var yawRadians = (springArm?.YawRadians ?? Owner.Rotation.Y) + MathF.PI;
+            var keyboard = Context.GameMode?.UiWantsKeyboard == true
+                ? null : Context.Input?.Keyboards.FirstOrDefault();
+            var turn = (keyboard?.IsKeyPressed(Key.D) == true || keyboard?.IsKeyPressed(Key.Right) == true ? 1 : 0)
+                - (keyboard?.IsKeyPressed(Key.A) == true || keyboard?.IsKeyPressed(Key.Left) == true ? 1 : 0);
+            var braking = keyboard?.IsKeyPressed(Key.S) == true || keyboard?.IsKeyPressed(Key.Down) == true;
 
+            if (springArm != null)
+            {
+                springArm.FollowTargetYaw = false;
+                if (springArm.IsSteerGestureActive || turn != 0)
+                    orbitDetached = false;
+                else if (springArm.IsOrbitGestureActive)
+                    orbitDetached = true;
+
+                if (!orbitDetached)
+                {
+                    springArm.AddYawTurn(-turn * KeyboardTurnDegreesPerSecond.ToRadians() * deltaSeconds);
+                    aimedYaw = springArm.YawRadians + MathF.PI;
+                    aimedPitch = springArm.PitchRadians;
+                }
+            }
+            else
+            {
+                aimedYaw -= turn * KeyboardTurnDegreesPerSecond.ToRadians() * deltaSeconds;
+            }
+
+            var previousYaw = yawRadians;
+            yawRadians = WrapRadians(yawRadians + Math.Clamp(WrapRadians(aimedYaw - yawRadians),
+                -TurnRateDegreesPerSecond.ToRadians() * deltaSeconds,
+                TurnRateDegreesPerSecond.ToRadians() * deltaSeconds));
             var targetPitch = Math.Clamp(
-                springArm?.PitchRadians ?? 0.0f,
+                aimedPitch,
                 MinPitchDegrees.ToRadians(),
                 MaxPitchDegrees.ToRadians());
 
@@ -460,6 +524,8 @@ namespace ManaVoxel.Code.Gameplay.Flight
             var flapTerm = FlapAcceleration * MathF.Max(0.0f, 1.0f - (Speed / MathF.Max(CruiseSpeed, 0.01f)));
 
             Speed = Math.Clamp(Speed + ((gravityTerm + dragTerm + flapTerm) * deltaSeconds), 0.0f, MaxSpeed);
+            if (braking)
+                Speed = MathF.Max(0.0f, Speed - BrakeDeceleration * deltaSeconds);
 
             Charges = MathF.Min(
                 MaxCharges,
@@ -484,9 +550,18 @@ namespace ManaVoxel.Code.Gameplay.Flight
 
             var position = flightPosition + (velocity * deltaSeconds);
 
+            // Probe the travelled segment too: a downward ground ray cannot see a cliff face, and
+            // checking only the end position lets a fast surge pass through a thin wall.
+            if (TryResolveFlightContact(position, out var contactPosition))
+            {
+                ApplyTransforms(contactPosition);
+                Dismount();
+                return;
+            }
+
             // Bank into the turn, from how fast the heading is actually changing. Presentation only -- it
             // never feeds back into where the mount goes.
-            var yawRate = WrapRadians(yawRadians - (Owner.Rotation.Y)) / deltaSeconds;
+            var yawRate = WrapRadians(yawRadians - previousYaw) / deltaSeconds;
             var targetBank = Math.Clamp(-yawRate * 0.35f, -MaxBankDegrees.ToRadians(), MaxBankDegrees.ToRadians());
             bankRadians = MoveToward(bankRadians, targetBank, BankRateDegreesPerSecond.ToRadians() * deltaSeconds);
 
@@ -522,9 +597,6 @@ namespace ManaVoxel.Code.Gameplay.Flight
         private void ApplyTransforms(Vector3 position)
         {
             flightPosition = position;
-
-            var springArm = FindSpringArm();
-            var yawRadians = (springArm?.YawRadians ?? Owner.Rotation.Y) + MathF.PI;
 
             // Pitch is negated going onto the node, and must be. Rotation.X spins a node about +X, which
             // carries its +Z toward -Y -- so for a rig that faces +Z, a positive Rotation.X is nose-DOWN.
@@ -601,6 +673,27 @@ namespace ManaVoxel.Code.Gameplay.Flight
             return true;
         }
 
+        private bool TryResolveFlightContact(Vector3 position, out Vector3 contactPosition)
+        {
+            contactPosition = position;
+            var physics = Context.Physics;
+            var displacement = position - flightPosition;
+            var distance = displacement.Length();
+            if (physics == null || distance < 0.0001f)
+                return false;
+
+            var direction = displacement / distance;
+            var handler = new ExcludeBodyRayHandler(new BepuPhysics.BodyHandle(-1));
+            var clearance = MathF.Max(GroundClearance, 0.1f);
+            physics.Simulation.RayCast(flightPosition, direction, distance + clearance,
+                physics.BufferPool, ref handler, 0);
+            if (!handler.Hit)
+                return false;
+
+            contactPosition = flightPosition + direction * MathF.Max(0.0f, handler.Distance - clearance);
+            return true;
+        }
+
         private ManaSpringArmComponent? FindSpringArm()
         {
             foreach (var component in Owner.Components)
@@ -612,6 +705,31 @@ namespace ManaVoxel.Code.Gameplay.Flight
             }
 
             return null;
+        }
+
+        private void UpdateFlightCamera(float deltaSeconds)
+        {
+            var activeArm = IsMounted ? FindSpringArm() : effectArm;
+            if (!ReferenceEquals(activeArm, effectArm))
+            {
+                if (effectArm != null)
+                    effectArm.FieldOfViewOffsetDegrees = 0.0f;
+                effectArm = activeArm;
+            }
+            if (effectArm == null)
+                return;
+
+            var speedBlend = Math.Clamp((Speed - CruiseSpeed) / MathF.Max(MaxSpeed - CruiseSpeed, 0.01f), 0.0f, 1.0f);
+            var surgeBlend = Math.Clamp(surgeFovTimer / MathF.Max(SurgeFovSeconds, 0.01f), 0.0f, 1.0f);
+            var target = IsMounted ? SpeedFovDegrees * speedBlend + SurgeFovDegrees * surgeBlend : 0.0f;
+            var blend = 1.0f - MathF.Exp(-MathF.Max(FovResponsePerSecond, 0.0f) * deltaSeconds);
+            effectArm.FieldOfViewOffsetDegrees += (target - effectArm.FieldOfViewOffsetDegrees) * blend;
+            surgeFovTimer = MathF.Max(0.0f, surgeFovTimer - deltaSeconds);
+            if (!IsMounted && MathF.Abs(effectArm.FieldOfViewOffsetDegrees) < 0.001f)
+            {
+                effectArm.FieldOfViewOffsetDegrees = 0.0f;
+                effectArm = null;
+            }
         }
 
         /// <summary>

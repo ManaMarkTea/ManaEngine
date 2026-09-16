@@ -2089,7 +2089,7 @@ namespace ManaGeoTools.Code.Planet
             var realWorldAltitudeMeters = sceneLocalAltitude * metersPerSceneUnit;
 
             var viewportHeightPixels = MathF.Max(1f, Context.Window.Size.Y);
-            var visibleHeightMeters = 2f * realWorldAltitudeMeters * MathF.Tan(camera.FieldOfViewDegrees.ToRadians() * 0.5f);
+            var visibleHeightMeters = 2f * realWorldAltitudeMeters * MathF.Tan(camera.EffectiveFieldOfViewDegrees.ToRadians() * 0.5f);
             return visibleHeightMeters / viewportHeightPixels;
         }
 

@@ -144,7 +144,7 @@ namespace Mana.Code.GameModes
         {
             var player = _playMode?.Player;
             var name = player?.Name ?? "Character";
-            return $"{name}  --  WASD move, Shift run, Space jump, C camera, Esc stop";
+            return $"{name}  --  WASD move, Shift run, Space jump (again to fly; Space climb, Shift surge, A/D turn, S brake), C camera, Esc stop";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------

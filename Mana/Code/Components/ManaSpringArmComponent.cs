@@ -29,6 +29,9 @@ namespace Mana
         public float MinArmLength { get; set; } = 1.0f;
         public float MaxArmLength { get; set; } = 40.0f;
 
+        // Temporary gameplay lens effects leave the camera's configured FOV untouched.
+        public float FieldOfViewOffsetDegrees { get; set; }
+
         public float YawRadians { get; set; }
         public float PitchRadians { get; set; } = -12.0f.ToRadians();
         public float MinPitchDegrees { get; set; } = -80.0f;

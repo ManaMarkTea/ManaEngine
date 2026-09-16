@@ -28,6 +28,8 @@ namespace Mana
         public float FarClipPlane = 1000.0f;
         public float AspectRatio = 1.0f;
         public float FieldOfViewDegrees = 55.0f;
+        public float EffectiveFieldOfViewDegrees => Math.Clamp(
+            FieldOfViewDegrees + (AttachedSpringArm?.FieldOfViewOffsetDegrees ?? 0.0f), 1.0f, 150.0f);
         public float OrthographicHeight = 80.0f;
         public float PanSpeed = 1.0f;
         public bool TouchpadPanInOrthographic = true;
@@ -98,10 +100,10 @@ namespace Mana
             }
             else
             {
-                _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane);
+                _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(EffectiveFieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane);
             }
 
-            float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
+            float planeHeight = NearClipPlane * MathF.Tan(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
             float planeWidth = planeHeight * AspectRatio;
 
             ViewParams = new Vector3(planeWidth, planeHeight, NearClipPlane);
@@ -214,7 +216,7 @@ namespace Mana
         private void FrameWorldBounds(Vector3 worldCenter, float worldRadius)
         {
             var radius = MathF.Max(worldRadius, 0.05f);
-            var distance = (radius / MathF.Sin(FieldOfViewDegrees.ToRadians() * 0.5f)) * FramingPaddingMultiplier;
+            var distance = (radius / MathF.Sin(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f)) * FramingPaddingMultiplier;
             FlyToWorldPosition(worldCenter, distance);
         }
 
@@ -257,6 +259,7 @@ namespace Mana
         public void DetachFromSpringArm()
         {
             AttachedSpringArm = null;
+            UpdateProjection();
 
             // Detaching mid-drag is a real path -- stopping play releases the pawn, which detaches the
             // boom -- and nothing else would ever come back to give the pointer back.
@@ -302,6 +305,7 @@ namespace Mana
             }
 
             springArm.Evaluate(deltaSeconds);
+            UpdateProjection();
 
             Owner.Position = springArm.CameraPosition;
 
@@ -657,7 +661,7 @@ namespace Mana
             }
 
             float targetDistance = GetViewCenterDistance();
-            float visibleHeight = 2.0f * targetDistance * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f);
+            float visibleHeight = 2.0f * targetDistance * MathF.Tan(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f);
             return visibleHeight / viewportHeight;
         }
 
@@ -840,7 +844,7 @@ namespace Mana
 
             shapes.AddSphere(transform.Translation, Colors.Red, 0.004f).Name = "Camera Debug Ray Origin";
             {
-                float planeHeight = NearClipPlane * MathF.Tan(FieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
+                float planeHeight = NearClipPlane * MathF.Tan(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
                 float planeWidth = planeHeight * AspectRatio;
 
                 ViewParams = new Vector3(planeWidth, planeHeight, NearClipPlane);

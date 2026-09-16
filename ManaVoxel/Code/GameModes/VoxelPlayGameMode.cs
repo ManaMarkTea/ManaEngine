@@ -226,7 +226,7 @@ namespace Mana.Code.GameModes
             Context.World.BeginPlay();
 
             _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to fly; " +
-                        "then Space climbs and Shift dashes), C camera, Esc quit";
+                        "then Space climbs, Shift surges, A/D turn, S brakes; right-drag steers, left-drag looks), C camera, Esc quit";
         }
 
         public override void Update(double deltaTime)

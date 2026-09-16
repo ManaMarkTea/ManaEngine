@@ -55,6 +55,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 .Register(new MeshRendererWidget())
                 .Register(new LightWidget())
                 .Register(new CameraWidget())
+                .Register(new FlyingMountWidget())
                 .Register(new CameraMouseInputWidget())
                 .Register(new MaterialWidget())
                 .Register(new PbrShaderWidget())

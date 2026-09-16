@@ -396,6 +396,8 @@ public static class FlyingMountChecks
         var backArmLength = backArm.ArmLength;
         backMount.Mount();
         Fly(backPawn, backArm, -30.0f, 60);
+        backArm.AddZoomInput(-2.0f);
+        backArmLength = backArm.ArmLength;
         backMount.Dismount();
 
         Check("dismounting hands the pawn back its own legs",
@@ -404,11 +406,133 @@ public static class FlyingMountChecks
         Check("takes the vehicle out of the scene",
             !backPawn.Context.World.DefaultScene.Children.Any(node => node.Name == "Flying Mount"));
 
-        Check("restores the boom", MathF.Abs(backArm.ArmLength - backArmLength) < 0.01f,
+        Check("landing preserves the chosen flight zoom", MathF.Abs(backArm.ArmLength - backArmLength) < 0.01f,
             $"{backArm.ArmLength:0.#} back to {backArmLength:0.#}");
 
         Check("and leaves the character standing upright, not lying where the dive left it",
             MathF.Abs(backPawn.Rotation.X) < 1e-6f && MathF.Abs(backPawn.Rotation.Z) < 1e-6f,
             $"pitch {backPawn.Rotation.X.ToDegrees():0.#}, roll {backPawn.Rotation.Z.ToDegrees():0.#} deg");
+
+        backMount.Mount();
+        Check("repeated takeoffs do not multiply the camera distance",
+            MathF.Abs(backArm.ArmLength - backArmLength) < 0.01f);
+
+        // A lens effect must be visible, bounded, optional, and cleaned up even when play ends mid-surge.
+        var (fovPawn, fovArm, fovMount) = CreateRider();
+        fovMount.Mount();
+        Fly(fovPawn, fovArm, 0.0f, 60);
+        Check("cruising leaves the base lens alone", fovArm.FieldOfViewOffsetDegrees == 0.0f);
+        fovMount.TrySurge();
+        Fly(fovPawn, fovArm, 0.0f, 10);
+        Check("surge smoothly widens the lens", fovArm.FieldOfViewOffsetDegrees > 1.0f
+            && fovArm.FieldOfViewOffsetDegrees < fovMount.SpeedFovDegrees + fovMount.SurgeFovDegrees);
+        var surgedFov = fovArm.FieldOfViewOffsetDegrees;
+        fovMount.Dismount();
+        Check("landing does not snap the lens", fovArm.FieldOfViewOffsetDegrees == surgedFov);
+        Fly(fovPawn, fovArm, 0.0f, 120);
+        Check("the lens returns to normal on foot", fovArm.FieldOfViewOffsetDegrees == 0.0f);
+        fovMount.Mount();
+        fovMount.SpeedFovDegrees = 0.0f;
+        fovMount.SurgeFovDegrees = 0.0f;
+        fovMount.TrySurge();
+        Fly(fovPawn, fovArm, 0.0f, 30);
+        Check("speed lens effects can be disabled", fovArm.FieldOfViewOffsetDegrees == 0.0f);
+        fovMount.SpeedFovDegrees = 10.0f;
+        Fly(fovPawn, fovArm, 0.0f, 30);
+        fovMount.EndPlay();
+        Check("leaving play clears the lens immediately", fovArm.FieldOfViewOffsetDegrees == 0.0f);
+
+        var (orbitPawn, orbitArm, orbitMount) = CreateRider();
+        orbitArm.PitchRadians = 0.0f;
+        orbitMount.Mount();
+        var course = orbitPawn.Rotation.Y;
+        orbitArm.IsOrbitGestureActive = true;
+        orbitArm.YawRadians += MathF.PI / 2.0f;
+        Fly(orbitPawn, orbitArm, 50.0f, 60);
+        orbitArm.Evaluate(FrameSeconds);
+        Check("left-drag looks around without steering or climbing",
+            MathF.Abs(MathF.IEEERemainder(orbitPawn.Rotation.Y - course, MathF.Tau)) < 0.001f
+            && MathF.Abs(orbitPawn.Rotation.X) < 0.001f);
+        orbitArm.IsOrbitGestureActive = false;
+        Fly(orbitPawn, orbitArm, 50.0f, 30);
+        Check("releasing free look retains the flight course",
+            MathF.Abs(MathF.IEEERemainder(orbitPawn.Rotation.Y - course, MathF.Tau)) < 0.001f);
+        orbitArm.IsSteerGestureActive = true;
+        Fly(orbitPawn, orbitArm, 0.0f, 1);
+        var firstTurn = MathF.Abs(MathF.IEEERemainder(orbitPawn.Rotation.Y - course, MathF.Tau));
+        Check("right-drag resumes steering without an instant right-angle turn",
+            firstTurn > 0.001f && firstTurn <= orbitMount.TurnRateDegreesPerSecond.ToRadians() * FrameSeconds + 0.001f);
+        Fly(orbitPawn, orbitArm, 0.0f, 60);
+        Check("the mount completes the requested turn",
+            MathF.Abs(MathF.IEEERemainder(orbitPawn.Rotation.Y - orbitArm.YawRadians - MathF.PI, MathF.Tau)) < 0.001f);
+
+        var (noArmPawn, noArm, noArmMount) = CreateRider();
+        noArmPawn.Components.Remove(noArm);
+        noArmPawn.Rotation = new Vector3(0.0f, 0.7f, 0.0f);
+        noArmMount.Mount();
+        Fly(noArmPawn, noArm, 0.0f, 60);
+        Check("flight without a camera arm keeps its heading instead of reversing every frame",
+            MathF.Abs(noArmPawn.Rotation.Y - 0.7f) < 0.001f);
+
+        Vector3? referencePosition = null;
+        float referenceSpeed = 0.0f;
+        foreach (var fps in new[] { 30, 60, 144 })
+        {
+            var (ratePawn, rateArm, rateMount) = CreateRider();
+            rateMount.Mount();
+            rateArm.PitchRadians = -35.0f.ToRadians();
+            for (var frame = 0; frame < fps * 2; frame++)
+            {
+                ManaTime.GlobalTime.DeltaTime = TimeSpan.FromSeconds(1.0 / fps);
+                ratePawn.UpdateTransform();
+            }
+            if (referencePosition.HasValue)
+                Check($"flight is consistent at {fps} fps", Vector3.Distance(referencePosition.Value, ratePawn.Position) < 0.5f
+                    && MathF.Abs(referenceSpeed - rateMount.Speed) < 0.2f);
+            else
+            {
+                referencePosition = ratePawn.Position;
+                referenceSpeed = rateMount.Speed;
+            }
+        }
+
+        var (landPawn, landArm, landMount) = CreateRider();
+        var physics = new ManaPhysics(landPawn.Context);
+        landPawn.Context.Physics = physics;
+        var floor = new ManaSceneNode(landPawn.Context, Matrix4x4.Identity);
+        floor.UpdateTransform();
+        physics.AddBoxBody(floor, new Vector3(1000.0f, 1.0f, 1000.0f), new Vector3(0.0f, -0.5f, 0.0f));
+        landPawn.Position = new Vector3(0.0f, 20.0f, 0.0f);
+        landPawn.EnablePhysics();
+        landMount.Mount();
+        landArm.AddZoomInput(-1.0f);
+        var landingZoom = landArm.ArmLength;
+        landArm.ProbeForCollision = true;
+        for (var frame = 0; frame < 120; frame++)
+        {
+            Fly(landPawn, landArm, -65.0f, 1);
+            landArm.Evaluate(FrameSeconds);
+        }
+        Check("a fast dive lands on a real collider", !landMount.IsMounted && landPawn.Body != null);
+        Check("the landing probe ignores the restored player capsule", ReferenceEquals(landArm.IgnoreBody, landPawn.Body));
+        landArm.ProbeForCollision = true;
+        landArm.Evaluate(FrameSeconds);
+        Check("landing neither resets zoom nor collapses the camera into the rider",
+            MathF.Abs(landArm.ArmLength - landingZoom) < 0.001f && landArm.CurrentArmLength > landingZoom * 0.9f,
+            $"requested {landArm.ArmLength:0.##}, actual {landArm.CurrentArmLength:0.##}, expected {landingZoom:0.##}");
+
+        var wall = new ManaSceneNode(landPawn.Context, Matrix4x4.Identity);
+        wall.UpdateTransform();
+        physics.AddBoxBody(wall, new Vector3(100.0f, 100.0f, 0.1f), new Vector3(0.0f, 40.0f, -12.0f));
+        landPawn.Position = new Vector3(0.0f, 20.0f, 0.0f);
+        landArm.YawRadians = 0.0f;
+        landArm.PitchRadians = 0.0f;
+        landMount.Mount();
+        landMount.TrySurge();
+        landMount.TrySurge();
+        ManaTime.GlobalTime.DeltaTime = TimeSpan.FromSeconds(0.2);
+        landMount.UpdateComponent();
+        Check("a surge during a hitch cannot fly through a thin wall",
+            !landMount.IsMounted && landPawn.Position.Z > -12.0f && landPawn.Body != null);
     }
 }
