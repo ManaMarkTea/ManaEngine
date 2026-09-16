@@ -5,6 +5,7 @@ using Mana.Code;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using ManaCore.Graphics;
+using ManaCore.Input;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 
@@ -61,6 +62,8 @@ namespace Mana
         // for a held drag.
         private MouseGestureLatch _rightMouseGesture;
         private MouseGestureLatch _middleMouseGesture;
+        private MouseGestureLatch _leftMouseGesture;
+        private bool _pointerCaptureActive;
 
         Queue<float> _deltaHistoryX = new Queue<float>();
         Queue<float> _deltaHistoryY = new Queue<float>();
@@ -254,6 +257,37 @@ namespace Mana
         public void DetachFromSpringArm()
         {
             AttachedSpringArm = null;
+
+            // Detaching mid-drag is a real path -- stopping play releases the pawn, which detaches the
+            // boom -- and nothing else would ever come back to give the pointer back.
+            ReleasePointerCapture();
+        }
+
+        /// <summary>
+        /// Gives the pointer back if this camera is holding it. Safe to call when it is not.
+        /// </summary>
+        public void ReleasePointerCapture()
+        {
+            if (!_pointerCaptureActive)
+            {
+                return;
+            }
+
+            _pointerCaptureActive = false;
+            ManaPointerCapture.IsActive = false;
+
+            try
+            {
+                var mouse = Context.Input?.Mice.FirstOrDefault();
+                if (mouse != null && mouse.Cursor.IsSupported(CursorMode.Normal))
+                {
+                    mouse.Cursor.CursorMode = CursorMode.Normal;
+                }
+            }
+            catch
+            {
+                // Same reasoning as UpdatePointerCapture: never fail a frame over the cursor.
+            }
         }
 
         // Called from ManaWorld.Update after the scenes have updated. Split out from UpdateComponent
@@ -289,8 +323,13 @@ namespace Mana
             UpdateViewMatrix();
         }
 
-        // Same gestures as free flight, redirected at the boom: right-drag orbits, scroll changes the
-        // arm length instead of the fly speed. The pose itself is applied later, in ApplyAttachedPose.
+        // Same gestures as free flight, redirected at the boom: either mouse button looks around, scroll
+        // changes the arm length instead of the fly speed. The pose itself is applied later, in
+        // ApplyAttachedPose.
+        //
+        // Right and left are both fed to the boom and differ only in what they tell the character to do
+        // about it -- see ManaSpringArmComponent.IsSteerGestureActive. Left is opt-in because in the
+        // editor a left-press already means something (OrbitOnLeftDrag).
         private void UpdateAttachedInput()
         {
             var springArm = AttachedSpringArm!;
@@ -299,12 +338,30 @@ namespace Mana
             var externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
             var uiCapturesMouse = GetUiWantsCaptureMouse() || externalCapturesMouse;
 
+            // Evaluated as two separate calls rather than one short-circuited expression, for the same
+            // reason the free camera does: each button owns a latch that has to be advanced every frame.
+            var steerActive = _rightMouseGesture.Update(mouseState.IsButtonPressed(MouseButton.Right), uiCapturesMouse);
+            var leftDown = springArm.MouseLookControls && mouseState.IsButtonPressed(MouseButton.Left);
+            var orbitActive = _leftMouseGesture.Update(leftDown, uiCapturesMouse);
+
+            // Published even on the frames the mouse does not move: what reads these needs to know the
+            // drag is still held, not that it moved.
+            springArm.IsSteerGestureActive = steerActive;
+            springArm.IsOrbitGestureActive = orbitActive;
+
+            var lookActive = steerActive || orbitActive;
+
+            // The pointer is grabbed for the whole drag so a long turn is not cut short by the edge of
+            // the screen. Grabbing and releasing both teleport the OS pointer, so the frame either
+            // happens on contributes one enormous bogus delta -- hence dropping that frame's motion,
+            // which costs nothing perceptible at the start or end of a drag.
+            var captureChanged = UpdatePointerCapture(mouseState, lookActive && springArm.MouseLookControls);
+
             const float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
-            var orbitActive = _rightMouseGesture.Update(mouseState.IsButtonPressed(MouseButton.Right), uiCapturesMouse);
-            UpdateAverage(delta, orbitActive, ref dxAvg, ref dyAvg);
+            UpdateAverage(delta, lookActive && !captureChanged, ref dxAvg, ref dyAvg);
 
-            if (orbitActive)
+            if (lookActive)
             {
                 // Same 0.4 scaling as the free camera's look, so the two modes feel identical.
                 springArm.AddLookInput(dxAvg * 0.4f, dyAvg * 0.4f);
@@ -318,6 +375,53 @@ namespace Mana
                     springArm.AddZoomInput(scroll.Y);
                 }
             }
+        }
+
+        /// <summary>
+        /// Hides and locks the pointer for the duration of a look drag, and puts it back afterwards.
+        /// Returns whether the state changed this frame, which is the caller's cue to discard this
+        /// frame's mouse delta.
+        /// </summary>
+        private bool UpdatePointerCapture(IMouse mouseState, bool wanted)
+        {
+            if (wanted == _pointerCaptureActive)
+            {
+                return false;
+            }
+
+            _pointerCaptureActive = wanted;
+
+            // Set before touching the cursor: the ImGui controllers write the cursor mode from their own
+            // state every frame, and this is what tells them to leave it alone (see ManaPointerCapture).
+            ManaPointerCapture.IsActive = wanted;
+
+            try
+            {
+                if (wanted)
+                {
+                    // Raw first for unscaled motion; Disabled is the same lock without that, and Hidden
+                    // at least takes the cursor out of the way on a platform offering neither.
+                    foreach (var mode in new[] { CursorMode.Raw, CursorMode.Disabled, CursorMode.Hidden })
+                    {
+                        if (mouseState.Cursor.IsSupported(mode))
+                        {
+                            mouseState.Cursor.CursorMode = mode;
+                            break;
+                        }
+                    }
+                }
+                else if (mouseState.Cursor.IsSupported(CursorMode.Normal))
+                {
+                    mouseState.Cursor.CursorMode = CursorMode.Normal;
+                }
+            }
+            catch
+            {
+                // A backend with no cursor control at all (the browser) still gets a working look drag,
+                // just without the grab -- so this is not worth failing a frame over.
+            }
+
+            return true;
         }
 
         public override void UpdateComponent()

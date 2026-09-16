@@ -65,8 +65,6 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public float RightWidth { get; set; }
 
-        public float TopHeight { get; set; }
-
         public float BottomHeight { get; set; }
 
         public DockLayoutNode? Left { get; set; }

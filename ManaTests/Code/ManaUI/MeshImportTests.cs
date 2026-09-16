@@ -199,49 +199,51 @@ public static class MeshImportChecks
 
         MeshThumbnailImages.Reset();
 
-        // Seven format toggles in a 320px-wide list column do not fit on one line, which is the reason
-        // WrapPanel exists.
-        // Found by content, not by being the first WrapPanel in the tree: the asset grid is a WrapPanel now
-        // as well, and it comes first.
-        var wrap = FindAll<WrapPanel>(root.Content!)
-            .FirstOrDefault(panel => panel.Children.Any(child => child is CheckBox));
-        // Seven toggles now fit one line at this width -- the header row was reshuffled and the theme
-        // tightened, which is the better outcome. What still has to hold is that they wrap rather than
-        // overflow when the room is not there, so that is checked at a width where it is not.
-        Check("the panel has format toggles", wrap != null, $"{wrap?.Children.Count ?? 0} toggles");
+        // Seven checkboxes in a row used to be the format filter, wrapping to two lines in a narrow panel.
+        // That whole row collapsed into one dropdown button instead, so what matters now is: the button
+        // itself is compact and always in the panel, opening it reveals all seven formats as checkboxes in
+        // a popup (unconstrained by the panel's own width), and toggling one actually changes what the
+        // library considers enabled.
+        var formatsButton = FindAll<Button>(root.Content!)
+            .FirstOrDefault(b => b.Text.StartsWith("Formats", StringComparison.Ordinal));
+        Check("the panel has a formats dropdown button", formatsButton != null, formatsButton?.Text ?? "none");
 
-        root.UpdateLayout(new Vector2(
-            FolderColumn + FolderSplitterWidth + 190.0f + DividerWidth + PlacementColumn, 600.0f));
-        root.Render();
+        // Library() defaults to MeshAssetFormats.All, so every format starts enabled.
+        Check("it starts showing every format enabled", formatsButton?.Text == "Formats (7/7)", formatsButton?.Text ?? "none");
 
-        var narrowWrap = FindAll<WrapPanel>(root.Content!)
-            .FirstOrDefault(panel => panel.Children.Any(child => child is CheckBox));
-        // Not a line count: the tightened theme fits all seven on one line even here, and asserting otherwise
-        // would be asserting the old spacing. Staying inside the panel is the property that actually matters.
-        Check("the format toggles stay inside the panel when narrow",
-            narrowWrap != null
-                && narrowWrap.Children.All(c => c.Bounds.Right <= root.Content!.Bounds.Right + 0.5f),
-            $"{narrowWrap?.LineCount ?? 0} lines");
-
+        Press(root, formatsButton!.Bounds.Center);
         root.UpdateLayout(defaultSize);
         root.Render();
 
-        Check("and stay inside the panel",
-            wrap != null && wrap.Children.All(c => c.Bounds.Right <= root.Content!.Bounds.Right + 0.5f),
+        var formatsPopup = root.Popups.Topmost;
+        var formatToggles = formatsPopup != null ? FindAll<CheckBox>(formatsPopup) : new List<CheckBox>();
+        Check("clicking it opens a popup with all seven formats", formatToggles.Count == 7, $"{formatToggles.Count} toggles");
+
+        // The popup floats in the popup layer rather than being laid out inside the panel, so it is never
+        // constrained by the panel's own width -- unlike the old inline row, it cannot overflow or need to
+        // wrap regardless of how narrow the panel gets.
+        Check("every toggle stays inside its popup",
+            formatToggles.Count > 0 && formatToggles.All(t => formatsPopup!.Bounds.Contains(t.Bounds.Center)),
             "within bounds");
 
-        // Measured as well as arranged. Arrange wraps on its own, so a panel whose measure did not would
-        // still look right while asking for a width nothing can give it -- and everything sized against it
-        // would be wrong.
-        Check("and the panel asks for a width that fits",
-            wrap != null && wrap.DesiredSize.X <= wrap.Bounds.Width + 0.5f,
-            $"wants {wrap?.DesiredSize.X ?? 0.0f:F0}px in {wrap?.Bounds.Width ?? 0.0f:F0}px");
+        var glbToggle = formatToggles.FirstOrDefault(t => t.Text == "GLB");
+        Check("GLB starts checked", glbToggle is { IsChecked: true }, glbToggle?.IsChecked.ToString() ?? "missing");
 
-        // The row it sits in has to be tall enough for the lines it wrapped onto, or it draws over whatever
-        // is below it.
-        Check("and gets a row tall enough for them",
-            wrap != null && wrap.Children.All(c => c.Bounds.Bottom <= wrap.Bounds.Bottom + 0.5f),
-            $"{wrap?.Bounds.Height ?? 0.0f:F0}px tall for {wrap?.LineCount ?? 0} lines");
+        Press(root, glbToggle!.Bounds.Center);
+        root.UpdateLayout(defaultSize);
+        root.Render();
+
+        Check("unchecking it disables the format in the library",
+            !library.IsFormatEnabled(MeshAssetFormats.Glb), $"{library.IsFormatEnabled(MeshAssetFormats.Glb)}");
+
+        Check("and the button's own count reflects it",
+            formatsButton.Text == "Formats (6/7)", formatsButton.Text);
+
+        // Re-enabled so the rest of this run (which assumes the default library.Formats = All) is unaffected.
+        library.SetFormatEnabled(MeshAssetFormats.Glb, true);
+        root.Popups.CloseAll();
+        root.UpdateLayout(defaultSize);
+        root.Render();
 
         // The asset list is a grid of preview tiles now, not a second tree. A tree spent the panel's whole
         // width on one filename per row; tiles spend it on assets. Only the folder sidebar is still a tree,
@@ -327,28 +329,22 @@ public static class MeshImportChecks
         root.UpdateLayout(defaultSize);
         root.Render();
 
-        // ---------------------------------------------------------------- what the panel no longer says
-        // A wrapped paragraph explaining that you can drag a mesh into the scene, press Place, or hit Escape
-        // spent two lines of a short panel restating the button beside it. The instruction still exists, on
-        // the button's own tooltip, where it costs nothing until wanted.
-        var placeButton = FindAll<Button>(root.Content!)
-            .FirstOrDefault(b => b.Text.Contains("Place", StringComparison.Ordinal));
+        // ---------------------------------------------------------------- no footer, no Place button
+        // A select-then-press-Place row (plus a "what's selected" label) used to sit under the grid. Both
+        // were removed: right-click already offers Place on any tile without selecting it first (checked
+        // further down), and dragging always has, so the button and label were just a slower third way to
+        // do what the other two already do, and removing them hands their row back to the asset grid.
+        Check("there is no Place button any more",
+            !FindAll<Button>(root.Content!).Any(b => b.Text.Contains("Place", StringComparison.Ordinal)));
 
-        Check("the Place button survived the cleanup", placeButton != null, placeButton?.Text ?? "none");
-        Check("and carries the instructions the panel used to print",
-            placeButton?.Tooltip is { Length: > 0 } tip
-                && tip.Contains("drag", StringComparison.OrdinalIgnoreCase)
-                && tip.Contains("Escape", StringComparison.OrdinalIgnoreCase),
-            placeButton?.Tooltip ?? "none");
-
-        Check("and the panel no longer prints them itself",
+        Check("and the panel no longer prints its own placement instructions",
             !FindAll<TextBlock>(root.Content!).Any(t =>
                 t.Text.Contains("Escape cancels", StringComparison.OrdinalIgnoreCase)));
 
         // ---------------------------------------------------------------- a narrow panel
         // Shrunk until the fixed rows alone want more than there is. A grid hands out slots regardless, so
         // the overflow lands on top of whatever is below it -- which is how the tree ended up running
-        // through the Place button. The side columns keep their fixed widths regardless, so only the
+        // through the row beneath it. The side columns keep their fixed widths regardless, so only the
         // centre list column is actually being squeezed here.
         var squeezedSize = new Vector2(FolderColumn + FolderSplitterWidth + 100.0f + DividerWidth + PlacementColumn, 260.0f);
         root.UpdateLayout(squeezedSize);
@@ -363,13 +359,18 @@ public static class MeshImportChecks
         // this check is about is the asset grid's, in the picker column.
         var squeezedViewer = FindAll<ScrollViewer>(root.Content!)
             .FirstOrDefault(viewer => viewer.Bounds.X > FolderColumn);
-        var squeezedPlace = FindAll<Button>(root.Content!)
-            .FirstOrDefault(b => b.Text.Contains("Place", StringComparison.Ordinal));
+
+        // The size slider is the last fixed row now, right below the grid -- the same "does the list give
+        // up space instead of pushing what comes after it off-panel" property the Place button used to
+        // stand in for.
+        var squeezedSizeSlider = FindAll<Slider>(root.Content!)
+            .FirstOrDefault(slider =>
+                MathF.Abs(slider.Minimum - 56.0f) < 0.01f && MathF.Abs(slider.Maximum - 112.0f) < 0.01f);
 
         Check("the list gives up its space rather than holding a minimum",
-            squeezedViewer != null && squeezedPlace != null
-                && squeezedViewer.Bounds.Bottom <= squeezedPlace.Bounds.Y + 0.5f,
-            $"list ends {squeezedViewer?.Bounds.Bottom:0}, button starts {squeezedPlace?.Bounds.Y:0}");
+            squeezedViewer != null && squeezedSizeSlider != null
+                && squeezedViewer.Bounds.Bottom <= squeezedSizeSlider.Bounds.Y + 0.5f,
+            $"list ends {squeezedViewer?.Bounds.Bottom:0}, size row starts {squeezedSizeSlider?.Bounds.Y:0}");
 
         // An instance is only visible where its rect meets its clip, which is how this pipeline confines
         // anything at all -- so that intersection is what has to stay inside the panel.
@@ -387,33 +388,6 @@ public static class MeshImportChecks
 
         root.UpdateLayout(defaultSize);
         root.Render();
-
-        // ---------------------------------------------------------------- placing
-        library.SelectedAsset = null;
-        var place = FindAll<Button>(root.Content!).FirstOrDefault(b => b.Text.Contains("Place", StringComparison.Ordinal));
-
-        Check("there is a place button", place != null, place?.Text ?? "none");
-
-        root.UpdateLayout(defaultSize);
-        root.Render();
-        Check("disabled with nothing selected", place is { IsEnabled: false });
-
-        library.SelectedAsset = Sample[0];
-        root.UpdateLayout(defaultSize);
-        root.Render();
-        Check("and enabled once something is", place is { IsEnabled: true });
-
-        MeshImportRequests.Clear();
-        Press(root, place!.Bounds.Center);
-
-        // The panel asks rather than acts: it has no idea where the viewport is, and the game mode drains
-        // this each frame.
-        Check("pressing it asks for a placement",
-            MeshImportRequests.TakePlacement() == Sample[0],
-            "requested");
-
-        Check("and the request is only taken once",
-            MeshImportRequests.TakePlacement() == null, "cleared");
 
         // ---------------------------------------------------------------- dragging a row out
         MeshImportRequests.Clear();

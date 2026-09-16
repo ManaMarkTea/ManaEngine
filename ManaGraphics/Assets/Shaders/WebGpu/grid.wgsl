@@ -44,6 +44,18 @@ const RoomSize : f32 = 512.0;
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
+    // Transparent from outside the room, not just past the wall it draws on: the six faces and four
+    // coves don't all share one consistent "which way is inward" normal (a mirrored far wall/ceiling
+    // reuses the same local geometry as its near counterpart, just translated, so its winding faces the
+    // opposite way), so testing this per-fragment against a normal would make half the faces vanish from
+    // the wrong side. Testing the CAMERA against the room's own bounding box instead sidesteps that
+    // entirely -- once the camera itself has left the [0, RoomSize] cube, every grid surface discards, so
+    // flying outside the room no longer blocks the view back toward it.
+    let camera = frame.camera_position.xyz;
+    if (any(camera < vec3<f32>(0.0)) || any(camera > vec3<f32>(RoomSize))) {
+        discard;
+    }
+
     // object.uv_transform lets a trimmed plane (the floor/wall quads cut back for VoxelEditorGameMode's
     // rounded-corner coves) remap its own 0..1 UV back onto the coordinate the untrimmed room-sized grid
     // expects, so tiles keep their true size and stay aligned across the seam with each cove fillet mesh.

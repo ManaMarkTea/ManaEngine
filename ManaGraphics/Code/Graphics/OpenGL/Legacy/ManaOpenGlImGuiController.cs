@@ -119,6 +119,13 @@ namespace Mana.Code.Graphics
                 return;
             }
 
+            // See the same guard in ManaWebGpuImGuiController: a mouselook drag owns the cursor mode
+            // while it runs, and the Normal write below would unhide and unlock it mid-turn.
+            if (ManaCore.Input.ManaPointerCapture.IsActive)
+            {
+                return;
+            }
+
             try
             {
                 var imguiCursor = ImGui.GetMouseCursor();

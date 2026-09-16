@@ -38,6 +38,13 @@ namespace ManaUI
         /// </summary>
         public Dock Edge { get; set; } = Dock.Right;
 
+        /// <summary>
+        /// False for a strip whose <see cref="Size"/> the host has already decided (e.g. from the theme's
+        /// own metrics) and does not want the user changing -- no handle is drawn, no grab area is
+        /// reserved from the content, and the panel does not intercept input at all.
+        /// </summary>
+        public bool AllowResize { get; set; } = true;
+
         /// <summary>Width for a left or right panel, height for a top or bottom one.</summary>
         public float Size
         {
@@ -78,36 +85,42 @@ namespace ManaUI
 
         private bool IsHorizontal => Edge is Dock.Left or Dock.Right;
 
-        /// <summary>The handle's grab area, on the edge facing away from the window edge it is anchored to.</summary>
+        /// <summary>
+        /// The handle's grab area, on the edge facing away from the window edge it is anchored to. Zero
+        /// thickness (and so never hit) when <see cref="AllowResize"/> is off.
+        /// </summary>
         public UiRect HandleRect
         {
             get
             {
+                var grab = GrabThickness;
                 return Edge switch
                 {
-                    Dock.Right => new UiRect(Bounds.X, Bounds.Y, HandleGrabThickness, Bounds.Height),
-                    Dock.Left => new UiRect(
-                        Bounds.Right - HandleGrabThickness, Bounds.Y, HandleGrabThickness, Bounds.Height),
-                    Dock.Bottom => new UiRect(Bounds.X, Bounds.Y, Bounds.Width, HandleGrabThickness),
-                    _ => new UiRect(
-                        Bounds.X, Bounds.Bottom - HandleGrabThickness, Bounds.Width, HandleGrabThickness)
+                    Dock.Right => new UiRect(Bounds.X, Bounds.Y, grab, Bounds.Height),
+                    Dock.Left => new UiRect(Bounds.Right - grab, Bounds.Y, grab, Bounds.Height),
+                    Dock.Bottom => new UiRect(Bounds.X, Bounds.Y, Bounds.Width, grab),
+                    _ => new UiRect(Bounds.X, Bounds.Bottom - grab, Bounds.Width, grab)
                 };
             }
         }
 
         // ----- layout ---------------------------------------------------------------------------------
 
+        /// <summary>Grab space actually reserved -- none at all when the handle is switched off.</summary>
+        private float GrabThickness => AllowResize ? HandleGrabThickness : 0.0f;
+
         protected override Vector2 MeasureOverride(Vector2 availableSize)
         {
             var inset = ContentInset;
+            var grab = GrabThickness;
 
             // The handle is carved out of the panel rather than added to it, so Size means what the user
             // sees the panel occupy -- dragging to 300 leaves 300 pixels of window covered.
             var content = new Vector2(
                 MathF.Max(0.0f, (IsHorizontal ? _size : availableSize.X) - inset.Horizontal
-                    - (IsHorizontal ? HandleGrabThickness : 0.0f)),
+                    - (IsHorizontal ? grab : 0.0f)),
                 MathF.Max(0.0f, (IsHorizontal ? availableSize.Y : _size) - inset.Vertical
-                    - (IsHorizontal ? 0.0f : HandleGrabThickness)));
+                    - (IsHorizontal ? 0.0f : grab)));
 
             Child?.Measure(content);
 
@@ -119,22 +132,23 @@ namespace ManaUI
         protected override Vector2 ArrangeOverride(Vector2 finalSize)
         {
             var content = ContentBounds;
+            var grab = GrabThickness;
 
             // Inset away from the handle, so content never lands underneath a grab area.
             var area = Edge switch
             {
                 Dock.Right => new UiRect(
-                    content.X + HandleGrabThickness, content.Y,
-                    MathF.Max(0.0f, content.Width - HandleGrabThickness), content.Height),
+                    content.X + grab, content.Y,
+                    MathF.Max(0.0f, content.Width - grab), content.Height),
                 Dock.Left => new UiRect(
                     content.X, content.Y,
-                    MathF.Max(0.0f, content.Width - HandleGrabThickness), content.Height),
+                    MathF.Max(0.0f, content.Width - grab), content.Height),
                 Dock.Bottom => new UiRect(
-                    content.X, content.Y + HandleGrabThickness,
-                    content.Width, MathF.Max(0.0f, content.Height - HandleGrabThickness)),
+                    content.X, content.Y + grab,
+                    content.Width, MathF.Max(0.0f, content.Height - grab)),
                 _ => new UiRect(
                     content.X, content.Y,
-                    content.Width, MathF.Max(0.0f, content.Height - HandleGrabThickness))
+                    content.Width, MathF.Max(0.0f, content.Height - grab))
             };
 
             Child?.Arrange(area);
@@ -158,6 +172,11 @@ namespace ManaUI
             else if (Background.W > 0.0f)
             {
                 drawList.FillRect(Bounds, Background);
+            }
+
+            if (!AllowResize)
+            {
+                return;
             }
 
             var handle = HandleRect;

@@ -100,6 +100,10 @@ public static class DockRegionsChecks
                 rightHost.AllItems().Any(i => i.Id == "inspector"),
                 string.Join(", ", rightHost.AllItems().Select(i => i.Id)));
 
+            // All four docks are ResizablePanels -- the top toolbar strip's handle is switched off
+            // (AllowResize = false, see ManaUiDockDemo's topPanel) rather than the panel itself being
+            // dropped, since DockHost/DockTabGroup always measure to whatever height they are given rather
+            // than to their own content.
             var panels = FindAll<ResizablePanel>(root.Content!);
             var topPanel = panels[0];
             var leftPanel = panels[1];

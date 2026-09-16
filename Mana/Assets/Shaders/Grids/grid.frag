@@ -179,6 +179,17 @@ vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
+    // Transparent from outside the room, not just past the wall it draws on -- see grid.wgsl's matching
+    // comment for why this tests the CAMERA against the room's bounding box rather than each face's own
+    // (inconsistent) normal direction. chunkSize.x doubles as the room's edge length on every axis, since
+    // the room is a cube.
+    if (iCameraPosition.x < 0.0 || iCameraPosition.x > chunkSize.x ||
+        iCameraPosition.y < 0.0 || iCameraPosition.y > chunkSize.x ||
+        iCameraPosition.z < 0.0 || iCameraPosition.z > chunkSize.x)
+    {
+        discard;
+    }
+
     fragColor = vec4(0.0,0.0,0.0,1.0);
     vec4 color = vec4(1e20);
     float d = distance(WorldPos,iCameraPosition);

@@ -110,7 +110,10 @@ namespace ManaVoxel.Web
                 _pawnController = new ManaPawnController(Context)
                 {
                     GroundPlaneHeight = 0.0f,
-                    ReleaseOnEscape = false
+                    ReleaseOnEscape = false,
+
+                    // Same as the desktop play mode: no selection here, so the left button orbits.
+                    MouseLookControlsEnabled = true
                 };
                 world.MainCamera.ShouldCaptureKeyboardInput = () => _pawnController?.IsCapturingMovementKeys == true;
 

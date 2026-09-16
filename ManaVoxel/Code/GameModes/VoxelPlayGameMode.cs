@@ -5,6 +5,7 @@ using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code.Planet;
+using ManaVoxel.Code.Gameplay.Flight;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.UI.ManaUi;
@@ -88,7 +89,14 @@ namespace Mana.Code.GameModes
 
             var world = Context.World;
 
-            _pawnController = new ManaPawnController(Context) { GroundPlaneHeight = 0.0f, ReleaseOnEscape = false };
+            // Nothing here selects or issues walk orders, so the left button is free to be a camera
+            // orbit -- see ManaPawnController.MouseLookControlsEnabled.
+            _pawnController = new ManaPawnController(Context)
+            {
+                GroundPlaneHeight = 0.0f,
+                ReleaseOnEscape = false,
+                MouseLookControlsEnabled = true
+            };
             world.MainCamera.ShouldCaptureKeyboardInput = () => _pawnController?.IsCapturingMovementKeys == true;
 
             Task.Run(() =>
@@ -211,12 +219,14 @@ namespace Mana.Code.GameModes
 
             _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
             _player.UpdateTransform();
+            _player.Components.Add(new FlyingMountComponent(_player));
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
             Context.World.BeginPlay();
 
-            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump, C camera, Esc quit";
+            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to fly; " +
+                        "then Space climbs and Shift dashes), C camera, Esc quit";
         }
 
         public override void Update(double deltaTime)

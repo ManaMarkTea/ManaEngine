@@ -34,8 +34,16 @@ namespace Mana.Code.Nodes
         public string RunClipName { get; set; } = "sprint";
         public string RootBoneName { get; set; } = "root";
 
-        public float WalkSpeed { get; set; } = 2.0f;
-        public float RunSpeed { get; set; } = 5.0f;
+        // Tuned against WoW, which is close to a direct read: a character is normalised to 2 units tall
+        // (CharacterSpawnService), so a unit is about a WoW yard. WoW runs at 7 yd/s and walks at 2.5,
+        // so RunSpeed is its run outright and the unmodified speed sits between the two as a jog.
+        //
+        // Chosen rather than adopted from the animation: ApplyCalibratedSpeeds would set these to
+        // whatever speed each clip was authored for, which makes how fast the game plays a property of
+        // the art. MatchAnimationToSpeed retimes the clip to whatever is set here instead, which is the
+        // same anti-slide guarantee without the game's feel riding on it.
+        public float WalkSpeed { get; set; } = 4.5f;
+        public float RunSpeed { get; set; } = 7.0f;
         public float TurnDegreesPerSecond { get; set; } = 540.0f;
 
         // How close counts as arrived. Too small and the pawn jitters around the destination for a
@@ -47,6 +55,18 @@ namespace Mana.Code.Nodes
         // basis only works out for a +Z facing). A -Z-facing model wants 180.
         public float FacingOffsetDegrees { get; set; }
 
+        /// <summary>
+        /// Whether this pawn walks itself. Turned off by anything that takes the transform over wholesale
+        /// -- a flying mount, a cutscene -- so the locomotion step stops writing a position and a facing
+        /// that something else is about to overwrite anyway.
+        /// <para>
+        /// Not merely tidiness: the kinematic step pins Y to the ground every frame it runs, so a pawn
+        /// being flown would be dragged back to the floor and lifted again, twice per frame, forever. Also
+        /// read by ManaPawnController, which stands its input down while a pawn is not its to drive.
+        /// </para>
+        /// </summary>
+        public bool LocomotionEnabled { get; set; } = true;
+
         // Returns the ground height at a world position, or null to leave the pawn where it is.
         // Null sampler means the pawn stays pinned to GroundHeight -- see the class comment.
         public Func<Vector3, float?>? GroundSampler { get; set; }
@@ -54,9 +74,37 @@ namespace Mana.Code.Nodes
 
         // Set every frame by whatever is driving the pawn (see ManaPawnController's arrow keys). A
         // non-zero drive always wins over a click destination, and cancels it -- taking manual control
-        // should abandon the walk order, not fight it.
+        // should abandon the walk order, not fight it. A drive direction never turns the pawn by
+        // itself; facing is a separate decision, see DesiredFacingDirection.
         public Vector3 DriveDirection { get; set; }
         public bool WantsToRun { get; set; }
+
+        // Where the pawn should be looking, independent of where it is walking -- so it can strafe
+        // sideways, backpedal, or turn on the spot without moving. Null leaves facing alone, which is
+        // what plain drive input wants: a heading built from the pawn's own facing can never be turned
+        // toward, because it moves with every degree of the turn.
+        public Vector3? DesiredFacingDirection { get; set; }
+
+        // Whether to arrive at DesiredFacingDirection this frame rather than turn toward it at
+        // TurnDegreesPerSecond. Instant is for facing that is slaved to a camera the player is
+        // dragging: the view moves with the mouse, and a rate-limited character visibly lags behind a
+        // fast flick instead of reading as locked to it.
+        public bool DesiredFacingIsInstant { get; set; }
+
+        // Whether this frame's DriveDirection should turn the pawn to face it, the same as a
+        // click-to-move destination does. Left off for plain forward/back -- walking backward is
+        // always exactly opposite of the pawn's own facing, so a heading built from the pawn's own
+        // rotation can never converge there (the target recedes by exactly what the turn just
+        // closed, every frame) -- which is what the old backward-jitter actually was. Strafing is
+        // safe because ManaPawnController builds its heading from the camera instead, an external
+        // reference that doesn't move just because the pawn turns.
+        public bool DriveFacesHeading { get; set; }
+
+        // Turn-in-place input, -1 (turn left) .. 1 (turn right), applied at TurnDegreesPerSecond.
+        // Separate from DriveDirection because turning is the only thing it does -- it implies no
+        // movement -- so the "turn" keys (A/D when the look button isn't held) drive this instead of
+        // DriveDirection, matching a WoW-style controller where strafing and turning are distinct.
+        public float DriveTurnInput { get; set; }
 
         public Vector3? Destination => destination;
         public float CurrentSpeed { get; private set; }
@@ -163,6 +211,20 @@ namespace Mana.Code.Nodes
             return clipReferenceSpeeds.TryGetValue(clipName, out referenceSpeed);
         }
 
+        // The direction the model is actually facing in world space, in the same heading convention
+        // TurnToward turns toward (atan2(x, z), i.e. the rig's own +Z-faces-front axis) -- the opposite
+        // sense from ManaSceneNode.Forward, which assumes a camera's -Z-is-forward instead. This is
+        // what "forward" means to the drive keys: always where the character is looking, never the
+        // camera, so pressing back walks backward instead of spinning the pawn around to face the camera.
+        public Vector3 FacingDirection
+        {
+            get
+            {
+                var yaw = Rotation.Y - FacingOffsetDegrees.ToRadians();
+                return new Vector3(MathF.Sin(yaw), 0.0f, MathF.Cos(yaw));
+            }
+        }
+
         public void WalkTo(Vector3 worldPosition)
         {
             destination = worldPosition;
@@ -172,6 +234,8 @@ namespace Mana.Code.Nodes
         {
             destination = null;
             DriveDirection = Vector3.Zero;
+            DriveTurnInput = 0.0f;
+            DesiredFacingDirection = null;
 
             // Vertical velocity is left alone: cancelling a walk order should not freeze a pawn in
             // mid-air.
@@ -240,7 +304,13 @@ namespace Mana.Code.Nodes
         {
             var deltaSeconds = (float)ManaTime.GlobalTime.DeltaTime.TotalSeconds;
 
-            if (Body != null)
+            if (!LocomotionEnabled)
+            {
+                // Reported as stationary so the clip below settles into idle rather than running on the
+                // spot at whatever speed the pawn was last moving under its own power.
+                CurrentSpeed = 0.0f;
+            }
+            else if (Body != null)
             {
                 StepPhysicsLocomotion(deltaSeconds);
             }
@@ -264,8 +334,10 @@ namespace Mana.Code.Nodes
                 return;
             }
 
+            ApplyDriveTurn(deltaSeconds);
+
             var position = Position;
-            var heading = ResolveHeading(position, out var distanceToDestination);
+            var heading = ResolveHeading(position, out var distanceToDestination, out var isDriveHeading);
 
             if (heading.HasValue)
             {
@@ -281,12 +353,14 @@ namespace Mana.Code.Nodes
 
                 position += heading.Value * step;
                 CurrentSpeed = step / deltaSeconds;
-                TurnToward(heading.Value, deltaSeconds);
             }
             else
             {
                 CurrentSpeed = 0.0f;
             }
+
+            // Outside the move, so a pawn standing still can still be turned on the spot.
+            ApplyFacing(heading, isDriveHeading, deltaSeconds);
 
             var groundY = GroundSampler?.Invoke(position) ?? GroundHeight;
             Position = new Vector3(position.X, groundY, position.Z);
@@ -418,6 +492,7 @@ namespace Mana.Code.Nodes
             }
 
             body.RefreshGroundState();
+            ApplyDriveTurn(deltaSeconds);
 
             jumpLockoutTimer = MathF.Max(jumpLockoutTimer - deltaSeconds, 0.0f);
 
@@ -448,7 +523,7 @@ namespace Mana.Code.Nodes
             // Horizontal steering. The same heading logic as the kinematic path, but resolved against
             // the body's position, which is now the authority on where the pawn is.
             var footPosition = body.FootPosition;
-            var heading = ResolveHeading(footPosition, out var distanceToDestination);
+            var heading = ResolveHeading(footPosition, out var distanceToDestination, out var isDriveHeading);
 
             var targetSpeed = WantsToRun ? RunSpeed : WalkSpeed;
             var horizontal = new Vector3(velocity.X, 0.0f, velocity.Z);
@@ -465,8 +540,6 @@ namespace Mana.Code.Nodes
                 horizontal = grounded
                     ? desired
                     : Vector3.Lerp(horizontal, desired, Math.Clamp(AirControl, 0.0f, 1.0f));
-
-                TurnToward(heading.Value, deltaSeconds);
             }
             else if (grounded)
             {
@@ -476,6 +549,10 @@ namespace Mana.Code.Nodes
             {
                 horizontal = Vector3.Lerp(horizontal, Vector3.Zero, Math.Clamp(AirControl, 0.0f, 1.0f) * deltaSeconds);
             }
+
+            // Outside the steering, same as the kinematic path: facing is its own decision, and a pawn
+            // held against a wall still turns.
+            ApplyFacing(heading, isDriveHeading, deltaSeconds);
 
             velocity.X = horizontal.X;
             velocity.Z = horizontal.Z;
@@ -545,8 +622,10 @@ namespace Mana.Code.Nodes
         }
 
         // Returns the horizontal unit direction to travel this frame, plus how far is left when the
-        // move is destination-driven (null when free-driving, which has no end point).
-        private Vector3? ResolveHeading(Vector3 position, out float? distanceToDestination)
+        // move is destination-driven (null when free-driving, which has no end point), plus whether
+        // the heading came from DriveDirection rather than a click-to-move destination -- ApplyFacing
+        // uses that to decide whether the heading may turn the pawn.
+        private Vector3? ResolveHeading(Vector3 position, out float? distanceToDestination, out bool isDriveHeading)
         {
             distanceToDestination = null;
 
@@ -554,9 +633,11 @@ namespace Mana.Code.Nodes
             if (drive.LengthSquared() > DirectionEpsilon)
             {
                 destination = null;
+                isDriveHeading = true;
                 return Vector3.Normalize(drive);
             }
 
+            isDriveHeading = false;
             if (!destination.HasValue)
             {
                 return null;
@@ -576,18 +657,64 @@ namespace Mana.Code.Nodes
             return toDestination / distance;
         }
 
+        // Resolves where the pawn looks, after the move so it can face where it actually went. An
+        // explicit DesiredFacingDirection wins; failing that, only a click-to-move heading turns the
+        // pawn -- a drive heading leaves facing alone (see DesiredFacingDirection).
+        private void ApplyFacing(Vector3? moveHeading, bool headingIsDrive, float deltaSeconds)
+        {
+            if (DesiredFacingDirection is { } desired)
+            {
+                var flattened = new Vector3(desired.X, 0.0f, desired.Z);
+                if (flattened.LengthSquared() > DirectionEpsilon)
+                {
+                    if (DesiredFacingIsInstant)
+                    {
+                        Rotation = new Vector3(Rotation.X, GetFacingYawFor(flattened), Rotation.Z);
+                    }
+                    else
+                    {
+                        TurnToward(flattened, deltaSeconds);
+                    }
+
+                    return;
+                }
+            }
+
+            if (moveHeading.HasValue && !headingIsDrive)
+            {
+                TurnToward(moveHeading.Value, deltaSeconds);
+            }
+        }
+
+        // A Y-rotation of theta maps the model's local +Z onto (sin theta, 0, cos theta), so this is
+        // the yaw that points the model's own forward axis along the heading.
+        private float GetFacingYawFor(Vector3 heading)
+        {
+            return WrapRadians(MathF.Atan2(heading.X, heading.Z) + FacingOffsetDegrees.ToRadians());
+        }
+
         private void TurnToward(Vector3 heading, float deltaSeconds)
         {
-            // A Y-rotation of theta maps the model's local +Z onto (sin theta, 0, cos theta), so this
-            // is the yaw that points the model's own forward axis along the heading.
-            var targetYaw = MathF.Atan2(heading.X, heading.Z) + FacingOffsetDegrees.ToRadians();
             var currentYaw = Rotation.Y;
-
-            var difference = WrapRadians(targetYaw - currentYaw);
+            var difference = WrapRadians(GetFacingYawFor(heading) - currentYaw);
             var maxTurn = TurnDegreesPerSecond.ToRadians() * deltaSeconds;
             var appliedTurn = Math.Clamp(difference, -maxTurn, maxTurn);
 
             Rotation = new Vector3(Rotation.X, WrapRadians(currentYaw + appliedTurn), Rotation.Z);
+        }
+
+        // Turning in place, from DriveTurnInput. Negated because increasing Rotation.Y sweeps
+        // FacingDirection from +Z toward +X, which is this rig's left, not its right -- so a
+        // positive (turn right) input has to subtract.
+        private void ApplyDriveTurn(float deltaSeconds)
+        {
+            if (MathF.Abs(DriveTurnInput) <= DirectionEpsilon)
+            {
+                return;
+            }
+
+            var turn = -Math.Clamp(DriveTurnInput, -1.0f, 1.0f) * TurnDegreesPerSecond.ToRadians() * deltaSeconds;
+            Rotation = new Vector3(Rotation.X, WrapRadians(Rotation.Y + turn), Rotation.Z);
         }
 
         private static float WrapRadians(float radians)

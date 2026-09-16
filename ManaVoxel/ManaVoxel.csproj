@@ -14,6 +14,11 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <!-- Declares PerMonitorV2 DPI awareness; see app.manifest for why. No effect off Windows. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Embeds an icon in the exe, which is what Windows' taskbar and Start Menu tile pull from;
+         without this the exe (and its Start Menu entry) shows the generic .NET/WinExe placeholder icon.
+         No effect on browser-wasm or macOS; a macOS app bundle needs its own .icns wired through
+         Info.plist instead, which is a separate, unbuilt-and-untested-on-this-machine piece of work. -->
+    <ApplicationIcon>Assets\Icons\AppIcon.ico</ApplicationIcon>
     <!-- See ManaGraphics.csproj. -->
     <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>

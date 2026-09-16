@@ -10,7 +10,8 @@ namespace Mana
     // The component itself never touches the camera. It publishes a desired pose each frame and
     // CameraComponent reads it (see CameraComponent.AttachedSpringArm), which keeps the boom usable
     // for anything else that wants a follow position and keeps the camera the only thing that writes
-    // camera state.
+    // camera state. It never touches its own target either -- the yaw here is the authority on where
+    // the view points, and a target that wants to face along it turns itself.
     public class ManaSpringArmComponent : ManaComponent
     {
         public ManaSpringArmComponent(ManaSceneNode owner) : base(owner)
@@ -44,18 +45,48 @@ namespace Mana
         // collision probe and let the camera drift back into a wall it had just been pulled out of.
         public float SocketLagSpeed { get; set; } = 14.0f;
 
-        // Swings the boom around behind the character as it moves, so forward is always away from the
-        // viewer. Off, the arm stays wherever the mouse left it.
-        public bool AutoAlignBehindTarget { get; set; }
-        public float AutoAlignSpeed { get; set; } = 2.5f;
+        // Copies any yaw the target turns by itself -- its turn keys, a walk order -- onto the boom, so
+        // the camera stays behind a character that turns under its own steam.
+        //
+        // A delta copy, deliberately, not a "steer toward behind the target" chase. Whoever slaves the
+        // target's facing to this boom (see ManaPawnController) must switch this off while doing so:
+        // two-way coupling makes the pair chase its own tail, and the target's facing target then
+        // recedes by exactly what each frame's turn just closed -- an endless spin rather than a turn
+        // that arrives.
+        public bool FollowTargetYaw { get; set; }
+
+        // Scales a yaw look-input. Separate from the camera's own mouse scaling because a boom whose
+        // target's facing is locked to it turns a whole character, which reads as a much larger motion
+        // than panning a free-flying camera by the same angle.
+        public float LookYawSensitivity { get; set; } = 0.6f;
 
         // Optional. Excluded from the collision probe so the arm never collides with the character it
         // is following.
         public ManaCharacterBody? IgnoreBody { get; set; }
 
-        // Supplies the heading the boom aligns behind, and whether it is worth aligning at all --
-        // auto-align should not spin the camera while the character is standing still.
-        public Func<(Vector3 Direction, bool Active)>? AutoAlignSource { get; set; }
+        // The two look drags, published by whoever feeds AddLookInput: true on every frame of an active
+        // drag, including the frames it does not happen to move. Published here rather than re-read from
+        // the mouse because the camera's own gesture latch is the authority on whether a drag is still
+        // live -- one that started on the scene and wandered over a panel still is.
+        //
+        // Both turn the boom. They differ in what the target does about it: steering (right-drag) drags
+        // the character round with the view, orbiting (left-drag) leaves it alone so you can look at it
+        // from any side without it turning to follow.
+        public bool IsSteerGestureActive { get; set; }
+        public bool IsOrbitGestureActive { get; set; }
+
+        /// <summary>
+        /// Whether this boom uses the play-mode mouse scheme: a left-drag orbits as well as a right-drag,
+        /// and the pointer is hidden and locked for the duration of either.
+        /// <para>
+        /// One flag rather than two because it is one decision -- "this is a game being played, not a
+        /// scene being edited" -- and both halves are wrong in the editor. A left-press there is already a
+        /// selection or a walk order, decided on the press before a drag has moved far enough to be one,
+        /// so an always-on left orbit would fire both; and grabbing the pointer out from under someone
+        /// nudging a gizmo is worse than leaving it visible.
+        /// </para>
+        /// </summary>
+        public bool MouseLookControls { get; set; }
 
         public Vector3 CameraPosition { get; private set; }
         public Vector3 CameraTarget { get; private set; }
@@ -64,14 +95,30 @@ namespace Mana
 
         private Vector3 smoothedSocket;
         private bool hasSmoothedSocket;
+        private float? lastTargetYaw;
 
+        // Camera-side only. The boom's yaw is the authority on where the view points; anything that
+        // wants the target to face along it reads GetForward and turns itself (ManaPawnController
+        // does), which keeps the coupling one-way. Writing the target's rotation from in here is what
+        // made a strafe spin: the strafe heading is derived from this yaw, so a yaw derived back from
+        // the target closed the loop.
         public void AddLookInput(float yawRadians, float pitchRadians)
         {
-            YawRadians += yawRadians;
+            YawRadians = WrapRadians(YawRadians + (yawRadians * LookYawSensitivity));
             PitchRadians = Math.Clamp(
                 PitchRadians + pitchRadians,
                 MinPitchDegrees.ToRadians(),
                 MaxPitchDegrees.ToRadians());
+        }
+
+        /// <summary>
+        /// Turns the boom by an exact amount, bypassing <see cref="LookYawSensitivity"/> -- that scales a
+        /// raw mouse delta into an angle, and a caller who already has the angle it wants (a turn key at a
+        /// rate per second) would otherwise have it silently scaled.
+        /// </summary>
+        public void AddYawTurn(float yawRadians)
+        {
+            YawRadians = WrapRadians(YawRadians + yawRadians);
         }
 
         // Multiplicative so a notch feels the same whether you are close in or far out.
@@ -87,6 +134,10 @@ namespace Mana
         {
             hasSmoothedSocket = false;
             CurrentArmLength = ArmLength;
+
+            // Forgotten rather than kept: a remembered yaw from whatever this boom followed before
+            // would land on the new target as one spurious frame of "it turned by this much".
+            lastTargetYaw = null;
         }
 
         // The direction the camera looks, from yaw/pitch. Matches ManaSceneNode.Forward's convention
@@ -118,10 +169,15 @@ namespace Mana
                 hasSmoothedSocket = true;
             }
 
-            if (AutoAlignBehindTarget && deltaSeconds > 0.0f)
+            // Tracked unconditionally, so switching FollowTargetYaw back on mid-play picks up from the
+            // target's current heading instead of copying everything it turned while switched off.
+            var targetYaw = Owner.Rotation.Y;
+            if (FollowTargetYaw && lastTargetYaw.HasValue)
             {
-                ApplyAutoAlign(deltaSeconds);
+                YawRadians = WrapRadians(YawRadians + WrapRadians(targetYaw - lastTargetYaw.Value));
             }
+
+            lastTargetYaw = targetYaw;
 
             var forward = GetForward();
             var desiredLength = ArmLength;
@@ -148,29 +204,6 @@ namespace Mana
 
             CameraTarget = smoothedSocket;
             CameraPosition = smoothedSocket - (forward * CurrentArmLength);
-        }
-
-        private void ApplyAutoAlign(float deltaSeconds)
-        {
-            if (AutoAlignSource == null)
-            {
-                return;
-            }
-
-            var (direction, active) = AutoAlignSource();
-            var horizontal = new Vector3(direction.X, 0.0f, direction.Z);
-            if (!active || horizontal.LengthSquared() < 1e-6f)
-            {
-                return;
-            }
-
-            horizontal = Vector3.Normalize(horizontal);
-
-            // The yaw whose forward matches the movement direction, from GetForward's convention.
-            var targetYaw = MathF.Atan2(-horizontal.X, -horizontal.Z);
-            var difference = WrapRadians(targetYaw - YawRadians);
-            var blend = 1.0f - MathF.Exp(-AutoAlignSpeed * deltaSeconds);
-            YawRadians = WrapRadians(YawRadians + (difference * blend));
         }
 
         private float ProbeArmLength(Vector3 socket, Vector3 forward, float desiredLength)

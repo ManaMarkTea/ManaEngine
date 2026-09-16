@@ -55,12 +55,18 @@ public static class WorldPerfAndDebugChecks
         Check("mesh count reaches the panel", labels.Any(t => t.Contains("Meshes rendered", StringComparison.Ordinal)),
             string.Join(" | ", labels));
 
+        // Separate fixed-width fields now, not one combined string -- see WorldPerfManaView's matching
+        // comment for why a proportional font made the old padded string visibly jitter as the numbers
+        // changed. The scope name and its timing land in different TextBlocks, so each is checked on its
+        // own rather than as one substring.
         Check("a pushed frame stat reaches the panel",
-            labels.Any(t => t.Contains("GPU: Draw Meshes", StringComparison.Ordinal) && t.Contains("2.50ms", StringComparison.Ordinal)),
+            labels.Any(t => t.Contains("GPU: Draw Meshes", StringComparison.Ordinal))
+                && labels.Any(t => t.Contains("2.50", StringComparison.Ordinal)),
             string.Join(" | ", labels));
 
         Check("a pushed streaming stat reaches the panel",
-            labels.Any(t => t.Contains("Planet patches resident: 42", StringComparison.Ordinal)),
+            labels.Any(t => t.Contains("Planet patches resident", StringComparison.Ordinal))
+                && labels.Any(t => t == "42"),
             string.Join(" | ", labels));
 
         // Overwriting the same name updates the row in place rather than adding a second one -- the
@@ -99,8 +105,11 @@ public static class WorldPerfAndDebugChecks
         root.Content = view;
         root.UpdateLayout(new Vector2(360, 600));
 
+        // Three now, not two: frame time, working-set memory, and managed-heap memory -- see
+        // ManaMemoryStats' matching comment for why the debug panel used to show only working set, with no
+        // way to tell how much of it was actually .NET's own allocations versus native.
         var sparklines = FindAll<Sparkline>(view);
-        Check("the panel offers a frame-time and a memory graph", sparklines.Count == 2, $"{sparklines.Count} sparklines");
+        Check("the panel offers a frame-time and two memory graphs", sparklines.Count == 3, $"{sparklines.Count} sparklines");
 
         var labels = FindAll<TextBlock>(view).Select(t => t.Text).ToList();
         Check("the ray readout reflects the live origin", labels.Any(t => t.Contains("1, 2, 3", StringComparison.Ordinal)),

@@ -76,6 +76,8 @@ public static class TestRunner
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),
+        ("Mana", "pawn camera controls", PawnCameraControlChecks.Run),
+        ("ManaVoxel", "flying mount", FlyingMountChecks.Run),
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),
         ("ManaVoxel", "scene click-selection drill-down", SceneSelectionDrillDownChecks.Run),
         ("ManaVoxel", "mesh thumbnail rasterizer", MeshThumbnailChecks.Run),

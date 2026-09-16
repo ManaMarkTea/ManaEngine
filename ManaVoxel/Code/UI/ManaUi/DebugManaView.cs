@@ -37,6 +37,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             var memoryLabel = new TextBlock().Foreground(theme.TextMuted);
             memoryLabel.BindTextPolled(() => $"Working Set: {ManaMemoryStats.Latest:0} MB");
 
+            // Working set is everything the process holds, native allocations included; this is just what
+            // .NET's own heap is carrying, the same number the status bar's performance strip already shows
+            // -- the debug panel used to show only working set, with no way to tell how much of it was
+            // actually managed memory versus native.
+            var managedMemory = new Sparkline
+            {
+                Samples = ManaMemoryStats.RawManagedHistory,
+                Minimum = 0.0f,
+                Maximum = null
+            };
+            managedMemory.BindPolled(s => s.WriteCursor, () => ManaMemoryStats.WriteCursor);
+
+            var managedMemoryLabel = new TextBlock().Foreground(theme.TextMuted);
+            managedMemoryLabel.BindTextPolled(() => $"Managed: {ManaMemoryStats.LatestManaged:0} MB");
+
             var rayText = new TextBlock().Foreground(theme.TextMuted);
             rayText.BindTextPolled(() =>
             {
@@ -58,7 +73,9 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 new Expander().Header("Memory").Section(theme.Spacing,
                     memoryLabel,
-                    memory),
+                    memory,
+                    managedMemoryLabel,
+                    managedMemory),
 
                 new Expander().Header("Ray").Section(theme.Spacing,
                     rayText,

@@ -196,10 +196,13 @@ public static class TabsAndGraphChecks
 
         Check("the strip renders", root.Render().InstanceCount > 3, $"{root.Render().InstanceCount} instances");
 
-        var readout = FindAll<TextBlock>(strip).FirstOrDefault();
+        // Three separate fixed-width fields, not one combined string -- see ManaUiPerformanceStrip's
+        // build-time comment for why a single proportional-font string padded to a fixed character count
+        // still jittered visually as digits changed width.
+        var readoutText = string.Join(" ", FindAll<TextBlock>(strip).Select(t => t.Text));
         Check("it reads out fps, frame time and memory",
-            readout != null && readout.Text.Contains("fps") && readout.Text.Contains("ms") && readout.Text.Contains("MB"),
-            readout?.Text ?? "no text");
+            readoutText.Contains("fps") && readoutText.Contains("ms") && readoutText.Contains("MB"),
+            readoutText.Length == 0 ? "no text" : readoutText);
 
         // No graphs on screen until asked for: that is the whole point of putting them behind a hover.
         Check("the graphs are not there until hovered",

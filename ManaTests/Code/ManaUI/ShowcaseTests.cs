@@ -82,8 +82,11 @@ public static class ShowcaseChecks
             Check("the bottom strip starts empty without an editor",
                 !bottom.AllItems().Any(), string.Join(", ", bottom.AllItems().Select(i => i.Title)));
 
-            // An empty strip collapses rather than leaving a resize handle against nothing. Same walk
-            // order as the hosts: top, left, right, bottom.
+            // An empty strip collapses rather than leaving a resize handle against nothing. All four hosts
+            // are ResizablePanels -- the top toolbar strip's handle is switched off (AllowResize = false,
+            // see ManaUiDockDemo's topPanel) rather than the panel itself being dropped, since
+            // DockHost/DockTabGroup always measure to whatever height they are given rather than to their
+            // own content. Same walk order as the hosts: top, left, right, bottom.
             var panels = FindAll<ResizablePanel>(dockRoot);
             Check("each of the four docks is resizable", panels.Count == 4, $"{panels.Count} resizable panels");
             Check("an empty column is collapsed",

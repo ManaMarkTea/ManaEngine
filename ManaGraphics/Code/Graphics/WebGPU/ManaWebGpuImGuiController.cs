@@ -561,6 +561,14 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         private static void UpdateMouseCursor(IMouse mouse, ImGuiIOPtr io)
         {
+            // Something is holding the pointer for a mouselook drag and owns the cursor mode until it
+            // lets go. Writing Normal over that (which the branch below does every frame) would unhide
+            // and unlock the pointer mid-turn.
+            if (ManaCore.Input.ManaPointerCapture.IsActive)
+            {
+                return;
+            }
+
             try
             {
                 var imguiCursor = ImGui.GetMouseCursor();

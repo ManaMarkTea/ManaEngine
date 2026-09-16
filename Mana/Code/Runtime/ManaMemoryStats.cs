@@ -12,6 +12,13 @@ namespace Mana.Code
 
         private static readonly float[] History = new float[HistoryCapacity];
 
+        // Managed heap size (GC.GetTotalMemory), tracked alongside the OS working set above rather than as
+        // a separate poller -- the two tell different stories (working set is everything the process holds,
+        // native allocations included; managed is just what .NET's own heap is carrying) and the debug
+        // panel used to show only the first, which read as the app using far more than its actual .NET
+        // allocations, with no way to tell how much of the gap was native.
+        private static readonly float[] ManagedHistory = new float[HistoryCapacity];
+
         // 0, not long.MinValue -- Environment.TickCount64 is always non-negative, so comparing against a
         // MinValue sentinel via subtraction overflows unchecked long arithmetic and silently blocks the
         // very first sample forever (bit this exact team once already in VoxelEditorGameMode).
@@ -30,18 +37,28 @@ namespace Mana.Code
             _lastSampleMs = now;
             var workingSetMB = (float)(Environment.WorkingSet / (1024.0 * 1024.0));
 
+            // false: a forced full GC just to report a number would be a much worse cost than the number is
+            // worth, the same tradeoff ManaUiPerformanceStrip's status-bar readout already makes.
+            var managedMB = (float)(GC.GetTotalMemory(false) / (1024.0 * 1024.0));
+
             _historyIndex = (_historyIndex + 1) % History.Length;
             History[_historyIndex] = workingSetMB;
+            ManagedHistory[_historyIndex] = managedMB;
             _historyCount = Math.Min(_historyCount + 1, History.Length);
         }
 
         public static float Latest => _historyCount > 0 ? History[_historyIndex] : 0f;
+
+        public static float LatestManaged => _historyCount > 0 ? ManagedHistory[_historyIndex] : 0f;
 
         /// <summary>
         /// The ring buffer itself, for a live graph to bind straight to (see ManaUI's Sparkline) rather
         /// than paying for a CopyOrderedHistory allocation every frame just to draw it.
         /// </summary>
         public static IReadOnlyList<float> RawHistory => History;
+
+        /// <summary>The managed-heap counterpart to <see cref="RawHistory"/>, same indexing.</summary>
+        public static IReadOnlyList<float> RawManagedHistory => ManagedHistory;
 
         /// <summary>Where <see cref="Sample"/> will write next -- see Sparkline.WriteCursor.</summary>
         public static int WriteCursor => (_historyIndex + 1) % HistoryCapacity;

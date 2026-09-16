@@ -28,16 +28,27 @@ namespace ManaVoxel.Code.UI.ManaUi
             var frameGraph = Graph(theme, frames, maximum: 33.0f, threshold: 16.7f);
             var memoryGraph = Graph(theme, memory, maximum: null, threshold: null);
 
-            var readout = new TextBlock()
-                .FontFamily(theme.FontFamilyMono)
-                .FontSize(theme.FontSizeSmall)
-                .Foreground(theme.TextMuted)
-                .CenterV();
+            // Three fixed-width fields rather than one combined string padded with `{value,N:format}`.
+            // That padding assumed theme.FontFamilyMono renders every character at the same width, which
+            // held only as long as the font it actually resolved to was monospace -- and "RobotoMono-
+            // Regular" isn't a font this app ships, so ManaFontManager silently fell back to plain
+            // (proportional) Roboto. Different digits have different advance widths in a proportional
+            // font, so the combined string's rendered width could shift by a pixel or two exactly when a
+            // value crossed a digit boundary (memory going from 99 to 100 MB was what gave it away),
+            // which read as the whole status bar jittering. A fixed-width box per stat can't do that
+            // regardless of what font ends up drawing the digits.
+            var fpsText = StatField(theme, 50.0f);
+            var msText = StatField(theme, 50.0f);
+            var mbText = StatField(theme, 60.0f);
 
-            // One binding drives both the text and the sampling: it is the only thing guaranteed to run
-            // every frame the strip is visible, and sampling from the render loop would make the whole
-            // engine pay for a readout that might not be on screen.
-            readout.BindTextPolled(() =>
+            var lastMs = 0.0;
+            var lastMb = 0.0f;
+
+            // One binding drives the sampling as well as its own text: it is the only thing guaranteed to
+            // run every frame the strip is visible, and sampling from the render loop would make the whole
+            // engine pay for a readout that might not be on screen. The other two fields just format
+            // whatever this one last measured.
+            fpsText.BindTextPolled(() =>
             {
                 var milliseconds = (float)ManaTime.GlobalTime.DeltaTime.TotalMilliseconds;
                 var megabytes = GC.GetTotalMemory(false) / (1024.0f * 1024.0f);
@@ -49,10 +60,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                 frameGraph.WriteCursor = next;
                 memoryGraph.WriteCursor = next;
 
-                return $"{ManaTime.GlobalTime.FramesPerSecondAvg,6:0.0} fps"
-                    + $"{ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds,6:0.0} ms"
-                    + $"{megabytes,7:0} MB";
+                lastMs = ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds;
+                lastMb = megabytes;
+
+                return $"{ManaTime.GlobalTime.FramesPerSecondAvg:0.0} fps";
             });
+
+            msText.BindTextPolled(() => $"{lastMs:0.0} ms");
+            mbText.BindTextPolled(() => $"{lastMb:0} MB");
+
+            var readout = new StackPanel().Horizontal(6.0f).CenterV().Children(fpsText, msText, mbText);
 
             // The graphs live in a popup so they take no room until asked for. Anchored under the strip,
             // which is where the pointer already is.
@@ -80,6 +97,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Content(readout);
 
             return new HoverRevealer(detail) { Child = strip };
+        }
+
+        /// <summary>A fixed-width, right-aligned readout field -- see the width comment in <see cref="Build"/>.</summary>
+        private static TextBlock StatField(UiTheme theme, float width)
+        {
+            return new TextBlock()
+                .FontFamily(theme.FontFamilyMono)
+                .FontSize(theme.FontSizeSmall)
+                .Foreground(theme.TextMuted)
+                .Align(TextAlignment.Right)
+                .Width(width);
         }
 
         private static Sparkline Graph(UiTheme theme, float[] samples, float? maximum, float? threshold)

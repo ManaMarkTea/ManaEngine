@@ -287,69 +287,37 @@ namespace ManaVoxel.Code.UI.ManaUi
                 t => t.Visibility,
                 () => library.ScanError == null ? Visibility.Collapsed : Visibility.Visible);
 
-            var place = new Button()
-                .Label("Place")
-                .Variant(ButtonVariant.Primary)
-                .OnClick(() =>
-                {
-                    if (library.SelectedAsset is { } asset)
-                    {
-                        MeshImportRequests.RequestPlacement(asset);
-                    }
-                });
-
-            // The prose this replaces -- "Drag a mesh into the scene to place it under the cursor, or select
-            // one and press Place. Escape cancels a placement in progress." -- spent two wrapped lines of a
-            // short panel restating what the button beside it does. As a tooltip it is there when wanted and
-            // costs nothing when not.
-            place.Tooltip = "Places the selected asset. You can also drag a tile straight into the scene, "
-                + "and Escape cancels a placement in progress.";
-
-            // Disabled rather than hidden: the button is what tells you the list is for placing things, and
-            // a button that vanishes when nothing is selected teaches nothing.
-            place.BindPolled(b => b.IsEnabled, () => library.SelectedAsset != null);
-
-            var selection = new TextBlock()
-                .Foreground(theme.TextMuted)
-                .FontSize(theme.FontSizeSmall)
-                .Ellipsis()
-                .CenterV();
-
-            // The selected asset's name, which the old layout never showed at all -- with a tree you could
-            // see what was highlighted, but a tile's caption truncates, so the full name goes here.
-            selection.BindTextPolled(() => library.SelectedAsset is { } path
-                ? Path.GetFileName(path)
-                : "No asset selected");
-
+            // No footer: placing used to need a select-then-press-Place row of its own, but right-click on
+            // any tile already offers Place directly (see ShowContextMenu), and dragging a tile into the
+            // scene always has. A dedicated button and a "what's selected" label were both just a slower
+            // way to do what right-click already does in one step, and removing them hands their row back
+            // to the asset grid above it.
+            //
             // Clipped, so nothing can leak past the panel whatever the arithmetic says. A grid hands out
             // more than it has when its fixed rows already exceed the space, and the overflow lands on top
             // of whatever is below rather than disappearing.
             //
-            // The fixed rows stay terse: the filter row carries the count and Rescan, formats keep their
-            // own wrap row, the size slider gets a short row, and the footer carries selection plus Place.
-            // The tile grid remains the only stretch row because it is the part that benefits from space.
-            return new Grid().Rows("Auto, Auto, Auto, *, Auto", theme.Spacing).Columns("*").Clip().Children(
-                new Grid().Columns("*, Auto, Auto", theme.Spacing).Rows("Auto").GridRow(0).Children(
+            // The fixed rows stay terse: the filter row carries the count, Rescan and the formats dropdown
+            // together -- filters are a rare adjustment, not worth a row of their own. The tile grid comes
+            // right after that, since it's what the panel is actually for; the size slider sits just below
+            // it, reachable without opening anything but out of the way of the assets themselves.
+            return new Grid().Rows("Auto, Auto, *, Auto", theme.Spacing).Columns("*").Clip().Children(
+                new Grid().Columns("*, Auto, Auto, Auto", theme.Spacing).Rows("Auto").GridRow(0).Children(
                     filter.GridColumn(0),
                     count.GridColumn(1),
                     new Button().Label("Rescan").Variant(ButtonVariant.Subtle)
                         .OnClick(() => library.RequestScan(force: true))
-                        .GridColumn(2)),
+                        .GridColumn(2),
+                    FormatsDropdown(theme, library).GridColumn(3)),
 
-                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(1).Children(
-                    warning.GridColumn(0),
-                    Formats(theme, library).GridColumn(1)),
-
-                TileSizeControl(theme).GridRow(2),
+                warning.GridRow(1),
 
                 // No minimum height. A minimum on the star row does not shrink when the panel does -- it
-                // holds its size, the grid overflows, and the content runs out through the footer underneath
-                // it. Whatever is left over is the right amount, including none.
-                grid.GridRow(3),
+                // holds its size, the grid overflows, and the content runs out through whatever is
+                // underneath it. Whatever is left over is the right amount, including none.
+                grid.GridRow(2),
 
-                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").GridRow(4).Children(
-                    selection.GridColumn(0),
-                    place.GridColumn(1)));
+                TileSizeControl(theme).GridRow(3));
         }
 
         // ----- thumbnail grid ---------------------------------------------------------------------------
@@ -747,38 +715,89 @@ namespace ManaVoxel.Code.UI.ManaUi
             return lines.ToString();
         }
 
-        private static UiElement Formats(UiTheme theme, MeshAssetLibrary library)
+        private static readonly MeshAssetFormats[] AllFormats =
         {
-            var row = new WrapPanel { HorizontalSpacing = theme.Spacing, VerticalSpacing = 2.0f };
+            MeshAssetFormats.Glb,
+            MeshAssetFormats.Gltf,
+            MeshAssetFormats.Fbx,
+            MeshAssetFormats.Dae,
+            MeshAssetFormats.Obj,
+            MeshAssetFormats.Stl,
+            MeshAssetFormats.Ply
+        };
 
-            foreach (var format in new[]
+        /// <summary>
+        /// One dropdown button instead of a whole row of checkboxes, which could wrap to two lines and
+        /// push the actual asset thumbnails further down before any were visible. Built as a small popup
+        /// of checkboxes rather than reusing <see cref="ComboBox"/> (single-select) or <see
+        /// cref="MenuFlyout"/> (closes itself the instant any item is clicked, which is right for a menu
+        /// command but wrong for ticking several formats in a row).
+        /// </summary>
+        private static UiElement FormatsDropdown(UiTheme theme, MeshAssetLibrary library)
+        {
+            // A count rather than the format names themselves: the names' combined width varies with which
+            // ones happen to be on, and a button that resizes itself every time a checkbox is ticked reads
+            // as broken. A count is bounded ("Formats (7/7)") regardless of which are enabled.
+            string Summary()
             {
-                MeshAssetFormats.Glb,
-                MeshAssetFormats.Gltf,
-                MeshAssetFormats.Fbx,
-                MeshAssetFormats.Dae,
-                MeshAssetFormats.Obj,
-                MeshAssetFormats.Stl,
-                MeshAssetFormats.Ply
-            })
-            {
-                var toggle = new CheckBox(format.ToString().ToUpperInvariant());
-                var captured = format;
-
-                toggle.IsChecked = library.IsFormatEnabled(captured);
-                toggle.CheckedChanged += (_, value) =>
-                {
-                    if (!toggle.IsApplyingBinding)
-                    {
-                        library.SetFormatEnabled(captured, value);
-                    }
-                };
-
-                toggle.BindPolled(c => c.IsChecked, () => library.IsFormatEnabled(captured));
-                row.Children.Add(toggle);
+                var enabledCount = AllFormats.Count(library.IsFormatEnabled);
+                return $"Formats ({enabledCount}/{AllFormats.Length})";
             }
 
-            return row;
+            UiPopup? popup = null;
+            var button = new Button().Variant(ButtonVariant.Subtle);
+            button.BindPolled(b => b.Text, Summary);
+
+            button.OnClick(() =>
+            {
+                if (popup is { IsOpen: true })
+                {
+                    popup.Close();
+                    popup = null;
+                    return;
+                }
+
+                var root = button.Root;
+                if (root == null)
+                {
+                    return;
+                }
+
+                var list = new StackPanel().Vertical(2.0f);
+                foreach (var format in AllFormats)
+                {
+                    var toggle = new CheckBox(format.ToString().ToUpperInvariant());
+                    var captured = format;
+
+                    toggle.IsChecked = library.IsFormatEnabled(captured);
+                    toggle.CheckedChanged += (_, value) =>
+                    {
+                        if (!toggle.IsApplyingBinding)
+                        {
+                            library.SetFormatEnabled(captured, value);
+                        }
+                    };
+
+                    toggle.BindPolled(c => c.IsChecked, () => library.IsFormatEnabled(captured));
+                    list.Children.Add(toggle);
+                }
+
+                popup = new UiPopup
+                {
+                    Placement = PopupPlacement.Bottom,
+                    Child = new Border()
+                        .Fill(theme.SurfaceRaised)
+                        .Outline(theme.BorderStrong, 1.0f)
+                        .Rounded(theme.CornerRadius)
+                        .Shadow(14.0f)
+                        .PaddingOf(6.0f)
+                        .Content(list)
+                };
+                popup.Closed += (_, _) => popup = null;
+                root.Popups.Show(popup, button);
+            });
+
+            return button;
         }
 
         private static UiElement Row(UiTheme theme, string label, UiElement editor)

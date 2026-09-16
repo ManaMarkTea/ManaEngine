@@ -320,11 +320,19 @@ namespace ManaUI
             {
                 Kind = UiThemeKind.Lcars,
 
-                Background = UiColor.FromHex("#000000"),
-                Surface = UiColor.FromHex("#000000"),
-                SurfaceAlt = UiColor.FromHex("#1A1005"),
-                SurfaceRaised = UiColor.FromHex("#140D06"),
-                RowAlternate = UiColor.FromHex("#170F08"),
+                // Warm dark ambers rather than flat black -- a first pass made Background AND Surface both
+                // pure #000000, which is where "too dark" really came from: a panel sitting on the window
+                // is indistinguishable from the void behind it except for its border line, so the whole UI
+                // read as one undifferentiated black field with orange buttons floating on it. Real LCARS
+                // keeps black only for the empty space *between* its console blocks -- the blocks
+                // themselves are always a definite, visible material. Each step here is a genuinely
+                // brighter/more saturated amber than the last, so a panel now visibly sits apart from the
+                // window, and a popup visibly sits apart from the panel it opened over.
+                Background = UiColor.FromHex("#0D0805"),
+                Surface = UiColor.FromHex("#2E1B0C"),
+                SurfaceAlt = UiColor.FromHex("#1F1207"),
+                SurfaceRaised = UiColor.FromHex("#3D2712"),
+                RowAlternate = UiColor.FromHex("#33200F"),
 
                 // Text sits on the black void in the cool pale blue real consoles use; text on a colour
                 // block is always black, which is what TextOnAccent carries.
@@ -333,12 +341,15 @@ namespace ManaUI
                 TextDisabled = UiColor.FromHex("#4A4A5C"),
                 TextOnAccent = UiColor.FromHex("#000000"),
 
-                // The classic LCARS orange block. Buttons are flat colour, not lit from above, so both
-                // gradients stay at zero.
+                // The classic LCARS orange block. Buttons are flat colour, not lit from above, so
+                // AccentGradient stays at zero -- but SurfaceGradient (panels, not buttons) gets a little
+                // life back rather than the flat zero a first pass gave both: with Surface now an actual
+                // visible amber instead of black-on-black, a hint of top-lit shading reads as a physical
+                // console panel instead of a flat colour swatch.
                 Accent = UiColor.FromHex("#FF9900"),
                 AccentHover = UiColor.FromHex("#FFB238"),
                 AccentPressed = UiColor.FromHex("#CC7A00"),
-                SurfaceGradient = 0.0f,
+                SurfaceGradient = 0.08f,
                 AccentGradient = 0.0f,
 
                 // Lilac frame, gold emphasis, periwinkle dividers -- the trio of secondary hues a real
@@ -360,22 +371,26 @@ namespace ManaUI
                 Warning = UiColor.FromHex("#FFCC66"),
                 Success = UiColor.FromHex("#66CCCC"),
 
-                // Chunky capsule controls, sized up from the base theme's density: a real console is read
-                // from across a room, not scanned like a code editor, so both the controls and the gaps
-                // between them are noticeably larger than the working-editor defaults.
-                ControlHeight = 36.0f,
-                CornerRadius = new CornerRadius(18.0f),
-                CornerRadiusLarge = new CornerRadius(28.0f),
+                // Chunky capsule controls, sized up from the base theme's density -- but only modestly:
+                // a first pass went up to 2-2.5x the working-editor defaults across the board (ControlHeight
+                // 36, Spacing 10, Padding 14/9, ControlPadding 18/7), which reads as "console" in isolation
+                // but as wasted panel space next to a real docked layout stacked several rows deep -- every
+                // one of those oversized gaps is multiplied by however many rows and panels are on screen
+                // at once. Landed closer to 1.2-1.5x instead: still visibly chunkier than Dark/Light, still
+                // reads as deliberately different, but not at the cost of half the panel being padding.
+                ControlHeight = 30.0f,
+                CornerRadius = new CornerRadius(15.0f),
+                CornerRadiusLarge = new CornerRadius(24.0f),
 
                 // A modest, non-circular round for icon toggles and texture-slot chips -- see
                 // CornerRadiusCompact's own doc comment for why this can't just be CornerRadius.
                 CornerRadiusCompact = new CornerRadius(8.0f),
 
-                Spacing = 10.0f,
-                Padding = new Thickness(14.0f, 9.0f),
-                ControlPadding = new Thickness(18.0f, 7.0f),
-                ScrollBarThickness = 14.0f,
-                ScrollBarGap = 6.0f,
+                Spacing = 6.0f,
+                Padding = new Thickness(8.0f, 6.0f),
+                ControlPadding = new Thickness(10.0f, 4.0f),
+                ScrollBarThickness = 11.0f,
+                ScrollBarGap = 5.0f,
 
                 // Bumped well past the base sizes -- LCARS type is a shouted, oversized display face, not
                 // body copy. Antonio is an ultra-condensed display face in the same family as the

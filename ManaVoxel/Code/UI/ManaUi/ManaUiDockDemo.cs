@@ -15,17 +15,14 @@ namespace ManaVoxel.Code.UI.ManaUi
     public static class ManaUiDockDemo
     {
         // Both were set to comfortable round numbers; these are what the content actually needs at the
-        // theme's font size, and every pixel here is one the viewport does not get.
-        private const float MenuBarHeight = 28.0f;
+        // base theme's font size, and every pixel here is one the viewport does not get. MenuBarMinHeight
+        // is a floor, not the real answer -- see Build's menuBarHeight local, which grows this per-theme
+        // for a font (LCARS's Antonio) whose line height exceeds it.
+        private const float MenuBarMinHeight = 28.0f;
         private const float StatusBarHeight = 24.0f;
 
         private const float DefaultLeftWidth = 300.0f;
         private const float DefaultRightWidth = 380.0f;
-        /// <summary>
-        /// The toolbar strip. Sized to what one row of controls plus its padding actually measures (see
-        /// VoxelToolPaletteManaView), rather than to a round number with slack in it.
-        /// </summary>
-        private const float DefaultTopHeight = 38.0f;
         private const float DefaultBottomHeight = 220.0f;
 
         /// <summary>
@@ -144,6 +141,15 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var theme = root.Theme;
             var debug = root.Debug;
+
+            // Same formula MenuBarHeading/MenuFlyout size themselves by -- see their matching comment for
+            // why theme.ControlHeight alone isn't enough once the active font's own line height (LCARS's
+            // Antonio) is taller than it. Computed once here so the bar's own container, the dock area
+            // below it, and the viewport-overlay offset all agree with what the bar actually measures to,
+            // instead of the container clipping to a fixed 28px while the content wants more and spills
+            // into the toolbar strip underneath it.
+            var menuBarHeight = MathF.Max(MenuBarMinHeight, MathF.Max(theme.ControlHeight, root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale).LineHeight));
+
             var top = new DockHost();
             var left = new DockHost();
             var right = new DockHost();
@@ -267,23 +273,30 @@ namespace ManaVoxel.Code.UI.ManaUi
                 RelocateToStrip("import", bottom, new[] { left, right, top }, Resolve, FloatingIds());
             }
 
-            // MinimumSize before Size in each of these: Size's setter clamps against MinimumSize immediately,
-            // and an object initializer runs in order -- reversed, it clamps against the class's stale
-            // default (180) instead of the value below it, which is how the toolbar's 56px became 180px.
+            // AllowResize off rather than dropping ResizablePanel entirely: DockHost/DockTabGroup always
+            // measure to whatever height they are given (DockTabGroup.MeasureOverride literally returns
+            // availableSize back unchanged) rather than to their own content, the same way every other
+            // dock strip in this workspace relies on a ResizablePanel to say how tall it is. Wrapping the
+            // toolbar in a plain auto-sizing container instead asked it to measure against an infinite
+            // height and made the whole strip disappear.
+            //
+            // The height itself is still tied to the theme rather than a flat hand-picked constant (the
+            // old DefaultTopHeight, 38, was Dark-theme-specific and silently wrong the moment a theme with
+            // a different ControlHeight -- LCARS -- came along): every control on the row shares
+            // theme.ControlHeight, and 14 is the toolbar's own vertical padding (VoxelEditorToolbarManaView,
+            // 3 top + 3 bottom) plus the tab-strip chrome HideStripWhenSingle leaves behind, measured once
+            // against Dark's ControlHeight of 24 giving the original 38.
+            var topPanelHeight = theme.ControlHeight + 14.0f;
             var topPanel = new ResizablePanel
             {
                 Edge = Dock.Top,
-                MinimumSize = 30.0f,
-                // Deliberately NOT restored from an older layout version. The toolbar's height is a
-                // function of its content, so a size saved before the content changed is stale by
-                // definition -- and because the toolbar stretches to fill its strip, nothing would ever
-                // shrink it back. Every other strip is genuinely the user's choice and is restored as-is.
-                Size = saved is { TopHeight: > 0.0f } && saved.Version == LayoutVersion
-                    ? saved.TopHeight
-                    : DefaultTopHeight,
+                AllowResize = false,
+                MinimumSize = topPanelHeight,
+                MaximumSize = topPanelHeight,
+                Size = topPanelHeight,
                 Background = theme.Frosted(theme.Background),
                 BackdropBlur = theme.BackdropBlur,
-                Child = top
+                Child = top.CenterV()
             };
 
             var leftPanel = new ResizablePanel
@@ -323,14 +336,22 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
+                // Only a genuine override is worth remembering -- saving whatever font happens to be
+                // active would just as happily capture the current theme's own default (e.g. LCARS's
+                // Antonio-Bold), and Attach re-applies a saved FontFamily unconditionally on top of
+                // whatever theme it loads. That is exactly how the "theme" font stopped working: it wasn't
+                // the Font dropdown overriding it on purpose, it was a completely incidental font getting
+                // baked in by the next unrelated Save() and then clobbering a differently-themed default
+                // on the next launch or theme switch.
+                var isDefaultFont = root.Theme.FontFamily == UiTheme.Create(state.Theme).FontFamily;
+
                 new ManaUiWorkspaceLayout
                 {
                     Version = LayoutVersion,
                     Preset = state.Preset,
                     Theme = state.Theme,
-                    FontFamily = root.Theme.FontFamily,
+                    FontFamily = isDefaultFont ? null : root.Theme.FontFamily,
                     BackdropBlur = state.BackdropBlur,
-                    TopHeight = topPanel.Size,
                     LeftWidth = leftPanel.Size,
                     RightWidth = rightPanel.Size,
                     BottomHeight = bottomPanel.Size,
@@ -396,7 +417,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Floating panels are part of the layout too: created, moved, docked back or closed.
             dragController.FloatingChanged += (_, _) => Save();
 
-            topPanel.SizeCommitted += (_, _) => Save();
             leftPanel.SizeCommitted += (_, _) => Save();
             rightPanel.SizeCommitted += (_, _) => Save();
             bottomPanel.SizeCommitted += (_, _) => Save();
@@ -410,11 +430,15 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                // Saved before the swap: the columns whose widths it records are about to be rebuilt.
                 state.Theme = kind;
-                Save();
                 root.Theme = UiTheme.Create(kind);
                 ApplyGridTheme(world, root.Theme);
+
+                // Saved after the swap, not before: Save() now compares root.Theme.FontFamily against
+                // the new theme's own default to decide whether a font override is worth persisting, so
+                // it has to see the new theme already in place -- otherwise every theme switch looked
+                // like the old theme's font had been deliberately chosen for the new one.
+                Save();
 
                 // Rebuilt, not repainted: views capture theme colours as they're constructed.
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
@@ -489,6 +513,21 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Save();
             }
 
+            // Unlike an ordinary preset switch (Choose, above), which deliberately leaves a torn-out panel
+            // floating where the user put it, resetting means back to a clean slate -- so every floating
+            // window closes first. ToList() snapshots the windows before closing any of them: each Close()
+            // fires FloatingChanged synchronously, which would otherwise mutate FloatingWindows out from
+            // under this same foreach.
+            void ResetPanels()
+            {
+                foreach (var window in dragController.FloatingWindows.ToList())
+                {
+                    window.Close();
+                }
+
+                Choose(state.Preset);
+            }
+
             // Rows: the toolbar strip, the main area, and the Import strip -- but the Import strip only
             // spans the left column and the viewport (columns 0-1). The right column spans both of the
             // lower rows so it reaches the status bar unbroken, matching Unreal's own Outliner/Details
@@ -501,7 +540,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     leftPanel.GridRow(1).GridColumn(0),
                     rightPanel.GridRow(1, span: 2).GridColumn(2),
                     bottomPanel.GridRow(2).GridColumn(0, span: 2))
-                .Anchor(top: MenuBarHeight, left: 0.0f, right: 0.0f, bottom: StatusBarHeight);
+                .Anchor(top: menuBarHeight, left: 0.0f, right: 0.0f, bottom: StatusBarHeight);
 
             // Overlay first so the dock area draws over it; it works out the viewport from what the strips
             // cover. The right column already excludes itself via rightWidth regardless of row span, so the
@@ -511,7 +550,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     theme,
                     () => leftPanel.Visibility == Visibility.Collapsed ? 0.0f : leftPanel.Size,
                     () => rightPanel.Visibility == Visibility.Collapsed ? 0.0f : rightPanel.Size,
-                    () => MenuBarHeight + (topPanel.Visibility == Visibility.Collapsed ? 0.0f : topPanel.Size),
+                    () => menuBarHeight + (topPanel.Visibility == Visibility.Collapsed ? 0.0f : topPanel.Size),
                     () => StatusBarHeight + (bottomPanel.Visibility == Visibility.Collapsed ? 0.0f : bottomPanel.Size),
                     camera,
                     editor)
@@ -523,9 +562,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Fill(theme.Frosted(theme.Surface))
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
-                    .Height(MenuBarHeight)
+                    .Height(menuBarHeight)
                     .Content(new Grid().Columns("*, Auto").Rows("Auto").Children(
-                        BuildMenuBar(vm, state, Choose, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor)
+                        BuildMenuBar(vm, state, Choose, ResetPanels, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor)
                             .GridColumn(0),
                         BuildClock(theme).Margin(0.0f, 0.0f, 12.0f, 0.0f).GridColumn(1)))
                     .Anchor(top: 0.0f, left: 0.0f, right: 0.0f),
@@ -859,6 +898,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaUiShowcaseViewModel vm,
             WorkspaceState state,
             Action<WorkspacePreset> choose,
+            Action resetPanels,
             UiDebugOverlay debug,
             UiRoot root,
             Action<UiThemeKind> chooseTheme,
@@ -888,7 +928,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     PresetItem("Unreal", WorkspacePreset.Unreal, state, choose),
                     PresetItem("Split", WorkspacePreset.Split, state, choose),
                     MenuItem.Separator(),
-                    new MenuItem("Reset panels", () => choose(state.Preset))),
+                    new MenuItem("Reset panels", resetPanels)),
 
                 new MenuItem("Panels").WithItems(
                     PanelIds

@@ -1200,18 +1200,15 @@ namespace Mana.Code.UI
                     springArm.ProbeBuffer = probeBuffer;
                 }
 
-                var autoAlign = springArm.AutoAlignBehindTarget;
-                if (DrawCheckboxProperty("Auto align", ref autoAlign))
+                var lookSensitivity = springArm.LookYawSensitivity;
+                if (DrawSliderFloatProperty("Look sensitivity", ref lookSensitivity, 0.1f, 3.0f))
                 {
-                    springArm.AutoAlignBehindTarget = autoAlign;
+                    springArm.LookYawSensitivity = lookSensitivity;
                 }
 
-                var autoAlignSpeed = springArm.AutoAlignSpeed;
-                if (DrawSliderFloatProperty("Align speed", ref autoAlignSpeed, 0.0f, 12.0f))
-                {
-                    springArm.AutoAlignSpeed = autoAlignSpeed;
-                }
-
+                // Read-only: ManaPawnController rewrites this every frame from the camera mode and
+                // whether a look drag is in progress, so a checkbox here would not survive one.
+                DrawReadOnlyProperty("Follows target yaw", springArm.FollowTargetYaw ? "Yes" : "No");
                 DrawReadOnlyProperty("Yaw / Pitch", $"{springArm.YawRadians.ToDegrees():0.} / {springArm.PitchRadians.ToDegrees():0.}");
 
                 ImGui.EndTable();

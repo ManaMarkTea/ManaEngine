@@ -202,10 +202,14 @@ namespace ManaVoxel.Code.Services
                 pawn.Position = position;
 
                 // Must run after the height normalisation above: the measured speeds are in world
-                // units, so they only mean anything once the pawn's final scale is set. Adopting them
-                // as the default speeds is what keeps the feet planted out of the box.
+                // units, so they only mean anything once the pawn's final scale is set.
+                //
+                // Measured but deliberately not adopted (see ManaPawnNode.ApplyCalibratedSpeeds, which
+                // the inspector still offers): the pawn keeps its own WoW-tuned speeds, and these
+                // measurements are what MatchAnimationToSpeed retimes the clips against to keep the
+                // feet planted at them. Adopting them instead left the character walking at whatever
+                // pace its clips happened to be authored at, which is what made it feel slow.
                 LastStrideMeasurements = pawn.CalibrateLocomotionClips();
-                pawn.ApplyCalibratedSpeeds();
 
                 // Physics last: the capsule is sized from the pawn's final rendered height and spawned
                 // at its final position, so both have to be settled first.

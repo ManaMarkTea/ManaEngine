@@ -1,4 +1,5 @@
 using Mana.Code.Nodes;
+using ManaVoxel.Code.Gameplay.Flight;
 
 namespace Mana.Code.GameModes
 {
@@ -32,6 +33,7 @@ namespace Mana.Code.GameModes
         private ManaCameraMode _savedCameraMode;
         private ManaPawnNode? _savedPossessedPawn;
         private bool _savedReleaseOnEscape;
+        private bool _savedMouseLookControls;
 
         public PlayModeController(
             ManaContext context,
@@ -103,6 +105,11 @@ namespace Mana.Code.GameModes
             _savedCameraMode = _pawnController.CameraMode;
             _savedPossessedPawn = _pawnController.PossessedPawn;
             _savedReleaseOnEscape = _pawnController.ReleaseOnEscape;
+            _savedMouseLookControls = _pawnController.MouseLookControlsEnabled;
+
+            // Flight is a play-mode affordance, added to the character rather than baked into the spawn so
+            // an editor-spawned character stays a plain walker.
+            player.Components.Add(new FlyingMountComponent(player));
 
             _player = player;
             _startNode = start;
@@ -114,6 +121,10 @@ namespace Mana.Code.GameModes
             // Escape is ours while playing -- see ManaPawnController.ReleaseOnEscape.
             _pawnController.ReleaseOnEscape = false;
             _pawnController.KeyboardDriveEnabled = true;
+
+            // Left-drag becomes a camera orbit for the duration of play, which it cannot be in the
+            // editor -- there a left-press is a selection or a walk order.
+            _pawnController.MouseLookControlsEnabled = true;
             _pawnController.Possess(player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
 
@@ -138,6 +149,7 @@ namespace Mana.Code.GameModes
             _pawnController.Possess(null);
             _pawnController.SetCameraMode(_savedCameraMode);
             _pawnController.ReleaseOnEscape = _savedReleaseOnEscape;
+            _pawnController.MouseLookControlsEnabled = _savedMouseLookControls;
 
             if (_player != null)
             {
