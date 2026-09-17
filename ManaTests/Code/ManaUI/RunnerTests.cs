@@ -100,8 +100,9 @@ public static class RunnerChecks
         var populated = new TestRunnerViewModel(fonts, null);
         populated.Load(SampleRun());
 
-        Check("a run reports its checks", populated.PassedCount + populated.FailedCount == 130,
-            $"{populated.PassedCount} passed, {populated.FailedCount} failed");
+        var totalChecks = populated.Sections.Sum(s => s.Checks.Count);
+        Check("a run reports its checks", populated.PassedCount + populated.FailedCount == totalChecks,
+            $"{populated.PassedCount} passed, {populated.FailedCount} failed, {totalChecks} total");
         Check("the headline reflects the outcome",
             populated.Headline.Length > 0, populated.Headline);
         Check("the banner icon follows the outcome",

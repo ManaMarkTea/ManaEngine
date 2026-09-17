@@ -244,6 +244,7 @@ public static class ViewportOverlayChecks
             !ViewportCameraGizmoManaView.FitsIn(new Vector2(120.0f, 200.0f))
                 && !ViewportCameraGizmoManaView.TripodFitsIn(new Vector2(120.0f, 200.0f)));
 
-        Check("the layer renders", root.Render().Instances.Length >= 0, "no throw");
+        var rendered = root.Render();
+        Check("the layer renders", rendered.Instances.Length > 0, $"{rendered.Instances.Length} instances");
     }
 }

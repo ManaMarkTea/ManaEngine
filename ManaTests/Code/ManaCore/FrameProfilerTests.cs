@@ -82,7 +82,8 @@ public static class FrameProfilerChecks
 
         ManaFrameProfiler.EndFrame(frameMs: 33.0);
         ManaFrameProfiler.EndFrame(frameMs: 21.0);
-        Check("frames over the budget are", ManaFrameProfiler.HitchCount == 2, $"{ManaFrameProfiler.HitchCount}");
+        Check("frames over the budget count as hitches",
+            ManaFrameProfiler.HitchCount == 2, $"{ManaFrameProfiler.HitchCount}");
         Check("and the worst one is kept",
             Math.Abs(ManaFrameProfiler.WorstFrameMs - 33.0) < 0.001, $"{ManaFrameProfiler.WorstFrameMs:F1}ms");
 

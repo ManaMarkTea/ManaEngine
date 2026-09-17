@@ -48,7 +48,9 @@ public static class AssetCatalogChecks
                 + ":" + Convert.ToBase64String(Encoding.UTF8.GetBytes("Models/ship.glb"));
             await catalog.EnsureAsync(relativeZip);
             check("saved levels resolve relative zip references to the same downloaded pack", catalog.IsReady(catalog.Models[1]) && requests.Count == 4, "");
-            check("unknown local files do not become network requests", catalog.IsReady("user-model.glb"), "");
+            await catalog.EnsureAsync("user-model.glb");
+            check("unknown local files do not become network requests",
+                catalog.IsReady("user-model.glb") && requests.Count == 4, "");
 
             File.Delete(Path.Combine(directory.FullName, "Assets", "pack.zip"));
             var attempt = 0;

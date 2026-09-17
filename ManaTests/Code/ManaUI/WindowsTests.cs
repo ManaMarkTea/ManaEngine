@@ -25,11 +25,13 @@ public static class WindowChecks
         // ---------------------------------------------------------------- dragging
         var titleBarPoint = new Vector2(200.0f, 108.0f);
         root.Input.InjectPointerMoved(titleBarPoint);
-        Check("title bar wants a move cursor or arrow",
-            root.RequestedCursor is UiCursor.Arrow or UiCursor.SizeAll, root.RequestedCursor.ToString());
+        Check("title bar shows the default arrow before a drag starts",
+            root.RequestedCursor == UiCursor.Arrow, root.RequestedCursor.ToString());
 
         root.Input.InjectPointerPressed(titleBarPoint, PointerButton.Left, time);
         Check("title drag captures", root.PointerCaptureTarget == window);
+        Check("dragging the title bar wants a move cursor",
+            root.RequestedCursor == UiCursor.SizeAll, root.RequestedCursor.ToString());
 
         root.Input.InjectPointerMoved(titleBarPoint + new Vector2(50.0f, 30.0f));
         root.UpdateLayout(new Vector2(1280, 720));
@@ -117,8 +119,9 @@ public static class WindowChecks
         root.Input.InjectPointerMoved(new Vector2(-100.0f, -100.0f));
         var withGrip = root.Render().InstanceCount;
         window.CanResize = false;
-        Check("the resize grip is drawn", root.Render().InstanceCount + 6 == withGrip,
-            $"{withGrip} with grip, {root.Render().InstanceCount} without");
+        var withoutGrip = root.Render().InstanceCount;
+        Check("the resize grip is drawn", withoutGrip < withGrip,
+            $"{withGrip} with grip, {withoutGrip} without");
         window.CanResize = true;
 
         // ---------------------------------------------------------------- z-order

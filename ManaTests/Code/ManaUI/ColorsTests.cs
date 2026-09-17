@@ -61,8 +61,8 @@ public static class ColorChecks
         // Hex
         Check("hex round-trips", UiColor.ToHex(UiColor.FromHex("#3B82F6")) == "#3B82F6",
             UiColor.ToHex(UiColor.FromHex("#3B82F6")));
-        Check("an opaque colour omits its alpha", !UiColor.ToHex(UiColor.White).Contains("FF", StringComparison.Ordinal)
-            || UiColor.ToHex(UiColor.White).Length == 7, UiColor.ToHex(UiColor.White));
+        Check("an opaque colour omits its alpha", UiColor.ToHex(UiColor.White).Length == 7,
+            UiColor.ToHex(UiColor.White));
         Check("a translucent colour keeps its alpha",
             UiColor.ToHex(UiColor.White.WithAlpha(0.5f)).Length == 9,
             UiColor.ToHex(UiColor.White.WithAlpha(0.5f)));

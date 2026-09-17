@@ -10,6 +10,11 @@ public static class RotationChecks
         CheckAxisRoundTrip("X pitch", new Vector3(45.0f.ToRadians(), 0.0f, 0.0f), check);
         CheckAxisRoundTrip("Y yaw", new Vector3(0.0f, 45.0f.ToRadians(), 0.0f), check);
         CheckAxisRoundTrip("Z roll", new Vector3(0.0f, 0.0f, 45.0f.ToRadians()), check);
+
+        // A single-axis round trip can't catch an axis-order bug (e.g. XYZ vs ZYX composition) -- only a
+        // combined rotation exercises the order the axes are applied in.
+        CheckAxisRoundTrip("combined pitch+yaw+roll",
+            new Vector3(30.0f.ToRadians(), 40.0f.ToRadians(), 50.0f.ToRadians()), check);
     }
 
     private static void CheckAxisRoundTrip(string name, Vector3 euler, Action<string, bool, string> check)
