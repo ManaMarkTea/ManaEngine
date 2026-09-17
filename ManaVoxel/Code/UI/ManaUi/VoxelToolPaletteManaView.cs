@@ -20,34 +20,37 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class VoxelToolPaletteManaView
     {
-        public static UiElement Build(UiTheme theme, VoxelEditorViewModel vm)
+        /// <summary>
+        /// The palette on its own -- tool buttons plus whichever settings the current tool actually uses.
+        /// <para>
+        /// No scroll viewer of its own any more: the palette is one group among several on a shared strip,
+        /// and a scroller per group means each one clips independently while the row as a whole still
+        /// overruns the window. <see cref="VoxelEditorToolbarManaView"/> owns the one scroller that covers
+        /// every group on the row.
+        /// </para>
+        /// </summary>
+        public static UiElement BuildTools(UiTheme theme, VoxelEditorViewModel vm)
         {
-            // Horizontal rather than vertical: this lives in the toolbar strip under the menu now, not a
-            // side column, so a window too narrow for every group scrolls sideways rather than wrapping.
-            var scrollable = new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(
-                    BuildToolGroup(theme, vm),
-                    Divider(theme),
-                    BuildColorGroup(theme, vm),
-                    BuildShapeColorGroup(theme, vm),
-                    BuildStrokeGroup(theme, vm),
-                    BuildTextGroup(theme, vm))
-                .Scrollable()
-                .Scrolls(vertical: ScrollBarVisibility.Disabled, horizontal: ScrollBarVisibility.Auto);
+            return new StackPanel().Horizontal(theme.Spacing).Children(
+                BuildToolGroup(theme, vm),
+                ToolbarIcons.Divider(theme),
+                BuildColorGroup(theme, vm),
+                BuildShapeColorGroup(theme, vm),
+                BuildStrokeGroup(theme, vm),
+                BuildTextGroup(theme, vm));
+        }
 
-            // Work plane gets a section of its own, pinned to the right rather than folded in with the
-            // tools -- it only actually constrains Circle and Text (the only two that read it), and sitting
-            // among the other tool controls made it look like it applied to all of them.
-            return new Grid().Columns("*, Auto, Auto").Rows("Auto").Padding(6.0f, 3.0f).Children(
-                scrollable.GridColumn(0),
-                Divider(theme).GridColumn(1),
-                BuildWorkPlaneGroup(theme, vm).GridColumn(2));
+        /// <summary>
+        /// The work plane, which the toolbar pins to the far right rather than folding in with the tools --
+        /// it only actually constrains Circle and Text (the only two that read it), and sitting among the
+        /// other tool controls made it look like it applied to all of them.
+        /// </summary>
+        public static UiElement BuildWorkPlane(UiTheme theme, VoxelEditorViewModel vm)
+        {
+            return BuildWorkPlaneGroup(theme, vm);
         }
 
         // ----- tools ----------------------------------------------------------------------------------
-
-        // Matches the theme's control height, so a tool button is the same size as every other control in
-        // the strip and the strip is exactly one control tall.
-        private const float ToolButtonSize = 24.0f;
 
         private static UiElement BuildToolGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
@@ -57,7 +60,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // whichever tool happens to be current: picking a tool leaves select mode, and picking
             // select leaves whatever tool was active. IsSelectToolActive and SelectedToolIndex stay the
             // two fields VoxelEditorGameMode already reads -- only how this row writes them changes.
-            return new StackPanel().Horizontal(4.0f).Children(
+            return new StackPanel().Horizontal(theme.Spacing).Children(
                 ToolButton(theme, DrawSelectIcon, "Select",
                     () => vm.IsSelectToolActive,
                     () => vm.IsSelectToolActive = true),
@@ -67,7 +70,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ToolButton(theme, DrawSphereIcon, "Sphere", VoxelToolKind.Sphere, vm),
                 ToolButton(theme, DrawSplineIcon, "Spline", VoxelToolKind.Spline, vm),
                 ToolButton(theme, DrawTextIcon, "Text", VoxelToolKind.Text, vm),
-                Divider(theme),
+                ToolbarIcons.Divider(theme),
                 ToolButton(theme, DrawPaintIcon, "Paint", VoxelToolKind.Paint, vm),
                 ToolButton(theme, DrawFloodFillIcon, "Flood Fill", VoxelToolKind.FloodFill, vm),
                 ToolButton(theme, DrawEraseIcon, "Erase", VoxelToolKind.Erase, vm));
@@ -91,10 +94,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 });
         }
 
-        /// <summary>
-        /// An icon button whose fill and icon colour follow whatever <paramref name="isSelected"/> reports,
-        /// polled the same way every other control in this toolbar reads the view model.
-        /// </summary>
+        /// <summary>A tool toggle, drawn by the toolbar's shared icon button so the whole strip matches.</summary>
         private static Button ToolButton(
             UiTheme theme,
             Action<ManaUiDrawList, UiRect, Vector4> drawIcon,
@@ -102,49 +102,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Func<bool> isSelected,
             Action onClick)
         {
-            var icon = new ToolIcon(drawIcon)
-                .BindPolled(i => i.Color, () => isSelected() ? theme.TextOnAccent : theme.Text);
-
-            return new Button
-                {
-                    Child = icon,
-                    IgnoreThemePadding = true,
-                    Width = ToolButtonSize,
-                    Height = ToolButtonSize,
-                    CornerRadius = theme.CornerRadiusCompact
-                }
-                .WithTooltip(tooltip)
-                .OnClick(onClick)
-                .BindPolled(b => b.Variant, () => isSelected() ? ButtonVariant.Primary : ButtonVariant.Subtle);
-        }
-
-        /// <summary>
-        /// Draws into the box a delegate is given, so each tool's icon is a small function rather than a
-        /// control of its own -- there is only ever one of these on screen per tool, and the geometry does
-        /// not need a life of its own beyond drawing.
-        /// </summary>
-        private sealed class ToolIcon : UiElement
-        {
-            private readonly Action<ManaUiDrawList, UiRect, Vector4> _draw;
-            private Vector4 _color;
-
-            public ToolIcon(Action<ManaUiDrawList, UiRect, Vector4> draw)
-            {
-                _draw = draw;
-            }
-
-            public Vector4 Color
-            {
-                get => _color;
-                set => SetVisualProperty(ref _color, value);
-            }
-
-            protected override Vector2 MeasureOverride(Vector2 availableSize) => new(18.0f, 18.0f);
-
-            protected override void OnRender(ManaUiDrawList drawList)
-            {
-                _draw(drawList, Bounds, _color);
-            }
+            return ToolbarIcons.IconButton(theme, drawIcon, tooltip, isSelected, onClick);
         }
 
         // ----- tool icons -----------------------------------------------------------------------------
@@ -152,16 +110,10 @@ namespace ManaVoxel.Code.UI.ManaUi
         // square with a full radius is a circle), lines and a stroked border. Every icon below is built
         // from just those three calls, tracing the same silhouettes the hand-drawn ImGui icons used.
 
-        private static Vector2 P(UiRect box, float tx, float ty) =>
-            new(box.X + box.Width * tx, box.Y + box.Height * ty);
+        private static Vector2 P(UiRect box, float tx, float ty) => ToolbarIcons.P(box, tx, ty);
 
-        private static void FillDot(ManaUiDrawList drawList, Vector2 center, float radius, Vector4 color)
-        {
-            drawList.FillRect(
-                new UiRect(center.X - radius, center.Y - radius, radius * 2.0f, radius * 2.0f),
-                color,
-                new CornerRadius(radius));
-        }
+        private static void FillDot(ManaUiDrawList drawList, Vector2 center, float radius, Vector4 color) =>
+            ToolbarIcons.FillDot(drawList, center, radius, color);
 
         private static void DrawSelectIcon(ManaUiDrawList drawList, UiRect box, Vector4 color)
         {
@@ -204,11 +156,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         private static void DrawRing(
-            ManaUiDrawList drawList, Vector2 center, float radiusX, float radiusY, float thickness, Vector4 color)
-        {
-            var rect = new UiRect(center.X - radiusX, center.Y - radiusY, radiusX * 2.0f, radiusY * 2.0f);
-            drawList.DrawBorder(rect, color, thickness, new CornerRadius(MathF.Min(radiusX, radiusY)));
-        }
+            ManaUiDrawList drawList, Vector2 center, float radiusX, float radiusY, float thickness, Vector4 color) =>
+            ToolbarIcons.DrawRing(drawList, center, radiusX, radiusY, thickness, color);
 
         private static void DrawCircleIcon(ManaUiDrawList drawList, UiRect box, Vector4 color)
         {
@@ -375,10 +324,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .OnChanged(value => vm.ShapeHasFill = value)
                 .BindPolled(c => c.IsChecked, () => vm.ShapeHasFill);
 
+            // The checkbox is the label: a captioned swatch reading "Fill" sitting next to a checkbox also
+            // reading "Fill" was two controls apparently named the same thing, and which of them the tick
+            // belonged to was anybody's guess. Tick first, then the swatch it governs.
             var row = new StackPanel().Horizontal(theme.Spacing).Children(
                 Group(theme, "Stroke", stroke),
-                Group(theme, "Fill", fill),
-                hasFill);
+                hasFill,
+                fill.CenterV());
 
             // Unchecking Fill leaves only the rim painted -- a ring for Circle, a shell for Sphere.
             return row.BindPolled(s => s.Visibility, () =>
@@ -405,7 +357,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             offset.BindPolled(b => b.Value, () => vm.WorkPlaneOffset);
             offset.BindPolled(b => b.IsEnabled, () => vm.SelectedWorkPlaneIndex != 0);
 
-            var row = new StackPanel().Horizontal(theme.Spacing * 0.5f).Children(plane, offset);
+            var row = new StackPanel().Horizontal(theme.Spacing).Children(plane, offset);
             return Group(theme, "Work plane", row);
         }
 
@@ -414,7 +366,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static UiElement BuildStrokeGroup(UiTheme theme, VoxelEditorViewModel vm)
         {
             var row = new StackPanel().Horizontal(theme.Spacing).Children(
-                Divider(theme),
+                ToolbarIcons.Divider(theme),
                 IntSlider(theme, "Radius", 0, 12,
                     () => vm.StrokeRadiusVoxels,
                     v => vm.StrokeRadiusVoxels = v,
@@ -442,7 +394,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .BindPolled(b => b.Text, () => vm.ToolText);
 
             var row = new StackPanel().Horizontal(theme.Spacing).Children(
-                Divider(theme),
+                ToolbarIcons.Divider(theme),
                 Group(theme, "Text", text),
                 IntSlider(theme, "Scale", 1, 8, () => vm.TextScale, v => vm.TextScale = v, width: 130.0f),
                 IntSlider(theme, "Depth", 1, 16, () => vm.TextDepth, v => vm.TextDepth = v, width: 130.0f));
@@ -473,7 +425,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .CenterV()
                 .BindTextPolled(read, v => v.ToString());
 
-            return new Grid().Columns("Auto, *, 28", 6.0f).Rows("Auto").Width(width).Children(
+            return new Grid().Columns("Auto, *, 28", theme.Spacing).Rows("Auto").Width(width).Children(
                 new TextBlock().Text(label).Foreground(theme.TextMuted).CenterV().GridColumn(0),
                 slider.GridColumn(1).CenterV(),
                 value.GridColumn(2));
@@ -493,7 +445,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private static UiElement Group(UiTheme theme, string caption, UiElement control)
         {
-            return new StackPanel().Horizontal(4.0f).Children(
+            return new StackPanel().Horizontal(theme.Spacing).Children(
                 Caption(caption, theme).CenterV(),
                 control.CenterV());
         }
@@ -506,9 +458,5 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .FontSize(theme.FontSizeSmall);
         }
 
-        private static UiElement Divider(UiTheme theme)
-        {
-            return new Border().Fill(theme.Divider).Width(1.0f).Margin(2.0f, 4.0f).StretchV();
-        }
     }
 }

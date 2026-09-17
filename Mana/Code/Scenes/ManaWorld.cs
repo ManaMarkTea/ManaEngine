@@ -1,5 +1,4 @@
 #if !MANA_BROWSER
-using ImGuiNET;
 #endif
 using Mana.Code;
 using Mana.Code.Materials;
@@ -48,7 +47,7 @@ namespace Mana
             liveFrameStatTexts[name] = value;
         }
 
-        /// <summary>Read-only view for a perf panel; ManaUI's World Perf equivalent polls this directly rather than through ImGui.</summary>
+        /// <summary>Read-only view for a perf panel; ManaUI's World Perf panel polls this directly.</summary>
         public IReadOnlyDictionary<string, TimeSpan> LiveFrameStats => liveFrameStats;
 
         /// <summary>Read-only view of <see cref="RecordFrameStatText"/>'s targets, same reasoning as <see cref="LiveFrameStats"/>.</summary>
@@ -60,25 +59,17 @@ namespace Mana
         public int LastMeshCount { get; private set; }
         private readonly SceneSelectionState sceneSelectionState = new SceneSelectionState();
         public SceneSelectionState Selection => sceneSelectionState;
-#if !MANA_BROWSER
-        private readonly SceneOutlinerPanelView sceneOutlinerPanelView;
-        private readonly SceneInspectorPanelView sceneInspectorPanelView;
-        private readonly CameraComponentImGuiView cameraComponentImGuiView = new CameraComponentImGuiView();
-        private readonly IrradianceSettingsPanelView irradianceSettingsPanelView = new IrradianceSettingsPanelView();
-#endif
         private ManaIrradianceDebugScene? irradianceDebugScene;
 
         public readonly object SceneLock = new();
 
         public List<Action> PostDrawFutures { get; set; }
-        public List<Action> ImGuiFutures { get; set; }
         public List<Action> PreDrawFutures { get; set; }
         public List<Action> PreUpdateFutures { get; set; }
         public List<Action> PostUpdateFutures { get; set; }
 
 
         private List<Action> activePostDrawFutures { get; set; }
-        private List<Action> activeImGuiFutures { get; set; }
         private List<Action> activePreDrawFutures { get; set; }
         private List<Action> activePreUpdateFutures { get; set; }
         private List<Action> activePostUpdateFutures { get; set; }
@@ -108,8 +99,6 @@ namespace Mana
         public ManaWorld() : base(null!)
         {
 #if !MANA_BROWSER
-            sceneOutlinerPanelView = new SceneOutlinerPanelView(sceneSelectionState);
-            sceneInspectorPanelView = new SceneInspectorPanelView(sceneSelectionState);
 #endif
 
             Meshes = new List<ManaMesh>();
@@ -117,13 +106,11 @@ namespace Mana
             Materials = new List<ManaMaterial>();
 
             activePostDrawFutures = new List<Action>();
-            activeImGuiFutures = new List<Action>();
             activePreDrawFutures = new List<Action>();
             activePreUpdateFutures = new List<Action>();
             activePostUpdateFutures = new List<Action>();
 
             PostDrawFutures = new List<Action>();
-            ImGuiFutures = new List<Action>();
             PreDrawFutures = new List<Action>();
             PreUpdateFutures = new List<Action>();
             PostUpdateFutures = new List<Action>();
@@ -322,81 +309,6 @@ namespace Mana
             Renderer.Render(drawScenes);
         }
 
-#if !MANA_BROWSER
-        public void DrawImGui()
-        {
-            // Tab order within a dock node follows Begin() submission order, so Inspector
-            // is drawn first here to keep it as the leftmost/default-selected utility tab.
-            sceneInspectorPanelView.Draw(Context.GameMode.BarlowCondensedImGuiFont);
-            cameraComponentImGuiView.Draw(MainCamera);
-            Renderer?.DrawImGui();
-            var irradiancePanelResult = irradianceSettingsPanelView.Draw(IrradianceSettings);
-            if (irradiancePanelResult.DebugWorldChanged)
-            {
-                irradianceDebugScene?.SyncMembership();
-            }
-
-            if (IrradianceSettings.DrawDebugWorld && irradiancePanelResult.DebugMaterialChanged)
-            {
-                irradianceDebugScene?.SyncMaterials();
-            }
-
-            if (IrradianceSettings.DrawDebugWorld && irradiancePanelResult.DebugSceneScaleChanged)
-            {
-                irradianceDebugScene?.SyncTransform();
-            }
-
-            RunFutures(ImGuiFutures, activeImGuiFutures);
-            sceneOutlinerPanelView.Draw(this);
-
-            if (BaseGameMode.UtilityDockId != 0)
-            {
-                ImGui.SetNextWindowDockID(BaseGameMode.UtilityDockId, ImGuiCond.Always);
-            }
-
-            ImGui.Begin("World Perf");
-
-            // Peak first, same reasoning as the ManaUI panel: a this-frame column cannot show a hitch,
-            // because the frame you are reading is by definition not the one that stuttered.
-            ImGui.SeparatorText("Frame timings (peak over last 2s)");
-            ImGui.Text(
-                $"{ManaCore.Diagnostics.ManaFrameProfiler.HitchCount} hitches over "
-                + $"{ManaCore.Diagnostics.ManaFrameProfiler.HitchThresholdMs:0}ms in "
-                + $"{ManaCore.Diagnostics.ManaFrameProfiler.FrameCount} frames, worst "
-                + $"{ManaCore.Diagnostics.ManaFrameProfiler.WorstFrameMs:0.0}ms");
-            foreach (var (name, sample) in ManaCore.Diagnostics.ManaFrameProfiler.TopByPeak(24))
-            {
-                var calls = sample.LastCalls > 1 ? $" x{sample.LastCalls}" : string.Empty;
-                ImGui.Text(
-                    $"{sample.PeakMs,7:F2} peak {sample.LastMs,7:F2} now {sample.AverageMs,7:F2} avg "
-                    + $"{sample.PeakKb,8:F0}KB  {name}{calls}");
-            }
-
-            ImGui.SeparatorText("Live (this frame)");
-            ImGui.Text($"Meshes rendered: {LastMeshCount}");
-            foreach (var (name, duration) in liveFrameStats)
-            {
-                ImGui.Text($"{duration.TotalMilliseconds,7:F2}ms - {name}");
-            }
-
-            if (liveFrameStatTexts.Count > 0)
-            {
-                ImGui.SeparatorText("Streaming");
-                foreach (var (name, value) in liveFrameStatTexts)
-                {
-                    ImGui.Text($"{name}: {value}");
-                }
-            }
-
-            ImGui.SeparatorText("Load times");
-            foreach (var perf in manaPerformanceLogs)
-            {
-                ImGui.Text($"{ perf.Duration.Milliseconds}ms - {perf.Name}");
-            }
-
-            ImGui.End();
-        }
-#endif
 
         private void CollectLightsFromNode(ManaSceneNode node, List<(Vector3 Position, Vector3 Color)> output)
         {
@@ -511,46 +423,3 @@ namespace Mana
 
     }
 }
-
-
-
-/*
- * 
- * 
- 
-if (UseRayTracing) { RenderTarget.Bind(); }
-
-            var gl = Context.RequireOpenGl();
-
-
-            Renderer.Clear();
-
-            gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-
-
-            RunFutures(PreDrawFutures, activePreDrawFutures);
-
-            foreach (var scene in Scenes)
-            {
-                scene.Draw();
-            }
-
-            RunFutures(PostDrawFutures, activePostDrawFutures);
-
-
-            if (UseRayTracing)
-            {
-                RenderTarget.UnBind();
-
-                RenderTarget.DrawFullScreenQuad();
-            }
-
-            ImGui.Begin("Camera");
-
-            ImGui.Checkbox("RayTrace", ref this.UseRayTracing);
-
-
-            ImGui.End();
-  
- 
- * */

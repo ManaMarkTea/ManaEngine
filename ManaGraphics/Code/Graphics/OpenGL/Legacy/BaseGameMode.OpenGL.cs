@@ -1,4 +1,3 @@
-using ImGuiNET;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
 using Silk.NET.Input;
@@ -34,25 +33,10 @@ namespace Mana.Code
             _GlDebugger = new GameModeGraphicsLevelDebugger(GL);
             GraphicsDiagnosticsProvider = new ManaOpenGlDiagnosticsProvider(Context);
             GraphicsDiagnosticsProvider.CaptureInitializationSnapshot();
-            _ImGui = new ManaOpenGlImGuiController(GL, _Window, input);
-            var io = ImGui.GetIO();
-            io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
-            ConfigImStyle();
-            CurrentImGuiFontPreset = ImGuiFontPreset.Default;
-
-            if (GetAvailableImGuiFontPresets().Contains(ImGuiFontPreset.SegoeUIMono))
-            {
-                RequestImGuiFontPreset(ImGuiFontPreset.SegoeUIMono);
-            }
-            else
-            {
-                RequestImGuiFontPreset(ImGuiFontPreset.Default);
-            }
-
             // Initialize the physics engine
             Context.Physics = new ManaPhysics(Context);
 
-            // Same opt-in as the WebGPU path. Without this the tree is never built on OpenGL, so ManaUI
+            // Same opt-in as the WebGPU path. Without this the tree is never built on OpenGL, so the UI
             // recorded a draw list every frame that nothing could ever submit.
             if (EnableManaUi)
             {

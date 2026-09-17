@@ -107,13 +107,12 @@ namespace ManaGraphics.Code.Graphics
         private readonly Dictionary<string, nint> _shaderModules = new();
         private readonly Dictionary<string, nint> _pipelines = new();
 #if !MANA_BROWSER
-        private ManaWebGpuImGuiController? _imGuiController;
 #endif
         private ManaWebGpuUiRenderer? _uiRenderer;
         private ManaWebGpuSkybox? _skybox;
 
         /// <summary>
-        /// The ManaUI tree to draw over the scene, or null while the app is still on ImGui alone.
+        /// The ManaUI tree to draw over the scene, or null when the host has not built one.
         /// <para>
         /// The app layer owns the root and records its draw list during its own render phase; this context
         /// only submits whatever was last recorded. Keeping layout out of the present path means a UI bug
@@ -125,7 +124,7 @@ namespace ManaGraphics.Code.Graphics
 
         /// <summary>
         /// Skips walking, uploading and drawing the scene for one frame -- everything else (clear, tone
-        /// map, ImGui, ManaUI) still runs.
+        /// map, ManaUI) still runs.
         /// <para>
         /// Set by the app layer, the same way <see cref="UiRoot"/> is, rather than this context knowing
         /// what "loading" means: OpenGL already never touches the scene while a game mode is loading
@@ -333,18 +332,6 @@ namespace ManaGraphics.Code.Graphics
         public void Resize(Vector2D<int> framebufferSize)
         {
             ConfigureSurface(framebufferSize);
-        }
-
-        public IManaImGuiController CreateImGuiController(IInputContext input)
-        {
-#if MANA_BROWSER
-            // ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset. Play
-            // mode's actual UI is ManaUi-based, not ImGui-based -- see ManaGraphics.csproj.
-            return new ManaCore.Graphics.NullManaImGuiController();
-#else
-            _imGuiController = new ManaWebGpuImGuiController(_api, _device, _queue, _surfaceFormat, _window, input);
-            return _imGuiController;
-#endif
         }
 
         /// <summary>
@@ -813,12 +800,9 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
-            using (ManaFrameProfiler.Measure("GPU: Tone Map + ImGui"))
+            using (ManaFrameProfiler.Measure("GPU: Tone Map"))
             {
                 _hdrPostProcessor?.Draw(toneMapRenderPass);
-#if !MANA_BROWSER
-                _imGuiController?.Render(toneMapRenderPass);
-#endif
             }
 
             // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
@@ -834,8 +818,7 @@ namespace ManaGraphics.Code.Graphics
                 toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
             }
 
-            // ManaUI draws last so it sits above ImGui during the migration -- the two coexist by design,
-            // and panels move across one at a time.
+            // The UI draws last, over the tone-mapped scene.
             using (ManaFrameProfiler.Measure("GPU: Draw ManaUI"))
             {
                 DrawManaUi(toneMapRenderPass);

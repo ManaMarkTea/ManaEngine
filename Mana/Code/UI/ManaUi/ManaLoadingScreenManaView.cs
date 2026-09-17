@@ -8,7 +8,7 @@ namespace Mana.Code.UI.ManaUi
     /// <para>
     /// Kept generic across game modes rather than owned by one: any mode with ManaUI enabled gets it for
     /// free, wrapped around whatever it builds by <see cref="ManaUiLoadingOverlay"/>. A mode without ManaUI
-    /// still falls back to the ImGui version -- see <c>ManaLoadingScreenView</c> -- which is why that one
+    /// has no loading screen at all -- the ImGui window that used to stand in for one went with ImGui
     /// stays rather than being deleted alongside this port.
     /// </para>
     /// </summary>

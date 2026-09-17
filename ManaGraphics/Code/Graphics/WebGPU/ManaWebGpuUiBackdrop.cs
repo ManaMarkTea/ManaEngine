@@ -10,7 +10,7 @@ namespace ManaGraphics.Code.Graphics
     /// A blurred snapshot of the frame, for UI panels that want the scene softened behind them.
     /// <para>
     /// A fragment cannot read the target it is writing, so the blur cannot happen inside the UI pass. The
-    /// frame is copied out after the scene and ImGui have drawn and before ManaUI does, then reduced down a
+    /// frame is copied out after the scene has drawn and before ManaUI does, then reduced down a
     /// mip chain; each level is blurrier than the last, so a panel's blur radius picks a level rather than
     /// paying for a filter of its own.
     /// </para>

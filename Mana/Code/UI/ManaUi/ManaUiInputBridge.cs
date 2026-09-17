@@ -82,7 +82,7 @@ namespace Mana.Code.UI.ManaUi
 
         /// <summary>
         /// Applies the cursor ManaUI is asking for. Only while the pointer is actually over ManaUI --
-        /// ImGui manages the cursor too, and fighting it every frame would make both flicker.
+        /// the camera also drives the cursor, and fighting it every frame would make both flicker.
         /// </summary>
         public void ApplyCursor()
         {

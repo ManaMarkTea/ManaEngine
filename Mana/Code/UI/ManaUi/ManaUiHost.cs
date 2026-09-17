@@ -12,10 +12,6 @@ namespace Mana.Code.UI.ManaUi
     /// application concerns and must not run inside the GPU present path. The backend is handed only the
     /// finished draw list.
     /// </para>
-    /// <para>
-    /// This runs alongside the existing ImGui controller by design -- both draw every frame, and panels
-    /// migrate one at a time rather than in a single breaking change.
-    /// </para>
     /// </summary>
     public sealed class ManaUiHost : IDisposable
     {
@@ -120,8 +116,8 @@ namespace Mana.Code.UI.ManaUi
         }
 
         /// <summary>
-        /// Bundled fonts first, then the platform's own -- same ordering the ImGui font loader uses, so both
-        /// UI stacks resolve a given family to the same file.
+        /// Bundled fonts first, then the platform's own, so a family name resolves to the copy shipped
+        /// with the app when there is one.
         /// </summary>
         private static IEnumerable<string> GetFontDirectories()
         {

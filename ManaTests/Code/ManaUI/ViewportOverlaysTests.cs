@@ -206,14 +206,43 @@ public static class ViewportOverlayChecks
             $"starts at {layer.Viewport.X:0}, column ends at {left.Bounds.Right:0}");
 
         // ---------------------------------------------------------------- fitting
+        // ---------------------------------------------------------------- the gizmo's icons
+        // The cluster itself cannot be built here -- it needs a CameraComponent, which needs a window -- but
+        // its artwork is static functions over a draw list, and the artwork is what was wrong with it: the
+        // four direction arrows were UiIcons.Triangle, which steps a solid triangle out of rounded rows
+        // whenever the font has no geometric-shape glyph to borrow. Roboto has none, so the gizmo drew four
+        // visible staircases. Two strokes have no steps in them.
+        var chevronList = new ManaUiDrawList();
+        chevronList.Reset();
+        ViewportCameraGizmoManaView.DrawChevron(
+            chevronList, new UiRect(0.0f, 0.0f, 24.0f, 24.0f), UiIconDirection.Up, UiColor.White);
+
+        Check("a direction chevron is two strokes, not a staircase",
+            chevronList.InstanceCount == 2, $"{chevronList.InstanceCount} instances");
+
+        // It used to be 120 with TOP, BOTTOM and PERSP spelled out on it. A word sets a floor on how small
+        // a button can be; the icons are what let the whole thing come down.
+        Check("and the gizmo is smaller than the words it used to carry",
+            ViewportCameraGizmoManaView.GizmoSize <= 96.0f, $"{ViewportCameraGizmoManaView.GizmoSize:0}px");
+
         Check("a gizmo needs room", !ViewportCameraGizmoManaView.FitsIn(new Vector2(120.0f, 800.0f)), "hidden");
         Check("and appears once there is", ViewportCameraGizmoManaView.FitsIn(new Vector2(700.0f, 800.0f)));
 
-        // The tripod is smaller, so a viewport too narrow for the gizmo can still carry it.
-        Check("the tripod fits in less",
-            ViewportCameraGizmoManaView.TripodFitsIn(new Vector2(140.0f, 200.0f))
-                && !ViewportCameraGizmoManaView.FitsIn(new Vector2(140.0f, 200.0f)),
-            "tripod only");
+        // The two used to differ by 26px, which made "a viewport too narrow for the gizmo still carries the
+        // tripod" a wide band worth naming. The gizmo is 96 now and the band is 2px, so what is worth
+        // asserting is the direction rather than the gap: the tripod never needs MORE room than the gizmo,
+        // so there is no viewport that shows the presets without the axis readout beside them.
+        Check("the tripod never needs more room than the gizmo",
+            ViewportCameraGizmoManaView.TripodSize <= ViewportCameraGizmoManaView.GizmoSize,
+            $"tripod {ViewportCameraGizmoManaView.TripodSize:0}, gizmo {ViewportCameraGizmoManaView.GizmoSize:0}");
+
+        Check("and a viewport with room for the gizmo has room for both",
+            ViewportCameraGizmoManaView.FitsIn(new Vector2(700.0f, 800.0f))
+                && ViewportCameraGizmoManaView.TripodFitsIn(new Vector2(700.0f, 800.0f)));
+
+        Check("while a genuinely cramped one carries neither",
+            !ViewportCameraGizmoManaView.FitsIn(new Vector2(120.0f, 200.0f))
+                && !ViewportCameraGizmoManaView.TripodFitsIn(new Vector2(120.0f, 200.0f)));
 
         Check("the layer renders", root.Render().Instances.Length >= 0, "no throw");
     }

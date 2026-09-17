@@ -49,6 +49,15 @@ namespace Mana.Code.Shapes.Loaders
 
         public ManaSceneNode LoadFile(string sceneFile)
         {
+            // Asked before the loader, so the reason is the real one. SharpGLTF meets a required extension it
+            // does not implement and reports the file as malformed, which sends you looking for a corrupt
+            // download instead of a re-export.
+            if (ManaGltfSupport.DescribeUnsupported(sceneFile) is { } unsupported)
+            {
+                throw new NotSupportedException(
+                    $"'{System.IO.Path.GetFileName(sceneFile)}' cannot be loaded because {unsupported}");
+            }
+
             _model = ModelRoot.Load(sceneFile);
             ActivePath = System.IO.Path.GetDirectoryName(sceneFile) ?? string.Empty;
             _externalAssetResolver = null;
@@ -75,6 +84,14 @@ namespace Mana.Code.Shapes.Loaders
             });
 
             using var stream = new System.IO.MemoryStream(bytes);
+
+            if (ManaGltfSupport.DescribeUnsupported(stream) is { } unsupported)
+            {
+                throw new NotSupportedException(
+                    $"'{virtualFileName}' cannot be loaded because {unsupported}");
+            }
+
+            stream.Position = 0;
             _model = readContext.ReadSchema2(stream);
 
             return LoadModel(System.IO.Path.GetFileNameWithoutExtension(virtualFileName));

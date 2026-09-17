@@ -46,15 +46,6 @@
        types (ManaContext, ManaSceneNode, ManaMaterial, ManaTexture) that only Mana.csproj
        can see; ManaGraphics has no reference to Mana.csproj (that would be circular). -->
 
-  <!-- ImGui.NET wraps a native cimgui binary with no browser-wasm runtime asset (same
-       problem as GLFW/Assimp/wgpu-native). Play mode's actual UI is ManaUi-based, not
-       ImGui-based, so the browser target gets a no-op IManaImGuiController instead (see
-       ManaWebGpuContext.cs's CreateImGuiController) rather than porting cimgui to wasm. -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
-    <Compile Remove="Code\Graphics\ManaImGuiClipboardBridge.cs" />
-    <Compile Remove="Code\Graphics\WebGPU\ManaWebGpuImGuiController.cs" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
@@ -65,7 +56,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <!-- Pure managed bindings, no native runtime asset at all (GL functions are loaded via a
          GetProcAddress delegate supplied at runtime, e.g. from a live GLFW/GL context); unlike
-         GLFW/Assimp/wgpu-native/ImGui.NET below, nothing here stops it compiling for
+         GLFW/Assimp/wgpu-native below, nothing here stops it compiling for
          browser-wasm, even though the actual OpenGL backend files (excluded below) never run
          there. Verified via the package's own lack of a runtimes/ folder. -->
     <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
@@ -74,13 +65,11 @@
   <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
        wgpu-native (WGPU.Native/.Extensions.WGPU) is the desktop WebGPU backend;
        GLFW is desktop windowing. The browser target uses Emscripten's own WebGPU
-       glue and a custom canvas-backed IWindow instead. Silk.NET.OpenGL.Extensions.ImGui
-       pulls in ImGui.NET (a native cimgui binary, see below) transitively. -->
+       glue and a custom canvas-backed IWindow instead. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <PackageReference Include="Silk.NET.WebGPU.Extensions.WGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
   </ItemGroup>
 
   <ItemGroup>

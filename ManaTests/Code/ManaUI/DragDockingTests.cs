@@ -181,11 +181,22 @@ public static class DragDockingChecks
             overlay.Visibility.ToString());
         Check("overlay never blocks input", !overlay.IsHitTestVisible);
 
+        // Counted against the same frame with the overlay hidden, not against a flat number. The old check
+        // was "more than five instances", which the docked content alone satisfies -- so it passed for as
+        // long as the overlay drew nothing whatsoever, which it did: it reported a zero desired size and
+        // then tried to claim the root back during arrange, and Arrange clamps that to the desired size.
+        // Empty bounds, and UiElement.Render skips those. The drop preview never appeared on screen once.
+        root.UpdateLayout(new Vector2(1000, 600));
+        var withoutOverlay = root.Render().InstanceCount;
+
         overlay.Show(DockDropResolver.Resolve(host, host.Bounds.Center));
         root.UpdateLayout(new Vector2(1000, 600));
         var drawn = root.Render();
-        Check("overlay renders a preview", overlay.Visibility == Visibility.Visible && drawn.InstanceCount > 5,
-            $"{drawn.InstanceCount} instances");
+
+        Check("the overlay has real bounds to paint into", !overlay.Bounds.IsEmpty, overlay.Bounds.ToString());
+        Check("overlay renders a preview",
+            overlay.Visibility == Visibility.Visible && drawn.InstanceCount > withoutOverlay,
+            $"{withoutOverlay} without -> {drawn.InstanceCount} with");
         overlay.Hide();
 
         Check("everything still one draw call", root.Render().Batches.Count == 1);

@@ -17,6 +17,7 @@ namespace Mana.Code.GameModes
         private bool _stopKeyWasDown;
         private bool _undoKeyWasDown;
         private bool _redoKeyWasDown;
+        private bool _saveKeyWasDown;
 
         /// <summary>Remembered so a second window launches on the backend this one is running.</summary>
         private string? _requestedWebGpuBackend;
@@ -107,13 +108,22 @@ namespace Mana.Code.GameModes
             _stopKeyWasDown = stopKeyDown;
         }
 
-        private void UpdateUndoRedoShortcuts()
+        /// <summary>
+        /// Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z, and Ctrl+S.
+        /// <para>
+        /// Save writes to whatever name the toolbar's level box holds, exactly as the Save button does --
+        /// this is the same command, not a second path to disk. It was the one everyday editor action with
+        /// no key at all, which meant the only way to not lose work was to go and find a button.
+        /// </para>
+        /// </summary>
+        private void UpdateEditShortcuts()
         {
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();
             if (keyboard == null)
             {
                 _undoKeyWasDown = false;
                 _redoKeyWasDown = false;
+                _saveKeyWasDown = false;
                 return;
             }
 
@@ -135,8 +145,15 @@ namespace Mana.Code.GameModes
                 _viewModel.History.Redo();
             }
 
+            var saveKeyDown = control && keyboard.IsKeyPressed(Key.S);
+            if (canEdit && saveKeyDown && !_saveKeyWasDown && !IsLoading)
+            {
+                _viewModel.Levels.Save();
+            }
+
             _undoKeyWasDown = undoKeyDown;
             _redoKeyWasDown = redoKeyDown;
+            _saveKeyWasDown = saveKeyDown;
         }
 
         /// <summary>What the play HUD reads out, so the controls are on screen rather than in a menu.</summary>

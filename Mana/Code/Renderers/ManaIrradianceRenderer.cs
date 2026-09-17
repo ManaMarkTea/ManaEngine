@@ -127,10 +127,6 @@ namespace Mana.Code.Renderers
             Context.RequireOpenGl().Clear((uint)(ClearBufferMask.DepthBufferBit));
         }
 
-        public override void DrawImGui()
-        {
-        }
-
         public override void Render(Action drawScenes)
         {
             RenderIrradiance();

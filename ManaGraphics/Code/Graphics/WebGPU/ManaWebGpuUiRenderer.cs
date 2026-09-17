@@ -117,7 +117,7 @@ namespace ManaGraphics.Code.Graphics
             UploadUniforms(logicalSize, atlas);
             UploadInstances(drawList);
 
-            // Scissor state persists across draws within a render pass, and ImGui -- which draws earlier in
+            // Scissor state persists across draws within a render pass, so anything that set one earlier in
             // this same pass -- sets one per command. Without resetting it here, the whole UI ends up
             // clipped to whatever ImGui's last widget happened to be. ManaUI does its own clipping in the
             // fragment shader, so full-target scissor is what it wants.

@@ -11,7 +11,6 @@ namespace ManaSceneViewer
             ManaUiDensity.RestorePreset();
 
             SceneViewerMode game = new SceneViewerMode();
-            game.PurgeStaleDockLayout();
             game.Run();
         }
     }

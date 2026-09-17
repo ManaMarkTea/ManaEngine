@@ -1,5 +1,4 @@
 #if !MANA_BROWSER
-using ImGuiNET;
 #endif
 using Mana.Code;
 using Mana.Code.Nodes;
@@ -120,11 +119,20 @@ namespace Mana
             UpdateProjection();
         }
 
+        /// <summary>
+        /// Points the camera down a world axis, orbiting whatever is worth looking at rather than wherever
+        /// it happened to be pointing.
+        /// <para>
+        /// It used to orbit the point <see cref="_viewCenterDistance"/> units in front of the camera. That field is written in exactly two places, the constructor and
+        /// <see cref="FlyToWorldPosition"/>, and the fly camera writes Owner.Position directly without
+        /// touching it. So after any WASD/QE flight the "orbit centre" was a stale number pointing at empty
+        /// space, and a preset swung the camera around that instead of around the scene: you pressed Top and
+        /// arrived somewhere correct and empty. Far enough out and the room was past the far plane too,
+        /// which is why it looked like the clip planes rather than the pivot.
+        /// </para>
+        /// </summary>
         public void SetViewPreset(CameraViewPreset preset)
         {
-            float distance = GetViewCenterDistance();
-            Vector3 target = GetViewCenter(distance);
-
             Owner.Rotation = preset switch
             {
                 CameraViewPreset.Back => new Vector3(0.0f, 180.0f.ToRadians(), 0.0f),
@@ -135,8 +143,72 @@ namespace Mana
                 _ => Vector3.Zero,
             };
 
-            Owner.Position = target - Owner.Forward.Normalized() * distance;
+            var pivot = ResolveViewPresetPivot(out var distance);
+
+            Owner.Position = pivot - Owner.Forward.Normalized() * distance;
+
+            // Kept in step, so a second preset orbits the same pivot at the same range rather than
+            // re-deriving a different one from the position this just wrote.
+            _viewCenterDistance = distance;
             UpdateViewMatrix();
+        }
+
+        /// <summary>
+        /// What a view preset should swing around, and from how far.
+        /// <para>
+        /// The selection when there is one -- "show me the top of this" is what the button is for with
+        /// something picked. Otherwise the world origin, which is where the editor's room, grid and player
+        /// start all are; the camera keeps its current range from it so the preset changes the angle rather
+        /// than the zoom.
+        /// </para>
+        /// </summary>
+        private Vector3 ResolveViewPresetPivot(out float distance)
+        {
+            var selection = Owner.Context?.World?.Selection;
+
+            if (selection != null
+                && TryComputeSelectionWorldBounds(
+                    selection.SelectedComponent as MeshRendererComponent,
+                    selection.SelectedNode,
+                    out var worldMin,
+                    out var worldMax))
+            {
+                var centre = (worldMin + worldMax) * 0.5f;
+                var radius = MathF.Max(Vector3.Distance(centre, worldMax), 0.001f);
+
+                distance = ClampViewPresetDistance(
+                    radius / MathF.Sin(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f) * FramingPaddingMultiplier,
+                    NearClipPlane,
+                    FarClipPlane);
+
+                return centre;
+            }
+
+            distance = ClampViewPresetDistance(
+                Vector3.Distance(Owner.Position, Vector3.Zero), NearClipPlane, FarClipPlane);
+
+            return Vector3.Zero;
+        }
+
+        /// <summary>
+        /// A range that actually shows the pivot. The upper bound is the real fix for "the preset worked and
+        /// I still cannot see anything": a camera parked further from its target than the far plane renders
+        /// nothing at all, and the presets were happy to put it there.
+        /// <para>
+        /// Static and pure so the bounds can be checked without a camera, which needs a window to exist.
+        /// </para>
+        /// </summary>
+        public static float ClampViewPresetDistance(float distance, float nearClip, float farClip)
+        {
+            var minimum = MathF.Max(nearClip * 4.0f, 0.01f);
+            var maximum = MathF.Max(minimum, farClip * 0.5f);
+
+            if (!float.IsFinite(distance))
+            {
+                return minimum;
+            }
+
+            return Math.Clamp(distance, minimum, maximum);
         }
 
         // "Frame selected" (F key, see VoxelEditorGameMode) -- pulls the camera back/forward along its
@@ -395,7 +467,7 @@ namespace Mana
 
             _pointerCaptureActive = wanted;
 
-            // Set before touching the cursor: the ImGui controllers write the cursor mode from their own
+            // Set before touching the cursor: the UI layer writes the cursor mode from its own
             // state every frame, and this is what tells them to leave it alone (see ManaPointerCapture).
             ManaPointerCapture.IsActive = wanted;
 
@@ -442,7 +514,7 @@ namespace Mana
             var KeyboardState = Context.Input.Keyboards.First();
             bool externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
             bool uiCapturesMouse = GetUiWantsCaptureMouse() || externalCapturesMouse;
-            // Without this the WASD/QE block below fires while typing into any ImGui text field.
+            // Without this the WASD/QE block below fires while typing into any UI text field.
             bool uiCapturesKeyboard = GetUiWantsCaptureKeyboard();
 
             // Only the WASD ground-plane keys are surrenderable, not the whole fly block: something
@@ -557,15 +629,14 @@ namespace Mana
         }
 
         /// <summary>
-        /// Whether any UI layer owns the mouse. Routed through the game mode, which knows about ManaUI as
-        /// well as ImGui -- asking ImGui alone would let the camera orbit while the pointer is dragging a
-        /// ManaUI slider, because ImGui is told there is no mouse at all at that moment.
+        /// Whether the UI owns the mouse. Routed through the game mode rather than asked of the UI
+        /// directly, so a camera running without one (a test harness) simply reports no capture.
         /// </summary>
         private bool GetUiWantsCaptureMouse()
         {
             try
             {
-                return Context?.GameMode?.UiWantsMouse ?? GetImGuiWantsCaptureMouse();
+                return Context?.GameMode?.UiWantsMouse ?? false;
             }
             catch
             {
@@ -577,55 +648,12 @@ namespace Mana
         {
             try
             {
-                return Context?.GameMode?.UiWantsKeyboard ?? GetImGuiWantsCaptureKeyboard();
+                return Context?.GameMode?.UiWantsKeyboard ?? false;
             }
             catch
             {
                 return false;
             }
-        }
-
-        /// <summary>Fallback for a camera running without a game mode, such as in a test harness.</summary>
-        private static bool GetImGuiWantsCaptureMouse()
-        {
-#if MANA_BROWSER
-            return false;
-#else
-            try
-            {
-                if (ImGui.GetCurrentContext() == IntPtr.Zero)
-                {
-                    return false;
-                }
-
-                return ImGui.GetIO().WantCaptureMouse;
-            }
-            catch
-            {
-                return false;
-            }
-#endif
-        }
-
-        private static bool GetImGuiWantsCaptureKeyboard()
-        {
-#if MANA_BROWSER
-            return false;
-#else
-            try
-            {
-                if (ImGui.GetCurrentContext() == IntPtr.Zero)
-                {
-                    return false;
-                }
-
-                return ImGui.GetIO().WantCaptureKeyboard;
-            }
-            catch
-            {
-                return false;
-            }
-#endif
         }
 
         public float[] GetMouseDeltaHistoryXSnapshot() => _deltaHistoryX.ToArray();
@@ -663,11 +691,6 @@ namespace Mana
             float targetDistance = GetViewCenterDistance();
             float visibleHeight = 2.0f * targetDistance * MathF.Tan(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f);
             return visibleHeight / viewportHeight;
-        }
-
-        private Vector3 GetViewCenter(float distance)
-        {
-            return Owner.Position + Owner.Forward.Normalized() * distance;
         }
 
         private float GetViewCenterDistance()

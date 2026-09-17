@@ -8,7 +8,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
     /// The editor's main menu, in ManaUI. Built once against the same
-    /// <see cref="VoxelEditorViewModel"/> the ImGui menu drove, rather than re-declared every frame.
+    /// <see cref="VoxelEditorViewModel"/> the editor drives, rather than re-declared every frame.
     /// <para>
     /// Every tick and enabled state is a lambda over the view model, so the menu reflects the editor
     /// without anything having to tell it. That is the one thing an immediate-mode menu gets for free and
@@ -19,8 +19,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         /// <summary>
         /// Builds the bar. <paramref name="host"/> is nullable so the menu can be built and driven without
-        /// a game mode: the rows that need one are the ImGui-era font and theme settings, which are the
-        /// rows due to disappear with ImGui, while everything else answers to the view model alone.
+        /// a game mode: every row here answers to the view model alone.
         /// </summary>
         public static MenuBar Build(VoxelEditorViewModel viewModel, BaseGameMode? host = null)
         {
@@ -51,7 +50,15 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .EnabledWhen(() => viewModel.History.CanUndo),
                 new MenuItem("Redo", () => viewModel.History.Redo())
                     .WithShortcut("Ctrl+Y")
-                    .EnabledWhen(() => viewModel.History.CanRedo));
+                    .EnabledWhen(() => viewModel.History.CanRedo),
+
+                MenuItem.Separator(),
+
+                // Not commands -- the two viewport keys that are otherwise learnable only by being told.
+                // A menu is where someone looks for "what can I press", so the keys that belong to no
+                // button at all are the ones that most need saying somewhere.
+                MenuItem.Label("Frame selected").ShortcutFrom(() => "F"),
+                MenuItem.Label("Clear selection").ShortcutFrom(() => "Esc"));
         }
 
         private static MenuItem File(VoxelEditorViewModel viewModel)
@@ -59,13 +66,20 @@ namespace ManaVoxel.Code.UI.ManaUi
             var levels = viewModel.Levels;
 
             return new MenuItem("File").WithItems(
+                // Which level this menu is about, before the commands that act on it. It used to ride in
+                // Save Level's shortcut column, which is the column a reader scans for keys -- and now that
+                // Save actually has one, that column had to be given back to it.
+                MenuItem.Label(string.Empty).ShortcutFrom(() => levels.CurrentLevelLabel),
+
+                MenuItem.Separator(),
+
                 new MenuItem("New Level", levels.New),
 
-                // Saves under whatever name the Level panel's box holds, which is also how Save As works.
+                // Saves under whatever name the toolbar's box holds, which is also how Save As works.
                 // There is no file dialog to open here, and inventing a modal one for a name that is
                 // already on screen and editable would be a second way to say the same thing.
                 new MenuItem("Save Level", levels.Save)
-                    .ShortcutFrom(() => levels.CurrentLevelLabel),
+                    .WithShortcut("Ctrl+S"),
 
                 new MenuItem("Reload Level", levels.Reload)
                     .EnabledWhen(() => levels.CurrentPath != null),
@@ -181,10 +195,10 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         /// <summary>
         /// This is the ManaUI-side fix for what was otherwise the only way to leave a spring-arm camera
-        /// mode: the ImGui Character menu's "Camera" submenu. C still cycles modes and Esc still releases
+        /// mode. C still cycles modes and Esc still releases
         /// the pawn (ManaPawnController.UpdateDriveInput reads those keys directly), but without this menu
         /// there was no way to see which mode was active, no way to jump straight to Free, and no way to
-        /// discover either shortcut at all once ImGui's own menu bar stopped being the one on screen.
+        /// discover either shortcut at all without a menu row that says so.
         /// </summary>
         private static MenuItem CameraModeMenu(VoxelEditorViewModel viewModel)
         {
@@ -205,7 +219,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static MenuItem CameraModeItem(VoxelEditorViewModel viewModel, ManaCameraMode mode, string label, string tooltip)
         {
             // The spring-arm modes need something to hang off, so they stay greyed out until a character
-            // is possessed rather than silently doing nothing -- same rule the ImGui version used.
+            // is possessed rather than silently doing nothing.
             return new MenuItem(label, () => viewModel.PawnController?.SetCameraMode(mode))
                 .Checkable(() => viewModel.PawnController?.CameraMode == mode)
                 .EnabledWhen(() => mode == ManaCameraMode.Free || viewModel.PawnController?.PossessedPawn != null)
@@ -297,24 +311,12 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 MenuItem.Separator(),
 
-                new MenuItem("Light Theme", () =>
-                    {
-                        viewModel.UseLightTheme = true;
-#if !MANA_BROWSER
-                        // Repaints ImGui's own style; ManaUi's own theme isn't wired to this flag yet
-                        // (still the single Dark UiTheme everywhere -- see UiTheme.cs), on any platform.
-                        host?.ApplyLightImGuiTheme();
-#endif
-                    })
+                // These set a view-model flag and nothing else now. The Appearance menu's own Theme
+                // submenu is what actually swaps ManaUI's palette -- see ManaUiDockDemo's ChooseTheme.
+                new MenuItem("Light Theme", () => viewModel.UseLightTheme = true)
                     .Checkable(() => viewModel.UseLightTheme),
 
-                new MenuItem("Dark Theme", () =>
-                    {
-                        viewModel.UseLightTheme = false;
-#if !MANA_BROWSER
-                        host?.ApplyDarkImGuiTheme();
-#endif
-                    })
+                new MenuItem("Dark Theme", () => viewModel.UseLightTheme = false)
                     .Checkable(() => !viewModel.UseLightTheme),
 
                 new MenuItem("UI Density").WithItems(
@@ -323,93 +325,15 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new MenuItem("Compact", () => ManaUiDensity.SetPreset(ManaUiDensityPreset.Compact))
                         .Checkable(() => ManaUiDensity.CurrentPreset == ManaUiDensityPreset.Compact)),
 
-#if !MANA_BROWSER
-                // Emoji fallback substitution, layout reset and font-preset selection are all ImGui glyph
-                // atlas / docking concerns (BaseGameMode.ImGuiFonts.cs / BaseGameMode.ImGuiDocking.cs),
-                // both excluded entirely on browser -- see Mana.csproj. Nothing ManaUi-equivalent exists
-                // for any of the three yet.
-                new MenuItem("Emoji Fallback (Experimental)",
-                        () => host?.SetEmojiFallbackEnabled(!host.EmojiFallbackEnabled))
-                    .Checkable(() => host?.EmojiFallbackEnabled ?? false)
-                    .EnabledWhen(() => host != null),
-
-                new MenuItem("Reset Layout", () => host?.ResetImGuiLayoutToDefaults())
-                    .EnabledWhen(() => host != null),
-
-                MenuItem.Separator(),
-
-                Font(host),
-#endif
+                // Emoji fallback, Reset Layout and the font-preset list used to sit here. All three were
+                // ImGui glyph-atlas and docking concerns; ManaUI has its own Font and Layout menus, and
+                // resets its own dock layout from the Layout menu.
 
                 MenuItem.Separator(),
 
                 new MenuItem("About", () => viewModel.ShowAboutWindow = !viewModel.ShowAboutWindow)
                     .Checkable(() => viewModel.ShowAboutWindow));
         }
-
-#if !MANA_BROWSER
-        // BaseGameMode.ImGuiMonoSizeTier/ImGuiFontPreset are ImGui glyph-atlas concepts
-        // (BaseGameMode.ImGuiFonts.cs), excluded entirely on browser -- see Mana.csproj. Nothing calls
-        // Font() there; see its one call site above.
-        /// <summary>
-        /// The font presets the host reports it can actually load, rather than a hardcoded list -- the
-        /// original named twenty and hid the ones that were missing, which is the same thing said twice.
-        /// </summary>
-        private static MenuItem Font(BaseGameMode? host)
-        {
-            var font = new MenuItem("Font").WithItems(
-                new MenuItem("Monospace Size").WithItems(
-                    new MenuItem("Small", () => host?.SetImGuiMonoSizeTier(BaseGameMode.ImGuiMonoSizeTier.Small))
-                        .Checkable(() => host?.CurrentMonoSizeTier == BaseGameMode.ImGuiMonoSizeTier.Small),
-                    new MenuItem("Regular", () => host?.SetImGuiMonoSizeTier(BaseGameMode.ImGuiMonoSizeTier.Regular))
-                        .Checkable(() => host?.CurrentMonoSizeTier == BaseGameMode.ImGuiMonoSizeTier.Regular)),
-
-                MenuItem.Separator());
-
-            var available = host?.GetAvailableImGuiFontPresets();
-
-            foreach (var (preset, label) in FontPresets)
-            {
-                if (available != null && !available.Contains(preset))
-                {
-                    continue;
-                }
-
-                var chosen = preset;
-                font.Items.Add(new MenuItem(label, () => host?.RequestImGuiFontPreset(chosen))
-                    .Checkable(() => host?.CurrentImGuiFontPreset == chosen));
-            }
-
-            font.Items.Add(new MenuItem("Default", () => host?.RequestImGuiFontPreset(BaseGameMode.ImGuiFontPreset.Default))
-                .Checkable(() => host?.CurrentImGuiFontPreset == BaseGameMode.ImGuiFontPreset.Default));
-
-            return font;
-        }
-
-        private static readonly (BaseGameMode.ImGuiFontPreset Preset, string Label)[] FontPresets =
-        {
-            (BaseGameMode.ImGuiFontPreset.SegoeUI, "Segoe UI"),
-            (BaseGameMode.ImGuiFontPreset.SegoeSemibold, "Segoe UI Semibold"),
-            (BaseGameMode.ImGuiFontPreset.Bahnschrift, "Bahnschrift"),
-            (BaseGameMode.ImGuiFontPreset.BarlowCondensed, "Barlow Condensed"),
-            (BaseGameMode.ImGuiFontPreset.Roboto, "Roboto"),
-            (BaseGameMode.ImGuiFontPreset.RobotoSemiCondensed, "Roboto Semi Condensed"),
-            (BaseGameMode.ImGuiFontPreset.RobotoCondensed, "Roboto Condensed"),
-            (BaseGameMode.ImGuiFontPreset.Calibri, "Calibri"),
-            (BaseGameMode.ImGuiFontPreset.Candara, "Candara"),
-            (BaseGameMode.ImGuiFontPreset.Corbel, "Corbel"),
-            (BaseGameMode.ImGuiFontPreset.Verdana, "Verdana"),
-            (BaseGameMode.ImGuiFontPreset.Tahoma, "Tahoma"),
-            (BaseGameMode.ImGuiFontPreset.Trebuchet, "Trebuchet"),
-            (BaseGameMode.ImGuiFontPreset.SegoeUIMono, "Segoe UI Mono"),
-            (BaseGameMode.ImGuiFontPreset.Consolas, "Consolas (Mono)"),
-            (BaseGameMode.ImGuiFontPreset.CascadiaMono, "Cascadia Mono"),
-            (BaseGameMode.ImGuiFontPreset.JetBrainsMono, "JetBrains Mono"),
-            (BaseGameMode.ImGuiFontPreset.FiraCode, "Fira Code"),
-            (BaseGameMode.ImGuiFontPreset.SourceCodePro, "Source Code Pro"),
-            (BaseGameMode.ImGuiFontPreset.CourierNew, "Courier New (Mono)")
-        };
-#endif
 
         /// <summary>A checkable row that flips the thing it reports. Most of this menu is these.</summary>
         private static MenuItem Toggle(string text, Func<bool> read, Action<bool> write)

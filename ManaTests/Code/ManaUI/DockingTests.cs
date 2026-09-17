@@ -498,6 +498,75 @@ public static class TabRowChecks
 
         Check("no two visible tabs overlap", overlaps == 0, $"{overlaps} overlapping pairs");
 
+        // ---------------------------------------------------------------- hidden tabs draw nothing
+        // An overflowed tab has no rectangle, and TabRect reports that as zero-sized AT THE STRIP'S OWN
+        // ORIGIN rather than at 0,0. The render loop walked every item regardless, so each hidden tab
+        // handed the text layout a negative width budget -- which counts as overflowing -- and painted a
+        // trimming ellipsis in the strip's top-left corner, one stacked on the next. That is the speck
+        // that showed up above the first tab in the editor's right column.
+        //
+        // Compared against the same tabs with room to spare rather than against a pixel threshold: hiding
+        // tabs can only ever draw less, so more glyphs while showing fewer tabs is the bug by definition.
+        var glyphsWhenCrowded = GlyphsIn(narrow.Render(), strip);
+
+        var roomy = new UiRoot(fonts);
+        var roomyHost = new DockHost();
+        roomy.Content = roomyHost;
+
+        var all = Fill(
+            roomy,
+            roomyHost,
+            new Vector2(2400, 800),
+            "Scene", "Outliner", "Inspector", "Assets", "Materials", "Lighting",
+            "Terrain", "Regions", "Placement", "Import", "About");
+
+        Check("the roomy strip really does show every tab", all.OverflowedIndices().Count() == 0,
+            $"{all.OverflowedIndices().Count()} hidden");
+
+        var glyphsWhenRoomy = GlyphsIn(roomy.Render(), all.TabStripRect);
+
+        Check("a crowded strip draws no more glyphs than a roomy one",
+            glyphsWhenCrowded <= glyphsWhenRoomy,
+            $"{glyphsWhenCrowded} crowded vs {glyphsWhenRoomy} roomy");
+
+        // And nothing at all lands in the sliver above the tab labels, which is where the stray ellipses
+        // sat -- the only thing drawn up there is the selected tab's accent bar, which is not a glyph.
+        var strays = 0;
+        foreach (var instance in narrow.Render().Instances)
+        {
+            if ((instance.Flags & (uint)ManaUiInstanceFlags.GlyphAtlas) == 0)
+            {
+                continue;
+            }
+
+            if (instance.Rect.Y < strip.Y + 6.0f && instance.Rect.Y >= strip.Y)
+            {
+                strays++;
+            }
+        }
+
+        Check("and nothing is drawn in the strip's top corner", strays == 0, $"{strays} stray glyphs");
+
+        static int GlyphsIn(ManaUiDrawList list, UiRect area)
+        {
+            var count = 0;
+            foreach (var instance in list.Instances)
+            {
+                if ((instance.Flags & (uint)ManaUiInstanceFlags.GlyphAtlas) == 0)
+                {
+                    continue;
+                }
+
+                if (instance.Rect.X >= area.X - 0.5f && instance.Rect.Y >= area.Y - 0.5f
+                    && instance.Rect.W <= area.Bottom + 0.5f)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
         // Visible tabs run edge to edge up to the overflow button, so a ragged end does not read as broken.
         var lastVisibleRight = 0.0f;
         for (var i = 0; i < many.Items.Count; i++)

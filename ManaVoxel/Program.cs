@@ -50,8 +50,6 @@ namespace Mana
                     StartupLevelPath = launchOptions.EditLevelPath
                 };
 #if !MANA_BROWSER
-                game.PurgeStaleDockLayout();
-
                 if (backendKind == ManaGraphicsBackendKind.WebGpu)
                 {
                     game.RunWebGpu(launchOptions.WebGpuBackend);

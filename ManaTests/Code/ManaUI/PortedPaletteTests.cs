@@ -25,7 +25,11 @@ public static class PortedPaletteChecks
         UiElement? palette = null;
         try
         {
-            palette = VoxelToolPaletteManaView.Build(root.Theme, vm);
+            // Composed the way the editor toolbar composes it -- tools, then the work plane pinned after
+            // them -- rather than through a wrapper that exists only for this test to call.
+            palette = new StackPanel().Horizontal(root.Theme.Spacing).Children(
+                VoxelToolPaletteManaView.BuildTools(root.Theme, vm),
+                VoxelToolPaletteManaView.BuildWorkPlane(root.Theme, vm));
             Check("ported palette constructs", true);
         }
         catch (Exception ex)

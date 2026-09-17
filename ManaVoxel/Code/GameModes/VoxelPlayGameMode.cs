@@ -69,7 +69,6 @@ namespace Mana.Code.GameModes
                     }
 
                     webGpuContext.UiRoot = ManaUi?.Root;
-                    _ImGui = webGpuContext.CreateImGuiController(input);
                 }
             ).Run();
         }

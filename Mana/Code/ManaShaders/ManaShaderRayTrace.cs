@@ -1,6 +1,3 @@
-#if !MANA_BROWSER
-using ImGuiNET;
-#endif
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
 
@@ -10,24 +7,11 @@ namespace Mana.Code.ManaShaders
     {
         public ManaShaderRayTrace(ManaContext context) : base(context)
         {
-#if !MANA_BROWSER
-            context.World.ImGuiFutures.Add(() => OnGui());
-#endif
         }
 
-#if !MANA_BROWSER
-        void OnGui()
-        {
-            ImGui.Begin("RayTracer");
-
-            ImGui.InputInt("Rays", ref RayCasts);
-            ImGui.InputInt("Bounces", ref MaxBounces);
-
-            ImGui.End();
-
-            Context.World.ImGuiFutures.Add(() => OnGui());
-        }
-#endif
+        // Rays and Bounces used to be editable from a settings window this shader pushed onto the world's
+        // per-frame UI list. Nothing replaced it: ray tracing is experimental and off by default, so the
+        // two fields are set in code until something in the ManaUI inspector wants them.
 
         public int RayCasts = 1;
         public int MaxBounces = 5;

@@ -1,4 +1,5 @@
 using ManaCore.Graphics;
+using ManaUI;
 #if MANA_BROWSER
 using ManaCore.Browser;
 #endif
@@ -11,58 +12,60 @@ namespace Mana
         Compact
     }
 
+    /// <summary>
+    /// How tightly the UI packs its rows -- a taste preference, remembered across runs.
+    /// <para>
+    /// This used to be a table of raw pixel measurements pushed as ImGui style vars, each one DPI-scaled
+    /// on the way out because ImGui's own ScaleAllSizes could not reach them. ManaUI has the same four
+    /// numbers as theme tokens already, so the preset now nudges those instead and the table is gone.
+    /// Multiplicative rather than absolute, so a theme with its own chunkier metrics (LCARS) stays
+    /// recognisably itself when compacted rather than collapsing to the base theme's sizes.
+    /// </para>
+    /// </summary>
     public static class ManaUiDensity
     {
         public static ManaUiDensityPreset CurrentPreset { get; private set; } = ManaUiDensityPreset.Comfortable;
 
-        // Deliberately NOT derived from ManaImGuiSettingsStorage.IniFilePath (which now varies per UI
-        // scale): density is a taste preference, not layout geometry, so it should follow the user across
-        // monitors rather than being remembered separately at each scale. The filename is unchanged from
-        // when it was derived, so existing saved preferences still load.
-        private static string DensityPresetFilePath => ManaImGuiSettingsStorage.SharedSettingsFilePath("imgui.density");
+        /// <summary>
+        /// Raised when the preset changes, so a host can re-apply it. Needed because the tokens are read
+        /// as controls are constructed, not at render time -- the same reason switching theme rebuilds.
+        /// </summary>
+        public static event EventHandler? PresetChanged;
 
-        // Every value below is a raw pixel measurement pushed as an ImGui style var, so each one is
-        // DPI-scaled on the way out. ImGuiStyle.ScaleAllSizes (applied in BaseGameMode.ConfigImStyle)
-        // only reaches the style struct's own fields -- it can't see these.
-        private static float Scaled(float pixels) => pixels * ManaImGuiSettingsStorage.CurrentUiScale;
+        // Deliberately NOT a per-UI-scale path: density is a taste preference, not layout geometry, so it
+        // follows the user across monitors. The filename is unchanged from the ImGui era so preferences
+        // already on disk still load.
+        private static string DensityPresetFilePath => ManaUiSettingsStorage.SharedSettingsFilePath("imgui.density");
 
-        // Property table row spacing used by Inspector and Irradiance panels.
-        public static float PropertyTableCellPaddingY => Scaled(CurrentPreset switch
+        /// <summary>
+        /// Tightens a theme's metrics for the Compact preset, or leaves it alone for Comfortable. Call it
+        /// on a freshly created theme, before anything reads it.
+        /// </summary>
+        public static void Apply(UiTheme theme)
         {
-            ManaUiDensityPreset.Comfortable => 4.0f,
-            ManaUiDensityPreset.Compact => 2.5f,
-            _ => 4.0f
-        });
+            ArgumentNullException.ThrowIfNull(theme);
 
-        // Vector/color compound editor spacing (axis badges + value fields + color swatch).
-        public static float CompactEditorFramePaddingY => Scaled(CurrentPreset switch
-        {
-            ManaUiDensityPreset.Comfortable => 5.0f,
-            ManaUiDensityPreset.Compact => 3.5f,
-            _ => 5.0f
-        });
+            if (CurrentPreset != ManaUiDensityPreset.Compact)
+            {
+                return;
+            }
 
-        public static float CompactEditorItemSpacingY => Scaled(CurrentPreset switch
-        {
-            ManaUiDensityPreset.Comfortable => 4.0f,
-            ManaUiDensityPreset.Compact => 2.5f,
-            _ => 4.0f
-        });
-
-        // Scalar value editor spacing (sliders, drags, inputs, checkboxes, combos).
-        public static float CompactValueFramePaddingY => Scaled(CurrentPreset switch
-        {
-            ManaUiDensityPreset.Comfortable => 5.0f,
-            ManaUiDensityPreset.Compact => 3.5f,
-            _ => 5.0f
-        });
-
-        public static float CompactValueItemSpacingY => Scaled(CurrentPreset switch
-        {
-            ManaUiDensityPreset.Comfortable => 4.0f,
-            ManaUiDensityPreset.Compact => 2.5f,
-            _ => 4.0f
-        });
+            // Vertical only. Compacting horizontally costs legibility -- a label needs the width it needs --
+            // while vertical space is the one a docked panel actually runs out of.
+            theme.ControlHeight = MathF.Max(18.0f, theme.ControlHeight * 0.85f);
+            theme.Spacing = MathF.Max(2.0f, theme.Spacing * 0.7f);
+            theme.Padding = new Thickness(
+                theme.Padding.Left,
+                MathF.Max(2.0f, theme.Padding.Top * 0.6f),
+                theme.Padding.Right,
+                MathF.Max(2.0f, theme.Padding.Bottom * 0.6f));
+            theme.ControlPadding = new Thickness(
+                theme.ControlPadding.Left,
+                MathF.Max(1.0f, theme.ControlPadding.Top * 0.6f),
+                theme.ControlPadding.Right,
+                MathF.Max(1.0f, theme.ControlPadding.Bottom * 0.6f));
+            theme.LineSpacing = MathF.Max(1.0f, theme.LineSpacing - 0.05f);
+        }
 
         public static void SetPreset(ManaUiDensityPreset preset, bool persist = true)
         {
@@ -77,6 +80,8 @@ namespace Mana
             {
                 PersistPreset();
             }
+
+            PresetChanged?.Invoke(null, EventArgs.Empty);
         }
 
         public static void RestorePreset()

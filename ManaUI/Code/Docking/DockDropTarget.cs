@@ -4,12 +4,36 @@ namespace ManaUI
     public readonly struct DockDropTarget
     {
         public DockDropTarget(DockTabGroup? group, DockSide side, UiRect preview, bool isRootEdge)
+            : this(group, side, preview, isRootEdge, UiRect.Empty, UiRect.Empty)
+        {
+        }
+
+        /// <summary>
+        /// The same, carrying the two frames the drop indicators are laid out against. The overlay draws
+        /// the buttons, and it has no way to reach the host or the pane otherwise -- it is not in the dock
+        /// tree at all, it lives in the root's overlay layer.
+        /// </summary>
+        public DockDropTarget(
+            DockTabGroup? group,
+            DockSide side,
+            UiRect preview,
+            bool isRootEdge,
+            UiRect hostBounds,
+            UiRect groupBounds)
         {
             Group = group;
             Side = side;
             Preview = preview;
             IsRootEdge = isRootEdge;
+            HostBounds = hostBounds;
+            GroupBounds = groupBounds;
         }
+
+        /// <summary>The whole dock area the pointer is over, for the four root-edge buttons.</summary>
+        public UiRect HostBounds { get; }
+
+        /// <summary>The pane under the pointer, for the five-way cluster. Empty when there is none.</summary>
+        public UiRect GroupBounds { get; }
 
         /// <summary>The group being dropped onto, or null when dropping against the layout's outer edge.</summary>
         public DockTabGroup? Group { get; }
@@ -48,26 +72,50 @@ namespace ManaUI
                 return default;
             }
 
-            // The outer band is checked first: near the edge of the layout the user means "put it down
+            var group = host.GroupAt(point);
+            var groupBounds = group?.Bounds ?? UiRect.Empty;
+
+            // Aimed at a button, which is an explicit choice and beats every proportional rule below it.
+            // The pane's own cluster is tested before the layout's edges: the two only ever overlap on a
+            // pane pushed right up against the window edge, and there the nearer intent is the pane's.
+            if (group != null
+                && DockDropIndicators.HitTest(DockDropIndicators.ForGroup(groupBounds), point) is { } paneButton)
+            {
+                return new DockDropTarget(
+                    group,
+                    paneButton.Side,
+                    paneButton.Side == DockSide.Center ? groupBounds : HalfOf(groupBounds, paneButton.Side),
+                    isRootEdge: false,
+                    bounds,
+                    groupBounds);
+            }
+
+            if (DockDropIndicators.HitTest(DockDropIndicators.ForHost(bounds), point) is { } edgeButton)
+            {
+                return new DockDropTarget(
+                    null, edgeButton.Side, HalfOf(bounds, edgeButton.Side), isRootEdge: true, bounds, groupBounds);
+            }
+
+            // The outer band is checked next: near the edge of the layout the user means "put it down
             // the whole side", not "split whichever pane happens to be under the cursor".
             var rootSide = RootEdgeAt(bounds, point);
             if (rootSide.HasValue)
             {
-                return new DockDropTarget(null, rootSide.Value, HalfOf(bounds, rootSide.Value), isRootEdge: true);
+                return new DockDropTarget(
+                    null, rootSide.Value, HalfOf(bounds, rootSide.Value), isRootEdge: true, bounds, groupBounds);
             }
 
-            var group = host.GroupAt(point);
             if (group == null)
             {
                 // An empty layout takes the whole area.
                 return host.RootNode == null
-                    ? new DockDropTarget(null, DockSide.Center, bounds, isRootEdge: true)
+                    ? new DockDropTarget(null, DockSide.Center, bounds, isRootEdge: true, bounds, UiRect.Empty)
                     : default;
             }
 
-            var side = SideWithin(group.Bounds, point);
-            var preview = side == DockSide.Center ? group.Bounds : HalfOf(group.Bounds, side);
-            return new DockDropTarget(group, side, preview, isRootEdge: false);
+            var side = SideWithin(groupBounds, point);
+            var preview = side == DockSide.Center ? groupBounds : HalfOf(groupBounds, side);
+            return new DockDropTarget(group, side, preview, isRootEdge: false, bounds, groupBounds);
         }
 
         private static DockSide? RootEdgeAt(UiRect bounds, Vector2 point)

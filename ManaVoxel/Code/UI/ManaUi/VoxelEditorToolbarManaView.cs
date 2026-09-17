@@ -10,30 +10,54 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// The editor's everyday strip: level file actions, play-test actions, then the voxel tools.
     /// The old Level panel still exists for detail work, but opening and playing a level should not require
     /// finding a tab in the dock.
+    /// <para>
+    /// One horizontal scroller wraps every group rather than each group clipping on its own, and its bar is
+    /// hidden rather than reserved: a visible one costs a lane of height off a 38px strip whether or not
+    /// anything overflows, and the strip's height comes straight off the viewport. The wheel over the
+    /// toolbar still reaches it, which is how a toolbar that occasionally overruns behaves elsewhere.
+    /// </para>
     /// </summary>
     public static class VoxelEditorToolbarManaView
     {
         public static UiElement Build(UiTheme theme, VoxelEditorViewModel editor, ManaWorld? world)
         {
-            return new Grid()
-                .Columns("Auto, Auto, Auto, Auto, Auto, Auto, Auto, Auto, *", theme.Spacing)
-                .Rows("Auto")
-                .Padding(6.0f, 3.0f)
+            var groups = new StackPanel()
+                .Horizontal(theme.Spacing)
+                .CenterV()
                 .Children(
-                    BuildLevelGroup(theme, editor.Levels, world).GridColumn(0),
-                    Divider(theme).GridColumn(1),
-                    BuildHistoryGroup(editor).GridColumn(2),
-                    Divider(theme).GridColumn(3),
-                    BuildGizmoGroup(theme, editor, world).GridColumn(4),
-                    Divider(theme).GridColumn(5),
-                    BuildPlayGroup(theme, editor.Levels).GridColumn(6),
-                    Divider(theme).GridColumn(7),
-                    VoxelToolPaletteManaView.Build(theme, editor).GridColumn(8));
+                    BuildLevelGroup(theme, editor.Levels, world),
+                    ToolbarIcons.Divider(theme),
+                    BuildHistoryGroup(theme, editor),
+                    ToolbarIcons.Divider(theme),
+                    BuildGizmoGroup(theme, editor, world),
+                    ToolbarIcons.Divider(theme),
+                    BuildPlayGroup(theme, editor.Levels),
+                    ToolbarIcons.Divider(theme),
+                    VoxelToolPaletteManaView.BuildTools(theme, editor));
+
+            var scrollable = groups
+                .Scrollable()
+                .Scrolls(vertical: ScrollBarVisibility.Disabled, horizontal: ScrollBarVisibility.Hidden);
+
+            // 8 across, matching the menu bar above and the status bar below -- all three run the full width
+            // of the window, and at 6 the toolbar's first and last controls sat a visible 2px closer to the
+            // window edge than the rows either side of them.
+            return new Grid()
+                .Columns("*, Auto, Auto", theme.Spacing)
+                .Rows("Auto")
+                .Padding(8.0f, 3.0f)
+                .Children(
+                    scrollable.GridColumn(0),
+                    ToolbarIcons.Divider(theme).GridColumn(1),
+                    VoxelToolPaletteManaView.BuildWorkPlane(theme, editor).CenterV().GridColumn(2));
         }
 
         private static UiElement BuildLevelGroup(UiTheme theme, LevelViewModel levels, ManaWorld? world)
         {
-            var name = new TextBox { Text = levels.LevelName, Width = 160.0f };
+            // Carries its own tooltip now that the "Level: <name>" readout beside it is gone -- the box is
+            // both the name on screen and the name Save writes to, and nothing else says so.
+            var name = new TextBox { Text = levels.LevelName, Width = 160.0f }
+                .WithTooltip("The open level's name, and the file Save writes to. Type a new one to save a copy.");
             name.TextChanged += (_, _) =>
             {
                 if (!name.IsApplyingBinding)
@@ -45,34 +69,25 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             var save = new Button()
                 .Variant(ButtonVariant.Primary)
-                .WithTooltip("Save the current level. Rename the field to save as a new file.")
+                .WithTooltip(
+                    "Save the current level." + NewLine
+                    + "Ctrl+S. Rename the field first to save as a new file.")
                 .OnClick(levels.Save);
             save.BindPolled(button => button.Text, () => CurrentSceneHasChanges(levels, world) ? "Save *" : "Save");
 
-            var open = FlyoutButton("Open", "Open a saved level.", button =>
+            var open = FlyoutButton("Level", "New, open and reload -- and which one is open.", button =>
             {
                 levels.Refresh();
                 return BuildOpenMenu(levels);
             });
 
-            var current = new TextBlock()
-                .FontSize(theme.FontSizeSmall)
-                .Foreground(theme.TextMuted)
-                .Ellipsis()
-                .CenterV()
-                .Width(170.0f);
-            current.BindTextPolled(() => CurrentLevelText(levels, world));
-
+            // New and Reload used to be buttons of their own here, and a muted "Level: <name>" readout sat
+            // after them. All three are gone: the two commands are already rows in this flyout and in the
+            // File menu, and the readout said what the name box immediately to its left already says. Every
+            // pixel spent here is one the voxel tools further along the same strip do not get.
             return new StackPanel()
                 .Horizontal(theme.Spacing)
-                .Children(
-                    open,
-                    new Button().Label("New").WithTooltip("Start a new unsaved level.").OnClick(levels.New),
-                    name,
-                    save,
-                    new Button().Label("Reload").WithTooltip("Reload the open level from disk.").OnClick(levels.Reload)
-                        .BindPolled(button => button.IsEnabled, () => levels.CurrentPath != null),
-                    current);
+                .Children(open, name, save);
         }
 
         private static UiElement BuildPlayGroup(UiTheme theme, LevelViewModel levels)
@@ -87,61 +102,67 @@ namespace ManaVoxel.Code.UI.ManaUi
             var more = FlyoutButton("Play...", "Choose how to start play mode.", _ => BuildPlayMenu(levels));
             more.BindPolled(button => button.IsEnabled, () => levels.CanPlay);
 
-            var status = new TextBlock()
-                .FontSize(theme.FontSizeSmall)
-                .Foreground(theme.TextMuted)
-                .Ellipsis()
-                .CenterV()
-                .Width(210.0f);
-            status.BindTextPolled(() => levels.Status);
-
+            // What just happened used to be a 210px field right here. It is a status message -- read once,
+            // just after an action, and never again -- so it lives in the status bar now, where there was
+            // already an empty half-width going spare.
             return new StackPanel()
                 .Horizontal(theme.Spacing)
-                .Children(play, more, status);
+                .Children(play, more);
         }
 
+        /// <summary>
+        /// Move/Rotate/Scale as icons rather than words -- the same glyphs every other 3D editor uses for
+        /// them, at roughly half the width the labels cost. Disabled with nothing selected, which is what
+        /// says the gizmo needs a target rather than leaving three live-looking buttons that do nothing.
+        /// </summary>
         private static UiElement BuildGizmoGroup(UiTheme theme, VoxelEditorViewModel editor, ManaWorld? world)
         {
             return new StackPanel()
-                .Horizontal(2.0f)
+                .Horizontal(theme.Spacing)
                 .Children(
-                    GizmoModeButton("Move", "Translate along an axis.", SceneTransformGizmoMode.Translate, editor, world),
-                    GizmoModeButton("Rotate", "Rotate around an axis.", SceneTransformGizmoMode.Rotate, editor, world),
-                    GizmoModeButton("Scale", "Scale along an axis.", SceneTransformGizmoMode.Scale, editor, world));
+                    GizmoModeButton(theme, ToolbarIcons.DrawMove, "Move -- drag an axis to translate.",
+                        SceneTransformGizmoMode.Translate, editor, world),
+                    GizmoModeButton(theme, ToolbarIcons.DrawRotate, "Rotate -- drag a ring to turn around an axis.",
+                        SceneTransformGizmoMode.Rotate, editor, world),
+                    GizmoModeButton(theme, ToolbarIcons.DrawScale, "Scale -- drag an axis to resize.",
+                        SceneTransformGizmoMode.Scale, editor, world));
         }
 
-        private static UiElement BuildHistoryGroup(VoxelEditorViewModel editor)
+        private static UiElement BuildHistoryGroup(UiTheme theme, VoxelEditorViewModel editor)
         {
-            var undo = new Button()
-                .Label("Undo")
-                .Variant(ButtonVariant.Subtle)
-                .WithTooltip("Undo the last editor action. Ctrl+Z.")
-                .OnClick(() => editor.History.Undo());
+            var undo = ToolbarIcons.ActionButton(
+                theme,
+                ToolbarIcons.DrawUndo,
+                "Undo the last editor action." + NewLine + "Ctrl+Z",
+                () => editor.History.Undo());
             undo.BindPolled(button => button.IsEnabled, () => editor.History.CanUndo);
 
-            var redo = new Button()
-                .Label("Redo")
-                .Variant(ButtonVariant.Subtle)
-                .WithTooltip("Redo the last undone action. Ctrl+Y or Ctrl+Shift+Z.")
-                .OnClick(() => editor.History.Redo());
+            var redo = ToolbarIcons.ActionButton(
+                theme,
+                ToolbarIcons.DrawRedo,
+                "Redo the last undone action." + NewLine + "Ctrl+Y or Ctrl+Shift+Z",
+                () => editor.History.Redo());
             redo.BindPolled(button => button.IsEnabled, () => editor.History.CanRedo);
 
             return new StackPanel()
-                .Horizontal(2.0f)
+                .Horizontal(theme.Spacing)
                 .Children(undo, redo);
         }
 
         private static Button GizmoModeButton(
-            string label,
+            UiTheme theme,
+            Action<ManaUiDrawList, UiRect, Vector4> drawIcon,
             string tooltip,
             SceneTransformGizmoMode mode,
             VoxelEditorViewModel editor,
             ManaWorld? world)
         {
-            var button = new Button()
-                .Label(label)
-                .WithTooltip(tooltip)
-                .OnClick(() =>
+            var button = ToolbarIcons.IconButton(
+                theme,
+                drawIcon,
+                tooltip,
+                () => editor.ShowTransformGizmo && editor.TransformGizmoMode == mode,
+                () =>
                 {
                     editor.TransformGizmoMode = mode;
                     editor.ShowTransformGizmo = true;
@@ -149,15 +170,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 });
 
             button.BindPolled(
-                item => item.Variant,
-                () => editor.ShowTransformGizmo && editor.TransformGizmoMode == mode
-                    ? ButtonVariant.Primary
-                    : ButtonVariant.Subtle);
-            button.BindPolled(
                 item => item.IsEnabled,
                 () => world?.Selection.SelectedNode != null);
             return button;
         }
+
+        /// <summary>A tooltip's own line break, so a shortcut sits under its description rather than beside it.</summary>
+        private static string NewLine => Environment.NewLine;
 
         private static Button FlyoutButton(
             string label,
@@ -229,12 +248,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
         }
 
-        private static string CurrentLevelText(LevelViewModel levels, ManaWorld? world)
-        {
-            var suffix = CurrentSceneHasChanges(levels, world) ? " *" : string.Empty;
-            return $"Level: {levels.CurrentLevelLabel}{suffix}";
-        }
-
         private static bool CurrentSceneHasChanges(LevelViewModel levels, ManaWorld? world)
         {
             var path = levels.CurrentPath;
@@ -257,14 +270,5 @@ namespace ManaVoxel.Code.UI.ManaUi
             return false;
         }
 
-        private static UiElement Divider(UiTheme theme)
-        {
-            return new Border()
-                .Fill(theme.Divider)
-                .Width(1.0f)
-                .Height(theme.ControlHeight)
-                .Margin(theme.Spacing * 0.5f, 0.0f)
-                .CenterV();
-        }
     }
 }

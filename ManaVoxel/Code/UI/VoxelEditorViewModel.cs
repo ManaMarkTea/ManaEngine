@@ -121,7 +121,6 @@ namespace ManaVoxel.Code.UI
         public float ClickExplosionStrengthScale = 0.2f;
 
         public bool ShowLockPreview;
-        public bool ShowImGuiDemoWindow;
 
         /// <summary>
         /// The mouse-picking ray as of the last frame, for the Debug panel's readout. Set once, right where
@@ -153,7 +152,7 @@ namespace ManaVoxel.Code.UI
         // see VoxelEditorGameMode.SyncKmlAirspaceVisibility.
         // Set by VoxelSearchPanelView when a result's "Region" button is pressed, consumed and cleared by
         // VoxelEditorGameMode.Update on the main thread. A plain hand-off field rather than a direct call
-        // because building a region adds to the scene graph, which the panel's ImGui draw pass has no
+        // because building a region adds to the scene graph, which the panel's draw pass has no
         // business doing mid-frame.
         public RegionLoadRequest? PendingRegionRequest;
 

@@ -100,19 +100,13 @@ namespace ManaGraphics.Code.Graphics
                 var totalWebGpuPolygons = (_sceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
                 var totalWebGpuVertices = _sceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
 
-#if MANA_BROWSER
-                var imguiInitialized = false;
-#else
-                var imguiInitialized = _imGuiController != null;
-#endif
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
                     sceneMeshes: _sceneMeshes.Count.ToString("N0"),
                     meshTextures: _meshTextures.Count.ToString("N0"),
                     shaders: _shaderModules.Count.ToString("N0"),
                     pipelines: _pipelines.Count.ToString("N0"),
                     totalPolygons: totalWebGpuPolygons,
-                    totalVertices: totalWebGpuVertices,
-                    imguiInitialized: FormatBoolean(imguiInitialized)));
+                    totalVertices: totalWebGpuVertices));
 
                 return new ManaGraphicsDiagnosticsSnapshot(DateTimeOffset.Now, sections);
             }
@@ -321,9 +315,9 @@ namespace ManaGraphics.Code.Graphics
                     $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
                     $"shaderModules={_shaderModules.Count}; renderPipelines={_pipelines.Count}; " +
 #if MANA_BROWSER
-                    $"environmentMap={_environmentReflectionMap != null}; ImGui=false.");
+                    $"environmentMap={_environmentReflectionMap != null}.");
 #else
-                    $"environmentMap={_environmentReflectionMap != null}; ImGui={_imGuiController != null}.");
+                    $"environmentMap={_environmentReflectionMap != null}.");
 #endif
 
                 LogVideoMemoryDiagnostics(properties);

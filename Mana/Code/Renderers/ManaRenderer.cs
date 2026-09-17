@@ -86,7 +86,6 @@ namespace Mana.Code.Renderers
 
         public virtual void Clear() { }
 
-        public virtual void DrawImGui() { }
 
         public virtual void Render(Action drawScenes) { }
 

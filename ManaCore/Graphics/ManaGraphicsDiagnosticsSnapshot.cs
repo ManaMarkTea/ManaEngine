@@ -11,7 +11,7 @@ namespace ManaCore.Graphics
         {
             DiagnosticsSnapshot = WithCapturePhase(
                 CaptureSnapshotCore(),
-                "Before ImGui initialization");
+                "Before UI initialization");
             return DiagnosticsSnapshot;
         }
 
@@ -280,7 +280,6 @@ namespace ManaCore.Graphics
             string pipelines,
             string totalPolygons,
             string totalVertices,
-            string imguiInitialized,
             params ManaGraphicsDiagnosticEntry[] additionalEntries)
         {
             var entries = new List<ManaGraphicsDiagnosticEntry>
@@ -290,8 +289,7 @@ namespace ManaCore.Graphics
                 new("Shader modules / programs", shaders),
                 new("Render pipelines", pipelines),
                 new("Total polygons", totalPolygons),
-                new("Total vertices", totalVertices),
-                new("ImGui initialized", imguiInitialized)
+                new("Total vertices", totalVertices)
             };
             entries.AddRange(additionalEntries);
             return new ManaGraphicsDiagnosticSection("Resources", entries);

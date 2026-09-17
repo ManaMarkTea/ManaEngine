@@ -1,4 +1,3 @@
-using ImGuiNET;
 using Mana.Code.Nodes;
 using System.Diagnostics;
 using Silk.NET.OpenGL;
@@ -163,32 +162,9 @@ namespace Mana.Code
             // Subclass game logic (runs after loading completes)
         }
 
-        protected override void DrawImGui(double deltaTime)
-        {            
-            ImGui.SetNextWindowPos(new Vector2(this._Window.Size.X - 200, 15));
-            ImGui.Begin("Mana");
-            ImGui.Text(ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds.ToString(" 0") + " ms");
-            ImGui.Text(ManaTime.GlobalTime.FramesPerSecondAvg.ToString(" 0.00") + " fps");
-            ImGui.End();
-        }
-
-        protected override void InitializeDockLayout(uint dockspaceId, Vector2 dockspaceSize)
-        {
-            var utilityRatio = dockspaceSize.X > 0.0f
-                ? Math.Clamp(360.0f / dockspaceSize.X, 0.20f, 0.34f)
-                : 0.28f;
-
-            ImGuiDockNative.DockBuilderSplitNode(dockspaceId, ImGuiDir.Right, utilityRatio, out var utilityDockId, out _);
-            UtilityDockId = utilityDockId;
-            OutlinerDockId = UtilityDockId;
-
-            ImGuiDockNative.DockBuilderDockWindow("Outliner", UtilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Inspector", UtilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Camera", UtilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Irradiance", UtilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("World Perf", UtilityDockId);
-            ImGuiDockNative.DockBuilderFinish(dockspaceId);
-        }
+        // The fps readout and the dock layout that used to sit here were both drawn by the old immediate
+        // -mode UI. This harness is a scene viewer, not an editor -- it never had ManaUI panels to move
+        // them into, so they are simply gone; the perf numbers live in the editor's own status bar.
 
         public override void Closing()
         {

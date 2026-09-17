@@ -100,8 +100,7 @@
          silently falling through to whatever ManaFontManager does when nothing matches (an OS
          system font if one happens to be installed, otherwise nothing), with or without this
          change; trimming the bundle down to what actually resolves regresses nothing. Barlow
-         Condensed is ImGui-font-preset-only (BaseGameMode.ImGuiFonts.cs, browser-excluded), not
-         referenced by ManaUi at all. 311 KB total instead of the whole tree's 10 MB. -->
+         Condensed was an ImGui font preset only, and ImGui is gone; ManaUi never referenced it. 311 KB total instead of the whole tree's 10 MB. -->
     <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\Roboto\Roboto-Regular.ttf">
       <TargetPath>Assets/Fonts/Roboto-Regular.ttf</TargetPath>
     </WasmFilesToIncludeInFileSystem>

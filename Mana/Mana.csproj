@@ -358,37 +358,22 @@
   </ItemGroup>
 
   <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
-       GLFW is desktop windowing, unused on the WebGPU-only browser target.
-       Silk.NET.OpenGL.Extensions.ImGui pulls in ImGui.NET (a native cimgui binary)
-       transitively; see ManaGraphics.csproj. Assimp used to be here too (glTF/OBJ/FBX/DAE/STL/PLY
-       import) until ManaWorld.Gltf.cs standardized on the pure-managed SharpGLTF loader
-       everywhere; see that file's own comment for why. -->
+       GLFW is desktop windowing, unused on the WebGPU-only browser target. Assimp used to be here
+       too (glTF/OBJ/FBX/DAE/STL/PLY import) until ManaWorld.Gltf.cs standardized on the pure-managed
+       SharpGLTF loader everywhere; see that file's own comment for why.
+       Silk.NET.OpenGL.Extensions.ImGui was here as well, until the editor UI finished moving to
+       ManaUI and ImGui was removed outright. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
   </ItemGroup>
 
-  <!-- ImGui.NET has no browser-wasm asset (see ManaGraphics.csproj). These are confirmed
-       editor-UI-shell concerns (docking layout persistence, font presets, theme colors,
-       inspector/outliner panels) with no play-mode-relevant caller left once
-       BaseGameMode.cs's own call sites are guarded (see MANA_BROWSER usage there);
-       excluded outright rather than guarded internally. SceneViewerMode.cs is Mana's own
-       desktop test harness (GLFW-windowed scene viewer; its Main() lives in the separate
-       ManaSceneViewer project now), not part of what a browser host needs. See
-       WebPort-Plan.md for the still-unresolved rest of Mana.csproj's browser-wasm compile
-       scope. -->
+  <!-- SceneViewerMode.cs is Mana's own desktop test harness (GLFW-windowed scene viewer; its Main()
+       lives in the separate ManaSceneViewer project now), not part of what a browser host needs.
+       Every other file this group used to exclude was ImGui-era editor UI, and those are deleted
+       rather than excluded now. See WebPort-Plan.md for the still-unresolved rest of Mana.csproj's
+       browser-wasm compile scope. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
-    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiDocking.cs" />
-    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiDpi.cs" />
-    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiFonts.cs" />
-    <Compile Remove="Code\UI\ImGui\BaseGameMode.ImGuiTheme.cs" />
-    <Compile Remove="Code\UI\ImGui\ImGuiDockNative.cs" />
-    <Compile Remove="Code\UI\CameraComponentImGuiView.cs" />
-    <Compile Remove="Code\UI\IrradianceSettingsPanelView.cs" />
-    <Compile Remove="Code\UI\SceneInspectorPanelView.cs" />
-    <Compile Remove="Code\UI\SceneOutlinerPanelView.cs" />
-    <Compile Remove="Code\UI\ManaLoadingScreenView.cs" />
     <Compile Remove="Code\GameModes\SceneViewerMode.cs" />
   </ItemGroup>
 
@@ -580,12 +565,9 @@
   <!-- Transitional bridge: these implementations now live with the graphics
        subsystem, but still compile into Mana until their ManaContext-era
        dependencies are replaced with ManaCore contracts.
-       Desktop only: ManaImGuiClipboardBridge.cs needs ImGuiNET (no browser-wasm asset;
-       see ManaGraphics.csproj) and the OpenGL Legacy files need the OpenGL backend,
-       which the WebGPU-only browser target excludes entirely. -->
+       Desktop only: the OpenGL Legacy files need the OpenGL backend, which the
+       WebGPU-only browser target excludes entirely. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
-    <Compile Include="..\ManaGraphics\Code\Graphics\ManaImGuiClipboardBridge.cs"
-             Link="Code\Graphics\ManaImGuiClipboardBridge.cs" />
     <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
              Link="Code\Graphics\OpenGL\Legacy\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

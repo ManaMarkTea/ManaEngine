@@ -66,9 +66,9 @@
 
   <ItemGroup>
     <!-- Level loading, linked in by source rather than by referencing ManaVoxel.csproj: that
-         project is a WinExe whose ImGui/Assimp/editor surface has no browser-wasm build (see the
+         project is a WinExe whose editor surface has no browser-wasm build (see the
          ProjectReference comment below for why it stays out). These particular files are pure
-         managed with no ImGui/Assimp/native dependencies, so compiling them into this assembly
+         managed with no native dependencies, so compiling them into this assembly
          costs nothing and leaves the desktop editor's own copy completely untouched. If the play
          path ever needs much more of ManaVoxel than this, the better answer is extracting a
          shared ManaLevels library rather than growing this list indefinitely. -->

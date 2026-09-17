@@ -17,7 +17,7 @@ namespace ManaGraphics.Code.Graphics
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
         private readonly Action<IWindow, IInputContext>? _inputReady;
         private readonly Action<double>? _beforeRender;
-        private readonly Action<double>? _onRenderImGui;
+        private readonly Action<double>? _onRender;
         private readonly Action<ManaWebGpuContext, IInputContext>? _webGpuReady;
         private double _elapsedSeconds;
         private IWindow _window = null!;
@@ -30,7 +30,7 @@ namespace ManaGraphics.Code.Graphics
             Func<ManaRenderScene>? renderSceneProvider = null,
             Action<IWindow, IInputContext>? inputReady = null,
             Action<double>? beforeRender = null,
-            Action<double>? onRenderImGui = null,
+            Action<double>? onRender = null,
             Action<ManaWebGpuContext, IInputContext>? webGpuReady = null,
             Vector2D<int>? windowSize = null)
         {
@@ -40,7 +40,7 @@ namespace ManaGraphics.Code.Graphics
             _renderSceneProvider = renderSceneProvider;
             _inputReady = inputReady;
             _beforeRender = beforeRender;
-            _onRenderImGui = onRenderImGui;
+            _onRender = onRender;
             _webGpuReady = webGpuReady;
         }
 
@@ -157,7 +157,7 @@ namespace ManaGraphics.Code.Graphics
 
             _elapsedSeconds += deltaTime;
             _beforeRender?.Invoke(deltaTime);
-            _onRenderImGui?.Invoke(deltaTime);
+            _onRender?.Invoke(deltaTime);
 
             var t = (float)_elapsedSeconds;
             var clearColor = new Color

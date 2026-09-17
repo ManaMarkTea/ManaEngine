@@ -140,9 +140,8 @@ namespace Mana.Code.Graphics
             }
         }
 
-        public static void Dispose(ManaContext context, IManaImGuiController? imGui)
+        public static void Dispose(ManaContext context)
         {
-            imGui?.Dispose();
             context.Input?.Dispose();
 #if !MANA_BROWSER
             if (context.GraphicsBackend == ManaGraphicsBackendKind.OpenGL)

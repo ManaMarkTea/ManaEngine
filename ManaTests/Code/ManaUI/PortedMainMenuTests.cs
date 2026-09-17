@@ -179,9 +179,15 @@ public static class PortedMainMenuChecks
         Check("reload is offered only once a level has been opened or saved",
             reload?.ResolveEnabled() == false, $"{reload?.ResolveEnabled()}");
 
-        Check("Save Level shows which level it would write",
-            file.Items.First(i => i.Text == "Save Level").ResolveShortcut().Contains("unsaved", StringComparison.Ordinal),
+        // The shortcut column is where a reader scans for keys, so it names the key now that Save has one.
+        Check("Save Level shows its key",
+            file.Items.First(i => i.Text == "Save Level").ResolveShortcut() == "Ctrl+S",
             file.Items.First(i => i.Text == "Save Level").ResolveShortcut());
+
+        // Which level the menu is about moved to a label row of its own, ahead of the commands.
+        Check("File names the level it is about",
+            file.Items.Any(i => i.IsLabel && i.ResolveShortcut().Contains("unsaved", StringComparison.Ordinal)),
+            string.Join(", ", file.Items.Where(i => i.IsLabel).Select(i => i.ResolveShortcut())));
 
         // ---------------------------------------------------------------- labels and hints
         var character = bar.Menus.First(m => m.Text == "Character");
@@ -331,9 +337,17 @@ public static class PortedMainMenuChecks
             .Select(item => item.Title)
             .ToList();
 
-        foreach (var panel in new[] { "Placement", "Physics", "Voxel Stats", "About" })
+        foreach (var panel in new[] { "Placement", "Physics", "Voxel Stats" })
         {
             Check($"{panel} is its own dock panel", docked.Contains(panel), string.Join(", ", docked));
+        }
+
+        // The framework showcase and the diagnostics are panels, and reachable from the Panels menu, but a
+        // fresh layout does not spend a tab on any of them -- that is what turned the right column into
+        // four visible tabs and seven behind an overflow chip.
+        foreach (var panel in new[] { "ManaUI", "Blur Test", "About", "World Perf", "Debug" })
+        {
+            Check($"{panel} is not docked by default", !docked.Contains(panel), string.Join(", ", docked));
         }
 
         // No world in this fixture, and a panel that needs one is skipped rather than docked empty -- the
@@ -342,7 +356,7 @@ public static class PortedMainMenuChecks
             !docked.Contains("Outliner") && !docked.Contains("Inspector"), string.Join(", ", docked));
 
         Check("and they arrive together rather than one preset knowing about them",
-            docked.Count(d => d is "Placement" or "Physics" or "Voxel Stats" or "About") == 4,
+            docked.Count(d => d is "Placement" or "Physics" or "Voxel Stats") == 3,
             string.Join(", ", docked));
 
         // The merge list and the factory have to agree. When they were written separately they silently
@@ -434,8 +448,10 @@ public static class PortedMainMenuChecks
                     reference = presetItem.Text;
 
                     // The panels the presets were missing. Every preset hand-listed its arrangement, so
-                    // these three were in none of them and choosing any preset silently dropped them.
-                    foreach (var id in new[] { "import", "search", "blurtest" })
+                    // these were in none of them and choosing any preset silently dropped them. Blur Test
+                    // used to be the third: it is now deliberately out of the default set rather than
+                    // accidentally out of it, so it is checked above instead.
+                    foreach (var id in new[] { "import", "search" })
                     {
                         Check($"a preset places {id}", placed.Contains(id), string.Join(", ", placed));
                     }

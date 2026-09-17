@@ -540,6 +540,18 @@ namespace ManaUI
             for (var i = 0; i < _items.Count; i++)
             {
                 var tab = TabRect(i);
+
+                // An overflowed tab has no rectangle, and TabRect reports that as zero-sized at the
+                // strip's own origin rather than at 0,0. Hit testing is safe either way -- nothing is
+                // inside a zero-sized rect -- but drawing was not: a zero-width tab gives the text layout
+                // a negative width budget, which counts as overflowing, so every hidden tab painted a
+                // trimming ellipsis on top of the next one in the strip's top-left corner. Three hidden
+                // panels drew three stacked ellipses, which is the speck that appeared above the first tab.
+                if (tab.Width <= 0.0f || tab.Height <= 0.0f)
+                {
+                    continue;
+                }
+
                 var selected = i == _selectedIndex;
                 var hovered = tab.Contains(pointer);
 

@@ -545,7 +545,7 @@ namespace Mana.Code
 
         /// <summary>
         /// Whether any UI layer owns the mouse -- same reasoning as CameraComponent's own check:
-        /// routed through the game mode so a ManaUI drag counts too, not just ImGui.
+        /// routed through the game mode so a UI drag counts as the UI owning the pointer.
         /// </summary>
         private bool GetUiWantsCaptureMouse()
         {

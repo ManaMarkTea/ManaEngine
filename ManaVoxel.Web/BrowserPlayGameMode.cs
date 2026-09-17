@@ -14,7 +14,7 @@ namespace ManaVoxel.Web
     /// Play mode for the browser: one level, one character, no editor.
     /// <para>
     /// A sibling of ManaVoxel's <c>VoxelPlayGameMode</c> rather than that class reused directly --
-    /// it lives in the ManaVoxel WinExe, whose ImGui/Assimp/editor surface has no browser-wasm
+    /// it lives in the ManaVoxel WinExe, whose editor surface has no browser-wasm
     /// build. The parts that matter (ground, level load, pawn controller, follow camera) are small
     /// and mirrored here; the level-loading types themselves ARE shared, linked in by source.
     /// </para>
@@ -43,9 +43,8 @@ namespace ManaVoxel.Web
         {
             _levelPath = levelPath;
 
-            // Desktop shows the loading screen through ManaUI (or ImGui), neither of which exists
-            // here: EnableManaUi is off below, and the ImGui fallback in BaseGameMode.Render is
-            // inside a !MANA_BROWSER block. The browser's screen is the HTML overlay in index.html
+            // Desktop shows the loading screen through ManaUI, which does not exist here: EnableManaUi
+            // is off below. The browser's screen is the HTML overlay in index.html
             // instead, which has the decisive advantage of already being on screen during the wasm
             // download -- the longest part of the wait, and one no in-engine screen can ever cover
             // because no C# is running yet. This forwards the same ManaLoadingViewModel the
@@ -86,7 +85,7 @@ namespace ManaVoxel.Web
                         webGpuGraphicsDevice.Context = webGpuContext;
                     }
 
-                    _ImGui = webGpuContext.CreateImGuiController(input);
+                    webGpuContext.UiRoot = null;
                 }
             ).Run();
         }

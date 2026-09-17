@@ -1,3 +1,4 @@
+using Mana;
 using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaUI;
@@ -28,12 +29,13 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>
         /// Bump when a panel is added, removed or renamed; missing panels get merged in on load. Also bump
         /// when a strip's content changes shape enough that a saved size for it is stale -- 18 is the compact
-        /// toolbar, whose old saved height was more than twice what its content now measures.
+        /// toolbar, whose old saved height was more than twice what its content now measures, and 21 is the
+        /// default panel set shrinking (see OpensByDefault).
         /// </summary>
-        private const int LayoutVersion = 20;
+        private const int LayoutVersion = 21;
 
         private static string DefaultLayoutPath =>
-            ManaImGuiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
+            ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
         /// <summary>What each panel is called, for the Panels menu. Kept separate from the factory so drawing the menu doesn't require building every panel.</summary>
         public static readonly Dictionary<string, string> PanelTitles = new(StringComparer.Ordinal)
@@ -111,6 +113,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 root.Theme = UiTheme.Create(saved.Theme);
             }
 
+            ManaUiDensity.Apply(root.Theme);
+
             if (saved?.FontFamily is { Length: > 0 } savedFont)
             {
                 root.Theme.FontFamily = savedFont;
@@ -125,9 +129,26 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
             var shell = new ContentHost();
+
+            // The density preset tightens the same tokens a theme sets, and controls read those as they
+            // are constructed -- so changing it rebuilds the tree, exactly as changing theme does. The
+            // previous subscription is dropped first: Attach runs once per app, but the tests call it many
+            // times, and a stale handler holds a dead root that would rebuild into nothing.
+            ManaUiDensity.PresetChanged -= _densityChanged;
+            _densityChanged = (_, _) =>
+            {
+                root.Theme = UiTheme.Create(root.Theme.Kind);
+                root.InvalidateAll();
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
+            };
+            ManaUiDensity.PresetChanged += _densityChanged;
+
             shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             return shell;
         }
+
+        /// <summary>The live density subscription, so re-attaching replaces it rather than stacking a second one.</summary>
+        private static EventHandler? _densityChanged;
 
         private static UiElement Build(
             UiRoot root,
@@ -139,6 +160,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             global::Mana.ManaWorld? world,
             string layoutPath)
         {
+            // Before anything reads a token: the preset tightens the theme's own metrics rather than being
+            // consulted control by control.
+            ManaUiDensity.Apply(root.Theme);
+
             var theme = root.Theme;
             var debug = root.Debug;
 
@@ -432,6 +457,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 state.Theme = kind;
                 root.Theme = UiTheme.Create(kind);
+                ManaUiDensity.Apply(root.Theme);
                 ApplyGridTheme(world, root.Theme);
 
                 // Saved after the swap, not before: Save() now compares root.Theme.FontFamily against
@@ -575,9 +601,68 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Outline(theme.Border, 1.0f)
                     .Height(StatusBarHeight)
                     .PaddingOf(8.0f, 2.0f)
-                    .Content(new Grid().Columns("*, Auto").Rows("Auto").Children(
-                        ManaUiPerformanceStrip.Build(theme).GridColumn(1).CenterV()))
+                    .Content(new Grid().Columns("*, Auto, Auto", theme.Spacing * 2.0f).Rows("Auto").Children(
+                        BuildStatusMessage(theme, editor).GridColumn(0),
+                        BuildSelectionSummary(theme, world).GridColumn(1),
+                        ManaUiPerformanceStrip.Build(theme).GridColumn(2).CenterV()))
                     .Anchor(left: 0.0f, right: 0.0f, bottom: 0.0f));
+        }
+
+        /// <summary>
+        /// What just happened -- saved, opened, failed. This used to be a fixed 210px field wedged into the
+        /// toolbar between Play and the voxel tools; it is a status message, which is what a status bar is,
+        /// and the left half of the bar was empty anyway.
+        /// </summary>
+        private static UiElement BuildStatusMessage(UiTheme theme, VoxelEditorViewModel? editor)
+        {
+            var text = new TextBlock()
+                .FontSize(theme.FontSizeSmall)
+                .Foreground(theme.TextMuted)
+                .Ellipsis()
+                .CenterV();
+
+            if (editor != null)
+            {
+                text.BindTextPolled(() => editor.Levels.Status);
+            }
+
+            return text;
+        }
+
+        /// <summary>
+        /// What is selected, in the one place that is always visible regardless of which panel is on top.
+        /// The inspector says the same thing in more detail, but only while its tab is the one showing --
+        /// and in the default layout it shares a tab strip with eight other panels.
+        /// </summary>
+        private static UiElement BuildSelectionSummary(UiTheme theme, global::Mana.ManaWorld? world)
+        {
+            var text = new TextBlock()
+                .FontSize(theme.FontSizeSmall)
+                .Foreground(theme.TextMuted)
+                .Ellipsis()
+                .CenterV()
+                .Configure(block => block.MaxWidth = 320.0f)
+                .WithTooltip("What is selected. Click something in the viewport or the Outliner.");
+
+            if (world != null)
+            {
+                text.BindTextPolled(() => SelectionText(world));
+            }
+
+            return text;
+        }
+
+        private static string SelectionText(global::Mana.ManaWorld world)
+        {
+            var selection = world.Selection;
+            var node = selection.SelectedNode;
+            if (node != null)
+            {
+                var component = selection.SelectedComponent;
+                return component == null ? node.Name : $"{node.Name}  /  {component.GetType().Name}";
+            }
+
+            return selection.SelectedScene is { } scene ? scene.Name : "Nothing selected";
         }
 
         private static IEnumerable<DockItem> AllDocked(DockHost top, DockHost left, DockHost right, DockHost bottom)
@@ -733,6 +818,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             DockSide side,
             DockNode? target = null)
         {
+            // Checked here rather than by editing each preset's list, so a panel can be taken out of the
+            // default set in one place instead of four -- and so the two rules cannot drift apart.
+            if (!OpensByDefault(id))
+            {
+                return null;
+            }
+
             var item = resolve(id);
             if (item == null)
             {
@@ -795,9 +887,31 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
         }
 
+        /// <summary>
+        /// Whether a fresh layout puts this panel on screen.
+        /// <para>
+        /// Everything used to, which is how the right column arrived at eleven tabs in one strip -- four
+        /// visible and seven behind an overflow chip. Five of those seven are not editor panels at all:
+        /// ManaUI is the framework's own showcase, Blur Test is a shader toy, and About/World Perf/Debug
+        /// are diagnostics. They are worth keeping and worth reaching from the Panels menu; they are not
+        /// worth a tab each, every session, in front of the panels somebody is actually editing with.
+        /// </para>
+        /// <para>
+        /// Only new and reset layouts are affected: a saved layout is restored as it was saved.
+        /// </para>
+        /// </summary>
         private static bool OpensByDefault(string id)
         {
-            return !string.Equals(id, "level", StringComparison.Ordinal);
+            return id switch
+            {
+                "level" => false,
+                "showcase" => false,
+                "blurtest" => false,
+                "about" => false,
+                "worldperf" => false,
+                "debug" => false,
+                _ => true
+            };
         }
 
         /// <summary>One-time migration: moves a panel that used to live in a column into its own dedicated strip.</summary>

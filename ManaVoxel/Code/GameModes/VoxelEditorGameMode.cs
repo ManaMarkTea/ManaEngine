@@ -1,6 +1,3 @@
-#if !MANA_BROWSER  // ImGui.NET has no browser-wasm asset; see ManaGraphics.csproj
-using ImGuiNET;
-#endif
 using BepuPhysics.Collidables;
 using ManaUI;
 using System.Linq;
@@ -45,16 +42,7 @@ namespace Mana.Code.GameModes
         private uint _manaDockId;
         private uint _utilityDockId;
         private readonly VoxelEditorViewModel _viewModel = new();
-#if !MANA_BROWSER  // legacy ImGui-only panel views, superseded by their ManaUi counterparts
-        private readonly VoxelEditorMainMenuView _mainMenuView = new();
-        private readonly VoxelToolPaletteView _toolPaletteView = new();
-        private readonly VoxelEditorPanelsView _panelsView = new();
-#endif
         private readonly PlaceSearchNavigator _navigator = new();
-#if !MANA_BROWSER  // legacy ImGui-only panel views, superseded by their ManaUi counterparts
-        private readonly VoxelEditorAboutPanelView _aboutPanelView = new();
-        private readonly VoxelSearchPanelView _searchPanelView = new();
-#endif
         private readonly VoxelToolController _toolController = new();
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
@@ -135,10 +123,6 @@ namespace Mana.Code.GameModes
 
         public override bool DeferGpuUploadsOnStartup => true;
 
-        // v3: Inspector now drawn first each frame so it lands as the first utility tab
-        // (dock order follows Begin() submission order on a fresh layout, not DockBuilder call order).
-        protected override int DockLayoutVersion => 3;
-
         public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
 
@@ -183,17 +167,6 @@ namespace Mana.Code.GameModes
                     ManaUiDiagnostics.Snapshot =
                         ManaGraphicsDiagnosticsProviderFactory.Create(Context, webGpuContext)?.DiagnosticsSnapshot;
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
-                    _ImGui = webGpuContext.CreateImGuiController(input);
-#if !MANA_BROWSER  // ImGui-only setup (docking flag, style, default font) -- ImGui itself is a no-op controller on browser
-                    var io = ImGuiNET.ImGui.GetIO();
-                    io.ConfigFlags |= ImGuiNET.ImGuiConfigFlags.DockingEnable;
-                    ConfigImStyle();
-
-                    if (GetAvailableImGuiFontPresets().Contains(ImGuiFontPreset.SegoeUIMono))
-                    {
-                        RequestImGuiFontPreset(ImGuiFontPreset.SegoeUIMono);
-                    }
-#endif
                 }
             ).Run();
         }
@@ -209,8 +182,8 @@ namespace Mana.Code.GameModes
             }
         }
 
-        // ManaUI runs alongside ImGui while the widget library is built out; the showcase panel is the
-        // standing visual regression check for layout, text and the SDF primitive.
+        // The showcase panel is the standing visual regression check for ManaUI's layout, text and SDF
+        // primitive.
         protected override bool EnableManaUi => true;
 
         private readonly ManaUiShowcaseViewModel _manaUiShowcase = new();
@@ -219,7 +192,7 @@ namespace Mana.Code.GameModes
         {
             // RenderFrame is plain engine state with no change notification, which is exactly the case the
             // polled binding exists for.
-            // The same view model the ImGui palette uses, so both drive the editor and stay in step.
+            // The editor's one view model -- the toolbar, the menu and the panels all drive it.
             var workspace = ManaUiDockDemo.Attach(
                 host.Root,
                 _manaUiShowcase,
@@ -238,10 +211,6 @@ namespace Mana.Code.GameModes
         public override void Load()
         {
             LoadingCoordinator.Begin();
-#if !MANA_BROWSER  // see the InitCustomNodeInspectorHooks definition below
-            InitCustomNodeInspectorHooks();
-#endif
-
             var world = Context.World;
             _transformGizmo = new SceneTransformGizmo(world, _viewModel.History);
             _trackDebugVisualization = new TrackDebugVisualization(world);
@@ -636,336 +605,9 @@ namespace Mana.Code.GameModes
 
         private const string PlanetDetailCacheFolder = @"C:\Users\night\Code\ManaAirSpace\Textures\HeightMaps\ETOPO2022";
 
-        // SceneInspectorPanelView (Mana) can't reference PlanetNode/ManaLineMesh-using nodes
-        // (ManaGeoTools) directly — wrong dependency direction — so it exposes a hook that ManaVoxel
-        // (which references both) fills in. One hook body, not one registration per node type, since
-        // CustomNodeInspectorHook is a single delegate slot.
-#if !MANA_BROWSER  // SceneInspectorPanelView custom-node ImGui hooks + the terrain-cache-size machinery that only feeds them -- SceneInspectorPanelView itself is browser-excluded (Mana.csproj); TerrainCacheWidget.cs is ManaUi's independent replacement, doesn't call any of this
-        private static void InitCustomNodeInspectorHooks()
-        {
-            SceneInspectorPanelView.CustomNodeInspectorHook = node =>
-            {
-                if (node is PlanetNode planet)
-                {
-                    ImGui.SeparatorText("Planet");
-                    var exaggeration = planet.HeightExaggeration;
-                    if (ImGui.DragFloat("Height Exaggeration", ref exaggeration, 1.0f, 0.0f, 2000.0f))
-                    {
-                        planet.HeightExaggeration = exaggeration;
-                    }
-
-                    var autoLod = planet.AutoLodEnabled;
-                    if (ImGui.Checkbox("Auto LOD", ref autoLod))
-                    {
-                        planet.AutoLodEnabled = autoLod;
-                    }
-
-                    DrawTerrainCacheInspector();
-                }
-
-                if (node is RegionNode { TerrainMesh: { } terrain })
-                {
-                    ImGui.SeparatorText("Region Hex Tiling");
-                    ImGui.TextDisabled($"{terrain.HexCellCount:N0} hexes at {terrain.EffectiveHexRadiusMeters:0.#} m");
-
-                    // Both re-tessellate the whole region, too slow for every frame of a drag -- so the
-                    // value is written live but the rebuild waits for the mouse to come off the control.
-                    var rebuild = false;
-                    var hexRadius = terrain.HexRadiusMeters;
-                    if (ImGui.DragFloat("Hex Radius (m)", ref hexRadius, 0.5f, 0.5f, 2000.0f))
-                    {
-                        terrain.HexRadiusMeters = hexRadius;
-                    }
-                    rebuild |= ImGui.IsItemDeactivatedAfterEdit();
-
-                    var stepStrength = terrain.StepStrength;
-                    if (ImGui.SliderFloat("Step Strength", ref stepStrength, 0.0f, 1.0f))
-                    {
-                        terrain.StepStrength = stepStrength;
-                    }
-                    rebuild |= ImGui.IsItemDeactivatedAfterEdit();
-
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip(
-                            "1 = flat plateaus with vertical walls between them, 0 = a continuous surface\n" +
-                            "that is merely hex-faceted.");
-                    }
-
-                    if (rebuild)
-                    {
-                        terrain.RebuildGeometry();
-                    }
-                }
-
-                if (node is ManaMeshSceneNode { Mesh: ManaLineMesh lineMesh } lineNode)
-                {
-                    ImGui.SeparatorText("Line");
-                    var thickness = lineMesh.Thickness;
-                    if (ImGui.DragFloat("Thickness", ref thickness, 0.01f, 0.01f, 5.0f))
-                    {
-                        lineMesh.SetThickness(thickness);
-                    }
-
-                    // Color/emission are live material properties, not baked into the mesh's geometry
-                    // (see ManaLineMesh.SetThickness's doc comment) -- mutated directly here, no
-                    // rebuild needed.
-                    var material = lineNode.MeshRenderer.Material;
-                    var color = material.Albedo.Value;
-                    if (ImGui.ColorEdit4("Color", ref color))
-                    {
-                        material.Albedo.Value = color;
-                        material.Emission.Value = color;
-                    }
-
-                    var emissionStrength = (float)material.EmissionStrength;
-                    if (ImGui.DragFloat("Emission Strength", ref emissionStrength, 0.05f, 0.0f, 10.0f))
-                    {
-                        material.EmissionStrength = emissionStrength;
-                    }
-                }
-            };
-
-            SceneInspectorPanelView.CustomComponentInspectorHook = component =>
-            {
-                if (component is not MeshRendererComponent { Mesh: PlanetPatchMesh patchMesh } renderer
-                    || renderer.Owner.Parent is not PlanetNode owningPlanet
-                    || !owningPlanet.TryGetPatchKey(renderer, out var patchKey))
-                {
-                    return;
-                }
-
-                ImGui.SeparatorText("Terrain Patch");
-                var status = owningPlanet.GetPatchUpresStatus(patchKey);
-                var detail = owningPlanet.GetPatchDetailInfo(patchKey);
-                ImGui.Text($"Up-res status: {status}");
-                ImGui.Text($"Mesh resolution: {patchMesh.Resolution} x {patchMesh.Resolution}");
-                if (detail.HasValue)
-                {
-                    var patchDetail = detail.Value;
-                    var sourceResolution = patchDetail.SourceResolution;
-                    var sourceMetersPerPixel = patchDetail.SourceMetersPerPixel;
-                    if (patchDetail.Zoom.HasValue)
-                    {
-                        ImGui.Text($"Source zoom: z{patchDetail.Zoom.Value}");
-
-                        var tilePaths = owningPlanet.GetPatchTileCacheFilePaths(patchKey);
-                        var cachedTilePaths = tilePaths.Where(File.Exists).ToList();
-                        ImGui.Text($"Source tiles: {tilePaths.Count} ({cachedTilePaths.Count} cached)");
-                        ImGui.BeginDisabled(cachedTilePaths.Count == 0);
-                        if (ImGui.Button("Open Source Tile"))
-                        {
-                            FileExplorer.Reveal(cachedTilePaths[0]);
-                        }
-                        ImGui.EndDisabled();
-                    }
-                    if (sourceResolution.HasValue)
-                    {
-                        ImGui.Text($"Source resolution: {sourceResolution.Value} x {sourceResolution.Value}");
-                    }
-                    if (sourceMetersPerPixel.HasValue)
-                    {
-                        ImGui.Text($"Source pixel: {FormatMetersPerPixel(sourceMetersPerPixel.Value)}");
-                    }
-                    if (sourceResolution.HasValue && sourceMetersPerPixel.HasValue && sourceResolution.Value > patchMesh.Resolution)
-                    {
-                        var meshSpacing = EstimateMeshSpacingMeters(
-                            patchMesh.Resolution,
-                            sourceResolution.Value,
-                            sourceMetersPerPixel.Value);
-                        var coarserFactor = Math.Max(1.0, meshSpacing / sourceMetersPerPixel.Value);
-                        ImGui.Text($"Mesh spacing: {FormatMetersPerPixel(meshSpacing)}");
-                        ImGui.TextDisabled($"Mesh is still coarser than source data ({coarserFactor:0.#}x).");
-                    }
-                }
-
-                // Deliberately gated on Done + an explicit button press -- each click increases
-                // Terrarium source zoom by one level, splitting only as needed to avoid
-                // undersampling that one new zoom level.
-                if (status == PatchUpresStatus.Done)
-                {
-                    if (owningPlanet.IsSplitPending(patchKey))
-                    {
-                        ImGui.TextDisabled("Increasing source zoom...");
-                    }
-                    else if (owningPlanet.CanSplitPatch(patchKey))
-                    {
-                        if (ImGui.Button("Increase source zoom"))
-                        {
-                            owningPlanet.TrySplitPatch(patchKey);
-                        }
-                    }
-                    else
-                    {
-                        var meshIsBelowSource = detail.HasValue
-                            && detail.Value.SourceResolution.HasValue
-                            && detail.Value.SourceResolution.Value > patchMesh.Resolution;
-                        if (meshIsBelowSource)
-                        {
-                            ImGui.TextDisabled("Next source zoom cannot be represented without undersampling");
-                        }
-                        else
-                        {
-                            ImGui.TextDisabled("Mesh matches streamed source data");
-                        }
-                    }
-                }
-            };
-        }
-
-        private static void DrawTerrainCacheInspector()
-        {
-            PollTerrainCacheSizeRefresh();
-            EnsureTerrainCacheSizeRefreshStarted();
-
-            var snapshot = GetTerrainCacheSizeSnapshot();
-            ImGui.SeparatorText("Terrain Cache");
-
-            var cacheSizeText = snapshot.Bytes.HasValue
-                ? FormatByteCount(snapshot.Bytes.Value)
-                : snapshot.IsRefreshing ? "Calculating..." : "Unknown";
-            ImGui.Text($"Cache size: {cacheSizeText}");
-            if (snapshot.UpdatedAt.HasValue)
-            {
-                ImGui.TextDisabled($"Updated {snapshot.UpdatedAt.Value:HH:mm:ss}");
-            }
-            if (snapshot.IsRefreshing)
-            {
-                ImGui.TextDisabled("Refreshing...");
-            }
-            if (!string.IsNullOrWhiteSpace(snapshot.Error))
-            {
-                ImGui.TextDisabled($"Cache scan failed: {snapshot.Error}");
-            }
-
-            ImGui.TextWrapped(TerrariumTileFetcher.CacheRoot);
-
-            ImGui.BeginDisabled(snapshot.IsRefreshing);
-            if (ImGui.Button("Refresh"))
-            {
-                RequestTerrainCacheSizeRefresh();
-            }
-            ImGui.EndDisabled();
-            ImGui.SameLine();
-            if (ImGui.Button("Open Cache Folder"))
-            {
-                FileExplorer.OpenFolder(TerrariumTileFetcher.CacheRoot);
-            }
-            ImGui.SameLine();
-            ImGui.BeginDisabled(snapshot.IsRefreshing);
-            if (ImGui.Button("Clear Cache"))
-            {
-                RequestTerrainCacheSizeRefresh(clearFirst: true, force: true);
-            }
-            ImGui.EndDisabled();
-        }
-
-        private static void EnsureTerrainCacheSizeRefreshStarted()
-        {
-            lock (TerrainCacheSizeLock)
-            {
-                if (!_terrainCacheSizeBytes.HasValue && _terrainCacheSizeRefreshTask == null)
-                {
-                    StartTerrainCacheSizeRefreshLocked(clearFirst: false);
-                }
-            }
-        }
-
-        private static void RequestTerrainCacheSizeRefresh(bool clearFirst = false, bool force = false)
-        {
-            lock (TerrainCacheSizeLock)
-            {
-                if (!force && _terrainCacheSizeRefreshTask is { IsCompleted: false })
-                {
-                    return;
-                }
-
-                StartTerrainCacheSizeRefreshLocked(clearFirst);
-            }
-        }
-
-        private static void StartTerrainCacheSizeRefreshLocked(bool clearFirst)
-        {
-            _terrainCacheSizeError = null;
-            var generation = ++_terrainCacheSizeRefreshGeneration;
-            _terrainCacheSizeRefreshTask = Task.Run(() => RefreshTerrainCacheSize(generation, clearFirst));
-        }
-
-        private static TerrainCacheSizeRefreshResult RefreshTerrainCacheSize(int generation, bool clearFirst)
-        {
-            try
-            {
-                if (clearFirst)
-                {
-                    TerrariumTileFetcher.ClearCache();
-                }
-
-                return new TerrainCacheSizeRefreshResult(
-                    generation,
-                    TerrariumTileFetcher.GetCacheSizeBytes(),
-                    Error: null);
-            }
-            catch (Exception ex)
-            {
-                return new TerrainCacheSizeRefreshResult(generation, Bytes: null, ex.Message);
-            }
-        }
-
-        private static void PollTerrainCacheSizeRefresh()
-        {
-            Task<TerrainCacheSizeRefreshResult>? completedTask;
-            lock (TerrainCacheSizeLock)
-            {
-                if (_terrainCacheSizeRefreshTask is not { IsCompleted: true } task)
-                {
-                    return;
-                }
-
-                completedTask = task;
-                _terrainCacheSizeRefreshTask = null;
-            }
-
-            var result = completedTask.GetAwaiter().GetResult();
-            lock (TerrainCacheSizeLock)
-            {
-                if (result.Generation != _terrainCacheSizeRefreshGeneration)
-                {
-                    return;
-                }
-
-                _terrainCacheSizeBytes = result.Bytes;
-                _terrainCacheSizeUpdatedAt = DateTimeOffset.Now;
-                _terrainCacheSizeError = result.Error;
-            }
-        }
-
-        private static (long? Bytes, DateTimeOffset? UpdatedAt, string? Error, bool IsRefreshing) GetTerrainCacheSizeSnapshot()
-        {
-            lock (TerrainCacheSizeLock)
-            {
-                return (
-                    _terrainCacheSizeBytes,
-                    _terrainCacheSizeUpdatedAt,
-                    _terrainCacheSizeError,
-                    _terrainCacheSizeRefreshTask is { IsCompleted: false });
-            }
-        }
-
-        private static string FormatByteCount(long bytes)
-        {
-            const double kibibyte = 1024.0;
-            const double mebibyte = kibibyte * 1024.0;
-            const double gibibyte = mebibyte * 1024.0;
-
-            return bytes switch
-            {
-                >= (long)gibibyte => $"{bytes / gibibyte:N2} GiB",
-                >= (long)mebibyte => $"{bytes / mebibyte:N2} MiB",
-                >= (long)kibibyte => $"{bytes / kibibyte:N2} KiB",
-                _ => $"{bytes} B",
-            };
-        }
-#endif
+        // A planet/region inspector hook and a background terrain-cache-size reader used to sit here,
+        // both feeding the ImGui SceneInspectorPanelView. ManaUI's TerrainCacheWidget and PlanetWidget are
+        // independent replacements that read the same nodes directly, so all of it went with ImGui.
 
         private static string FormatMetersPerPixel(double metersPerPixel)
         {
@@ -1692,12 +1334,6 @@ namespace Mana.Code.GameModes
         }
 
         public const float TimestepDuration = 1 / 60f;
-#if !MANA_BROWSER  // ImGui main menu bar; superseded by VoxelEditorMainMenuManaView (EnableManaUi=true means this never runs)
-        protected override void DrawMainMenuBar()
-        {
-            _mainMenuView.Draw(_viewModel, this);
-        }
-#endif
 
         public override void Update(double deltaTime)
         {
@@ -1812,217 +1448,16 @@ namespace Mana.Code.GameModes
             }
         }
 
-#if !MANA_BROWSER  // ImGui editor panels; superseded by ManaUi (EnableManaUi=true means this never runs)
-        protected override void DrawImGui(double deltaTime)
-        {
-            PushWebGpuFrameStats();
-            LogMemoryStatsPeriodically();
-            ManaMemoryStats.Sample();
-
-            if (_firstFrame)
-            {
-                ImGui.SetWindowFocus("Inspector");
-                _firstFrame = false;
-            }
-
-            // Keep the active voxel node highlighted through the shared post-process outline pass.
-            var activeNode = _viewModel.VoxelNode;
-            var activeOutlineColor = new Vector4(1.0f, 0.88f, 0.18f, 1.0f);
-            foreach (var scene in Context.World.Scenes)
-            {
-                foreach (var child in scene.Children)
-                {
-                    if (child is ManaVoxelsNode voxelNode)
-                    {
-                        bool isActive = (voxelNode == activeNode);
-                        voxelNode.ShowOutline = isActive;
-
-                        foreach (var meshRenderer in voxelNode.Components.OfType<MeshRendererComponent>())
-                        {
-                            meshRenderer.OutlineEnabled = isActive;
-                            meshRenderer.OutlineColor = activeOutlineColor;
-                            meshRenderer.OutlineWidth = 4.0f;
-                        }
-
-                        // Remove selection cages created by older builds now that selection uses the mask pass.
-                        var legacyOutline = voxelNode.Children.FirstOrDefault(node => node.Name == "VoxelSelectionOutline");
-                        if (legacyOutline != null)
-                        {
-                            voxelNode.RemoveChild(legacyOutline);
-                        }
-                    }
-                }
-            }
-
-            // Highlight whatever the Outliner or viewport select tool currently has selected, distinct from
-            // the active-voxel-layer highlight above (skipped when they're the same node, to avoid flicker).
-            // A component-level selection (e.g. one patch on a PlanetNode shared root node) only outlines
-            // that ONE renderer, not every sibling on the same node -- a plain node-level selection (KML
-            // lines, shapes, a bare shared root) still blanket-highlights every renderer on the node.
-            // Diffs against the EXACT set of components lit last frame (not just node/component identity)
-            // -- keying off identity alone missed the transition from "whole node lit" to "one specific
-            // component on that SAME node lit," since the node itself hadn't changed, leaving every other
-            // sibling stuck outlined forever.
-            var selectedNode = Context.World.Selection.SelectedNode;
-            var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
-            SyncSelectionColliderDebug(_viewModel.ShowSelectedColliderBounds ? selectedNode : null);
-
-            HashSet<MeshRendererComponent> targetOutlinedComponents;
-            if (selectedComponent != null)
-            {
-                targetOutlinedComponents = new HashSet<MeshRendererComponent> { selectedComponent };
-            }
-            else if (selectedNode != null && selectedNode != activeNode)
-            {
-                targetOutlinedComponents = new HashSet<MeshRendererComponent>(selectedNode.Components.OfType<MeshRendererComponent>());
-            }
-            else
-            {
-                targetOutlinedComponents = new HashSet<MeshRendererComponent>();
-            }
-
-            foreach (var meshRenderer in _lastOutlinedSelectionComponents)
-            {
-                if (!targetOutlinedComponents.Contains(meshRenderer))
-                {
-                    meshRenderer.OutlineEnabled = false;
-                }
-            }
-
-            if (targetOutlinedComponents.Count > 0)
-            {
-                var outlineColor = selectedComponent != null ? GetSelectionOutlineColor(selectedComponent) : GetSelectionOutlineColor(null);
-                foreach (var meshRenderer in targetOutlinedComponents)
-                {
-                    meshRenderer.OutlineEnabled = true;
-                    meshRenderer.OutlineColor = outlineColor;
-                    meshRenderer.OutlineWidth = 4.0f;
-                }
-            }
-
-            _lastOutlinedSelectionComponents = targetOutlinedComponents;
-
-            // Also highlight every OTHER patch currently doing background streaming work (in-place
-            // up-res, splitting, merging) -- not just the selected one. With auto-LOD running, several
-            // patches can be streaming at once with no way to see how much/which without this (besides
-            // the World Perf panel's aggregate counts, see PushPlanetStreamingStatusToWorldPerf).
-            UpdateStreamingActivityOutlines(selectedComponent, activeNode);
-
-            // Called every frame the patch is selected, not just once on selection change -- covers both
-            // the Outliner tree AND clicking a patch directly in the 3D view, since both already write to
-            // the same SelectedComponent via UpdateSelectionPointerInteraction's ManaScenePicker.Pick call.
-            // TryBeginPatchUpres is documented as safe/idempotent to call repeatedly (a no-op once the
-            // patch is InProgress/Done/Failed) -- calling it only once per selection change used to leave
-            // a patch stuck forever if that single call happened to lose the non-blocking _rebuildLock
-            // race to some other in-flight background operation (split/merge/another patch's up-res),
-            // since nothing would retry until the user deselected and reselected. Calling every frame
-            // lets a lost race self-heal on the very next frame instead.
-            if (_planet != null && _planet.TryGetPatchKey(selectedComponent, out var patchKey))
-            {
-                _planet.TryBeginPatchUpres(patchKey);
-            }
-
-            SyncLightningBallVisibility();
-            SyncLiquidBallVisibility();
-            SyncWaterVisibility();
-            SyncWireframeViewOption();
-            SyncNormalsViewOption();
-            SyncKmlAirspaceVisibility();
-            ProcessPendingRegionRequest();
-
-            PumpPlanetStreaming();
-
-            var mainViewport = ImGui.GetMainViewport();
-            Vector2 sceneMin = mainViewport.WorkPos;
-            Vector2 sceneMax = mainViewport.WorkPos + mainViewport.WorkSize;
-
-            if (_manaDockId != 0)
-            {
-                ImGui.SetNextWindowDockID(_manaDockId, ImGuiCond.FirstUseEver);
-            }
-
-            ImGui.Begin(ManaWindowTitle);
-            var manaWindowPos = ImGui.GetWindowPos();
-            if (manaWindowPos.X > sceneMin.X + 200.0f && manaWindowPos.X < sceneMax.X)
-            {
-                sceneMax.X = manaWindowPos.X;
-            }
-
-            var MouseState = Context.Input.Mice.First();
-
-            var mouseStart = new Vector3(MouseState.Position, 0.0f);
-            var mouseEnd = new Vector3(MouseState.Position, 1.0f);
-            
-            var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
-            var rayOrigin = ray.Origin;
-            var rayDirection = ray.Direction;
-            _viewModel.DebugRayOrigin = rayOrigin;
-            _viewModel.DebugRayDirection = rayDirection;
-
-            _panelsView.Draw(_viewModel, ref rayOrigin, ref rayDirection);
-            ProcessMeshPickerPlacement(MouseState, sceneMin, sceneMax);
-
-            ImGui.End();
-
-            if (_toolDockId != 0)
-            {
-                ImGui.SetNextWindowDockID(_toolDockId, ImGuiCond.FirstUseEver);
-            }
-
-            _toolPaletteView.Draw(_viewModel);
-
-            // The gizmo used to have to report back whether it was under the pointer, because an ImGui
-            // window drawn over the scene is invisible to the scene. As part of the ManaUI tree it is
-            // hit-tested like anything else, and UiWantsMouse already knows.
-            UpdateVoxelPointerInteraction(UiWantsMouse);
-            UpdateFrameSelectedShortcut();
-            _pawnController?.UpdateDriveInput(UiWantsKeyboard);
-
-            if (_viewModel.ShowImGuiDemoWindow)
-            {
-                if (_utilityDockId != 0)
-                {
-                    ImGui.SetNextWindowDockID(_utilityDockId, ImGuiCond.Always);
-                }
-
-                var showDemo = _viewModel.ShowImGuiDemoWindow;
-                ImGui.ShowDemoWindow(ref showDemo);
-                _viewModel.ShowImGuiDemoWindow = showDemo;
-            }
-
-            _aboutPanelView.Draw(_viewModel, Context, _webGpuContext);
-            _searchPanelView.Draw(_viewModel, Context, _planet, Context.World.MainCamera);
-
-            // The ManaUI search panel knows a longitude and a latitude and nothing else; the planet, camera
-            // and scene it needs are here.
-            if (PlaceSearchRequests.TakeFlyTo() is { } destination
-                && _planet != null
-                && Context.World.MainCamera != null)
-            {
-                _navigator.FlyTo(destination, Context, _planet, Context.World.MainCamera);
-            }
-        }
-#endif
 
         private void ProcessMeshPickerPlacement(Silk.NET.Input.IMouse mouseState, Vector2 sceneMin, Vector2 sceneMax)
         {
             if (HandleMeshPickerEscapeCancel())
             {
-#if !MANA_BROWSER
-                _panelsView.ClearDraggedMeshAssetPath();
-#endif
                 MeshImportRequests.Clear();
             }
 
-            // Both import panels feed this while ImGui is still on. They cannot both have a request pending
-            // in the same frame -- only one of them can be under the pointer.
-#if !MANA_BROWSER
-            var pendingPath = _panelsView.ConsumePendingMeshSpawnPath() ?? MeshImportRequests.TakePlacement();
-#else
-            // _panelsView (VoxelEditorPanelsView, ImGui) doesn't exist here; MeshImportRequests
-            // (fed by VoxelEditorPanelsManaView) is the only source on this target.
+            // MeshImportRequests, fed by VoxelEditorPanelsManaView, is the only source of a placement now.
             var pendingPath = MeshImportRequests.TakePlacement();
-#endif
             if (!string.IsNullOrWhiteSpace(pendingPath))
             {
                 BeginMeshPickerPlacementPreview(pendingPath);
@@ -2034,20 +1469,12 @@ namespace Mana.Code.GameModes
                               mousePosition.X <= sceneMax.X &&
                               mousePosition.Y >= sceneMin.Y &&
                               mousePosition.Y <= sceneMax.Y;
-#if !MANA_BROWSER
-            var draggedPath = _panelsView.CurrentDraggedMeshAssetPath ?? MeshImportRequests.Dragging;
-#else
             var draggedPath = MeshImportRequests.Dragging;
-#endif
 
             // The scene rectangle is the whole ImGui viewport, which the ManaUI columns sit on top of -- so
             // "over the scene" is true above a panel as well. The picker reports what is actually under the
             // cursor, and only that says whether there is scene there to drop onto.
-#if !MANA_BROWSER
-            var overPanel = _panelsView.CurrentDraggedMeshAssetPath == null && MeshImportRequests.PointerOverUi;
-#else
             var overPanel = MeshImportRequests.PointerOverUi;
-#endif
             var canDrop = isOverScene && !overPanel;
 
             if (!string.IsNullOrWhiteSpace(draggedPath) && canDrop)
@@ -2073,9 +1500,6 @@ namespace Mana.Code.GameModes
                         CancelMeshPickerPlacementPreview();
                     }
 
-#if !MANA_BROWSER
-                    _panelsView.ClearDraggedMeshAssetPath();
-#endif
                     MeshImportRequests.TakeDrag();
                 }
 
@@ -2160,7 +1584,37 @@ namespace Mana.Code.GameModes
                 _meshPickerPreviewSelectionBefore = null;
                 Trace.TraceWarning($"Failed to start mesh placement preview for '{assetReference}': {ex}");
                 ManaConsole.WriteDiagnostic($"Failed to start mesh placement preview for '{assetReference}': {ex}");
+
+                // Said out loud, not only to a log file nobody has open. A drag that produces no preview and
+                // no message is indistinguishable from a drag the editor never noticed -- which is exactly
+                // what an unreadable asset looked like: you drop it, nothing appears, nothing explains.
+                _viewModel.Levels.SetStatus(
+                    $"{System.IO.Path.GetFileName(assetReference)}: {DescribeImportFailure(ex)}");
             }
+        }
+
+        /// <summary>
+        /// An import failure in one line. A NotSupportedException from the glTF loader already carries a
+        /// sentence written for this; anything else gets its own message, which is at least specific.
+        /// </summary>
+        private static string DescribeImportFailure(Exception ex)
+        {
+            var innermost = ex;
+            while (innermost.InnerException != null)
+            {
+                innermost = innermost.InnerException;
+            }
+
+            if (ex is NotSupportedException || innermost is NotSupportedException)
+            {
+                var message = (innermost as NotSupportedException ?? (NotSupportedException)ex).Message;
+
+                // The loader's message already names the file; the caller prefixes it again.
+                var because = message.IndexOf(" because ", StringComparison.Ordinal);
+                return because >= 0 ? message[(because + " because ".Length)..] : message;
+            }
+
+            return $"could not be imported ({innermost.GetType().Name}: {innermost.Message})";
         }
 
         private void UpdateMeshPickerPlacementPreviewTransform()
@@ -3012,66 +2466,6 @@ namespace Mana.Code.GameModes
             return _toolController.IsDrawing || mouse?.IsButtonPressed(Silk.NET.Input.MouseButton.Left) == true;
         }
 
-#if !MANA_BROWSER  // ImGui docking layout; only caller (BaseGameMode.ImGuiDocking.cs) is itself browser-excluded
-        protected override void InitializeDockLayout(uint dockspaceId, Vector2 dockspaceSize)
-        {
-            ImGuiDockNative.DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
-
-            var leftColumnRatio = dockspaceSize.X > 0.0f
-                ? Math.Clamp(400.0f / dockspaceSize.X, 0.20f, 0.30f)
-                : 0.24f;
-            var rightColumnRatio = dockspaceSize.X > 0.0f
-                ? Math.Clamp(460.0f / dockspaceSize.X, 0.28f, 0.36f)
-                : 0.30f;
-            var outlinerHeightRatio = dockspaceSize.Y > 0.0f
-                ? Math.Clamp((dockspaceSize.Y - 280.0f) / dockspaceSize.Y, 0.45f, 0.68f)
-                : 0.58f;
-
-            uint leftColumnDockId;
-            uint leftRemainderDockId;
-            _ = ImGuiDockNative.DockBuilderSplitNode(
-                dockspaceId,
-                ImGuiDir.Left,
-                leftColumnRatio,
-                out leftColumnDockId,
-                out leftRemainderDockId);
-
-            _ = ImGuiDockNative.DockBuilderSplitNode(
-                leftColumnDockId,
-                ImGuiDir.Down,
-                outlinerHeightRatio,
-                out _outlinerDockId,
-                out _toolDockId);
-
-            uint centerDockId;
-            uint rightDockId;
-            _ = ImGuiDockNative.DockBuilderSplitNode(
-                leftRemainderDockId,
-                ImGuiDir.Right,
-                rightColumnRatio,
-                out rightDockId,
-                out centerDockId);
-
-            _ = ImGuiDockNative.DockBuilderSplitNode(
-                rightDockId,
-                ImGuiDir.Down,
-                0.45f,
-                out _utilityDockId,
-                out _manaDockId);
-
-            ImGuiDockNative.DockBuilderDockWindow(VoxelToolPaletteView.WindowTitle, _toolDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Outliner", _outlinerDockId);
-            ImGuiDockNative.DockBuilderDockWindow(ManaWindowTitle, _manaDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Inspector", _utilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Camera", _utilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("World Perf", _utilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Irradiance", _utilityDockId);
-            ImGuiDockNative.DockBuilderDockWindow("Dear ImGui Demo", _utilityDockId);
-            BaseGameMode.UtilityDockId = _utilityDockId;
-            BaseGameMode.OutlinerDockId = _outlinerDockId;
-            ImGuiDockNative.DockBuilderFinish(dockspaceId);
-        }
-#endif
 
         public override void Render(double deltaTime)
         {
@@ -3117,7 +2511,7 @@ namespace Mana.Code.GameModes
             OpenStartupLevelIfRequested();
 
             UpdatePlayModeShortcuts();
-            UpdateUndoRedoShortcuts();
+            UpdateEditShortcuts();
             _trackDebugVisualization?.SetVisibility(
                 _viewModel.ShowTrackBounds,
                 _viewModel.ShowTrackPivots,

@@ -104,8 +104,7 @@ namespace Mana.Code.Graphics
                     shaders: shaders.Count.ToString("N0"),
                     pipelines: "N/A (OpenGL uses program-state)",
                     totalPolygons: totalOpenGlPolygons,
-                    totalVertices: totalOpenGlVertices,
-                    imguiInitialized: (context.GameMode._ImGui != null ? "Yes" : "No")));
+                    totalVertices: totalOpenGlVertices));
 
                 sections.Add(CreateSection(
                     "Extensions",
@@ -151,7 +150,7 @@ namespace Mana.Code.Graphics
             DiagnosticsSnapshot = new ManaGraphicsDiagnosticsSnapshot(
                 liveSnapshot.CapturedAt,
                 mergedSections,
-                "Pre-ImGui capabilities/state with refreshed live resources, memory, and timing");
+                "Capabilities/state with refreshed live resources, memory, and timing");
             return DiagnosticsSnapshot;
         }
 
@@ -287,7 +286,7 @@ namespace Mana.Code.Graphics
                 depthTest: TryGetEnabled(gl, EnableCap.DepthTest),
                 blending: TryGetEnabled(gl, EnableCap.Blend),
                 faceCulling: TryGetEnabled(gl, EnableCap.CullFace),
-                new ManaGraphicsDiagnosticEntry("State capture timing", "Captured before ImGui initializes or binds UI render state.", ManaGraphicsDiagnosticScope.OpenGl),
+                new ManaGraphicsDiagnosticEntry("State capture timing", "Captured before the UI renderer binds any state.", ManaGraphicsDiagnosticScope.OpenGl),
                 new ManaGraphicsDiagnosticEntry("Depth writes", TryGetBoolean(gl, GLEnum.DepthWritemask), ManaGraphicsDiagnosticScope.OpenGl),
                 new ManaGraphicsDiagnosticEntry("Scissor test", TryGetEnabled(gl, EnableCap.ScissorTest), ManaGraphicsDiagnosticScope.OpenGl),
                 new ManaGraphicsDiagnosticEntry("Framebuffer sRGB", TryGetEnabled(gl, EnableCap.FramebufferSrgb), ManaGraphicsDiagnosticScope.OpenGl),
