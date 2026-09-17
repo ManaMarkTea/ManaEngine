@@ -19,6 +19,7 @@ namespace ManaGraphics.Code.Graphics
         private readonly Action<double>? _beforeRender;
         private readonly Action<double>? _onRender;
         private readonly Action<ManaWebGpuContext, IInputContext>? _webGpuReady;
+        private readonly string? _iconPath;
         private double _elapsedSeconds;
         private IWindow _window = null!;
         private IInputContext? _input;
@@ -32,7 +33,8 @@ namespace ManaGraphics.Code.Graphics
             Action<double>? beforeRender = null,
             Action<double>? onRender = null,
             Action<ManaWebGpuContext, IInputContext>? webGpuReady = null,
-            Vector2D<int>? windowSize = null)
+            Vector2D<int>? windowSize = null,
+            string? iconPath = null)
         {
             _title = title;
             _windowSize = windowSize ?? new Vector2D<int>(1920, 1080);
@@ -42,6 +44,7 @@ namespace ManaGraphics.Code.Graphics
             _beforeRender = beforeRender;
             _onRender = onRender;
             _webGpuReady = webGpuReady;
+            _iconPath = iconPath;
         }
 
         private readonly Vector2D<int> _windowSize;
@@ -114,6 +117,7 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 ManaConsole.WriteDiagnosticElapsed("WebGPU window Load started.");
+                ManaWindowIcon.Apply(_window, _iconPath);
                 _input = _window.CreateInput();
 
                 // Everything up to and including the game mode's own Load() runs here, on this thread,

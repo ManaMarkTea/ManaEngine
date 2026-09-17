@@ -24,6 +24,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- ApplicationIcon above only embeds the exe resource; the running window's own icon is set at
+         runtime (see ManaWindowIcon in ManaGraphics), which needs the file itself alongside the build. -->
+    <Content Include="Assets\Icons\AppIcon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />

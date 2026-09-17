@@ -1,4 +1,5 @@
 using Mana.Code;
+using ManaGraphics.Code.Graphics;
 using Silk.NET.GLFW;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -14,15 +15,17 @@ namespace Mana.Code.Graphics
         private readonly BaseGameMode _gameMode;
         private readonly string _title;
         private readonly GraphicsAPI _graphicsApi;
+        private readonly string? _iconPath;
         private IWindow _window = null!;
         private GL? _gl;
         private IInputContext? _input;
 
-        public GameSilkOpenGl(BaseGameMode gameMode, string title, GraphicsAPI graphicsApi)
+        public GameSilkOpenGl(BaseGameMode gameMode, string title, GraphicsAPI graphicsApi, string? iconPath = null)
         {
             _gameMode = gameMode;
             _title = title;
             _graphicsApi = graphicsApi;
+            _iconPath = iconPath;
         }
 
         public void Run()
@@ -56,6 +59,7 @@ namespace Mana.Code.Graphics
 
         private void Load()
         {
+            ManaWindowIcon.Apply(_window, _iconPath);
             _gl = _window.CreateOpenGL();
             _input = _window.CreateInput();
             _gameMode.LoadForOpenGlBackend(_window, _gl, _input);

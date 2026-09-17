@@ -19,6 +19,13 @@ namespace Mana.Code
 
         public virtual bool DeferGpuUploadsOnStartup => false;
 
+        /// <summary>
+        /// The window's titlebar/taskbar/alt-tab icon, or null for the platform default. Separate from the
+        /// exe's own <c>ApplicationIcon</c> -- GLFW never reads that resource, so a window shows the bare
+        /// default glyph unless something calls <c>SetWindowIcon</c> explicitly.
+        /// </summary>
+        protected virtual string? WindowIconPath => null;
+
         public long UpdateFrame = 0;
         public long RenderFrame = 0;
         public ManaGraphicsDiagnosticsProvider? GraphicsDiagnosticsProvider { get; protected set; }

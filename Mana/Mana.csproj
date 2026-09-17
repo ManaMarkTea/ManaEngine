@@ -570,6 +570,11 @@
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
              Link="Code\Graphics\OpenGL\Legacy\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- GameSilkOpenGl.cs (above) calls ManaWindowIcon; Mana has no ProjectReference to
+         ManaGraphics (see ManaGraphics.csproj), so the file is compiled into this assembly
+         too, same as the Legacy files above. -->
+    <Compile Include="..\ManaGraphics\Code\Graphics\ManaWindowIcon.cs"
+             Link="Code\Graphics\ManaWindowIcon.cs" />
   </ItemGroup>
 
   <!-- ManaGameModeGraphicsBridge.cs is the one exception to the exclusion above; see

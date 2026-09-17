@@ -48,6 +48,9 @@ namespace Mana.Code.GameModes
 
         protected override bool EnableManaUi => true;
 
+        protected override string? WindowIconPath =>
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
+
         /// <summary>The character being played, once there is one. Exposed for tests and diagnostics.</summary>
         public ManaPawnNode? Player => _player;
 
@@ -69,7 +72,8 @@ namespace Mana.Code.GameModes
                     }
 
                     webGpuContext.UiRoot = ManaUi?.Root;
-                }
+                },
+                iconPath: WindowIconPath
             ).Run();
         }
 

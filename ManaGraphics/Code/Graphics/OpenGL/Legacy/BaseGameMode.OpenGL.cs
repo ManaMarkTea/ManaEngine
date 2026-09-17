@@ -106,7 +106,7 @@ namespace Mana.Code
 
         public virtual void Run()
         {
-            new GameSilkOpenGl(this, "ManaGL - SceneViewerMode", RequestedGraphicsApi).Run();
+            new GameSilkOpenGl(this, "ManaGL - SceneViewerMode", RequestedGraphicsApi, WindowIconPath).Run();
         }
 
     }

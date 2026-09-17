@@ -105,6 +105,9 @@ namespace Mana.Code.GameModes
 
         public override bool DeferGpuUploadsOnStartup => true;
 
+        protected override string? WindowIconPath =>
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
+
         public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
 
@@ -149,7 +152,8 @@ namespace Mana.Code.GameModes
                     ManaUiDiagnostics.Snapshot =
                         ManaGraphicsDiagnosticsProviderFactory.Create(Context, webGpuContext)?.DiagnosticsSnapshot;
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
-                }
+                },
+                iconPath: WindowIconPath
             ).Run();
         }
 
