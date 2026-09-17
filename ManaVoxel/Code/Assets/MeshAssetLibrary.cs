@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using System.Numerics;
+using System.Runtime.Versioning;
 using Mana.Code.Shapes.Loaders;
 
 namespace ManaVoxel.Code.Assets
@@ -555,6 +556,12 @@ namespace ManaVoxel.Code.Assets
 
         // ----- watching -------------------------------------------------------------------------------------
 
+        [UnsupportedOSPlatformGuard("browser")]
+        private static bool IsFileWatchingSupported()
+        {
+            return !OperatingSystem.IsBrowser();
+        }
+
         /// <summary>
         /// Starts a <see cref="FileSystemWatcher"/> on every asset root that exists, the first time a scan is
         /// asked for. Lazy, and not in the constructor, for the same reason scanning itself is driven from the
@@ -568,14 +575,15 @@ namespace ManaVoxel.Code.Assets
                 return;
             }
 
-#if MANA_BROWSER
             // FileSystemWatcher throws PlatformNotSupportedException on browser-wasm; there is nothing
             // resembling a live directory tree to watch there anyway (assets are a fixed, publish-time
             // bundle -- see WasmFilesToIncludeInFileSystem in ManaVoxel.Editor.Web.csproj). Scanning
             // itself (Roots()/directory enumeration, called separately) still works against whatever the
             // bundle contains; this only skips the "notice new files without a rescan" half.
-            return;
-#endif
+            if (!IsFileWatchingSupported())
+            {
+                return;
+            }
 
             lock (_watchGate)
             {
@@ -639,6 +647,7 @@ namespace ManaVoxel.Code.Assets
         /// with no filter set fires on every touch of every file in the tree, and most of those (a texture
         /// saved next to a model, an editor's swap file) have nothing to do with what this list shows.
         /// </summary>
+        [UnsupportedOSPlatform("browser")]
         private void OnFileSystemEvent(object sender, FileSystemEventArgs e)
         {
             if (!IsRelevant(e))
@@ -656,6 +665,7 @@ namespace ManaVoxel.Code.Assets
             }
         }
 
+        [UnsupportedOSPlatform("browser")]
         private void OnWatcherError(object sender, ErrorEventArgs e)
         {
             // The watcher itself died (an overflowed internal buffer, a removable drive pulled out from under
@@ -664,6 +674,7 @@ namespace ManaVoxel.Code.Assets
             _dirty = true;
         }
 
+        [UnsupportedOSPlatform("browser")]
         private static bool IsRelevant(FileSystemEventArgs e)
         {
             if (e is RenamedEventArgs renamed && IsRelevantPath(renamed.OldFullPath))
@@ -674,6 +685,7 @@ namespace ManaVoxel.Code.Assets
             return IsRelevantPath(e.FullPath);
         }
 
+        [UnsupportedOSPlatform("browser")]
         private static bool IsRelevantPath(string path)
         {
             var extension = Path.GetExtension(path);
