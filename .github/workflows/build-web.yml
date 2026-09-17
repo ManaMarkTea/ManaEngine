@@ -30,6 +30,10 @@ jobs:
             **/*.props
             **/*.targets
 
+      - name: Capture .NET SDK version
+        id: dotnet-sdk
+        run: echo "version=$(dotnet --version)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -42,7 +46,7 @@ jobs:
             ~/.dotnet/packs
             ~/.dotnet/sdk-manifests
             ~/.dotnet/metadata/workloads
-          key: ${{ runner.os }}-wasm-tools-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          key: ${{ runner.os }}-wasm-tools-${{ steps.dotnet-sdk.outputs.version }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
 
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools --skip-manifest-update
