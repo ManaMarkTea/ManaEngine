@@ -24,7 +24,7 @@ library is fetched when a model is selected or a level needs it.
 ## Deployment and assets
 
 Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=python3`).
-`WebAssets.props` defines the shared boot assets. `Tools/WebAssets/publish_assets.py` generates:
+`WebAssets.props` defines the shared boot assets. `tools/WebAssets/publish_assets.py` generates:
 
 - `asset-catalog.json`: file sizes, hashes, model/ZIP entries, and glTF sidecar dependencies.
 - `AssetLibrary/`: individual content-hashed files, downloaded only as needed.
