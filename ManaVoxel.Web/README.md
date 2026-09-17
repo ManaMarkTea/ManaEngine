@@ -16,9 +16,14 @@ dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release
 python3 ManaVoxel.Web/serve.py          # http://localhost:8000  (or pass a port)
 ```
 
-Then open <http://localhost:8000>. First load takes **10–15 seconds** — it's AOT-compiled wasm
-plus a 5 MB environment map and two asset packs. A loading screen covers the whole wait; see
-below.
+Then open <http://localhost:8000>. Only the runtime and boot essentials load initially;
+models and their dependencies are downloaded from `AssetLibrary/` as needed. The initial
+level's dependencies are prepared before play starts. A loading screen covers startup.
+
+Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=python3`).
+Deploy the entire `AppBundle/` directory, including `asset-catalog.json` and `AssetLibrary/`.
+There is no monolithic asset archive to commit or upload. See the editor README's
+"Deployment and assets" section for caching, retries, and deployment details.
 
 The server reads files off disk per request, so after a republish just refresh — no restart.
 
@@ -39,7 +44,7 @@ only thing that can cover the first and longest phase, because no C# is running 
 
 | Phase | Roughly | Driven by |
 |---|---|---|
-| Downloading ~45 MB of `_framework` + 13 MB of bundled assets | 10s on a fast link | `main.js`, counting bytes off the wire |
+| Downloading `_framework` and boot assets | Depends on connection speed | `main.js`, counting bytes off the wire |
 | `BrowserPlayGameMode.Load` — env map decode, level, meshes, character | 2–4s | C# → `mana_interop.js` |
 | Renderer init and GPU uploads (`ManaLoadingCoordinator`) | <1s | same |
 
@@ -80,31 +85,18 @@ and a stack trace in a console nobody had open.
 
 ## Changing the level
 
-Two places, both in this project:
+Change the path passed to `BrowserPlayGameMode` in `Program.cs` to a level under `Levels/`.
 
-1. `Program.cs` — the path passed to `BrowserPlayGameMode`.
-2. `ManaVoxel.Web.csproj` — a `WasmFilesToIncludeInFileSystem` entry so the file is actually in
-   the wasm virtual filesystem, plus any asset packs the level references.
+Both browser projects import `WebAssets.props`, which embeds shaders, two Roboto fonts,
+default textures, the mini-character pack, and all `.manalevel` files under `Levels/`.
+`Tools/WebAssets/publish_assets.py` publishes every file under `Assets/`, `Mana/Assets/`,
+`ManaGraphics/Assets/`, `ManaUI/Assets/`, and `ManaVoxel/Assets/` as separate hashed files,
+plus a small catalog. The only exclusion is the oversized desktop planet source
+`Mana/Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`.
 
-A level's mesh nodes reference packs as base64 `zipasset-rel:` strings. To find which ones a
-level needs:
-
-```bash
-python3 - <<'EOF'
-import json, base64
-d = json.load(open("Levels/Little Train Yard.manalevel"))
-def walk(n):
-    a = n.get("asset")
-    if a and a.startswith("zipasset-rel:"):
-        print(base64.b64decode(a[len("zipasset-rel:"):].split(":")[0]).decode())
-    for c in n.get("children") or []: walk(c)
-for n in d["nodes"]: walk(n)
-EOF
-```
-
-Currently bundled: `Little Train Yard` and `Sample Course`, with `kenney_train-kit.zip` (5.3 MB)
-and `kenney_mini-characters.zip` (2.4 MB). Only bundle what a level actually needs — everything
-here is download weight.
+The initial level's models/packs and glTF sidecars download before its synchronous loader
+runs. Subsequent uses reuse staged files or the persistent browser cache. New assets are
+picked up automatically; no per-level packaging allowlist needs updating.
 
 ## Things that differ from desktop, and why
 

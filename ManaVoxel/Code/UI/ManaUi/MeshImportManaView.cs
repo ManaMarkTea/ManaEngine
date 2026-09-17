@@ -439,6 +439,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
+                // Listing remote assets must never fetch their full models just for a thumbnail.
+                // Keep the format placeholder until an explicit import has downloaded the source.
+                if (ManaCore.Assets.ManaAssetCatalog.Current?.IsReady(path) == false)
+                    return;
                 cache.Request(path);
                 thumbnailRequested = true;
             }

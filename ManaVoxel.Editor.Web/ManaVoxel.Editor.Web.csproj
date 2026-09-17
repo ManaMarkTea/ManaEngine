@@ -67,61 +67,7 @@
     <_AOT_InternalForceInterpretAssemblies Include="BepuUtilities" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Shaders: same as ManaVoxel.Web.csproj; Content/CopyToOutputDirectory items on
-         ManaGraphics.csproj don't reach the wasm virtual filesystem; WasmFilesToIncludeInFileSystem
-         is the only thing that does. -->
-    <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
-      <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-
-    <!-- ManaEnvironmentReflectionSource.DefaultSourcePath: VoxelEditorGameMode.Load() decodes this
-         unconditionally on startup (the IBL environment map), editor or play mode alike. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
-      <TargetPath>Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <!-- TextureManager's default/fallback texture; VoxelEditorGameMode.Load() loads it unconditionally
-         (confirmed live via the headless Chrome probe: FileNotFoundException without it). Same file
-         ManaVoxel.Web.csproj bundles for its ground quad. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\DebugTexture_Grid.png">
-      <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-
-    <!-- ManaUiHost.GetFontDirectories() looks under AppContext.BaseDirectory/Assets/Fonts first,
-         before falling back to OS system font directories; which don't exist in the wasm VFS, so
-         this is the only source ManaUi's text rendering has here at all. ManaFontManager.ResolvePath
-         is a filename search, not a font-metadata parse (grep-audited every `.FontFamily(...)` /
-         `theme.FontFamilyMono`/`FontFamilyMedium` call site in ManaVoxel/Mana/ManaUI to confirm):
-         exactly two family names are ever requested by name, "Roboto" (-> Roboto-Regular.ttf, also
-         TextBlock's default when nothing is specified) and "Roboto-Medium" (-> Roboto-Medium.ttf).
-         "RobotoMono-Regular" (UiTheme.FontFamilyMono's default) never resolves from this bundle on
-         ANY platform, desktop included; no file of that exact name exists anywhere under
-         Mana/Assets/Fonts, Roboto Mono not being one of the weights shipped; so it was already
-         silently falling through to whatever ManaFontManager does when nothing matches (an OS
-         system font if one happens to be installed, otherwise nothing), with or without this
-         change; trimming the bundle down to what actually resolves regresses nothing. Barlow
-         Condensed was an ImGui font preset only, and ImGui is gone; ManaUi never referenced it. 311 KB total instead of the whole tree's 10 MB. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\Roboto\Roboto-Regular.ttf">
-      <TargetPath>Assets/Fonts/Roboto-Regular.ttf</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Fonts\Roboto\Roboto-Medium.ttf">
-      <TargetPath>Assets/Fonts/Roboto-Medium.ttf</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-
-    <!-- MeshAssetLibrary.Roots() walks AppContext.BaseDirectory/Assets among other candidates looking for
-         *.zip mesh packs (same path ManaVoxel.Web.csproj bundles these two at, for CharacterSpawnService).
-         EnsureWatching() is a no-op on MANA_BROWSER (FileSystemWatcher has no browser-wasm support), but
-         Scan() itself is a plain one-time Directory.EnumerateFiles walk with no such restriction, so the
-         Import panel's asset list works here as long as something is actually bundled to find, which
-         nothing was until now (an empty AppContext.BaseDirectory/Assets, silently correct, just empty).
-         Same two packs ManaVoxel.Web already ships, not a new asset choice. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_mini-characters.zip">
-      <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_train-kit.zip">
-      <TargetPath>Assets/kenney_train-kit.zip</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-  </ItemGroup>
+  <Import Project="..\WebAssets.props" />
 
   <ItemGroup>
     <!-- Identical to ManaVoxel.Web.csproj's own copy of this block; see its comments for the full
@@ -240,13 +186,7 @@ Log.LogMessage(MessageImportance.High, "Loading screen: download total is " + to
     <ManaWriteEditorDownloadSize AppBundleDir="$(WasmAppDir)" />
   </Target>
 
-  <Target Name="ManaZipEditorPublishOutput" AfterTargets="_WasmGenerateAppBundle">
-    <MakeDir Directories="$(MSBuildProjectDirectory)\..\Binaries" />
-    <ZipDirectory SourceDirectory="$(WasmAppDir)"
-                  DestinationFile="$(MSBuildProjectDirectory)\..\Binaries\ManaEditor.zip"
-                  Overwrite="true" />
-    <Message Importance="High" Text="Editor web zip written to $(MSBuildProjectDirectory)\..\Binaries\ManaEditor.zip" />
-  </Target>
+
 
   <!-- The hosted browser app is AppBundle, populated only by WasmFilesToIncludeInFileSystem above.
        The generic SDK publish/target directories can still collect referenced-project desktop content

@@ -124,55 +124,7 @@
     <_AOT_InternalForceInterpretAssemblies Include="BepuUtilities" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- M3 prep: bundles the WGSL shaders into the wasm app's virtual filesystem so
-         ManaWebGpuContext.Demo.cs's ResolveAssetPath (File.Exists probing against
-         AppContext.BaseDirectory) and ManaWgslPreprocessor's sibling-relative #include
-         resolution both work unmodified with the demo mesh pipeline enabled above; see
-         WebPort-Plan.md's "M3 prep" note. TargetPath (not the default filename-only mapping)
-         is required to preserve the Assets/Shaders/WebGpu/... directory structure; confirmed
-         via WasmAppBuilder.dll (ilspycmd) that an unset TargetPath drops the directory
-         entirely. -->
-    <!-- The ground quad's default texture. Deliberately this one file rather than
-         Mana/Assets/Textures/**: that tree is 21 MB (14 MB of it environment maps, 6.5 MB of
-         material textures) and Sample Course references no textures at all, so anything more
-         would be download weight for nothing. Mesh-based levels will need their own additions. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\DebugTexture_Grid.png">
-      <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <!-- The rigged character CharacterSpawnService loads the player from. It probes Assets roots
-         for zips containing "Models/GLB format/*.glb"; mini-characters is the smallest pack that
-         matches. Loaded through ManaWorld.Gltf.Browser.cs's SharpGLTF path, not Assimp. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_mini-characters.zip">
-      <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <!-- Little Train Yard's mesh nodes resolve into this pack (decoded from their zipasset-rel
-         references). 5.3 MB, so it is the single largest thing in the bundle; drop it again if the
-         browser build ever goes back to a level that does not need meshes. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Assets\kenney_train-kit.zip">
-      <TargetPath>Assets/kenney_train-kit.zip</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <!-- The level the browser build boots into. Sample Course is pure procedural shapes and
-         voxels with no external mesh/texture references, so it needs nothing bundled alongside it;
-         mesh-based levels (Little Train Yard) additionally need their Assets/*.zip. -->
-    <WasmFilesToIncludeInFileSystem Include="..\Levels\Sample Course.manalevel">
-      <TargetPath>Levels/Sample Course.manalevel</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="..\Levels\Little Train Yard.manalevel">
-      <TargetPath>Levels/Little Train Yard.manalevel</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="..\ManaGraphics\Assets\Shaders\WebGpu\**\*.wgsl">
-      <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-    <!-- ManaEnvironmentReflectionSource.DefaultSourcePath: the demo pipeline's environment
-         reflection map (IBL) needs this HDR-ish environment texture; ResolveAssetPath's
-         File.Exists probing throws FileNotFoundException without it, confirmed live via the
-         headless Chrome probe (see WebPort-Plan.md's M3-prep note). 5.1 MB; the only texture
-         asset the demo pipeline actually needs (procedural cube geometry, no other textures). -->
-    <WasmFilesToIncludeInFileSystem Include="..\Mana\Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
-      <TargetPath>Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
-  </ItemGroup>
+  <Import Project="..\WebAssets.props" />
 
   <ItemGroup>
     <!-- Physically lives in ManaGraphics (the project whose ManaBrowserWebGpuNativeContext.cs

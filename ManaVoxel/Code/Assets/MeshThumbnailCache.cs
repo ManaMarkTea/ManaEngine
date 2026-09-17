@@ -123,6 +123,8 @@ namespace ManaVoxel.Code.Assets
         /// </summary>
         public void Request(string assetPath)
         {
+            if (ManaCore.Assets.ManaAssetCatalog.Current?.IsReady(assetPath) == false)
+                return;
             if (string.IsNullOrWhiteSpace(assetPath) || !_requested.TryAdd(assetPath, 0))
             {
                 return;

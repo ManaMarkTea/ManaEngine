@@ -728,6 +728,8 @@ namespace ManaVoxel.Code.Assets
         private static MeshScanResult Scan()
         {
             var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog)
+                found.UnionWith(catalog.Models);
             var unreadable = 0;
 
             foreach (var root in Roots())

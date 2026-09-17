@@ -563,6 +563,20 @@ namespace ManaVoxel.Code.Levels
             return world.LoadFromGltf(assetReference);
         }
 
+        public static async Task EnsureAssetsAsync(ManaLevel level)
+        {
+            var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
+            if (catalog == null) return;
+            var nodes = new Queue<ManaLevelNode>(level.Nodes);
+            while (nodes.TryDequeue(out var node))
+            {
+                if (!string.IsNullOrWhiteSpace(node.Asset))
+                    await catalog.EnsureAsync(node.Asset);
+                if (node.Children != null)
+                    foreach (var child in node.Children) nodes.Enqueue(child);
+            }
+        }
+
         public static string ResolveAssetPath(string assetReference)
         {
             if (Path.IsPathRooted(assetReference))

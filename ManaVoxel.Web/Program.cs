@@ -33,6 +33,9 @@ ManaBrowserInterop.ReportLoadingProgress("Starting engine", 0.0f);
 
 try
 {
+    await ManaCore.Browser.ManaBrowserAssets.InitializeAsync();
+    await ManaVoxel.Code.Levels.ManaLevelLoader.EnsureAssetsAsync(
+        ManaVoxel.Code.Levels.ManaLevel.Load("Levels/Little Train Yard.manalevel"));
     // The real game: ground, the bundled level, a pawn controller and a follow camera -- the same
     // engine lifecycle the desktop play mode drives, minus the editor. See BrowserPlayGameMode.
     var playMode = new BrowserPlayGameMode("Levels/Little Train Yard.manalevel", ManaGraphicsBackendKind.WebGpu);

@@ -17,29 +17,43 @@ dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release
 python3 ManaVoxel.Editor.Web/serve.py          # http://localhost:8002  (or pass a port)
 ```
 
-Then open <http://localhost:8002>. First load is ~54 MB and takes **10–15 seconds** on a fast
-link — AOT-compiled wasm, the environment map, two bundled asset packs, and two font files. A
-loading screen covers the whole wait; see `ManaVoxel.Web/README.md`'s own section on it, which
-this project's `index.html`/`main.js` are identical copies of.
+Then open <http://localhost:8002>. The startup download contains the runtime, shaders, two UI
+fonts, the default textures, the player character pack, and level definitions. The rest of the
+library is fetched when a model is selected or a level needs it.
 
-## Itch.io upload
+## Deployment and assets
 
-Publishing writes the itch-ready archive under the repo root's `Binaries/` folder:
+Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=python3`).
+`WebAssets.props` defines the shared boot assets. `Tools/WebAssets/publish_assets.py` generates:
 
-```text
-Binaries/ManaEditor.zip
-```
+- `asset-catalog.json`: file sizes, hashes, model/ZIP entries, and glTF sidecar dependencies.
+- `AssetLibrary/`: individual content-hashed files, downloaded only as needed.
 
-If you need to make the zip by hand, zip the contents of:
+Serve or upload the **entire AppBundle directory**:
 
 ```text
 ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle/
 ```
 
-That is the actual static website: it contains `index.html`, `main.js`, and `_framework/`.
-Do not zip the generic SDK `publish/` directory; that folder can contain unhosted referenced-project
-build artifacts. In particular, the full desktop ETOPO source GeoTIFF is intentionally not part of
-the browser app bundle.
+The CI workflow passes this directory directly to itch.io's Butler uploader, which handles
+incremental uploads. It no longer creates or commits `Binaries/ManaEditor.zip` or replaces a
+GitHub release ZIP. Generated build artifacts are not source files.
+
+The catalog includes all repository/project asset trees except the oversized
+`Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`. Model format/extension support remains
+unchanged. A ZIP pack downloads once when any model inside it is selected; loose glTF models
+fetch their referenced buffers and textures. The library can be browsed without downloading
+models: unloaded entries show format placeholders, with thumbnails generated after download.
+
+Downloads show progress, validate SHA-256 and size, and use the browser Cache API for reuse
+across reloads. Cache restrictions or quota exhaustion fall back to ordinary downloads.
+A failed download can be retried by selecting the asset again. Escape or choosing another
+asset cancels pending placement; an already-started download may finish and remain cached.
+For a drag released before download completes, click in the scene to place the ready preview.
+
+Keep `AssetLibrary/` next to the app on the same HTTPS host. Only the boot files count toward
+the initial loading bar; the remaining roughly 632 MiB is available on demand. Existing tabs
+may need a reload after deploying a changed catalog. No external hosting account is required.
 
 The server reads files off disk per request, so after a republish just refresh — no restart. See
 `ManaVoxel.Web/README.md` for why `serve.py` sends `no-store` rather than a plain
@@ -58,9 +72,8 @@ references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a ha
   viewport with the orientation gizmo, live frame-time graph.
 - **F5** (play in the editor) and **Shift+F5** (play from camera) — `PlayModeController`, no
   process involved, unaffected by anything browser-specific.
-- The asset browser: 387 assets scanned from two bundled Kenney packs (same ones
-  `ManaVoxel.Web.csproj` ships for play mode's character loading), no live directory watching
-  needed since `Scan()` is a one-time walk.
+- The asset browser scans all bundled asset packs and loose models, using the same shared
+  asset set as `ManaVoxel.Web`; no live directory watching is needed for the bundled files.
 - Placing a GLB/glTF asset from the panel into the scene — goes through `ManaWorld.Gltf.cs`
   (SharpGLTF), the only mesh-import path on any platform since M10 removed Assimp entirely.
 - Docking layout and UI density preset now survive a page reload, via a small `localStorage`

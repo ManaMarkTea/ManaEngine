@@ -1,0 +1,30 @@
+<Project>
+  <!-- Only boot dependencies enter the WASM filesystem; the catalog and library are separate. -->
+  <PropertyGroup>
+    <ManaPython Condition="'$(ManaPython)' == ''">python</ManaPython>
+  </PropertyGroup>
+  <ItemGroup>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)ManaGraphics/Assets/Shaders/WebGpu/**/*.wgsl">
+      <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Textures/DebugTexture_Grid.png">
+      <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png">
+      <TargetPath>Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Regular.ttf;$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Medium.ttf">
+      <TargetPath>Assets/Fonts/Roboto/%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-characters.zip">
+      <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Levels/**/*.manalevel">
+      <TargetPath>Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
+    <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)Tools/WebAssets/asset-downloads.js" Link="asset-downloads.js" />
+  </ItemGroup>
+  <Target Name="ManaPublishExternalAssets" AfterTargets="_WasmGenerateAppBundle">
+    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)Tools/WebAssets/publish_assets.py&quot; --root &quot;$(MSBuildThisFileDirectory).&quot; --output &quot;$(WasmAppDir).&quot;" />
+  </Target>
+</Project>

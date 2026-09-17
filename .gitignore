@@ -369,3 +369,6 @@ FodyWeavers.xsd
 # Generated/derived data (mesh thumbnail cache, and anything else that lands here later) -- always
 # regenerable, never authored content. See ManaVoxel.Code.Assets.ManaProjectFolder.
 /Library/
+# Generated web deployment artifacts; publish directories directly instead of committing archives.
+/Binaries/ManaEditor.zip
+/Tools/WebAssets/__pycache__/

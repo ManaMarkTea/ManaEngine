@@ -1,16 +1,12 @@
 name: Build web editor
 
-# ManaVoxel.Editor.Web.csproj already zips its own publish output (see its
-# ManaZipEditorPublishOutput target) into Binaries/ManaEditor.zip -- this workflow just needs to
-# run `dotnet publish` with the wasm-tools workload installed, then hand that zip to a stable
-# download URL. The "web-latest" release below is re-used (not re-created) on every run, so its
-# asset URL never changes -- that's the URL to give itch.io's external-hosting option.
+# Publish the directory directly: immutable assets remain separate files and Butler uploads deltas.
 on:
   push:
     branches: [master]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -29,34 +25,25 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools
 
-      - name: Publish web editor (also produces Binaries/ManaEditor.zip)
+      - name: Publish web editor and external asset library
         # ManaVoxel.Editor.Web's browser-wasm publish graph currently builds some referenced
         # projects more than once; keep them serialized so GenerateDepsFile does not race on the
         # shared browser-wasm output path (for example ManaCore.deps.json).
         run: dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release -m:1
 
-      - name: Publish (or update) the web-latest release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if gh release view web-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload web-latest Binaries/ManaEditor.zip --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create web-latest Binaries/ManaEditor.zip \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Web editor (latest)" \
-              --notes "Automatically rebuilt from master on every push. The ManaEditor.zip asset URL below is stable -- safe to point itch.io's external hosting at it."
-          fi
-
       - name: Upload web editor to itch.io
         uses: KikimoraGames/itch-publish@v0.0.3
         with:
           butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
-          gameData: Binaries/ManaEditor.zip
+          gameData: ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
           itchUsername: manamarktea
           itchGameId: mana-editor
           buildChannel: web

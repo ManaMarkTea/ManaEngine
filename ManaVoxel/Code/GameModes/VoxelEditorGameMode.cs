@@ -33,14 +33,10 @@ namespace Mana.Code.GameModes
     public partial class VoxelEditorGameMode : BaseGameMode
     {
         private const string ManaWindowTitle = "Mana";
-        private uint _toolDockId;
         // The demo grid room's full width/depth -- see the matching comment where the room is built for
         // why this can't just change there alone.
         private const float GridSize = 512.0f;
 
-        private uint _outlinerDockId;
-        private uint _manaDockId;
-        private uint _utilityDockId;
         private readonly VoxelEditorViewModel _viewModel = new();
         private readonly PlaceSearchNavigator _navigator = new();
         private readonly VoxelToolController _toolController = new();
@@ -50,7 +46,6 @@ namespace Mana.Code.GameModes
         private TrackDebugVisualization? _trackDebugVisualization;
         private SceneTransformGizmo? _transformGizmo;
         private const string ZipAssetPrefix = "zipasset:";
-        private bool _firstFrame = true;
         private bool _meshPickerDragWasDown;
         private bool _meshPickerPlaceClickWasDown;
         private bool _meshPickerEscapeWasDown;
@@ -102,19 +97,6 @@ namespace Mana.Code.GameModes
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
-#if !MANA_BROWSER  // state for the dead terrain-cache-size block below
-        private static readonly object TerrainCacheSizeLock = new();
-        private static Task<TerrainCacheSizeRefreshResult>? _terrainCacheSizeRefreshTask;
-        private static int _terrainCacheSizeRefreshGeneration;
-        private static long? _terrainCacheSizeBytes;
-        private static DateTimeOffset? _terrainCacheSizeUpdatedAt;
-        private static string? _terrainCacheSizeError;
-
-        private readonly record struct TerrainCacheSizeRefreshResult(
-            int Generation,
-            long? Bytes,
-            string? Error);
-#endif
 
         private sealed record ColliderDebugEntry(
             ManaCollisionComponent Collision,
@@ -1240,11 +1222,17 @@ namespace Mana.Code.GameModes
             return relativePath;
         }
 
-        private void Window_FileDrop(string[] files)
+        private async void Window_FileDrop(string[] files)
         {
             var mouseDropWorld = GetProjectedPlacementHit();
             var dropPosition = mouseDropWorld.Hit ? mouseDropWorld.Position : (Vector3?)null;
-            _fileImportService.ImportDroppedFiles(files, dropPosition, Context.World, _viewModel);
+            try
+            {
+                if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog)
+                    foreach (var file in files) await catalog.EnsureAsync(file);
+                _fileImportService.ImportDroppedFiles(files, dropPosition, Context.World, _viewModel);
+            }
+            catch (Exception ex) { _viewModel.Levels.SetStatus($"Import failed: {ex.Message}"); }
         }
 
         private RayHit GetProjectedPlacementHit()
@@ -1460,10 +1448,12 @@ namespace Mana.Code.GameModes
             var pendingPath = MeshImportRequests.TakePlacement();
             if (!string.IsNullOrWhiteSpace(pendingPath))
             {
+                _meshDownloadFailedPath = null;
                 BeginMeshPickerPlacementPreview(pendingPath);
             }
 
             var leftMouseDown = mouseState.IsButtonPressed(Silk.NET.Input.MouseButton.Left);
+            if (leftMouseDown && !_meshPickerDragWasDown) _meshDownloadFailedPath = null;
             var mousePosition = mouseState.Position;
             var isOverScene = mousePosition.X >= sceneMin.X &&
                               mousePosition.X <= sceneMax.X &&
@@ -1477,7 +1467,7 @@ namespace Mana.Code.GameModes
             var overPanel = MeshImportRequests.PointerOverUi;
             var canDrop = isOverScene && !overPanel;
 
-            if (!string.IsNullOrWhiteSpace(draggedPath) && canDrop)
+            if (!string.IsNullOrWhiteSpace(draggedPath) && canDrop && draggedPath != _meshDownloadFailedPath)
             {
                 BeginMeshPickerPlacementPreview(draggedPath);
             }
@@ -1494,6 +1484,12 @@ namespace Mana.Code.GameModes
                     if (canDrop && string.Equals(draggedPath, _meshPickerPreviewAssetPath, StringComparison.OrdinalIgnoreCase))
                     {
                         CommitMeshPickerPlacementPreview();
+                    }
+                    else if (canDrop && string.Equals(draggedPath, _meshDownloadPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Keep the requested preview alive until its download completes. The next click
+                        // places it; releasing a drag early must not silently discard the selection.
+                        _viewModel.Levels.SetStatus("Downloading asset — click to place it when ready.");
                     }
                     else
                     {
@@ -1547,8 +1543,13 @@ namespace Mana.Code.GameModes
             return true;
         }
 
-        private void BeginMeshPickerPlacementPreview(string assetReference)
+        private string? _meshDownloadPath;
+        private string? _meshDownloadFailedPath;
+        private int _meshDownloadGeneration;
+
+        private async void BeginMeshPickerPlacementPreview(string assetReference)
         {
+            if (_openingLevel || _meshDownloadPath == assetReference) return;
             if (_meshPickerPreviewNode != null &&
                 string.Equals(_meshPickerPreviewAssetPath, assetReference, StringComparison.OrdinalIgnoreCase))
             {
@@ -1556,6 +1557,32 @@ namespace Mana.Code.GameModes
             }
 
             CancelMeshPickerPlacementPreview();
+
+            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog && !catalog.IsReady(assetReference))
+            {
+                _meshDownloadPath = assetReference;
+                var generation = _meshDownloadGeneration;
+                try
+                {
+                    _viewModel.Levels.SetStatus("Downloading selected asset…");
+                    await catalog.EnsureAsync(assetReference);
+                    if (generation != _meshDownloadGeneration) return;
+                    _viewModel.Levels.SetStatus("Asset ready — click in the scene to place it.");
+                }
+                catch (Exception ex)
+                {
+                    if (generation == _meshDownloadGeneration)
+                    {
+                        _meshDownloadFailedPath = assetReference;
+                        _viewModel.Levels.SetStatus($"Download failed: {ex.Message}. Select the asset again to retry.");
+                    }
+                    return;
+                }
+                finally
+                {
+                    if (generation == _meshDownloadGeneration) _meshDownloadPath = null;
+                }
+            }
 
             var world = Context.World;
             var sceneStart = world.Scenes.Count;
@@ -1685,6 +1712,8 @@ namespace Mana.Code.GameModes
 
         private void CancelMeshPickerPlacementPreview()
         {
+            _meshDownloadGeneration++;
+            _meshDownloadPath = null;
             if (_meshPickerPreviewSceneStartIndex >= 0 ||
                 _meshPickerPreviewMeshStartIndex >= 0 ||
                 _meshPickerPreviewMaterialStartIndex >= 0)
@@ -1754,12 +1783,14 @@ namespace Mana.Code.GameModes
         private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath) =>
             MeshAssetLibrary.TryDecodeZip(assetReference, out zipPath, out entryPath);
 
-        private void ImportMeshAssetFromPicker(string filePath)
+        private async void ImportMeshAssetFromPicker(string filePath)
         {
             try
             {
                 var mouseHit = GetProjectedPlacementHit();
                 var dropPosition = mouseHit.Hit ? mouseHit.Position : (Vector3?)null;
+                if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog)
+                    await catalog.EnsureAsync(filePath);
                 _fileImportService.ImportFile(filePath, dropPosition, Context.World, _viewModel);
             }
             catch (Exception ex)

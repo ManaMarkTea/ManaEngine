@@ -168,18 +168,19 @@ namespace Mana.Code.GameModes
 
         bool IManaLevelHost.IsPlaying => IsPlaying;
 
-        public bool CanPlay => !IsLoading && _playMode != null;
+        public bool CanPlay => !IsLoading && !_openingLevel && _playMode != null;
 
         public bool HasPlayerStart => ManaPlayerStartNode.Find(Context.World) != null;
 
         public void NewLevel()
         {
-            if (IsLoading)
+            if (IsLoading || _openingLevel)
             {
                 return;
             }
 
             StopPlayBeforeEditing();
+            CancelMeshPickerPlacementPreview();
             _viewModel.History.Clear();
             ResetLoadedPlanet();
             _water = null;
@@ -191,9 +192,11 @@ namespace Mana.Code.GameModes
             _viewModel.Levels.SetStatus("New level.");
         }
 
-        public void OpenLevel(string path)
+        private bool _openingLevel;
+
+        public async void OpenLevel(string path)
         {
-            if (IsLoading)
+            if (IsLoading || _openingLevel)
             {
                 return;
             }
@@ -202,7 +205,12 @@ namespace Mana.Code.GameModes
 
             try
             {
+                _openingLevel = true;
+                CancelMeshPickerPlacementPreview();
                 var level = ManaLevel.Load(path);
+                _viewModel.Levels.SetStatus("Preparing level assets…");
+                await ManaLevelLoader.EnsureAssetsAsync(level);
+                CancelMeshPickerPlacementPreview();
                 _viewModel.History.Clear();
                 ResetLoadedPlanet();
                 _water = null;
@@ -259,6 +267,7 @@ namespace Mana.Code.GameModes
                 _viewModel.Levels.SetStatus($"Could not open '{Path.GetFileName(path)}': {exception.Message}");
                 Trace.TraceWarning($"Failed to open level '{path}': {exception}");
             }
+            finally { _openingLevel = false; }
         }
 
         public void SaveLevel(string path)
@@ -410,7 +419,7 @@ namespace Mana.Code.GameModes
 
         public void TogglePlay()
         {
-            if (_playMode == null || IsLoading)
+            if (_playMode == null || IsLoading || _openingLevel)
             {
                 return;
             }
@@ -422,6 +431,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            CancelMeshPickerPlacementPreview();
             if (!_playMode.Start())
             {
                 _viewModel.Levels.SetStatus(_playMode.LastError ?? "Could not start play mode.");
@@ -435,11 +445,12 @@ namespace Mana.Code.GameModes
 
         public void PlayFromCamera()
         {
-            if (_playMode == null || IsLoading || _playMode.IsPlaying)
+            if (_playMode == null || IsLoading || _openingLevel || _playMode.IsPlaying)
             {
                 return;
             }
 
+            CancelMeshPickerPlacementPreview();
             if (!_playMode.Start(_playMode.GetPlayFromCameraPosition()))
             {
                 _viewModel.Levels.SetStatus(_playMode.LastError ?? "Could not start play mode.");

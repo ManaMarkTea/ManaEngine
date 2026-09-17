@@ -26,6 +26,7 @@ ManaBrowserInterop.ReportLoadingProgress("Starting engine", 0.0f);
 
 try
 {
+    await ManaCore.Browser.ManaBrowserAssets.InitializeAsync();
     var editor = new VoxelEditorGameMode(ManaGraphicsBackendKind.WebGpu);
 
     // The editor shows its OWN loading screen once ManaUi is up (BaseGameMode wraps any
