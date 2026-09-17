@@ -36,12 +36,20 @@ public static class AssetCatalogChecks
             });
             check("the catalog lists loose and archived models without downloading", catalog.Models.Count == 2 && requests.Count == 0, "");
             check("an unloaded model is not ready for thumbnails", !catalog.IsReady(catalog.Models[0]), "");
+            var bytesBeforeFirstBatch = ManaAssetDownloadActivity.TotalBytesDownloaded;
             var first = catalog.EnsureAsync(catalog.Models[0]);
             var second = catalog.EnsureAsync("Assets/model.gltf");
             check("concurrent requests share the same download", requests.Count == 1, "");
+            check("a download in flight shows up as downloading",
+                ManaAssetDownloadActivity.IsDownloading && ManaAssetDownloadActivity.ActiveNames.Contains("model.gltf"),
+                string.Join(",", ManaAssetDownloadActivity.ActiveNames));
             gate.SetResult(new byte[] { 1, 2, 3 });
             await Task.WhenAll(first, second);
             check("import fetches the buffer and texture as well as the model", requests.Count == 3 && catalog.IsReady(catalog.Models[0]), "");
+            check("and clears once every download in the batch finishes", !ManaAssetDownloadActivity.IsDownloading, "");
+            check("the session total grows by exactly what was downloaded",
+                ManaAssetDownloadActivity.TotalBytesDownloaded - bytesBeforeFirstBatch == 9, // 3 files x 3 bytes
+                $"+{ManaAssetDownloadActivity.TotalBytesDownloaded - bytesBeforeFirstBatch}");
             await catalog.EnsureAsync(catalog.Models[0]);
             check("staged assets are reused without another download", requests.Count == 3, "");
             var relativeZip = "zipasset-rel:" + Convert.ToBase64String(Encoding.UTF8.GetBytes("Assets/pack.zip"))
@@ -56,12 +64,17 @@ public static class AssetCatalogChecks
             var attempt = 0;
             var retry = new ManaAssetCatalog(json, directory.FullName, (_, _, _) =>
                 Task.FromResult(++attempt == 1 ? new byte[] { 1 } : new byte[] { 1, 2, 3 }));
+            var bytesBeforeRetry = ManaAssetDownloadActivity.TotalBytesDownloaded;
             var rejected = false;
             try { await retry.EnsureAsync(relativeZip); }
             catch (InvalidDataException) { rejected = true; }
             check("an incomplete download is not installed", rejected && !retry.IsReady(relativeZip), "");
+            check("a rejected download does not count toward the session total",
+                ManaAssetDownloadActivity.TotalBytesDownloaded == bytesBeforeRetry, "");
             await retry.EnsureAsync(relativeZip);
             check("a failed download can be retried", attempt == 2 && retry.IsReady(relativeZip), "");
+            check("and the retry that actually lands does count",
+                ManaAssetDownloadActivity.TotalBytesDownloaded - bytesBeforeRetry == 3, "");
 
             rejected = false;
             try { _ = new ManaAssetCatalog(json.Replace("Assets/model.bin", "Assets/../escape.bin"), directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>())); }

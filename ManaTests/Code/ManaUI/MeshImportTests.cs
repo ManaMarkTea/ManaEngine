@@ -665,6 +665,70 @@ public static class MeshImportChecks
         Check("dragging the splitter widens the folder column",
             folderTree.Bounds.Width > folderWidthBefore + 40.0f,
             $"{folderWidthBefore:0} -> {folderTree.Bounds.Width:0}");
+
+        CheckDownloadProgress(fonts, check, defaultSize);
+    }
+
+    /// <summary>
+    /// A tile's download progress bar, driven the same way ViewportOverlaysTests.cs drives the corner
+    /// status widget -- through a real ManaAssetCatalog with a gated download delegate, since Started/
+    /// Finished are internal to ManaCore.Assets and there is no InternalsVisibleTo for tests.
+    /// <para>
+    /// ManaAssetCatalog.Current is a static hand-off the real editor sets once at browser startup; a test
+    /// that assigns it must restore whatever was there before, or a later suite in the same process would
+    /// see this test's now-defunct catalog instead of the null it expects on desktop.
+    /// </para>
+    /// </summary>
+    private static void CheckDownloadProgress(ManaFontManager fonts, Action<string, bool, string> check, Vector2 panelSize)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var previousCatalog = ManaCore.Assets.ManaAssetCatalog.Current;
+        var directory = System.IO.Directory.CreateTempSubdirectory("mana-import-progress-");
+        try
+        {
+            var library = new MeshAssetLibrary { Formats = MeshAssetFormats.All };
+            library.SetAssets(new[] { "Assets/duck.glb" });
+
+            var json = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                version = 1,
+                files = new[]
+                {
+                    new { path = "Assets/duck.glb", url = "AssetLibrary/duck.glb", sha256 = "duck", size = 3,
+                        dependencies = Array.Empty<string>() }
+                },
+                models = new object[] { new { path = "Assets/duck.glb" } }
+            });
+            var gate = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var catalog = new ManaCore.Assets.ManaAssetCatalog(json, directory.FullName,
+                async (_, _, _) => await gate.Task);
+            ManaCore.Assets.ManaAssetCatalog.Current = catalog;
+
+            var root = new UiRoot(fonts);
+            var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+            root.Content = MeshImportManaView.Build(root.Theme, viewModel, library, thumbnails: null);
+            root.UpdateLayout(panelSize);
+
+            var bar = Find<ProgressBar>(root.Content!);
+            Check("the tile has a progress bar", bar != null);
+            Check("hidden before anything asks for the asset", bar!.Visibility == Visibility.Collapsed);
+
+            var download = catalog.EnsureAsync("Assets/duck.glb");
+            root.UpdateLayout(panelSize);
+            Check("shown while its download is in flight", bar.Visibility == Visibility.Visible);
+            Check("indeterminate -- no byte-level progress is available", bar.IsIndeterminate);
+
+            gate.SetResult(new byte[] { 1, 2, 3 });
+            download.GetAwaiter().GetResult();
+            root.UpdateLayout(panelSize);
+            Check("hidden again once the download completes", bar.Visibility == Visibility.Collapsed);
+        }
+        finally
+        {
+            ManaCore.Assets.ManaAssetCatalog.Current = previousCatalog;
+            directory.Delete(recursive: true);
+        }
     }
 
     /// <summary>

@@ -11,7 +11,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         Fill,
 
         TopRight,
-        BottomLeft
+        BottomLeft,
+        BottomRight
     }
 
     /// <summary>
@@ -74,6 +75,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 Add(new VoxelPlacementDepthOverlay(editor, camera), ViewportSlot.Fill);
             }
+
+            // Needs neither a camera nor an editor context -- it reads ManaAssetDownloadActivity directly,
+            // which stays permanently idle (and the widget Collapsed) outside a browser build.
+            Add(
+                AssetDownloadStatusManaView.Build(theme),
+                ViewportSlot.BottomRight,
+                new Vector2(AssetDownloadStatusManaView.Width, AssetDownloadStatusManaView.Height));
 
             // The columns are siblings, and this layer is arranged before them so that they draw over it --
             // which means their bounds are a frame stale, and zero on the first frame. Reading their widths
@@ -163,6 +171,12 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                     ViewportSlot.BottomLeft => new UiRect(
                         viewport.X + margin,
+                        viewport.Bottom - slot.Size.Y - margin,
+                        slot.Size.X,
+                        slot.Size.Y),
+
+                    ViewportSlot.BottomRight => new UiRect(
+                        viewport.Right - slot.Size.X - margin,
                         viewport.Bottom - slot.Size.Y - margin,
                         slot.Size.X,
                         slot.Size.Y),

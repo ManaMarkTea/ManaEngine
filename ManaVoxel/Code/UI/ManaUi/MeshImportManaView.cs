@@ -1,3 +1,4 @@
+using Mana.Code;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.UI;
@@ -476,6 +477,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             badge.BindPolled(element => element.Visibility, () =>
                 MeshThumbnailImages.HasImage(path) ? Visibility.Collapsed : Visibility.Visible);
 
+            // No byte-level progress is available -- ManaAssetCatalog awaits a browser fetch whole rather
+            // than streaming it in observable chunks -- so this is indeterminate rather than a real
+            // percentage. It still answers "is this one actually doing something", which a static format
+            // badge does not.
+            var downloadProgress = new ProgressBar { Thickness = 3.0f, IsIndeterminate = true }.Bottom();
+            downloadProgress.BindPolled(bar => bar.Visibility, () =>
+                ManaCore.Assets.ManaAssetCatalog.Current?.IsDownloading(path) == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed);
+            downloadProgress.BindPolled(bar => bar.ElapsedSeconds, () => (float)ManaTime.GlobalTime.GameTime.TotalSeconds);
+
             var caption = new TextBlock()
                 .Text(entry.DisplayName)
                 .FontSize(theme.FontSizeSmall)
@@ -483,7 +495,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .CenterH();
 
             var body = new Grid().Rows("*, Auto", 2.0f).Columns("*").Children(
-                new Grid().Rows("*").Columns("*").GridRow(0).Children(preview.Center(), badge.Center()),
+                new Grid().Rows("*").Columns("*").GridRow(0).Children(preview.Center(), badge.Center(), downloadProgress),
                 caption.GridRow(1));
 
             // Selection is drawn by a frame inside the tile rather than by the button's own state: Button has

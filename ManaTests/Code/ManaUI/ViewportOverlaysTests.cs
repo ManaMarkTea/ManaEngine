@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Mana.Code.UI.ManaUi;
+using ManaCore.Assets;
 using ManaUI;
 using ManaVoxel.Code.UI.ManaUi;
 
@@ -246,5 +248,66 @@ public static class ViewportOverlayChecks
 
         var rendered = root.Render();
         Check("the layer renders", rendered.Instances.Length > 0, $"{rendered.Instances.Length} instances");
+
+        CheckAssetDownloadStatus(fonts, check);
+    }
+
+    /// <summary>
+    /// AssetDownloadStatusManaView reads ManaCore.Assets.ManaAssetDownloadActivity, which only a real
+    /// ManaAssetCatalog download can move (Started/Finished are internal to ManaCore.Assets, and there is
+    /// no InternalsVisibleTo for tests) -- so a real catalog with a gated download delegate drives it here,
+    /// the same technique AssetCatalogTests.cs uses to observe mid-flight state.
+    /// <para>
+    /// ManaAssetDownloadActivity's totals are genuinely process-wide and never reset (that is the point --
+    /// it is real session state, not a test double), so when the full suite runs in one process, an earlier
+    /// suite's downloads (AssetCatalogTests.cs's own) are already sitting in it by the time this runs. Every
+    /// check below is deliberately relative to what this test itself does rather than to an assumed-idle
+    /// starting point, so it passes the same way whether this is the only suite running or the last of many.
+    /// </para>
+    /// </summary>
+    private static void CheckAssetDownloadStatus(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+        string TextOf(UiElement element) => element is Border { Child: TextBlock text } ? text.Text : "(not a labeled border)";
+
+        var root = new UiRoot(fonts);
+        var status = AssetDownloadStatusManaView.Build(root.Theme);
+        root.Content = status;
+        root.UpdateLayout(new Vector2(400, 100));
+
+        var before = TextOf(status);
+        Check("does not mention a file nobody has touched yet", !before.Contains("duck.glb"), before);
+
+        var directory = System.IO.Directory.CreateTempSubdirectory("mana-download-status-");
+        try
+        {
+            var json = JsonSerializer.Serialize(new
+            {
+                version = 1,
+                files = new[]
+                {
+                    new { path = "Assets/duck.glb", url = "AssetLibrary/duck.glb", sha256 = "duck", size = 3,
+                        dependencies = Array.Empty<string>() }
+                },
+                models = new object[] { new { path = "Assets/duck.glb" } }
+            });
+            var gate = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var catalog = new ManaAssetCatalog(json, directory.FullName,
+                async (_, _, _) => await gate.Task);
+
+            var download = catalog.EnsureAsync("Assets/duck.glb");
+            root.UpdateLayout(new Vector2(400, 100));
+            Check("shows while a download is in flight", status.Visibility == Visibility.Visible);
+            Check("naming the file that is downloading", TextOf(status).Contains("duck.glb"), TextOf(status));
+
+            gate.SetResult(new byte[] { 1, 2, 3 });
+            download.GetAwaiter().GetResult();
+            root.UpdateLayout(new Vector2(400, 100));
+            var after = TextOf(status);
+            Check("switches to a session total once the download completes",
+                status.Visibility == Visibility.Visible && after.Contains("downloaded") && !after.Contains("duck.glb"),
+                after);
+        }
+        finally { directory.Delete(recursive: true); }
     }
 }

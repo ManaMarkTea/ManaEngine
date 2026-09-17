@@ -124,6 +124,15 @@ public sealed class ManaAssetCatalog
         return Closure(key).All(path => File.Exists(LocalPath(path)));
     }
 
+    /// <summary>Whether this asset or one of its dependencies (its buffers/textures) is downloading right
+    /// now -- for a per-tile progress indicator, as opposed to a global "something is downloading" flag.</summary>
+    public bool IsDownloading(string reference)
+    {
+        var key = Key(reference);
+        if (key == null) return false; // Local user imports are never in the catalog to begin with.
+        return Closure(key).Any(ManaAssetDownloadActivity.IsActive);
+    }
+
     private IEnumerable<string> Closure(string key)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -164,19 +173,26 @@ public sealed class ManaAssetCatalog
     {
         var path = LocalPath(asset.Path);
         if (File.Exists(path)) return;
-        byte[] bytes;
-        await downloadSlots.WaitAsync();
-        try { bytes = await download(asset.Url, asset.Hash, asset.Size); }
-        finally { downloadSlots.Release(); }
-        if (bytes.LongLength != asset.Size)
-            throw new InvalidDataException($"Incomplete asset download: {asset.Path}");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var temporary = path + ".download";
+        ManaAssetDownloadActivity.Started(asset.Path, asset.Size);
+        var succeeded = false;
         try
         {
-            await File.WriteAllBytesAsync(temporary, bytes);
-            File.Move(temporary, path, overwrite: true);
+            byte[] bytes;
+            await downloadSlots.WaitAsync();
+            try { bytes = await download(asset.Url, asset.Hash, asset.Size); }
+            finally { downloadSlots.Release(); }
+            if (bytes.LongLength != asset.Size)
+                throw new InvalidDataException($"Incomplete asset download: {asset.Path}");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var temporary = path + ".download";
+            try
+            {
+                await File.WriteAllBytesAsync(temporary, bytes);
+                File.Move(temporary, path, overwrite: true);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            succeeded = true;
         }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        finally { ManaAssetDownloadActivity.Finished(asset.Path, asset.Size, succeeded); }
     }
 }
