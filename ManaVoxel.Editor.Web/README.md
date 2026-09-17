@@ -29,15 +29,28 @@ Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=py
 - `asset-catalog.json`: file sizes, hashes, model/ZIP entries, and glTF sidecar dependencies.
 - `AssetLibrary/`: individual content-hashed files, downloaded only as needed.
 
-Serve or upload the **entire AppBundle directory**:
+For local serving, upload or serve the **entire AppBundle directory** as one unit:
 
 ```text
 ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle/
 ```
 
-The CI workflow passes this directory directly to itch.io's Butler uploader, which handles
-incremental uploads. It no longer creates or commits `Binaries/ManaEditor.zip` or replaces a
-GitHub release ZIP. Generated build artifacts are not source files.
+itch.io is different: it caps a browser-embedded ("played in the browser") build's *extracted*
+size at 500MB, and the asset library alone is already well past that. The CI workflow runs
+`tools/WebAssets/split_for_itch.py` right after publish, which moves `AssetLibrary/` out to a
+separate `pages-site/` tree and rewrites the itch-bound copy of `asset-catalog.json` so its file
+URLs are absolute, pointing at GitHub Pages instead of the (now locally missing) `AssetLibrary/`.
+`pages-site/` is deployed to GitHub Pages via `actions/deploy-pages`; the now-much-smaller
+remainder of `AppBundle/` (runtime, HTML, the rewritten catalog) goes to itch.io's Butler
+uploader as before. Neither `asset-downloads.js` nor `ManaAssetCatalog` needed to change for
+this: a blob URL is resolved (`new URL(url, import.meta.url)`) and validated
+(`ManaAssetCatalog.ValidateUrl`) the same way whether it is relative or absolute -- the catalog
+just says a different thing depending on which script produced it. It no longer creates or
+commits `Binaries/ManaEditor.zip` or replaces a GitHub release ZIP. Generated build artifacts are
+not source files.
+
+**One-time setup**: GitHub Pages must be enabled for this repo with "Source" set to "GitHub
+Actions" (Settings → Pages) before the deploy-pages step will succeed.
 
 The catalog includes all repository/project asset trees except the oversized
 `Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`. Model format/extension support remains
@@ -51,9 +64,10 @@ A failed download can be retried by selecting the asset again. Escape or choosin
 asset cancels pending placement; an already-started download may finish and remain cached.
 For a drag released before download completes, click in the scene to place the ready preview.
 
-Keep `AssetLibrary/` next to the app on the same HTTPS host. Only the boot files count toward
-the initial loading bar; the remaining roughly 632 MiB is available on demand. Existing tabs
-may need a reload after deploying a changed catalog. No external hosting account is required.
+Locally, keep `AssetLibrary/` next to the app on the same HTTPS host (this is what a plain
+`dotnet publish` + `serve.py` already gives you, unmodified). Only the boot files count toward
+the initial loading bar; the remaining roughly 632 MiB is available on demand. Existing tabs may
+need a reload after deploying a changed catalog.
 
 The server reads files off disk per request, so after a republish just refresh — no restart. See
 `ManaVoxel.Web/README.md` for why `serve.py` sends `no-store` rather than a plain

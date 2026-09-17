@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -15,6 +17,9 @@ jobs:
     # give this real headroom rather than hitting the default 6-hour cap's opposite problem of no
     # cap at all silently hanging a stuck build.
     timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -38,6 +43,27 @@ jobs:
         # projects more than once; keep them serialized so GenerateDepsFile does not race on the
         # shared browser-wasm output path (for example ManaCore.deps.json).
         run: dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release -m:1
+
+      - name: Move the external asset library off the itch.io bundle
+        # itch.io caps a browser-embedded build's *extracted* size at 500MB; the external asset
+        # library alone is already well past that. It moves to GitHub Pages instead, and the
+        # itch-bound copy of the catalog is repointed at absolute URLs there -- ManaAssetCatalog
+        # and asset-downloads.js both already handle an absolute blob URL unchanged, so nothing
+        # else about the build needs to know which host it ends up shipped to.
+        run: >
+          python tools/WebAssets/split_for_itch.py
+          --app-bundle ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
+          --library-out pages-site/web-assets/AssetLibrary
+          --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
+
+      - name: Upload asset library artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-site
+
+      - name: Deploy asset library to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Upload web editor to itch.io
         uses: KikimoraGames/itch-publish@v0.0.3

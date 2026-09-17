@@ -15,7 +15,16 @@ public sealed class ManaAssetCatalog
     private readonly string root;
     public IReadOnlyList<string> Models { get; }
 
-    public ManaAssetCatalog(string json, string root, Func<string, string, long, Task<byte[]>> download)
+    /// <summary>
+    /// A catalog whose blob URLs may point at <paramref name="externalAssetBaseUrl"/> instead of only the
+    /// local <c>AssetLibrary/</c> the catalog itself ships beside -- the web editor's external library is
+    /// too large for itch.io's browser-embed size cap, so its blobs are hosted on GitHub Pages instead while
+    /// the small catalog file stays local. Content is SHA256-verified after download regardless of origin;
+    /// this only limits which origin a well-formed catalog is allowed to name; it does not accept an
+    /// arbitrary attacker-supplied host.
+    /// </summary>
+    public ManaAssetCatalog(string json, string root, Func<string, string, long, Task<byte[]>> download,
+        string? externalAssetBaseUrl = null)
     {
         this.root = Path.GetFullPath(root);
         this.download = download;
@@ -27,7 +36,7 @@ public sealed class ManaAssetCatalog
             var path = item.GetProperty("path").GetString()!;
             ValidatePath(path);
             var url = item.GetProperty("url").GetString()!;
-            ValidatePath(url, "AssetLibrary/");
+            ValidateUrl(url, externalAssetBaseUrl);
             var dependencies = item.GetProperty("dependencies").EnumerateArray().Select(x => x.GetString()!).ToArray();
             foreach (var dependency in dependencies)
                 ValidatePath(dependency);
@@ -57,6 +66,31 @@ public sealed class ManaAssetCatalog
         if (!path.StartsWith(prefix, StringComparison.Ordinal) || path.Contains('\\') || path.Contains(':')
             || path.Split('/').Any(part => part is ".." or "." or ""))
             throw new InvalidDataException($"Invalid catalog path: {path}");
+    }
+
+    /// <summary>A blob URL is either the local relative form, or -- only when the caller named one --
+    /// exactly the trusted external host, checked as a real absolute HTTPS URL rather than by prefix text
+    /// alone so a lookalike (e.g. the prefix followed by "@attacker.example") cannot sneak through.</summary>
+    private static void ValidateUrl(string url, string? externalAssetBaseUrl)
+    {
+        if (url.StartsWith("AssetLibrary/", StringComparison.Ordinal))
+        {
+            ValidatePath(url, "AssetLibrary/");
+            return;
+        }
+
+        if (externalAssetBaseUrl != null
+            && url.StartsWith(externalAssetBaseUrl, StringComparison.Ordinal)
+            && Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && uri.Scheme == Uri.UriSchemeHttps
+            && Uri.TryCreate(externalAssetBaseUrl, UriKind.Absolute, out var baseUri)
+            && uri.Host == baseUri.Host
+            && !url.Contains(".."))
+        {
+            return;
+        }
+
+        throw new InvalidDataException($"Invalid catalog path: {url}");
     }
 
     private string LocalPath(string path) => Path.GetFullPath(Path.Combine(root, path));

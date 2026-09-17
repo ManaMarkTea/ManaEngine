@@ -67,6 +67,31 @@ public static class AssetCatalogChecks
             try { _ = new ManaAssetCatalog(json.Replace("Assets/model.bin", "Assets/../escape.bin"), directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>())); }
             catch (InvalidDataException) { rejected = true; }
             check("catalog paths cannot escape the asset root", rejected, "");
+
+            const string trustedHost = "https://example.github.io/repo/web-assets/AssetLibrary/";
+            var externalJson = json.Replace("\"AssetLibrary/model.gltf\"", $"\"{trustedHost}model.gltf\"");
+            _ = new ManaAssetCatalog(externalJson, directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>()),
+                externalAssetBaseUrl: trustedHost);
+            check("a blob url naming the caller's trusted external host is accepted", true, "");
+
+            rejected = false;
+            try
+            {
+                _ = new ManaAssetCatalog(externalJson, directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>()));
+            }
+            catch (InvalidDataException) { rejected = true; }
+            check("but not when the caller named no trusted host at all", rejected, "");
+
+            rejected = false;
+            var elsewhere = json.Replace("\"AssetLibrary/model.gltf\"",
+                "\"https://evil.example/repo/web-assets/AssetLibrary/model.gltf\"");
+            try
+            {
+                _ = new ManaAssetCatalog(elsewhere, directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>()),
+                    externalAssetBaseUrl: trustedHost);
+            }
+            catch (InvalidDataException) { rejected = true; }
+            check("nor a url naming some other host entirely", rejected, "");
         }
         finally { directory.Delete(recursive: true); }
     }
