@@ -1,5 +1,7 @@
 using Mana;
+using Mana.Code;
 using Mana.Code.Components;
+using Mana.Code.Nodes;
 using Mana.Code.Shapes.Loaders;
 using ManaUI;
 
@@ -12,6 +14,18 @@ namespace ManaTests;
 public static class GltfSupportChecks
 {
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        try
+        {
+            RunChecked(fonts, check);
+        }
+        finally
+        {
+            Cleanup();
+        }
+    }
+
+    private static void RunChecked(ManaFontManager fonts, Action<string, bool, string> check)
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
@@ -60,6 +74,44 @@ public static class GltfSupportChecks
             ManaGltfSupport.DescribeUnsupported(notGltf) == null,
             ManaGltfSupport.DescribeUnsupported(notGltf) ?? "passed through");
 
+        // Exercise the actual loader, not only the header check. The Khronos sample sets (this Duck
+        // included) ship the same model several times over in sibling "glTF*" folders, so
+        // FindSupportedAlternative finds the plain glTF copy and LoadFile succeeds transparently rather
+        // than refusing outright -- the refusal path above is what fires for a pack with no such sibling.
+        var repository = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repository != null && !Directory.Exists(Path.Combine(repository.FullName, "Mana", "Assets")))
+        {
+            repository = repository.Parent;
+        }
+
+        if (repository != null)
+        {
+            var duck = Path.Combine(repository.FullName, "Mana", "Assets", "Models", "Duck", "glTF-Draco", "Duck.gltf");
+
+            Check("the shipped Draco Duck has a plain sibling to fall back to",
+                ManaGltfSupport.FindSupportedAlternative(duck) != null,
+                ManaGltfSupport.FindSupportedAlternative(duck) ?? "no sibling found");
+
+            var world = new ManaWorld();
+            var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+            var loader = new ManaSharpGltfLoader(context);
+
+            Exception? caught = null;
+            ManaSceneNode? loaded = null;
+            try
+            {
+                loaded = loader.LoadFile(duck);
+            }
+            catch (Exception ex)
+            {
+                caught = ex;
+            }
+
+            Check("and importing the Draco file itself succeeds via that sibling",
+                caught == null && loaded != null,
+                caught?.Message ?? "loaded");
+        }
+
         // ---------------------------------------------------------------- the view preset's range
         // A camera parked further from its pivot than the far plane renders nothing, and the presets were
         // happy to put it there: the orbit distance came from a field the fly camera never updates, so after
@@ -100,8 +152,8 @@ public static class GltfSupportChecks
 
     private static readonly List<string> Scratch = new();
 
-    /// <summary>Cleans up every scratch file the run created. Called by the runner after the suite.</summary>
-    public static void Cleanup()
+    /// <summary>Deletes every scratch file this run created, even if a check above threw.</summary>
+    private static void Cleanup()
     {
         foreach (var path in Scratch)
         {

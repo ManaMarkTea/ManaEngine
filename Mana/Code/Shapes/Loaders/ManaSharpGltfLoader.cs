@@ -6,6 +6,7 @@ using Mana.Code.Graphics;
 using Mana.Code.ManaShaders;
 using Mana.Code.Materials;
 using ManaCore.Graphics;
+using ManaCore.Diagnostics;
 using SharpGLTF.Schema2;
 using System;
 using System.Collections.Generic;
@@ -54,8 +55,12 @@ namespace Mana.Code.Shapes.Loaders
             // download instead of a re-export.
             if (ManaGltfSupport.DescribeUnsupported(sceneFile) is { } unsupported)
             {
-                throw new NotSupportedException(
-                    $"'{System.IO.Path.GetFileName(sceneFile)}' cannot be loaded because {unsupported}");
+                var alternative = ManaGltfSupport.FindSupportedAlternative(sceneFile);
+                if (alternative == null)
+                    throw new NotSupportedException(
+                        $"'{System.IO.Path.GetFileName(sceneFile)}' cannot be loaded because {unsupported}");
+                ManaLog.WriteDiagnostic($"Using supported model variant '{alternative}' for '{sceneFile}'.");
+                sceneFile = alternative;
             }
 
             _model = ModelRoot.Load(sceneFile);

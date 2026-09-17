@@ -17,6 +17,53 @@ namespace Mana.Code.Shapes.Loaders
     public static class ManaGltfSupport
     {
         /// <summary>
+        /// A loadable sibling of an unsupported file, when the asset pack ships one.
+        /// <para>
+        /// Khronos's own sample sets (this Duck included) publish the same model several times over --
+        /// glTF, glTF-Binary, glTF-Draco, glTF-Embedded -- in sibling folders that share the file's own
+        /// name. Only tried when the path itself already sits in one of those "glTF*" folders, so this
+        /// never goes looking through an unrelated directory structure for a same-named file that just
+        /// happens to exist.
+        /// </para>
+        /// </summary>
+        public static string? FindSupportedAlternative(string path)
+        {
+            var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (directory == null || !Path.GetFileName(directory).StartsWith("glTF", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var parent = Path.GetDirectoryName(directory);
+            if (parent == null)
+            {
+                return null;
+            }
+
+            var name = Path.GetFileNameWithoutExtension(path);
+            var fullPath = Path.GetFullPath(path);
+
+            foreach (var variant in new[] { "glTF", "glTF-Binary", "glTF-Embedded" })
+            {
+                foreach (var extension in new[] { ".gltf", ".glb" })
+                {
+                    var candidate = Path.Combine(parent, variant, name + extension);
+                    if (string.Equals(candidate, fullPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (File.Exists(candidate) && DescribeUnsupported(candidate) == null)
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// What each unsupported extension means, in a sentence someone can act on. Anything not named here
         /// is reported by its raw extension name, which is still better than "malformed".
         /// </summary>

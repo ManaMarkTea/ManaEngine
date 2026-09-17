@@ -81,28 +81,37 @@ namespace Mana.Code.UI.ManaUi
         public bool IsKeyboardCaptured => _root.Input.IsKeyboardCaptured;
 
         /// <summary>
-        /// Applies the cursor ManaUI is asking for. Only while the pointer is actually over ManaUI --
-        /// the camera also drives the cursor, and fighting it every frame would make both flicker.
+        /// Applies the cursor SHAPE ManaUI is asking for -- an arrow once the pointer leaves ManaUI.
+        /// <para>
+        /// Used to return early off ManaUI entirely, on the reasoning that "the camera also drives the
+        /// cursor". It does, but only <see cref="CursorMode"/> (hidden/locked during a fly or orbit drag),
+        /// a separate property this method never touches. The early return did not protect that -- it just
+        /// meant nothing ever put the shape back once the pointer left a resize handle or similar and moved
+        /// on: a HResize picked up at a panel's edge stayed the visible cursor all the way across the
+        /// viewport, because nothing downstream of ManaUI resets shape at all.
+        /// </para>
         /// </summary>
         public void ApplyCursor()
         {
-            if (_mouse == null || !_root.Input.IsPointerOverUi)
+            if (_mouse == null)
             {
                 return;
             }
 
-            var requested = _root.RequestedCursor switch
-            {
-                UiCursor.IBeam => StandardCursor.IBeam,
-                UiCursor.Hand => StandardCursor.Hand,
-                UiCursor.SizeWE => StandardCursor.HResize,
-                UiCursor.SizeNS => StandardCursor.VResize,
-                UiCursor.SizeNWSE => StandardCursor.NwseResize,
-                UiCursor.SizeNESW => StandardCursor.NeswResize,
-                UiCursor.SizeAll => StandardCursor.ResizeAll,
-                UiCursor.NotAllowed => StandardCursor.NotAllowed,
-                _ => StandardCursor.Arrow
-            };
+            var requested = _root.Input.IsPointerOverUi
+                ? _root.RequestedCursor switch
+                {
+                    UiCursor.IBeam => StandardCursor.IBeam,
+                    UiCursor.Hand => StandardCursor.Hand,
+                    UiCursor.SizeWE => StandardCursor.HResize,
+                    UiCursor.SizeNS => StandardCursor.VResize,
+                    UiCursor.SizeNWSE => StandardCursor.NwseResize,
+                    UiCursor.SizeNESW => StandardCursor.NeswResize,
+                    UiCursor.SizeAll => StandardCursor.ResizeAll,
+                    UiCursor.NotAllowed => StandardCursor.NotAllowed,
+                    _ => StandardCursor.Arrow
+                }
+                : StandardCursor.Arrow;
 
             try
             {
