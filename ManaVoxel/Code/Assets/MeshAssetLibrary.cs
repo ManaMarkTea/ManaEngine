@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using System.Numerics;
+using Mana.Code.Shapes.Loaders;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -743,7 +744,13 @@ namespace ManaVoxel.Code.Assets
                 {
                     foreach (var file in Directory.EnumerateFiles(root, $"*{extension}", SearchOption.AllDirectories))
                     {
-                        found.Add(Path.GetFullPath(file));
+                        var fullPath = Path.GetFullPath(file);
+                        if (IsUnloadableGltf(fullPath))
+                        {
+                            continue;
+                        }
+
+                        found.Add(fullPath);
                     }
                 }
 
@@ -760,6 +767,21 @@ namespace ManaVoxel.Code.Assets
             return new MeshScanResult(sorted, unreadable > 0 ? $"{unreadable} archive(s) could not be read" : null);
         }
 
+        /// <summary>
+        /// True for a glTF/GLB that requires an extension this engine cannot read (Draco compression above
+        /// all) and has no loadable sibling to fall back to. ManaSharpGltfLoader already substitutes a
+        /// sibling transparently when one exists (see ManaGltfSupport), so a file that would load fine that
+        /// way stays in the list; only a genuine dead end -- one that would throw the moment it was picked
+        /// -- is hidden here instead of shown just to fail.
+        /// </summary>
+        private static bool IsUnloadableGltf(string path) =>
+            ManaGltfSupport.DescribeUnsupported(path) != null && ManaGltfSupport.FindSupportedAlternative(path) == null;
+
+        /// <summary>How much of a zip entry to buffer before asking ManaGltfSupport about it -- matches the
+        /// cap ManaGltfSupport.DescribeUnsupported itself applies when reading a plain glTF's JSON directly
+        /// off a seekable stream; extensionsRequired sits well inside this for any real export.</summary>
+        private const int HeaderScanCap = 512 * 1024;
+
         private static bool ScanZip(string zipPath, HashSet<string> found)
         {
             try
@@ -771,6 +793,31 @@ namespace ManaVoxel.Code.Assets
                     if (string.IsNullOrWhiteSpace(entry.Name) || !IsSupported(Path.GetExtension(entry.FullName)))
                     {
                         continue;
+                    }
+
+                    // No on-disk sibling folder to fall back to inside an archive entry, unlike a loose
+                    // file (see IsUnloadableGltf) -- an unsupported entry here has no way to load at all.
+                    // DescribeUnsupported needs to seek, which the entry's own (typically deflate-compressed)
+                    // stream cannot do, so a capped prefix is buffered first -- the same amount
+                    // DescribeUnsupported itself would read out of a seekable one.
+                    using (var entryStream = entry.Open())
+                    using (var buffered = new MemoryStream())
+                    {
+                        var header = new byte[HeaderScanCap];
+                        var read = 0;
+                        int chunk;
+                        while (read < header.Length
+                               && (chunk = entryStream.Read(header, read, header.Length - read)) > 0)
+                        {
+                            read += chunk;
+                        }
+
+                        buffered.Write(header, 0, read);
+                        buffered.Position = 0;
+                        if (ManaGltfSupport.DescribeUnsupported(buffered) != null)
+                        {
+                            continue;
+                        }
                     }
 
                     found.Add(EncodeZip(zipPath, entry.FullName));
