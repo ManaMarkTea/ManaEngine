@@ -176,6 +176,10 @@ namespace Mana.Code.GameModes
 
         protected override void BuildManaUi(global::Mana.Code.UI.ManaUi.ManaUiHost host)
         {
+#if !MANA_BROWSER
+            if (Context.GraphicsDevice is ManaWebGpuGraphicsDevice device)
+                host.EnableDesktopWindows(window => device.Context?.CreateUiSurface(window), WindowIconPath);
+#endif
             // RenderFrame is plain engine state with no change notification, which is exactly the case the
             // polled binding exists for.
             // The editor's one view model -- the toolbar, the menu and the panels all drive it.

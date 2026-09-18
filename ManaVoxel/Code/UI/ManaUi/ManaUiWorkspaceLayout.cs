@@ -26,6 +26,8 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// <summary>One floating panel: which it is, and the frame it was left in.</summary>
     public sealed class FloatingPanelLayout
     {
+        public bool Desktop { get; set; }
+        public int HomeHostIndex { get; set; }
         public string Id { get; set; } = string.Empty;
 
         public float X { get; set; }

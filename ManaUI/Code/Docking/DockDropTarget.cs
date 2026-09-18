@@ -90,7 +90,7 @@ namespace ManaUI
                     groupBounds);
             }
 
-            if (DockDropIndicators.HitTest(DockDropIndicators.ForHost(bounds), point) is { } edgeButton)
+            if (DockDropIndicators.HitTest(DockDropIndicators.ForHost(bounds, groupBounds), point) is { } edgeButton)
             {
                 return new DockDropTarget(
                     null, edgeButton.Side, HalfOf(bounds, edgeButton.Side), isRootEdge: true, bounds, groupBounds);

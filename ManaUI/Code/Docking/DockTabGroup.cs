@@ -37,6 +37,7 @@ namespace ManaUI
 
         private int _selectedIndex = -1;
         private int _pressedTab = -1;
+        private DockItem? _lastClickedItem;
 
         private float _layoutWidth = float.NaN;
         private int _layoutCount = -1;
@@ -75,6 +76,9 @@ namespace ManaUI
 
         /// <summary>Raised when a tab is dragged off the strip; the docking layer turns this into a float.</summary>
         public event EventHandler<DockTabDragEventArgs>? TabDragOut;
+        /// <summary>Double-clicking the same tab toggles its desktop window in the hosting layer.</summary>
+        public event EventHandler<DockItem>? TabDoubleClicked;
+        public bool CanDragTabs { get; set; } = true;
 
         public IReadOnlyList<DockItem> Items => _items;
 
@@ -682,6 +686,7 @@ namespace ManaUI
             // whichever tab happens to be nearest.
             if (OverflowRect.Contains(e.Position))
             {
+                _lastClickedItem = null;
                 ShowOverflowMenu();
                 e.Handled = true;
                 return;
@@ -695,12 +700,29 @@ namespace ManaUI
 
             if (_items[index].CanClose && TabCloseRect(index).Contains(e.Position))
             {
+                _lastClickedItem = null;
                 Remove(_items[index]);
                 e.Handled = true;
                 return;
             }
 
             SelectedIndex = index;
+            var item = _items[index];
+            if (e.ClickCount == 2 && ReferenceEquals(_lastClickedItem, item) && TabDoubleClicked != null)
+            {
+                _pressedTab = -1;
+                _lastClickedItem = null;
+                ReleasePointerCapture();
+                e.Handled = true;
+                TabDoubleClicked.Invoke(this, item);
+                return;
+            }
+            _lastClickedItem = item;
+            if (!CanDragTabs)
+            {
+                e.Handled = true;
+                return;
+            }
             _pressedTab = index;
             CapturePointer();
             e.Handled = true;
@@ -719,6 +741,7 @@ namespace ManaUI
             if (e.Position.Y < strip.Y - TabRowHeight || e.Position.Y > strip.Bottom + TabRowHeight)
             {
                 var item = _items[Math.Clamp(_pressedTab, 0, _items.Count - 1)];
+                _lastClickedItem = null;
                 _pressedTab = -1;
                 ReleasePointerCapture();
                 TabDragOut?.Invoke(this, new DockTabDragEventArgs(item, e.Position));
@@ -729,6 +752,7 @@ namespace ManaUI
             var target = TabAt(e.Position);
             if (target >= 0 && target != _pressedTab)
             {
+                _lastClickedItem = null;
                 Reorder(_pressedTab, target);
                 _pressedTab = target;
                 e.Handled = true;

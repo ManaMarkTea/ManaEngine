@@ -69,6 +69,7 @@ public static class TestRunner
         ("ManaUI", "debug overlay", DebugOverlayChecks.Run),
         ("ManaUI", "colour atlas and images", ImageChecks.Run),
         ("ManaUI", "floating windows", WindowChecks.Run),
+        ("ManaUI", "desktop panel windows", DesktopWindowChecks.Run),
         ("ManaUI", "docking", DockingChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "dock drop indicators", DockDropIndicatorChecks.Run),

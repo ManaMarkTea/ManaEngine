@@ -39,6 +39,7 @@ namespace ManaGraphics.Code.Graphics
         private TextureView* _glyphTextureView;
         private int _imageAtlasWidth;
         private int _imageAtlasHeight;
+        private long _imageRevision = -1;
         private Texture* _imageTexture;
         private TextureView* _imageTextureView;
         private BindGroup* _bindGroup;
@@ -186,17 +187,22 @@ namespace ManaGraphics.Code.Graphics
                 CreateBindGroup();
 
                 UploadImageRegion(atlas, 0, atlas.Height);
+                _imageRevision = atlas.Revision;
                 atlas.ClearDirty();
                 return;
             }
 
-            if (!atlas.IsDirty)
+            if (_imageRevision == atlas.Revision)
             {
                 return;
             }
 
+            // Another window may already have consumed the dirty region. Each renderer must
+            // still see every change to the shared image atlas, including cached thumbnail UVs.
             var (_, minY, _, maxY) = atlas.DirtyRegion;
-            UploadImageRegion(atlas, minY, maxY);
+            var completeDirtyRegion = atlas.IsDirty && _imageRevision == atlas.DirtyBaseRevision;
+            UploadImageRegion(atlas, completeDirtyRegion ? minY : 0, completeDirtyRegion ? maxY : atlas.Height);
+            _imageRevision = atlas.Revision;
             atlas.ClearDirty();
         }
 

@@ -41,6 +41,8 @@ namespace ManaUI
         }
 
         public ManaFontManager Fonts { get; }
+        /// <summary>Desktop host hook; null on platforms without native panel windows.</summary>
+        public Func<string, IUiDesktopWindow>? CreateDesktopWindow { get; set; }
         public ManaGlyphAtlas Atlas => Fonts.Atlas;
 
         /// <summary>
@@ -168,6 +170,7 @@ namespace ManaUI
         /// <summary>Forces the next frame to re-record, e.g. after a theme swap.</summary>
         public void InvalidateAll()
         {
+            InvalidateSubtreeLayout();
             _layoutDirty = true;
             _visualDirty = true;
             InvalidateMeasure();

@@ -59,6 +59,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         /// <summary>Test seam: the most recently built workspace's drag controller.</summary>
         public static DockDragController? LastDragController { get; private set; }
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiRoot, DockDragController> Controllers = new();
 
         /// <summary>Shared, not per-panel, so a theme rebuild doesn't throw the scanned list away.</summary>
         public static MeshAssetLibrary MeshAssets { get; } = new();
@@ -160,6 +161,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             global::Mana.ManaWorld? world,
             string layoutPath)
         {
+            if (Controllers.TryGetValue(root, out var previousController)) previousController.CloseDesktopWindows();
             // Before anything reads a token: the preset tightens the theme's own metrics rather than being
             // consulted control by control.
             ManaUiDensity.Apply(root.Theme);
@@ -268,6 +270,8 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // One controller over every host, so a panel torn out of any of them can be dropped into any other.
             var dragController = new DockDragController(root, new[] { top, left, right, bottom });
+            Controllers.Remove(root);
+            Controllers.Add(root, dragController);
             LastDragController = dragController;
 
             // Before the columns are filled, so a floating panel doesn't also get placed in a column.
@@ -500,6 +504,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             void TogglePanel(string id)
             {
+                if (dragController.FindDesktop(id) is { } desktop)
+                {
+                    desktop.Focus();
+                    return;
+                }
                 // Floating windows count as open, or reopening one builds a second copy on screen.
                 if (dragController.FindFloating(id) is { } floating)
                 {
@@ -529,7 +538,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             bool IsPanelOpen(string id) =>
                 AllDocked(top, left, right, bottom).Any(item => item.Id == id)
-                || dragController.FindFloating(id) != null;
+                || dragController.FindFloating(id) != null || dragController.FindDesktop(id) != null;
 
             void Choose(WorkspacePreset preset)
             {
@@ -546,6 +555,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // under this same foreach.
             void ResetPanels()
             {
+                dragController.CloseDesktopWindows();
                 foreach (var window in dragController.FloatingWindows.ToList())
                 {
                     window.Close();
@@ -945,6 +955,17 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var captured = new List<FloatingPanelLayout>();
 
+            foreach (var pair in controller.DesktopWindows)
+            {
+                if (pair.Value.Id is not { Length: > 0 } id) continue;
+                captured.Add(new FloatingPanelLayout
+                {
+                    Id = id, Desktop = true, HomeHostIndex = controller.DesktopHomeIndex(pair.Key),
+                    X = pair.Key.Position.X, Y = pair.Key.Position.Y,
+                    Width = pair.Key.Size.X, Height = pair.Key.Size.Y
+                });
+            }
+
             foreach (var window in controller.FloatingWindows)
             {
                 if (controller.ItemFor(window) is not { Id: { Length: > 0 } id })
@@ -986,6 +1007,21 @@ namespace ManaVoxel.Code.UI.ManaUi
                 if (resolve(entry.Id) is not { } item)
                 {
                     continue;
+                }
+
+                if (entry.Desktop && controller.CanPopOut)
+                {
+                    try
+                    {
+                        var desktop = controller.PopOut(item, entry.HomeHostIndex)!;
+                        desktop.Size = new Vector2(entry.Width, entry.Height);
+                        desktop.Position = new Vector2(entry.X, entry.Y);
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        ManaConsole.WriteDiagnostic($"Could not restore panel window: {ex.Message}");
+                    }
                 }
 
                 var window = new UiWindow(item.Title)

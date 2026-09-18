@@ -18,13 +18,13 @@ namespace Mana.Code.UI.ManaUi
         private readonly IWindow _window;
         private bool _disposed;
 
-        public ManaUiHost(IWindow window, IInputContext? input = null, UiTheme? theme = null)
+        public ManaUiHost(IWindow window, IInputContext? input = null, UiTheme? theme = null, ManaImageAtlas? images = null)
         {
             ArgumentNullException.ThrowIfNull(window);
 
             _window = window;
 
-            Fonts = new ManaFontManager();
+            Fonts = new ManaFontManager(images: images);
             foreach (var directory in GetFontDirectories())
             {
                 Fonts.AddSearchDirectory(directory);
@@ -42,7 +42,26 @@ namespace Mana.Code.UI.ManaUi
             {
                 InputBridge = new ManaUiInputBridge(Root, input);
             }
+            _window.FocusChanged += OnFocusChanged;
         }
+
+        private void OnFocusChanged(bool focused)
+        {
+            if (focused) InputBridge?.ActivateClipboard();
+            if (!focused)
+            {
+                Root.Input.ClearKeyboardState();
+                Root.Input.ReleasePointerCapture();
+            }
+        }
+
+#if !MANA_BROWSER
+        private ManaUiDesktopWindows? _desktopWindows;
+        public void EnableDesktopWindows(Func<IWindow, IUiWindowRenderer?> createRenderer, string? iconPath = null)
+        {
+            _desktopWindows ??= new ManaUiDesktopWindows(_window, Root, createRenderer, iconPath);
+        }
+#endif
 
         public UiRoot Root { get; }
         public ManaFontManager Fonts { get; }
@@ -76,6 +95,9 @@ namespace Mana.Code.UI.ManaUi
             {
                 return;
             }
+#if !MANA_BROWSER
+            _desktopWindows?.Render(deltaSeconds);
+#endif
 
             // Before layout: a repeat that edits text, or a submenu that times out, should be reflected in
             // this frame rather than the next.
@@ -151,6 +173,10 @@ namespace Mana.Code.UI.ManaUi
             }
 
             _disposed = true;
+#if !MANA_BROWSER
+            _desktopWindows?.Dispose();
+#endif
+            _window.FocusChanged -= OnFocusChanged;
             InputBridge?.Dispose();
             Fonts.Dispose();
         }

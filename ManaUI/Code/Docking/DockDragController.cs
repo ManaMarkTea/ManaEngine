@@ -26,6 +26,63 @@ namespace ManaUI
         /// </para>
         /// </summary>
         private readonly Dictionary<UiWindow, DockItem> _floating = new();
+        private readonly Dictionary<IUiDesktopWindow, DockItem> _desktop = new();
+        private readonly Dictionary<IUiDesktopWindow, DockHost> _desktopHomes = new();
+        public int DesktopHomeIndex(IUiDesktopWindow window) => _hosts.IndexOf(_desktopHomes[window]);
+        public IReadOnlyDictionary<IUiDesktopWindow, DockItem> DesktopWindows => _desktop;
+        public bool CanPopOut => _root.CreateDesktopWindow != null;
+
+        public IUiDesktopWindow? FindDesktop(string id) =>
+            _desktop.FirstOrDefault(pair => pair.Value.Id == id).Key;
+
+        /// <summary>Moves the existing content into a native window. Creation precedes detachment,
+        /// so a platform failure leaves the panel usable in its current host.</summary>
+        public IUiDesktopWindow? PopOut(DockItem item, int fallbackHomeIndex = 0)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            if (_root.CreateDesktopWindow == null) return null;
+            var existing = _desktop.FirstOrDefault(pair => ReferenceEquals(pair.Value, item)).Key;
+            if (existing != null) { existing.Focus(); return existing; }
+            var window = _root.CreateDesktopWindow(item.Title);
+            var home = _hosts.FirstOrDefault(host => host.AllItems().Contains(item))
+                ?? _hosts[Math.Clamp(fallbackHomeIndex, 0, _hosts.Count - 1)];
+            _desktop.Add(window, item);
+            _desktopHomes.Add(window, home);
+            item.Owner?.Remove(item);
+            var floating = _floating.FirstOrDefault(pair => ReferenceEquals(pair.Value, item)).Key;
+            if (floating != null)
+            {
+                floating.Child = null;
+                Unregister(floating);
+                floating.Close();
+            }
+            foreach (var host in _hosts) host.Prune();
+            window.Item = item;
+            _root.FocusManager.ValidateFocus();
+            _root.Input.ClearKeyboardState();
+            _root.Input.ReleasePointerCapture();
+            window.DockBack += () =>
+            {
+                if (!_desktop.Remove(window)) return;
+                _desktopHomes.Remove(window);
+                window.Item = null;
+                window.Dispose();
+                home.Dock(item, DockSide.Center, DockHost.FindFirstGroup(home.RootNode));
+                _root.InvalidateAll();
+                FloatingChanged?.Invoke(this, EventArgs.Empty);
+            };
+            window.BoundsChanged += () => FloatingChanged?.Invoke(this, EventArgs.Empty);
+            FloatingChanged?.Invoke(this, EventArgs.Empty);
+            return window;
+        }
+
+        /// <summary>Used before a workspace rebuild; callers save the layout first.</summary>
+        public void CloseDesktopWindows()
+        {
+            foreach (var window in _desktop.Keys.ToArray()) window.Dispose();
+            _desktop.Clear();
+            _desktopHomes.Clear();
+        }
 
         private UiWindow? _activeWindow;
         private DockDropTarget _target;
@@ -97,7 +154,7 @@ namespace ManaUI
         /// count these, or a panel torn out of the dock reads as closed -- and opening it again makes a
         /// second copy of something already on screen.
         /// </summary>
-        public IEnumerable<DockItem> FloatingItems => _floating.Values;
+        public IEnumerable<DockItem> FloatingItems => _floating.Values.Concat(_desktop.Values);
 
         /// <summary>The panel a floating window holds, or null when the window is not one of ours.</summary>
         public DockItem? ItemFor(UiWindow window) =>
@@ -132,6 +189,8 @@ namespace ManaUI
             {
                 group.TabDragOut -= OnTabDragOut;
                 group.TabDragOut += OnTabDragOut;
+                group.TabDoubleClicked -= OnTabDoubleClicked;
+                group.TabDoubleClicked += OnTabDoubleClicked;
                 return;
             }
 
@@ -145,6 +204,14 @@ namespace ManaUI
         private void OnTabDragOut(object? sender, DockTabDragEventArgs e)
         {
             BeginFloat(e.Item, e.Position);
+        }
+
+        private void OnTabDoubleClicked(object? sender, DockItem item)
+        {
+            // Unsupported hosts keep ordinary tab selection. A native creation failure must
+            // not escape an input callback or remove the still-docked panel.
+            try { PopOut(item); }
+            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Could not pop out {item.Title}: {ex}"); }
         }
 
         /// <summary>
@@ -355,7 +422,7 @@ namespace ManaUI
             drawList.DrawBorder(_target.Preview, theme.Accent, 2.0f, new CornerRadius(4.0f));
 
             // Drawn after the preview so the buttons sit on top of the wash rather than under it.
-            foreach (var indicator in DockDropIndicators.ForHost(_target.HostBounds))
+            foreach (var indicator in DockDropIndicators.ForHost(_target.HostBounds, _target.GroupBounds))
             {
                 RenderIndicator(drawList, theme, indicator);
             }

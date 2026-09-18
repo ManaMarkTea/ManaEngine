@@ -45,7 +45,9 @@ namespace ManaUI
                     return;
                 }
 
+                var oldRoot = Root;
                 _parent = value;
+                if (!ReferenceEquals(oldRoot, Root)) InvalidateSubtreeLayout();
 
                 if (value == null)
                 {
@@ -337,6 +339,14 @@ namespace ManaUI
             }
 
             Root?.NotifyLayoutInvalidated();
+        }
+
+        /// <summary>Root changes invalidate inherited font, scale and theme measurements.</summary>
+        internal void InvalidateSubtreeLayout()
+        {
+            IsMeasureValid = false;
+            IsArrangeValid = false;
+            for (var i = 0; i < VisualChildCount; i++) GetVisualChild(i).InvalidateSubtreeLayout();
         }
 
         /// <summary>Marks placement as stale without re-asking for sizes.</summary>

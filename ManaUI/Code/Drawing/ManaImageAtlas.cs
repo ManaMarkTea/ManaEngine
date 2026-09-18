@@ -70,6 +70,9 @@ namespace ManaUI
         public byte[] Pixels { get; }
 
         public bool IsDirty { get; private set; }
+        /// <summary>Tracks changes independently for renderers in multiple desktop windows.</summary>
+        public long Revision { get; private set; }
+        public long DirtyBaseRevision { get; private set; }
 
         /// <summary>The region changed since the last upload, as (minX, minY, maxX, maxY) exclusive-max.</summary>
         public (int MinX, int MinY, int MaxX, int MaxY) DirtyRegion => (_dirtyMinX, _dirtyMinY, _dirtyMaxX, _dirtyMaxY);
@@ -198,12 +201,14 @@ namespace ManaUI
         {
             if (!IsDirty)
             {
+                DirtyBaseRevision = Revision;
                 _dirtyMinX = int.MaxValue;
                 _dirtyMinY = int.MaxValue;
                 _dirtyMaxX = 0;
                 _dirtyMaxY = 0;
                 IsDirty = true;
             }
+            Revision++;
 
             _dirtyMinX = Math.Min(_dirtyMinX, minX);
             _dirtyMinY = Math.Min(_dirtyMinY, minY);

@@ -20,6 +20,11 @@ public static class DockDropIndicatorChecks
         var pane = new UiRect(100.0f, 100.0f, 600.0f, 400.0f);
         var cluster = DockDropIndicators.ForGroup(pane);
 
+        Check("a pane filling its host has no duplicate outer targets",
+            DockDropIndicators.ForHost(pane, pane).Count == 0);
+        Check("a smaller pane keeps the distinct whole-layout targets",
+            DockDropIndicators.ForHost(pane, new UiRect(100, 100, 300, 400)).Count == 4);
+
         Check("a roomy pane offers all five drops", cluster.Count == 5, $"{cluster.Count}");
         Check("one of them per side, plus the centre",
             cluster.Select(i => i.Side).OrderBy(s => s).SequenceEqual(
@@ -115,7 +120,7 @@ public static class DockDropIndicatorChecks
         root.UpdateLayout(new Vector2(1000.0f, 700.0f));
         var dragging = root.Render().InstanceCount;
 
-        // Nine buttons (five over the pane, four at the edges), several instances each, plus the preview.
+        // Five buttons over this single pane, several instances each, plus the preview.
         Check("the overlay draws the buttons while a drag is live",
             dragging > idle + 20, $"{idle} idle -> {dragging} dragging, bounds {overlay.Bounds}");
     }

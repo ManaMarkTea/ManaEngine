@@ -80,6 +80,11 @@ namespace Mana.Code.UI.ManaUi
         /// <summary>True when a focused control wants raw keystrokes, so editor shortcuts should stand down.</summary>
         public bool IsKeyboardCaptured => _root.Input.IsKeyboardCaptured;
 
+        public void ActivateClipboard()
+        {
+            if (_keyboard != null) ManaUiClipboard.Attach(_keyboard);
+        }
+
         /// <summary>
         /// Applies the cursor SHAPE ManaUI is asking for -- an arrow once the pointer leaves ManaUI.
         /// <para>

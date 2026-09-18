@@ -71,7 +71,7 @@ namespace ManaUI
             return Focus(candidates[next]);
         }
 
-        private static bool CanFocus(UiElement element)
+        private bool CanFocus(UiElement element)
         {
             if (!element.Focusable || !element.IsEffectivelyEnabled)
             {
@@ -87,9 +87,9 @@ namespace ManaUI
                     return false;
                 }
 
-                if (current is UiRoot)
+                if (current is UiRoot root)
                 {
-                    return true;
+                    return ReferenceEquals(root, _root);
                 }
             }
 

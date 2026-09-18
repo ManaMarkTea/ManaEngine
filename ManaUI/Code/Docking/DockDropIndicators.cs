@@ -77,9 +77,18 @@ namespace ManaUI
         }
 
         /// <summary>The four buttons against the layout's own edges, for docking down a whole side.</summary>
-        public static List<DockDropIndicator> ForHost(UiRect bounds)
+        public static List<DockDropIndicator> ForHost(UiRect bounds, UiRect groupBounds = default)
         {
             var list = new List<DockDropIndicator>(4);
+            // With one pane filling the host, both sets split exactly the same area. Keep
+            // the central cluster and omit the redundant outer choices. The resolver uses
+            // this same list so hidden buttons cannot steal a drop.
+            if (!groupBounds.IsEmpty
+                && LayoutHelper.AreClose(bounds.Position, groupBounds.Position)
+                && LayoutHelper.AreClose(bounds.Size, groupBounds.Size))
+            {
+                return list;
+            }
             if (bounds.Width < Size * 4.0f || bounds.Height < Size * 4.0f)
             {
                 return list;
