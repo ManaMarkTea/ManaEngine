@@ -276,7 +276,7 @@ public static class ViewportOverlayChecks
         root.UpdateLayout(new Vector2(400, 100));
 
         var before = TextOf(status);
-        Check("does not mention a file nobody has touched yet", !before.Contains("duck.glb"), before);
+        Check("does not mention a file nobody has touched yet", !before.Contains("flighthelmet.glb"), before);
 
         var directory = System.IO.Directory.CreateTempSubdirectory("mana-download-status-");
         try
@@ -286,26 +286,26 @@ public static class ViewportOverlayChecks
                 version = 1,
                 files = new[]
                 {
-                    new { path = "Assets/duck.glb", url = "AssetLibrary/duck.glb", sha256 = "duck", size = 3,
+                    new { path = "Assets/flighthelmet.glb", url = "AssetLibrary/flighthelmet.glb", sha256 = "flighthelmet", size = 3,
                         dependencies = Array.Empty<string>() }
                 },
-                models = new object[] { new { path = "Assets/duck.glb" } }
+                models = new object[] { new { path = "Assets/flighthelmet.glb" } }
             });
             var gate = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             var catalog = new ManaAssetCatalog(json, directory.FullName,
                 async (_, _, _) => await gate.Task);
 
-            var download = catalog.EnsureAsync("Assets/duck.glb");
+            var download = catalog.EnsureAsync("Assets/flighthelmet.glb");
             root.UpdateLayout(new Vector2(400, 100));
             Check("shows while a download is in flight", status.Visibility == Visibility.Visible);
-            Check("naming the file that is downloading", TextOf(status).Contains("duck.glb"), TextOf(status));
+            Check("naming the file that is downloading", TextOf(status).Contains("flighthelmet.glb"), TextOf(status));
 
             gate.SetResult(new byte[] { 1, 2, 3 });
             download.GetAwaiter().GetResult();
             root.UpdateLayout(new Vector2(400, 100));
             var after = TextOf(status);
             Check("switches to a session total once the download completes",
-                status.Visibility == Visibility.Visible && after.Contains("downloaded") && !after.Contains("duck.glb"),
+                status.Visibility == Visibility.Visible && after.Contains("downloaded") && !after.Contains("flighthelmet.glb"),
                 after);
         }
         finally { directory.Delete(recursive: true); }

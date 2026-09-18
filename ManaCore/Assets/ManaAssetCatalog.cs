@@ -13,6 +13,7 @@ public sealed class ManaAssetCatalog
     private readonly SemaphoreSlim downloadSlots = new(2);
     private readonly Func<string, string, long, Task<byte[]>> download;
     private readonly string root;
+    private readonly Dictionary<string, string> modelThumbnails = new(StringComparer.Ordinal);
     public IReadOnlyList<string> Models { get; }
 
     /// <summary>
@@ -48,17 +49,31 @@ public sealed class ManaAssetCatalog
                 if (!files.ContainsKey(dependency))
                     throw new InvalidDataException($"Missing catalog dependency: {dependency}");
 
-        Models = document.RootElement.GetProperty("models").EnumerateArray().Select(item =>
+        var models = new List<string>();
+        foreach (var item in document.RootElement.GetProperty("models").EnumerateArray())
         {
             var path = item.GetProperty("path").GetString()!;
             if (!files.ContainsKey(path))
                 throw new InvalidDataException($"Missing catalog model: {path}");
             var local = LocalPath(path);
-            return item.TryGetProperty("entry", out var entry)
+            var reference = item.TryGetProperty("entry", out var entry)
                 ? "zipasset:" + Convert.ToBase64String(Encoding.UTF8.GetBytes(local)) + ":"
                     + Convert.ToBase64String(Encoding.UTF8.GetBytes(entry.GetString()!))
                 : local;
-        }).ToArray();
+            models.Add(reference);
+
+            // Pre-built by tools/ThumbnailBaker at publish time (see split_for_itch.py for the same idea
+            // applied to blob urls); optional, so an older catalog with no baker run over it still works,
+            // just without an instant preview before the model itself downloads.
+            if (item.TryGetProperty("thumbnail", out var thumbnail) && thumbnail.GetString() is { Length: > 0 } thumbnailPath)
+            {
+                ValidatePath(thumbnailPath);
+                if (!files.ContainsKey(thumbnailPath))
+                    throw new InvalidDataException($"Missing catalog thumbnail: {thumbnailPath}");
+                modelThumbnails[reference] = thumbnailPath;
+            }
+        }
+        Models = models;
     }
 
     private static void ValidatePath(string path, string prefix = "Assets/")
@@ -132,6 +147,38 @@ public sealed class ManaAssetCatalog
         if (key == null) return false; // Local user imports are never in the catalog to begin with.
         return Closure(key).Any(ManaAssetDownloadActivity.IsActive);
     }
+
+    /// <summary>Just this reference's own catalog entry -- not its dependencies' sizes -- or null for a
+    /// local user import the catalog never heard of. For an info tooltip, not for deciding what to fetch.</summary>
+    public long? SizeOf(string reference)
+    {
+        var key = Key(reference);
+        return key == null ? null : files[key].Size;
+    }
+
+    /// <summary>Where this reference's own bytes come from -- the local relative form, or the trusted
+    /// external host, whichever the catalog that loaded this instance actually named. Null for a local
+    /// user import.</summary>
+    public string? UrlOf(string reference)
+    {
+        var key = Key(reference);
+        return key == null ? null : files[key].Url;
+    }
+
+    /// <summary>
+    /// The catalog path of a pre-built preview for this exact model reference, or null when the catalog
+    /// was published without one (an older build, or a model the baker skipped). Looked up by the resolved
+    /// model reference itself rather than through <see cref="Key"/> -- a zip-packed model's preview differs
+    /// per entry, while Key() resolves only to the zip file's own (entry-less) catalog path.
+    /// </summary>
+    public string? ThumbnailPathOf(string modelReference) =>
+        modelThumbnails.TryGetValue(modelReference, out var path) ? path : null;
+
+    /// <summary>Where a catalog path lands once downloaded. Public so a caller that already has the exact
+    /// catalog path (as <see cref="ThumbnailPathOf"/> hands back, not an arbitrary reference) can read the
+    /// file straight off disk after <see cref="EnsureAsync"/> -- everything else here works in references,
+    /// which need <see cref="Key"/> to resolve; this one already has the resolved path.</summary>
+    public string LocalFilePath(string catalogPath) => LocalPath(catalogPath);
 
     private IEnumerable<string> Closure(string key)
     {

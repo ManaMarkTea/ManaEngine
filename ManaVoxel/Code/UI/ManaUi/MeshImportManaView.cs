@@ -507,7 +507,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             frame.BindPolled(b => b.BorderThickness, () => IsSelected(library, path) ? 2.0f : 0.0f);
 
             var tile = frame;
-            tile.Tooltip = TooltipFor(entry);
+
+            // Polled rather than assigned once: file size and source are known as soon as the catalog is,
+            // but how long the download took is not knowable until it finishes, well after this tile was
+            // built. A plain assignment would freeze the tooltip at whatever was true the moment the grid
+            // was populated.
+            tile.BindPolled(t => t.Tooltip, () => TooltipFor(entry));
 
             // Wrapped in the same MeshAssetRow the list rows used, so dragging a tile into the scene still
             // works -- that gesture is half of what this panel is for, and the Place button's tooltip promises
@@ -521,7 +526,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // Mirrored onto the outer element: it is what the pointer meets first, so a tooltip only on the
             // button inside would be shadowed by the drag handler wrapping it.
-            draggable.Tooltip = TooltipFor(entry);
+            draggable.BindPolled(row => row.Tooltip, () => TooltipFor(entry));
             return draggable;
         }
 
@@ -710,6 +715,45 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static string TooltipFor(MeshAssetEntry entry)
         {
             var tooltip = MeshAssetLibrary.Tooltip(entry.PrimaryPath);
+
+            // Null on desktop (ManaAssetCatalog.Current never gets set there) and for a local user import
+            // even in the browser (Key() finds nothing to report on), in which case the path itself is
+            // already the whole story and nothing below has anything to add.
+            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog)
+            {
+                var lines = new System.Text.StringBuilder(tooltip);
+                var wroteAny = false;
+
+                void Line(string text)
+                {
+                    lines.AppendLine();
+                    if (!wroteAny)
+                    {
+                        lines.AppendLine();
+                        wroteAny = true;
+                    }
+
+                    lines.Append(text);
+                }
+
+                if (catalog.SizeOf(entry.PrimaryPath) is { } size)
+                {
+                    Line($"Size: {FormatBytes(size)}");
+                }
+
+                if (catalog.UrlOf(entry.PrimaryPath) is { } url)
+                {
+                    Line($"Source: {url}");
+                }
+
+                if (ManaCore.Assets.ManaAssetDownloadActivity.DurationOf(entry.PrimaryPath) is { } duration)
+                {
+                    Line($"Downloaded in {duration.TotalSeconds:0.0}s");
+                }
+
+                tooltip = lines.ToString();
+            }
+
             if (!entry.HasVariants)
             {
                 return tooltip;
@@ -717,19 +761,22 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // Which formats a model ships in decides what gets imported, so the alternatives are worth
             // showing even though picking one is not offered yet.
-            var lines = new System.Text.StringBuilder(tooltip);
-            lines.AppendLine();
-            lines.AppendLine();
-            lines.Append("Also available as:");
+            var withVariants = new System.Text.StringBuilder(tooltip);
+            withVariants.AppendLine();
+            withVariants.AppendLine();
+            withVariants.Append("Also available as:");
 
             for (var i = 1; i < entry.Variants.Count; i++)
             {
-                lines.AppendLine();
-                lines.Append("  ").Append(MeshAssetLibrary.DisplayName(entry.Variants[i]));
+                withVariants.AppendLine();
+                withVariants.Append("  ").Append(MeshAssetLibrary.DisplayName(entry.Variants[i]));
             }
 
-            return lines.ToString();
+            return withVariants.ToString();
         }
+
+        private static string FormatBytes(long bytes) =>
+            bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024.0):0.0} MB" : $"{bytes / 1024.0:0} KB";
 
         private static readonly MeshAssetFormats[] AllFormats =
         {

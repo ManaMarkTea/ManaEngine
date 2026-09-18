@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ThumbnailBaker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Numerics" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Plain reference, no RuntimeIdentifier override: this needs the ordinary desktop-targeted
+         ManaVoxel assembly (MeshThumbnailCache, ManaSharpGltfLoader, the CPU rasterizer), the same one
+         ManaTests already builds against for its own headless mesh/thumbnail suites. Never published
+         itself; run directly off a source build as part of the web publish pipeline (see
+         .github/workflows/build-web.yml). -->
+    <ProjectReference Include="..\..\ManaVoxel\ManaVoxel.csproj" />
+  </ItemGroup>
+
+</Project>

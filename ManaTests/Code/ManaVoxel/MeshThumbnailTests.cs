@@ -164,6 +164,8 @@ public static class MeshThumbnailChecks
         // is correct.
         CheckCpuOnlyLoaderMatchesNodeTransforms(Check);
         CheckKenneyToiletNodeRotations(Check);
+        CheckStandaloneGenerationWithResolver(Check);
+        CheckPrebuiltPreviewIsPreferred(Check);
 
         // ---------------------------------------------------------------- depth
         // Two cubes, one behind the other, must produce the near one's silhouette rather than the far one's
@@ -448,6 +450,177 @@ public static class MeshThumbnailChecks
           "scene": 0
         }
         """;
+    }
+
+    /// <summary>
+    /// Tools/ThumbnailBaker reads a published AssetLibrary/, where every file is renamed to its content
+    /// hash and flattened into one directory -- a loose glTF's relative buffer/texture URI ("geometry.bin")
+    /// no longer resolves against anything there, unlike a real checkout. GenerateViaCpuStandalone's
+    /// optional resolver exists for exactly this; this proves both halves -- that loading genuinely fails
+    /// without one, and genuinely works with one.
+    /// </summary>
+    private static void CheckStandaloneGenerationWithResolver(Action<string, bool, string> Check)
+    {
+        var positions = new[] { 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
+        var posBytes = new byte[positions.Length * sizeof(float)];
+        Buffer.BlockCopy(positions, 0, posBytes, 0, posBytes.Length);
+
+        // An explicit index accessor, not left implicit: MeshThumbnailRasterizer draws from
+        // ManaMeshCpuData.Indexes, which SharpGLTF only populates for an indexed primitive -- an
+        // attributes-only primitive parses fine but flattens to zero triangles to actually draw.
+        var indices = new ushort[] { 0, 1, 2 };
+        var idxBytes = new byte[indices.Length * sizeof(ushort)];
+        Buffer.BlockCopy(indices, 0, idxBytes, 0, idxBytes.Length);
+
+        var combinedBytes = new byte[posBytes.Length + idxBytes.Length];
+        Buffer.BlockCopy(posBytes, 0, combinedBytes, 0, posBytes.Length);
+        Buffer.BlockCopy(idxBytes, 0, combinedBytes, posBytes.Length, idxBytes.Length);
+
+        var gltfJson = $$"""
+        {
+          "asset": { "version": "2.0" },
+          "buffers": [ { "uri": "geometry.bin", "byteLength": {{combinedBytes.Length}} } ],
+          "bufferViews": [
+            { "buffer": 0, "byteOffset": 0, "byteLength": {{posBytes.Length}}, "target": 34962 },
+            { "buffer": 0, "byteOffset": {{posBytes.Length}}, "byteLength": {{idxBytes.Length}}, "target": 34963 }
+          ],
+          "accessors": [
+            { "bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0, 0, 0], "max": [1, 1, 0] },
+            { "bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR" }
+          ],
+          "meshes": [ { "primitives": [ { "attributes": { "POSITION": 0 }, "indices": 1, "mode": 4 } ] } ],
+          "nodes": [ { "mesh": 0 } ],
+          "scenes": [ { "nodes": [0] } ],
+          "scene": 0
+        }
+        """;
+
+        var directory = Directory.CreateTempSubdirectory("mana-thumbnail-standalone-");
+        try
+        {
+            // Named after a content hash, like a real published AssetLibrary entry -- "geometry.bin" (what
+            // the glTF itself asks for) exists nowhere near it under that name.
+            var flatGltfPath = Path.Combine(directory.FullName, "a1b2c3.gltf");
+            File.WriteAllText(flatGltfPath, gltfJson);
+
+            var context = new ManaContext(null!, null!, new ManaWorld()) { DeferGpuUploads = true };
+
+            var failedWithoutResolver = false;
+            try { MeshThumbnailCache.GenerateViaCpuStandalone(context, flatGltfPath); }
+            catch { failedWithoutResolver = true; }
+            Check("a flattened glTF with an external buffer fails to load with no resolver",
+                failedWithoutResolver, "");
+
+            var pixels = MeshThumbnailCache.GenerateViaCpuStandalone(context, flatGltfPath,
+                assetName => assetName == "geometry.bin" ? combinedBytes : null);
+            Check("but succeeds once a resolver supplies the sibling buffer",
+                pixels != null && pixels.Length == MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4,
+                pixels == null ? "null" : $"{pixels.Length} bytes");
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    /// <summary>
+    /// A pre-built preview (tools/ThumbnailBaker's own output) has to win over the live CPU/GPU render path
+    /// when both are possible, and has to be reachable even when the model itself has not been downloaded
+    /// at all yet -- that instant-preview-before-the-full-download case is the entire point of baking one.
+    /// </summary>
+    private static void CheckPrebuiltPreviewIsPreferred(Action<string, bool, string> Check)
+    {
+        var directory = Directory.CreateTempSubdirectory("mana-thumbnail-prebuilt-");
+        var previousCatalog = ManaCore.Assets.ManaAssetCatalog.Current;
+        MeshThumbnailCache? cache = null;
+        try
+        {
+            var expectedPixels = new byte[MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4];
+            new Random(1).NextBytes(expectedPixels);
+            // Alpha fully opaque throughout, or ImageSharp's own PNG round trip is free to premultiply/drop
+            // colour on fully transparent pixels, which would break the later byte-for-byte comparison.
+            for (var i = 3; i < expectedPixels.Length; i += 4)
+            {
+                expectedPixels[i] = 255;
+            }
+
+            byte[] previewPngBytes;
+            using (var image = Image.LoadPixelData<Rgba32>(
+                expectedPixels, MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize))
+            using (var stream = new MemoryStream())
+            {
+                image.SaveAsPng(stream);
+                previewPngBytes = stream.ToArray();
+            }
+
+            var json = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                version = 1,
+                files = new object[]
+                {
+                    new { path = "Assets/flighthelmet.glb", url = "AssetLibrary/flighthelmet.glb", sha256 = "flighthelmet", size = 3,
+                        dependencies = Array.Empty<string>() },
+                    new { path = "Assets/flighthelmet.glb.thumb.png", url = "AssetLibrary/flighthelmetthumb.png",
+                        sha256 = "thumb", size = previewPngBytes.LongLength, dependencies = Array.Empty<string>() },
+                    new { path = "Assets/nothumb.glb", url = "AssetLibrary/nothumb.glb", sha256 = "n", size = 3,
+                        dependencies = Array.Empty<string>() }
+                },
+                models = new object[]
+                {
+                    new { path = "Assets/flighthelmet.glb", thumbnail = "Assets/flighthelmet.glb.thumb.png" },
+                    new { path = "Assets/nothumb.glb" }
+                }
+            });
+
+            var requestedUrls = new List<string>();
+            var catalog = new ManaCore.Assets.ManaAssetCatalog(json, directory.FullName, (url, _, _) =>
+            {
+                lock (requestedUrls) requestedUrls.Add(url);
+                return Task.FromResult(url.EndsWith("flighthelmetthumb.png") ? previewPngBytes : new byte[] { 1, 2, 3 });
+            });
+            ManaCore.Assets.ManaAssetCatalog.Current = catalog;
+
+            // Neither Assets/flighthelmet.glb nor Assets/nothumb.glb is ever written to directory.FullName --
+            // the whole point is proving a preview arrives without the model itself being present at all.
+            cache = new MeshThumbnailCache(
+                new ManaContext(null!, null!, new ManaWorld()) { DeferGpuUploads = true },
+                cacheDirectory: Path.Combine(directory.FullName, "cache"));
+
+            cache.Request(catalog.Models[0]);
+            Check("a not-yet-downloaded model is accepted when a pre-built preview exists",
+                cache.RequestedCount == 1, $"{cache.RequestedCount}");
+
+            cache.Request(catalog.Models[1]);
+            Check("but not one with neither a preview nor its own file present",
+                cache.RequestedCount == 1, $"{cache.RequestedCount}");
+
+            (string Path, byte[]? Pixels)? finished = null;
+            for (var i = 0; i < 200 && finished == null; i++)
+            {
+                var batch = cache.TakeFinished().ToList();
+                if (batch.Count > 0)
+                {
+                    finished = batch[0];
+                }
+                else
+                {
+                    Thread.Sleep(10);
+                }
+            }
+
+            Check("the worker actually finishes", finished != null, finished == null ? "timed out" : "finished");
+            Check("with the pre-built preview's own pixels, not a fresh render",
+                finished?.Pixels != null && finished.Value.Pixels!.SequenceEqual(expectedPixels),
+                finished?.Pixels == null ? "null" : $"{finished.Value.Pixels!.Length} bytes");
+            Check("counted as a prebuilt hit, not a generated one",
+                cache.PrebuiltHitCount == 1 && cache.GeneratedCount == 0,
+                $"prebuilt {cache.PrebuiltHitCount}, generated {cache.GeneratedCount}");
+            Check("fetched through the ordinary verified download path, not a side channel",
+                requestedUrls.Contains("AssetLibrary/flighthelmetthumb.png"), string.Join(",", requestedUrls));
+        }
+        finally
+        {
+            cache?.Dispose();
+            ManaCore.Assets.ManaAssetCatalog.Current = previousCatalog;
+            directory.Delete(recursive: true);
+        }
     }
 
     private static Matrix4x4 CreateThumbnailView()

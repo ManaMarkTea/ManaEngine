@@ -12,10 +12,15 @@ namespace ManaCore.Assets;
 /// </summary>
 public static class ManaAssetDownloadActivity
 {
-    private readonly record struct Entry(string Path, long Size);
+    private readonly record struct Entry(string Path, long Size, System.Diagnostics.Stopwatch Stopwatch);
 
     private static readonly object Gate = new();
     private static readonly Dictionary<string, Entry> Active = new(StringComparer.Ordinal);
+
+    /// <summary>How long the most recent successful download of each path took, for an info tooltip. Never
+    /// trimmed -- one TimeSpan per distinct file a session ever downloaded is not worth an eviction policy.</summary>
+    private static readonly Dictionary<string, TimeSpan> CompletedDurations = new(StringComparer.Ordinal);
+
     private static long _totalBytesDownloaded;
     private static int _totalFilesDownloaded;
 
@@ -46,18 +51,25 @@ public static class ManaAssetDownloadActivity
         lock (Gate) return Active.ContainsKey(path);
     }
 
+    /// <summary>How long the path's most recent successful download took, or null if it has never
+    /// completed one this session (including "still in progress" -- a partial time is not a duration).</summary>
+    public static TimeSpan? DurationOf(string path)
+    {
+        lock (Gate) return CompletedDurations.TryGetValue(path, out var duration) ? duration : null;
+    }
+
     internal static void Started(string path, long size)
     {
-        lock (Gate) Active[path] = new Entry(path, size);
+        lock (Gate) Active[path] = new Entry(path, size, System.Diagnostics.Stopwatch.StartNew());
     }
 
     internal static void Finished(string path, long size, bool succeeded)
     {
         lock (Gate)
         {
-            Active.Remove(path);
-            if (succeeded)
+            if (Active.Remove(path, out var entry) && succeeded)
             {
+                CompletedDurations[path] = entry.Stopwatch.Elapsed;
                 _totalBytesDownloaded += size;
                 _totalFilesDownloaded++;
             }

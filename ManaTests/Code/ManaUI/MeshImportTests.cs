@@ -688,17 +688,17 @@ public static class MeshImportChecks
         try
         {
             var library = new MeshAssetLibrary { Formats = MeshAssetFormats.All };
-            library.SetAssets(new[] { "Assets/duck.glb" });
+            library.SetAssets(new[] { "Assets/flighthelmet.glb" });
 
             var json = System.Text.Json.JsonSerializer.Serialize(new
             {
                 version = 1,
                 files = new[]
                 {
-                    new { path = "Assets/duck.glb", url = "AssetLibrary/duck.glb", sha256 = "duck", size = 3,
+                    new { path = "Assets/flighthelmet.glb", url = "AssetLibrary/flighthelmet.glb", sha256 = "flighthelmet", size = 3,
                         dependencies = Array.Empty<string>() }
                 },
-                models = new object[] { new { path = "Assets/duck.glb" } }
+                models = new object[] { new { path = "Assets/flighthelmet.glb" } }
             });
             var gate = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             var catalog = new ManaCore.Assets.ManaAssetCatalog(json, directory.FullName,
@@ -714,7 +714,15 @@ public static class MeshImportChecks
             Check("the tile has a progress bar", bar != null);
             Check("hidden before anything asks for the asset", bar!.Visibility == Visibility.Collapsed);
 
-            var download = catalog.EnsureAsync("Assets/duck.glb");
+            var row = Find<MeshAssetRow>(root.Content!);
+            Check("the tile has a tooltip naming its size and source",
+                row?.Tooltip is { } beforeTooltip
+                    && beforeTooltip.Contains("Size:") && beforeTooltip.Contains("Source: AssetLibrary/flighthelmet.glb"),
+                row?.Tooltip ?? "none");
+            Check("but nothing about a download that has not happened yet",
+                !(row?.Tooltip ?? "").Contains("Downloaded in"), row?.Tooltip ?? "none");
+
+            var download = catalog.EnsureAsync("Assets/flighthelmet.glb");
             root.UpdateLayout(panelSize);
             Check("shown while its download is in flight", bar.Visibility == Visibility.Visible);
             Check("indeterminate -- no byte-level progress is available", bar.IsIndeterminate);
@@ -723,6 +731,8 @@ public static class MeshImportChecks
             download.GetAwaiter().GetResult();
             root.UpdateLayout(panelSize);
             Check("hidden again once the download completes", bar.Visibility == Visibility.Collapsed);
+            Check("the tooltip picks up how long that download took",
+                row?.Tooltip is { } afterTooltip && afterTooltip.Contains("Downloaded in"), row?.Tooltip ?? "none");
         }
         finally
         {

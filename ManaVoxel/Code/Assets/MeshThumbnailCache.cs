@@ -74,8 +74,14 @@ namespace ManaVoxel.Code.Assets
         private readonly ConcurrentQueue<(string Path, byte[]? Pixels)> _finished = new();
 
         // Every path ever requested, so a repeat request -- which a scrolling grid makes every frame -- does
-        // not queue the same import again.
+        // not queue the same import again. Never shrinks: RequestedCount below promises "unique assets this
+        // cache has ever accepted", not "still outstanding".
         private readonly ConcurrentDictionary<string, byte> _requested = new();
+
+        // Paths the worker could not answer last time (neither a pre-built preview nor the model itself was
+        // available) and that a later Request() should retry rather than treat as already handled. Kept
+        // separate from _requested specifically so a retry never shrinks the public "ever requested" count.
+        private readonly ConcurrentDictionary<string, byte> _awaitingRetry = new();
 
         private readonly SemaphoreSlim _work = new(0);
         private readonly CancellationTokenSource _shutdown = new();
@@ -97,6 +103,9 @@ namespace ManaVoxel.Code.Assets
 
         /// <summary>Thumbnails that came from disk rather than being generated.</summary>
         public int DiskHitCount { get; private set; }
+
+        /// <summary>Thumbnails fetched pre-built from the catalog rather than rendered locally.</summary>
+        public int PrebuiltHitCount { get; private set; }
 
         /// <summary>Assets whose preview could not be produced, so the UI stops asking.</summary>
         public int FailedCount { get; private set; }
@@ -120,12 +129,31 @@ namespace ManaVoxel.Code.Assets
         /// <summary>
         /// Asks for a thumbnail if this is the first time anyone has. Cheap and safe to call every frame for
         /// every visible tile, which is exactly how the grid uses it.
+        /// <para>
+        /// Blocked on the model itself being ready -- generating one means loading it -- unless the catalog
+        /// already has a pre-built preview staged for it (see tools/ThumbnailBaker), in which case there is
+        /// something to show well before the full model finishes downloading.
+        /// </para>
         /// </summary>
         public void Request(string assetPath)
         {
-            if (ManaCore.Assets.ManaAssetCatalog.Current?.IsReady(assetPath) == false)
+            var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
+            if (catalog != null && !catalog.IsReady(assetPath) && catalog.ThumbnailPathOf(assetPath) == null)
+            {
                 return;
-            if (string.IsNullOrWhiteSpace(assetPath) || !_requested.TryAdd(assetPath, 0))
+            }
+
+            if (string.IsNullOrWhiteSpace(assetPath))
+            {
+                return;
+            }
+
+            // A path the worker previously could not answer (see the "neither available yet" branch in
+            // WorkerLoop) gets one more try instead of being treated as already handled -- otherwise a
+            // scrolling grid's every-frame re-request would never notice the model or its preview finally
+            // showing up. _requested itself is left untouched either way; only this retry flag moves.
+            var isRetry = _awaitingRetry.TryRemove(assetPath, out _);
+            if (!_requested.TryAdd(assetPath, 0) && !isRetry)
             {
                 return;
             }
@@ -221,6 +249,7 @@ namespace ManaVoxel.Code.Assets
                 }
 
                 byte[]? pixels = null;
+                var hasAnswer = true;
                 try
                 {
                     pixels = LoadFromDisk(path);
@@ -230,11 +259,30 @@ namespace ManaVoxel.Code.Assets
                     }
                     else
                     {
-                        pixels = Generate(path);
+                        pixels = await TryLoadPrebuilt(path);
                         if (pixels != null)
                         {
-                            GeneratedCount++;
+                            PrebuiltHitCount++;
                             SaveToDisk(path, pixels);
+                        }
+                        else if (IsModelLocallyAvailable(path))
+                        {
+                            pixels = Generate(path);
+                            if (pixels != null)
+                            {
+                                GeneratedCount++;
+                                SaveToDisk(path, pixels);
+                            }
+                        }
+                        else
+                        {
+                            // Neither a pre-built preview nor the model itself is available yet -- not a
+                            // failure, just too early to say. Marked for retry rather than removed from
+                            // _requested (see Request()'s own comment on why that set must never shrink);
+                            // a future frame's Request() call for the same path sees the retry flag and
+                            // queues again, instead of this tile showing a permanent failure that never
+                            // asks again.
+                            hasAnswer = false;
                         }
                     }
                 }
@@ -245,8 +293,41 @@ namespace ManaVoxel.Code.Assets
                     ManaLog.WriteDiagnostic($"[Thumbnails] '{Path.GetFileName(path)}' failed: {ex.Message}");
                 }
 
+                if (!hasAnswer)
+                {
+                    _awaitingRetry[path] = 0;
+                    continue;
+                }
+
                 _finished.Enqueue((path, pixels));
             }
+        }
+
+        private static bool IsModelLocallyAvailable(string assetPath) =>
+            MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out _) ? File.Exists(zipPath) : File.Exists(assetPath);
+
+        /// <summary>
+        /// A pre-built preview staged by tools/ThumbnailBaker, if the catalog has one for this exact model
+        /// reference -- fetched (verified, cached, progress-tracked, all through the ordinary catalog
+        /// download path) and decoded, without needing the model itself locally at all. Null on desktop
+        /// (no catalog), for a local user import (no catalog entry), for an older catalog with no baker run
+        /// over it, or if the fetch or decode simply fails -- any of which falls back to Generate as before.
+        /// </summary>
+        private static async Task<byte[]?> TryLoadPrebuilt(string assetPath)
+        {
+            if (ManaCore.Assets.ManaAssetCatalog.Current is not { } catalog)
+            {
+                return null;
+            }
+
+            var thumbnailPath = catalog.ThumbnailPathOf(assetPath);
+            if (thumbnailPath == null)
+            {
+                return null;
+            }
+
+            await catalog.EnsureAsync(thumbnailPath);
+            return DecodePngFile(catalog.LocalFilePath(thumbnailPath));
         }
 
         private byte[]? Generate(string assetPath)
@@ -356,21 +437,40 @@ namespace ManaVoxel.Code.Assets
             world.Materials.Clear();
         }
 
-        private byte[]? GenerateViaCpu(string assetPath)
+        private byte[]? GenerateViaCpu(string assetPath) => GenerateViaCpuStandalone(_context, assetPath);
+
+        /// <summary>
+        /// The same CPU rasterization <see cref="GenerateViaCpu"/> uses on the live worker, exposed standalone
+        /// for tools/ThumbnailBaker -- a build-time console tool with no live MeshThumbnailCache instance to
+        /// call into, just a throwaway ManaContext (the same minimal one MeshThumbnailTests constructs
+        /// headlessly: <c>new ManaContext(null!, null!, new ManaWorld())</c>). Reused rather than duplicated
+        /// so a pre-built preview and an on-demand fallback are guaranteed to render identically.
+        /// <para>
+        /// <paramref name="externalAssetResolver"/> is for the baker only: the live cache always loads a
+        /// loose glTF from its real directory on disk (or the browser's downloaded copy, placed at its
+        /// original relative path), where a sibling buffer/texture's own relative URI already resolves
+        /// correctly. The baker instead reads straight out of a published AssetLibrary/, where every file
+        /// has been renamed to its content hash and flattened into one directory -- nothing a relative URI
+        /// could resolve against -- so it supplies a resolver the way a zip-packed asset already needs one.
+        /// </para>
+        /// </summary>
+        public static byte[]? GenerateViaCpuStandalone(
+            ManaContext context, string assetPath, Func<string, byte[]?>? externalAssetResolver = null)
         {
             // CPU-only either way: this loads geometry and material colour, nothing else, so it touches no
             // graphics device and is safe away from the render thread. A full LoadFile would build materials
             // and upload buffers.
             var cpuData = MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out var entryPath)
-                ? GenerateFromZip(zipPath, entryPath)
-                : GenerateFromFile(assetPath);
+                ? GenerateFromZipStandalone(context, zipPath, entryPath)
+                : GenerateFromFileStandalone(context, assetPath, externalAssetResolver);
 
             return cpuData == null
                 ? null
                 : MeshThumbnailRasterizer.Render(cpuData, ThumbnailSize, new Vector4(0.82f, 0.84f, 0.88f, 1.0f));
         }
 
-        private ManaMeshCpuData? GenerateFromFile(string assetPath)
+        private static ManaMeshCpuData? GenerateFromFileStandalone(
+            ManaContext context, string assetPath, Func<string, byte[]?>? externalAssetResolver)
         {
             if (!File.Exists(assetPath))
             {
@@ -383,8 +483,10 @@ namespace ManaVoxel.Code.Assets
             // part of a multi-mesh scene with its node transform baked in; skipping that would show one
             // bone's mesh (a leg, an arm) for a rigged Kenney character instead of the whole silhouette --
             // see FlattenSharpGltfSceneToCpuMesh's own comment.
-            var loader = new ManaSharpGltfLoader(_context);
-            var root = loader.LoadFile(assetPath);
+            var loader = new ManaSharpGltfLoader(context);
+            var root = externalAssetResolver == null
+                ? loader.LoadFile(assetPath)
+                : loader.LoadFileFromMemory(File.ReadAllBytes(assetPath), Path.GetFileName(assetPath), externalAssetResolver);
             return FlattenSharpGltfSceneToCpuMesh(root);
         }
 
@@ -394,7 +496,7 @@ namespace ManaVoxel.Code.Assets
         /// the archive instead -- same resolver <see cref="VoxelFileImportService"/> uses to import one for
         /// real, just without the GPU-hooked half of that pipeline.
         /// </summary>
-        private ManaMeshCpuData? GenerateFromZip(string zipPath, string entryPath)
+        private static ManaMeshCpuData? GenerateFromZipStandalone(ManaContext context, string zipPath, string entryPath)
         {
             using var archive = ZipFile.OpenRead(zipPath);
             var entry = archive.GetEntry(entryPath);
@@ -408,7 +510,7 @@ namespace ManaVoxel.Code.Assets
             entryStream.CopyTo(memory);
 
             var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-            var loader = new ManaSharpGltfLoader(_context);
+            var loader = new ManaSharpGltfLoader(context);
             var root = loader.LoadFileFromMemory(memory.ToArray(), entryPath, resolver);
             return FlattenSharpGltfSceneToCpuMesh(root);
         }
@@ -577,19 +679,21 @@ namespace ManaVoxel.Code.Assets
         /// </summary>
         private byte[]? LoadFromDisk(string assetPath)
         {
+            var file = CacheFileFor(assetPath);
+            return File.Exists(file) ? DecodePngFile(file) : null;
+        }
+
+        /// <summary>Shared by the on-disk cache and a fetched pre-built preview -- both are just a PNG file
+        /// somewhere on the (real or wasm virtual) filesystem that needs to become raw RGBA of the right size.</summary>
+        private static byte[]? DecodePngFile(string file)
+        {
             try
             {
-                var file = CacheFileFor(assetPath);
-                if (!File.Exists(file))
-                {
-                    return null;
-                }
-
                 using var image = Image.Load<Rgba32>(file);
 
-                // A size mismatch is a half-written or otherwise unusable file from a previous run;
-                // regenerating is the fix, and handing a wrongly-sized buffer to the atlas would be a
-                // buffer overrun rather than a bad picture.
+                // A size mismatch is a half-written or otherwise unusable file; regenerating (or, for a
+                // pre-built preview, falling back to Generate) is the fix, and handing a wrongly-sized
+                // buffer to the atlas would be a buffer overrun rather than a bad picture.
                 if (image.Width != ThumbnailSize || image.Height != ThumbnailSize)
                 {
                     return null;
@@ -632,6 +736,15 @@ namespace ManaVoxel.Code.Assets
         {
             _shutdown.Cancel();
             _work.Release();
+
+            // Waited for, not just signalled: a caller that goes on to build a second cache sharing this
+            // one's ManaContext/ManaWorld (a throwaway world used only long enough to load one asset at a
+            // time -- see GetOrCreateThumbnailWorld) needs the worker actually stopped touching it first,
+            // or the two race on the same mutable world from two threads. Bounded so a stuck worker cannot
+            // hang shutdown forever.
+            try { _worker?.Wait(TimeSpan.FromSeconds(2)); }
+            catch (AggregateException) { /* Cancellation, or a fault WorkerLoop's own try/catch already logged. */ }
+
             _shutdown.Dispose();
             _work.Dispose();
         }

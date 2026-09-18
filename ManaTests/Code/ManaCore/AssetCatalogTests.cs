@@ -50,6 +50,14 @@ public static class AssetCatalogChecks
             check("the session total grows by exactly what was downloaded",
                 ManaAssetDownloadActivity.TotalBytesDownloaded - bytesBeforeFirstBatch == 9, // 3 files x 3 bytes
                 $"+{ManaAssetDownloadActivity.TotalBytesDownloaded - bytesBeforeFirstBatch}");
+            check("size is reported for a tracked asset", catalog.SizeOf("Assets/model.gltf") == 3, $"{catalog.SizeOf("Assets/model.gltf")}");
+            check("and null for a local import the catalog never heard of", catalog.SizeOf("user-model.glb") == null, "");
+            check("the source url is reported the same way", catalog.UrlOf("Assets/model.gltf") == "AssetLibrary/model.gltf",
+                catalog.UrlOf("Assets/model.gltf") ?? "null");
+            check("a completed download's duration is recorded",
+                ManaAssetDownloadActivity.DurationOf("Assets/model.gltf") is { } duration && duration >= TimeSpan.Zero,
+                ManaAssetDownloadActivity.DurationOf("Assets/model.gltf")?.ToString() ?? "null");
+            check("but not for one that has never finished", ManaAssetDownloadActivity.DurationOf("Assets/pack.zip") == null, "");
             await catalog.EnsureAsync(catalog.Models[0]);
             check("staged assets are reused without another download", requests.Count == 3, "");
             var relativeZip = "zipasset-rel:" + Convert.ToBase64String(Encoding.UTF8.GetBytes("Assets/pack.zip"))
@@ -105,6 +113,40 @@ public static class AssetCatalogChecks
             }
             catch (InvalidDataException) { rejected = true; }
             check("nor a url naming some other host entirely", rejected, "");
+
+            var thumbJson = JsonSerializer.Serialize(new
+            {
+                version = 1,
+                files = new[]
+                {
+                    new { path = "Assets/flighthelmet.glb", url = "AssetLibrary/flighthelmet.glb", sha256 = "flighthelmet", size = 3, dependencies = Array.Empty<string>() },
+                    new { path = "Assets/flighthelmet.glb.thumb.png", url = "AssetLibrary/flighthelmetthumb.png", sha256 = "thumb", size = 3, dependencies = Array.Empty<string>() }
+                },
+                models = new object[] { new { path = "Assets/flighthelmet.glb", thumbnail = "Assets/flighthelmet.glb.thumb.png" } }
+            });
+            var thumbCatalog = new ManaAssetCatalog(thumbJson, directory.FullName,
+                (_, _, _) => Task.FromResult(new byte[] { 1, 2, 3 }));
+            check("a model's pre-built thumbnail path is reported",
+                thumbCatalog.ThumbnailPathOf(thumbCatalog.Models[0]) == "Assets/flighthelmet.glb.thumb.png",
+                thumbCatalog.ThumbnailPathOf(thumbCatalog.Models[0]) ?? "null");
+            check("and null for a model published without a baker run over it",
+                catalog.ThumbnailPathOf("Assets/model.gltf") == null, "");
+
+            var thumbnailPath = thumbCatalog.ThumbnailPathOf(thumbCatalog.Models[0])!;
+            await thumbCatalog.EnsureAsync(thumbnailPath);
+            check("the local file path resolves to exactly where EnsureAsync wrote it",
+                File.Exists(thumbCatalog.LocalFilePath(thumbnailPath)), thumbCatalog.LocalFilePath(thumbnailPath));
+
+            rejected = false;
+            var missingThumbJson = JsonSerializer.Serialize(new
+            {
+                version = 1,
+                files = new[] { new { path = "Assets/flighthelmet.glb", url = "AssetLibrary/flighthelmet.glb", sha256 = "flighthelmet", size = 3, dependencies = Array.Empty<string>() } },
+                models = new object[] { new { path = "Assets/flighthelmet.glb", thumbnail = "Assets/flighthelmet.glb.thumb.png" } }
+            });
+            try { _ = new ManaAssetCatalog(missingThumbJson, directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>())); }
+            catch (InvalidDataException) { rejected = true; }
+            check("a model naming a thumbnail the catalog never listed as a file is rejected", rejected, "");
         }
         finally { directory.Delete(recursive: true); }
     }
