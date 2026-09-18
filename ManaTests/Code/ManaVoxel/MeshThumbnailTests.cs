@@ -666,6 +666,7 @@ public static class MeshThumbnailChecks
 
         try
         {
+            CheckFurnitureMultiMaterialImport(zipPath, Check);
             var toilet = LoadZipGltf(zipPath, "Models/GLTF format/toilet.glb");
             toilet.UpdateTransform();
             var toiletForward = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, toilet.LocalTransform));
@@ -703,6 +704,21 @@ public static class MeshThumbnailChecks
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
         var loader = new ManaSharpGltfLoader(context);
         return loader.LoadFileFromMemory(memory.ToArray(), entryPath, VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath));
+    }
+
+    private static void CheckFurnitureMultiMaterialImport(string zipPath, Action<string, bool, string> Check)
+    {
+        var root = LoadZipGltf(zipPath, "Models/GLTF format/chairCushion.glb");
+        var mesh = root.Components.OfType<MeshRendererComponent>().Single().Mesh;
+        var colors = mesh.GetOrCreateCpuData().Colors;
+        var distinctColors = colors
+            .Select(color => new Vector3(color.X, color.Y, color.Z))
+            .Distinct()
+            .Count();
+
+        Check("chair cushion keeps per-material colors", distinctColors > 1, $"{distinctColors} colors");
+        Check("chair cushion does not keep one material tint", mesh.Materials[0].Albedo.Value == Vector4.One,
+            mesh.Materials[0].Albedo.Value.ToString());
     }
 
     /// <summary>A single-colour PNG, encoded in memory -- what a decoded albedo texture looks like.</summary>

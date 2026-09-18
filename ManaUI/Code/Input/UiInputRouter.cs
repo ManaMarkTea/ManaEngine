@@ -399,6 +399,13 @@ namespace ManaUI
             };
 
             Dispatch(focused, UiRoutedEventKind.KeyDown, args);
+            // Text inputs suppress host shortcuts, but still participate in normal tab navigation.
+            // A control that uses Tab itself can opt out by handling the routed event.
+            if (key == UiKey.Tab && !args.Handled)
+            {
+                return _root.FocusManager.MoveFocus(!modifiers.HasFlag(UiModifiers.Shift));
+            }
+
             return args.Handled;
         }
 

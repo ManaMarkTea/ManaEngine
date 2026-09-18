@@ -234,7 +234,16 @@ namespace ManaUI
                 return;
             }
 
+            var wasFocused = IsFocused;
             Focus();
+
+            if (!wasFocused)
+            {
+                _caret = 0;
+                _selectionAnchor = _text.Length;
+                e.Handled = true;
+                return;
+            }
 
             if (e.ClickCount >= 2)
             {
@@ -423,6 +432,11 @@ namespace ManaUI
         {
             _selecting = false;
             TextCommitted?.Invoke(this, _text);
+        }
+
+        protected override void OnGotFocus()
+        {
+            SelectAll();
         }
 
         private void MoveCaret(int index, bool extendSelection)

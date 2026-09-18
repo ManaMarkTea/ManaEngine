@@ -207,6 +207,12 @@ namespace Mana.Code.Shapes.Loaders
             var maxSize = Vector3.One * float.MinValue;
             uint vertexOffset = 0;
             ManaMaterial? firstMaterial = null;
+            var hasMultipleMaterials = mesh.Primitives
+                .Select(primitive => primitive.Material?.LogicalIndex)
+                .Distinct()
+                .Count() > 1;
+            var bakeMaterialColors = hasMultipleMaterials && mesh.Primitives.All(primitive =>
+                primitive.Material?.FindChannel("BaseColor")?.Texture == null);
 
             foreach (var primitive in mesh.Primitives)
             {
@@ -237,7 +243,13 @@ namespace Mana.Code.Shapes.Loaders
                     maxSize = Vector3.Max(maxSize, position);
 
                     normals.Add(normalArray != null ? Vector3.Normalize(normalArray[i]) : Vector3.UnitY);
-                    colors.Add(colorArray != null ? colorArray[i] : Vector4.One);
+                    var vertexColor = colorArray != null ? colorArray[i] : Vector4.One;
+                    if (bakeMaterialColors && material != null)
+                    {
+                        vertexColor *= material.Albedo.Value;
+                    }
+
+                    colors.Add(vertexColor);
                     // V is flipped to match the convention the rest of the engine expects.
                     // glTF puts UV (0,0) at the image's top-left; Assimp -- which the desktop
                     // loader uses -- normalizes to its own bottom-left origin, so every consumer
@@ -285,8 +297,8 @@ namespace Mana.Code.Shapes.Loaders
                 TextureCoordinates0 = uv0.ToArray(),
                 TextureCoordinates1 = uv1.ToArray(),
                 AlbedoTexturePath = null,
-                AlbedoTextureBytes = GetChannelTextureBytes(firstMaterial),
-                AlbedoFactor = firstMaterial?.Albedo.Value
+                AlbedoTextureBytes = bakeMaterialColors ? null : GetChannelTextureBytes(firstMaterial),
+                AlbedoFactor = bakeMaterialColors ? Vector4.One : firstMaterial?.Albedo.Value
             };
 
             output.SetCpuData(meshData);
@@ -301,7 +313,17 @@ namespace Mana.Code.Shapes.Loaders
             }
 #endif
 
-            output.Materials = firstMaterial != null ? new[] { firstMaterial } : Array.Empty<ManaMaterial>();
+            if (bakeMaterialColors && firstMaterial != null)
+            {
+                var neutralMaterial = (ManaMaterial)firstMaterial.Clone();
+                neutralMaterial.Albedo.Value = Vector4.One;
+                neutralMaterial.Albedo.TextureValue = null;
+                output.Materials = new[] { neutralMaterial };
+            }
+            else
+            {
+                output.Materials = firstMaterial != null ? new[] { firstMaterial } : Array.Empty<ManaMaterial>();
+            }
 
             if (boneIndices.Count > 0)
             {

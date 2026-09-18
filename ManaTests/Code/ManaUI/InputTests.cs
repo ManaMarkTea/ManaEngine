@@ -182,6 +182,43 @@ public static class InputChecks
         Check("focus drops when element detached", root.FocusManager.Focused == null,
             root.FocusManager.Focused?.ToString() ?? "null");
 
+        // Text and numeric editors must navigate despite capturing keyboard input for typing.
+        var scale = new VectorBox();
+        var nextText = new TextBox();
+        var fields = new StackPanel();
+        fields.Children.Add(scale);
+        fields.Children.Add(nextText);
+        root.Content = fields;
+        root.UpdateLayout(new Vector2(400, 300));
+        root.FocusManager.Focus(scale.Field(0));
+        scale.Field(0).SelectAll();
+        root.Input.InjectTextInput("2.5");
+        var commits = 0;
+        scale.ValueCommitted += (_, _) => commits++;
+        Check("Tab from X is consumed", root.Input.InjectKeyDown(UiKey.Tab));
+        Check("Tab moves X to Y and commits the edited value",
+            root.FocusManager.Focused == scale.Field(1) && scale.Value.X == 2.5f && commits == 1);
+        root.Input.InjectKeyDown(UiKey.Tab);
+        Check("Tab moves Y to Z", root.FocusManager.Focused == scale.Field(2));
+        root.Input.InjectKeyDown(UiKey.Tab);
+        Check("Tab moves Z to the next text box", root.FocusManager.Focused == nextText);
+        root.Input.InjectKeyDown(UiKey.Tab, UiModifiers.Shift);
+        Check("Shift-Tab moves text box back to Z", root.FocusManager.Focused == scale.Field(2));
+        root.Input.InjectKeyDown(UiKey.Tab, UiModifiers.Shift);
+        Check("Shift-Tab moves Z to Y", root.FocusManager.Focused == scale.Field(1));
+        root.Input.InjectKeyDown(UiKey.Tab, UiModifiers.Shift);
+        Check("Shift-Tab moves Y to X", root.FocusManager.Focused == scale.Field(0));
+        Check("text editing still suppresses host shortcuts", scale.Field(0).WantsAllKeyboardInput);
+
+        var handleTab = new EventHandler<UiKeyEventArgs>((_, e) =>
+        {
+            if (e.Key == UiKey.Tab) e.Handled = true;
+        });
+        scale.Field(0).KeyDown += handleTab;
+        Check("handled Tab stays in the editor",
+            root.Input.InjectKeyDown(UiKey.Tab) && root.FocusManager.Focused == scale.Field(0));
+        scale.Field(0).KeyDown -= handleTab;
+
         // -------------------------------------------------------------- checkbox
         var box = new CheckBox("toggle");
         var changes = 0;

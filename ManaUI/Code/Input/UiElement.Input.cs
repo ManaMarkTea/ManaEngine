@@ -51,7 +51,7 @@ namespace ManaUI
 
         /// <summary>
         /// True for controls that consume raw keystrokes, such as a text box. Tab reaches the control
-        /// instead of moving focus, and the host suppresses its own shortcuts so typing "V" into a field
+        /// first and moves focus if unhandled. The host suppresses its own shortcuts so typing "V" into a field
         /// does not also switch tools.
         /// </summary>
         public virtual bool WantsAllKeyboardInput => false;

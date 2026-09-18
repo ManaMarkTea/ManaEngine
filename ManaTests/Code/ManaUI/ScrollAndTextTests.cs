@@ -251,8 +251,13 @@ public static class ScrollAndTextChecks
         root.Content = box;
         root.UpdateLayout(new Vector2(400, 300));
 
+        box.Text = "existing";
         box.Focus();
         Check("text box takes focus", box.IsFocused);
+        Check("focus selects all text", box.HasSelection && box.SelectedText == box.Text, $"'{box.SelectedText}'");
+        root.FocusManager.Focus(null);
+        box.Text = string.Empty;
+        box.Focus();
         Check("text box wants raw keys", box.WantsAllKeyboardInput);
         Check("keyboard reported as captured", root.Input.IsKeyboardCaptured);
 
