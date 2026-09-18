@@ -1665,7 +1665,17 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            _meshPickerPreviewNode.Position = mouseHit.Position + _viewModel.ImportPositionOffset;
+            var placementPosition = mouseHit.Position;
+            if (_viewModel.SnapImportedModelsToGrid && _viewModel.ImportGridSize > 0.0001f)
+            {
+                var gridSize = _viewModel.ImportGridSize;
+                placementPosition = new Vector3(
+                    MathF.Round(placementPosition.X / gridSize) * gridSize,
+                    MathF.Round(placementPosition.Y / gridSize) * gridSize,
+                    MathF.Round(placementPosition.Z / gridSize) * gridSize);
+            }
+
+            _meshPickerPreviewNode.Position = placementPosition + _viewModel.ImportPositionOffset;
             _meshPickerPreviewNode.Rotation = new Vector3(
                 _viewModel.ImportRotationDegrees.X.ToRadians(),
                 _viewModel.ImportRotationDegrees.Y.ToRadians(),

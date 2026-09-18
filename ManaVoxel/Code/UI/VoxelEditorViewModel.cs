@@ -67,6 +67,8 @@ namespace ManaVoxel.Code.UI
         public Vector3 ImportPositionOffset = Vector3.Zero;
         public Vector3 ImportRotationDegrees = Vector3.Zero;
         public Vector3 ImportScale = Vector3.One;
+        public bool SnapImportedModelsToGrid;
+        public float ImportGridSize = 1.0f;
         public bool HasHoverVoxel { get; private set; }
         public Vector3 HoverVoxelPosition { get; private set; }
         public Vector3 HoverVoxelNormal { get; private set; }

@@ -240,7 +240,28 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "Scale", Vector(
                     () => viewModel.ImportScale,
                     value => viewModel.ImportScale = value,
-                    step: 0.05f)));
+                    step: 0.05f)),
+
+                SnapGrid(theme, viewModel));
+        }
+
+        private static UiElement SnapGrid(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
+            var snap = new CheckBox("Snap models to grid") { IsChecked = viewModel.SnapImportedModelsToGrid };
+            snap.CheckedChanged += (_, value) => viewModel.SnapImportedModelsToGrid = value;
+
+            var size = new NumericBox()
+                .Width(72.0f)
+                .Step(0.25f)
+                .Range(0.01f, 100.0f)
+                .Places(2)
+                .Value(viewModel.ImportGridSize);
+            size.ValueChanged += (_, value) => viewModel.ImportGridSize = value;
+
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                snap,
+                new StackPanel().Horizontal(theme.Spacing).Children(
+                    new TextBlock().Text("Grid size").CenterV(), size));
         }
 
         private static UiElement Picker(UiTheme theme, MeshAssetLibrary library, MeshThumbnailCache? thumbnails)
