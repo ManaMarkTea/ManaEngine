@@ -2,6 +2,35 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "run ManaTests",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ManaTests/ManaTests.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "run ManaTests GUI",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ManaTests/ManaTests.csproj",
+        "--",
+        "-gui"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
       "label": "stop active Mana debug session",
       "type": "process",
       "command": "sh",
