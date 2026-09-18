@@ -52,6 +52,8 @@ namespace ManaVoxel.Code.Assets
         private bool _treeDirty = true;
         private bool _flatDirty = true;
         private List<MeshAssetEntry>? _flat;
+        private MeshAssetFolder? _folderTree;
+        private bool _folderTreeDirty = true;
 
         private Task<MeshScanResult>? _scan;
 
@@ -109,6 +111,7 @@ namespace ManaVoxel.Code.Assets
 
                 _formats = value;
                 Invalidate();
+                _folderTreeDirty = true;
             }
         }
 
@@ -166,12 +169,31 @@ namespace ManaVoxel.Code.Assets
         /// The folder hierarchy alone, ignoring the text filter -- an Unreal-style folder sidebar should
         /// not shrink just because something is typed into the search box above the main list.
         /// <para>
-        /// Rebuilt fresh on every call rather than cached alongside <see cref="Tree"/>: nothing here is
-        /// disk I/O, and a view only actually re-enumerates it when its own change-detection (a
-        /// TreeView's StructureSignature) says the sidebar needs to change at all.
+        /// Cached like <see cref="Tree"/>, and for a sharper reason than "avoid rebuilding": the folder
+        /// sidebar's TreeView tracks which nodes are expanded by the <see cref="MeshAssetFolder"/> object's
+        /// own identity (deliberately -- see TreeView's own comment on why it uses reference equality, not
+        /// value equality, for that). Handing back a freshly built tree on every call -- as this used to --
+        /// means every node is a new instance each time, so a TreeView rebuild triggered by nothing more
+        /// than expanding or collapsing one node would silently forget every expand/collapse state, because
+        /// none of the old objects it remembered still exist. Invalidated on exactly what
+        /// ManaVoxel.Code.UI.ManaUi.MeshImportManaView's TreeView.StructureSignature already keys its own
+        /// rebuilds on -- Assets and Formats, not Filter -- so identity survives across everything that
+        /// does not actually change which folders exist.
         /// </para>
         /// </summary>
-        public MeshAssetFolder FolderTree => BuildTree(string.Empty);
+        public MeshAssetFolder FolderTree
+        {
+            get
+            {
+                if (_folderTreeDirty || _folderTree == null)
+                {
+                    _folderTree = BuildTree(string.Empty);
+                    _folderTreeDirty = false;
+                }
+
+                return _folderTree;
+            }
+        }
 
         public bool IsFormatEnabled(MeshAssetFormats format) => (_formats & format) != 0;
 
@@ -256,6 +278,7 @@ namespace ManaVoxel.Code.Assets
             }
 
             Invalidate();
+            _folderTreeDirty = true;
             return true;
         }
 

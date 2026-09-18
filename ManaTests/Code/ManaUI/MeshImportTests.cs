@@ -666,7 +666,74 @@ public static class MeshImportChecks
             folderTree.Bounds.Width > folderWidthBefore + 40.0f,
             $"{folderWidthBefore:0} -> {folderTree.Bounds.Width:0}");
 
+        CheckFolderExpandCollapsePersists(fonts, check, defaultSize);
         CheckDownloadProgress(fonts, check, defaultSize);
+    }
+
+    /// <summary>
+    /// MeshAssetLibrary.FolderTree used to hand back a freshly built tree -- new MeshAssetFolder instances
+    /// throughout -- on every single call. The folder sidebar's TreeView tracks which nodes are expanded by
+    /// object identity (deliberately: see TreeView's own comment on why it uses reference equality), and
+    /// collapsing or expanding a node queues exactly the kind of rebuild that re-fetches FolderTree. The
+    /// result: the click's own state change was real, but the very next layout pass re-fetched a FolderTree
+    /// full of brand-new objects that did not match anything in the just-updated collapsed/expanded set, so
+    /// every folder fell back to IsExpandedByDefault (true) and looked untouched -- clicking the arrow did
+    /// nothing, visibly, even though ToggleExpanded ran correctly.
+    /// </summary>
+    private static void CheckFolderExpandCollapsePersists(ManaFontManager fonts, Action<string, bool, string> check, Vector2 panelSize)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        var library = new MeshAssetLibrary { Formats = MeshAssetFormats.All };
+        library.SetAssets(Sample);
+
+        var root = new UiRoot(fonts);
+        var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+        root.Content = MeshImportManaView.Build(root.Theme, viewModel, library, thumbnails: null);
+        root.UpdateLayout(panelSize);
+        root.Render();
+
+        var tree = Find<TreeView>(root.Content!);
+        Check("the panel has a folder tree", tree != null);
+        if (tree == null)
+        {
+            return;
+        }
+
+        // "Models" (from Sample's Kenney/Nature and Helmet paths) has two children once single-child
+        // chains collapse, so it survives as its own row rather than merging away -- exactly the shape
+        // that needs a real toggle rather than always being the only thing on screen.
+        var before = tree.VisibleItems.OfType<MeshAssetFolder>().FirstOrDefault(f => f.Name == "Models");
+        Check("found a folder with children to toggle", before != null,
+            string.Join(", ", tree.VisibleItems.OfType<MeshAssetFolder>().Select(f => f.Name)));
+        if (before == null)
+        {
+            return;
+        }
+
+        Check("starts expanded", tree.IsExpanded(before));
+
+        tree.ToggleExpanded(before);
+        root.UpdateLayout(panelSize);
+        root.Render();
+
+        var afterCollapse = tree.VisibleItems.OfType<MeshAssetFolder>().FirstOrDefault(f => f.Name == "Models");
+        Check("collapsing it survives a later layout pass rather than silently reverting",
+            afterCollapse != null && !tree.IsExpanded(afterCollapse),
+            afterCollapse == null ? "row vanished" : $"IsExpanded={tree.IsExpanded(afterCollapse)}");
+
+        if (afterCollapse != null)
+        {
+            tree.ToggleExpanded(afterCollapse);
+        }
+
+        root.UpdateLayout(panelSize);
+        root.Render();
+
+        var afterExpand = tree.VisibleItems.OfType<MeshAssetFolder>().FirstOrDefault(f => f.Name == "Models");
+        Check("and expanding it again also survives",
+            afterExpand != null && tree.IsExpanded(afterExpand),
+            afterExpand == null ? "row vanished" : $"IsExpanded={tree.IsExpanded(afterExpand)}");
     }
 
     /// <summary>
