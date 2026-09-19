@@ -9,7 +9,7 @@
 // moves AssetLibrary out to GitHub Pages) -- this needs the real model bytes on disk to render from, and
 // whatever it adds to AssetLibrary/ rides along with everything else once split_for_itch.py runs.
 //
-//   dotnet run --project Tools/ThumbnailBaker -- --app-bundle <path to AppBundle>
+//   dotnet run --project tools/ThumbnailBaker -- --app-bundle <path to AppBundle>
 
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
@@ -21,7 +21,7 @@ using SixLabors.ImageSharp.PixelFormats;
 
 if (args.Length != 2 || args[0] != "--app-bundle")
 {
-    Console.Error.WriteLine("Usage: dotnet run --project Tools/ThumbnailBaker -- --app-bundle <AppBundle directory>");
+    Console.Error.WriteLine("Usage: dotnet run --project tools/ThumbnailBaker -- --app-bundle <AppBundle directory>");
     return 1;
 }
 

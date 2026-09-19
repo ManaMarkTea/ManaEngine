@@ -67,7 +67,7 @@ jobs:
         # AppBundle/AssetLibrary, and whatever it adds there rides along with everything else once
         # that step moves the library out to GitHub Pages.
         run: >
-          dotnet run --project Tools/ThumbnailBaker --
+          dotnet run --project tools/ThumbnailBaker --
           --app-bundle ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
 
       - name: Move the external asset library off the itch.io bundle
