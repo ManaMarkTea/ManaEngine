@@ -22,9 +22,9 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Levels/**/*.manalevel">
       <TargetPath>Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
-    <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)tools/WebAssets/asset-downloads.js" Link="asset-downloads.js" />
+    <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)Tools/WebAssets/asset-downloads.js" Link="asset-downloads.js" />
   </ItemGroup>
   <Target Name="ManaPublishExternalAssets" AfterTargets="_WasmGenerateAppBundle">
-    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)tools/WebAssets/publish_assets.py&quot; --root &quot;$(MSBuildThisFileDirectory).&quot; --output &quot;$(WasmAppDir).&quot;" />
+    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)Tools/WebAssets/publish_assets.py&quot; --root &quot;$(MSBuildThisFileDirectory).&quot; --output &quot;$(WasmAppDir).&quot;" />
   </Target>
 </Project>

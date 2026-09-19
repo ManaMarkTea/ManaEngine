@@ -131,7 +131,7 @@ namespace ManaVoxel.Code.Assets
         /// every visible tile, which is exactly how the grid uses it.
         /// <para>
         /// Blocked on the model itself being ready -- generating one means loading it -- unless the catalog
-        /// already has a pre-built preview staged for it (see tools/ThumbnailBaker), in which case there is
+        /// already has a pre-built preview staged for it (see Tools/ThumbnailBaker), in which case there is
         /// something to show well before the full model finishes downloading.
         /// </para>
         /// </summary>
@@ -307,7 +307,7 @@ namespace ManaVoxel.Code.Assets
             MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out _) ? File.Exists(zipPath) : File.Exists(assetPath);
 
         /// <summary>
-        /// A pre-built preview staged by tools/ThumbnailBaker, if the catalog has one for this exact model
+        /// A pre-built preview staged by Tools/ThumbnailBaker, if the catalog has one for this exact model
         /// reference -- fetched (verified, cached, progress-tracked, all through the ordinary catalog
         /// download path) and decoded, without needing the model itself locally at all. Null on desktop
         /// (no catalog), for a local user import (no catalog entry), for an older catalog with no baker run
@@ -441,7 +441,7 @@ namespace ManaVoxel.Code.Assets
 
         /// <summary>
         /// The same CPU rasterization <see cref="GenerateViaCpu"/> uses on the live worker, exposed standalone
-        /// for tools/ThumbnailBaker -- a build-time console tool with no live MeshThumbnailCache instance to
+        /// for Tools/ThumbnailBaker -- a build-time console tool with no live MeshThumbnailCache instance to
         /// call into, just a throwaway ManaContext (the same minimal one MeshThumbnailTests constructs
         /// headlessly: <c>new ManaContext(null!, null!, new ManaWorld())</c>). Reused rather than duplicated
         /// so a pre-built preview and an on-demand fallback are guaranteed to render identically.

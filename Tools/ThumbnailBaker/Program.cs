@@ -2,7 +2,7 @@
 // CPU rasterizer MeshThumbnailCache falls back to at runtime (MeshThumbnailCache.GenerateViaCpuStandalone),
 // so a pre-built preview and an on-demand one render identically. Staged into the same AssetLibrary/ the
 // catalog already ships beside, and referenced from each model entry by a "thumbnail" catalog path -- an
-// ordinary file as far as the rest of the pipeline (ManaAssetCatalog, tools/WebAssets/split_for_itch.py) is
+// ordinary file as far as the rest of the pipeline (ManaAssetCatalog, Tools/WebAssets/split_for_itch.py) is
 // concerned, verified and served exactly like a model's own blob.
 //
 // Run after `dotnet publish` (which populates AppBundle/AssetLibrary) and before split_for_itch.py (which

@@ -89,7 +89,7 @@ Change the path passed to `BrowserPlayGameMode` in `Program.cs` to a level under
 
 Both browser projects import `WebAssets.props`, which embeds shaders, two Roboto fonts,
 default textures, the mini-character pack, and all `.manalevel` files under `Levels/`.
-`tools/WebAssets/publish_assets.py` publishes every file under `Assets/`, `Mana/Assets/`,
+`Tools/WebAssets/publish_assets.py` publishes every file under `Assets/`, `Mana/Assets/`,
 `ManaGraphics/Assets/`, `ManaUI/Assets/`, and `ManaVoxel/Assets/` as separate hashed files,
 plus a small catalog. The only exclusion is the oversized desktop planet source
 `Mana/Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`.

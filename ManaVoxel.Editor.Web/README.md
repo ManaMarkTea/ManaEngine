@@ -24,7 +24,7 @@ library is fetched when a model is selected or a level needs it.
 ## Deployment and assets
 
 Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=python3`).
-`WebAssets.props` defines the shared boot assets. `tools/WebAssets/publish_assets.py` generates:
+`WebAssets.props` defines the shared boot assets. `Tools/WebAssets/publish_assets.py` generates:
 
 - `asset-catalog.json`: file sizes, hashes, model/ZIP entries, and glTF sidecar dependencies.
 - `AssetLibrary/`: individual content-hashed files, downloaded only as needed.
@@ -37,7 +37,7 @@ ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle/
 
 itch.io is different: it caps a browser-embedded ("played in the browser") build's *extracted*
 size at 500MB, and the asset library alone is already well past that. The CI workflow runs
-`tools/WebAssets/split_for_itch.py` right after publish, which moves `AssetLibrary/` out to a
+`Tools/WebAssets/split_for_itch.py` right after publish, which moves `AssetLibrary/` out to a
 separate `pages-site/` tree and rewrites the itch-bound copy of `asset-catalog.json` so its file
 URLs are absolute, pointing at GitHub Pages instead of the (now locally missing) `AssetLibrary/`.
 `pages-site/` is deployed to GitHub Pages via `actions/deploy-pages`; the now-much-smaller

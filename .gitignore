@@ -318,8 +318,8 @@ __pycache__/
 *.pyc
 
 # Cake - Uncomment if you are using it
-# tools/**
-# !tools/packages.config
+# Tools/**
+# !Tools/packages.config
 
 # Tabs Studio
 *.tss
@@ -363,7 +363,7 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# dotnet-trace captures from tools/Profiling/Run-PerfTrace.ps1
+# dotnet-trace captures from Tools/Profiling/Run-PerfTrace.ps1
 /PerfTraces/
 
 # Generated/derived data (mesh thumbnail cache, and anything else that lands here later) -- always
@@ -371,4 +371,4 @@ FodyWeavers.xsd
 /Library/
 # Generated web deployment artifacts; publish directories directly instead of committing archives.
 /Binaries/ManaEditor.zip
-/tools/WebAssets/__pycache__/
+/Tools/WebAssets/__pycache__/
