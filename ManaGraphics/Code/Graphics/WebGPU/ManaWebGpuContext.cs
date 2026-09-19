@@ -742,6 +742,7 @@ namespace ManaGraphics.Code.Graphics
                 RefreshRenderScene();
             }
 
+            UpdateShadowCascades();
             UpdateFrameUniform();
             LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
@@ -758,6 +759,11 @@ namespace ManaGraphics.Code.Graphics
                 using (ManaFrameProfiler.Measure("GPU: Environment Capture"))
                 {
                     CaptureSceneEnvironmentIfNeeded(commandEncoder);
+                }
+
+                using (ManaFrameProfiler.Measure("GPU: Shadow Cascades"))
+                {
+                    RenderShadowCascades(commandEncoder);
                 }
             }
 

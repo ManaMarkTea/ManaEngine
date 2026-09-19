@@ -1,7 +1,9 @@
 using Mana;
+using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using Mana.Code.UI;
 using ManaUI;
 
@@ -398,7 +400,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 var items = new List<MenuItem>
                 {
-                    MenuItem.Label(Fallback(scene.Name, "Scene"))
+                    MenuItem.Label(Fallback(scene.Name, "Scene")),
+                    MenuItem.Separator(),
+                    BuildAddNodeMenu(scene, parent: null)
                 };
 
                 if (_saveScene != null && !string.IsNullOrWhiteSpace(scene.LevelPath))
@@ -423,10 +427,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .WithTooltip(definition.Description));
                 }
 
+                var owningScene = FindOwningScene(node) ?? _world.DefaultScene;
+
                 return new List<MenuItem>
                 {
                     MenuItem.Label(Fallback(node.Name, node.GetType().Name)),
                     MenuItem.Separator(),
+                    BuildAddNodeMenu(owningScene, node),
                     addComponent,
                     MenuItem.Separator(),
                     new MenuItem("Delete Node",
@@ -434,6 +441,105 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .EnabledWhen(() => SceneEditorOperations.CanDeleteNode(_world, node))
                         .WithTooltip("Delete this node and its children from the scene.")
                 };
+            }
+
+            /// <summary>
+            /// "Add Node" -- an empty group node or a primitive shape, the same construction
+            /// <see cref="ManaShapeFactory"/> and <see cref="ManaLevelLoader"/> already use, so whatever
+            /// gets created here saves and reloads correctly. Added under <paramref name="parent"/> when the
+            /// menu was opened on a node, or straight into <paramref name="scene"/> when opened on the scene
+            /// itself.
+            /// </summary>
+            private MenuItem BuildAddNodeMenu(ManaScene scene, ManaSceneNode? parent)
+            {
+                var addNode = new MenuItem("Add Node");
+                var position = parent?.WorldTransform.Translation ?? Vector3.Zero;
+
+                addNode.Items.Add(new MenuItem("Empty Node", () =>
+                {
+                    var node = new ManaSceneNode(scene.Context, Matrix4x4.CreateTranslation(position))
+                    {
+                        Name = "Node",
+                        LevelSource = ManaLevelSource.Group
+                    };
+                    AddCreatedNode(scene, parent, node);
+                }).WithTooltip("An empty node that can own children -- nothing to render on its own."));
+
+                addNode.Items.Add(MenuItem.Separator());
+
+                foreach (var (label, build) in ShapeBuilders)
+                {
+                    addNode.Items.Add(new MenuItem(label, () =>
+                    {
+                        var factory = new ManaShapeFactory(scene.Context, scene);
+                        var node = build(factory, position);
+                        if (parent != null)
+                        {
+                            scene.Children.Remove(node);
+                            parent.AddChild(node);
+                        }
+
+                        SelectCreated(node);
+                    }));
+                }
+
+                return addNode;
+            }
+
+            private static readonly (string Label, Func<ManaShapeFactory, Vector3, ManaSceneNode> Build)[] ShapeBuilders =
+            {
+                ("Cube", (shapes, position) => shapes.AddCube(position, Colors.White, 1.0f)),
+                ("Sphere", (shapes, position) => shapes.AddSphere(position, Colors.White, 1.0f)),
+                ("Pyramid", (shapes, position) => shapes.AddPyramid(position, Colors.White, 1.0f)),
+                ("Torus", (shapes, position) => shapes.AddTorus(position, Colors.White, 1.0f))
+            };
+
+            private void AddCreatedNode(ManaScene scene, ManaSceneNode? parent, ManaSceneNode node)
+            {
+                if (parent != null)
+                {
+                    parent.AddChild(node);
+                }
+                else
+                {
+                    scene.Children.Add(node);
+                }
+
+                SelectCreated(node);
+            }
+
+            private void SelectCreated(ManaSceneNode node)
+            {
+                _selection.SelectedScene = null;
+                _selection.SelectedNode = node;
+                _selection.SelectedComponent = null;
+                _selection.NotifySceneGraphChanged();
+            }
+
+            private ManaScene? FindOwningScene(ManaSceneNode node)
+            {
+                foreach (var scene in _world.Scenes)
+                {
+                    if (Contains(scene.Children, node))
+                    {
+                        return scene;
+                    }
+                }
+
+                return null;
+            }
+
+            private static bool Contains(IEnumerable<ManaSceneNode> nodes, ManaSceneNode target)
+            {
+                foreach (var candidate in nodes)
+                {
+                    if (ReferenceEquals(candidate, target) || Contains(candidate.Children, target))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 

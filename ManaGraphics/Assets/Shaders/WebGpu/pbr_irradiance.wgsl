@@ -9,6 +9,7 @@ struct VertexOutput {
 #include "include/uniforms.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
+#include "include/shadows.wgsl"
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
 @group(1) @binding(1) var color_sampler : sampler;
 @group(1) @binding(2) var color_texture : texture_2d<f32>;
@@ -214,6 +215,26 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
         direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl;
+    }
+
+    // The scene's single directional "sun" (frame.sun_direction.w > 0 -- see ManaWorld.CreateRenderScene),
+    // separate from the 4-slot point light grid above. No attenuation: a directional light has none by
+    // definition. Only this term is shadow-tested; the point lights above never cast shadows in this pass.
+    if (frame.sun_direction.w > 0.5) {
+        let l = normalize(-frame.sun_direction.xyz);
+        let h = normalize(v + l);
+        let radiance = frame.sun_color.rgb * frame.sun_color.a;
+
+        let ndotl = max(dot(n, l), 0.0);
+
+        let ndf = distribution_ggx(n, h, specular_roughness);
+        let g = geometry_smith(n, v, l, specular_roughness);
+        let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
+        let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
+
+        let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
+        let shadow = mana_sun_shadow_factor(input.world_position, ndotl);
+        direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl * shadow;
     }
 
     let irradiance = mana_irradiance(n);

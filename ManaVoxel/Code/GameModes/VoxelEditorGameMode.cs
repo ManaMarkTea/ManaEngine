@@ -51,6 +51,11 @@ namespace Mana.Code.GameModes
         private bool _meshPickerEscapeWasDown;
         private string? _meshPickerPreviewAssetPath;
         private ManaSceneNode? _meshPickerPreviewNode;
+
+        // Extra spin the user has dialed in with the scroll wheel while positioning the current preview,
+        // on top of ImportRotationDegrees, applied around the surface normal under the cursor. Reset
+        // whenever a preview starts, commits, or cancels so the next placement starts unspun.
+        private float _meshPickerExtraRotationDegrees;
         private int _meshPickerPreviewSceneStartIndex = -1;
         private int _meshPickerPreviewMeshStartIndex = -1;
         private int _meshPickerPreviewMaterialStartIndex = -1;
@@ -246,6 +251,14 @@ namespace Mana.Code.GameModes
                     Context.Window.FileDrop += Window_FileDrop;
                     _viewModel.AttachScene(Context, Context.World.DefaultScene);
                     Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
+
+                    // Same reason the camera above stops zooming: a live placement preview wants the
+                    // scroll wheel for its own rotation, not whatever panel happened to keep pointer
+                    // capture from the drag that started it. See ManaUiInputBridge.SuppressScroll.
+                    if (ManaUi?.InputBridge != null)
+                    {
+                        ManaUi.InputBridge.SuppressScroll = () => _meshPickerPreviewNode != null;
+                    }
 
                     bool rounded = ManaUi?.Root?.Theme?.Kind == UiThemeKind.Lcars;
                     BuildGridRoom(rounded);
@@ -1665,6 +1678,16 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            // Scroll while positioning spins the preview around the surface normal instead of zooming the
+            // camera -- ShouldCaptureEditorMouseInput reports this preview as an editor mouse capture for
+            // exactly that reason. One notch (|scroll|==1) is 15 degrees, matching common editor conventions.
+            var scrollY = Context.Input.Mice.FirstOrDefault()?.ScrollWheels[0].Y ?? 0.0f;
+            if (scrollY != 0.0f)
+            {
+                const float degreesPerNotch = 15.0f;
+                _meshPickerExtraRotationDegrees += scrollY * degreesPerNotch;
+            }
+
             var placementPosition = mouseHit.Position;
             if (_viewModel.SnapImportedModelsToGrid && _viewModel.ImportGridSize > 0.0001f)
             {
@@ -1676,10 +1699,24 @@ namespace Mana.Code.GameModes
             }
 
             _meshPickerPreviewNode.Position = placementPosition + _viewModel.ImportPositionOffset;
-            _meshPickerPreviewNode.Rotation = new Vector3(
+
+            var baseRotation = new Vector3(
                 _viewModel.ImportRotationDegrees.X.ToRadians(),
                 _viewModel.ImportRotationDegrees.Y.ToRadians(),
                 _viewModel.ImportRotationDegrees.Z.ToRadians());
+
+            if (_meshPickerExtraRotationDegrees != 0.0f && mouseHit.Normal != Vector3.Zero)
+            {
+                var baseRotationQuat = baseRotation.ToQuaternionFromEuler();
+                var extraRotationQuat = Quaternion.CreateFromAxisAngle(
+                    Vector3.Normalize(mouseHit.Normal), _meshPickerExtraRotationDegrees.ToRadians());
+                _meshPickerPreviewNode.Rotation = Quaternion.Concatenate(baseRotationQuat, extraRotationQuat).ToEuler();
+            }
+            else
+            {
+                _meshPickerPreviewNode.Rotation = baseRotation;
+            }
+
             _meshPickerPreviewNode.Scale = new Vector3(
                 MathF.Max(0.01f, _viewModel.ImportScale.X),
                 MathF.Max(0.01f, _viewModel.ImportScale.Y),
@@ -1726,6 +1763,7 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewMeshStartIndex = -1;
             _meshPickerPreviewMaterialStartIndex = -1;
             _meshPickerPreviewSelectionBefore = null;
+            _meshPickerExtraRotationDegrees = 0.0f;
         }
 
         private void CancelMeshPickerPlacementPreview()
@@ -1748,6 +1786,7 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewMeshStartIndex = -1;
             _meshPickerPreviewMaterialStartIndex = -1;
             _meshPickerPreviewSelectionBefore = null;
+            _meshPickerExtraRotationDegrees = 0.0f;
         }
 
         private ManaSceneNode LoadMeshPickerAsset(string assetReference)
@@ -2509,6 +2548,14 @@ namespace Mana.Code.GameModes
             if (IsPlaying)
             {
                 return false;
+            }
+
+            // A live placement preview claims the scroll wheel for its own rotation (see
+            // UpdateMeshPickerPlacementPreviewTransform) whether or not a mouse button happens to be
+            // held -- the right-click "Place" flow positions the preview with no button down at all.
+            if (_meshPickerPreviewNode != null)
+            {
+                return true;
             }
 
             var mouse = Context.Input.Mice.FirstOrDefault();

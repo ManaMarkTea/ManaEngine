@@ -59,7 +59,17 @@ namespace ManaGraphics.Code.Graphics
                 Time = elapsedSeconds,
                 WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
                 VertexNormalLength = irradianceSettings.VertexNormalLength,
-                _padding2 = 0.0f
+                _padding2 = 0.0f,
+                CascadeViewProjection0 = _cascadeViewProjections[0],
+                CascadeViewProjection1 = _cascadeViewProjections[1],
+                CascadeViewProjection2 = _cascadeViewProjections[2],
+                CascadeSplitFar = new Vector4(_cascadeSplitFar[0], _cascadeSplitFar[1], _cascadeSplitFar[2], 0.0f),
+                SunDirection = new Vector4(
+                    _activeRenderScene.SunDirection,
+                    _activeRenderScene.HasSun && _activeRenderScene.SunCastsShadows ? 1.0f : 0.0f),
+                SunColor = _activeRenderScene.HasSun
+                    ? _activeRenderScene.SunColor
+                    : Vector4.Zero
             };
 
             _api.QueueWriteBuffer(_queue, _frameUniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuFrameUniform));
@@ -312,6 +322,12 @@ namespace ManaGraphics.Code.Graphics
             public float WebGpuDebugMode;
             public float VertexNormalLength;
             public float _padding2;
+            public Matrix4x4 CascadeViewProjection0;
+            public Matrix4x4 CascadeViewProjection1;
+            public Matrix4x4 CascadeViewProjection2;
+            public Vector4 CascadeSplitFar;
+            public Vector4 SunDirection;
+            public Vector4 SunColor;
         }
 
         // Written per mesh, only when the mesh's transform/material actually changed since last

@@ -16,6 +16,16 @@ struct FrameUniform {
     webgpu_debug_mode : f32,
     vertex_normal_length : f32,
     _padding2 : f32,
+    // Cascaded shadow maps for the scene's single directional "sun" light (ManaRenderScene.HasSun).
+    // See ManaWebGpuContext.Shadows.cs for how these are computed.
+    cascade_view_projections : array<mat4x4<f32>, 3>,
+    // xyz = view-space far distance of cascades 0..2 (the split scheme), w unused.
+    cascade_split_far : vec4<f32>,
+    // xyz = normalized direction the light travels (surface-to-light is -sun_direction), w = 1 when a
+    // shadow-casting sun exists this frame, 0 otherwise.
+    sun_direction : vec4<f32>,
+    // rgb = color, a = intensity.
+    sun_color : vec4<f32>,
 };
 
 struct ObjectUniform {

@@ -135,6 +135,8 @@ namespace ManaGraphics.Code.Graphics
                 _frameBindGroupLayout = null;
             }
 
+            ReleaseShadowResources();
+
             ReleaseSceneMeshes(immediate: true);
             ReleaseEnvironmentReflectionMap();
 

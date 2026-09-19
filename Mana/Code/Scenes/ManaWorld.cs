@@ -310,22 +310,42 @@ namespace Mana
         }
 
 
-        private void CollectLightsFromNode(ManaSceneNode node, List<(Vector3 Position, Vector3 Color)> output)
+        private void CollectLightsFromNode(
+            ManaSceneNode node,
+            List<(Vector3 Position, Vector3 Color)> output,
+            ref (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun)
         {
             if (node == null) return;
             foreach (var component in node.Components)
             {
-                if (component is ManaLightSourceComponent light && light.Enabled)
+                if (component is not ManaLightSourceComponent { Enabled: true } light)
                 {
-                    var lightColorVec3 = new Vector3(light.Color.X, light.Color.Y, light.Color.Z);
-                    var lightColor = lightColorVec3 * light.Intensity * 256.0f * 256.0f; // Scale by grid light power scale
-                    output.Add((node.WorldTransform.Translation, lightColor));
+                    continue;
                 }
+
+                if (light.LightType == ManaCore.Graphics.ManaLightType.Directional)
+                {
+                    // Only the first enabled directional light found is honored -- see
+                    // ManaRenderScene.HasSun.
+                    if (!sun.Found)
+                    {
+                        var direction = light.Direction.LengthSquared() > 1e-6f
+                            ? Vector3.Normalize(light.Direction)
+                            : -Vector3.UnitY;
+                        sun = (true, direction, light.Color, light.CastsShadows);
+                    }
+
+                    continue;
+                }
+
+                var lightColorVec3 = new Vector3(light.Color.X, light.Color.Y, light.Color.Z);
+                var lightColor = lightColorVec3 * light.Intensity * 256.0f * 256.0f; // Scale by grid light power scale
+                output.Add((node.WorldTransform.Translation, lightColor));
             }
 
             foreach (var child in node.Children)
             {
-                CollectLightsFromNode(child, output);
+                CollectLightsFromNode(child, output, ref sun);
             }
         }
 
@@ -333,6 +353,7 @@ namespace Mana
         {
             var meshes = new List<ManaRenderMeshInstance>();
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
+            (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun = default;
 
             var collectStopwatch = Stopwatch.StartNew();
             // Separately scoped from the walk below because they fail differently: waiting on SceneLock means
@@ -358,7 +379,7 @@ namespace Mana
                     {
                         foreach (var child in scene.Children)
                         {
-                            CollectLightsFromNode(child, collectedLights);
+                            CollectLightsFromNode(child, collectedLights, ref sun);
                         }
                     }
                 }
@@ -417,7 +438,11 @@ namespace Mana
                 IrradianceSettings = IrradianceSettings.Clone(),
                 EnvironmentReflectionSource = EnvironmentReflectionSource.Clone(),
                 LightPositions = lightPositions,
-                LightColors = lightColors
+                LightColors = lightColors,
+                HasSun = sun.Found,
+                SunDirection = sun.Found ? sun.Direction : -Vector3.UnitY,
+                SunColor = sun.Found ? sun.Color : Vector4.One,
+                SunCastsShadows = sun.Found && sun.CastsShadows
             };
         }
 

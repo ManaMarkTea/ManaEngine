@@ -18,6 +18,7 @@ namespace Mana.Code.GameModes
         private bool _undoKeyWasDown;
         private bool _redoKeyWasDown;
         private bool _saveKeyWasDown;
+        private bool _deleteKeyWasDown;
 
         /// <summary>Remembered so a second window launches on the backend this one is running.</summary>
         private string? _requestedWebGpuBackend;
@@ -124,6 +125,7 @@ namespace Mana.Code.GameModes
                 _undoKeyWasDown = false;
                 _redoKeyWasDown = false;
                 _saveKeyWasDown = false;
+                _deleteKeyWasDown = false;
                 return;
             }
 
@@ -154,6 +156,17 @@ namespace Mana.Code.GameModes
             _undoKeyWasDown = undoKeyDown;
             _redoKeyWasDown = redoKeyDown;
             _saveKeyWasDown = saveKeyDown;
+
+            // Same "Delete Node" command the outliner's context menu and the inspector's delete button
+            // already use -- see SceneEditorOperations.DeleteNode.
+            var deleteKeyDown = keyboard.IsKeyPressed(Key.Delete);
+            if (canEdit && deleteKeyDown && !_deleteKeyWasDown)
+            {
+                var selection = Context.World.Selection;
+                Mana.Code.UI.SceneEditorOperations.DeleteNode(Context.World, selection, selection.SelectedNode);
+            }
+
+            _deleteKeyWasDown = deleteKeyDown;
         }
 
         /// <summary>What the play HUD reads out, so the controls are on screen rather than in a menu.</summary>

@@ -27,7 +27,8 @@ namespace ManaGraphics.Code.Graphics
             bool isTransparent = false,
             bool disableDepthWrite = false,
             CompareFunction depthCompare = CompareFunction.Less,
-            PrimitiveTopology primitiveTopology = PrimitiveTopology.TriangleList)
+            PrimitiveTopology primitiveTopology = PrimitiveTopology.TriangleList,
+            bool cullBackFaces = false)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
@@ -161,7 +162,14 @@ namespace ManaGraphics.Code.Graphics
                         // Procedural meshes do not currently guarantee a single winding
                         // convention. The lightning volume must retain both sides so the
                         // visible entry surface always performs the interior ray march.
-                        CullMode = CullMode.None
+                        //
+                        // cullBackFaces is the one exception, opted into only for OpacityMode.Blend
+                        // materials (glTF glass etc, see DrawSceneMesh): a single glass draw call has no
+                        // way to sort its own front and back faces against each other, so both surfaces
+                        // fight for the same pixel through the transparency. Culling the far surface --
+                        // exactly what real glass thickness would occlude anyway from outside -- removes
+                        // the fight instead of trying to order it.
+                        CullMode = cullBackFaces ? CullMode.Back : CullMode.None
                     },
                     Multisample = new MultisampleState
                     {
@@ -192,6 +200,10 @@ namespace ManaGraphics.Code.Graphics
 
         private void CreateSharedPipelineLayouts()
         {
+            // Must exist before the frame bind group below, which binds the shadow map array view and
+            // comparison sampler this creates as its own two extra entries.
+            CreateShadowMapResources();
+
             var samplerDescriptor = new SamplerDescriptor
             {
                 AddressModeU = AddressMode.Repeat,
@@ -245,10 +257,40 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
+            // Shadow map array (one layer per cascade) + comparison sampler, sampled by pbr_irradiance.wgsl
+            // alongside the frame uniform. Declared here (not group 2) so every existing pipeline layout
+            // that already includes group 0 gets them for free -- see CreateShadowMapResources.
+            var shadowMapBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 1,
+                Visibility = ShaderStage.Fragment,
+                Texture = new TextureBindingLayout
+                {
+                    SampleType = TextureSampleType.Depth,
+                    ViewDimension = TextureViewDimension.Dimension2DArray,
+                    Multisampled = false
+                }
+            };
+
+            var shadowSamplerBindGroupLayoutEntry = new BindGroupLayoutEntry
+            {
+                Binding = 2,
+                Visibility = ShaderStage.Fragment,
+                Sampler = new SamplerBindingLayout
+                {
+                    Type = SamplerBindingType.Comparison
+                }
+            };
+
+            var frameBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[3];
+            frameBindGroupLayoutEntries[0] = frameBindGroupLayoutEntry;
+            frameBindGroupLayoutEntries[1] = shadowMapBindGroupLayoutEntry;
+            frameBindGroupLayoutEntries[2] = shadowSamplerBindGroupLayoutEntry;
+
             var frameBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
             {
-                EntryCount = 1,
-                Entries = &frameBindGroupLayoutEntry
+                EntryCount = 3,
+                Entries = frameBindGroupLayoutEntries
             };
             _frameBindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &frameBindGroupLayoutDescriptor);
             if (_frameBindGroupLayout == null)
@@ -276,11 +318,26 @@ namespace ManaGraphics.Code.Graphics
                 Offset = 0,
                 Size = (ulong)sizeof(ManaWebGpuFrameUniform)
             };
+            var shadowMapBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 1,
+                TextureView = _shadowMapArrayView
+            };
+            var shadowSamplerBindGroupEntry = new BindGroupEntry
+            {
+                Binding = 2,
+                Sampler = _shadowSampler
+            };
+            var frameBindGroupEntries = stackalloc BindGroupEntry[3];
+            frameBindGroupEntries[0] = frameBindGroupEntry;
+            frameBindGroupEntries[1] = shadowMapBindGroupEntry;
+            frameBindGroupEntries[2] = shadowSamplerBindGroupEntry;
+
             var frameBindGroupDescriptor = new BindGroupDescriptor
             {
                 Layout = _frameBindGroupLayout,
-                EntryCount = 1,
-                Entries = &frameBindGroupEntry
+                EntryCount = 3,
+                Entries = frameBindGroupEntries
             };
             _frameBindGroup = _api.DeviceCreateBindGroup(_device, &frameBindGroupDescriptor);
             if (_frameBindGroup == null)
@@ -516,11 +573,13 @@ namespace ManaGraphics.Code.Graphics
             return ManaWebGpuCustomUniformSchemaCache.ResolveShaderFileNameOrDefault(shaderName);
         }
 
-        private RenderPipeline* GetOrCreatePipeline(string? shaderName, bool isTransparent = false, bool disableDepthWrite = false)
+        private RenderPipeline* GetOrCreatePipeline(
+            string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false)
         {
             shaderName ??= "ManaPbrShader";
-            
-            string pipelineKey = $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}";
+
+            string pipelineKey =
+                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}";
             if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
                 return (RenderPipeline*)cachedPipeline;
@@ -547,7 +606,9 @@ namespace ManaGraphics.Code.Graphics
             // Every material pipeline gets group 1 (per-material custom uniforms) available, whether
             // or not a given .wgsl file actually declares it — same "declare only what you use"
             // precedent already relied on for group 0's TransformUniform.
-            var pipeline = CreateDemoRenderPipeline(shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent, disableDepthWrite);
+            var pipeline = CreateDemoRenderPipeline(
+                shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent,
+                disableDepthWrite, cullBackFaces: cullBackFaces);
             _pipelines[pipelineKey] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");

@@ -27,6 +27,7 @@ namespace ManaGraphics.Code.Graphics
 
             _activeRenderScene = renderScene;
             CreateSharedPipelineLayouts();
+            CreateShadowPassResources();
             CreateHdrPostProcessor();
             
             // Pre-compile default pipeline
@@ -201,7 +202,11 @@ namespace ManaGraphics.Code.Graphics
             var pipeline = GetOrCreatePipeline(
                 sceneMesh.Instance.ShaderName,
                 sceneMesh.Instance.IsTransparent,
-                sceneMesh.Instance.DisableDepthWrite);
+                sceneMesh.Instance.DisableDepthWrite,
+                // Only real alpha-blended materials (glTF glass etc) self-cull -- not the intrinsically
+                // transparent shaders (water/liquid/lightning), which stay OpacityMode.Auto/Opaque at the
+                // material level and want both faces for their own volumetric/surface effects.
+                cullBackFaces: sceneMesh.Instance.OpacityMode == ManaOpacityMode.Blend);
             if (pipeline != null)
             {
                 _api.RenderPassEncoderSetPipeline(renderPass, pipeline);

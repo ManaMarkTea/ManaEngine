@@ -540,9 +540,24 @@ namespace ManaVoxel.Code.UI
             {
                 pawn.DisablePhysics();
                 pawn.Parent?.RemoveChild(pawn);
-                foreach (var scene in _context.World.Scenes)
+
+                // Spawning loads the character's glb via ManaWorld.LoadFromGltfMemory, which adds its own
+                // wrapper ManaScene holding just the pawn (see ManaSharpGltfLoader.LoadScene). Left behind,
+                // that scene has no children once the pawn above is gone but stays in world.Scenes forever
+                // -- which is what the outliner showed as a leftover "character" entry after Play stopped.
+                // Same cleanup ManaLevelLoader.AttachToParent already does when re-parenting a loaded node.
+                for (var i = _context.World.Scenes.Count - 1; i >= 0; i--)
                 {
-                    scene.Children.Remove(pawn);
+                    var scene = _context.World.Scenes[i];
+                    if (!scene.Children.Remove(pawn))
+                    {
+                        continue;
+                    }
+
+                    if (!ReferenceEquals(scene, _context.World.DefaultScene) && scene.Children.Count == 0)
+                    {
+                        _context.World.Scenes.RemoveAt(i);
+                    }
                 }
             }
 

@@ -3,11 +3,14 @@ struct VertexOutput {
     @location(0) color : vec4<f32>,
     @location(1) uv0 : vec2<f32>,
     @location(2) local_pos : vec3<f32>,
+    @location(3) world_position : vec3<f32>,
+    @location(4) world_normal : vec3<f32>,
 }
 
 #include "include/uniforms.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
+#include "include/shadows.wgsl"
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
 @group(1) @binding(1) var color_sampler : sampler;
 @group(1) @binding(2) var color_texture : texture_2d<f32>;
@@ -35,6 +38,8 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     output.color = color;
     output.uv0 = uv0;
     output.local_pos = position;
+    output.world_position = (object.model * vec4<f32>(position, 1.0)).xyz;
+    output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     return output;
 }
 
@@ -181,6 +186,20 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     colorVal = mix(colorVal, minorLineColor, minorLineMix);
     colorVal = mix(colorVal, lineColor, mainLineMix);
     colorVal = mix(colorVal, lineColor, 1.0 - smoothstep(0.0, 4.0 * lineThickness, aLineDist));
+
+    // Darkened, not blacked out, where the sun's shadow falls -- this room is a decorative,
+    // otherwise-unlit backdrop, not a PBR surface, so a soft multiply reads as "something is between the
+    // room and the light" without pretending this floor is really being lit at all. Gated on
+    // sun_direction.w (see mana_sun_shadow_factor's caller convention in pbr_irradiance.wgsl): without an
+    // active shadow-casting sun this frame, frame.cascade_view_projections can hold last frame's stale
+    // matrices, so skipping the sample entirely is what keeps a disabled/removed sun from leaving a
+    // ghost shadow behind.
+    var shadow = 1.0;
+    if (frame.sun_direction.w > 0.5) {
+        let sun_ndotl = max(dot(normalize(input.world_normal), normalize(-frame.sun_direction.xyz)), 0.0);
+        shadow = mana_sun_shadow_factor(input.world_position, sun_ndotl);
+    }
+    colorVal = vec4<f32>(colorVal.rgb * mix(0.35, 1.0, shadow), colorVal.a);
 
     return vec4<f32>(srgb_to_linear(colorVal.rgb), -1.0);
 }

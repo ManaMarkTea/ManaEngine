@@ -26,6 +26,20 @@ namespace Mana.Code.UI.ManaUi
         private IKeyboard? _keyboard;
         private bool _disposed;
 
+        /// <summary>
+        /// When this returns true, an incoming scroll notch is dropped instead of reaching ManaUI.
+        /// <para>
+        /// Scroll is delivered two ways in this engine: this bridge forwards Silk's <c>Scroll</c> EVENT to
+        /// whichever element has pointer capture or hover, while game code (e.g. the mesh-placement
+        /// preview's scroll-to-rotate) separately POLLS the same physical wheel each frame. Nothing about
+        /// either path knows the other exists, so a drag that leaves a panel row holding pointer capture
+        /// -- see UiInputRouter.InjectPointerWheel's <c>PointerCaptureTarget ?? HoveredElement</c> -- kept
+        /// scrolling that panel's list while the same notch also rotated the placement preview. The game
+        /// mode sets this once it knows a placement/rotation gesture wants the wheel for itself.
+        /// </para>
+        /// </summary>
+        public Func<bool>? SuppressScroll { get; set; }
+
         public ManaUiInputBridge(UiRoot root, IInputContext input)
         {
             ArgumentNullException.ThrowIfNull(root);
@@ -161,6 +175,11 @@ namespace Mana.Code.UI.ManaUi
 
         private void OnScroll(IMouse mouse, ScrollWheel scroll)
         {
+            if (SuppressScroll?.Invoke() == true)
+            {
+                return;
+            }
+
             _root.Input.InjectPointerWheel(new Vector2(scroll.X, scroll.Y), CurrentModifiers());
         }
 

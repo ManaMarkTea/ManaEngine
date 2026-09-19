@@ -1,4 +1,5 @@
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 
 namespace Mana.Code
 {
@@ -8,6 +9,11 @@ namespace Mana.Code
         public Vector4 Color { get; set; } = Colors.White;
         public Vector3 Direction { get; set; } = -Vector3.UnitY;
         public bool Enabled { get; set; } = true;
+
+        public ManaLightType LightType { get; set; } = ManaLightType.Point;
+
+        /// <summary>Only meaningful when <see cref="LightType"/> is Directional -- casts cascaded shadow maps.</summary>
+        public bool CastsShadows { get; set; }
 
         public ManaLightSourceComponent(ManaSceneNode owner) : base(owner)
         {
