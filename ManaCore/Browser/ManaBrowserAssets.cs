@@ -25,7 +25,7 @@ public static partial class ManaBrowserAssets
 
     /// <summary>
     /// Where the itch.io build's catalog points its blobs, now that the library itself is too large for
-    /// itch's browser-embed size cap (see tools/WebAssets/split_for_itch.py). A locally published build's
+    /// itch's browser-embed size cap (see Tools/WebAssets/split_for_itch.py). A locally published build's
     /// catalog still uses relative "AssetLibrary/..." URLs and is unaffected -- this only widens what the
     /// catalog is *allowed* to say, it does not change what a given build's catalog actually says.
     /// </summary>

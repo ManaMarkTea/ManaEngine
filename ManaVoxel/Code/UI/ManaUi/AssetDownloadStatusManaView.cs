@@ -6,7 +6,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// <summary>
     /// A small corner readout of ManaAssetCatalog's activity: what is downloading right now, and how much
     /// has come down this session. Native replacement for the browser build's own status text (see
-    /// tools/WebAssets/asset-downloads.js's status()) for the routine progress case; that script still
+    /// Tools/WebAssets/asset-downloads.js's status()) for the routine progress case; that script still
     /// owns surfacing a download failure, which this view does not attempt to duplicate.
     /// <para>
     /// ManaAssetCatalog.Current is null on desktop and stays null until a browser build initializes one,

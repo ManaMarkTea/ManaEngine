@@ -67,7 +67,7 @@ jobs:
         # AppBundle/AssetLibrary, and whatever it adds there rides along with everything else once
         # that step moves the library out to GitHub Pages.
         run: >
-          dotnet run --project tools/ThumbnailBaker --
+          dotnet run --project Tools/ThumbnailBaker --
           --app-bundle ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
 
       - name: Move the external asset library off the itch.io bundle
@@ -77,7 +77,7 @@ jobs:
         # and asset-downloads.js both already handle an absolute blob URL unchanged, so nothing
         # else about the build needs to know which host it ends up shipped to.
         run: >
-          python tools/WebAssets/split_for_itch.py
+          python Tools/WebAssets/split_for_itch.py
           --app-bundle ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
           --library-out pages-site/web-assets/AssetLibrary
           --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/

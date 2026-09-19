@@ -521,7 +521,7 @@ public static class MeshThumbnailChecks
     }
 
     /// <summary>
-    /// A pre-built preview (tools/ThumbnailBaker's own output) has to win over the live CPU/GPU render path
+    /// A pre-built preview (Tools/ThumbnailBaker's own output) has to win over the live CPU/GPU render path
     /// when both are possible, and has to be reachable even when the model itself has not been downloaded
     /// at all yet -- that instant-preview-before-the-full-download case is the entire point of baking one.
     /// </summary>

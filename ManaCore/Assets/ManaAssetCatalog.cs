@@ -62,7 +62,7 @@ public sealed class ManaAssetCatalog
                 : local;
             models.Add(reference);
 
-            // Pre-built by tools/ThumbnailBaker at publish time (see split_for_itch.py for the same idea
+            // Pre-built by Tools/ThumbnailBaker at publish time (see split_for_itch.py for the same idea
             // applied to blob urls); optional, so an older catalog with no baker run over it still works,
             // just without an instant preview before the model itself downloads.
             if (item.TryGetProperty("thumbnail", out var thumbnail) && thumbnail.GetString() is { Length: > 0 } thumbnailPath)
