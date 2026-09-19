@@ -122,7 +122,7 @@ namespace Mana
 
             Context.Window.Resize += _Window_Resize;
             CameraNode = new ManaSceneNode(context, Matrix4x4.Identity);
-            CameraNode.Position = new Vector3(20, 32, 90);
+            CameraNode.Position = new Vector3(6, 3, 10);
             CameraNode.Name = "Main Camera";
             MainCamera = new CameraComponent(CameraNode);
             CameraNode.Components.Add(MainCamera);

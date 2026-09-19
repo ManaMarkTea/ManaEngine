@@ -45,7 +45,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 
 // Must match VoxelEditorGameMode.cs's gridSize -- the whole-plane boundary tier and the UV
 // reconstruction below both assume a plane's 0..1 UV spans exactly this many world units.
-const RoomSize : f32 = 512.0;
+const RoomSize : f32 = 128.0;
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
@@ -70,7 +70,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let derivative = fwidth(uv);
 
     let aGrid = abs(fract(uv / RoomSize - 0.5) - 0.5) / (derivative / RoomSize);
-    let cGrid = abs(fract(uv / 1.0 - 0.5) - 0.5) / (derivative / 1.0);
+    let cGrid = abs(fract(uv / 0.1 - 0.5) - 0.5) / (derivative / 0.1);
 
     // How many world units one screen pixel covers here -- not straight-line camera distance, which
     // misses why a floor gets dense toward the horizon: a floor viewed at a grazing angle has a huge
@@ -101,7 +101,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // footprint starts growing, tapering off more and more the further out it goes -- so there is no
     // concentrated "hit" anywhere, just a gradual, ever-slowing approach toward the floor value. tau is
     // the characteristic distance: the curve is ~95% of the way to its floor by 3*tau, ~98% by 4*tau.
-    let fadeTau = 1.33;
+    let fadeTau = 0.33;
     let fadeT = 1.0 - exp(-pixelFootprint / fadeTau);
 
     // Fades every line tier -- sub-grid, main tile, and whole-plane boundary alike -- toward the FLOOR
@@ -139,7 +139,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // lines do, so it fades out first (a plain opacity fade -- there is no coarser sub-grid tier to hand
     // off to, so there is nothing to double). The whole-plane boundary line is left unfaded entirely --
     // one line at the room's edge is never dense.
-    let minorLineFade = 1.0 - smoothstep(0.15, 0.6, pixelFootprint);
+    let minorLineFade = 1.0 - smoothstep(0.015, 0.06, pixelFootprint);
 
     // The main tile lines don't just fade -- they double their spacing (8, 16, 32, ...) as the footprint
     // grows, the way a mipmap halves resolution instead of just fading a texture to grey. mainLod is
@@ -148,13 +148,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // that fraction. Because 16's lines are a subset of 8's (every other one, same phase), this reads as
     // the in-between lines fading out first while the ones that survive to the next tier stay full
     // strength -- exactly "fade out every 2nd one" -- rather than the whole tier dimming uniformly.
-    let mainBaseSize = 8.0;
+    let mainBaseSize = 1.0;
 
     // The footprint at which the first doubling begins -- NOT mainBaseSize itself. That would only start
     // doubling once a pixel already spanned an entire 8-unit tile, which in practice never happens at any
     // distance this editor's camera reaches (measured against the same pixelFootprint the sub-grid fades
     // over, which tops out around 0.6), so the LOD was permanently stuck at 0 with no visible effect.
-    let mainLodOnset = 1.2;
+    let mainLodOnset = 0.15;
     let mainLod = log2(max(pixelFootprint / mainLodOnset, 1.0));
     let mainLodFloor = floor(mainLod);
     let mainLodFrac = mainLod - mainLodFloor;
@@ -163,7 +163,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let bGrid0 = abs(fract(uv / mainSpacing0 - 0.5) - 0.5) / (derivative / mainSpacing0);
     let bGrid1 = abs(fract(uv / mainSpacing1 - 0.5) - 0.5) / (derivative / mainSpacing1);
 
-    let fillMod = floor(uv / 8.0);
+    let fillMod = floor(uv / mainBaseSize);
     let oddness = fract((fillMod.x + fillMod.y) / 2.0) * 2.0;
 
     var colorVal = mix(fillEven, fillOdd, smoothstep(0.0, 1.0, oddness));

@@ -145,10 +145,17 @@ namespace ManaUI
         // quads; ManaUiDockDemo pushes these two into their material whenever the theme changes.
 
         /// <summary>Base tint of the 3D viewport's ground-plane grid -- the checkerboard cells.</summary>
-        public Vector4 GridFloor { get; set; } = UiColor.FromHex("#141518");
+        // Lifted off near-black (was #141518): the checkerboard's fixed 0.9645 odd/even ratio and the
+        // sub-grid's fixed 15% line-tint blend (see grid.wgsl/grid.frag) are both small relative
+        // differences, and 8-bit sRGB crushes small differences into invisibility down near 0 -- the same
+        // percentage lands as a visible step once the floor isn't sitting at the very bottom of the range.
+        public Vector4 GridFloor { get; set; } = UiColor.FromHex("#1C1F26");
 
         /// <summary>Tint of the grid lines drawn over <see cref="GridFloor"/>.</summary>
-        public Vector4 GridLine { get; set; } = UiColor.FromHex("#3A3D43");
+        // Brighter and cooler than the old #3A3D43: the 0.1-unit sub-grid only ever blends in 15% of this
+        // colour (a dim tint, by design -- see grid.wgsl's minorLineColor comment), so it has to be
+        // noticeably bright on its own for that diluted result to still read against GridFloor.
+        public Vector4 GridLine { get; set; } = UiColor.FromHex("#6C7686");
 
         /// <summary>
         /// Multiplier on grid line width. 1 leaves the base thickness alone; a theme whose lines are meant

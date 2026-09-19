@@ -832,11 +832,18 @@ namespace ManaGraphics.Code.Graphics
 
             _api.RenderPassEncoderEnd(toneMapRenderPass);
 
+            var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _window.FramebufferSize);
+
             var commandBufferDescriptor = new CommandBufferDescriptor();
             var submitStopwatch = Stopwatch.StartNew();
             var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
             _api.QueueSubmit(_queue, 1, &commandBuffer);
             _api.SurfacePresent(_surface);
+
+            if (pendingScreenshotCopy is { } encodedScreenshotCopy)
+            {
+                FinishPendingScreenshotReadback(encodedScreenshotCopy);
+            }
 
             if (!_loggedFirstPresent)
             {

@@ -48,7 +48,7 @@ namespace Mana
         public Vector3[] ViewAxes { get; internal set; } = new Vector3[3];
 
 
-        float _MovementSpeed = 200;
+        float _MovementSpeed = 50;
         public float MovementSpeed
         {
             get => _MovementSpeed;

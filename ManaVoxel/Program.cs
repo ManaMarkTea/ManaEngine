@@ -47,7 +47,8 @@ namespace Mana
 
                 var game = new VoxelEditorGameMode(backendKind)
                 {
-                    StartupLevelPath = launchOptions.EditLevelPath
+                    StartupLevelPath = launchOptions.EditLevelPath,
+                    CommandFilePath = launchOptions.CommandFilePath
                 };
 #if !MANA_BROWSER
                 if (backendKind == ManaGraphicsBackendKind.WebGpu)

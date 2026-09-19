@@ -35,7 +35,7 @@ namespace Mana.Code.GameModes
         private const string ManaWindowTitle = "Mana";
         // The demo grid room's full width/depth -- see the matching comment where the room is built for
         // why this can't just change there alone.
-        private const float GridSize = 512.0f;
+        private const float GridSize = 128.0f;
 
         private readonly VoxelEditorViewModel _viewModel = new();
         private readonly PlaceSearchNavigator _navigator = new();
@@ -2605,6 +2605,7 @@ namespace Mana.Code.GameModes
             // marks loading finished -- so IsLoading is still true there, and every level operation guards
             // on exactly that. This method's first call is the first frame that is genuinely past loading.
             OpenStartupLevelIfRequested();
+            TickCommandFileIfRequested();
 
             UpdatePlayModeShortcuts();
             UpdateEditShortcuts();

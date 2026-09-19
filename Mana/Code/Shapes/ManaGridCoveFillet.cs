@@ -75,7 +75,7 @@ namespace Mana
 
             // Same fallback colours as ManaQuad's grid planes -- overwritten once a UiTheme is available.
             // Left at the identity UV transform: the coordinates written below are already expressed in
-            // the same 512-unit (RoomSize) space grid.wgsl/grid.frag expect, so nothing needs remapping.
+            // the same 128-unit (RoomSize) space grid.wgsl/grid.frag expect, so nothing needs remapping.
             material.Albedo.Value = new Vector4(0.0784f, 0.0824f, 0.0941f, 1.0f);
             material.Emission.Value = new Vector4(0.2275f, 0.2392f, 0.2627f, 1.0f);
             material.EmissionStrength = 1.0;
@@ -94,13 +94,13 @@ namespace Mana
             // the R-by-R corner it replaces, and using the chord would squeeze the grid's tiles as they
             // wrap the curve.
             //
-            // Divide by 512, matching grid.wgsl/grid.frag's RoomSize/chunkSize constant (see
+            // Divide by 128, matching grid.wgsl/grid.frag's RoomSize/chunkSize constant (see
             // VoxelEditorGameMode's gridSize) -- not some other span. This used to be a room-size-256
             // layout; when the room doubled to a full 512-unit enclosure this divisor was missed, so the
             // cove's tile grid ran at exactly double the density/phase of the flat walls it joins.
             var arcLength = Radius * MathF.PI * 0.5f;
-            var crossUvSpan = arcLength / 512.0f;
-            var sweepUvSpan = SweepLength / 512.0f;
+            var crossUvSpan = arcLength / 128.0f;
+            var sweepUvSpan = SweepLength / 128.0f;
 
             var ring = new ManaGeometryVertex[2, Segments + 1];
 

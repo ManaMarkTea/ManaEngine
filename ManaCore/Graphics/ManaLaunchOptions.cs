@@ -14,12 +14,19 @@ namespace ManaCore.Graphics
         /// <summary>Set by <c>--level &lt;level&gt;</c>: start the editor with that level already open.</summary>
         public string? EditLevelPath { get; private init; }
 
+        /// <summary>
+        /// Set by <c>--command-file &lt;path&gt;</c>: drives the editor from a JSON script (camera moves,
+        /// screenshots, quit) instead of interactive input -- see ManaCommandRunner.
+        /// </summary>
+        public string? CommandFilePath { get; private init; }
+
         public static ManaLaunchOptions Parse(string[] args)
         {
             var graphicsBackend = ParseGraphicsBackend(Environment.GetEnvironmentVariable("MANA_GRAPHICS_BACKEND"));
             var webGpuBackend = Environment.GetEnvironmentVariable("MANA_WGPU_BACKEND");
             string? playLevelPath = null;
             string? editLevelPath = null;
+            string? commandFilePath = null;
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -53,6 +60,12 @@ namespace ManaCore.Graphics
                 if (TryReadOptionValue(args, ref i, "--level", out var editValue))
                 {
                     editLevelPath = editValue;
+                    continue;
+                }
+
+                if (TryReadOptionValue(args, ref i, "--command-file", out var commandFileValue))
+                {
+                    commandFilePath = commandFileValue;
                 }
             }
 
@@ -61,7 +74,8 @@ namespace ManaCore.Graphics
                 GraphicsBackend = graphicsBackend,
                 WebGpuBackend = string.IsNullOrWhiteSpace(webGpuBackend) ? null : webGpuBackend,
                 PlayLevelPath = string.IsNullOrWhiteSpace(playLevelPath) ? null : playLevelPath,
-                EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath
+                EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath,
+                CommandFilePath = string.IsNullOrWhiteSpace(commandFilePath) ? null : commandFilePath
             };
         }
 

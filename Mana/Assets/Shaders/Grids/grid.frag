@@ -27,8 +27,8 @@ layout(location = 0) out vec4 FragColor;
 #endif
 
 // Must match VoxelEditorGameMode.cs's gridSize -- see grid.wgsl's matching RoomSize constant.
-uniform vec2 chunkSize = vec2(512.0, 512.0);
-uniform vec2 tileSize = vec2(8.0, 8.0);
+uniform vec2 chunkSize = vec2(128.0, 128.0);
+uniform vec2 tileSize = vec2(1.0, 1.0);
 
 float chunkThickness = 4.0;
 float tileThickness = 2.0;
@@ -78,7 +78,7 @@ vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
 
     // Exponential rather than smoothstep -- see grid.wgsl's matching comment for why smoothstep's
     // steepest-in-the-middle slope read as the fade hitting hardest at mid-distance, and this doesn't.
-    float fadeTau = 1.33;
+    float fadeTau = 0.33;
     float fadeT = 1.0 - exp(-pixelFootprint / fadeTau);
 
     // Lines get thinner with distance, not just dimmer (below) -- every tier's antialiasing width is
@@ -92,10 +92,10 @@ vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
 
     vec2 halfChunkSize = chunkSize / 2.0;
     vec2 halfTileSize =  tileSize / 2.0;
-    vec2 halfCellSize = vec2(0.5, 0.5);
+    vec2 halfCellSize = vec2(0.05, 0.05);
 
     vec2 aGrid = abs(mod(uv - halfChunkSize, chunkSize) - halfChunkSize) / derivative;
-    vec2 cGrid = abs(mod(uv - halfCellSize, 1.0) - halfCellSize) / derivative;
+    vec2 cGrid = abs(mod(uv - halfCellSize, 0.1) - halfCellSize) / derivative;
 
     vec2 fillMod = floor(uv / tileSize);
 
@@ -123,13 +123,13 @@ vec4 gridColor( out vec4 fragColor, in vec2 fragCoord, in float d)
     // to). The main tile lines instead double their spacing (8, 16, 32, ...) as the footprint grows, the
     // way a mipmap halves resolution instead of fading a texture to grey -- see grid.wgsl's matching
     // comment for why that reads as "every 2nd line fades out" rather than the whole tier dimming evenly.
-    float minorLineFade = 1.0 - smoothstep(0.15, 0.6, pixelFootprint);
+    float minorLineFade = 1.0 - smoothstep(0.015, 0.06, pixelFootprint);
 
     float mainBaseSize = tileSize.x;
 
     // The footprint at which the first doubling begins -- NOT mainBaseSize itself; see grid.wgsl's
     // matching comment for why that was stuck permanently at LOD 0 with no visible effect.
-    float mainLodOnset = 1.2;
+    float mainLodOnset = 0.15;
     float mainLod = log2(max(pixelFootprint / mainLodOnset, 1.0));
     float mainLodFloor = floor(mainLod);
     float mainLodFrac = mainLod - mainLodFloor;

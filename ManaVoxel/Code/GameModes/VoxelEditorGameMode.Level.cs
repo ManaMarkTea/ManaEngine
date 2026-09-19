@@ -1,5 +1,6 @@
 using Mana.Code.Nodes;
 using ManaCore.Graphics;
+using ManaVoxel.Code.Automation;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.UI;
 using Silk.NET.Input;
@@ -25,6 +26,11 @@ namespace Mana.Code.GameModes
 
         /// <summary>Set by <c>--play</c>, so the editor opens straight into the level it was handed.</summary>
         public string? StartupLevelPath { get; set; }
+
+        /// <summary>Set by <c>--command-file</c>, so the editor is driven by a script instead of input.</summary>
+        public string? CommandFilePath { get; set; }
+
+        private ManaCommandRunner? _commandRunner;
 
         public bool IsPlaying => _playMode is { IsPlaying: true };
 
@@ -655,6 +661,23 @@ namespace Mana.Code.GameModes
             }
 
             OpenLevel(path);
+        }
+
+        /// <summary>Drives <see cref="_commandRunner"/> once <see cref="CommandFilePath"/> is set, one tick
+        /// per past-loading frame -- same guarantee <see cref="OpenStartupLevelIfRequested"/> relies on.</summary>
+        private void TickCommandFileIfRequested()
+        {
+            if (_commandRunner == null)
+            {
+                if (string.IsNullOrEmpty(CommandFilePath))
+                {
+                    return;
+                }
+
+                _commandRunner = new ManaCommandRunner(CommandFilePath, Context, _webGpuContext, OpenLevel);
+            }
+
+            _commandRunner.Tick();
         }
     }
 }
