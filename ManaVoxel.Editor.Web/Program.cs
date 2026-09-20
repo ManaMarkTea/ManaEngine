@@ -15,6 +15,10 @@ using ManaGraphics.Code.Graphics.Browser;
 Console.WriteLine("ManaVoxel.Editor.Web booting (browser-wasm)...");
 
 await ManaBrowserInterop.InitializeAsync();
+
+// F5 is Play in the editor. Left alone the browser would also refresh the page, throwing the level away, so the
+// page is told not to; the engine still receives the key.
+ManaBrowserInterop.SuppressBrowserKeys("F5");
 await ManaAudio.ManaAudioFactory.InitializeBrowserAsync();
 Console.WriteLine("Browser interop module loaded.");
 

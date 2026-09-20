@@ -60,6 +60,20 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("installInput", ModuleName)]
         internal static partial void InstallInput();
 
+        [JSImport("suppressKeys", ModuleName)]
+        private static partial void SuppressKeys(string codes);
+
+        /// <summary>
+        /// Stops the browser acting on these keys (<c>KeyboardEvent.code</c> values such as "F5") while still
+        /// delivering them to the engine -- for a key the page gives a job of its own that the browser would
+        /// otherwise also act on, like F5 refreshing the page it is meant to start Play in. Ctrl+F5 and Shift+F5
+        /// are the same key and are covered too. Call once, after <see cref="InitializeAsync"/>.
+        /// </summary>
+        public static void SuppressBrowserKeys(params string[] codes)
+        {
+            SuppressKeys(string.Join(",", codes));
+        }
+
         /// <summary>
         /// Browsers only grant pointer lock from inside a user-gesture handler, so this has to be
         /// called from a click/keypress the user actually made -- calling it on startup is silently

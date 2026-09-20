@@ -52,10 +52,22 @@ export function observeResize() {
 // Keys the browser would otherwise act on itself (space scrolls the page, arrows scroll, Tab
 // moves focus away) get preventDefault'd while the canvas is the active surface -- otherwise
 // holding W to walk also scrolls the document. F-keys and browser shortcuts are deliberately
-// left alone so devtools/refresh still work.
+// left alone by default so devtools/refresh still work; a host that gives one of them a job of its
+// own (the editor's F5 is Play) asks for it with suppressKeys -- the key still reaches the engine.
 const SUPPRESSED_KEYS = new Set([
     'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab',
 ]);
+
+// Adds keys (KeyboardEvent.code values, comma separated) the browser must not act on. Called from C#
+// as a single string because that is what a JSImport can pass without marshalling an array.
+export function suppressKeys(codes) {
+    for (const code of String(codes).split(',')) {
+        const trimmed = code.trim();
+        if (trimmed) {
+            SUPPRESSED_KEYS.add(trimmed);
+        }
+    }
+}
 
 // A dead runtime throws on every export call, and mousemove fires constantly: without this a crashed
 // boot buries the real error under thousands of "runtime already exited" lines.
