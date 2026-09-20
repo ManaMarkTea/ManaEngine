@@ -453,7 +453,13 @@ namespace Mana.Code.Nodes
             return null;
         }
 
-        /// <summary><see cref="GetComponent{T}"/> in the shape that reads well in an <c>if</c>.</summary>
+        /// <summary>The component a <see cref="ManaComponentReference"/> on this node points at, or null.</summary>
+        public T? GetComponent<T>(ManaComponentReference reference) where T : class
+        {
+            return reference.Resolve<T>(this);
+        }
+
+        /// <summary><see cref="GetComponent{T}()"/> in the shape that reads well in an <c>if</c>.</summary>
         public bool TryGetComponent<T>(out T component) where T : class
         {
             component = GetComponent<T>()!;

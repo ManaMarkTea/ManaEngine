@@ -106,6 +106,19 @@ namespace ManaVoxel.Code.Levels
                 }
             };
 
+        private static ManaComponent? NthOfType(ManaSceneNode node, Type type, int index)
+        {
+            foreach (var component in node.Components)
+            {
+                if (type.IsInstanceOfType(component) && index-- == 0)
+                {
+                    return component;
+                }
+            }
+
+            return null;
+        }
+
         public static List<ManaLevelScript>? Capture(ManaSceneNode node)
         {
             List<ManaLevelScript>? scripts = null;
@@ -122,6 +135,7 @@ namespace ManaVoxel.Code.Levels
                 scripts.Add(new ManaLevelScript
                 {
                     Type = definition.Type,
+                    Name = string.IsNullOrWhiteSpace(component.Label) ? null : component.Label,
                     Properties = ManaLevelComponentPropertyBag.Capture(component, definition.ComponentType)
                 });
             }
@@ -131,7 +145,12 @@ namespace ManaVoxel.Code.Levels
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
-        public static bool AddToNode(ManaSceneNode node, ManaLevelScript script)
+        /// <param name="occurrence">
+        /// Which of its kind this script is on the node, counting from zero. For a type a node may only have one of,
+        /// it is ignored in practice; for a type that can repeat without <c>AllowMultiple</c> (trigger volumes), it
+        /// picks which existing component receives the properties, so several round-trip in order.
+        /// </param>
+        public static bool AddToNode(ManaSceneNode node, ManaLevelScript script, int occurrence = 0)
         {
             var definition = Definitions.FirstOrDefault(definition =>
                 string.Equals(definition.Type, script.Type, StringComparison.OrdinalIgnoreCase));
@@ -146,12 +165,17 @@ namespace ManaVoxel.Code.Levels
             ManaComponent? component;
             lock (node.Context.World.SceneLock)
             {
-                component = definition.AllowMultiple ? null : node.Components.FirstOrDefault(definition.ComponentType.IsInstanceOfType);
+                component = definition.AllowMultiple ? null : NthOfType(node, definition.ComponentType, occurrence);
                 if (component == null)
                 {
                     component = definition.Create(node);
                     node.Components.Add(component);
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(script.Name))
+            {
+                component.Label = script.Name;
             }
 
             ManaLevelComponentPropertyBag.Apply(component, definition.ComponentType, script.Properties);
@@ -185,6 +209,13 @@ namespace ManaVoxel.Code.Levels
                     value,
                     property.PropertyType,
                     ManaLevel.SerializerOptions);
+
+                // A value that serialises to null (a reference to nothing) is the default, not a setting.
+                if (document.RootElement.ValueKind == JsonValueKind.Null)
+                {
+                    continue;
+                }
+
                 properties[JsonName(property)] = document.RootElement.Clone();
             }
 

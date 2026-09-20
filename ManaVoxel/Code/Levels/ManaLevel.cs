@@ -66,7 +66,7 @@ namespace ManaVoxel.Code.Levels
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(), new ManaLevelVector3Converter() }
+            Converters = { new JsonStringEnumConverter(), new ManaLevelVector3Converter(), new ManaComponentReferenceConverter() }
         };
 
         public string ToJson() => JsonSerializer.Serialize(this, SerializerOptions);
@@ -221,6 +221,9 @@ namespace ManaVoxel.Code.Levels
     public sealed class ManaLevelScript
     {
         public string Type { get; set; } = string.Empty;
+
+        /// <summary>The name a person gave this component, when they did; see <c>ManaComponent.Label</c>.</summary>
+        public string? Name { get; set; }
 
         public Dictionary<string, JsonElement> Properties { get; set; } = new();
     }

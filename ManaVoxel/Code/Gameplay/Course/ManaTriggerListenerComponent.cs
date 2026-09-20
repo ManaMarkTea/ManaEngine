@@ -25,10 +25,28 @@ namespace ManaVoxel.Code.Gameplay.Course
     public abstract class ManaTriggerListenerComponent : ManaComponent
     {
         private TriggerVolumeComponent? _trigger;
+        private ManaComponentReference _triggerSource;
 
         protected ManaTriggerListenerComponent(ManaSceneNode owner) : base(owner)
         {
             _trigger = FindOrCreateTrigger();
+        }
+
+        /// <summary>
+        /// Which trigger volume on the node to listen to. Left empty it uses the first one, which is what nearly
+        /// every node wants; point it at another when a node has several volumes and this piece belongs to one.
+        /// </summary>
+        [ComponentReference(typeof(TriggerVolumeComponent))]
+        public ManaComponentReference TriggerSource
+        {
+            get => _triggerSource;
+            set
+            {
+                _triggerSource = value;
+
+                // Found again on next use, and at the start of play.
+                _trigger = null;
+            }
         }
 
         /// <summary>The volume this listens to, found on the node -- or created, if it has none.</summary>
@@ -141,6 +159,11 @@ namespace ManaVoxel.Code.Gameplay.Course
             // loading in the background attaches nodes before it has finished with them).
             lock (Owner.Context.World.SceneLock)
             {
+                if (Owner.GetComponent<TriggerVolumeComponent>(_triggerSource) is { } chosen)
+                {
+                    return chosen;
+                }
+
                 if (Owner.TryGetComponent<TriggerVolumeComponent>(out var existing))
                 {
                     // A trigger that came from the level has no idea what it is for; borrow this piece's colour.

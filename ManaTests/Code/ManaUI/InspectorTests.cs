@@ -343,6 +343,36 @@ public static class InspectorChecks
         var pieceLabels = FindAll<TextBlock>(view).Select(t => t.Text.Replace(" ", string.Empty).ToLowerInvariant()).ToList();
         Check("a hazard on a node appears in its inspector", pieceHeaders.Any(h => h != null && h.Contains("Hazard", StringComparison.OrdinalIgnoreCase)),
             string.Join(" | ", pieceHeaders));
+        Check("a piece offers a picker for which trigger it listens to", pieceLabels.Contains("triggersource"), string.Join(", ", pieceLabels.Distinct().Take(30)));
+        pieceNode.Components.OfType<ManaVoxel.Code.Gameplay.Course.HazardComponent>().First().Label = "Deadly Floor";
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("a named component's section says so", FindAll<Expander>(view).Any(e => e.Header == "Hazard - Deadly Floor"),
+            string.Join(" | ", FindAll<Expander>(view).Select(e => e.Header)));
+        pieceNode.Components.OfType<ManaVoxel.Code.Gameplay.Course.HazardComponent>().First().Label = null;
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("and goes back to its plain heading when the name is cleared", FindAll<Expander>(view).Any(e => e.Header == "Hazard"));
+        // The trigger picker follows names given while it is on screen.
+        var twoNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Two Volumes" };
+        var listener = new ManaVoxel.Code.Gameplay.Course.HazardComponent(twoNode);
+        twoNode.Components.Add(listener);
+        var extraVolume = new ManaVoxel.Code.Gameplay.Course.TriggerVolumeComponent(twoNode);
+        twoNode.Components.Add(extraVolume);
+        scene.Children.Add(twoNode);
+        world.Selection.SelectedNode = twoNode;
+        root.UpdateLayout(new Vector2(420, 900));
+        var pickers = FindAll<ComboBox>(view).Where(c => c.Items.Any(item => item?.ToString() == "(automatic)")).ToList();
+        Check("the trigger picker lists the node's volumes, unnamed at first",
+            pickers.Count == 1 && pickers[0].Items.Select(item => item?.ToString()).SequenceEqual(new[] { "(automatic)", "Trigger Volume #1", "Trigger Volume #2" }),
+            string.Join(" | ", pickers.SelectMany(c => c.Items.Select(item => item?.ToString()))));
+        Mana.ManaComponentReference.Rename(extraVolume, "Back Door");
+        root.UpdateLayout(new Vector2(420, 900));
+        root.UpdateLayout(new Vector2(420, 900));
+        var afterRename = FindAll<ComboBox>(view).Where(c => c.Items.Any(item => item?.ToString() == "(automatic)")).SelectMany(c => c.Items.Select(item => item?.ToString())).ToList();
+        Check("and shows a volume by its name as soon as it has one, without rebuilding the panel",
+            afterRename.Contains("Back Door (Trigger Volume)"), string.Join(" | ", afterRename));
+        world.Selection.SelectedNode = pieceNode;
+        root.UpdateLayout(new Vector2(420, 900));
+
         Check("and the volume is a section of its own, not part of the hazard's", pieceHeaders.Any(h => h == "Trigger Volume"), string.Join(" | ", pieceHeaders));
         Check("with its volume and damage to edit",
             new[] { "size", "offset", "damage", "kills", "flavor" }.All(name => pieceLabels.Contains(name)),
@@ -448,7 +478,8 @@ public static class InspectorChecks
                 MathF.Abs(strength.Value - 0.125f) < 0.001f, strength.Value.ToString("F3"));
         }
 
-        var caption = FindAll<TextBox>(reflected).FirstOrDefault(b => b is not NumericBox);
+        // Not simply the first text box: every component's header carries one for its name.
+        var caption = FindAll<TextBox>(reflected).FirstOrDefault(b => b is not NumericBox && b.Text == "hello");
         Check("a string property gets a text box", caption?.Text == "hello", caption?.Text ?? "none");
 
         // A Vector4 named like a colour gets a swatch, matching what the shader-uniform editor does.

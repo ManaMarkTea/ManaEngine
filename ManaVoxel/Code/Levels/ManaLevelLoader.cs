@@ -538,9 +538,14 @@ namespace ManaVoxel.Code.Levels
                 return;
             }
 
+            // A node can carry two scripts of one type (two trigger volumes), so each is told which of its kind it is:
+            // the first Trigger script belongs to the node's first trigger, the second to its second.
+            var occurrences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (var script in entry.Scripts)
             {
-                ManaLevelComponentScripts.AddToNode(node, script);
+                occurrences.TryGetValue(script.Type, out var occurrence);
+                occurrences[script.Type] = occurrence + 1;
+                ManaLevelComponentScripts.AddToNode(node, script, occurrence);
             }
         }
 

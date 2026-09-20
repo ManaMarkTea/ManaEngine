@@ -10,6 +10,14 @@ namespace Mana
 
         public Vector3 Position { get; set; }
 
+        /// <summary>
+        /// The name a person gave this component, or null. Separate from <see cref="ManaObject.Name"/>, which every
+        /// component has and which defaults to its class name: this is for telling apart two components of one type on
+        /// a node ("Front Door" and "Back Door" triggers), it is saved with the level, and a
+        /// <see cref="ManaComponentReference"/> uses it in place of a position when there is one.
+        /// </summary>
+        public string? Label { get; set; }
+
 
         public ManaSceneNode Owner { get; set; }
         public ManaComponent(ManaSceneNode owner) : base(owner.Context)

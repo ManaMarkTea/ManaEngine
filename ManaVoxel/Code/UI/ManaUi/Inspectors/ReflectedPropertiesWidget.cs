@@ -1,4 +1,5 @@
 using System.Reflection;
+using Mana;
 using ManaUI;
 
 namespace ManaVoxel.Code.UI.ManaUi.Inspectors
@@ -108,7 +109,88 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 || type == typeof(Vector2)
                 || type == typeof(Vector3)
                 || type == typeof(Vector4)
+                || type == typeof(ManaComponentReference)
                 || type.IsEnum;
+        }
+
+        /// <summary>
+        /// A drop-down of the other components on the same node -- "(automatic)" first, for no explicit choice -- for a
+        /// <see cref="ManaComponentReference"/> property. Only components of the kind the property's
+        /// <see cref="ComponentReferenceAttribute"/> names are listed, and never the subject itself. Two of one kind
+        /// are told apart by number, in the order they sit on the node.
+        /// </summary>
+        private static UiElement ComponentPicker(ManaComponent self, PropertyInfo property, Func<object?> read, Action<object?> write)
+        {
+            var required = property.GetCustomAttribute<ComponentReferenceAttribute>()?.RequiredType ?? typeof(ManaComponent);
+
+            // What the list offers right now. Worked out again on every poll: names are given and changed while this
+            // panel is on screen, and a list built once when the panel was created kept showing a component by the
+            // name it had then -- or by "Trigger Volume #1" long after it was called something else.
+            (List<ManaComponent?> Candidates, List<string> Labels) Snapshot()
+            {
+                var candidates = new List<ManaComponent?> { null };
+                var labels = new List<string> { "(automatic)" };
+
+                foreach (var component in self.Owner.Components)
+                {
+                    if (ReferenceEquals(component, self) || !required.IsInstanceOfType(component))
+                    {
+                        continue;
+                    }
+
+                    var kind = ComponentDisplayName.For(component.GetType());
+                    var sameKind = candidates.Count(other => other != null && other.GetType() == component.GetType());
+                    var ofThisKind = self.Owner.Components.Count(other => !ReferenceEquals(other, self) && other.GetType() == component.GetType());
+                    candidates.Add(component);
+
+                    // A named component is told apart by its name; unnamed ones by number when there are several.
+                    labels.Add(!string.IsNullOrWhiteSpace(component.Label)
+                        ? $"{component.Label} ({kind})"
+                        : ofThisKind == 1 ? kind : $"{kind} #{sameKind + 1}");
+                }
+
+                return (candidates, labels);
+            }
+
+            var (options, names) = Snapshot();
+            var refreshing = false;
+
+            int SelectedIndex()
+            {
+                var target = read() is ManaComponentReference reference
+                    ? reference.Resolve<ManaComponent>(self.Owner)
+                    : null;
+                var index = options.FindIndex(candidate => ReferenceEquals(candidate, target));
+                return index < 0 ? 0 : index;
+            }
+
+            var combo = new ComboBox().Options(names.ToArray());
+            combo.SelectedIndex = SelectedIndex();
+            combo.SelectionChanged += (_, index) =>
+            {
+                if (refreshing || combo.IsApplyingBinding || index < 0 || index >= options.Count)
+                {
+                    return;
+                }
+
+                write(ManaComponentReference.To(options[index]));
+            };
+
+            combo.BindPolled(c => c.SelectedIndex, () =>
+            {
+                var (freshOptions, freshNames) = Snapshot();
+                if (!freshNames.SequenceEqual(names) || !freshOptions.SequenceEqual(options))
+                {
+                    options = freshOptions;
+                    names = freshNames;
+                    refreshing = true;
+                    combo.SetItems(names.ToArray());
+                    refreshing = false;
+                }
+
+                return SelectedIndex();
+            });
+            return combo;
         }
 
         private static UiElement Editor(object subject, PropertyInfo property)
@@ -141,6 +223,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 catch (ArgumentException)
                 {
                 }
+            }
+
+            if (type == typeof(ManaComponentReference) && subject is ManaComponent self)
+            {
+                return ComponentPicker(self, property, Read, Write);
             }
 
             if (type == typeof(bool))

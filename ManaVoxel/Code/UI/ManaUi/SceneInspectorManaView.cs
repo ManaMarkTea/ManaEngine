@@ -295,6 +295,25 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             var actions = new StackPanel().Horizontal(inspector.Theme.Spacing);
+
+            // A name for telling apart two components of one type on a node. Empty means "unnamed"; the class name
+            // stays the fallback, and is shown as the hint so the box says what it is for.
+            var nameBox = new TextBox()
+                .Value(component.Label ?? string.Empty)
+                .Hint("name")
+                .Width(120.0f);
+            nameBox.OnCommitted(text =>
+            {
+                if (!nameBox.IsApplyingBinding)
+                {
+                    // Through Rename, so anything on the node that points at this component keeps pointing at it.
+                    ManaComponentReference.Rename(component, text);
+                }
+            });
+            nameBox.BindPolled(b => b.Text, () => component.Label ?? string.Empty);
+            nameBox.WithTooltip("A name for this component, to tell it from another of the same type on this node.");
+            actions.Children.Add(nameBox);
+
             if (selected)
                 actions.Children.Add(new TextBlock().Text("✅").CenterV().WithTooltip("Selected"));
             actions.Children.Add(OpenSourceButton(component, inspector.Theme));
@@ -310,6 +329,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ContentPadding = new Thickness(0.0f, 8.0f, 0.0f, 4.0f),
                 Content = content
             }.WithTooltip(ComponentInheritance.Describe(component.GetType()));
+
+            // The name follows the box: renaming a component retitles its section without rebuilding the panel.
+            group.BindPolled(g => g.Header, () => ComponentInheritance.Title(component));
             sections.Children.Add(InspectorFrame(group, inspector.Theme, selected));
         }
 

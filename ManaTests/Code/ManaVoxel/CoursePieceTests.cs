@@ -859,6 +859,124 @@ public static class CoursePieceChecks
             && lookupNode.TryGetComponent<TriggerVolumeComponent>(out var foundTrigger) && ReferenceEquals(foundTrigger, firstTrigger));
         Check("and finds one by a base type too", lookupNode.GetComponent<ManaComponent>() != null);
 
+        // ---------------------------------------------------------------- pointing at another component on the same node
+        var pointing = CreateCourse();
+        var pointNode = new ManaSceneNode(pointing.Context, Matrix4x4.Identity) { Name = "Two Volumes" };
+        var volumeA = new TriggerVolumeComponent(pointNode) { Size = new Vector3(2.0f, 2.0f, 2.0f) };
+        var volumeB = new TriggerVolumeComponent(pointNode) { Size = new Vector3(2.0f, 2.0f, 2.0f), Offset = new Vector3(20.0f, 0.0f, 0.0f) };
+        pointNode.Components.Add(volumeA);
+        pointNode.Components.Add(volumeB);
+        pointing.World.DefaultScene.Children.Add(pointNode);
+
+        Check("a reference to the first of its kind is just the type name", ManaComponentReference.To(volumeA).Key == "TriggerVolumeComponent");
+        Check("and to a later one carries its position among that kind", ManaComponentReference.To(volumeB).Key == "TriggerVolumeComponent#1");
+        Check("it resolves back to the very component",
+            ReferenceEquals(ManaComponentReference.To(volumeB).Resolve<TriggerVolumeComponent>(pointNode), volumeB)
+            && ReferenceEquals(pointNode.GetComponent<TriggerVolumeComponent>(ManaComponentReference.To(volumeA)), volumeA));
+        Check("a reference to nothing resolves to nothing", ManaComponentReference.None.Resolve<TriggerVolumeComponent>(pointNode) == null && !ManaComponentReference.None.IsSet);
+        Check("as does one whose target is gone",
+            new ManaComponentReference("TriggerVolumeComponent#5").Resolve<TriggerVolumeComponent>(pointNode) == null
+            && new ManaComponentReference("NoSuchComponent").Resolve<TriggerVolumeComponent>(pointNode) == null);
+        Check("or is not the kind asked for", ManaComponentReference.To(volumeA).Resolve<HazardComponent>(pointNode) == null);
+
+        // A hazard on that node listens to the first volume unless told otherwise.
+        var choosy = new HazardComponent(pointNode) { Kills = true };
+        pointNode.Components.Add(choosy);
+        Check("a piece listens to the first volume by default", ReferenceEquals(choosy.Trigger, volumeA));
+        choosy.TriggerSource = ManaComponentReference.To(volumeB);
+        Check("and to another when pointed at it", ReferenceEquals(choosy.Trigger, volumeB));
+
+        pointing.World.BeginPlay();
+        pointing.Step(Vector3.Zero);
+        Check("so standing in the first volume does nothing to it", pointing.State.Deaths == 0, $"{pointing.State.Deaths} deaths");
+        pointing.Step(new Vector3(20.0f, 0.0f, 0.0f));
+        Check("while standing in the one it is pointed at does", pointing.State.Deaths == 1, $"{pointing.State.Deaths} deaths");
+        pointing.World.EndPlay();
+
+        // saved and loaded, and left out when it points at nothing
+        var pointSaved = ManaLevelCapture.CaptureScene(pointing.World, pointing.World.DefaultScene, "Pointing");
+        pointNode.LevelSource = ManaLevelSource.Group;
+        pointSaved = ManaLevelCapture.CaptureScene(pointing.World, pointing.World.DefaultScene, "Pointing");
+        var pointScripts = pointSaved.Nodes.Single(node => node.Name == "Two Volumes").Scripts!;
+        var hazardScript = pointScripts.Single(script => script.Type == HazardComponent.ScriptType);
+        Check("the choice is saved with the piece, by name", hazardScript.Properties.TryGetValue("triggerSource", out var savedSource)
+            && savedSource.GetString() == "TriggerVolumeComponent#1", string.Join(",", hazardScript.Properties.Keys));
+
+        var reloadWorld = CreateCourse();
+        var reloadNode = ManaLevelLoader.Load(ManaLevel.FromJson(pointSaved.ToJson()), reloadWorld.Context, reloadWorld.World.DefaultScene, replaceAuthoredNodes: false).Nodes[0];
+        var reloadedHazard = reloadNode.GetComponent<HazardComponent>()!;
+        var reloadedVolumes = reloadNode.GetComponents<TriggerVolumeComponent>();
+        Check("and read back pointing at the same volume", reloadedVolumes.Count == 2 && ReferenceEquals(reloadedHazard.Trigger, reloadedVolumes[1]),
+            $"{reloadedVolumes.Count} volumes");
+
+        var plainCourse = CreateCourse();
+        plainCourse.Place(Vector3.Zero, node => { node.Name = "Plain Coin"; node.LevelSource = ManaLevelSource.Group; return new CollectibleComponent(node); });
+        var plainScripts = ManaLevelCapture.CaptureScene(plainCourse.World, plainCourse.World.DefaultScene, "Plain").Nodes.Single(node => node.Name == "Plain Coin").Scripts!;
+        Check("a piece that points at nothing does not save the property at all",
+            !plainScripts.Single(script => script.Type == CollectibleComponent.ScriptType).Properties.ContainsKey("triggerSource"));
+
+        // ---------------------------------------------------------------- naming components
+        var naming = CreateCourse();
+        var nameNode = new ManaSceneNode(naming.Context, Matrix4x4.Identity) { Name = "Doors" };
+        var front = new TriggerVolumeComponent(nameNode) { Label = "Front Door", Size = new Vector3(2.0f, 2.0f, 2.0f) };
+        var back = new TriggerVolumeComponent(nameNode) { Label = "Back Door", Size = new Vector3(2.0f, 2.0f, 2.0f), Offset = new Vector3(20.0f, 0.0f, 0.0f) };
+        nameNode.Components.Add(front);
+        nameNode.Components.Add(back);
+        naming.World.DefaultScene.Children.Add(nameNode);
+
+        Check("a component has no name until it is given one", new TriggerVolumeComponent(nameNode).Label == null);
+        Check("a reference to a named component uses its name", ManaComponentReference.To(back).Key == "@Back Door");
+        Check("and finds it by that name", ReferenceEquals(nameNode.GetComponent<TriggerVolumeComponent>(ManaComponentReference.To(back)), back));
+        var backReference = ManaComponentReference.To(back);
+        nameNode.Components.Reverse();
+        Check("even after the components have been reordered", ReferenceEquals(backReference.Resolve<TriggerVolumeComponent>(nameNode), back));
+        Check("where a reference by position would now point at the other one",
+            !ReferenceEquals(new ManaComponentReference("TriggerVolumeComponent#1").Resolve<TriggerVolumeComponent>(nameNode), back));
+        nameNode.Components.Reverse();
+        Check("a name nobody has is not found", new ManaComponentReference("@Side Door").Resolve<TriggerVolumeComponent>(nameNode) == null);
+
+        var picky = new HazardComponent(nameNode) { Kills = true, TriggerSource = ManaComponentReference.To(back) };
+        nameNode.Components.Add(picky);
+        Check("and an unnamed component is still pointed at by its kind", ManaComponentReference.To(picky).Key == "HazardComponent");
+        nameNode.LevelSource = ManaLevelSource.Group;
+        var namedSave = ManaLevelCapture.CaptureScene(naming.World, naming.World.DefaultScene, "Doors").Nodes.Single(node => node.Name == "Doors");
+        var savedTriggers = namedSave.Scripts!.Where(script => script.Type == TriggerVolumeComponent.ScriptType).ToList();
+        Check("names are saved with their scripts", savedTriggers.Select(script => script.Name).SequenceEqual(new[] { "Front Door", "Back Door" }),
+            string.Join(",", savedTriggers.Select(script => script.Name)));
+        Check("and a piece's choice is saved by name", namedSave.Scripts!.Single(script => script.Type == HazardComponent.ScriptType).Properties["triggerSource"].GetString() == "@Back Door");
+
+        var namedWorld = CreateCourse();
+        var namedNode = ManaLevelLoader.Load(ManaLevel.FromJson(new ManaLevel { Nodes = { namedSave } }.ToJson()), namedWorld.Context, namedWorld.World.DefaultScene, replaceAuthoredNodes: false).Nodes[0];
+        var namedTriggers = namedNode.GetComponents<TriggerVolumeComponent>();
+        Check("both come back with their names", namedTriggers.Select(trigger => trigger.Label).SequenceEqual(new[] { "Front Door", "Back Door" }),
+            string.Join(",", namedTriggers.Select(trigger => trigger.Label)));
+        Check("and the piece still listens to the one it was pointed at", ReferenceEquals(namedNode.GetComponent<HazardComponent>()!.Trigger, namedTriggers[1]));
+
+        var unnamedSave = ManaLevelCapture.CaptureScene(plainCourse.World, plainCourse.World.DefaultScene, "Unnamed").Nodes.Single(node => node.Name == "Plain Coin");
+        Check("a component with no name saves none", unnamedSave.Scripts!.All(script => script.Name == null));
+
+        // ---------------------------------------------------------------- renaming a component keeps what points at it pointing at it
+        var renaming = CreateCourse();
+        var renameNode = new ManaSceneNode(renaming.Context, Matrix4x4.Identity) { Name = "Rename" };
+        var firstVolume = new TriggerVolumeComponent(renameNode);
+        var secondVolume = new TriggerVolumeComponent(renameNode);
+        renameNode.Components.Add(firstVolume);
+        renameNode.Components.Add(secondVolume);
+        var follower = new HazardComponent(renameNode) { TriggerSource = ManaComponentReference.To(secondVolume) };
+        renameNode.Components.Add(follower);
+        Check("a piece pointed at an unnamed volume records it by position", follower.TriggerSource.Key == "TriggerVolumeComponent#1");
+
+        ManaComponentReference.Rename(secondVolume, "Back");
+        Check("naming that volume moves the piece's pointer to the name", follower.TriggerSource.Key == "@Back" && ReferenceEquals(follower.Trigger, secondVolume),
+            follower.TriggerSource.Key);
+        ManaComponentReference.Rename(secondVolume, "Rear");
+        Check("and so does renaming it again", follower.TriggerSource.Key == "@Rear" && ReferenceEquals(follower.Trigger, secondVolume));
+        ManaComponentReference.Rename(secondVolume, "  ");
+        Check("clearing the name goes back to pointing by position", follower.TriggerSource.Key == "TriggerVolumeComponent#1" && secondVolume.Label == null
+            && ReferenceEquals(follower.Trigger, secondVolume), follower.TriggerSource.Key);
+        ManaComponentReference.Rename(firstVolume, "Front");
+        Check("renaming a volume nothing points at leaves the others alone", follower.TriggerSource.Key == "TriggerVolumeComponent#1" && firstVolume.Label == "Front");
+
         // ---------------------------------------------------------------- the trigger volume is its own component
         var split = CreateCourse();
         var splitHazard = split.Place(Vector3.Zero, node => new HazardComponent(node));

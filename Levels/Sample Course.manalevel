@@ -4,13 +4,13 @@
   "name": "Sample Course",
   "camera": {
     "position": [
-      67.47618,
-      66.622444,
-      110.91399
+      50.056774,
+      11.60346,
+      55.99221
     ],
     "rotation": [
-      -0.8248003,
-      -0.7872022,
+      -0.69680053,
+      -0.18880221,
       0
     ]
   },
@@ -910,7 +910,7 @@
               ],
               "rotation": [
                 0,
-                0,
+                3.1415927,
                 0
               ],
               "scale": [
@@ -2349,7 +2349,7 @@
               ],
               "rotation": [
                 0,
-                0,
+                3.1415927,
                 0
               ],
               "scale": [
@@ -2478,7 +2478,7 @@
               ],
               "rotation": [
                 0,
-                -1.5707964,
+                1.5707964,
                 0
               ],
               "scale": [
@@ -2639,6 +2639,7 @@
               "scripts": [
                 {
                   "type": "Trigger",
+                  "name": "Apple",
                   "properties": {
                     "size": [
                       1.6,
@@ -2656,7 +2657,8 @@
                   "type": "Collectible",
                   "properties": {
                     "value": 1,
-                    "spinDegreesPerSecond": 120
+                    "spinDegreesPerSecond": 120,
+                    "triggerSource": "@Apple"
                   }
                 },
                 {
@@ -4568,7 +4570,7 @@
               ],
               "rotation": [
                 0,
-                0,
+                3.1415927,
                 0
               ],
               "scale": [
@@ -6692,7 +6694,7 @@
               ],
               "rotation": [
                 0,
-                -1.5707964,
+                1.5707964,
                 0
               ],
               "scale": [
@@ -6796,7 +6798,7 @@
               ],
               "rotation": [
                 0,
-                -1.5707964,
+                1.5707964,
                 0
               ],
               "scale": [

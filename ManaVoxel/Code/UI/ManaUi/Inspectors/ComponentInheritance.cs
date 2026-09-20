@@ -22,6 +22,16 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return chain;
         }
 
+        /// <summary>
+        /// A component's heading in the inspector: its kind, and its name after a dash when it has been given one --
+        /// <c>Trigger Volume - Front Door</c> -- so two of the same kind read differently.
+        /// </summary>
+        public static string Title(ManaComponent component)
+        {
+            var kind = ComponentDisplayName.For(component.GetType());
+            return string.IsNullOrWhiteSpace(component.Label) ? kind : $"{kind} - {component.Label}";
+        }
+
         /// <summary>The chain as tooltip text, one class per line, each indented under the one it derives from.</summary>
         public static string Describe(Type type)
         {
