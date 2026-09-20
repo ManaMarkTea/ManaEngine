@@ -89,7 +89,8 @@ namespace Mana.Code.GameModes
                     Context.World.GameState,
                     Restart,
                     () => Context.Window.Close(),
-                    "Quit"));
+                    "Quit"),
+                ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
         }
 
         public override void Load()

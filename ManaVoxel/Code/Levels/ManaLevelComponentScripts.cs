@@ -68,6 +68,18 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = SpringPadComponent.ScriptType,
+                    ComponentType = typeof(SpringPadComponent),
+                    Create = node => new SpringPadComponent(node)
+                },
+                new()
+                {
+                    Type = BoostPadComponent.ScriptType,
+                    ComponentType = typeof(BoostPadComponent),
+                    Create = node => new BoostPadComponent(node)
+                },
+                new()
+                {
                     Type = MovingPlatformComponent.ScriptType,
                     ComponentType = typeof(MovingPlatformComponent),
                     Create = node => new MovingPlatformComponent(node)

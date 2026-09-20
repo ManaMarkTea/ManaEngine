@@ -9,7 +9,10 @@ namespace ManaVoxel.Code.Automation
     /// </summary>
     public sealed class ManaCommand
     {
-        /// <summary>One of: open_level, wait, move_camera, select_node, screenshot, quit.</summary>
+        /// <summary>
+        /// One of: open_level, wait, move_camera, select_node, screenshot, quit, play, stop_play, profile_reset,
+        /// profile_dump (writes the frame profiler's per-scope report and average frame rate to <see cref="Path"/>).
+        /// </summary>
         public string Type { get; set; } = "";
 
         /// <summary>open_level: level path, relative to the working directory.</summary>

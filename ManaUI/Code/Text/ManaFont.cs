@@ -21,6 +21,12 @@ namespace ManaUI
         private readonly Dictionary<int, ManaGlyph> _colorGlyphs = new();
         private readonly float _scale;
 
+        // What the font's tables say never changes, but asking is expensive -- kerning reads the GPOS table and
+        // a glyph lookup walks the cmap -- and text layout asks for both per character, every frame. Caching the
+        // answers took a large slice out of the time the editor spends drawing its own UI.
+        private readonly Dictionary<long, int> _kerningUnits = new();
+        private readonly Dictionary<int, bool> _hasGlyph = new();
+
         private readonly List<ManaFont> _fallbacks = new();
 
         private GCHandle _dataPin;
@@ -251,7 +257,14 @@ namespace ManaUI
 
         public float GetKerning(int left, int right)
         {
-            return StbTrueType.stbtt_GetCodepointKernAdvance(_info, left, right) * _scale / RenderScale;
+            var key = ((long)left << 32) | (uint)right;
+            if (!_kerningUnits.TryGetValue(key, out var units))
+            {
+                units = StbTrueType.stbtt_GetCodepointKernAdvance(_info, left, right);
+                _kerningUnits[key] = units;
+            }
+
+            return units * _scale / RenderScale;
         }
 
         /// <summary>Advance width of a string on a single line, kerning included.</summary>
@@ -324,7 +337,13 @@ namespace ManaUI
         /// </summary>
         public bool HasGlyph(int codepoint)
         {
-            return StbTrueType.stbtt_FindGlyphIndex(_info, codepoint) != 0;
+            if (!_hasGlyph.TryGetValue(codepoint, out var has))
+            {
+                has = StbTrueType.stbtt_FindGlyphIndex(_info, codepoint) != 0;
+                _hasGlyph[codepoint] = has;
+            }
+
+            return has;
         }
 
         /// <summary>

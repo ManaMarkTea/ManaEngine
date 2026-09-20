@@ -481,8 +481,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             var preview = new UiImage { Fit = UiImageFit.Contain };
             preview.Width = ThumbnailDisplaySize;
             preview.Height = ThumbnailDisplaySize;
-            preview.BindPolled(image => image.Width, () => ThumbnailDisplaySize);
-            preview.BindPolled(image => image.Height, () => ThumbnailDisplaySize);
 
             // Required, not optional: a UV is normalised against the atlas, so it carries neither the image's
             // size nor its aspect ratio. Without this the Contain fit has nothing to fit and draws nothing --
@@ -494,29 +492,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             // readable tile forever rather than a hole.
             var badge = FormatBadge(theme, path);
 
-            preview.BindPolled(image => image.Visibility, () =>
-            {
-                RequestThumbnailIfAvailable();
-                return MeshThumbnailImages.HasImage(path) ? Visibility.Visible : Visibility.Collapsed;
-            });
-            preview.BindPolled(image => image.SourceUv, () =>
-            {
-                RequestThumbnailIfAvailable();
-                return MeshThumbnailImages.UvFor(path);
-            });
-            badge.BindPolled(element => element.Visibility, () =>
-                MeshThumbnailImages.HasImage(path) ? Visibility.Collapsed : Visibility.Visible);
-
+            // The thumbnail's visibility, its UV and the badge that stands in for it are all settled in one throttled
+            // sync at the end of this method -- see there for why.
             // No byte-level progress is available -- ManaAssetCatalog awaits a browser fetch whole rather
             // than streaming it in observable chunks -- so this is indeterminate rather than a real
             // percentage. It still answers "is this one actually doing something", which a static format
             // badge does not.
             var downloadProgress = new ProgressBar { Thickness = 3.0f, IsIndeterminate = true }.Bottom();
-            downloadProgress.BindPolled(bar => bar.Visibility, () =>
-                ManaCore.Assets.ManaAssetCatalog.Current?.IsDownloading(path) == true
-                    ? Visibility.Visible
-                    : Visibility.Collapsed);
-            downloadProgress.BindPolled(bar => bar.ElapsedSeconds, () => (float)ManaTime.GlobalTime.GameTime.TotalSeconds);
+
 
             var caption = new TextBlock()
                 .Text(entry.DisplayName)
@@ -542,7 +525,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             // but how long the download took is not knowable until it finishes, well after this tile was
             // built. A plain assignment would freeze the tooltip at whatever was true the moment the grid
             // was populated.
-            tile.BindPolled(t => t.Tooltip, () => TooltipFor(entry));
 
             // Wrapped in the same MeshAssetRow the list rows used, so dragging a tile into the scene still
             // works -- that gesture is half of what this panel is for, and the Place button's tooltip promises
@@ -551,13 +533,78 @@ namespace ManaVoxel.Code.UI.ManaUi
             draggable.Clicked += (_, _) => library.SelectedAsset = path;
             draggable.Width = TileWidth;
             draggable.Height = TileHeight;
-            draggable.BindPolled(row => row.Width, () => TileWidth);
-            draggable.BindPolled(row => row.Height, () => TileHeight);
 
             // Mirrored onto the outer element: it is what the pointer meets first, so a tooltip only on the
             // button inside would be shadowed by the drag handler wrapping it.
-            draggable.BindPolled(row => row.Tooltip, () => TooltipFor(entry));
+            // One polled binding per tile does all of the tile's slow-changing work, a few times a second, by setting
+            // the properties directly. There is a tile for every model in every pack -- a thousand or more -- and
+            // they used to carry about ten polled bindings each, every one read on every frame; that was the biggest
+            // share of what the editor spent drawing its own UI, and it grew with every asset pack added. The
+            // binding writes nothing itself (it always answers null), so it is only a way to be called each frame,
+            // and the throttle makes nearly all of those calls free. A thumbnail turning up, a tile resizing with
+            // the slider or a tooltip refreshing a tenth of a second late goes unnoticed. Selection is the one
+            // thing that is not throttled: a click should light its tile at once.
+            var sync = Throttled<object?>(() =>
+            {
+                RequestThumbnailIfAvailable();
+
+                var hasImage = MeshThumbnailImages.HasImage(path);
+                preview.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
+                badge.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
+                if (hasImage)
+                {
+                    preview.SourceUv = MeshThumbnailImages.UvFor(path);
+                }
+
+                preview.Width = ThumbnailDisplaySize;
+                preview.Height = ThumbnailDisplaySize;
+                draggable!.Width = TileWidth;
+                draggable.Height = TileHeight;
+
+                var downloading = ManaCore.Assets.ManaAssetCatalog.Current?.IsDownloading(path) == true;
+                downloadProgress.Visibility = downloading ? Visibility.Visible : Visibility.Collapsed;
+                if (downloading)
+                {
+                    downloadProgress.ElapsedSeconds = (float)ManaTime.GlobalTime.GameTime.TotalSeconds;
+                }
+
+                var tooltip = TooltipFor(entry);
+                tile.Tooltip = tooltip;
+                draggable.Tooltip = tooltip;
+                return null;
+            });
+            tile.BindPolled(t => t.Tag, () => sync());
             return draggable;
+        }
+
+        /// <summary>
+        /// How often a tile does its slow-changing work (thumbnail, size, tooltip, download state). Zero does it
+        /// on every poll, which is what tests want: they drive the layout a handful of times in a few
+        /// microseconds and expect each pass to see the change they just made.
+        /// </summary>
+        public static long ThumbnailPollMilliseconds { get; set; } = 120;
+
+        /// <summary>
+        /// Wraps a polled read so it is worked out at most once per <paramref name="milliseconds"/> and the last
+        /// answer returned in between. Each wrapper starts at a random point in its interval, so a thousand tiles
+        /// do not all come due on the same frame and turn the saving into a periodic hitch.
+        /// </summary>
+        public static Func<T> Throttled<T>(Func<T> read)
+        {
+            var next = long.MinValue;
+            T last = default!;
+            return () =>
+            {
+                var milliseconds = ThumbnailPollMilliseconds;
+                var now = Environment.TickCount64;
+                if (milliseconds <= 0 || next == long.MinValue || now >= next)
+                {
+                    last = read();
+                    next = now + milliseconds - Random.Shared.NextInt64(0, Math.Max(1, milliseconds / 2));
+                }
+
+                return last;
+            };
         }
 
         private static bool IsThumbnailRequestVisible(UiElement? element)

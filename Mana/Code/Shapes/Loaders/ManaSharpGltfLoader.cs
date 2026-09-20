@@ -367,7 +367,17 @@ namespace Mana.Code.Shapes.Loaders
             outputMaterial.AlphaCutoff = material.AlphaCutoff;
 
             BindColorChannel(material, "BaseColor", outputMaterial.Albedo);
-            BindColorChannel(material, "Emissive", outputMaterial.Emission);
+            var readEmissive = BindColorChannel(material, "Emissive", outputMaterial.Emission);
+
+            // ManaMaterial's own emission strength starts at zero, which silences the emissive colour or map a
+            // file carries. A glTF that asks to glow -- the lighthouse's lamp, a lantern -- means it at full
+            // strength. Only when the file actually said so: a material's default emission colour is not black,
+            // so switching the strength on for everything would light every model up in it.
+            var emissive = outputMaterial.Emission.Value;
+            if (readEmissive && (outputMaterial.Emission.TextureValue != null || (emissive.X + emissive.Y + emissive.Z) > 1e-4f))
+            {
+                outputMaterial.EmissionStrength = 1.0;
+            }
             BindScalarChannel(material, "MetallicRoughness", "MetallicFactor", outputMaterial.Metallic, defaultValue: 1f);
             BindScalarChannel(material, "MetallicRoughness", "RoughnessFactor", outputMaterial.Roughness, defaultValue: 1f);
             // glTF packs metallic (B) and roughness (G) into one texture -- the same texture is bound
@@ -387,20 +397,22 @@ namespace Mana.Code.Shapes.Loaders
         }
 
         // BaseColor/Emissive: an RGBA factor plus an optional texture that modulates it.
-        private void BindColorChannel(Material material, string channelKey, ManaTextureVector4 target)
+        private bool BindColorChannel(Material material, string channelKey, ManaTextureVector4 target)
         {
             var channel = material.FindChannel(channelKey);
             if (channel == null)
             {
-                return;
+                return false;
             }
 
-            if (TryReadColorParameters(channel.Value.Parameters, out var color))
+            var read = TryReadColorParameters(channel.Value.Parameters, out var color);
+            if (read)
             {
                 target.Value = color;
             }
 
             target.TextureValue = LoadChannelTexture(material, channelKey, channel.Value.Texture);
+            return read;
         }
 
         /// <summary>
@@ -427,6 +439,13 @@ namespace Mana.Code.Shapes.Loaders
             if (parameters[0].Value is Vector4 packed)
             {
                 color = packed;
+                return true;
+            }
+
+            // The emissive channel comes through as an RGB triple rather than RGBA.
+            if (parameters[0].Value is Vector3 packedRgb)
+            {
+                color = new Vector4(packedRgb, 1.0f);
                 return true;
             }
 

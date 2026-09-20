@@ -153,7 +153,7 @@ namespace ManaVoxel.Code.Gameplay.Course
                 return;
             }
 
-            state.Damage(Damage, Owner.Name);
+            state.Damage(Damage, Owner.Name, ManaDeathFlavor.Enemy);
         }
 
         /// <summary>Whether a player whose feet are at <paramref name="feetY"/> is landing on a head at <paramref name="topY"/>.</summary>

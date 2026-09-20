@@ -258,6 +258,30 @@ namespace Mana.Code.Nodes
 
         // Moves the pawn and, when physics-driven, the capsule with it -- setting Position alone would
         // be overwritten by the body's pose on the very next frame.
+        private float _boostSeconds;
+        private float _boostMultiplier = 1.0f;
+
+        /// <summary>Whether a speed boost (a boost pad) is running out its time.</summary>
+        public bool IsBoosted => _boostSeconds > 0.0f;
+
+        /// <summary>The factor on top speed right now: the boost while there is one, 1 otherwise.</summary>
+        public float SpeedScale => _boostSeconds > 0.0f ? _boostMultiplier : 1.0f;
+
+        /// <summary>
+        /// Speeds the pawn up for a while. Takes the stronger of the boost it already has and the new one, and
+        /// the longer of their times, so running over two pads in a row never makes it slower.
+        /// </summary>
+        public void Boost(float multiplier, float seconds)
+        {
+            if (seconds <= 0.0f || multiplier <= 1.0f)
+            {
+                return;
+            }
+
+            _boostMultiplier = _boostSeconds > 0.0f ? MathF.Max(_boostMultiplier, multiplier) : multiplier;
+            _boostSeconds = MathF.Max(_boostSeconds, seconds);
+        }
+
         /// <summary>Carries the pawn along with something it stands on, keeping whatever velocity it has.</summary>
         public void Carry(Vector3 delta)
         {
@@ -352,6 +376,11 @@ namespace Mana.Code.Nodes
         public override void UpdateTransform()
         {
             var deltaSeconds = (float)ManaTime.GlobalTime.DeltaTime.TotalSeconds;
+
+            if (_boostSeconds > 0.0f)
+            {
+                _boostSeconds = MathF.Max(0.0f, _boostSeconds - deltaSeconds);
+            }
 
             if (!LocomotionEnabled)
             {
@@ -533,9 +562,21 @@ namespace Mana.Code.Nodes
         // Take-off speed for the configured apex: v = sqrt(2 * g * h).
         public float GetJumpVelocity()
         {
-            var gravity = MathF.Abs(Context.Physics.Gravity.Y);
-            return MathF.Sqrt(2.0f * gravity * MathF.Max(JumpHeight, 0.0f));
+            return VelocityForHeight(JumpHeight);
         }
+
+        /// <summary>
+        /// The upward speed that carries this pawn to <paramref name="height"/> above where it leaves the
+        /// ground: v = sqrt(2 g h). What a jump uses for its own height, and what a spring pad uses for its.
+        /// A world with no physics (a headless one) has no gravity to read, so the editor's is assumed.
+        /// </summary>
+        public float VelocityForHeight(float height)
+        {
+            var gravity = Context?.Physics != null ? MathF.Abs(Context.Physics.Gravity.Y) : DefaultGravity;
+            return MathF.Sqrt(2.0f * gravity * MathF.Max(height, 0.0f));
+        }
+
+        private const float DefaultGravity = 64.0f;
 
         private void StepPhysicsLocomotion(float deltaSeconds)
         {
@@ -590,7 +631,7 @@ namespace Mana.Code.Nodes
             var footPosition = body.FootPosition;
             var heading = ResolveHeading(footPosition, out var distanceToDestination, out var isDriveHeading);
 
-            var targetSpeed = WantsToRun ? RunSpeed : WalkSpeed;
+            var targetSpeed = (WantsToRun ? RunSpeed : WalkSpeed) * SpeedScale;
             var horizontal = new Vector3(velocity.X, 0.0f, velocity.Z);
 
             if (heading.HasValue)

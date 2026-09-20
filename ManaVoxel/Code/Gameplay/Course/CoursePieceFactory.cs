@@ -19,7 +19,9 @@ namespace ManaVoxel.Code.Gameplay.Course
             ("Hazard", CreateHazard),
             ("Goal", CreateGoal),
             ("Moving Platform", CreateMovingPlatform),
-            ("Enemy", CreateEnemy)
+            ("Enemy", CreateEnemy),
+            ("Spring Pad", CreateSpringPad),
+            ("Boost Pad", CreateBoostPad)
         };
 
         public static ManaSceneNode CreateCoin(ManaShapeFactory shapes, Vector3 position)
@@ -72,6 +74,29 @@ namespace ManaVoxel.Code.Gameplay.Course
             var node = shapes.AddCube(position + new Vector3(0.0f, half.Y, 0.0f), new Vector4(0.9f, 0.3f, 0.15f, 1.0f), half);
             node.Name = "Enemy";
             node.Components.Add(new EnemyComponent(node));
+            return node;
+        }
+
+        public static ManaSceneNode CreateSpringPad(ManaShapeFactory shapes, Vector3 position)
+        {
+            var node = shapes.AddDisk(position + new Vector3(0.0f, 0.15f, 0.0f), new Vector4(0.2f, 0.85f, 0.35f, 1.0f), new Vector3(1.2f, 0.15f, 1.2f));
+            node.Name = "Spring Pad";
+            node.Components.Add(new SpringPadComponent(node)
+            {
+                // The pad is a low disk, so its volume sits from the floor up rather than around the node.
+                Offset = new Vector3(0.0f, 0.4f, 0.0f)
+            });
+            return node;
+        }
+
+        public static ManaSceneNode CreateBoostPad(ManaShapeFactory shapes, Vector3 position)
+        {
+            var node = shapes.AddCube(position + new Vector3(0.0f, 0.05f, 0.0f), new Vector4(1.0f, 0.82f, 0.1f, 1.0f), new Vector3(1.4f, 0.05f, 1.6f));
+            node.Name = "Boost Pad";
+            node.Components.Add(new BoostPadComponent(node)
+            {
+                Offset = new Vector3(0.0f, 0.55f, 0.0f)
+            });
             return node;
         }
 

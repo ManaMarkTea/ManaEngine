@@ -42,9 +42,13 @@ namespace ManaUI
         {
             get
             {
-                if (!_sortDirty && _sorted != null)
+                // A clean cache is a clean cache whether it holds a sorted copy or nothing at all -- null means
+                // "no ZIndex anywhere, declaration order is paint order". Treating null as "not computed" made
+                // every call rescan every child, and Render asks for a child by index once per child, so a panel
+                // of n children cost n squared each frame.
+                if (!_sortDirty)
                 {
-                    return _sorted;
+                    return (IReadOnlyList<UiElement>?)_sorted ?? _items;
                 }
 
                 _sortDirty = false;

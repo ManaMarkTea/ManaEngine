@@ -133,6 +133,15 @@ namespace ManaUI
             _layout.Render(drawList, Bounds, color, VerticalAlignment.Top);
         }
 
+        // The font this element last resolved, and what it was resolved for. Looking a font up means a path
+        // lookup and a tuple hash, and every text element does it several times a frame; the answer only changes
+        // when the family, the size or the render scale does.
+        private ManaFont? _resolvedFont;
+        private UiRoot? _resolvedFor;
+        private string? _resolvedFamily;
+        private float _resolvedSize;
+        private float _resolvedScale;
+
         private ManaFont? ResolveFont()
         {
             var root = Root;
@@ -143,7 +152,23 @@ namespace ManaUI
 
             var family = _fontFamily ?? root.Theme.FontFamily;
             var size = LayoutHelper.IsAuto(_fontSize) ? root.Theme.FontSize : _fontSize;
-            return root.Fonts.Get(family, size, root.Scale);
+            var scale = root.Scale;
+
+            if (_resolvedFont != null
+                && ReferenceEquals(_resolvedFor, root)
+                && string.Equals(_resolvedFamily, family, StringComparison.Ordinal)
+                && _resolvedSize == size
+                && _resolvedScale == scale)
+            {
+                return _resolvedFont;
+            }
+
+            _resolvedFont = root.Fonts.Get(family, size, scale);
+            _resolvedFor = root;
+            _resolvedFamily = family;
+            _resolvedSize = size;
+            _resolvedScale = scale;
+            return _resolvedFont;
         }
     }
 }

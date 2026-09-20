@@ -35,6 +35,17 @@ namespace ManaUI
 
         private UiElement? _parent;
 
+        // Root and IsEffectivelyEnabled are asked for constantly -- by text drawing, by polled bindings, by hit
+        // testing -- and each answer is a walk up the whole chain of ancestors, dozens deep in the docked editor.
+        // The answers only change when the shape of the tree does, or an element is enabled or disabled, so they
+        // are remembered against one counter that any such change bumps. It is static because a change high in
+        // the tree alters the answer for everything under it, and the counter is what says so without visiting them.
+        private static int s_structureVersion;
+        private UiRoot? _rootCache;
+        private int _rootCacheVersion = -1;
+        private bool _enabledCache;
+        private int _enabledCacheVersion = -1;
+
         public UiElement? Parent
         {
             get => _parent;
@@ -47,6 +58,7 @@ namespace ManaUI
 
                 var oldRoot = Root;
                 _parent = value;
+                s_structureVersion++;
                 if (!ReferenceEquals(oldRoot, Root)) InvalidateSubtreeLayout();
 
                 if (value == null)
@@ -240,13 +252,26 @@ namespace ManaUI
                 if (_isEnabled != value)
                 {
                     _isEnabled = value;
+                    s_structureVersion++;
                     InvalidateVisual();
                 }
             }
         }
 
         /// <summary>False when this element or any ancestor is disabled.</summary>
-        public bool IsEffectivelyEnabled => _isEnabled && (Parent?.IsEffectivelyEnabled ?? true);
+        public bool IsEffectivelyEnabled
+        {
+            get
+            {
+                if (_enabledCacheVersion != s_structureVersion)
+                {
+                    _enabledCache = _isEnabled && (_parent?.IsEffectivelyEnabled ?? true);
+                    _enabledCacheVersion = s_structureVersion;
+                }
+
+                return _enabledCache;
+            }
+        }
 
         public float Opacity { get; set; } = 1.0f;
 
@@ -299,18 +324,27 @@ namespace ManaUI
         {
             get
             {
+                if (_rootCacheVersion == s_structureVersion)
+                {
+                    return _rootCache;
+                }
+
+                UiRoot? found = null;
                 var current = this;
                 while (current != null)
                 {
                     if (current is UiRoot root)
                     {
-                        return root;
+                        found = root;
+                        break;
                     }
 
-                    current = current.Parent;
+                    current = current._parent;
                 }
 
-                return null;
+                _rootCache = found;
+                _rootCacheVersion = s_structureVersion;
+                return found;
             }
         }
 

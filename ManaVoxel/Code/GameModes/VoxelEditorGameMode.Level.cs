@@ -399,10 +399,11 @@ namespace Mana.Code.GameModes
 
             try
             {
-                return !string.Equals(
+                // Cached for half a second: this is polled every frame and capturing the scene is not cheap.
+                return SceneDirtyCache.IsDirty(scene, () => !string.Equals(
                     scene.SavedLevelContentJson,
                     CaptureSceneContentJson(scene, scene.LevelPath),
-                    StringComparison.Ordinal);
+                    StringComparison.Ordinal));
             }
             catch (Exception exception)
             {
@@ -574,6 +575,7 @@ namespace Mana.Code.GameModes
         {
             scene.LevelPath = path;
             scene.SavedLevelContentJson = CaptureSceneContentJson(scene, path);
+            SceneDirtyCache.Invalidate(scene);
         }
 
         private string CaptureSceneContentJson(ManaScene scene, string path)
@@ -684,7 +686,18 @@ namespace Mana.Code.GameModes
                     return;
                 }
 
-                _commandRunner = new ManaCommandRunner(CommandFilePath, Context, _webGpuContext, OpenLevel);
+                _commandRunner = new ManaCommandRunner(
+                    CommandFilePath,
+                    Context,
+                    _webGpuContext,
+                    OpenLevel,
+                    on =>
+                    {
+                        if (on != IsPlaying)
+                        {
+                            TogglePlay();
+                        }
+                    });
             }
 
             _commandRunner.Tick();

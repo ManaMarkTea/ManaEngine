@@ -69,10 +69,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
         private static bool HasUnsavedChanges(ManaScene scene, ManaWorld world)
         {
-            return !string.Equals(
+            // Cached for half a second: this is polled every frame and capturing the scene is not cheap.
+            return SceneDirtyCache.IsDirty(scene, () => !string.Equals(
                 scene.SavedLevelContentJson,
                 ManaLevelCapture.CaptureSceneContentJson(world, scene, SceneLevelName(scene)),
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
         }
 
         private static string SceneLevelName(ManaScene scene)

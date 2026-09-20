@@ -296,7 +296,7 @@ public static class CoursePieceChecks
         hud.AddCoins(1);
         hud.Tick(75.5f);
         Check("coins, health and time show once the level has them",
-            hud.FormatHud() == "Coins 1/3   Health 3/3   Time 1:15.5", hud.FormatHud());
+            hud.FormatHud() == "Coins 1/3   💖💖💖   Time 1:15.5", hud.FormatHud());
 
         // ---------------------------------------------------------------- saved in a level
         var authoring = CreateCourse();
@@ -667,7 +667,9 @@ public static class CoursePieceChecks
         drowned.Place(Vector3.Zero, node => { node.Name = "Harbor Water"; return new HazardComponent(node) { Kills = true }; });
         drowned.World.BeginPlay();
         drowned.Step(Vector3.Zero);
-        Check("a killing hazard says so", drowned.State.Message == "Killed by Harbor Water", drowned.State.Message);
+        Check("a killing hazard records what killed you, for the death screen",
+            drowned.State.LastDeathCause == "Harbor Water" && drowned.State.IsShowingDeathScreen && drowned.State.Message.Length == 0,
+            $"{drowned.State.LastDeathCause} / '{drowned.State.Message}'");
 
         var beaten = CreateCourse();
         beaten.World.BeginPlay();
@@ -682,10 +684,11 @@ public static class CoursePieceChecks
         var fell = CreateCourse();
         fell.World.BeginPlay();
         fell.State.RegisterFall();
-        Check("falling out of the world says that", fell.State.Message == "Fell out of the world", fell.State.Message);
+        Check("falling out of the world is a death of its own kind",
+            fell.State.LastDeathFlavor == ManaDeathFlavor.Fall && fell.State.IsShowingDeathScreen, fell.State.LastDeathCause);
 
-        fell.Step(Far, (int)((ManaGameState.CauseMessageSeconds + 0.5f) / FrameSeconds));
-        Check("and the message goes again once it has been read", fell.State.Message.Length == 0, fell.State.Message);
+        fell.Step(Far, (int)((ManaGameState.DeathScreenSeconds + 0.5f) / FrameSeconds));
+        Check("and the death screen goes again after its time", !fell.State.IsShowingDeathScreen);
 
         var stomped = CreateCourse();
         var thug = stomped.Place(new Vector3(0.0f, 0.6f, 0.0f), node => { node.Name = "Yard Hog"; return new EnemyComponent(node) { Travel = Vector3.Zero }; });
@@ -693,6 +696,160 @@ public static class CoursePieceChecks
         stomped.Player.GroundHeight = 0.0f;
         stomped.Step(new Vector3(0.0f, 0.0f, 0.0f));
         Check("an enemy is named when it hurts", stomped.State.Message.Contains("Hurt by Yard Hog"), stomped.State.Message);
+
+        // ---------------------------------------------------------------- dying, and dying again straight away
+        var wade = CreateCourse();
+        wade.Place(Vector3.Zero, node => { node.Name = "Harbor Water"; return new HazardComponent(node) { Kills = true, Flavor = ManaDeathFlavor.Drowned }; });
+        wade.World.BeginPlay();
+        wade.Step(Vector3.Zero);
+        Check("the first touch of deadly water kills at once", wade.State.Deaths == 1 && wade.State.LastDeathFlavor == ManaDeathFlavor.Drowned);
+
+        // The respawn point is inside the water here, which is the worst case: the player is put straight back into it.
+        wade.Step(Vector3.Zero, (int)(0.2f / FrameSeconds));
+        Check("nothing kills them in the first moments after a respawn", wade.State.Deaths == 1, $"{wade.State.Deaths} deaths");
+
+        wade.Step(Vector3.Zero, (int)(0.3f / FrameSeconds));
+        Check("but deadly water does not wait out the long damage invulnerability -- it kills again as soon as the short grace is over",
+            wade.State.Deaths >= 2 && ManaGameState.RespawnGraceSeconds < ManaGameState.RespawnInvulnerableSeconds, $"{wade.State.Deaths} deaths");
+
+        // ---------------------------------------------------------------- the death screen
+        Check("a drowning gets a wave", ManaUiDeathScreen.Icon(ManaDeathFlavor.Drowned) == "🌊");
+        Check("and an enemy an ogre", ManaUiDeathScreen.Icon(ManaDeathFlavor.Enemy) == "👹");
+        Check("the cause line names what did it", ManaUiDeathScreen.CauseLine(ManaDeathFlavor.Drowned, "Harbor Water").Contains("Drowned in Harbor Water"));
+        Check("an unnamed cause is still a sentence", ManaUiDeathScreen.CauseLine(ManaDeathFlavor.Generic, "").Contains("Killed by something"));
+        Check("the quip depends on how you died",
+            ManaUiDeathScreen.Quip(ManaDeathFlavor.Drowned, 0) != ManaUiDeathScreen.Quip(ManaDeathFlavor.Fall, 0));
+        Check("and changes with each death, so it does not repeat a joke",
+            ManaUiDeathScreen.Quip(ManaDeathFlavor.Drowned, 1) != ManaUiDeathScreen.Quip(ManaDeathFlavor.Drowned, 2));
+        Check("nobody has a skull tally before they die", ManaUiDeathScreen.Tally(0).Length == 0);
+        Check("a few deaths are counted in skulls", ManaUiDeathScreen.Tally(3).StartsWith("💀💀💀"), ManaUiDeathScreen.Tally(3));
+        Check("and many are counted in a number", ManaUiDeathScreen.Tally(12).Contains("12") && !ManaUiDeathScreen.Tally(12).StartsWith("💀💀"));
+
+        Check("the red wash is not there before you have died or been hurt", ManaUiDeathScreen.WashOpacity(float.MaxValue, float.MaxValue) == 0.0f);
+        Check("it is strong just after a death", ManaUiDeathScreen.WashOpacity(0.1f, float.MaxValue) > 0.4f, $"{ManaUiDeathScreen.WashOpacity(0.1f, float.MaxValue)}");
+        Check("and fades", ManaUiDeathScreen.WashOpacity(2.0f, float.MaxValue) < ManaUiDeathScreen.WashOpacity(0.5f, float.MaxValue));
+        Check("being merely hurt flashes red too, more faintly",
+            ManaUiDeathScreen.WashOpacity(float.MaxValue, 0.0f) is > 0.1f and < 0.4f, $"{ManaUiDeathScreen.WashOpacity(float.MaxValue, 0.0f)}");
+        Check("the card fades in", ManaUiDeathScreen.CardOpacity(0.0f) == 0.0f && ManaUiDeathScreen.CardOpacity(0.5f) == 1.0f);
+        Check("and out before the screen ends", ManaUiDeathScreen.CardOpacity(ManaGameState.DeathScreenSeconds - 0.1f) < 0.5f
+            && ManaUiDeathScreen.CardOpacity(ManaGameState.DeathScreenSeconds + 1.0f) == 0.0f);
+        Check("it drops in from above and settles", ManaUiDeathScreen.SlideY(0.0f) < -20.0f && ManaUiDeathScreen.SlideY(1.0f) == 0.0f);
+        Check("the skulls arrive one after another",
+            ManaUiDeathScreen.SkullOpacity(0, 0.3f) > ManaUiDeathScreen.SkullOpacity(4, 0.3f) && ManaUiDeathScreen.SkullOpacity(4, 1.0f) == 1.0f);
+        Check("and the countdown runs from full to empty",
+            ManaUiDeathScreen.Countdown(0.0f) == 1.0f && ManaUiDeathScreen.Countdown(ManaGameState.DeathScreenSeconds) == 0.0f);
+
+        var deathState = new ManaGameState();
+        var deathRoot = new UiRoot(fonts);
+        var deathScreen = ManaUiDeathScreen.Build(deathRoot.Theme, deathState);
+        deathRoot.Content = deathScreen;
+        deathRoot.UpdateLayout(new Vector2(1280, 720));
+        var quiet = deathRoot.Render().Instances.Length;
+        deathState.Die("Harbor Water", ManaDeathFlavor.Drowned);
+        deathState.Tick(0.6f);
+        deathRoot.UpdateLayout(new Vector2(1280, 720));
+        var shown = deathRoot.Render().Instances.Length;
+        Check("the death screen is nothing at all until you die", quiet == 0, $"{quiet} things drawn");
+        Check("then it draws", shown > quiet + 3, $"{shown} things drawn");
+        Check("and never takes a click", deathRoot.HitTest(640.0f, 200.0f) == null);
+        deathState.Tick(ManaGameState.DeathScreenSeconds);
+        deathRoot.UpdateLayout(new Vector2(1280, 720));
+        Check("and is gone again afterwards", deathRoot.Render().Instances.Length == 0, $"{deathRoot.Render().Instances.Length} things drawn");
+
+        var flavored = new ManaLevel
+        {
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Deep Water", Kind = ManaLevelSourceKind.Group,
+                    Scripts = new List<ManaLevelScript>
+                    {
+                        new()
+                        {
+                            Type = HazardComponent.ScriptType,
+                            Properties =
+                            {
+                                ["kills"] = JsonSerializer.SerializeToElement(true),
+                                ["flavor"] = JsonSerializer.SerializeToElement("Drowned")
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var flavoredWorld = CreateCourse();
+        var flavoredLoad = ManaLevelLoader.Load(flavored, flavoredWorld.Context, flavoredWorld.World.DefaultScene, replaceAuthoredNodes: false);
+        Check("a hazard's death flavour is read from the level by name",
+            flavoredLoad.Nodes[0].GetComponents<HazardComponent>().FirstOrDefault() is { Flavor: ManaDeathFlavor.Drowned, Kills: true });
+
+        // ---------------------------------------------------------------- spring pads
+        var reference = CreateCourse();
+        Check("the speed that reaches a height is sqrt(2 g h)",
+            MathF.Abs(reference.Player.VelocityForHeight(9.0f) - MathF.Sqrt(2.0f * 64.0f * 9.0f)) < 0.01f);
+        Check("a jump is that speed for the jump's own height", MathF.Abs(reference.Player.GetJumpVelocity() - reference.Player.VelocityForHeight(reference.Player.JumpHeight)) < 0.001f);
+        Check("four times the height takes twice the speed", MathF.Abs(reference.Player.VelocityForHeight(12.0f) - 2.0f * reference.Player.VelocityForHeight(3.0f)) < 0.01f);
+
+        var spring = CreateCourse();
+        var pad = spring.Place(Vector3.Zero, node => new SpringPadComponent(node) { LaunchHeight = 9.0f });
+        spring.World.BeginPlay();
+        spring.Step(Far);
+        Check("a pad does nothing until someone steps on it", pad.LaunchCount == 0);
+        spring.Step(Vector3.Zero);
+        Check("stepping on it launches", pad.LaunchCount == 1, $"{pad.LaunchCount} launches");
+        Check("at the speed that reaches its height, well above an ordinary jump", pad.LastLaunchSpeed > spring.Player.GetJumpVelocity() * 1.5f,
+            $"{pad.LastLaunchSpeed:0.0} against a jump's {spring.Player.GetJumpVelocity():0.0}");
+        spring.Step(Vector3.Zero, 3);
+        Check("and squashes flat as it fires", pad.Owner.Scale.Y < 0.9f, $"{pad.Owner.Scale}");
+        Check("without firing again while it recovers", pad.LaunchCount == 1);
+        spring.Step(Far, 60);
+        Check("and springs back up", MathF.Abs(pad.Owner.Scale.Y - 1.0f) < 0.05f && MathF.Abs(pad.Owner.Scale.X - 1.0f) < 0.05f, $"{pad.Owner.Scale}");
+        spring.World.EndPlay();
+        Check("stopping play restores its shape", pad.Owner.Scale == Vector3.One);
+
+        // ---------------------------------------------------------------- boost pads
+        var boosting = CreateCourse();
+        var boostPad = boosting.Place(Vector3.Zero, node => new BoostPadComponent(node) { Multiplier = 1.6f, Seconds = 1.0f });
+        boosting.World.BeginPlay();
+        Check("nobody is boosted to begin with", !boosting.Player.IsBoosted && boosting.Player.SpeedScale == 1.0f);
+        boosting.Step(Vector3.Zero);
+        Check("running over a boost pad speeds the player up", boosting.Player.IsBoosted && MathF.Abs(boosting.Player.SpeedScale - 1.6f) < 0.001f,
+            $"x{boosting.Player.SpeedScale}");
+        Check("and says so", boosting.State.Message.Contains("boost", StringComparison.OrdinalIgnoreCase), boosting.State.Message);
+        boosting.Step(Far, (int)(1.3f / FrameSeconds));
+        Check("until it wears off", !boosting.Player.IsBoosted && boosting.Player.SpeedScale == 1.0f);
+
+        var stacking = CreateCourse();
+        stacking.Player.Boost(1.5f, 2.0f);
+        stacking.Player.Boost(1.3f, 5.0f);
+        Check("a weaker boost over a stronger one keeps the strength but not the shorter time",
+            MathF.Abs(stacking.Player.SpeedScale - 1.5f) < 0.001f);
+        stacking.Player.Boost(1.0f, 10.0f);
+        stacking.Player.Boost(2.0f, 0.0f);
+        Check("and a pad that would not speed you up, or not for any time, is ignored", MathF.Abs(stacking.Player.SpeedScale - 1.5f) < 0.001f);
+
+        // ---------------------------------------------------------------- what a shape's size means
+        // The generator that built the sample course assumed half-extents and every cube came out half the size it
+        // was meant to be, with hazard volumes (sized as intended) hanging out past them. Full extent is the
+        // convention -- it is what Bepu's Box, the level's collision size and every other bundled level use.
+        Vector3 ExtentOf(ManaMesh mesh)
+        {
+            var low = new Vector3(float.MaxValue);
+            var high = new Vector3(float.MinValue);
+            foreach (var position in mesh.GetOrCreateCpuData().Positions)
+            {
+                low = Vector3.Min(low, position);
+                high = Vector3.Max(high, position);
+            }
+
+            return high - low;
+        }
+
+        var extentCourse = CreateCourse();
+        var cubeExtent = ExtentOf(new ManaCube(extentCourse.Context, Vector4.One, new Vector3(13.5f, 0.05f, 11.0f)));
+        Check("a cube is as big as the size it is given, across", MathF.Abs(cubeExtent.X - 13.5f) < 0.01f && MathF.Abs(cubeExtent.Z - 11.0f) < 0.01f, $"{cubeExtent}");
+        var diskExtent = ExtentOf(new ManaDisk(extentCourse.Context, Vector4.One, new Vector3(2.4f, 0.3f, 2.4f)));
+        Check("and a disk is as wide as its size", MathF.Abs(diskExtent.X - 2.4f) < 0.1f, $"{diskExtent}");
 
         // ---------------------------------------------------------------- the sample course is safe to respawn into
         var courseFile = Path.Combine(AppContext.BaseDirectory, "Levels", "Sample Course.manalevel");
@@ -719,9 +876,24 @@ public static class CoursePieceChecks
 
             var respawnPoints = course.Nodes
                 .Where(node => node.Kind == ManaLevelSourceKind.PlayerStart
-                    || node.Scripts?.Any(script => script.Type == CheckpointComponent.ScriptType) == true)
+                    || node.Scripts?.Any(script => script.Type is CheckpointComponent.ScriptType or SpringPadComponent.ScriptType or BoostPadComponent.ScriptType) == true)
                 .Select(node => (node.Name, feet: new Vector3(node.Position[0], node.Position[1] + 0.5f, node.Position[2])))
                 .ToList();
+
+            // A hazard's volume should be the size of the thing that looks dangerous: a volume hanging out past the oil
+            // (or short of it) is damage from nothing, or a puddle you can walk through unhurt.
+            var mismatched = new List<string>();
+            foreach (var node in course.Nodes.Where(node => node.Kind == ManaLevelSourceKind.Shape && node.Size is { Length: 3 }
+                && node.Scripts?.Any(script => script.Type == HazardComponent.ScriptType) == true))
+            {
+                var volume = ReadVector(node.Scripts!.First(script => script.Type == HazardComponent.ScriptType).Properties["size"]);
+                if (MathF.Abs(volume.X - node.Size![0]) > 0.5f || MathF.Abs(volume.Z - node.Size![2]) > 0.5f)
+                {
+                    mismatched.Add($"{node.Name}: looks {node.Size[0]}x{node.Size[2]}, hurts over {volume.X}x{volume.Z}");
+                }
+            }
+
+            Check("every hazard's volume matches the shape it sits on", mismatched.Count == 0, string.Join("; ", mismatched));
 
             var unsafeSpots = new List<string>();
             foreach (var (spot, feet) in respawnPoints)
@@ -735,8 +907,8 @@ public static class CoursePieceChecks
                 }
             }
 
-            Check("nobody respawns inside a hazard: the start and every checkpoint are clear of them",
-                respawnPoints.Count >= 3 && courseHazards.Count >= 3 && unsafeSpots.Count == 0,
+            Check("nobody respawns inside a hazard, and no pad sits in one: the start, the checkpoints and the pads are clear of them",
+                respawnPoints.Count >= 5 && courseHazards.Count >= 3 && unsafeSpots.Count == 0,
                 $"{respawnPoints.Count} respawn points, {courseHazards.Count} hazards; {string.Join("; ", unsafeSpots)}");
         }
 
@@ -754,6 +926,8 @@ public static class CoursePieceChecks
                 && types.Count(type => type == MovingPlatformComponent.ScriptType) >= 2
                 && types.Count(type => type == EnemyComponent.ScriptType) >= 3
                 && types.Contains(HazardComponent.ScriptType)
+                && types.Contains(SpringPadComponent.ScriptType)
+                && types.Contains(BoostPadComponent.ScriptType)
                 && types.Contains(CheckpointComponent.ScriptType)
                 && types.Contains(GoalComponent.ScriptType)
                 && types.Contains(EnemyComponent.ScriptType)

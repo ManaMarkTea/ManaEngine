@@ -26,6 +26,10 @@
 .PARAMETER OutDir
     Where trace + report files land. Default <repo root>\PerfTraces (gitignored).
 
+.PARAMETER TopCount
+    How many functions to list in each ranking of the report. Default 25; raise it to see below the wrappers
+    that sit at the top of every render-thread trace.
+
 .PARAMETER TraceFile
     Skip capture and just re-report on an existing .nettrace file.
 
@@ -45,6 +49,7 @@ param(
     [int]$DurationSeconds = 15,
     [switch]$Launch,
     [int]$WarmupSeconds = 25,
+    [int]$TopCount = 25,
     [string]$OutDir = "$PSScriptRoot\..\..\PerfTraces",
     [string]$TraceFile = ""
 )
@@ -118,8 +123,8 @@ function Write-Report {
     $frameCount = ($renderProfile.events | Where-Object { $_.type -eq 'C' -and (Get-FrameName $frames $_.frame) -like '*ClearFrame*' }).Count
     $fps = if ($frameCount -gt 0) { [math]::Round($frameCount / ($captureMs / 1000.0), 1) } else { 0 }
 
-    $topSelf = $selfTime.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 25
-    $topTotal = $totalTime.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 25
+    $topSelf = $selfTime.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First $TopCount
+    $topTotal = $totalTime.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First $TopCount
 
     $lines = New-Object System.Collections.Generic.List[string]
     $lines.Add("# ManaVoxel perf trace report")
@@ -134,7 +139,7 @@ function Write-Report {
     $lines.Add("> ranking on this codebase's native-heavy render path.** Use the TOTAL/inclusive table: it")
     $lines.Add("> correctly attributes native execution time to whichever managed method was on the stack.")
     $lines.Add("")
-    $lines.Add("## Top 25 by total/inclusive time (ms, and ms/frame) -- start here")
+    $lines.Add("## Top $TopCount by total/inclusive time (ms, and ms/frame) -- start here")
     $lines.Add("")
     $lines.Add("| Total ms | ms/frame | % of capture | Function |")
     $lines.Add("|---:|---:|---:|---|")
@@ -144,7 +149,7 @@ function Write-Report {
         $lines.Add(("| {0:N2} | {1:N3} | {2:N1}% | {3} |" -f $row.Value, $perFrame, $pct, $row.Key))
     }
     $lines.Add("")
-    $lines.Add("## Top 25 by self time (ms, and ms/frame)")
+    $lines.Add("## Top $TopCount by self time (ms, and ms/frame)")
     $lines.Add("")
     $lines.Add("| Self ms | ms/frame | % of capture | Function |")
     $lines.Add("|---:|---:|---:|---|")

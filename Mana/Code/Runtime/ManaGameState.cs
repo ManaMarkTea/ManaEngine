@@ -9,6 +9,17 @@ namespace Mana.Code
         Won
     }
 
+    /// <summary>How the player died, for the death screen's icon and wording. What killed them by name is separate.</summary>
+    public enum ManaDeathFlavor
+    {
+        Generic,
+        Drowned,
+        Slick,
+        Zapped,
+        Enemy,
+        Fall
+    }
+
     /// <summary>
     /// The rules of a play session -- coins, health, checkpoint, clock, win -- kept in one place so the
     /// gameplay components only report what happened to the player and never each hold a piece of the score.
@@ -25,8 +36,19 @@ namespace Mana.Code
         public const float RespawnInvulnerableSeconds = 1.5f;
         public const float HitInvulnerableSeconds = 1.0f;
 
+        /// <summary>
+        /// A moment after respawning in which nothing can kill the player again. Deliberately short: the longer
+        /// invulnerability above stops <i>damage</i> stacking, but applied to an instant kill it meant running
+        /// back into the water after a respawn and wading in until it wore off before being thrown out.
+        /// </summary>
+        public const float RespawnGraceSeconds = 0.35f;
+
+        /// <summary>How long the death screen stays up.</summary>
+        public const float DeathScreenSeconds = 2.8f;
+
         private ManaPawnNode? _player;
         private float _invulnerableSeconds;
+        private float _graceSeconds;
         private float _messageSeconds;
 
         public int MaxHealth { get; set; } = DefaultMaxHealth;
@@ -60,6 +82,22 @@ namespace Mana.Code
         public const float CauseMessageSeconds = 3.5f;
 
         public bool IsInvulnerable => _invulnerableSeconds > 0.0f;
+
+        /// <summary>True for a fraction of a second after a respawn; see <see cref="RespawnGraceSeconds"/>.</summary>
+        public bool IsRespawnGrace => _graceSeconds > 0.0f;
+
+        /// <summary>Seconds since the player last died; effectively infinite before the first death.</summary>
+        public float SecondsSinceDeath { get; private set; } = float.MaxValue;
+
+        /// <summary>Seconds since the player was last hurt without dying -- drives the red flash.</summary>
+        public float SecondsSinceHurt { get; private set; } = float.MaxValue;
+
+        public bool IsShowingDeathScreen => SecondsSinceDeath < DeathScreenSeconds;
+
+        /// <summary>What killed the player last, by name -- "Harbor Water", "Yard Orc".</summary>
+        public string LastDeathCause { get; private set; } = string.Empty;
+
+        public ManaDeathFlavor LastDeathFlavor { get; private set; }
 
         /// <summary>The character the rules apply to. Assigned by whichever game mode spawns one.</summary>
         public ManaPawnNode? Player
@@ -100,7 +138,12 @@ namespace Mana.Code
             UsesHealth = false;
             Message = string.Empty;
             _invulnerableSeconds = 0.0f;
+            _graceSeconds = 0.0f;
             _messageSeconds = 0.0f;
+            SecondsSinceDeath = float.MaxValue;
+            SecondsSinceHurt = float.MaxValue;
+            LastDeathCause = string.Empty;
+            LastDeathFlavor = ManaDeathFlavor.Generic;
         }
 
         public void Tick(float deltaSeconds)
@@ -111,6 +154,11 @@ namespace Mana.Code
             }
 
             _invulnerableSeconds = MathF.Max(0.0f, _invulnerableSeconds - deltaSeconds);
+            _graceSeconds = MathF.Max(0.0f, _graceSeconds - deltaSeconds);
+
+            // Clamped so the counters cannot run to infinity and back to a small number by float overflow.
+            SecondsSinceDeath = MathF.Min(SecondsSinceDeath + deltaSeconds, 3600.0f);
+            SecondsSinceHurt = MathF.Min(SecondsSinceHurt + deltaSeconds, 3600.0f);
 
             if (_messageSeconds > 0.0f)
             {
@@ -172,7 +220,7 @@ namespace Mana.Code
         /// what did it, by name, and is shown at the top of the screen -- without it a hit from something the
         /// player cannot see (a hazard volume, an enemy behind them) is just health going down for no reason.
         /// </summary>
-        public bool Damage(int amount, string? cause = null)
+        public bool Damage(int amount, string? cause = null, ManaDeathFlavor flavor = ManaDeathFlavor.Generic)
         {
             if (Status != ManaGameStatus.Playing || IsInvulnerable || amount <= 0)
             {
@@ -182,11 +230,12 @@ namespace Mana.Code
             Health = Math.Max(0, Health - amount);
             if (Health == 0)
             {
-                Die(cause);
+                Die(cause, flavor);
                 return true;
             }
 
             _invulnerableSeconds = HitInvulnerableSeconds;
+            SecondsSinceHurt = 0.0f;
             if (!string.IsNullOrWhiteSpace(cause))
             {
                 LastCause = cause;
@@ -228,17 +277,18 @@ namespace Mana.Code
         }
 
         /// <summary>Loses a life's worth of progress: full health, back at the respawn point, briefly untouchable.</summary>
-        public void Die(string? cause = null)
+        public void Die(string? cause = null, ManaDeathFlavor flavor = ManaDeathFlavor.Generic)
         {
-            if (!string.IsNullOrWhiteSpace(cause))
-            {
-                LastCause = cause;
-                ShowMessage($"Killed by {cause}", CauseMessageSeconds);
-            }
+            // Not put in the top message: a death has its own screen.
+            LastCause = string.IsNullOrWhiteSpace(cause) ? LastCause : cause;
+            LastDeathCause = string.IsNullOrWhiteSpace(cause) ? string.Empty : cause;
+            LastDeathFlavor = flavor;
+            SecondsSinceDeath = 0.0f;
 
             Deaths++;
             Health = MaxHealth;
             _invulnerableSeconds = RespawnInvulnerableSeconds;
+            _graceSeconds = RespawnGraceSeconds;
 
             if (_player != null)
             {
@@ -286,7 +336,8 @@ namespace Mana.Code
 
             if (UsesHealth)
             {
-                parts.Add($"Health {Health}/{MaxHealth}");
+                // Hearts rather than a number: full ones and dark ones, so health reads at a glance while playing.
+                parts.Add(string.Concat(Enumerable.Repeat("💖", Health)) + string.Concat(Enumerable.Repeat("🖤", Math.Max(0, MaxHealth - Health))));
             }
 
             var minutes = (int)(ElapsedSeconds / 60.0f);
@@ -318,8 +369,11 @@ namespace Mana.Code
             Deaths++;
             Health = MaxHealth;
             _invulnerableSeconds = RespawnInvulnerableSeconds;
+            _graceSeconds = RespawnGraceSeconds;
             LastCause = "falling out of the world";
-            ShowMessage("Fell out of the world", CauseMessageSeconds);
+            LastDeathCause = "the void";
+            LastDeathFlavor = ManaDeathFlavor.Fall;
+            SecondsSinceDeath = 0.0f;
             SoundRequested?.Invoke(ManaSoundCue.Death);
             SoundRequested?.Invoke(ManaSoundCue.Respawn);
         }

@@ -3,6 +3,7 @@ using Mana;
 using Mana.Code;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Levels;
@@ -97,6 +98,45 @@ public static class ReadableAssetReferenceChecks
         {
             Check("saving writes a model the readable way, whichever way it was placed", saved.Asset == readable, saved.Asset);
         }
+
+        // ---------------------------------------------------------------- a model that is a plain file, not in a zip
+        var lighthousePath = MeshAssetLibrary.IsSupported(".glb") ? ManaLevelLoader.ResolveAssetPath("Mana/Assets/Models/Lighthouse/lighthouse.glb") : string.Empty;
+        if (File.Exists(lighthousePath))
+        {
+            var lighthouseWorld = new ManaWorld();
+            var lighthouseContext = new ManaContext(null!, null!, lighthouseWorld) { DeferGpuUploads = true };
+            lighthouseWorld.Context = lighthouseContext;
+            lighthouseWorld.DefaultScene = new ManaScene(lighthouseContext) { Name = "Default Scene" };
+            lighthouseWorld.Scenes.Add(lighthouseWorld.DefaultScene);
+            var lighthouse = ManaLevelLoader.LoadMeshAsset("Mana/Assets/Models/Lighthouse/lighthouse.glb", lighthouseWorld, lighthouseWorld.DefaultScene);
+            lighthouse.UpdateTransform();
+            var lighthouseMeshes = new List<ManaRenderMeshInstance>();
+            lighthouse.CollectRenderMeshInstances(lighthouseMeshes);
+            Check("the lighthouse loads, with a part for each colour it was given", lighthouseMeshes.Count >= 9, $"{lighthouseMeshes.Count} meshes");
+            var reds = lighthouseMeshes.Count(mesh => mesh.Albedo.X > 0.6f && mesh.Albedo.Y < 0.3f);
+            var whites = lighthouseMeshes.Count(mesh => mesh.Albedo.X > 0.85f && mesh.Albedo.Y > 0.85f);
+            Check("including the red and white of the tower", reds >= 1 && whites >= 1, $"{reds} red, {whites} white");
+            Check("and a lit lamp room", lighthouseMeshes.Any(mesh => mesh.Emission.X > 0.5f && mesh.EmissionStrength > 0.0f),
+                string.Join("; ", lighthouseMeshes.Select(mesh => $"{mesh.Name}: emission {mesh.Emission} x{mesh.EmissionStrength}")));
+        }
+
+        // ---------------------------------------------------------------- the unsaved-changes check is not run every frame
+        var dirtyScene = new object();
+        var computed = 0;
+        bool Compute() { computed++; return computed > 1; }
+
+        var first = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000);
+        var again = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1100);
+        var later = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000 + SceneDirtyCache.LifetimeMilliseconds + 10);
+        Check("asking again straight away reuses the answer instead of capturing the scene again", computed == 2 && first == again, $"{computed} captures");
+        Check("and asking after a moment works it out afresh", later && computed == 2, $"{computed} captures");
+        SceneDirtyCache.Invalidate(dirtyScene);
+        SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000 + SceneDirtyCache.LifetimeMilliseconds + 20);
+        Check("saving forgets the answer at once", computed == 3, $"{computed} captures");
+        var otherScene = new object();
+        var otherComputed = 0;
+        SceneDirtyCache.IsDirty(otherScene, () => { otherComputed++; return false; }, 1005);
+        Check("and each scene has its own", otherComputed == 1);
 
         // ---------------------------------------------------------------- every bundled level
         var levelsDirectory = Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!;

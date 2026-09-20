@@ -205,7 +205,8 @@ namespace Mana.Code.GameModes
                         Context.World.GameState,
                         () => _playMode?.Restart(),
                         () => _playMode?.Stop(),
-                        "Back to Editor")),
+                        "Back to Editor"),
+                    ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState)),
                 () => IsPlaying);
         }
 

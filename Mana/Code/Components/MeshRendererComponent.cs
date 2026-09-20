@@ -136,9 +136,27 @@ namespace Mana
                 return null;
             }
 
+            // This runs for every textured mesh on every frame (see ApplyMaterialTextures), and resolving a path is
+            // several File.Exists calls. Uncached it was the single biggest cost in a frame -- most of it on the
+            // disk, asking again and again about files that have not moved. A found path is kept for good; a
+            // missing one is asked about again only every few seconds, so a texture added while running still
+            // turns up.
+            var now = Environment.TickCount64;
+            if (ResolvedPaths.TryGetValue(name, out var cached)
+                && (cached.Path != null || now - cached.CheckedAtMs < MissRecheckMilliseconds))
+            {
+                return cached.Path;
+            }
+
             var resolved = ManaTexture.ResolveTexturePath(name);
-            return File.Exists(resolved) ? resolved : null;
+            var path = File.Exists(resolved) ? resolved : null;
+            ResolvedPaths[name] = (path, now);
+            return path;
         }
+
+        private const long MissRecheckMilliseconds = 10_000;
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string? Path, long CheckedAtMs)> ResolvedPaths = new();
 
         private ManaMaterial? material;
         public ManaMaterial Material

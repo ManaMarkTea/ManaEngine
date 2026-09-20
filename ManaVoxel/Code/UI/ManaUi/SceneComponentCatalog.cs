@@ -77,6 +77,20 @@ namespace ManaVoxel.Code.UI.ManaUi
                 },
                 new()
                 {
+                    Label = "Spring Pad",
+                    Description = "Launches the player up to a set height.",
+                    ComponentType = typeof(SpringPadComponent),
+                    Create = node => new SpringPadComponent(node)
+                },
+                new()
+                {
+                    Label = "Boost Pad",
+                    Description = "Speeds the player up for a few seconds.",
+                    ComponentType = typeof(BoostPadComponent),
+                    Create = node => new BoostPadComponent(node)
+                },
+                new()
+                {
                     Label = "Moving Platform",
                     Description = "Slides this node to a far point and back during play, carrying the player.",
                     ComponentType = typeof(MovingPlatformComponent),

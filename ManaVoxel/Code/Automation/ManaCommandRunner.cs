@@ -19,6 +19,8 @@ namespace ManaVoxel.Code.Automation
         private readonly ManaContext _context;
         private readonly ManaWebGpuContext? _webGpuContext;
         private readonly Action<string> _openLevel;
+        private readonly Action<bool>? _setPlay;
+        private readonly System.Diagnostics.Stopwatch _profileClock = new();
         private readonly List<ManaCommand> _commands;
 
         private int _index;
@@ -29,8 +31,10 @@ namespace ManaVoxel.Code.Automation
             string commandFilePath,
             ManaContext context,
             ManaWebGpuContext? webGpuContext,
-            Action<string> openLevel)
+            Action<string> openLevel,
+            Action<bool>? setPlay = null)
         {
+            _setPlay = setPlay;
             _context = context;
             _webGpuContext = webGpuContext;
             _openLevel = openLevel;
@@ -100,6 +104,23 @@ namespace ManaVoxel.Code.Automation
                         _pendingScreenshot = _webGpuContext.CaptureFrameAsync(RequirePath(command));
                         return;
 
+                    case "play":
+                    case "stop_play":
+                        _setPlay?.Invoke(command.Type.Equals("play", StringComparison.OrdinalIgnoreCase));
+                        _index++;
+                        break;
+
+                    case "profile_reset":
+                        ManaCore.Diagnostics.ManaFrameProfiler.Reset();
+                        _profileClock.Restart();
+                        _index++;
+                        break;
+
+                    case "profile_dump":
+                        WriteProfileReport(RequirePath(command));
+                        _index++;
+                        break;
+
                     case "quit":
                         _context.Window.Close();
                         _index++;
@@ -111,6 +132,47 @@ namespace ManaVoxel.Code.Automation
                         break;
                 }
             }
+        }
+
+        // Frames per second since the last profile_reset, then every timed scope by average cost -- what makes
+        // "the editor is slow" a list of names instead of a feeling.
+        private void WriteProfileReport(string path)
+        {
+            var seconds = _profileClock.Elapsed.TotalSeconds;
+            var frames = ManaCore.Diagnostics.ManaFrameProfiler.FrameCount;
+            var lines = new List<string>
+            {
+                $"seconds={seconds:0.00} frames={frames} fps={(seconds > 0.0 ? frames / seconds : 0.0):0.0} worstFrameMs={ManaCore.Diagnostics.ManaFrameProfiler.WorstFrameMs:0.0} hitches={ManaCore.Diagnostics.ManaFrameProfiler.HitchCount}",
+                $"nodes={CountNodes(_context.World.DefaultScene.Children)} meshes={_context.World.LastMeshCount} playing={_context.World.IsPlaying}",
+                "scope | avgMs | peakMs | calls"
+            };
+
+            var entries = new List<(string Name, ManaCore.Diagnostics.ManaFrameProfiler.Sample Sample)>();
+            foreach (var name in ManaCore.Diagnostics.ManaFrameProfiler.Names)
+            {
+                if (ManaCore.Diagnostics.ManaFrameProfiler.TryGetSample(name, out var sample))
+                {
+                    entries.Add((name, sample));
+                }
+            }
+
+            foreach (var (name, sample) in entries.OrderByDescending(entry => entry.Sample.AverageMs))
+            {
+                lines.Add($"{name} | {sample.AverageMs:0.00} | {sample.PeakMs:0.00} | {sample.LastCalls}");
+            }
+
+            File.WriteAllLines(path, lines);
+        }
+
+        private static int CountNodes(IEnumerable<ManaSceneNode> nodes)
+        {
+            var count = 0;
+            foreach (var node in nodes)
+            {
+                count += 1 + CountNodes(node.Children);
+            }
+
+            return count;
         }
 
         private static string RequirePath(ManaCommand command)

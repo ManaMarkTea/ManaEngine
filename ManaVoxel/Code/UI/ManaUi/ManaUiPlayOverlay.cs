@@ -53,7 +53,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class ManaUiPlayHud
     {
-        public static UiElement Build(UiTheme theme, Func<string> status, Func<string>? gameplay = null, UiElement? results = null)
+        public static UiElement Build(UiTheme theme, Func<string> status, Func<string>? gameplay = null, UiElement? results = null, UiElement? death = null)
         {
             var text = new TextBlock()
                 .FontSize(theme.FontSize)
@@ -103,6 +103,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             var overlay = new Grid();
             overlay.Children.Add(pill);
             overlay.Children.Add(scorePill);
+
+            // Under the results, over the score: a death while the level-complete panel is up is impossible,
+            // but the order says which one wins if it ever happens.
+            if (death != null)
+            {
+                overlay.Children.Add(death);
+            }
 
             // Left hit-testable: the grid has no background so it never catches a click itself, but
             // switching it off would take the results screen's buttons with it.

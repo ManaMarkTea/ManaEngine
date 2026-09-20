@@ -50,9 +50,32 @@ public static class MeshImportChecks
         return names;
     }
 
+    private static void CheckThrottle(Action<string, bool, string> check)
+    {
+        var reads = 0;
+        var throttled = MeshImportManaView.Throttled(() => ++reads);
+
+        MeshImportManaView.ThumbnailPollMilliseconds = 100_000;
+        var first = throttled();
+        var second = throttled();
+        var third = throttled();
+        check("a throttled poll works its answer out once and reuses it", reads == 1 && first == second && second == third, $"{reads} reads");
+
+        MeshImportManaView.ThumbnailPollMilliseconds = 0;
+        throttled();
+        throttled();
+        check("with the throttle off every poll reads afresh, which is how tests see each change", reads == 3, $"{reads} reads");
+    }
+
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        CheckThrottle(Check);
+
+        // The tiles do their slow-changing work a few times a second in the running editor; these checks drive the
+        // layout a handful of times in microseconds and expect each pass to see what they just changed.
+        MeshImportManaView.ThumbnailPollMilliseconds = 0;
 
         static MeshAssetLibrary Library(MeshAssetFormats formats = MeshAssetFormats.All)
         {

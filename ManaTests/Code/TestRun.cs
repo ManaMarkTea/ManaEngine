@@ -60,6 +60,7 @@ public static class TestRunner
         ("Audio", "course cues, persistence and cleanup", CourseAudioChecks.Run),
         ("ManaUI", "glyph coverage", GlyphChecks.Run),
         ("ManaUI", "layout, text and draw list", LayoutChecks.Run),
+        ("ManaUI", "paint order", PaintOrderChecks.Run),
         ("ManaUI", "input", InputChecks.Run),
         ("ManaUI", "bindings", BindingChecks.Run),
         ("ManaUI", "scrolling and text editing", ScrollAndTextChecks.Run),
