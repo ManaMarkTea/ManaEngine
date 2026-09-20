@@ -30,8 +30,6 @@ namespace Mana.Code.UI.ManaUi
                 Fonts.AddSearchDirectory(directory);
             }
 
-            FetchColorEmojiIfMissing();
-
             Root = new UiRoot(Fonts, theme ?? UiTheme.Dark());
             Root.SetScale(GetFramebufferScale());
             Root.ScreenOrigin = () => new Vector2(_window.Position.X, _window.Position.Y);
@@ -46,37 +44,6 @@ namespace Mana.Code.UI.ManaUi
                 InputBridge = new ManaUiInputBridge(Root, input);
             }
             _window.FocusChanged += OnFocusChanged;
-        }
-
-        // The 10 MB colour emoji font is not shipped in the browser page; it is downloaded from the asset catalog in
-        // the background and picked up once it lands, so the first frames simply show text without emoji.
-        private void FetchColorEmojiIfMissing()
-        {
-#if MANA_BROWSER
-            const string emojiFont = "Assets/Fonts/NotoColorEmoji.ttf";
-            if (ManaCore.Assets.ManaAssetCatalog.Current is not { } catalog || Fonts.ColorEmoji != null)
-            {
-                return;
-            }
-
-            _ = FetchAsync();
-
-            async Task FetchAsync()
-            {
-                try
-                {
-                    await catalog.EnsureAsync(emojiFont);
-                    if (!_disposed)
-                    {
-                        Fonts.RefreshColorEmoji();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"[Fonts] colour emoji download failed: {ex.Message}");
-                }
-            }
-#endif
         }
 
         private void OnFocusChanged(bool focused)

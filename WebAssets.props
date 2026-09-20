@@ -17,6 +17,9 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Regular.ttf;$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Medium.ttf">
       <TargetPath>Assets/Fonts/Roboto/%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)ManaUI/Assets/Fonts/NotoColorEmoji.ttf">
+      <TargetPath>Assets/Fonts/NotoColorEmoji.ttf</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-characters.zip">
       <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>
