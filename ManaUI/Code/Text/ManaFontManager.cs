@@ -126,6 +126,22 @@ namespace ManaUI
         }
 
         /// <summary>
+        /// Looks for the colour emoji font again and hands it to every font already loaded. For a host that gets the
+        /// file after start-up (the browser downloads it on demand rather than shipping 10 MB in the page).
+        /// </summary>
+        public void RefreshColorEmoji()
+        {
+            _colorEmojiResolved = false;
+            _colorEmoji = null;
+            _pathCache.Clear();
+            var table = ColorEmoji;
+            foreach (var font in _fonts.Values)
+            {
+                font.ColorEmoji = table;
+            }
+        }
+
+        /// <summary>
         /// Family names that resolve to a real file, for a font picker to offer.
         /// <para>
         /// Filtered to families that actually load: the search path includes the system font folder, which

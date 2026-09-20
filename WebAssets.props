@@ -20,6 +20,11 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-characters.zip">
       <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>
+    <!-- The Sample Course's player start asks for the mini-dungeon hero; without it the browser spawns whichever
+         character it finds first, at the wrong scale and jump height. -->
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-dungeon.zip">
+      <TargetPath>Assets/kenney_mini-dungeon.zip</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Levels/**/*.manalevel">
       <TargetPath>Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
