@@ -70,6 +70,8 @@ namespace Mana.Code
             Context = new ManaContext(window, input, world, graphicsDevice);
             Context.GameMode = this;
             Context.DeferGpuUploads = DeferGpuUploadsOnStartup;
+            Context.Audio.Dispose();
+            Context.Audio = ManaAudio.ManaAudioFactory.Create(ManaLog.WriteDiagnostic);
 
             world.Initialize(Context, DeferGpuUploadsOnStartup ? false : initializeWorldRenderer);
 
@@ -167,6 +169,13 @@ namespace Mana.Code
                     Context.World.Update();
                 }
             }
+
+            var camera = Context.World.MainCamera;
+            if (camera != null)
+            {
+                Context.Audio.SetListener(camera.Owner.Position, camera.Owner.Forward, camera.Owner.Up);
+            }
+            Context.Audio.Update();
         }
 
         public abstract void Update(double deltaTime);
@@ -245,6 +254,7 @@ namespace Mana.Code
 
         public virtual void Closing()
         {
+            Context.Audio.Dispose();
             ManaGameModeGraphicsBridge.DisposeManaUi();
             ManaUi?.Dispose();
             ManaUi = null;

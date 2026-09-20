@@ -57,6 +57,15 @@ namespace Mana.Code.Nodes
             UpdateTransform();
         }
 
+        /// <summary>Pack of the character this start wants the player to be; null lets the game choose.</summary>
+        public string? CharacterPack { get; set; }
+
+        /// <summary>Model name within <see cref="CharacterPack"/>.</summary>
+        public string? CharacterName { get; set; }
+
+        /// <summary>Height to scale the chosen character to, in world units; zero keeps the model's own size.</summary>
+        public float CharacterHeight { get; set; }
+
         /// <summary>World position the character's feet land on.</summary>
         public Vector3 SpawnPosition => WorldTransform.Translation;
 

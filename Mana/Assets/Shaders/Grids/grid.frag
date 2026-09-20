@@ -27,7 +27,7 @@ layout(location = 0) out vec4 FragColor;
 #endif
 
 // Must match VoxelEditorGameMode.cs's gridSize -- see grid.wgsl's matching RoomSize constant.
-uniform vec2 chunkSize = vec2(128.0, 128.0);
+uniform vec2 chunkSize = vec2(256.0, 256.0);
 uniform vec2 tileSize = vec2(1.0, 1.0);
 
 float chunkThickness = 4.0;

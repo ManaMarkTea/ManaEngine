@@ -5,6 +5,7 @@ using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using ManaGeoTools.Code.Planet;
+using ManaVoxel.Code.Assets;
 
 namespace ManaVoxel.Code.Levels
 {
@@ -156,7 +157,9 @@ namespace ManaVoxel.Code.Levels
                         return null;
                     }
 
-                    entry.Asset = source.Asset;
+                    // Written readably (and findable by name) whenever the zip is one of ours; see
+                    // MeshAssetLibrary.ToReadableReference.
+                    entry.Asset = MeshAssetLibrary.ToReadableReference(source.Asset);
                     entry.Collision = CaptureCollision(node);
                     break;
 
@@ -177,6 +180,16 @@ namespace ManaVoxel.Code.Levels
                     break;
 
                 case ManaLevelSourceKind.PlayerStart:
+                    if (node is ManaPlayerStartNode start && !string.IsNullOrWhiteSpace(start.CharacterName))
+                    {
+                        entry.Character = new ManaLevelCharacter
+                        {
+                            Pack = start.CharacterPack ?? string.Empty,
+                            Name = start.CharacterName,
+                            Height = start.CharacterHeight
+                        };
+                    }
+
                     break;
 
                 case ManaLevelSourceKind.Planet:

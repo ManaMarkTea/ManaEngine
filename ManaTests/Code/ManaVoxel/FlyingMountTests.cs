@@ -126,6 +126,13 @@ public static class FlyingMountChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        // ---------------------------------------------------------------- the first jump must not fly
+        Check("the press that starts a jump does not take off", !FlyingMountComponent.IsTakeoffAllowed(true, false, 0.016f, 0.12f),
+            "it reads the same Space edge the frame the pawn leaves the ground");
+        Check("a press a moment later, in the air, does", FlyingMountComponent.IsTakeoffAllowed(true, false, 0.3f, 0.12f));
+        Check("standing on the ground never does", !FlyingMountComponent.IsTakeoffAllowed(true, true, 5.0f, 0.12f));
+        Check("nor does a pawn with no capsule", !FlyingMountComponent.IsTakeoffAllowed(false, false, 5.0f, 0.12f));
+
         // ---------------------------------------------------------------- mounting takes the pawn over
         var (pawn, arm, mount) = CreateRider();
 

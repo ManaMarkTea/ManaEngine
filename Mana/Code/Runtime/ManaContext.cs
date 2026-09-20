@@ -7,6 +7,8 @@ namespace Mana.Code
 {
     public class ManaContext
     {
+        /// <summary>Silent in headless contexts; the game mode installs the platform device at startup.</summary>
+        public ManaCore.Audio.IManaAudio Audio { get; set; } = ManaAudio.ManaAudioFactory.CreateSilent();
 #if !MANA_BROWSER
         public GL gl => RequireOpenGl();
         public GL? OpenGl => (GraphicsDevice as IOpenGlGraphicsDevice)?.Gl;

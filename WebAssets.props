@@ -4,6 +4,7 @@
     <ManaPython Condition="'$(ManaPython)' == ''">python</ManaPython>
   </PropertyGroup>
   <ItemGroup>
+    <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)ManaAudio/Browser/mana_audio.js" Link="mana_audio.js" />
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)ManaGraphics/Assets/Shaders/WebGpu/**/*.wgsl">
       <TargetPath>Assets/Shaders/WebGpu/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>

@@ -16,6 +16,7 @@ namespace Mana.Code.GameModes
     {
         private bool _playKeyWasDown;
         private bool _stopKeyWasDown;
+        private bool _restartKeyWasDown;
         private bool _undoKeyWasDown;
         private bool _redoKeyWasDown;
         private bool _saveKeyWasDown;
@@ -44,7 +45,7 @@ namespace Mana.Code.GameModes
             _playMode = new PlayModeController(
                 Context,
                 _pawnController,
-                (position, yaw) => _viewModel.SpawnCharacterAt(position, yaw),
+                (position, yaw) => _viewModel.SpawnCharacterAt(position, yaw, ManaPlayerStartNode.Find(Context.World)),
                 pawn => _viewModel.RemoveCharacter(pawn));
 
             _viewModel.Levels.Host = this;
@@ -75,6 +76,7 @@ namespace Mana.Code.GameModes
             {
                 _playKeyWasDown = false;
                 _stopKeyWasDown = false;
+                _restartKeyWasDown = false;
                 return;
             }
 
@@ -105,6 +107,14 @@ namespace Mana.Code.GameModes
             }
 
             _playKeyWasDown = playKeyDown;
+
+            var restartKeyDown = keyboard.IsKeyPressed(Key.R);
+            if (restartKeyDown && !_restartKeyWasDown && _playMode.IsPlaying)
+            {
+                _playMode.Restart();
+            }
+
+            _restartKeyWasDown = restartKeyDown;
 
             var stopKeyDown = keyboard.IsKeyPressed(Key.Escape);
             if (stopKeyDown && !_stopKeyWasDown && _playMode.IsPlaying)
@@ -180,7 +190,7 @@ namespace Mana.Code.GameModes
         {
             var player = _playMode?.Player;
             var name = player?.Name ?? "Character";
-            return $"{name}  --  WASD move, Shift run, Space jump (again to fly; Space climb, Shift surge, A/D turn, S brake), C camera, Esc stop";
+            return $"{name}  --  WASD move, Shift run, Space jump (again to fly; Space climb, Shift surge, A/D turn, S brake), C camera, R restart, Esc stop";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------

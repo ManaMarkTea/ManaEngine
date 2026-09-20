@@ -15,6 +15,7 @@ namespace Mana.Code
         public bool Hit;
         public float Distance;
         public Vector3 Normal;
+        public CollidableReference Collidable;
 
         public ExcludeBodyRayHandler(BodyHandle excluded)
         {
@@ -22,6 +23,7 @@ namespace Mana.Code
             Hit = false;
             Distance = float.MaxValue;
             Normal = Vector3.UnitY;
+            Collidable = default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -49,6 +51,7 @@ namespace Mana.Code
             Hit = true;
             Distance = t;
             Normal = normal;
+            Collidable = collidable;
         }
     }
 
@@ -76,6 +79,7 @@ namespace Mana.Code
 
         public bool IsGrounded { get; private set; }
         public Vector3 GroundNormal { get; private set; } = Vector3.UnitY;
+        public Mana.Code.Nodes.ManaSceneNode? GroundNode { get; private set; }
 
         // Distance from the capsule's bottom to whatever is under it, or float.MaxValue when the probe
         // finds nothing. Useful for landing prediction and for debugging a stuck character.
@@ -144,6 +148,24 @@ namespace Mana.Code
             }
         }
 
+        /// <summary>
+        /// Moves the capsule without touching its velocity -- what riding a moving platform needs, where
+        /// <see cref="Teleport"/> would also stop a jump or a fall dead.
+        /// </summary>
+        public void Shift(Vector3 delta)
+        {
+            if (!Exists)
+            {
+                return;
+            }
+
+            var body = Context.Physics.Simulation.Bodies[Handle];
+            var pose = body.Pose;
+            pose.Position += delta;
+            body.Pose = pose;
+            body.Awake = true;
+        }
+
         public void Teleport(Vector3 footPosition)
         {
             if (!Exists)
@@ -169,6 +191,7 @@ namespace Mana.Code
         public void RefreshGroundState()
         {
             IsGrounded = false;
+            GroundNode = null;
             GroundNormal = Vector3.UnitY;
             GroundDistance = float.MaxValue;
 
@@ -199,6 +222,11 @@ namespace Mana.Code
 
             IsGrounded = GroundDistance <= GroundProbeDistance;
             GroundNormal = handler.Normal;
+            if (IsGrounded && handler.Collidable.Mobility != CollidableMobility.Static
+                && Context.Physics.PhysicsMap.TryGetValue(handler.Collidable.BodyHandle, out var collider))
+            {
+                GroundNode = collider.Owner;
+            }
         }
 
         public void Dispose()

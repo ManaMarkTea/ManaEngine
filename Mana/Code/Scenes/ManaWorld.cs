@@ -96,8 +96,13 @@ namespace Mana
         public ManaIrradianceSettings IrradianceSettings { get; } = new();
         public ManaEnvironmentReflectionSource EnvironmentReflectionSource { get; set; } = new();
         
+        /// <summary>Score, health, checkpoint and clock for the current play session; reset by <see cref="BeginPlay"/>.</summary>
+        public ManaGameState GameState { get; } = new();
+        public Mana.Code.Audio.ManaAudioCueRouter AudioCues { get; } = new();
+
         public ManaWorld() : base(null!)
         {
+            GameState.SoundRequested += AudioCues.Emit;
 #if !MANA_BROWSER
 #endif
 
@@ -176,6 +181,9 @@ namespace Mana
                 }
 
                 IsPlaying = true;
+
+                // Before the components start, which is when collectibles and hazards register themselves.
+                GameState.Reset();
                 foreach (var component in CollectSceneComponentsNoLock())
                 {
                     component.BeginPlay();
@@ -199,6 +207,7 @@ namespace Mana
                     components[i].EndPlay();
                 }
 
+                Context?.Audio.StopAll();
                 IsPlaying = false;
             }
         }

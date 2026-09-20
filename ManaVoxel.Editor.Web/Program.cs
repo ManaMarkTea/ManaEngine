@@ -15,6 +15,7 @@ using ManaGraphics.Code.Graphics.Browser;
 Console.WriteLine("ManaVoxel.Editor.Web booting (browser-wasm)...");
 
 await ManaBrowserInterop.InitializeAsync();
+await ManaAudio.ManaAudioFactory.InitializeBrowserAsync();
 Console.WriteLine("Browser interop module loaded.");
 
 // Desktop's Program.cs does this before constructing anything too. Needs mana_interop.js already

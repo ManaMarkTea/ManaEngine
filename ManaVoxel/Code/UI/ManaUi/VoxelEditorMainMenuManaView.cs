@@ -36,7 +36,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 File(viewModel),
                 Edit(viewModel, openPreferences),
-                Play(viewModel),
+                Play(viewModel, host),
                 Character(viewModel),
                 View(viewModel, host, openSearch)
             };
@@ -119,11 +119,17 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Play. The keys are the point of this menu as much as the rows are -- F5 works whether or not the
         /// menu is ever opened, and this is the only place that says so.
         /// </summary>
-        private static MenuItem Play(VoxelEditorViewModel viewModel)
+        private static MenuItem Play(VoxelEditorViewModel viewModel, BaseGameMode? host)
         {
             var levels = viewModel.Levels;
 
             return new MenuItem("Play").WithItems(
+                new MenuItem("Test Audio", () =>
+                    host?.Context.Audio.Play(ManaAudio.ManaAudioDiagnostics.TestTone,
+                        new() { Bus = ManaCore.Audio.ManaAudioBus.Ui }))
+                    .EnabledWhen(() => host?.Context.Audio.IsAvailable == true)
+                    .WithTooltip("Plays a short tone through the current audio output."),
+                MenuItem.Separator(),
                 new MenuItem("Play", levels.TogglePlay)
                     .WithShortcut("F5")
                     .EnabledWhen(() => levels.CanPlay && !levels.IsPlaying)

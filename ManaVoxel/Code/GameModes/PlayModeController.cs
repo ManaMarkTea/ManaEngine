@@ -27,6 +27,8 @@ namespace Mana.Code.GameModes
 
         private ManaPawnNode? _player;
         private ManaPlayerStartNode? _startNode;
+        private Vector3 _spawnPosition;
+        private float _spawnYaw;
 
         private Vector3 _savedCameraPosition;
         private Vector3 _savedCameraRotation;
@@ -91,6 +93,8 @@ namespace Mana.Code.GameModes
             // Spawned a little clear of the floor so the capsule settles onto it rather than starting
             // interpenetrated, which the solver resolves as a shove. Same reasoning as SpawnCharacter.
             spawnPosition.Y += 0.5f;
+            _spawnPosition = spawnPosition;
+            _spawnYaw = spawnYaw;
 
             var player = _spawnPlayer(spawnPosition, spawnYaw);
             if (player == null)
@@ -129,6 +133,9 @@ namespace Mana.Code.GameModes
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
 
             IsPlaying = true;
+
+            // Before BeginPlay: the game state resets there, and course pieces read the player from it.
+            _context.World.GameState.Player = player;
             _context.World.BeginPlay();
             PlayStateChanged?.Invoke(true);
             return true;
@@ -143,6 +150,7 @@ namespace Mana.Code.GameModes
 
             IsPlaying = false;
             _context.World.EndPlay();
+            _context.World.GameState.Player = null;
 
             // Released before the pawn is removed: unregistering a possessed pawn releases it anyway, but
             // does so after the boom has already been torn off a node that is on its way out of the scene.
@@ -180,6 +188,15 @@ namespace Mana.Code.GameModes
 
             _savedPossessedPawn = null;
             PlayStateChanged?.Invoke(false);
+        }
+
+        /// <summary>Plays the level again from the spawn without leaving play -- the results screen's Play Again, and R.</summary>
+        public void Restart()
+        {
+            if (IsPlaying)
+            {
+                _context.World.GameState.Restart(_context.World, _spawnPosition, _spawnYaw);
+            }
         }
 
         public void Toggle(Vector3? spawnOverride = null)

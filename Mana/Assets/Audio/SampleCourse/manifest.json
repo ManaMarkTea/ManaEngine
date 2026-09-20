@@ -1,0 +1,340 @@
+{
+  "sampleRate": 48000,
+  "channels": 1,
+  "bitsPerSample": 16,
+  "sourceLevel": "Levels/Sample Course.manalevel",
+  "sourceLevelSha256": "70d01f4ca72ebce374914dff65436702f408dcd18a75831903a1824712543525",
+  "provenance": "Original procedural synthesis; no third-party samples or recordings.",
+  "sounds": [
+    {
+      "file": "Footsteps/asphalt_01.wav",
+      "description": "Asphalt footstep 1; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Road 0",
+        "Road 5"
+      ],
+      "durationSeconds": 0.1,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -29.86,
+      "sha256": "d745178488ead203500bb7b5d571f953af3b6220f798c08b0a1e5564a0fe1eb2"
+    },
+    {
+      "file": "Footsteps/asphalt_02.wav",
+      "description": "Asphalt footstep 2; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Road 0",
+        "Road 5"
+      ],
+      "durationSeconds": 0.1,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -31.18,
+      "sha256": "f531ca66177e644bf8290d8242ae6fd11f821ee814575338e121ffa258fe6bcd"
+    },
+    {
+      "file": "Footsteps/asphalt_03.wav",
+      "description": "Asphalt footstep 3; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Road 0",
+        "Road 5"
+      ],
+      "durationSeconds": 0.1,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -26.61,
+      "sha256": "bff356cf2a6bfcad96ddddc77c3f1067c942edad7988f42bd2c3c679ce5a296b"
+    },
+    {
+      "file": "Footsteps/wood_01.wav",
+      "description": "Wood footstep 1; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Pier Planks 0a",
+        "Pier Planks 1b",
+        "Lumber Car"
+      ],
+      "durationSeconds": 0.16,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -30.72,
+      "sha256": "fe5c7eec2f465b05927e04043592dd9da7ab145c02da5d68581a8c9bd82bf966"
+    },
+    {
+      "file": "Footsteps/wood_02.wav",
+      "description": "Wood footstep 2; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Pier Planks 0a",
+        "Pier Planks 1b",
+        "Lumber Car"
+      ],
+      "durationSeconds": 0.16,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -30.51,
+      "sha256": "7a0e2e7473205ae7764d5a56f951bd8cda2523c8bb284f4e9111aa0b6456bfab"
+    },
+    {
+      "file": "Footsteps/wood_03.wav",
+      "description": "Wood footstep 3; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Pier Planks 0a",
+        "Pier Planks 1b",
+        "Lumber Car"
+      ],
+      "durationSeconds": 0.16,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -30.07,
+      "sha256": "df937ad69ba87b52254434b1b81a6f8bc7773e23002de4aab10b88a0688bede4"
+    },
+    {
+      "file": "Footsteps/metal_01.wav",
+      "description": "Metal footstep 1; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Container B1",
+        "Flatbed",
+        "Boxcar",
+        "Cargo Lift"
+      ],
+      "durationSeconds": 0.244,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -32.26,
+      "sha256": "af2707f685bdf34d1b504b932972ad9f12ed861fbd4142ac7872012d8f4f38cd"
+    },
+    {
+      "file": "Footsteps/metal_02.wav",
+      "description": "Metal footstep 2; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Container B1",
+        "Flatbed",
+        "Boxcar",
+        "Cargo Lift"
+      ],
+      "durationSeconds": 0.244,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -32.73,
+      "sha256": "52b94355844692ccc7c6b8ac9c167ab7e034986a0d9b821ee049723edb9fb401"
+    },
+    {
+      "file": "Footsteps/metal_03.wav",
+      "description": "Metal footstep 3; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Container B1",
+        "Flatbed",
+        "Boxcar",
+        "Cargo Lift"
+      ],
+      "durationSeconds": 0.244,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -33.5,
+      "sha256": "491635ba915794bf9e388d815b7f1f9700408cb3e834d7d42bb63e5aba771d5f"
+    },
+    {
+      "file": "Footsteps/sand_01.wav",
+      "description": "Sand footstep 1; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Sand Patch 0",
+        "Sand Patch 3"
+      ],
+      "durationSeconds": 0.164,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -31.49,
+      "sha256": "12054fd61ebaab69543916877b7423f1508436cc744ffdc2a27ac49ea1da9260"
+    },
+    {
+      "file": "Footsteps/sand_02.wav",
+      "description": "Sand footstep 2; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Sand Patch 0",
+        "Sand Patch 3"
+      ],
+      "durationSeconds": 0.164,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -30.93,
+      "sha256": "3d643c8db08dd179fe66a0acfc3206fdb138b61e35cfa5bec74bb7913b8949b9"
+    },
+    {
+      "file": "Footsteps/sand_03.wav",
+      "description": "Sand footstep 3; alternate the three variants",
+      "loop": false,
+      "courseNodes": [
+        "Sand Patch 0",
+        "Sand Patch 3"
+      ],
+      "durationSeconds": 0.164,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -29.93,
+      "sha256": "66499b89574126774983992f9d75ca59a25ab8965cd07459bf8a4c452b20a59c"
+    },
+    {
+      "file": "Enemies/alert.wav",
+      "description": "Small startled chirrup when the Yard Hog begins chasing",
+      "loop": false,
+      "courseNodes": [
+        "Yard Hog"
+      ],
+      "durationSeconds": 0.185,
+      "peakDbfs": -11.7,
+      "rmsDbfs": -23.55,
+      "sha256": "11dab4dc95d45bf77926414e1b2f52126462ce8e24513a111e27bdd2d1778337"
+    },
+    {
+      "file": "Enemies/stomp.wav",
+      "description": "Soft squash and upward rebound when landing on an enemy",
+      "loop": false,
+      "courseNodes": [
+        "Road Bunny",
+        "Yard Hog",
+        "Pier Crab",
+        "Boxcar Cat",
+        "Container Dog"
+      ],
+      "durationSeconds": 0.202,
+      "peakDbfs": -9.12,
+      "rmsDbfs": -20.58,
+      "sha256": "f344c97fb7df3c702f0593483856383a2edef45d09da868d1f159c7cb99657da"
+    },
+    {
+      "file": "Enemies/defeat.wav",
+      "description": "Tiny sparkle tail for an enemy disappearing; optional after stomp",
+      "loop": false,
+      "courseNodes": [
+        "Road Bunny",
+        "Yard Hog",
+        "Pier Crab",
+        "Boxcar Cat",
+        "Container Dog"
+      ],
+      "durationSeconds": 0.185,
+      "peakDbfs": -12.77,
+      "rmsDbfs": -24.86,
+      "sha256": "3084e371d9c1342622095165f6a9cf6e0978b92e6ab7a9f5396695295583e281"
+    },
+    {
+      "file": "Hazards/oil_squelch.wav",
+      "description": "Sticky contact with the Oil Slick or Spilled Oil",
+      "loop": false,
+      "courseNodes": [
+        "Oil Slick",
+        "Spilled Oil"
+      ],
+      "durationSeconds": 0.3,
+      "peakDbfs": -11.06,
+      "rmsDbfs": -28.94,
+      "sha256": "f2d62905fb7ae17f5f1913589a33ebc2bae6f2d58d010647aac277ab0fe3ff0a"
+    },
+    {
+      "file": "Hazards/water_splash.wav",
+      "description": "Broad splash on falling into the lethal Harbor Water",
+      "loop": false,
+      "courseNodes": [
+        "Harbor Water"
+      ],
+      "durationSeconds": 0.65,
+      "peakDbfs": -8.87,
+      "rmsDbfs": -27.94,
+      "sha256": "736ced8c029453ed5e612271d60668db24977a3ce0c5ef34f350207fa157e87f"
+    },
+    {
+      "file": "Hazards/fall.wav",
+      "description": "Short descending whistle for a long fall, before death or splash",
+      "loop": false,
+      "courseNodes": [
+        "Island I1",
+        "Island I2",
+        "Island I3",
+        "Cargo Lift"
+      ],
+      "durationSeconds": 0.55,
+      "peakDbfs": -12.77,
+      "rmsDbfs": -18.75,
+      "sha256": "01b04eb7d2be17784ddf7895d4183230450845100eadb2da0d67867b9e39a0d7"
+    },
+    {
+      "file": "Feedback/low_health.wav",
+      "description": "Quiet double heartbeat when health first drops to one",
+      "loop": false,
+      "courseNodes": [
+        "Oil Slick",
+        "Track Bed Hazard",
+        "Yard Hog"
+      ],
+      "durationSeconds": 0.36,
+      "peakDbfs": -12.77,
+      "rmsDbfs": -26.75,
+      "sha256": "f00832bf14dc35c9f81359a413401f01782623056ce99b54bf91ff316a56dce3"
+    },
+    {
+      "file": "Feedback/all_coins.wav",
+      "description": "Distinct reward for collecting the last of the course's 24 coins",
+      "loop": false,
+      "courseNodes": [
+        "Coin 1",
+        "Coin 24"
+      ],
+      "durationSeconds": 0.45,
+      "peakDbfs": -10.17,
+      "rmsDbfs": -22.57,
+      "sha256": "e867595a8196ef89ab3d94a3619a107e09168f379b2055ab32cc9b42cd98ae37"
+    },
+    {
+      "file": "Platforms/ferry_motion_loop.wav",
+      "description": "Quiet rolling vibration and timber creak while the ferry moves; loop",
+      "loop": true,
+      "courseNodes": [
+        "Ferry Platform"
+      ],
+      "durationSeconds": 4.0,
+      "peakDbfs": -17.72,
+      "rmsDbfs": -29.08,
+      "loopSeamDelta": 0.0013123,
+      "sha256": "9ef1f508b5ce4849b238ad719d6ea4d4275c2d3de6b335b64c26a4c374eaf235"
+    },
+    {
+      "file": "Platforms/lift_motor_loop.wav",
+      "description": "Steady electric lift motor while the cargo lift moves; loop",
+      "loop": true,
+      "courseNodes": [
+        "Cargo Lift"
+      ],
+      "durationSeconds": 4.0,
+      "peakDbfs": -16.48,
+      "rmsDbfs": -26.02,
+      "loopSeamDelta": 0.00177,
+      "sha256": "3631a9ba1a56997e6b57386f9d62821d559d30c91b4a6ffaa5b98c3cb2949dcf"
+    },
+    {
+      "file": "Platforms/stop_clunk.wav",
+      "description": "Damped arrival clunk when either moving platform reaches an end",
+      "loop": false,
+      "courseNodes": [
+        "Ferry Platform",
+        "Cargo Lift"
+      ],
+      "durationSeconds": 0.2,
+      "peakDbfs": -10.75,
+      "rmsDbfs": -29.48,
+      "sha256": "c34ef1e53d8de06391fb0892cd2a026449e567a024277f8503e2b2763cf73525"
+    },
+    {
+      "file": "Ambience/harbor_water_loop.wav",
+      "description": "Gentle lapping water for the harbor section; seamless loop",
+      "loop": true,
+      "courseNodes": [
+        "Harbor Water",
+        "Pier Planks 0a",
+        "Buoy 1"
+      ],
+      "durationSeconds": 6.0,
+      "peakDbfs": -17.72,
+      "rmsDbfs": -34.69,
+      "loopSeamDelta": 0.0007935,
+      "sha256": "7885a4174cdcfb814c185aa3e2fa1203544f38df1ecae18497de3941718bf9eb"
+    }
+  ]
+}

@@ -133,6 +133,21 @@ namespace ManaVoxel.Code.Services
             return Spawn(asset, world, position, controller, usePhysics);
         }
 
+        /// <summary>
+        /// The character a Player Start asks for, scaled to the height it asks for -- or the next one in the
+        /// cycle when it asks for nothing, or for something no pack here provides.
+        /// </summary>
+        public ManaPawnNode? SpawnFor(ManaPlayerStartNode? start, ManaWorld world, Vector3 position, ManaPawnController? controller = null, bool usePhysics = true)
+        {
+            var index = IndexOf(start?.CharacterPack, start?.CharacterName);
+            if (index < 0)
+            {
+                return SpawnNextCharacter(world, position, controller, usePhysics);
+            }
+
+            return Spawn(Catalog[index], world, position, controller, usePhysics, start!.CharacterHeight);
+        }
+
         // Index of a character in the catalog, or -1. Used to work out where "the next one" is when
         // swapping the character a player is controlling.
         public int IndexOf(string? packName, string? displayName)
@@ -159,7 +174,8 @@ namespace ManaVoxel.Code.Services
             ManaWorld world,
             Vector3 position,
             ManaPawnController? controller = null,
-            bool usePhysics = true)
+            bool usePhysics = true,
+            float targetHeight = 0.0f)
         {
             LastError = null;
 
@@ -196,6 +212,13 @@ namespace ManaVoxel.Code.Services
                 // Kept at the model's own size, so a character in Play is the same size as the same model
                 // placed at 1x in the editor. Kenney's run from 0.7 units tall (mini) to 2.7 (blocky), so the
                 // speeds and jump are scaled to match rather than left tuned for one height.
+                // A level built for a particular height asks for it: without this a model under a metre tall
+                // (the mini-dungeon hero) would jump a third of what the course was built for.
+                if (targetHeight > 0.0f)
+                {
+                    pawn.TryNormalizeHeight(targetHeight);
+                }
+
                 pawn.ScaleLocomotionToHeight();
                 pawn.GroundHeight = position.Y;
                 pawn.Position = position;

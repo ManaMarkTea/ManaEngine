@@ -102,5 +102,19 @@ public static class CharacterScaleChecks
         }
 
         Check("at least one character was spawned", checkedAny);
+
+        // The mini-dungeon hero is under a metre tall; a level built for two units asks for him at two.
+        var heroIndex = service.IndexOf("kenney_mini-dungeon", "character-human");
+        if (heroIndex >= 0)
+        {
+            var hero = service.Spawn(service.Catalog[heroIndex], world, Vector3.Zero, null, usePhysics: false, targetHeight: ManaPawnNode.ReferenceHeight);
+            hero!.TryGetBindPoseHeight(out var heroLocalHeight);
+            var heroWorldHeight = heroLocalHeight * hero.Scale.Y;
+            Check("a character asked for a height is scaled to it", Near(heroWorldHeight, ManaPawnNode.ReferenceHeight),
+                $"{heroWorldHeight:0.###} tall, scale {hero.Scale.Y:0.###}, native {heroLocalHeight:0.###}");
+            Check("and then moves and jumps like the reference character",
+                Near(hero.WalkSpeed, ManaPawnNode.DefaultWalkSpeed) && Near(hero.JumpHeight, ManaPawnNode.DefaultJumpHeight),
+                $"walk {hero.WalkSpeed:0.##}, jump {hero.JumpHeight:0.##}");
+        }
     }
 }

@@ -79,6 +79,9 @@
     <Compile Include="..\ManaVoxel\Code\Services\CharacterSpawnService.cs" Link="Services\CharacterSpawnService.cs" />
     <Compile Include="..\ManaVoxel\Code\Loaders\MagicaVoxLoader.cs" Link="Levels\MagicaVoxLoader.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelComponentScripts.cs" Link="Levels\ManaLevelComponentScripts.cs" />
+    <!-- The shared level script registry now references the course components too. -->
+    <Compile Include="..\ManaVoxel\Code\Gameplay\Course\*.cs" Link="Gameplay\Course\%(Filename)%(Extension)" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVector3Converter.cs" Link="Levels\ManaLevelVector3Converter.cs" />
     <!-- Only the zip-handling halves of these two: their other partials are editor-facing
          (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
          Splitting them was pure code movement; desktop compiles the same class from both files. -->

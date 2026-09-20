@@ -24,6 +24,7 @@ Console.WriteLine($"ManaGraphicsBackendKind values: {string.Join(", ", Enum.GetN
 // a throwaway spike. NOT yet confirmed working end to end against a real browser; the whole
 // point of shipping this now is to find out from an actual browser console what breaks first.
 await ManaBrowserInterop.InitializeAsync();
+await ManaAudio.ManaAudioFactory.InitializeBrowserAsync();
 Console.WriteLine("Browser interop module loaded.");
 
 // The loading screen (index.html's overlay) has been up since the page loaded, showing the wasm

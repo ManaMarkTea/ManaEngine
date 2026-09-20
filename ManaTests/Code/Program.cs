@@ -2,6 +2,7 @@ using ManaTests;
 using ManaUI;
 
 if (args.Contains("--popout-smoke")) return DesktopWindowSmoke.Run();
+if (args.Contains("--audio-smoke")) return AudioDeviceSmoke.Run();
 
 // Headless test suite for ManaRenderer. One project for every system, so there is a single command to run
 // and a single place to add coverage; suites are grouped by system and live in Code/<System>/.

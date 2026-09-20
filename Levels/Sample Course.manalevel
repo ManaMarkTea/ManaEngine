@@ -3,68 +3,3590 @@
   "version": 1,
   "name": "Sample Course",
   "camera": {
-    "position": [ 44, 14, 64 ],
-    "rotation": [ -0.35, 0, 0 ]
+    "position": [ 40, 12, 56 ],
+    "rotation": [ -0.3, 0, 0 ]
   },
   "nodes": [
     {
       "name": "Player Start",
       "kind": "PlayerStart",
-      "position": [ 40, 0, 40 ],
-      "rotation": [ 0, 3.1415927, 0 ],
-      "scale": [ 1, 1, 1 ]
+      "position": [ 38, 0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "character": {
+        "pack": "kenney_mini-dungeon",
+        "name": "character-human",
+        "height": 2.0
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/jump.wav",
+            "cue": "Jump",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/land.wav",
+            "cue": "Land",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/footstep_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true,
+            "variants": "Assets/Audio/Starter/Gameplay/footstep_02.wav;Assets/Audio/Starter/Gameplay/footstep_03.wav;Assets/Audio/Starter/Gameplay/footstep_04.wav"
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/hurt.wav",
+            "cue": "Hurt",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Feedback/low_health.wav",
+            "cue": "LowHealth",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true,
+            "delaySeconds": 0.12
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/death.wav",
+            "cue": "Death",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/respawn.wav",
+            "cue": "Respawn",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true,
+            "delaySeconds": 0.22
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/goal.wav",
+            "cue": "Goal",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Feedback/all_coins.wav",
+            "cue": "AllCoins",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Hazards/fall.wav",
+            "cue": "Fall",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "spatial": false,
+            "global": true
+          }
+        }
+      ]
     },
     {
-      "name": "Platform Step 1",
+      "name": "Road 0",
+      "kind": "Mesh",
+      "position": [ 38.0, -0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/road-straight.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/asphalt_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/asphalt_02.wav;Assets/Audio/SampleCourse/Footsteps/asphalt_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Road 1",
+      "kind": "Mesh",
+      "position": [ 44.0, -0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/road-straight.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/asphalt_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/asphalt_02.wav;Assets/Audio/SampleCourse/Footsteps/asphalt_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Road 2",
+      "kind": "Mesh",
+      "position": [ 50.0, -0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/road-straight.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/asphalt_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/asphalt_02.wav;Assets/Audio/SampleCourse/Footsteps/asphalt_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Road 3",
+      "kind": "Mesh",
+      "position": [ 56.0, -0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/road-straight.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/asphalt_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/asphalt_02.wav;Assets/Audio/SampleCourse/Footsteps/asphalt_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Road 4",
+      "kind": "Mesh",
+      "position": [ 62.0, -0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/road-straight.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/asphalt_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/asphalt_02.wav;Assets/Audio/SampleCourse/Footsteps/asphalt_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Road 5",
+      "kind": "Mesh",
+      "position": [ 68.0, -0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/road-straight.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/asphalt_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/asphalt_02.wav;Assets/Audio/SampleCourse/Footsteps/asphalt_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lamp N0",
+      "kind": "Mesh",
+      "position": [ 44.0, 0.0, 44.1813 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 5.5, 5.5, 5.5 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-curved.glb"
+    },
+    {
+      "name": "Lamp S0",
+      "kind": "Mesh",
+      "position": [ 50.0, 0.0, 35.8187 ],
+      "rotation": [ 0, 3.1416, 0 ],
+      "scale": [ 5.5, 5.5, 5.5 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-curved.glb"
+    },
+    {
+      "name": "Lamp N1",
+      "kind": "Mesh",
+      "position": [ 56.0, 0.0, 44.1813 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 5.5, 5.5, 5.5 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-curved.glb"
+    },
+    {
+      "name": "Lamp S1",
+      "kind": "Mesh",
+      "position": [ 62.0, 0.0, 35.8187 ],
+      "rotation": [ 0, 3.1416, 0 ],
+      "scale": [ 5.5, 5.5, 5.5 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-curved.glb"
+    },
+    {
+      "name": "Cone 0",
+      "kind": "Mesh",
+      "position": [ 46.0, 0.0, 37.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 10.0, 10.0, 10.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-cone.glb"
+    },
+    {
+      "name": "Cone 1",
+      "kind": "Mesh",
+      "position": [ 48.0, 0.0, 37.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 10.0, 10.0, 10.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-cone.glb"
+    },
+    {
+      "name": "Cone 2",
+      "kind": "Mesh",
+      "position": [ 50.0, 0.0, 37.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 10.0, 10.0, 10.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-cone.glb"
+    },
+    {
+      "name": "Cone 3",
+      "kind": "Mesh",
+      "position": [ 52.0, 0.0, 42.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 10.0, 10.0, 10.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-cone.glb"
+    },
+    {
+      "name": "Cone 4",
+      "kind": "Mesh",
+      "position": [ 54.0, 0.0, 42.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 10.0, 10.0, 10.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-cone.glb"
+    },
+    {
+      "name": "Barrier 0",
+      "kind": "Mesh",
+      "position": [ 62.0, 0.0, 37.5 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 8.0, 8.0, 8.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-barrier.glb"
+    },
+    {
+      "name": "Barrier 1",
+      "kind": "Mesh",
+      "position": [ 62.0, 0.0, 42.5 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 8.0, 8.0, 8.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-barrier.glb"
+    },
+    {
+      "name": "Oil Slick",
       "kind": "Shape",
-      "position": [ 46, 0.25, 40 ],
-      "rotation": [ 0, 0, 0 ],
+      "position": [ 59.5, 0.06, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
       "scale": [ 1, 1, 1 ],
       "shape": "Cube",
-      "color": [ 0.42, 0.6, 0.86, 1 ],
-      "size": [ 1.5, 0.25, 1.5 ],
+      "color": [ 0.05, 0.04, 0.05, 1.0 ],
+      "size": [ 1.2, 0.06, 4.2 ],
+      "scripts": [
+        {
+          "type": "Hazard",
+          "properties": {
+            "damage": 1,
+            "offset": [
+              0,
+              0.5,
+              0
+            ],
+            "size": [
+              2.4,
+              1.0,
+              8.4
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Hazards/oil_squelch.wav",
+            "cue": "HazardContact",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 1",
+      "kind": "Group",
+      "position": [ 46.0, 1.3, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 2",
+      "kind": "Group",
+      "position": [ 50.0, 1.3, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 3",
+      "kind": "Group",
+      "position": [ 54.0, 1.3, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Road Bunny",
+      "kind": "Mesh",
+      "position": [ 52.0, 0.0, 37.9601 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-bunny.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              0,
+              4.0
+            ],
+            "speed": 1.4,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0.0,
+            "chaseSpeed": 4.5,
+            "leashRadius": 9.0,
+            "size": [
+              1.5,
+              2.01,
+              1.5
+            ],
+            "offset": [
+              0.0,
+              1.005,
+              0.0399
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        }
+      ]
+    },
+    {
+      "name": "Item Box 0",
+      "kind": "Mesh",
+      "position": [ 42.0, 0.0, 36.6 ],
+      "rotation": [ 0, 0.4, 0 ],
+      "scale": [ 3.0, 3.0, 3.0 ],
+      "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-box.glb"
+    },
+    {
+      "name": "Item Box 1",
+      "kind": "Mesh",
+      "position": [ 42.0, 0.0, 43.4 ],
+      "rotation": [ 0, 0.4, 0 ],
+      "scale": [ 3.0, 3.0, 3.0 ],
+      "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-box.glb"
+    },
+    {
+      "name": "Road Palm 0",
+      "kind": "Mesh",
+      "position": [ 44.0, 0.0, 48.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
+    },
+    {
+      "name": "Road Palm 1",
+      "kind": "Mesh",
+      "position": [ 50.5471, 0.0, 32.3106 ],
+      "rotation": [ 0, 0.9, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
+    },
+    {
+      "name": "Road Palm 2",
+      "kind": "Mesh",
+      "position": [ 58.0, 0.0, 48.0 ],
+      "rotation": [ 0, 1.8, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-detailed-straight.glb"
+    },
+    {
+      "name": "Road Palm 3",
+      "kind": "Mesh",
+      "position": [ 66.0, 0.0, 32.0 ],
+      "rotation": [ 0, 2.7, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
+    },
+    {
+      "name": "Banana 0",
+      "kind": "Mesh",
+      "position": [ 58.6, 0.12, 38.6 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 3.0, 3.0, 3.0 ],
+      "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-banana.glb"
+    },
+    {
+      "name": "Banana 1",
+      "kind": "Mesh",
+      "position": [ 60.5, 0.12, 41.5 ],
+      "rotation": [ 0, 0.7, 0 ],
+      "scale": [ 3.0, 3.0, 3.0 ],
+      "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-banana.glb"
+    },
+    {
+      "name": "Banana 2",
+      "kind": "Mesh",
+      "position": [ 59.4, 0.12, 40.1 ],
+      "rotation": [ 0, 1.4, 0 ],
+      "scale": [ 3.0, 3.0, 3.0 ],
+      "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-banana.glb"
+    },
+    {
+      "name": "Coin 4",
+      "kind": "Group",
+      "position": [ 58.0, 2.4, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 5",
+      "kind": "Group",
+      "position": [ 61.0, 2.4, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Spilled Oil",
+      "kind": "Shape",
+      "position": [ 78.5, 0.05, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Cube",
+      "color": [ 0.09, 0.06, 0.05, 1.0 ],
+      "size": [ 13.5, 0.05, 11.0 ],
+      "scripts": [
+        {
+          "type": "Hazard",
+          "properties": {
+            "damage": 1,
+            "offset": [
+              0,
+              0.5,
+              0
+            ],
+            "size": [
+              27.0,
+              1.0,
+              22.0
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Hazards/oil_squelch.wav",
+            "cue": "HazardContact",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container B1",
+      "kind": "Mesh",
+      "position": [ 68.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
       "collision": {
-        "size": [ 3, 0.5, 3 ],
-        "offset": [ 0, 0, 0 ]
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container B2 Base",
+      "kind": "Mesh",
+      "position": [ 75.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container B2 Top",
+      "kind": "Mesh",
+      "position": [ 75.0, 1.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-c.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container B3",
+      "kind": "Mesh",
+      "position": [ 82.0, 0.0, 37.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cargo Pile B4",
+      "kind": "Mesh",
+      "position": [ 89.0, 0.0, 41.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-pile-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cargo Pile Decor 1",
+      "kind": "Mesh",
+      "position": [ 77.6773, 0.0, 48.0239 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-pile-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container Decor 1",
+      "kind": "Mesh",
+      "position": [ 90.0, 0.0, 32.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container Decor 2",
+      "kind": "Mesh",
+      "position": [ 70.0, 0.0, 48.0 ],
+      "rotation": [ 0, 0.3, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-c.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 6",
+      "kind": "Group",
+      "position": [ 68.0, 2.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 7",
+      "kind": "Group",
+      "position": [ 75.0, 4.312, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 8",
+      "kind": "Group",
+      "position": [ 78.6, 4.912, 38.5 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 9",
+      "kind": "Group",
+      "position": [ 82.0, 2.656, 37.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 10",
+      "kind": "Group",
+      "position": [ 89.0, 2.8, 41.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Yard Hog",
+      "kind": "Mesh",
+      "position": [ 80.0, 0.0, 42.8745 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-hog.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              0,
+              -9
+            ],
+            "speed": 2.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 6.0,
+            "chaseSpeed": 4.5,
+            "leashRadius": 9.0,
+            "size": [
+              1.5,
+              1.5158,
+              1.5
+            ],
+            "offset": [
+              -0.0,
+              0.7579,
+              0.1255
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/alert.wav",
+            "cue": "EnemyAlert",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Yard Orc",
+      "kind": "Mesh",
+      "position": [ 91.0, 0.0, 46.9807 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 2.3, 2.3, 2.3 ],
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/character-orc.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -6,
+              0,
+              0
+            ],
+            "speed": 1.6,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 7.0,
+            "chaseSpeed": 5.0,
+            "leashRadius": 9.0,
+            "size": [
+              1.5,
+              1.7947,
+              1.5
+            ],
+            "offset": [
+              0.0,
+              0.8974,
+              0.0193
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/alert.wav",
+            "cue": "EnemyAlert",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Yard Barrel 0",
+      "kind": "Mesh",
+      "position": [ 65.5, 0.0, 45.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/barrel.glb",
+      "collision": {
+        "useVisualBounds": true
       }
     },
     {
-      "name": "Platform Step 2",
-      "kind": "Shape",
-      "position": [ 50, 1.25, 40 ],
-      "rotation": [ 0, 0, 0 ],
-      "scale": [ 1, 1, 1 ],
-      "shape": "Cube",
-      "color": [ 0.42, 0.6, 0.86, 1 ],
-      "size": [ 1.5, 0.25, 1.5 ],
+      "name": "Yard Barrel 1",
+      "kind": "Mesh",
+      "position": [ 66.9, 0.0, 46.3 ],
+      "rotation": [ 0, 0.5, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/barrel.glb",
       "collision": {
-        "size": [ 3, 0.5, 3 ],
-        "offset": [ 0, 0, 0 ]
+        "useVisualBounds": true
       }
     },
     {
-      "name": "Platform Summit",
-      "kind": "Shape",
-      "position": [ 54.5, 2.25, 40 ],
-      "rotation": [ 0, 0, 0 ],
-      "scale": [ 1, 1, 1 ],
-      "shape": "Cube",
-      "color": [ 0.45, 0.82, 0.48, 1 ],
-      "size": [ 2, 0.25, 2 ],
+      "name": "Yard Crate 2",
+      "kind": "Mesh",
+      "position": [ 72.5, 0.0, 45.5 ],
+      "rotation": [ 0, 1.0, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/crate.glb",
       "collision": {
-        "size": [ 4, 0.5, 4 ],
-        "offset": [ 0, 0, 0 ]
+        "useVisualBounds": true
       }
     },
     {
-      "name": "Marker Ball",
-      "kind": "Shape",
-      "position": [ 40, 3, 46 ],
+      "name": "Yard Crate-Bottles 3",
+      "kind": "Mesh",
+      "position": [ 72.8, 0.0, 47.0 ],
+      "rotation": [ 0, 1.5, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/crate-bottles.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Yard Chest 4",
+      "kind": "Mesh",
+      "position": [ 85.5, 0.0, 49.0 ],
+      "rotation": [ 0, 2.0, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/chest.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Yard Barrel 5",
+      "kind": "Mesh",
+      "position": [ 93.0, 0.0, 33.5 ],
+      "rotation": [ 0, 2.5, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/barrel.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Cannon 0",
+      "kind": "Mesh",
+      "position": [ 97.9634, 0.0, 35.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.3, 1.3, 1.3 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/cannon.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Cannon 1",
+      "kind": "Mesh",
+      "position": [ 97.9634, 0.0, 45.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.3, 1.3, 1.3 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/cannon.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Checkpoint 1",
+      "kind": "Mesh",
+      "position": [ 95.0, 0.0, 40.5158 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.1, 1.1, 1.1 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/flag-pirate-high.glb",
+      "scripts": [
+        {
+          "type": "Checkpoint",
+          "properties": {
+            "size": [
+              4.5,
+              4.5,
+              4.5
+            ],
+            "offset": [
+              0.5158,
+              1.6,
+              0.0
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/checkpoint.wav",
+            "cue": "Checkpoint",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lamp Yard 0",
+      "kind": "Mesh",
+      "position": [ 96.0, 0.0, 34.4844 ],
+      "rotation": [ 0, 3.1416, 0 ],
+      "scale": [ 5.5, 5.5, 5.5 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
+    },
+    {
+      "name": "Lamp Yard 1",
+      "kind": "Mesh",
+      "position": [ 96.0, 0.0, 45.5156 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 5.5, 5.5, 5.5 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
+    },
+    {
+      "name": "Pier Planks 0a",
+      "kind": "Mesh",
+      "position": [ 96.25, -0.2, 38.75 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/platform.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/wood_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/wood_02.wav;Assets/Audio/SampleCourse/Footsteps/wood_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pier Planks 0b",
+      "kind": "Mesh",
+      "position": [ 96.25, -0.2, 41.25 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/platform.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/wood_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/wood_02.wav;Assets/Audio/SampleCourse/Footsteps/wood_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pier Planks 1a",
+      "kind": "Mesh",
+      "position": [ 98.75, -0.2, 38.75 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/platform.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/wood_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/wood_02.wav;Assets/Audio/SampleCourse/Footsteps/wood_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pier Planks 1b",
+      "kind": "Mesh",
+      "position": [ 98.75, -0.2, 41.25 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/platform.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/wood_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/wood_02.wav;Assets/Audio/SampleCourse/Footsteps/wood_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pier Crab",
+      "kind": "Mesh",
+      "position": [ 98.0, 0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-crab.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              0,
+              4.0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0.0,
+            "chaseSpeed": 4.5,
+            "leashRadius": 9.0,
+            "size": [
+              1.7518,
+              1.5,
+              1.7518
+            ],
+            "offset": [
+              0.0,
+              0.7156,
+              -0.0
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sand Patch 0",
+      "kind": "Mesh",
+      "position": [ 97.0, -0.45, 32.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 2.0, 2.0, 2.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-sand.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sand Patch 1",
+      "kind": "Mesh",
+      "position": [ 97.0, -0.45, 49.0 ],
+      "rotation": [ 0, 0.5, 0 ],
+      "scale": [ 2.0, 2.0, 2.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-sand.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sand Patch 2",
+      "kind": "Mesh",
+      "position": [ 129.0, -0.45, 48.0 ],
+      "rotation": [ 0, 1.0, 0 ],
+      "scale": [ 2.0, 2.0, 2.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-sand.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sand Patch 3",
+      "kind": "Mesh",
+      "position": [ 129.5, -0.45, 33.0 ],
+      "rotation": [ 0, 1.5, 0 ],
+      "scale": [ 2.0, 2.0, 2.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-sand.glb",
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Harbor Palm 0",
+      "kind": "Mesh",
+      "position": [ 99.9535, 0.0, 32.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.3, 1.3, 1.3 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
+    },
+    {
+      "name": "Harbor Palm 1",
+      "kind": "Mesh",
+      "position": [ 98.0, 0.0, 49.5 ],
+      "rotation": [ 0, 1.3, 0 ],
+      "scale": [ 1.3, 1.3, 1.3 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
+    },
+    {
+      "name": "Harbor Palm 2",
+      "kind": "Mesh",
+      "position": [ 128.0, 0.0, 48.5 ],
+      "rotation": [ 0, 2.6, 0 ],
+      "scale": [ 1.3, 1.3, 1.3 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-detailed-straight.glb"
+    },
+    {
+      "name": "Harbor Palm 3",
+      "kind": "Mesh",
+      "position": [ 129.3078, 0.0, 33.6558 ],
+      "rotation": [ 0, 3.9, 0 ],
+      "scale": [ 1.3, 1.3, 1.3 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
+    },
+    {
+      "name": "Harbor Water",
+      "kind": "Water",
+      "position": [ 113, 0.35, 40.0 ],
       "rotation": [ 0, 0, 0 ],
       "scale": [ 1, 1, 1 ],
-      "shape": "Sphere",
-      "color": [ 0.95, 0.72, 0.2, 1 ],
-      "size": [ 1.5, 1.5, 1.5 ]
+      "water": {
+        "size": [ 24.0, 70 ],
+        "resolution": 112
+      },
+      "scripts": [
+        {
+          "type": "Hazard",
+          "properties": {
+            "kills": true,
+            "offset": [
+              0,
+              0.45,
+              0
+            ],
+            "size": [
+              24.0,
+              1.5,
+              70
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Hazards/water_splash.wav",
+            "cue": "HazardContact",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Ambience/harbor_water_loop.wav",
+            "cue": "None",
+            "playOnBegin": true,
+            "volume": 0.35,
+            "referenceDistance": 15,
+            "maxDistance": 70,
+            "loop": true,
+            "fadeSeconds": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "name": "Island I1",
+      "kind": "Mesh",
+      "position": [ 105.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ferry Platform",
+      "kind": "Mesh",
+      "position": [ 109.5, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "MovingPlatform",
+          "properties": {
+            "travel": [
+              4,
+              0,
+              0
+            ],
+            "speed": 2.0,
+            "pauseSeconds": 1.5
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Platforms/ferry_motion_loop.wav",
+            "cue": "PlatformMove",
+            "playOnBegin": false,
+            "volume": 0.6,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "loop": true,
+            "fadeSeconds": 0.15
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Platforms/stop_clunk.wav",
+            "cue": "PlatformStop",
+            "playOnBegin": false,
+            "volume": 0.6,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/wood_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/wood_02.wav;Assets/Audio/SampleCourse/Footsteps/wood_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Island I2",
+      "kind": "Mesh",
+      "position": [ 118.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-c.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Island I3",
+      "kind": "Mesh",
+      "position": [ 124.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/sand_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/sand_02.wav;Assets/Audio/SampleCourse/Footsteps/sand_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sail Boat",
+      "kind": "Mesh",
+      "position": [ 107.9329, 0.2, 33.8771 ],
+      "rotation": [ 0, 0.5, 0 ],
+      "scale": [ 1.4, 1.4, 1.4 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/boat-sail-a.glb"
+    },
+    {
+      "name": "Row Boat",
+      "kind": "Mesh",
+      "position": [ 117.0, 0.2, 48.0 ],
+      "rotation": [ 0, 1.1, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/boat-row-large.glb"
+    },
+    {
+      "name": "Fishing Boat",
+      "kind": "Mesh",
+      "position": [ 110.0, 0.2, 52.0 ],
+      "rotation": [ 0, -0.4, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/boat-fishing-small.glb"
+    },
+    {
+      "name": "Pirate Ship",
+      "kind": "Mesh",
+      "position": [ 113.0, 0.0, 68.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.4, 1.4, 1.4 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/ship-pirate-medium.glb"
+    },
+    {
+      "name": "Cargo Ship",
+      "kind": "Mesh",
+      "position": [ 150.0, 0.0, 66.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/ship-cargo-a.glb"
+    },
+    {
+      "name": "Shipwreck",
+      "kind": "Mesh",
+      "position": [ 131.0, 0.0, 60.0 ],
+      "rotation": [ 0, 0.6, 0 ],
+      "scale": [ 1.1, 1.1, 1.1 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/ship-wreck.glb"
+    },
+    {
+      "name": "Rocks 0",
+      "kind": "Mesh",
+      "position": [ 107.1213, 0.1, 49.0007 ],
+      "rotation": [ 0, 0.4, 0 ],
+      "scale": [ 0.8, 0.8, 0.8 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/rocks-a.glb"
+    },
+    {
+      "name": "Rocks 1",
+      "kind": "Mesh",
+      "position": [ 120.0476, 0.1, 34.0948 ],
+      "rotation": [ 0, -0.7, 0 ],
+      "scale": [ 0.7, 0.7, 0.7 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/rocks-sand-a.glb"
+    },
+    {
+      "name": "Buoy 1",
+      "kind": "Mesh",
+      "position": [ 104.0, 0.62, 46.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.4, 1.4, 1.4 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/buoy.glb"
+    },
+    {
+      "name": "Buoy 2",
+      "kind": "Mesh",
+      "position": [ 122.0, 0.62, 34.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.4, 1.4, 1.4 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/buoy.glb"
+    },
+    {
+      "name": "Coin 11",
+      "kind": "Group",
+      "position": [ 105.0, 2.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 12",
+      "kind": "Group",
+      "position": [ 113.5, 2.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 13",
+      "kind": "Group",
+      "position": [ 118.0, 2.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 14",
+      "kind": "Group",
+      "position": [ 121.0, 4.056, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ballast",
+      "kind": "Shape",
+      "position": [ 150.0, 0.03, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Cube",
+      "color": [ 0.34, 0.32, 0.3, 1.0 ],
+      "size": [ 24.0, 0.03, 8.0 ]
+    },
+    {
+      "name": "Track Bed Hazard",
+      "kind": "Shape",
+      "position": [ 151.0, 0.06, 40.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "shape": "Cube",
+      "color": [ 0.28, 0.12, 0.1, 1.0 ],
+      "size": [ 20.0, 0.02, 3.0 ],
+      "scripts": [
+        {
+          "type": "Hazard",
+          "properties": {
+            "damage": 1,
+            "offset": [ 0, 0.5, 0 ],
+            "size": [ 40.0, 1.0, 6.0 ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rail 0",
+      "kind": "Mesh",
+      "position": [ 128.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 1",
+      "kind": "Mesh",
+      "position": [ 132.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 2",
+      "kind": "Mesh",
+      "position": [ 136.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 3",
+      "kind": "Mesh",
+      "position": [ 140.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail Side 3",
+      "kind": "Mesh",
+      "position": [ 140.0, 1.08, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 4",
+      "kind": "Mesh",
+      "position": [ 144.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail Side 4",
+      "kind": "Mesh",
+      "position": [ 144.0, 1.08, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 5",
+      "kind": "Mesh",
+      "position": [ 148.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail Side 5",
+      "kind": "Mesh",
+      "position": [ 148.0, 1.08, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 6",
+      "kind": "Mesh",
+      "position": [ 152.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail Side 6",
+      "kind": "Mesh",
+      "position": [ 152.0, 1.08, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 7",
+      "kind": "Mesh",
+      "position": [ 156.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail Side 7",
+      "kind": "Mesh",
+      "position": [ 156.0, 1.08, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 8",
+      "kind": "Mesh",
+      "position": [ 160.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail Side 8",
+      "kind": "Mesh",
+      "position": [ 160.0, 1.08, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 9",
+      "kind": "Mesh",
+      "position": [ 164.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Rail 10",
+      "kind": "Mesh",
+      "position": [ 168.0, 1.08, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
+    },
+    {
+      "name": "Checkpoint 2",
+      "kind": "Mesh",
+      "position": [ 128.5, 0.0, 37.5158 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.1, 1.1, 1.1 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/flag-pirate-high.glb",
+      "scripts": [
+        {
+          "type": "Checkpoint",
+          "properties": {
+            "size": [
+              4.5,
+              4.5,
+              4.5
+            ],
+            "offset": [
+              0.5158,
+              1.6,
+              0.0
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/checkpoint.wav",
+            "cue": "Checkpoint",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flatbed",
+      "kind": "Mesh",
+      "position": [ 134.0, 0.18, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-flatbed.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 15",
+      "kind": "Group",
+      "position": [ 134.0, 3.0352, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Boxcar",
+      "kind": "Mesh",
+      "position": [ 139.52, 0.18, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-box.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 16",
+      "kind": "Group",
+      "position": [ 139.52, 3.2563, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tanker",
+      "kind": "Mesh",
+      "position": [ 145.04, 0.18, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-tank.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 17",
+      "kind": "Group",
+      "position": [ 145.04, 3.984, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coal Car",
+      "kind": "Mesh",
+      "position": [ 150.56, 0.18, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-coal.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 18",
+      "kind": "Group",
+      "position": [ 150.56, 3.8131, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container Car",
+      "kind": "Mesh",
+      "position": [ 156.08, 0.18, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-container-blue.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 19",
+      "kind": "Group",
+      "position": [ 156.08, 3.3552, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lumber Car",
+      "kind": "Mesh",
+      "position": [ 161.6, 0.18, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-flatbed-wood.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/wood_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/wood_02.wav;Assets/Audio/SampleCourse/Footsteps/wood_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 20",
+      "kind": "Group",
+      "position": [ 161.6, 3.0352, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Boxcar Cat",
+      "kind": "Mesh",
+      "position": [ 138.52, 2.2563, 40.2006 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-cat.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              2.0,
+              0,
+              0
+            ],
+            "speed": 1.2,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0.0,
+            "chaseSpeed": 4.5,
+            "leashRadius": 9.0,
+            "size": [
+              1.5,
+              1.71,
+              1.5
+            ],
+            "offset": [
+              0.0,
+              0.855,
+              -0.2006
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        }
+      ]
+    },
+    {
+      "name": "Container Dog",
+      "kind": "Mesh",
+      "position": [ 155.275, 2.3552, 39.8747 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-dog.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              1.6,
+              0,
+              0
+            ],
+            "speed": 1.2,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0.0,
+            "chaseSpeed": 4.5,
+            "leashRadius": 9.0,
+            "size": [
+              1.5,
+              1.5844,
+              1.5
+            ],
+            "offset": [
+              0.005,
+              0.7922,
+              0.1253
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parked Locomotive",
+      "kind": "Mesh",
+      "position": [ 150.0, 0.18, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-locomotive-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Parked Tank",
+      "kind": "Mesh",
+      "position": [ 156.0, 0.18, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-tank.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Parked Box",
+      "kind": "Mesh",
+      "position": [ 143.0, 0.18, 33.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.6, 1.6, 1.6 ],
+      "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-box.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Rail Crate 0",
+      "kind": "Mesh",
+      "position": [ 131.0, 0.0, 45.5 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/crate.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Rail Crate 1",
+      "kind": "Mesh",
+      "position": [ 132.4, 0.0, 46.8 ],
+      "rotation": [ 0, 0.4, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/crate.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Rail Barrel 2",
+      "kind": "Mesh",
+      "position": [ 165.0, 0.0, 45.5 ],
+      "rotation": [ 0, 0.8, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/barrel.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Rail Barrel 3",
+      "kind": "Mesh",
+      "position": [ 166.4, 0.0, 46.4 ],
+      "rotation": [ 0, 1.2, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/barrel.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Rail Chest 4",
+      "kind": "Mesh",
+      "position": [ 139.0, 0.0, 46.0 ],
+      "rotation": [ 0, 1.6, 0 ],
+      "scale": [ 1.2, 1.2, 1.2 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/chest.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Yard Lamp 0",
+      "kind": "Mesh",
+      "position": [ 140.0, 0.0, 47.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square-double.glb"
+    },
+    {
+      "name": "Yard Lamp 1",
+      "kind": "Mesh",
+      "position": [ 156.0, 0.0, 51.0 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 6.0, 6.0, 6.0 ],
+      "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square-double.glb"
+    },
+    {
+      "name": "Cargo Lift",
+      "kind": "Mesh",
+      "position": [ 168.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "MovingPlatform",
+          "properties": {
+            "travel": [
+              0,
+              2.4,
+              0
+            ],
+            "speed": 1.6,
+            "pauseSeconds": 1.5
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Platforms/lift_motor_loop.wav",
+            "cue": "PlatformMove",
+            "playOnBegin": false,
+            "volume": 0.6,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "loop": true,
+            "fadeSeconds": 0.15
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Platforms/stop_clunk.wav",
+            "cue": "PlatformStop",
+            "playOnBegin": false,
+            "volume": 0.6,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Base 0",
+      "kind": "Mesh",
+      "position": [ 176.0, 0.0, 37.93 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Top 0",
+      "kind": "Mesh",
+      "position": [ 176.0, 1.656, 37.93 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Base 1",
+      "kind": "Mesh",
+      "position": [ 176.0, 0.0, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Top 1",
+      "kind": "Mesh",
+      "position": [ 176.0, 1.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Base 2",
+      "kind": "Mesh",
+      "position": [ 176.0, 0.0, 42.07 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-a.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Top 2",
+      "kind": "Mesh",
+      "position": [ 176.0, 1.656, 42.07 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-container-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      },
+      "scripts": [
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Footsteps/metal_01.wav",
+            "cue": "Footstep",
+            "playOnBegin": false,
+            "volume": 0.85,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "variants": "Assets/Audio/SampleCourse/Footsteps/metal_02.wav;Assets/Audio/SampleCourse/Footsteps/metal_03.wav"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 21",
+      "kind": "Group",
+      "position": [ 175.0, 4.312, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 22",
+      "kind": "Group",
+      "position": [ 177.0, 4.312, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Gate",
+      "kind": "Mesh",
+      "position": [ 177.6, 3.312, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/gate-finish.glb",
+      "scripts": [
+        {
+          "type": "Goal",
+          "properties": {
+            "requireAllCoins": false,
+            "size": [ 5.6, 4.2, 1.6 ],
+            "offset": [ 0.0, 2.2, 0.0 ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Flag L",
+      "kind": "Mesh",
+      "position": [ 175.6, 3.312, 37.5689 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/flag-pirate-high.glb"
+    },
+    {
+      "name": "Finish Flag R",
+      "kind": "Mesh",
+      "position": [ 175.6, 3.312, 43.3689 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/flag-pirate-high.glb"
+    },
+    {
+      "name": "Finish Orc",
+      "kind": "Mesh",
+      "position": [ 174.4, 3.312, 38.4807 ],
+      "rotation": [ 0, 0.0, 0 ],
+      "scale": [ 2.3, 2.3, 2.3 ],
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/character-orc.glb",
+      "scripts": [
+        {
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              0,
+              3.0
+            ],
+            "speed": 1.2,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0.0,
+            "chaseSpeed": 5.0,
+            "leashRadius": 9.0,
+            "size": [
+              1.5,
+              1.7947,
+              1.5
+            ],
+            "offset": [
+              0.0,
+              0.8974,
+              0.0193
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "cue": "EnemyStomp",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/defeat.wav",
+            "cue": "EnemyDefeat",
+            "playOnBegin": false,
+            "volume": 0.4,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "delaySeconds": 0.07
+          }
+        }
+      ]
+    },
+    {
+      "name": "Spectator Panda",
+      "kind": "Mesh",
+      "position": [ 176.2949, 3.312, 37.6 ],
+      "rotation": [ 0, -1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-panda.glb"
+    },
+    {
+      "name": "Spectator Giraffe",
+      "kind": "Mesh",
+      "position": [ 176.283, 3.312, 42.3903 ],
+      "rotation": [ 0, -1.5708, 0 ],
+      "scale": [ 1.0, 1.0, 1.0 ],
+      "asset": "zip:kenney_cube-pets_1.0.zip/Models/GLB format/animal-giraffe.glb"
+    },
+    {
+      "name": "Finish Pile 0",
+      "kind": "Mesh",
+      "position": [ 178.3121, 0.0, 33.1477 ],
+      "rotation": [ 0, 0.4, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-pile-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Finish Pile 1",
+      "kind": "Mesh",
+      "position": [ 178.2934, 0.0, 48.8964 ],
+      "rotation": [ 0, -0.4, 0 ],
+      "scale": [ 1.5, 1.5, 1.5 ],
+      "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/cargo-pile-b.glb",
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "name": "Coin 23",
+      "kind": "Group",
+      "position": [ 168.0, 2.656, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coin 24",
+      "kind": "Group",
+      "position": [ 172.0, 4.856, 40.0 ],
+      "rotation": [ 0, 1.5708, 0 ],
+      "scale": [ 1, 1, 1 ],
+      "children": [
+        {
+          "name": "Coin Model",
+          "kind": "Mesh",
+          "position": [ 0.528, -0.528, -0.2 ],
+          "rotation": [ 0, 0, 0 ],
+          "scale": [ 4.0, 4.0, 4.0 ],
+          "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/item-coin-gold.glb"
+        }
+      ],
+      "scripts": [
+        {
+          "type": "Collectible",
+          "properties": {
+            "offset": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1.6,
+              1.6,
+              1.6
+            ]
+          }
+        },
+        {
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "cue": "Pickup",
+            "playOnBegin": false,
+            "volume": 0.75,
+            "referenceDistance": 5,
+            "maxDistance": 45
+          }
+        }
+      ]
     }
   ]
 }

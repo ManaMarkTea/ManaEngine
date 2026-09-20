@@ -549,6 +549,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Assets\Audio\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
     <None Update="Assets\Fonts\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -558,6 +562,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ManaAudio\ManaAudio.csproj" />
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
     <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
   </ItemGroup>

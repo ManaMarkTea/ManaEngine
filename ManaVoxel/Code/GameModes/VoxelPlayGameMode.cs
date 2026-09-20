@@ -83,7 +83,13 @@ namespace Mana.Code.GameModes
         /// </summary>
         protected override void BuildManaUi(ManaUiHost host)
         {
-            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hud.Text);
+            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hud.Text, () => Context.World.GameState.FormatHud(),
+                ManaUiPlayResults.Build(
+                    host.Root.Theme,
+                    Context.World.GameState,
+                    Restart,
+                    () => Context.Window.Close(),
+                    "Quit"));
         }
 
         public override void Load()
@@ -208,10 +214,12 @@ namespace Mana.Code.GameModes
             // a floor that is visibly right there.
             var spawnPosition = start?.SpawnPosition ?? new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f);
             spawnPosition.Y += 0.5f;
+            _spawnPosition = spawnPosition;
+            _spawnYaw = start?.SpawnYawRadians ?? 0.0f;
 
             lock (Context.World.SceneLock)
             {
-                _player = _characterSpawn.SpawnNextCharacter(Context.World, spawnPosition, _pawnController);
+                _player = _characterSpawn.SpawnFor(start, Context.World, spawnPosition, _pawnController);
             }
 
             if (_player == null || _pawnController == null)
@@ -226,15 +234,19 @@ namespace Mana.Code.GameModes
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
+
+            // Before BeginPlay: the game state resets there, and course pieces read the player from it.
+            Context.World.GameState.Player = _player;
             Context.World.BeginPlay();
 
             _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to fly; " +
-                        "then Space climbs, Shift surges, A/D turn, S brakes; right-drag steers, left-drag looks), C camera, Esc quit";
+                        "then Space climbs, Shift surges, A/D turn, S brakes; right-drag steers, left-drag looks), C camera, R restart, Esc quit";
         }
 
         public override void Update(double deltaTime)
         {
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+            Context.World.GameState.Tick((float)deltaTime);
             _planet?.UpdateAutoLod(Context.World.MainCamera);
             _planet?.UpdateNearOcean(Context.World.MainCamera);
             _planet?.UpdateDetailChase();
@@ -243,6 +255,14 @@ namespace Mana.Code.GameModes
 
             // Escape quits rather than releasing the character: there is no editor to hand control back to.
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();
+            var restartKeyDown = keyboard?.IsKeyPressed(Key.R) == true;
+            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard)
+            {
+                Restart();
+            }
+
+            _restartKeyWasDown = restartKeyDown;
+
             var quitKeyDown = keyboard?.IsKeyPressed(Key.Escape) == true;
             if (quitKeyDown && !_quitKeyWasDown)
             {
@@ -253,6 +273,17 @@ namespace Mana.Code.GameModes
         }
 
         private bool _quitKeyWasDown;
+        private bool _restartKeyWasDown;
+        private Vector3 _spawnPosition;
+        private float _spawnYaw;
+
+        private void Restart()
+        {
+            if (_player != null)
+            {
+                Context.World.GameState.Restart(Context.World, _spawnPosition, _spawnYaw);
+            }
+        }
 
         /// <summary>A single mutable string is the entire view model this mode has.</summary>
         private sealed class PlayHudState

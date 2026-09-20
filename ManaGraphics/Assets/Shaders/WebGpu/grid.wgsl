@@ -45,7 +45,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 
 // Must match VoxelEditorGameMode.cs's gridSize -- the whole-plane boundary tier and the UV
 // reconstruction below both assume a plane's 0..1 UV spans exactly this many world units.
-const RoomSize : f32 = 128.0;
+const RoomSize : f32 = 256.0;
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {

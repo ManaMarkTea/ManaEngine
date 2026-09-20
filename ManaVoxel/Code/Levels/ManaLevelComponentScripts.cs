@@ -1,9 +1,12 @@
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Mana;
 using Mana.Code;
 using Mana.Code.Nodes;
+using Mana.Code.Components;
+using ManaVoxel.Code.Gameplay.Course;
 using ManaVoxel.Code.Gameplay.Trains;
 
 namespace ManaVoxel.Code.Levels
@@ -15,6 +18,7 @@ namespace ManaVoxel.Code.Levels
         public required Type ComponentType { get; init; }
 
         public required Func<ManaSceneNode, ManaComponent> Create { get; init; }
+        public bool AllowMultiple { get; init; }
 
         public Action<ManaComponent>? AfterPropertiesApplied { get; init; }
     }
@@ -24,6 +28,50 @@ namespace ManaVoxel.Code.Levels
         private static readonly IReadOnlyList<ManaLevelScriptComponentDefinition> Definitions =
             new List<ManaLevelScriptComponentDefinition>
             {
+                new()
+                {
+                    Type = ManaAudioSourceComponent.ScriptType,
+                    ComponentType = typeof(ManaAudioSourceComponent),
+                    Create = node => new ManaAudioSourceComponent(node),
+                    AllowMultiple = true,
+                    AfterPropertiesApplied = component => { _ = ((ManaAudioSourceComponent)component).PrepareAsync(); }
+                },
+                new()
+                {
+                    Type = CollectibleComponent.ScriptType,
+                    ComponentType = typeof(CollectibleComponent),
+                    Create = node => new CollectibleComponent(node)
+                },
+                new()
+                {
+                    Type = CheckpointComponent.ScriptType,
+                    ComponentType = typeof(CheckpointComponent),
+                    Create = node => new CheckpointComponent(node)
+                },
+                new()
+                {
+                    Type = HazardComponent.ScriptType,
+                    ComponentType = typeof(HazardComponent),
+                    Create = node => new HazardComponent(node)
+                },
+                new()
+                {
+                    Type = GoalComponent.ScriptType,
+                    ComponentType = typeof(GoalComponent),
+                    Create = node => new GoalComponent(node)
+                },
+                new()
+                {
+                    Type = EnemyComponent.ScriptType,
+                    ComponentType = typeof(EnemyComponent),
+                    Create = node => new EnemyComponent(node)
+                },
+                new()
+                {
+                    Type = MovingPlatformComponent.ScriptType,
+                    ComponentType = typeof(MovingPlatformComponent),
+                    Create = node => new MovingPlatformComponent(node)
+                },
                 new()
                 {
                     Type = TrainCarComponent.ScriptType,
@@ -56,6 +104,7 @@ namespace ManaVoxel.Code.Levels
             return scripts;
         }
 
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         public static bool AddToNode(ManaSceneNode node, ManaLevelScript script)
         {
             var definition = Definitions.FirstOrDefault(definition =>
@@ -65,7 +114,7 @@ namespace ManaVoxel.Code.Levels
                 return false;
             }
 
-            var component = node.Components.FirstOrDefault(definition.ComponentType.IsInstanceOfType);
+            var component = definition.AllowMultiple ? null : node.Components.FirstOrDefault(definition.ComponentType.IsInstanceOfType);
             if (component == null)
             {
                 component = definition.Create(node);

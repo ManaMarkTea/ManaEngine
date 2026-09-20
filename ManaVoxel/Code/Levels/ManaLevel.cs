@@ -66,7 +66,7 @@ namespace ManaVoxel.Code.Levels
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter() }
+            Converters = { new JsonStringEnumConverter(), new ManaLevelVector3Converter() }
         };
 
         public string ToJson() => JsonSerializer.Serialize(this, SerializerOptions);
@@ -155,9 +155,29 @@ namespace ManaVoxel.Code.Levels
 
         public ManaLevelWater? Water { get; set; }
 
+        /// <summary>On a Player Start: which character the player is, when the level cares.</summary>
+        public ManaLevelCharacter? Character { get; set; }
+
         public List<ManaLevelScript>? Scripts { get; set; }
 
         public List<ManaLevelNode>? Children { get; set; }
+    }
+
+    /// <summary>
+    /// The character a level wants its player to be: a model by pack and name, and how tall to make it.
+    /// Kenney's packs differ a lot in scale (a mini-dungeon hero is under a metre), and a course is built for
+    /// a particular height, so the level says what height it was built for.
+    /// </summary>
+    public sealed class ManaLevelCharacter
+    {
+        /// <summary>The asset pack, as the character catalog names it -- the zip's file name without its extension.</summary>
+        public string Pack { get; set; } = string.Empty;
+
+        /// <summary>The model's name within the pack, e.g. <c>character-human</c>.</summary>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>Height to scale the model to, in world units; zero keeps its own size.</summary>
+        public float Height { get; set; }
     }
 
     /// <summary>A kinematic collider, so authored terrain is still solid after loading.</summary>

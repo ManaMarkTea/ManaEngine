@@ -56,6 +56,8 @@ public static class TestRunner
 
     private static readonly (string System, string Section, Action<ManaFontManager, Action<string, bool, string>> Run)[] Suites =
     {
+        ("Audio", "WAV decoding and voice lifetime", AudioChecks.Run),
+        ("Audio", "course cues, persistence and cleanup", CourseAudioChecks.Run),
         ("ManaUI", "glyph coverage", GlyphChecks.Run),
         ("ManaUI", "layout, text and draw list", LayoutChecks.Run),
         ("ManaUI", "input", InputChecks.Run),
@@ -74,6 +76,7 @@ public static class TestRunner
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "dock drop indicators", DockDropIndicatorChecks.Run),
         ("ManaUI", "tab rows", TabRowChecks.Run),
+        ("Mana", "pawn movement", PawnMovementChecks.Run),
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
@@ -82,6 +85,8 @@ public static class TestRunner
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),
         ("Mana", "pawn camera controls", PawnCameraControlChecks.Run),
         ("ManaVoxel", "flying mount", FlyingMountChecks.Run),
+        ("ManaVoxel", "course pieces", CoursePieceChecks.Run),
+        ("ManaVoxel", "readable asset references", ReadableAssetReferenceChecks.Run),
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),
         ("ManaVoxel", "scene click-selection drill-down", SceneSelectionDrillDownChecks.Run),
         ("ManaVoxel", "mesh thumbnail rasterizer", MeshThumbnailChecks.Run),

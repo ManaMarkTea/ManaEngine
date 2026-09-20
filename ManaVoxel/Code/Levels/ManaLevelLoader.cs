@@ -149,6 +149,7 @@ namespace ManaVoxel.Code.Levels
         /// </summary>
         public static void RemoveAuthoredNodes(ManaContext context, ManaSceneNode? keep = null)
         {
+            context.Audio.StopAll();
             var world = context.World;
             var doomed = new List<(ManaScene Scene, ManaSceneNode Node)>();
 
@@ -195,6 +196,7 @@ namespace ManaVoxel.Code.Levels
 
         private static void RemoveBodies(ManaContext context, ManaSceneNode node)
         {
+            foreach (var audio in node.Components.OfType<ManaAudioSourceComponent>()) { audio.Dispose(); }
             foreach (var collision in node.GetComponents<ManaCollisionComponent>())
             {
                 context.Physics.RemoveBody(collision.Body);
@@ -298,6 +300,13 @@ namespace ManaVoxel.Code.Levels
                     var start = new ManaPlayerStartNode(state.Context, ToVector3(entry.Position));
                     start.Name = string.IsNullOrWhiteSpace(entry.Name) ? start.Name : entry.Name;
                     start.Rotation = ToVector3(entry.Rotation);
+                    if (entry.Character is { } character)
+                    {
+                        start.CharacterPack = character.Pack;
+                        start.CharacterName = character.Name;
+                        start.CharacterHeight = character.Height;
+                    }
+
                     start.UpdateTransform();
                     lock (state.Context.World.SceneLock)
                     {
@@ -544,7 +553,7 @@ namespace ManaVoxel.Code.Levels
             if (MeshAssetLibrary.TryDecodeZip(assetReference, out var zipPath, out var entryPath))
             {
                 using var archive = ZipFile.OpenRead(zipPath);
-                var entry = archive.GetEntry(entryPath)
+                var entry = MeshAssetLibrary.FindZipEntry(archive, entryPath)
                     ?? throw new FileNotFoundException($"Entry '{entryPath}' is no longer inside '{zipPath}'.", zipPath);
 
                 using var entryStream = entry.Open();
@@ -572,6 +581,18 @@ namespace ManaVoxel.Code.Levels
             var nodes = new Queue<ManaLevelNode>(level.Nodes);
             while (nodes.TryDequeue(out var node))
             {
+                foreach (var script in node.Scripts ?? [])
+                {
+                    if (!string.Equals(script.Type, ManaAudioSourceComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) { continue; }
+                    string Text(string key) => script.Properties.FirstOrDefault(pair =>
+                        string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value is var value
+                        && value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString() ?? "" : "";
+                    foreach (var path in ManaAudioSourceComponent.Paths(Text("clipPath"), Text("variants")))
+                    {
+                        try { await catalog.EnsureAsync(path); }
+                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload audio '{path}': {ex.Message}"); }
+                    }
+                }
                 if (!string.IsNullOrWhiteSpace(node.Asset))
                     await catalog.EnsureAsync(node.Asset);
                 if (node.Children != null)

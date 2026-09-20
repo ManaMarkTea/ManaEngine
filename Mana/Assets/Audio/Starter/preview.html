@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mana starter sounds</title>
+<style>
+body { font:16px system-ui,sans-serif; max-width:960px; margin:40px auto; padding:0 24px; background:#121820; color:#edf2f8; }
+p { color:#acbdd0; line-height:1.5; } article { display:flex; align-items:center; justify-content:space-between;
+gap:20px; padding:18px 0; border-bottom:1px solid #2b3542; } article p { margin:6px 0 0; font-size:14px; }
+audio { width:290px; flex-shrink:0; } button { background:#aacdff; color:#152234; border:0; border-radius:6px;
+padding:12px 20px; font:inherit; cursor:pointer; margin-right:10px; } #status { min-height:24px; }
+@media(max-width:650px) { article { align-items:stretch; flex-direction:column; } audio { width:100%; } }
+</style>
+<h1>Mana starter sounds</h1><p>25 original synthesized effects. Soft UI feedback and playful gameplay sounds.
+Mono · 48 kHz · 16-bit PCM WAV. Start with a comfortable speaker volume.</p>
+<button id="play">Play all</button><button id="stop">Stop</button><p id="status" role="status"></p>
+<article><div><strong>UI/hover</strong><p>Soft focus tick; use sparingly on keyboard navigation</p></div><audio controls preload="none" src="UI/hover.wav"></audio></article>
+<article><div><strong>UI/click</strong><p>Short, rounded button press</p></div><audio controls preload="none" src="UI/click.wav"></audio></article>
+<article><div><strong>UI/confirm</strong><p>Positive two-note confirmation</p></div><audio controls preload="none" src="UI/confirm.wav"></audio></article>
+<article><div><strong>UI/cancel</strong><p>Gentle descending dismissal</p></div><audio controls preload="none" src="UI/cancel.wav"></audio></article>
+<article><div><strong>UI/error</strong><p>Low double pulse for a rejected action</p></div><audio controls preload="none" src="UI/error.wav"></audio></article>
+<article><div><strong>UI/toggle_on</strong><p>Upward toggle</p></div><audio controls preload="none" src="UI/toggle_on.wav"></audio></article>
+<article><div><strong>UI/toggle_off</strong><p>Downward toggle</p></div><audio controls preload="none" src="UI/toggle_off.wav"></audio></article>
+<article><div><strong>UI/notification</strong><p>Small, clear notification chime</p></div><audio controls preload="none" src="UI/notification.wav"></audio></article>
+<article><div><strong>UI/open</strong><p>Soft rising panel motion</p></div><audio controls preload="none" src="UI/open.wav"></audio></article>
+<article><div><strong>UI/close</strong><p>Soft falling panel motion</p></div><audio controls preload="none" src="UI/close.wav"></audio></article>
+<article><div><strong>Gameplay/jump</strong><p>Playful upward hop</p></div><audio controls preload="none" src="Gameplay/jump.wav"></audio></article>
+<article><div><strong>Gameplay/land</strong><p>Small landing thump</p></div><audio controls preload="none" src="Gameplay/land.wav"></audio></article>
+<article><div><strong>Gameplay/pickup</strong><p>Bright collectible ping</p></div><audio controls preload="none" src="Gameplay/pickup.wav"></audio></article>
+<article><div><strong>Gameplay/checkpoint</strong><p>Warm checkpoint arpeggio</p></div><audio controls preload="none" src="Gameplay/checkpoint.wav"></audio></article>
+<article><div><strong>Gameplay/hurt</strong><p>Brief downward damage pulse</p></div><audio controls preload="none" src="Gameplay/hurt.wav"></audio></article>
+<article><div><strong>Gameplay/death</strong><p>Descending failure cue</p></div><audio controls preload="none" src="Gameplay/death.wav"></audio></article>
+<article><div><strong>Gameplay/respawn</strong><p>Gentle rising return cue</p></div><audio controls preload="none" src="Gameplay/respawn.wav"></audio></article>
+<article><div><strong>Gameplay/goal</strong><p>Short major-chord celebration</p></div><audio controls preload="none" src="Gameplay/goal.wav"></audio></article>
+<article><div><strong>Gameplay/impact_soft</strong><p>Muted collision or placement</p></div><audio controls preload="none" src="Gameplay/impact_soft.wav"></audio></article>
+<article><div><strong>Gameplay/impact_hard</strong><p>Crisp collision or break</p></div><audio controls preload="none" src="Gameplay/impact_hard.wav"></audio></article>
+<article><div><strong>Gameplay/whoosh</strong><p>Short movement or swing</p></div><audio controls preload="none" src="Gameplay/whoosh.wav"></audio></article>
+<article><div><strong>Gameplay/footstep_01</strong><p>Stylized dry footstep; alternate the four variants</p></div><audio controls preload="none" src="Gameplay/footstep_01.wav"></audio></article>
+<article><div><strong>Gameplay/footstep_02</strong><p>Stylized dry footstep; alternate the four variants</p></div><audio controls preload="none" src="Gameplay/footstep_02.wav"></audio></article>
+<article><div><strong>Gameplay/footstep_03</strong><p>Stylized dry footstep; alternate the four variants</p></div><audio controls preload="none" src="Gameplay/footstep_03.wav"></audio></article>
+<article><div><strong>Gameplay/footstep_04</strong><p>Stylized dry footstep; alternate the four variants</p></div><audio controls preload="none" src="Gameplay/footstep_04.wav"></audio></article>
+<script>
+const clips = [...document.querySelectorAll('audio')];
+const status = document.querySelector('#status');
+let generation = 0;
+function stop() { generation++; for (const clip of clips) { clip.pause(); clip.currentTime = 0; } status.textContent = ''; }
+document.querySelector('#stop').onclick = stop;
+document.querySelector('#play').onclick = async () => {
+    stop(); const current = generation;
+    for (const clip of clips) {
+        if (current !== generation) { break; }
+        status.textContent = clip.closest('article').querySelector('strong').textContent;
+        try {
+            await new Promise((resolve, reject) => {
+                clip.addEventListener('ended', resolve, { once:true });
+                clip.addEventListener('pause', resolve, { once:true });
+                clip.addEventListener('error', () => reject(new Error('Unable to load sound')), { once:true });
+                clip.play().catch(reject);
+            });
+        } catch (error) { status.textContent = error.message; return; }
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (current === generation) { status.textContent = 'Finished'; }
+};
+for (const clip of clips) { clip.addEventListener('play', () => { for (const other of clips) { if (other !== clip) { other.pause(); } } }); }
+</script></html>

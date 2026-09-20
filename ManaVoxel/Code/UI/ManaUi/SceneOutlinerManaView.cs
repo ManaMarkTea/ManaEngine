@@ -1,4 +1,5 @@
 using Mana;
+using ManaVoxel.Code.Gameplay.Course;
 using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
@@ -485,6 +486,24 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                         SelectCreated(node);
                     }));
+                }
+
+                addNode.Items.Add(MenuItem.Separator());
+
+                foreach (var (label, build) in CoursePieceFactory.Pieces)
+                {
+                    addNode.Items.Add(new MenuItem($"Course: {label}", () =>
+                    {
+                        var factory = new ManaShapeFactory(scene.Context, scene);
+                        var node = build(factory, position);
+                        if (parent != null)
+                        {
+                            scene.Children.Remove(node);
+                            parent.AddChild(node);
+                        }
+
+                        SelectCreated(node);
+                    }).WithTooltip("A ready-made play piece: a shape, its behaviour and a trigger volume."));
                 }
 
                 return addNode;

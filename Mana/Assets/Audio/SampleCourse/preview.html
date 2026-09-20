@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample Course sounds</title>
+<style>
+body { font:16px system-ui,sans-serif; max-width:960px; margin:40px auto; padding:0 24px; background:#121820; color:#edf2f8; }
+p { color:#acbdd0; line-height:1.5; } article { display:flex; align-items:center; justify-content:space-between;
+gap:20px; padding:18px 0; border-bottom:1px solid #2b3542; } article p { margin:6px 0 0; font-size:14px; }
+audio { width:290px; flex-shrink:0; } button { background:#aacdff; color:#152234; border:0; border-radius:6px;
+padding:12px 20px; font:inherit; cursor:pointer; margin-right:10px; } #status { min-height:24px; }
+@media(max-width:650px) { article { align-items:stretch; flex-direction:column; } audio { width:100%; } }
+</style>
+<h1>Sample Course sounds</h1><p>24 effects for the road, cargo yard, harbor and rail course. Loop files play one cycle in this preview.
+Mono · 48 kHz · 16-bit PCM WAV. Start with a comfortable speaker volume.</p>
+<button id="play">Play all</button><button id="stop">Stop</button><p id="status" role="status"></p>
+<article><div><strong>Footsteps/asphalt_01</strong><p>Asphalt footstep 1; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/asphalt_01.wav"></audio></article>
+<article><div><strong>Footsteps/asphalt_02</strong><p>Asphalt footstep 2; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/asphalt_02.wav"></audio></article>
+<article><div><strong>Footsteps/asphalt_03</strong><p>Asphalt footstep 3; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/asphalt_03.wav"></audio></article>
+<article><div><strong>Footsteps/wood_01</strong><p>Wood footstep 1; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/wood_01.wav"></audio></article>
+<article><div><strong>Footsteps/wood_02</strong><p>Wood footstep 2; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/wood_02.wav"></audio></article>
+<article><div><strong>Footsteps/wood_03</strong><p>Wood footstep 3; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/wood_03.wav"></audio></article>
+<article><div><strong>Footsteps/metal_01</strong><p>Metal footstep 1; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/metal_01.wav"></audio></article>
+<article><div><strong>Footsteps/metal_02</strong><p>Metal footstep 2; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/metal_02.wav"></audio></article>
+<article><div><strong>Footsteps/metal_03</strong><p>Metal footstep 3; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/metal_03.wav"></audio></article>
+<article><div><strong>Footsteps/sand_01</strong><p>Sand footstep 1; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/sand_01.wav"></audio></article>
+<article><div><strong>Footsteps/sand_02</strong><p>Sand footstep 2; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/sand_02.wav"></audio></article>
+<article><div><strong>Footsteps/sand_03</strong><p>Sand footstep 3; alternate the three variants</p></div><audio controls preload="none" src="Footsteps/sand_03.wav"></audio></article>
+<article><div><strong>Enemies/alert</strong><p>Small startled chirrup when the Yard Hog begins chasing</p></div><audio controls preload="none" src="Enemies/alert.wav"></audio></article>
+<article><div><strong>Enemies/stomp</strong><p>Soft squash and upward rebound when landing on an enemy</p></div><audio controls preload="none" src="Enemies/stomp.wav"></audio></article>
+<article><div><strong>Enemies/defeat</strong><p>Tiny sparkle tail for an enemy disappearing; optional after stomp</p></div><audio controls preload="none" src="Enemies/defeat.wav"></audio></article>
+<article><div><strong>Hazards/oil_squelch</strong><p>Sticky contact with the Oil Slick or Spilled Oil</p></div><audio controls preload="none" src="Hazards/oil_squelch.wav"></audio></article>
+<article><div><strong>Hazards/water_splash</strong><p>Broad splash on falling into the lethal Harbor Water</p></div><audio controls preload="none" src="Hazards/water_splash.wav"></audio></article>
+<article><div><strong>Hazards/fall</strong><p>Short descending whistle for a long fall, before death or splash</p></div><audio controls preload="none" src="Hazards/fall.wav"></audio></article>
+<article><div><strong>Feedback/low_health</strong><p>Quiet double heartbeat when health first drops to one</p></div><audio controls preload="none" src="Feedback/low_health.wav"></audio></article>
+<article><div><strong>Feedback/all_coins</strong><p>Distinct reward for collecting the last of the course&#x27;s 24 coins</p></div><audio controls preload="none" src="Feedback/all_coins.wav"></audio></article>
+<article><div><strong>Platforms/ferry_motion_loop</strong><p>Quiet rolling vibration and timber creak while the ferry moves; loop</p></div><audio controls preload="none" src="Platforms/ferry_motion_loop.wav"></audio></article>
+<article><div><strong>Platforms/lift_motor_loop</strong><p>Steady electric lift motor while the cargo lift moves; loop</p></div><audio controls preload="none" src="Platforms/lift_motor_loop.wav"></audio></article>
+<article><div><strong>Platforms/stop_clunk</strong><p>Damped arrival clunk when either moving platform reaches an end</p></div><audio controls preload="none" src="Platforms/stop_clunk.wav"></audio></article>
+<article><div><strong>Ambience/harbor_water_loop</strong><p>Gentle lapping water for the harbor section; seamless loop</p></div><audio controls preload="none" src="Ambience/harbor_water_loop.wav"></audio></article>
+<script>
+const clips = [...document.querySelectorAll('audio')];
+const status = document.querySelector('#status');
+let generation = 0;
+function stop() { generation++; for (const clip of clips) { clip.pause(); clip.currentTime = 0; } status.textContent = ''; }
+document.querySelector('#stop').onclick = stop;
+document.querySelector('#play').onclick = async () => {
+    stop(); const current = generation;
+    for (const clip of clips) {
+        if (current !== generation) { break; }
+        status.textContent = clip.closest('article').querySelector('strong').textContent;
+        try {
+            await new Promise((resolve, reject) => {
+                clip.addEventListener('ended', resolve, { once:true });
+                clip.addEventListener('pause', resolve, { once:true });
+                clip.addEventListener('error', () => reject(new Error('Unable to load sound')), { once:true });
+                clip.play().catch(reject);
+            });
+        } catch (error) { status.textContent = error.message; return; }
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (current === generation) { status.textContent = 'Finished'; }
+};
+for (const clip of clips) { clip.addEventListener('play', () => { for (const other of clips) { if (other !== clip) { other.pause(); } } }); }
+</script></html>

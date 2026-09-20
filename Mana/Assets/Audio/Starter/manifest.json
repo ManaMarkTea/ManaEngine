@@ -1,0 +1,208 @@
+{
+  "sampleRate": 48000,
+  "channels": 1,
+  "bitsPerSample": 16,
+  "provenance": "Original procedural synthesis; no third-party samples or recordings.",
+  "sounds": [
+    {
+      "file": "UI/hover.wav",
+      "description": "Soft focus tick; use sparingly on keyboard navigation",
+      "durationSeconds": 0.04,
+      "peakDbfs": -20.0,
+      "rmsDbfs": -32.94,
+      "sha256": "6c84f85b916938de6509619e682ed0dc31d35f87891eff9dd16e78315cacb16a"
+    },
+    {
+      "file": "UI/click.wav",
+      "description": "Short, rounded button press",
+      "durationSeconds": 0.07,
+      "peakDbfs": -13.15,
+      "rmsDbfs": -25.92,
+      "sha256": "0c73eab3d4aba096555012a3b9fdd966e6b2da1bb25fe583df4c8ae26b5afeb6"
+    },
+    {
+      "file": "UI/confirm.wav",
+      "description": "Positive two-note confirmation",
+      "durationSeconds": 0.235,
+      "peakDbfs": -11.06,
+      "rmsDbfs": -23.34,
+      "sha256": "167a8a4650e1fef2e8aa4fc7f29b068804a5995a5946f8979d3436fe08e5ff13"
+    },
+    {
+      "file": "UI/cancel.wav",
+      "description": "Gentle descending dismissal",
+      "durationSeconds": 0.2,
+      "peakDbfs": -12.77,
+      "rmsDbfs": -25.37,
+      "sha256": "ad4fc8774eac322b84c7c3d31f5357a8d8b344e6a452e45502e66455f15ee4c7"
+    },
+    {
+      "file": "UI/error.wav",
+      "description": "Low double pulse for a rejected action",
+      "durationSeconds": 0.245,
+      "peakDbfs": -11.37,
+      "rmsDbfs": -24.74,
+      "sha256": "2c6a07f904e792fa7d1d9e16032d89f89851da9f2b75feccb961732a01281fb4"
+    },
+    {
+      "file": "UI/toggle_on.wav",
+      "description": "Upward toggle",
+      "durationSeconds": 0.095,
+      "peakDbfs": -13.98,
+      "rmsDbfs": -26.29,
+      "sha256": "a03640855b96535a1ca3a6bca44580b8f909364ddde563293c8e4538bbf445bc"
+    },
+    {
+      "file": "UI/toggle_off.wav",
+      "description": "Downward toggle",
+      "durationSeconds": 0.095,
+      "peakDbfs": -14.89,
+      "rmsDbfs": -27.26,
+      "sha256": "cbfb55c09dff07cea39792203be9b5abc3d12146cf76b84db54929062e47af3c"
+    },
+    {
+      "file": "UI/notification.wav",
+      "description": "Small, clear notification chime",
+      "durationSeconds": 0.42,
+      "peakDbfs": -12.04,
+      "rmsDbfs": -24.68,
+      "sha256": "554e62ffe64eebac418b17f82f4e0216f71f8f38100f059b0360c57965aa1da7"
+    },
+    {
+      "file": "UI/open.wav",
+      "description": "Soft rising panel motion",
+      "durationSeconds": 0.13,
+      "peakDbfs": -15.92,
+      "rmsDbfs": -27.0,
+      "sha256": "9d1e688f1ef89b3886832259e391758b63b3b1ba52687b6e3539bb077ec91c81"
+    },
+    {
+      "file": "UI/close.wav",
+      "description": "Soft falling panel motion",
+      "durationSeconds": 0.11,
+      "peakDbfs": -16.48,
+      "rmsDbfs": -27.19,
+      "sha256": "971e9ba0dfeb5c891fd48bdd5bba6779d2d1990436f2a355cb499c5ccc224669"
+    },
+    {
+      "file": "Gameplay/jump.wav",
+      "description": "Playful upward hop",
+      "durationSeconds": 0.22,
+      "peakDbfs": -9.37,
+      "rmsDbfs": -19.34,
+      "sha256": "400cade2f72ab700fcf8b637c26cfdab718b26259cbdf0c880c9ac7fc0e1c42c"
+    },
+    {
+      "file": "Gameplay/land.wav",
+      "description": "Small landing thump",
+      "durationSeconds": 0.2,
+      "peakDbfs": -8.87,
+      "rmsDbfs": -23.57,
+      "sha256": "22147cabbb932a833c1dbc7ec55f7be155131ec51e8fbdb77b8c640f877da5d8"
+    },
+    {
+      "file": "Gameplay/pickup.wav",
+      "description": "Bright collectible ping",
+      "durationSeconds": 0.275,
+      "peakDbfs": -10.46,
+      "rmsDbfs": -23.38,
+      "sha256": "dad29d57ee35a7e8b66d1ef4e4655879f6fca506ad14bcf6cb7d69f8e4c8a8da"
+    },
+    {
+      "file": "Gameplay/checkpoint.wav",
+      "description": "Warm checkpoint arpeggio",
+      "durationSeconds": 0.54,
+      "peakDbfs": -9.37,
+      "rmsDbfs": -21.77,
+      "sha256": "c1b0cb3211e05d34e3644805e51505a7e93cbd960689448b0b3a278a29cc7a57"
+    },
+    {
+      "file": "Gameplay/hurt.wav",
+      "description": "Brief downward damage pulse",
+      "durationSeconds": 0.22,
+      "peakDbfs": -8.87,
+      "rmsDbfs": -23.91,
+      "sha256": "c845d2237ae4e0882769bd44e0a6fbde9f6e3cb18c816ced95536283e70e4ea0"
+    },
+    {
+      "file": "Gameplay/death.wav",
+      "description": "Descending failure cue",
+      "durationSeconds": 0.61,
+      "peakDbfs": -9.9,
+      "rmsDbfs": -21.86,
+      "sha256": "6ddb23614b1e65f2bfe977287c59ac519c91e5ecc7b6b8aad93df0b1377c78c3"
+    },
+    {
+      "file": "Gameplay/respawn.wav",
+      "description": "Gentle rising return cue",
+      "durationSeconds": 0.53,
+      "peakDbfs": -10.46,
+      "rmsDbfs": -22.29,
+      "sha256": "0dd57e02d1b6f14ef72bf17de948d6073f232c1606fbb78ca08e8bf17904f6b6"
+    },
+    {
+      "file": "Gameplay/goal.wav",
+      "description": "Short major-chord celebration",
+      "durationSeconds": 0.89,
+      "peakDbfs": -8.4,
+      "rmsDbfs": -21.95,
+      "sha256": "c136a431638e390563f2ec8fdc1e16c09ec9e0dc5a276d04316b2ccb502e04f1"
+    },
+    {
+      "file": "Gameplay/impact_soft.wav",
+      "description": "Muted collision or placement",
+      "durationSeconds": 0.12,
+      "peakDbfs": -11.37,
+      "rmsDbfs": -25.95,
+      "sha256": "ab29a3535ccaf26542f38e0c72e29b689098dfd8c62db56c3ee7ee3ce0425d68"
+    },
+    {
+      "file": "Gameplay/impact_hard.wav",
+      "description": "Crisp collision or break",
+      "durationSeconds": 0.21,
+      "peakDbfs": -7.96,
+      "rmsDbfs": -25.04,
+      "sha256": "4bad5c55bf7a9b0e4c1b1ad97af0b4e0058188da01bea24ed79b24f11d523dd2"
+    },
+    {
+      "file": "Gameplay/whoosh.wav",
+      "description": "Short movement or swing",
+      "durationSeconds": 0.24,
+      "peakDbfs": -11.06,
+      "rmsDbfs": -25.21,
+      "sha256": "b8be45f1d30f36e30f51bb5c0a9b8624d5490770df0e441ffab5a18cd7cb5886"
+    },
+    {
+      "file": "Gameplay/footstep_01.wav",
+      "description": "Stylized dry footstep; alternate the four variants",
+      "durationSeconds": 0.099,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -27.42,
+      "sha256": "6de388ec5d743948b8ea34eaf2060cf0d788cf884af915347b49cc12464640ef"
+    },
+    {
+      "file": "Gameplay/footstep_02.wav",
+      "description": "Stylized dry footstep; alternate the four variants",
+      "durationSeconds": 0.108,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -27.54,
+      "sha256": "5fc05ec94d421a6d15b6c880f0c29ac26ffc6e5998c38aa37c051ca03604b728"
+    },
+    {
+      "file": "Gameplay/footstep_03.wav",
+      "description": "Stylized dry footstep; alternate the four variants",
+      "durationSeconds": 0.117,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -28.19,
+      "sha256": "e064fa997ebe3a608bd6743e5c2504444ee3123113679c6d7e848600e1684345"
+    },
+    {
+      "file": "Gameplay/footstep_04.wav",
+      "description": "Stylized dry footstep; alternate the four variants",
+      "durationSeconds": 0.126,
+      "peakDbfs": -14.42,
+      "rmsDbfs": -28.39,
+      "sha256": "872933ae22af4b723598da367227dcfe28fe8dc2a30dc7cdfffb3919dd925224"
+    }
+  ]
+}

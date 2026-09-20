@@ -112,6 +112,17 @@ public sealed class ManaAssetCatalog
 
     private string? Key(string reference)
     {
+        // "zip:kenney_pack.zip/Models/x.glb" -- the readable form names the zip by file name only, so the
+        // catalog file is the one whose path ends with that name, wherever it is filed.
+        if (reference.StartsWith("zip:", StringComparison.OrdinalIgnoreCase))
+        {
+            var body = reference[4..].Replace('\\', '/');
+            var split = body.IndexOf(".zip/", StringComparison.OrdinalIgnoreCase);
+            if (split < 0) return null;
+            var zipName = Path.GetFileName(body[..(split + 4)]);
+            return files.Keys.FirstOrDefault(key => string.Equals(Path.GetFileName(key), zipName, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (reference.StartsWith("zipasset:", StringComparison.Ordinal)
             || reference.StartsWith("zipasset-rel:", StringComparison.Ordinal))
         {

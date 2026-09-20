@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WasmMainJSPath>main.js</WasmMainJSPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../ManaAudio/ManaAudio.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <WasmExtraFilesToDeploy Include="index.html" />
+    <WasmExtraFilesToDeploy Include="../../ManaAudio/Browser/mana_audio.js" Link="mana_audio.js" />
+  </ItemGroup>
+</Project>

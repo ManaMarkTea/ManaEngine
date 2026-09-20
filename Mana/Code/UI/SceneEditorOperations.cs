@@ -48,6 +48,7 @@ namespace Mana.Code.UI
                 return false;
             }
 
+
             if (selection != null)
             {
                 if (selection.SelectedNode != null && IsNodeOrDescendant(node, selection.SelectedNode))
@@ -230,20 +231,18 @@ namespace Mana.Code.UI
                 selection.NotifySceneGraphChanged();
             }
 
+            if (component is Mana.Code.Components.ManaAudioSourceComponent audio) { audio.Dispose(); }
             return true;
         }
 
         private static void RemovePhysicsBodies(ManaContext context, ManaSceneNode node)
         {
+            foreach (var audio in node.Components.OfType<Mana.Code.Components.ManaAudioSourceComponent>()) { audio.Dispose(); }
+            foreach (var child in node.Children.ToList()) { RemovePhysicsBodies(context, child); }
             var physics = context.Physics;
             if (physics == null)
             {
                 return;
-            }
-
-            foreach (var child in node.Children.ToList())
-            {
-                RemovePhysicsBodies(context, child);
             }
 
             foreach (var collision in node.GetComponents<ManaCollisionComponent>())

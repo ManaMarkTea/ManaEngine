@@ -65,7 +65,12 @@ namespace Mana
         {
             if (into == null)
             {
-                Scenes.AddRange(loader.Scenes);
+                // Under the scene lock: levels load on a background thread while the render thread walks
+                // Scenes, and an unguarded AddRange there is "collection was modified" on a big enough level.
+                lock (SceneLock)
+                {
+                    Scenes.AddRange(loader.Scenes);
+                }
             }
             else
             {

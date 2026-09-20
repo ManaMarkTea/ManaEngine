@@ -47,10 +47,13 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
     }
 
-    /// <summary>The one thing still on screen while playing: what the keys do, and how to get back out.</summary>
+    /// <summary>
+    /// What is still on screen while playing: what the keys do and how to get back out, plus -- when a
+    /// gameplay line is given -- the score, health and clock along the top.
+    /// </summary>
     public static class ManaUiPlayHud
     {
-        public static UiElement Build(UiTheme theme, Func<string> status)
+        public static UiElement Build(UiTheme theme, Func<string> status, Func<string>? gameplay = null, UiElement? results = null)
         {
             var text = new TextBlock()
                 .FontSize(theme.FontSize)
@@ -72,7 +75,43 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Nothing here may eat a click meant for the game behind it.
             pill.IsHitTestVisible = false;
             text.IsHitTestVisible = false;
-            return pill;
+
+            if (gameplay == null)
+            {
+                return pill;
+            }
+
+            var scoreText = new TextBlock()
+                .FontSize(theme.FontSize + 3.0f)
+                .Foreground(new Vector4(1.0f, 0.97f, 0.82f, 0.96f))
+                .CenterH();
+            scoreText.BindPolled(t => t.Text, gameplay);
+
+            var scorePill = new Border()
+                .Fill(new Vector4(0.05f, 0.06f, 0.09f, 0.62f))
+                .Rounded(10.0f)
+                .Outline(new Vector4(1.0f, 1.0f, 1.0f, 0.10f))
+                .PaddingOf(16.0f, 8.0f)
+                .Content(scoreText)
+                .Margin(0.0f, 18.0f, 0.0f, 0.0f)
+                .CenterH()
+                .Top();
+            scorePill.IsHitTestVisible = false;
+            scoreText.IsHitTestVisible = false;
+
+            // A grid with no tracks is a single cell, so both pills overlay it and each aligns itself.
+            var overlay = new Grid();
+            overlay.Children.Add(pill);
+            overlay.Children.Add(scorePill);
+
+            // Left hit-testable: the grid has no background so it never catches a click itself, but
+            // switching it off would take the results screen's buttons with it.
+            if (results != null)
+            {
+                overlay.Children.Add(results);
+            }
+
+            return overlay;
         }
     }
 }

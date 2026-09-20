@@ -504,7 +504,7 @@ namespace ManaVoxel.Code.UI
         /// Spawns a character at an exact spot and facing, without possessing it -- what Play needs, where
         /// the Player Start decides both and possession is the caller's business.
         /// </summary>
-        public ManaPawnNode? SpawnCharacterAt(Vector3 position, float yawRadians)
+        public ManaPawnNode? SpawnCharacterAt(Vector3 position, float yawRadians, ManaPlayerStartNode? start = null)
         {
             CharacterSpawnError = null;
 
@@ -517,7 +517,8 @@ namespace ManaVoxel.Code.UI
             ManaPawnNode? pawn;
             lock (_context.World.SceneLock)
             {
-                pawn = _characterSpawnService.SpawnNextCharacter(
+                pawn = _characterSpawnService.SpawnFor(
+                    start,
                     _context.World,
                     position,
                     PawnController,

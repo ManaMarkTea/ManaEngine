@@ -10,7 +10,7 @@ namespace Mana.Code.Nodes
     // Extends ManaSkeletalActorNode rather than wrapping one so the pose/propagate/skin ordering is
     // inherited as-is; movement is applied before that whole chain, which is why UpdateTransform is
     // overridden here instead of this being a component.
-    public class ManaPawnNode : ManaSkeletalActorNode
+    public partial class ManaPawnNode : ManaSkeletalActorNode
     {
         private const float DirectionEpsilon = 1e-6f;
 
@@ -42,8 +42,11 @@ namespace Mana.Code.Nodes
         // whatever speed each clip was authored for, which makes how fast the game plays a property of
         // the art. MatchAnimationToSpeed retimes the clip to whatever is set here instead, which is the
         // same anti-slide guarantee without the game's feel riding on it.
-        public const float DefaultWalkSpeed = 4.5f;
-        public const float DefaultRunSpeed = 7.0f;
+        //
+        // Raised from WoW's own 2.5/7 for a platformer: at 4.5 a two-unit character crossed the screen
+        // like it was wading, and course gaps read as far. Walk is now the everyday pace, run the sprint.
+        public const float DefaultWalkSpeed = 7.0f;
+        public const float DefaultRunSpeed = 11.0f;
         public const float DefaultJumpHeight = 3.0f;
 
         /// <summary>The character height the default speeds and jump were tuned for.</summary>
@@ -255,6 +258,31 @@ namespace Mana.Code.Nodes
 
         // Moves the pawn and, when physics-driven, the capsule with it -- setting Position alone would
         // be overwritten by the body's pose on the very next frame.
+        /// <summary>Carries the pawn along with something it stands on, keeping whatever velocity it has.</summary>
+        public void Carry(Vector3 delta)
+        {
+            Position += delta;
+            Body?.Shift(delta);
+        }
+
+        /// <summary>
+        /// Throws the pawn upward, the way landing on an enemy's head does. Ground contact is held off
+        /// briefly for the same reason a jump's is: the capsule is still inside the ground probe next frame.
+        /// </summary>
+        public void Bounce(float upwardSpeed)
+        {
+            if (Body == null)
+            {
+                return;
+            }
+
+            var velocity = Body.Velocity;
+            velocity.Y = upwardSpeed;
+            Body.Velocity = velocity;
+            jumpLockoutTimer = JumpLockoutSeconds;
+            JumpsUsed = 0;
+        }
+
         public void TeleportTo(Vector3 worldPosition)
         {
             Position = worldPosition;
@@ -345,6 +373,7 @@ namespace Mana.Code.Nodes
 
             // Base handles the skeletal chain: pose bones, propagate world transforms, skin.
             base.UpdateTransform();
+            UpdateMovementAudio(deltaSeconds);
         }
 
         private void StepLocomotion(float deltaSeconds)
@@ -428,6 +457,16 @@ namespace Mana.Code.Nodes
         // arc you took off with.
         public float AirControl { get; set; } = 0.75f;
 
+        /// <summary>
+        /// Seconds from standstill to full speed on the ground. Expressed as a time, not an acceleration, so
+        /// a smaller or larger character (whose speeds are scaled to its height) still takes as long to get
+        /// going -- the feel is the same at any size.
+        /// </summary>
+        public float AccelerationSeconds { get; set; } = 0.22f;
+
+        /// <summary>Seconds from full speed to a stop when the drive is released. Shorter than the run-up: stopping should feel crisp.</summary>
+        public float DecelerationSeconds { get; set; } = 0.1f;
+
         // Grace period after walking off a ledge during which a jump still counts, and how long a jump
         // pressed just before landing is remembered. Both are the standard forgiveness windows -- input
         // that "should" have worked does.
@@ -445,6 +484,9 @@ namespace Mana.Code.Nodes
         // to RespawnPoint instead of accelerating into the void forever.
         public float FallResetHeight { get; set; } = -50.0f;
         public Vector3 RespawnPoint { get; set; }
+
+        /// <summary>Raised after a fall below <see cref="FallResetHeight"/> has already put the pawn back at <see cref="RespawnPoint"/>.</summary>
+        public event Action? FellOutOfWorld;
 
         // Ground contact is suppressed for this long right after take-off. Without it the capsule is
         // still inside the ground probe on the frame after a jump, which reads as an instant landing
@@ -509,6 +551,7 @@ namespace Mana.Code.Nodes
                 TeleportTo(RespawnPoint);
                 CurrentSpeed = 0.0f;
                 JumpsUsed = 0;
+                FellOutOfWorld?.Invoke();
                 return;
             }
 
@@ -523,6 +566,7 @@ namespace Mana.Code.Nodes
             if (grounded && !wasGrounded)
             {
                 JumpsUsed = 0;
+                EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Land);
             }
 
             coyoteTimer = grounded ? CoyoteTimeSeconds : MathF.Max(coyoteTimer - deltaSeconds, 0.0f);
@@ -558,13 +602,17 @@ namespace Mana.Code.Nodes
                 }
 
                 var desired = heading.Value * targetSpeed;
+
+                // Toward the target rather than straight to it, at the rate that would take AccelerationSeconds
+                // to reach full speed. Working on the velocity vector means a sharp turn brakes and re-accelerates
+                // on its own instead of snapping to the new heading at full speed.
                 horizontal = grounded
-                    ? desired
+                    ? MoveTowards(horizontal, desired, GroundAcceleration(targetSpeed) * deltaSeconds)
                     : Vector3.Lerp(horizontal, desired, Math.Clamp(AirControl, 0.0f, 1.0f));
             }
             else if (grounded)
             {
-                horizontal = Vector3.Zero;
+                horizontal = MoveTowards(horizontal, Vector3.Zero, GroundDeceleration() * deltaSeconds);
             }
             else
             {
@@ -584,6 +632,7 @@ namespace Mana.Code.Nodes
             if (jumpBufferTimer > 0.0f && (canGroundJump || JumpsUsed < MaxJumpCount))
             {
                 velocity.Y = GetJumpVelocity();
+                EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Jump);
                 JumpsUsed = canGroundJump ? 1 : JumpsUsed + 1;
                 jumpBufferTimer = 0.0f;
                 coyoteTimer = 0.0f;
@@ -602,6 +651,11 @@ namespace Mana.Code.Nodes
                         Context.Physics.Gravity,
                         body.GroundNormal,
                         deltaSeconds);
+
+                    // The support velocity is only the gravity counter; whatever speed is left from running
+                    // is still being braked away and must not be discarded with it.
+                    velocity.X += horizontal.X;
+                    velocity.Z += horizontal.Z;
                 }
                 else if (velocity.Y < 0.0f)
                 {
@@ -623,6 +677,29 @@ namespace Mana.Code.Nodes
             var solvedHorizontal = new Vector3(velocityBeforeInput.X, 0.0f, velocityBeforeInput.Z);
             CurrentSpeed = solvedHorizontal.Length();
             Position = body.FootPosition;
+        }
+
+        private float GroundAcceleration(float targetSpeed)
+        {
+            return AccelerationSeconds > 0.0f ? MathF.Max(targetSpeed, WalkSpeed) / AccelerationSeconds : float.PositiveInfinity;
+        }
+
+        private float GroundDeceleration()
+        {
+            return DecelerationSeconds > 0.0f ? RunSpeed / DecelerationSeconds : float.PositiveInfinity;
+        }
+
+        /// <summary>Steps <paramref name="current"/> toward <paramref name="target"/> by at most <paramref name="maxDelta"/>.</summary>
+        public static Vector3 MoveTowards(Vector3 current, Vector3 target, float maxDelta)
+        {
+            var toward = target - current;
+            var distance = toward.Length();
+            if (distance <= maxDelta || distance < 1e-6f)
+            {
+                return target;
+            }
+
+            return current + (toward / distance * maxDelta);
         }
 
         private static Vector3 ComputeIdleGroundSupportVelocity(

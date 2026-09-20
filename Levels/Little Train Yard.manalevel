@@ -437,7 +437,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Corner NE",
@@ -457,7 +457,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Corner SE",
@@ -477,7 +477,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Corner SW",
@@ -497,7 +497,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtY29ybmVyLWxhcmdlLmdsYg=="
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Straight North 00",
@@ -517,7 +517,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 01",
@@ -537,7 +537,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 02",
@@ -557,7 +557,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 03",
@@ -577,7 +577,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 04",
@@ -597,7 +597,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 05",
@@ -617,7 +617,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 06",
@@ -637,7 +637,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 07",
@@ -657,7 +657,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 08",
@@ -677,7 +677,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 00",
@@ -697,7 +697,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 01",
@@ -717,7 +717,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 02",
@@ -737,7 +737,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 03",
@@ -757,7 +757,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 04",
@@ -777,7 +777,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 05",
@@ -797,7 +797,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 06",
@@ -817,7 +817,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 07",
@@ -837,7 +837,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 08",
@@ -857,7 +857,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 00",
@@ -877,7 +877,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 01",
@@ -897,7 +897,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 02",
@@ -917,7 +917,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 03",
@@ -937,7 +937,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 04",
@@ -957,7 +957,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 05",
@@ -977,7 +977,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 00",
@@ -997,7 +997,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 01",
@@ -1017,7 +1017,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 02",
@@ -1037,7 +1037,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 03",
@@ -1057,7 +1057,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 04",
@@ -1077,7 +1077,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 05",
@@ -1097,7 +1097,7 @@
             1,
             1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvcmFpbHJvYWQtc3RyYWlnaHQuZ2xi"
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         }
       ]
     },
@@ -1138,7 +1138,7 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tbG9jb21vdGl2ZS1hLmdsYg==",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-locomotive-a.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1179,7 +1179,7 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtYm94LmdsYg==",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-box.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1220,7 +1220,7 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtY29udGFpbmVyLWJsdWUuZ2xi",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-container-blue.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1261,7 +1261,7 @@
             1.1,
             1.1
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tY2FycmlhZ2UtdGFuay5nbGI=",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-tank.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1302,7 +1302,7 @@
             1.05,
             1.05
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1hLmdsYg==",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-city-a.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1343,7 +1343,7 @@
             1.05,
             1.05
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1iLmdsYg==",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-city-b.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1384,7 +1384,7 @@
             1.05,
             1.05
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV90cmFpbi1raXQuemlw:TW9kZWxzL0dMQiBmb3JtYXQvdHJhaW4tZWxlY3RyaWMtY2l0eS1jLmdsYg==",
+          "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-city-c.glb",
           "scripts": [
             {
               "type": "TrainCar",
@@ -1446,7 +1446,7 @@
             3,
             3
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV9taW5pLWNoYXJhY3RlcnMuemlw:TW9kZWxzL0dMQiBmb3JtYXQvY2hhcmFjdGVyLWZlbWFsZS1hLmdsYg=="
+          "asset": "zip:kenney_mini-characters.zip/Models/GLB format/character-female-a.glb"
         },
         {
           "name": "Station Visitor Friend",
@@ -1466,7 +1466,7 @@
             3,
             3
           ],
-          "asset": "zipasset-rel:QXNzZXRzL2tlbm5leV9taW5pLWNoYXJhY3RlcnMuemlw:TW9kZWxzL0dMQiBmb3JtYXQvY2hhcmFjdGVyLW1hbGUtYi5nbGI="
+          "asset": "zip:kenney_mini-characters.zip/Models/GLB format/character-male-b.glb"
         }
       ]
     }

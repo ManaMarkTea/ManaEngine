@@ -134,8 +134,8 @@ public static class PortedMainMenuChecks
         var playRow = play.Items.First(i => i.Text == "Play");
         var stopRow = play.Items.First(i => i.Text == "Stop");
 
-        Check("Play offers play, play-from-camera, a new window and stop",
-            play.Items.Count(i => !i.IsSeparator && !i.IsLabel) == 4,
+        Check("Play offers audio testing, play, play-from-camera, a new window and stop",
+            play.Items.Count(i => !i.IsSeparator && !i.IsLabel) == 5,
             string.Join(", ", play.Items.Where(i => !i.IsSeparator).Select(i => i.Text)));
 
         Check("the shortcuts are on the rows, so F5 is discoverable",

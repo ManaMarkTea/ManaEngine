@@ -35,7 +35,7 @@ namespace Mana.Code.GameModes
         private const string ManaWindowTitle = "Mana";
         // The demo grid room's full width/depth -- see the matching comment where the room is built for
         // why this can't just change there alone.
-        private const float GridSize = 128.0f;
+        private const float GridSize = 256.0f;
 
         private readonly VoxelEditorViewModel _viewModel = new();
         private readonly PlaceSearchNavigator _navigator = new();
@@ -196,7 +196,16 @@ namespace Mana.Code.GameModes
             // rebuilt on the switch, because _playMode does not exist yet -- this runs before Load.
             host.Root.Content = new ManaUiPlayOverlay(
                 workspace,
-                ManaUiPlayHud.Build(host.Root.Theme, GetPlayHudText),
+                ManaUiPlayHud.Build(
+                    host.Root.Theme,
+                    GetPlayHudText,
+                    () => Context.World.GameState.FormatHud(),
+                    ManaUiPlayResults.Build(
+                        host.Root.Theme,
+                        Context.World.GameState,
+                        () => _playMode?.Restart(),
+                        () => _playMode?.Stop(),
+                        "Back to Editor")),
                 () => IsPlaying);
         }
 
@@ -1346,6 +1355,11 @@ namespace Mana.Code.GameModes
             if (GraphicsBackend != ManaGraphicsBackendKind.WebGpu)
             {
                 return;
+            }
+
+            if (IsPlaying)
+            {
+                Context.World.GameState.Tick((float)deltaTime);
             }
 
             PumpMeshThumbnails();

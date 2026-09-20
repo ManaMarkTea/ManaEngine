@@ -223,6 +223,13 @@ namespace ManaVoxel.Code.Gameplay.Flight
                 return;
             }
 
+            // How long the pawn has been off the ground, for CanTakeOff. Counted before the key is read: the
+            // frame a jump starts is frame zero of the flight, however it lands in the update order.
+            if (!IsMounted)
+            {
+                _airborneSeconds = Pawn.Body != null && !Pawn.IsGrounded ? _airborneSeconds + deltaSeconds : 0.0f;
+            }
+
             // Space means "up" in whichever state we are in: a second airborne jump takes off, and once
             // flying it is Skyward Ascent. Shift is the sprint key on foot, so it is the dash in the air.
             var jumpPressed = ReadPressed(Key.Space, ref jumpKeyWasDown);
@@ -280,8 +287,23 @@ namespace ManaVoxel.Code.Gameplay.Flight
         /// </summary>
         private bool CanTakeOff()
         {
-            return Pawn.Body != null && !Pawn.IsGrounded;
+            return IsTakeoffAllowed(Pawn.Body != null, Pawn.IsGrounded, _airborneSeconds, MinAirborneSecondsBeforeTakeoff);
         }
+
+        /// <summary>
+        /// The press that starts a jump must not also be the press that takes off. Both read the same Space
+        /// edge in the same frame, and by the time the mount looks the pawn has already left the ground -- so
+        /// without a minimum time in the air the very first jump reads as the second one and flies.
+        /// </summary>
+        public static bool IsTakeoffAllowed(bool hasCapsule, bool grounded, float airborneSeconds, float minimumAirborneSeconds)
+        {
+            return hasCapsule && !grounded && airborneSeconds >= minimumAirborneSeconds;
+        }
+
+        /// <summary>How long a jump must have been under way before another press flies. Just over the pawn's own jump lockout.</summary>
+        public float MinAirborneSecondsBeforeTakeoff { get; set; } = 0.12f;
+
+        private float _airborneSeconds;
 
         public override void EndPlay()
         {
