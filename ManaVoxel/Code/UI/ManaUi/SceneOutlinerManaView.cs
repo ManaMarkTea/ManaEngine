@@ -74,6 +74,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new StackPanel().Horizontal(theme.Spacing).GridRow(0).Children(
                     new Button().Label("Collapse all").Variant(ButtonVariant.Subtle)
                         .OnClick(tree.CollapseAll),
+                    new Button().Label("New Scene").Variant(ButtonVariant.Subtle)
+                        .WithTooltip("Adds an empty scene. Move nodes into it from a node's right-click menu.")
+                        .OnClick(() => SceneEditorOperations.CreateScene(world, selection)),
                     new TextBlock()
                         .BindTextPolled(() => $"{world.Scenes.Count} scene{(world.Scenes.Count == 1 ? "" : "s")}")
                         .Foreground(theme.TextMuted)
@@ -434,6 +437,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MenuItem.Label(Fallback(node.Name, node.GetType().Name)),
                     MenuItem.Separator(),
                     BuildAddNodeMenu(owningScene, node),
+                    BuildMoveToSceneMenu(_world, _selection, node),
                     addComponent,
                     MenuItem.Separator(),
                     new MenuItem("Delete Node",
@@ -541,6 +545,30 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 return false;
             }
+        }
+
+        /// <summary>
+        /// "Move to Scene": one row per scene in the world, the node's own greyed out. The list is read when
+        /// the menu is built, which is when it opens, so a scene added a moment ago is already in it.
+        /// </summary>
+        public static MenuItem BuildMoveToSceneMenu(ManaWorld world, SceneSelectionState selection, ManaSceneNode node)
+        {
+            var menu = new MenuItem("Move to Scene")
+                .WithTooltip("Moves this node, with its children, into another scene.");
+
+            var number = 0;
+            foreach (var scene in world.Scenes.ToList())
+            {
+                var target = scene;
+                number++;
+
+                menu.Items.Add(new MenuItem(
+                        Fallback(scene.Name, $"Scene {number}"),
+                        () => SceneEditorOperations.MoveNodeToScene(world, selection, node, target))
+                    .EnabledWhen(() => SceneEditorOperations.CanMoveNodeToScene(world, node, target)));
+            }
+
+            return menu;
         }
 
         private enum OutlinerIconKind

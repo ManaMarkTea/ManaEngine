@@ -314,6 +314,7 @@ namespace Mana.Code.Nodes
                         OpacityMode = renderer.Material.EffectiveOpacityMode,
                         Opacity = (float)renderer.Material.Opacity.Value,
                         AlphaCutoff = (float)renderer.Material.AlphaCutoff,
+                        AlwaysOnTop = renderer.AlwaysOnTop,
                         OutlineEnabled = renderer.OutlineEnabled,
                         OutlineColor = renderer.OutlineColor,
                         OutlineWidth = renderer.OutlineWidth,

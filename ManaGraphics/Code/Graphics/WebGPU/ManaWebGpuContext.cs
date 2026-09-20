@@ -86,6 +86,7 @@ namespace ManaGraphics.Code.Graphics
         private PipelineLayout* _sceneCapturePipelineLayout;
         private RenderPipeline* _sceneCapturePipeline;
         private RenderPipeline* _outlineMaskPipeline;
+        private RenderPipeline* _outlineMaskAlwaysOnTopPipeline;
         // Debug overlays drawn after the main mesh pass; add a ManaWebGpuOverlayPass subclass and list it
         // here. Pipelines are keyed by overlay name and built on first use.
         private readonly ManaWebGpuOverlayPass[] _overlayPasses =

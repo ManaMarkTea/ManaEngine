@@ -9,11 +9,14 @@ namespace ManaVoxel.Code.Automation
     /// </summary>
     public sealed class ManaCommand
     {
-        /// <summary>One of: open_level, wait, move_camera, screenshot, quit.</summary>
+        /// <summary>One of: open_level, wait, move_camera, select_node, screenshot, quit.</summary>
         public string Type { get; set; } = "";
 
         /// <summary>open_level: level path, relative to the working directory.</summary>
         public string? Path { get; set; }
+
+        /// <summary>select_node: the name of the scene node to select, which is what brings up the transform gizmo.</summary>
+        public string? Name { get; set; }
 
         /// <summary>wait: number of rendered frames to hold before the next command.</summary>
         public int Frames { get; set; }

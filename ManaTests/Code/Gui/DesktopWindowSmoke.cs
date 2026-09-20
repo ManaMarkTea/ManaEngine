@@ -63,12 +63,12 @@ public static class DesktopWindowSmoke
                 var dockedTab = item.Owner!;
                 var tabPoint = dockedTab.TabRect(0).Center;
                 DoubleClick(host.Root, tabPoint, 10 + cycle);
-                var external = controller.DesktopWindows.Keys.Single();
+                var external = controller.DesktopWindows.Single();
                 for (var i = 0; i < 12; i++) Frame();
                 Require(child is { IsInitialized: true } && controller.DesktopWindows.Count == 1,
                     "native window renders on shared device");
                 Require(field.Root != host.Root && field.Root != null, "content belongs to the external root");
-                Require(field.Root!.Content is DockTabGroup group && group.SelectedItem == item,
+                Require(field.Root!.Content is DesktopWindowFrame { Dock.RootNode: DockTabGroup group } && group.SelectedItem == item,
                     "pop-out retains the original tab");
                 if (OperatingSystem.IsWindows() && child!.Native?.Win32 is { } win32)
                 {
@@ -87,7 +87,7 @@ public static class DesktopWindowSmoke
                 if (cycle == 1)
                 {
                     var externalRoot = field.Root!;
-                    var tab = ((DockTabGroup)externalRoot.Content!).TabRect(0);
+                    var tab = ((DockTabGroup)((DesktopWindowFrame)externalRoot.Content!).Dock.RootNode!).TabRect(0);
                     DoubleClick(externalRoot, tab.Center, 1);
                 }
                 else

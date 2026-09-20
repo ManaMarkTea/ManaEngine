@@ -107,7 +107,13 @@ namespace ManaGraphics.Code.Graphics
             {
                 Console.WriteLine("[RunBrowser] Browser WebGPU bring-up failed.");
                 Console.WriteLine(ex);
-                throw;
+
+                // Not rethrown: this is async void, so a throw kills the wasm runtime (exit code 1) and the
+                // loading overlay just sits at its last percentage with nothing saying why.
+                ManaBrowserInterop.ReportLoadingFailed(
+                    "WebGPU is unavailable in this browser (no graphics adapter was found).\n" +
+                    "Try a current desktop Chrome or Edge with hardware acceleration on, or open the editor in its own tab.\n\n" +
+                    ex.Message);
             }
         }
 #endif

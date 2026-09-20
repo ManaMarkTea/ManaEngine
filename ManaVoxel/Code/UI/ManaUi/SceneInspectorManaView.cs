@@ -63,7 +63,16 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             if (snapshot.Scene != null)
             {
-                return BuildSubject(snapshot.Scene, inspector);
+                var sections = (StackPanel)BuildSubject(snapshot.Scene, inspector);
+                if (inspector.Engine?.World is { } world)
+                {
+                    sections.Children.Add(new Expander().Header("Scene Settings")
+                        .Section(inspector.Theme.Spacing,
+                            new TextBlock().Text("Lighting settings are shared by all scenes.")
+                                .Foreground(inspector.Theme.TextMuted).Wrap(),
+                            IrradianceSettingsManaView.Build(inspector.Theme, world.IrradianceSettings)));
+                }
+                return sections;
             }
 
             return BuildNode(snapshot, inspector);

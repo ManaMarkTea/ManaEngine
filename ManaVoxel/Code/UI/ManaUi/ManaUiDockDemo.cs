@@ -32,7 +32,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// toolbar, whose old saved height was more than twice what its content now measures, and 21 is the
         /// default panel set shrinking (see OpensByDefault).
         /// </summary>
-        private const int LayoutVersion = 21;
+        private const int LayoutVersion = 22;
 
         private static string DefaultLayoutPath =>
             ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
@@ -43,18 +43,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             ["level"] = "Level",
             ["tools"] = "Toolbar",
             ["import"] = "Import",
-            ["search"] = "Search",
             ["blurtest"] = "Blur Test",
-            ["placement"] = "Placement",
-            ["physics"] = "Physics",
-            ["voxelstats"] = "Voxel Stats",
-            ["lighting"] = "Lighting",
             ["outliner"] = "Outliner",
             ["inspector"] = "Inspector",
             ["showcase"] = "ManaUI",
             ["about"] = "About",
             ["worldperf"] = "World Perf",
-            ["debug"] = "Debug"
+            ["debug"] = "Debug",
+            ["preferences"] = "Preferences"
         };
 
         /// <summary>Test seam: the most recently built workspace's drag controller.</summary>
@@ -80,18 +76,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             "level",
             "tools",
             "import",
-            "search",
             "blurtest",
-            "placement",
-            "physics",
-            "voxelstats",
-            "lighting",
             "outliner",
             "inspector",
             "showcase",
             "about",
             "worldperf",
-            "debug"
+            "debug",
+            "preferences"
         };
 
         /// <summary>Builds the workspace over a <see cref="UiRoot"/> so it can be exercised headlessly. Panels needing <paramref name="editor"/>/<paramref name="world"/> just don't appear without them.</summary>
@@ -211,25 +203,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "import" when editor != null => new DockItem(
                     "Import",
                     MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
-                "search" when editor != null => new DockItem(
-                    "Search",
-                    PlaceSearchManaView.Build(theme, editor, PlaceSearch)) { Id = "search" },
                 "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable())
                 {
                     Id = "blurtest"
                 },
-                "placement" when editor != null => new DockItem(
-                    "Placement",
-                    VoxelEditorPanelsManaView.BuildPlacement(theme, editor)) { Id = "placement" },
-                "physics" when editor != null => new DockItem(
-                    "Physics",
-                    VoxelEditorPanelsManaView.BuildPhysics(theme, editor)) { Id = "physics" },
-                "voxelstats" when editor != null => new DockItem(
-                    "Voxel Stats",
-                    VoxelEditorPanelsManaView.BuildStats(theme, editor)) { Id = "voxelstats" },
-                "lighting" when world != null => new DockItem(
-                    "Lighting",
-                    IrradianceSettingsManaView.Build(theme, world.IrradianceSettings)) { Id = "lighting" },
 
                 // Null until the backend has reported its start-up snapshot; the panel says so rather than showing an empty frame.
                 "about" => new DockItem("About", new DynamicContent()
@@ -256,7 +233,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                     WorldPerfManaView.Build(theme, world).Scrollable()) { Id = "worldperf" },
                 "debug" when editor != null => new DockItem(
                     "Debug",
-                    DebugManaView.Build(theme, editor).Scrollable()) { Id = "debug" },
+                    DebugManaView.Build(theme, editor)) { Id = "debug" },
+                "preferences" when editor != null => new DockItem(
+                    "Preferences",
+                    PreferencesManaView.Build(theme, editor)) { Id = "preferences" },
                 _ => null
             };
 
@@ -536,6 +516,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                 host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
 
+            // Edit > Preferences: brings the panel up, or to the front if it is already floating. A panel that
+            // is already docked is on screen, so unlike TogglePanel this never closes it.
+            void OpenPanel(string id)
+            {
+                if (!AllDocked(top, left, right, bottom).Any(item => item.Id == id))
+                {
+                    TogglePanel(id);
+                }
+            }
+
             bool IsPanelOpen(string id) =>
                 AllDocked(top, left, right, bottom).Any(item => item.Id == id)
                 || dragController.FindFloating(id) != null || dragController.FindDesktop(id) != null;
@@ -600,7 +590,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Outline(theme.Border, 1.0f)
                     .Height(menuBarHeight)
                     .Content(new Grid().Columns("*, Auto").Rows("Auto").Children(
-                        BuildMenuBar(vm, state, Choose, ResetPanels, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, editor)
+                        BuildMenuBar(vm, state, Choose, ResetPanels, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, OpenPanel, editor)
                             .GridColumn(0),
                         BuildClock(theme).Margin(0.0f, 0.0f, 12.0f, 0.0f).GridColumn(1)))
                     .Anchor(top: 0.0f, left: 0.0f, right: 0.0f),
@@ -769,10 +759,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             // neither enough width for a transform row.
             Place(right, resolve, "inspector", DockSide.Bottom, outliner);
             Place(right, resolve, "showcase", DockSide.Center, outliner);
-            Place(right, resolve, "placement", DockSide.Center, outliner);
-            Place(right, resolve, "physics", DockSide.Center, outliner);
-            Place(right, resolve, "voxelstats", DockSide.Center, outliner);
-            Place(right, resolve, "lighting", DockSide.Center, outliner);
             Place(right, resolve, "about", DockSide.Center, outliner);
         }
 
@@ -785,20 +771,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             // in Unity -- tabbed alongside the Inspector, rather than crowding the Hierarchy.
             var inspector = Place(right, resolve, "inspector", DockSide.Center);
             Place(right, resolve, "showcase", DockSide.Center, inspector);
-            Place(right, resolve, "placement", DockSide.Center, inspector);
-            Place(right, resolve, "physics", DockSide.Center, inspector);
-            Place(right, resolve, "voxelstats", DockSide.Center, inspector);
-            Place(right, resolve, "lighting", DockSide.Center, inspector);
             Place(right, resolve, "about", DockSide.Center, inspector);
         }
 
         /// <summary>Outliner as a shallow top band, details filling below it -- roughly Unreal's proportions.</summary>
         private static void BuildUnreal(DockHost left, DockHost right, Func<string, DockItem?> resolve)
         {
-            var placement = Place(left, resolve, "placement", DockSide.Center);
-            Place(left, resolve, "physics", DockSide.Center, placement);
-            Place(left, resolve, "voxelstats", DockSide.Center, placement);
-            Place(left, resolve, "lighting", DockSide.Center, placement);
+            var placement = Place(left, resolve, "debug", DockSide.Center);
             Place(left, resolve, "about", DockSide.Center, placement);
             Place(left, resolve, "showcase", DockSide.Bottom);
 
@@ -810,10 +789,6 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static void BuildSplit(DockHost left, DockHost right, Func<string, DockItem?> resolve)
         {
             var outliner = Place(left, resolve, "outliner", DockSide.Center);
-            Place(left, resolve, "placement", DockSide.Center, outliner);
-            Place(left, resolve, "physics", DockSide.Center, outliner);
-            Place(left, resolve, "voxelstats", DockSide.Center, outliner);
-            Place(left, resolve, "lighting", DockSide.Center, outliner);
             Place(left, resolve, "about", DockSide.Center, outliner);
 
             var inspector = Place(right, resolve, "inspector", DockSide.Center);
@@ -920,6 +895,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "about" => false,
                 "worldperf" => false,
                 "debug" => false,
+                // Opened on demand from Edit > Preferences, not something to leave in front of the tools.
+                "preferences" => false,
                 _ => true
             };
         }
@@ -955,14 +932,24 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var captured = new List<FloatingPanelLayout>();
 
-            foreach (var pair in controller.DesktopWindows)
+            foreach (var window in controller.DesktopWindows)
             {
-                if (pair.Value.Id is not { Length: > 0 } id) continue;
+                var items = window.Frame.Dock.AllItems().Where(item => !string.IsNullOrEmpty(item.Id)).ToList();
+                if (items.Count == 0)
+                {
+                    continue;
+                }
+
+                var grouped = items.Count > 1;
                 captured.Add(new FloatingPanelLayout
                 {
-                    Id = id, Desktop = true, HomeHostIndex = controller.DesktopHomeIndex(pair.Key),
-                    X = pair.Key.Position.X, Y = pair.Key.Position.Y,
-                    Width = pair.Key.Size.X, Height = pair.Key.Size.Y
+                    Id = items[0].Id!,
+                    Desktop = true,
+                    HomeHostIndex = controller.DesktopHomeIndex(window),
+                    Layout = grouped ? DockLayout.Capture(window.Frame.Dock) : null,
+                    ItemHomes = grouped ? items.ToDictionary(item => item.Id!, controller.HomeIndexOf) : null,
+                    X = window.Position.X, Y = window.Position.Y,
+                    Width = window.Size.X, Height = window.Size.Y
                 });
             }
 
@@ -1004,19 +991,23 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             foreach (var entry in floating)
             {
-                if (resolve(entry.Id) is not { } item)
-                {
-                    continue;
-                }
-
                 if (entry.Desktop && controller.CanPopOut)
                 {
                     try
                     {
-                        var desktop = controller.PopOut(item, entry.HomeHostIndex)!;
-                        desktop.Size = new Vector2(entry.Width, entry.Height);
-                        desktop.Position = new Vector2(entry.X, entry.Y);
-                        continue;
+                        var desktop = entry.Layout != null
+                            ? controller.PopOutLayout(
+                                entry.Layout,
+                                resolve,
+                                id => entry.ItemHomes?.GetValueOrDefault(id, entry.HomeHostIndex) ?? entry.HomeHostIndex)
+                            : resolve(entry.Id) is { } single ? controller.PopOut(single, entry.HomeHostIndex) : null;
+
+                        if (desktop != null)
+                        {
+                            desktop.Size = new Vector2(entry.Width, entry.Height);
+                            desktop.Position = new Vector2(entry.X, entry.Y);
+                            continue;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1024,21 +1015,48 @@ namespace ManaVoxel.Code.UI.ManaUi
                     }
                 }
 
-                var window = new UiWindow(item.Title)
+                // No native windows here (or one failed): each panel comes back as an in-app float instead.
+                foreach (var id in entry.Layout != null ? LayoutIds(entry.Layout) : new List<string> { entry.Id })
                 {
-                    Width = entry.Width > 0.0f ? entry.Width : FloatingFallback.X,
-                    Height = entry.Height > 0.0f ? entry.Height : FloatingFallback.Y,
-                    Child = item.Content
-                };
-
-                // Clamped onto the screen so a detached monitor or a shrunk window doesn't strand it.
-                var position = new Vector2(
-                    Math.Clamp(entry.X, 0.0f, MathF.Max(0.0f, root.Size.X - 80.0f)),
-                    Math.Clamp(entry.Y, 0.0f, MathF.Max(0.0f, root.Size.Y - 40.0f)));
-
-                root.ShowWindow(window, position);
-                controller.RegisterFloating(window, item);
+                    if (resolve(id) is { } item)
+                    {
+                        RestoreInAppFloat(root, controller, entry, item);
+                    }
+                }
             }
+        }
+
+        private static List<string> LayoutIds(DockLayoutNode node)
+        {
+            var ids = new List<string>(node.Items ?? new List<string>());
+            foreach (var child in node.Children ?? new List<DockLayoutNode>())
+            {
+                ids.AddRange(LayoutIds(child));
+            }
+
+            return ids;
+        }
+
+        private static void RestoreInAppFloat(
+            UiRoot root,
+            DockDragController controller,
+            FloatingPanelLayout entry,
+            DockItem item)
+        {
+            var window = new UiWindow(item.Title)
+            {
+                Width = entry.Width > 0.0f ? entry.Width : FloatingFallback.X,
+                Height = entry.Height > 0.0f ? entry.Height : FloatingFallback.Y,
+                Child = item.Content
+            };
+
+            // Clamped onto the screen so a detached monitor or a shrunk window doesn't strand it.
+            var position = new Vector2(
+                Math.Clamp(entry.X, 0.0f, MathF.Max(0.0f, root.Size.X - 80.0f)),
+                Math.Clamp(entry.Y, 0.0f, MathF.Max(0.0f, root.Size.Y - 40.0f)));
+
+            root.ShowWindow(window, position);
+            controller.RegisterFloating(window, item);
         }
 
         // ----- menu ---------------------------------------------------------------------------------
@@ -1056,6 +1074,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Action<float> chooseBlur,
             Action<string> togglePanel,
             Func<string, bool> isPanelOpen,
+            Action<string> openPanel,
             VoxelEditorViewModel? editor)
         {
             var bar = new MenuBar();
@@ -1063,7 +1082,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Editor menus first, so the bar reads the way the ImGui one did. Owned by the editor, not this chrome.
             if (editor != null)
             {
-                foreach (var menu in VoxelEditorMainMenuManaView.BuildMenus(editor))
+                foreach (var menu in VoxelEditorMainMenuManaView.BuildMenus(editor, null, () => openPanel("preferences"), () => PlaceSearchManaView.Show(root, editor, PlaceSearch)))
                 {
                     bar.Add(menu);
                 }

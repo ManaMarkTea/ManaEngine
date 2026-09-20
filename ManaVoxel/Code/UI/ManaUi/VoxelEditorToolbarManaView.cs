@@ -33,7 +33,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     ToolbarIcons.Divider(theme),
                     BuildPlayGroup(theme, editor.Levels),
                     ToolbarIcons.Divider(theme),
-                    VoxelToolPaletteManaView.BuildTools(theme, editor));
+                    VoxelToolPaletteManaView.BuildTools(theme, editor),
+                    BuildVoxelDetails(theme, editor));
 
             var scrollable = groups
                 .Scrollable()
@@ -50,6 +51,26 @@ namespace ManaVoxel.Code.UI.ManaUi
                     scrollable.GridColumn(0),
                     ToolbarIcons.Divider(theme).GridColumn(1),
                     VoxelToolPaletteManaView.BuildWorkPlane(theme, editor).CenterV().GridColumn(2));
+        }
+
+        private static UiElement BuildVoxelDetails(UiTheme theme, VoxelEditorViewModel editor)
+        {
+            var button = new Button().Label("Voxels...")
+                .WithTooltip("Active voxel node, placement and voxel statistics");
+            button.BindPolled(b => b.Visibility,
+                () => editor.IsSelectToolActive ? Visibility.Collapsed : Visibility.Visible);
+            button.Click += (_, _) =>
+            {
+                if (button.Root is not { } root) return;
+                var popup = new UiPopup
+                {
+                    Width = 360.0f,
+                    Height = MathF.Min(440.0f, root.Size.Y),
+                    Child = new Border { Background = theme.Background, Child = VoxelEditorPanelsManaView.BuildPlacement(theme, editor) }
+                };
+                root.Popups.Show(popup, button);
+            };
+            return button;
         }
 
         private static UiElement BuildLevelGroup(UiTheme theme, LevelViewModel levels, ManaWorld? world)

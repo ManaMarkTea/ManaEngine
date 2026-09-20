@@ -16,6 +16,13 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         public static UiElement Build(UiTheme theme, VoxelEditorViewModel viewModel)
         {
+            return new TabView()
+                .Add("Diagnostics", BuildDiagnostics(theme, viewModel).Scrollable())
+                .Add("Physics", VoxelEditorPanelsManaView.BuildPhysics(theme, viewModel));
+        }
+
+        private static UiElement BuildDiagnostics(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
             var frameTime = new Sparkline
             {
                 Samples = ManaTime.GlobalTime.HistoryMilliseconds,

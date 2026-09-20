@@ -40,6 +40,12 @@ namespace ManaVoxel.Code.UI
         private ManaVoxelsNode? _previewNode;
         private int? _previewSignature;
 
+        /// <summary>
+        /// The scene new content is placed into: the default scene at startup, and the opened level's scene
+        /// once one is open. Null before the editor has attached to a world.
+        /// </summary>
+        public ManaScene? ActiveScene => _scene;
+
         public IReadOnlyList<VoxelLayerViewModel> VoxelLayers => _voxelLayers;
         public VoxelLayerViewModel? ActiveVoxelLayer
         {
@@ -67,8 +73,9 @@ namespace ManaVoxel.Code.UI
         public Vector3 ImportPositionOffset = Vector3.Zero;
         public Vector3 ImportRotationDegrees = Vector3.Zero;
         public Vector3 ImportScale = Vector3.One;
-        public bool SnapImportedModelsToGrid;
-        public float ImportGridSize = 1.0f;
+
+        /// <summary>Grid snapping for placement and the transform gizmo. Edit &gt; Preferences edits it.</summary>
+        public EditorSnapSettings Snap { get; } = new();
         public bool HasHoverVoxel { get; private set; }
         public Vector3 HoverVoxelPosition { get; private set; }
         public Vector3 HoverVoxelNormal { get; private set; }

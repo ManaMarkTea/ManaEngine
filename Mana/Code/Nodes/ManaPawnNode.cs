@@ -42,8 +42,15 @@ namespace Mana.Code.Nodes
         // whatever speed each clip was authored for, which makes how fast the game plays a property of
         // the art. MatchAnimationToSpeed retimes the clip to whatever is set here instead, which is the
         // same anti-slide guarantee without the game's feel riding on it.
-        public float WalkSpeed { get; set; } = 4.5f;
-        public float RunSpeed { get; set; } = 7.0f;
+        public const float DefaultWalkSpeed = 4.5f;
+        public const float DefaultRunSpeed = 7.0f;
+        public const float DefaultJumpHeight = 3.0f;
+
+        /// <summary>The character height the default speeds and jump were tuned for.</summary>
+        public const float ReferenceHeight = 2.0f;
+
+        public float WalkSpeed { get; set; } = DefaultWalkSpeed;
+        public float RunSpeed { get; set; } = DefaultRunSpeed;
         public float TurnDegreesPerSecond { get; set; } = 540.0f;
 
         // How close counts as arrived. Too small and the pawn jitters around the destination for a
@@ -272,6 +279,20 @@ namespace Mana.Code.Nodes
         // Uniformly scales the pawn so its rendered height matches targetHeight. Rigged source models
         // are authored at wildly different scales (a Kenney mini-character is 0.67 units tall, against
         // a 1-unit voxel), so spawning one at native scale usually means an invisible speck.
+        /// <summary>
+        /// Scales walk speed, run speed and jump height to this pawn's actual height, from the values tuned for
+        /// a <see cref="ReferenceHeight"/> character. A model kept at its own size can be a third of that or
+        /// bigger than it, and the same speeds in world units would make a small one sprint at many body
+        /// lengths a second. Call once, after the pawn's scale is final.
+        /// </summary>
+        public void ScaleLocomotionToHeight()
+        {
+            var ratio = ResolveWorldHeight() / ReferenceHeight;
+            WalkSpeed = DefaultWalkSpeed * ratio;
+            RunSpeed = DefaultRunSpeed * ratio;
+            JumpHeight = DefaultJumpHeight * ratio;
+        }
+
         public bool TryNormalizeHeight(float targetHeight)
         {
             if (targetHeight <= 0.0f || !TryGetBindPoseHeight(out var sourceHeight) || sourceHeight <= 0.0f)
@@ -392,7 +413,7 @@ namespace Mana.Code.Nodes
 
         // Jump tuning. The defaults are shaped for the editor's -64 u/s^2 gravity and a 2-unit
         // character; JumpHeight is the apex a full-hold jump reaches from flat ground.
-        public float JumpHeight { get; set; } = 3.0f;
+        public float JumpHeight { get; set; } = DefaultJumpHeight;
 
         // Mario's defining trick: releasing the button early cuts the rise short, so tapping gives a
         // hop and holding gives the full arc. Applied as a one-shot multiplier on upward velocity at

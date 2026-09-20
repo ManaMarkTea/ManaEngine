@@ -21,30 +21,33 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Builds the bar. <paramref name="host"/> is nullable so the menu can be built and driven without
         /// a game mode: every row here answers to the view model alone.
         /// </summary>
-        public static MenuBar Build(VoxelEditorViewModel viewModel, BaseGameMode? host = null)
+        public static MenuBar Build(VoxelEditorViewModel viewModel, BaseGameMode? host = null, Action? openPreferences = null, Action? openSearch = null)
         {
-            return new MenuBar().AddRange(BuildMenus(viewModel, host));
+            return new MenuBar().AddRange(BuildMenus(viewModel, host, openPreferences, openSearch));
         }
 
         /// <summary>
         /// The menus alone, for a bar that carries other things too -- the workspace's own chrome sits
         /// beside these rather than in a second bar.
         /// </summary>
-        public static MenuItem[] BuildMenus(VoxelEditorViewModel viewModel, BaseGameMode? host = null)
+        public static MenuItem[] BuildMenus(VoxelEditorViewModel viewModel, BaseGameMode? host = null, Action? openPreferences = null, Action? openSearch = null)
         {
             return new[]
             {
                 File(viewModel),
-                Edit(viewModel),
+                Edit(viewModel, openPreferences),
                 Play(viewModel),
                 Character(viewModel),
-                View(viewModel, host)
+                View(viewModel, host, openSearch)
             };
         }
 
-        private static MenuItem Edit(VoxelEditorViewModel viewModel)
+        /// <param name="openPreferences">Opens the preferences panel. Null where there is no workspace to open
+        /// one in (a bare menu under test), in which case the row is left out rather than shown dead.</param>
+        private static MenuItem Edit(VoxelEditorViewModel viewModel, Action? openPreferences)
         {
-            return new MenuItem("Edit").WithItems(
+            var items = new List<MenuItem>
+            {
                 new MenuItem("Undo", () => viewModel.History.Undo())
                     .WithShortcut("Ctrl+Z")
                     .EnabledWhen(() => viewModel.History.CanUndo),
@@ -58,7 +61,21 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // A menu is where someone looks for "what can I press", so the keys that belong to no
                 // button at all are the ones that most need saying somewhere.
                 MenuItem.Label("Frame selected").ShortcutFrom(() => "F"),
-                MenuItem.Label("Clear selection").ShortcutFrom(() => "Esc"));
+                MenuItem.Label("Clear selection").ShortcutFrom(() => "Esc"),
+
+                MenuItem.Separator(),
+
+                new MenuItem("Snap to Grid", () => viewModel.Snap.Enabled = !viewModel.Snap.Enabled)
+                    .Checkable(() => viewModel.Snap.Enabled)
+                    .WithTooltip("Snaps placement and the move, rotate and scale gizmos. Sizes are in Preferences.")
+            };
+
+            if (openPreferences != null)
+            {
+                items.Add(new MenuItem("Preferences...", openPreferences));
+            }
+
+            return new MenuItem("Edit").WithItems(items.ToArray());
         }
 
         private static MenuItem File(VoxelEditorViewModel viewModel)
@@ -263,7 +280,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             return $"Controlling: {controller.PossessedPawn.Name} (WASD, Shift run, Space jump)";
         }
 
-        private static MenuItem View(VoxelEditorViewModel viewModel, BaseGameMode? host)
+        private static MenuItem View(VoxelEditorViewModel viewModel, BaseGameMode? host, Action? openSearch)
         {
             // Logarithmic: useful lengths span a voxel-scale scene and a kilometre-scale region.
             var normalLength = new SliderBox
@@ -306,8 +323,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .EnabledWhen(() => viewModel.KmlAirspaceAvailable)
                     .ShortcutFrom(() => viewModel.KmlAirspaceLoading ? "Loading..." : string.Empty),
 
-                new MenuItem("Search Location...", () => viewModel.ShowSearchWindow = !viewModel.ShowSearchWindow)
-                    .Checkable(() => viewModel.ShowSearchWindow),
+                new MenuItem("Search Area...", openSearch ?? (() => viewModel.ShowSearchWindow = true)),
 
                 MenuItem.Separator(),
 

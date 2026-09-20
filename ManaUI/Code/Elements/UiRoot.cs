@@ -43,6 +43,12 @@ namespace ManaUI
         public ManaFontManager Fonts { get; }
         /// <summary>Desktop host hook; null on platforms without native panel windows.</summary>
         public Func<string, IUiDesktopWindow>? CreateDesktopWindow { get; set; }
+
+        /// <summary>
+        /// Screen position of this root's top-left, so a drag can be followed from one window into another.
+        /// Null reads as the origin, which is right for anything that is not a real window.
+        /// </summary>
+        public Func<Vector2>? ScreenOrigin { get; set; }
         public ManaGlyphAtlas Atlas => Fonts.Atlas;
 
         /// <summary>

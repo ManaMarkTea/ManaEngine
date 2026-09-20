@@ -69,7 +69,7 @@ public static class ShowcaseChecks
             // session like this one, and the number changes as the port proceeds. What matters is that the
             // default preset uses one column.
             Check("the default preset puts every panel in one column",
-                right.AllItems().Count() >= 3 && !left.AllItems().Any(),
+                right.AllItems().Count() == 2 && !left.AllItems().Any(),
                 $"left [{string.Join(", ", left.AllItems().Select(i => i.Title))}] "
                 + $"right [{string.Join(", ", right.AllItems().Select(i => i.Title))}]");
 

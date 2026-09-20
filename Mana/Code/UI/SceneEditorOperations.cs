@@ -68,6 +68,108 @@ namespace Mana.Code.UI
             return true;
         }
 
+        /// <summary>
+        /// Adds an empty scene to the world and selects it. Named "New Scene", then "New Scene 2" and so on, so
+        /// two of them are never indistinguishable in the outliner -- which is where a scene is picked as the
+        /// target of a move.
+        /// </summary>
+        public static ManaScene CreateScene(ManaWorld world, SceneSelectionState? selection, string? name = null)
+        {
+            var baseName = string.IsNullOrWhiteSpace(name) ? "New Scene" : name.Trim();
+            var unique = baseName;
+            var number = 1;
+
+            var scene = new ManaScene(world.Context);
+
+            lock (world.SceneLock)
+            {
+                while (world.Scenes.Any(existing => string.Equals(existing.Name, unique, StringComparison.Ordinal)))
+                {
+                    number++;
+                    unique = $"{baseName} {number}";
+                }
+
+                scene.Name = unique;
+                world.Scenes.Add(scene);
+            }
+
+            if (selection != null)
+            {
+                selection.SelectedScene = scene;
+                selection.SelectedNode = null;
+                selection.SelectedComponent = null;
+                selection.NotifySceneGraphChanged();
+            }
+
+            return scene;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="node"/> can go into <paramref name="target"/>: anything but the editor
+        /// camera, and only if it is not already one of that scene's own top-level nodes.
+        /// </summary>
+        public static bool CanMoveNodeToScene(ManaWorld world, ManaSceneNode? node, ManaScene? target)
+        {
+            return node != null
+                && target != null
+                && !ReferenceEquals(node, world.CameraNode)
+                && world.Scenes.Contains(target)
+                && !target.Children.Contains(node);
+        }
+
+        /// <summary>
+        /// Moves a node, with everything under it, to the top level of another scene.
+        /// <para>
+        /// Scenes have no transform of their own, so a top-level node keeps exactly the place it had. One
+        /// that was nested under a parent loses that parent's transform when it is detached, so its own is
+        /// rewritten to the world transform it had a moment ago -- it stays where it is on screen.
+        /// </para>
+        /// </summary>
+        public static bool MoveNodeToScene(
+            ManaWorld world,
+            SceneSelectionState? selection,
+            ManaSceneNode? node,
+            ManaScene? target)
+        {
+            if (!CanMoveNodeToScene(world, node, target))
+            {
+                return false;
+            }
+
+            var wasNested = node!.Parent != null;
+            var worldTransform = node.WorldTransform;
+
+            lock (world.SceneLock)
+            {
+                if (wasNested)
+                {
+                    node.Parent!.RemoveChild(node);
+                }
+                else
+                {
+                    foreach (var scene in world.Scenes)
+                    {
+                        scene.Children.Remove(node);
+                    }
+                }
+
+                target!.Children.Add(node);
+            }
+
+            if (wasNested && Matrix4x4.Decompose(worldTransform, out var scale, out var rotation, out var translation))
+            {
+                node.Position = translation;
+                node.Rotation = rotation.ToEuler();
+                node.Scale = scale;
+            }
+
+            node.UpdateTransform();
+
+            // Still selected, but the tree has to redraw under the new scene.
+            selection?.NotifySceneGraphChanged();
+            return true;
+        }
+
         public static bool CanRemoveComponent(ManaComponent? component)
         {
             if (component == null)

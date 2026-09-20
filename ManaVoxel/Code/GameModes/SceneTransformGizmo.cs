@@ -20,6 +20,7 @@ namespace Mana.Code.GameModes
         private readonly ManaSceneNode _root;
         private readonly ManaScene _pickScene;
         private readonly EditorUndoHistory _history;
+        private readonly EditorSnapSettings _snap;
         private readonly Dictionary<ManaSceneNode, GizmoAxis> _axisByNode = new();
         private readonly List<(GizmoAxis Axis, MeshRendererComponent Renderer)> _renderers = new();
 
@@ -48,10 +49,11 @@ namespace Mana.Code.GameModes
             Z
         }
 
-        public SceneTransformGizmo(ManaWorld world, EditorUndoHistory history)
+        public SceneTransformGizmo(ManaWorld world, EditorUndoHistory history, EditorSnapSettings snap)
         {
             _world = world;
             _history = history;
+            _snap = snap;
             _root = new ManaSceneNode(world.Context, Matrix4x4.Identity)
             {
                 Name = "Transform Gizmo (Transient)",
@@ -262,6 +264,7 @@ namespace Mana.Code.GameModes
             var renderer = new MeshRendererComponent(node, mesh)
             {
                 DrawAfterScene = true,
+                AlwaysOnTop = true,
                 OutlineColor = HoverColor,
                 OutlineWidth = 3.0f
             };
@@ -481,7 +484,15 @@ namespace Mana.Code.GameModes
                     Vector3.Dot(axisWorld, Vector3.Cross(_dragStartPlaneVector, currentVector)),
                     Vector3.Dot(_dragStartPlaneVector, currentVector));
                 var rotation = _dragStartRotation;
-                SetAxis(ref rotation, axis, ReadAxis(rotation, axis) + angle);
+                var rotated = ReadAxis(rotation, axis) + angle;
+                if (_snap.Enabled)
+                {
+                    // Absolute, not relative to where the drag began: the result lands on a multiple of the
+                    // step whatever angle the object started at.
+                    rotated = float.DegreesToRadians(_snap.SnapRotationDegrees(float.RadiansToDegrees(rotated)));
+                }
+
+                SetAxis(ref rotation, axis, rotated);
                 _target.Rotation = rotation;
             }
             else
@@ -502,12 +513,12 @@ namespace Mana.Code.GameModes
                 {
                     var scale = _dragStartScale;
                     var value = ReadAxis(scale, axis) + delta / MathF.Max(_displayScale, 0.001f);
-                    SetAxis(ref scale, axis, MathF.Max(0.01f, value));
+                    SetAxis(ref scale, axis, MathF.Max(0.01f, _snap.SnapScale(value)));
                     _target.Scale = scale;
                 }
                 else
                 {
-                    var worldDelta = axisWorld * delta;
+                    var worldDelta = axisWorld * _snap.SnapDragDistance(_dragPivotWorld, axisWorld, delta);
                     var localDelta = worldDelta;
                     if (_target.Parent != null && Matrix4x4.Invert(_target.Parent.WorldTransform, out var worldToParent))
                     {

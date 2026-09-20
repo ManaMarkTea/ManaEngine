@@ -1,4 +1,3 @@
-using Mana.Code;
 using ManaUI;
 using ManaVoxel.Code.Tools;
 
@@ -7,68 +6,13 @@ using Button = ManaUI.Button;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
-    /// <summary>
-    /// The editor's tool panels in ManaUI, one per subject rather than one panel with a tab bar.
-    /// <para>
-    /// ImGui's version was a single window with its own tabs because that is what it had. Here the dock
-    /// already tabs anything sharing a slot, so separate panels give the same arrangement by default and
-    /// let them be pulled apart -- physics tuning beside the viewport while the placement readout stays
-    /// where it was, which one tab bar could not do.
-    /// </para>
-    /// <para>
-    /// Import is not here yet. It is a mesh-asset tree with format filters and drag-to-spawn, which is a
-    /// piece of work in its own right and crosses from the panel into the viewport; the tab is deliberately
-    /// absent rather than present and empty, so nothing looks finished that is not.
-    /// </para>
-    /// </summary>
+    /// <summary>Voxel toolbar details and physics debug controls.</summary>
     public static class VoxelEditorPanelsManaView
     {
-        /// <summary>
-        /// Frames kept for the graph. Enough to show the shape of a stutter without the window being so
-        /// long that a bad second is averaged into invisibility.
-        /// </summary>
-        private const int FrameHistory = 120;
-
-        /// <summary>Frame rate, mode, and the session counters.</summary>
+        /// <summary>Voxel counters, without renderer performance diagnostics.</summary>
         public static UiElement BuildStats(UiTheme theme, VoxelEditorViewModel viewModel)
         {
-            var frames = new float[FrameHistory];
-            var next = 0;
-
-            // Sampled from the layout pass rather than pushed from the render loop: the panel is the only
-            // thing that wants this, and a graph nobody is looking at should not cost the renderer anything.
-            void Sample()
-            {
-                var milliseconds = (float)ManaTime.GlobalTime.DeltaTime.TotalMilliseconds;
-                frames[next] = Math.Clamp(milliseconds, 0.0f, 100.0f);
-                next = (next + 1) % frames.Length;
-            }
-
-            var graph = new Sparkline
-            {
-                Samples = frames,
-                Minimum = 0.0f,
-                Maximum = 33.0f,
-                Threshold = 16.7f,
-                Height = 34.0f
-            };
-
-            // The sampling rides on a binding because that is the one thing guaranteed to run each frame
-            // the panel is visible; the value it reports is only incidental.
-            graph.BindPolled(g => g.Tooltip, () =>
-            {
-                Sample();
-
-                // Handed to the graph so it can unroll the ring: the newest sample belongs at the right
-                // edge, not wherever the cursor happens to have reached.
-                graph.WriteCursor = next;
-
-                return $"{ManaTime.GlobalTime.FramesPerSecondAvg:0} fps average, {frames[(next + frames.Length - 1) % frames.Length]:0.0} ms last frame";
-            });
-
-            return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
-                Header(theme, viewModel, graph),
-                SessionStats(theme, viewModel)).Scrollable();
+            return SessionStats(theme, viewModel);
         }
 
         /// <summary>The active node and what the pointer is over.</summary>
@@ -81,33 +25,6 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static UiElement BuildPhysics(UiTheme theme, VoxelEditorViewModel viewModel)
         {
             return PhysicsTab(theme, viewModel);
-        }
-
-        private static UiElement Header(UiTheme theme, VoxelEditorViewModel viewModel, Sparkline graph)
-        {
-            return new StackPanel().Vertical(theme.Spacing).Children(
-                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").Children(
-                    new StackPanel().Vertical(1.0f).CenterV().GridColumn(0).Children(
-                        new TextBlock()
-                            .BindTextPolled(() =>
-                                $"{ManaTime.GlobalTime.FramesPerSecondAvg:0.00} fps"
-                                + $"   {ManaTime.GlobalTime.DeltaTimeAvg.TotalMilliseconds:0} ms")
-                            .FontFamily(theme.FontFamilyMedium),
-
-                        new TextBlock()
-                            .BindTextPolled(() => $"Mode: {viewModel.ModeText}")
-                            .Foreground(theme.TextMuted)
-                            .FontSize(theme.FontSizeSmall)
-                            .Ellipsis(),
-
-                        new TextBlock()
-                            .BindTextPolled(() =>
-                                $"State: {viewModel.ReassemblyText}    Baked: {viewModel.BakedPhysicsVoxelCount:N0}")
-                            .Foreground(theme.TextMuted)
-                            .FontSize(theme.FontSizeSmall)
-                            .Ellipsis()),
-
-                    graph.Width(140.0f).GridColumn(1)));
         }
 
         /// <summary>
@@ -160,7 +77,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 activeNode,
 
                 Section(theme, "Placement"),
-                Placement(theme, viewModel)).Scrollable();
+                Placement(theme, viewModel),
+                BuildStats(theme, viewModel)).Scrollable();
         }
 
         private static UiElement ActiveNodePicker(VoxelEditorViewModel viewModel)

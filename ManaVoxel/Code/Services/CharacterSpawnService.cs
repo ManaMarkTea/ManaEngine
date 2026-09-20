@@ -19,11 +19,6 @@ namespace ManaVoxel.Code.Services
     // picks it up with no code change, as long as it ships GLBs in a "GLB format" folder.
     public class CharacterSpawnService
     {
-        // Kenney characters run from 0.67 units tall (mini) to 2.7 (blocky). Normalising them all to
-        // two units keeps them consistent with each other and roughly human next to the 1-unit voxel
-        // grid, and keeps one set of movement speeds meaningful across packs.
-        private const float DefaultCharacterHeight = 2.0f;
-
         private List<CharacterAsset>? _cachedCatalog;
         private int _nextCharacterIndex;
 
@@ -197,7 +192,11 @@ namespace ManaVoxel.Code.Services
 
                 pawn.Name = asset.DisplayName;
                 pawn.SourcePackName = asset.PackName;
-                pawn.TryNormalizeHeight(DefaultCharacterHeight);
+
+                // Kept at the model's own size, so a character in Play is the same size as the same model
+                // placed at 1x in the editor. Kenney's run from 0.7 units tall (mini) to 2.7 (blocky), so the
+                // speeds and jump are scaled to match rather than left tuned for one height.
+                pawn.ScaleLocomotionToHeight();
                 pawn.GroundHeight = position.Y;
                 pawn.Position = position;
 

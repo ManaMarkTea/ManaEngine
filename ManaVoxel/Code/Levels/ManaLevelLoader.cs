@@ -277,7 +277,9 @@ namespace ManaVoxel.Code.Levels
                     return shape;
 
                 case ManaLevelSourceKind.Mesh:
-                    var mesh = LoadMesh(entry, state.Context);
+                    // A top-level mesh goes into the level's scene rather than a wrapper of its own. One under a
+                    // parent is moved out of whatever scene it loads into straight away, so it keeps the old route.
+                    var mesh = LoadMesh(entry, state.Context, parent == null ? state.Scene : null);
                     AttachToParent(state.Context, parent, mesh);
                     AddCollisionIfPresent(entry, state.Context, mesh);
                     AddScriptsIfPresent(entry, mesh);
@@ -383,10 +385,10 @@ namespace ManaVoxel.Code.Levels
             return node;
         }
 
-        private static ManaSceneNode LoadMesh(ManaLevelNode entry, ManaContext context)
+        private static ManaSceneNode LoadMesh(ManaLevelNode entry, ManaContext context, ManaScene? into)
         {
             var asset = entry.Asset ?? throw new InvalidDataException("Mesh entry has no asset reference.");
-            var node = LoadMeshAsset(asset, context.World);
+            var node = LoadMeshAsset(asset, context.World, into);
             node.LevelSource = ManaLevelSource.ForMesh(asset);
             node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             ApplyTransform(node, entry);
@@ -537,7 +539,7 @@ namespace ManaVoxel.Code.Levels
         /// entry inside it. Shared with the editor's own placement path rather than re-decoded here; two
         /// copies of that encoding is what broke mesh import once already.
         /// </summary>
-        public static ManaSceneNode LoadMeshAsset(string assetReference, ManaWorld world)
+        public static ManaSceneNode LoadMeshAsset(string assetReference, ManaWorld world, ManaScene? into = null)
         {
             if (MeshAssetLibrary.TryDecodeZip(assetReference, out var zipPath, out var entryPath))
             {
@@ -550,7 +552,7 @@ namespace ManaVoxel.Code.Levels
                 entryStream.CopyTo(memory);
 
                 var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-                return world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
+                return world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: into);
             }
 
             assetReference = ResolveAssetPath(assetReference);
@@ -560,7 +562,7 @@ namespace ManaVoxel.Code.Levels
                 throw new FileNotFoundException($"Mesh asset '{assetReference}' is missing.", assetReference);
             }
 
-            return world.LoadFromGltf(assetReference);
+            return world.LoadFromGltf(assetReference, into: into);
         }
 
         public static async Task EnsureAssetsAsync(ManaLevel level)

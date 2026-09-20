@@ -339,7 +339,7 @@ public static class PortedMainMenuChecks
 
         foreach (var panel in new[] { "Placement", "Physics", "Voxel Stats" })
         {
-            Check($"{panel} is its own dock panel", docked.Contains(panel), string.Join(", ", docked));
+            Check($"{panel} no longer occupies the dock", !docked.Contains(panel), string.Join(", ", docked));
         }
 
         // The framework showcase and the diagnostics are panels, and reachable from the Panels menu, but a
@@ -355,9 +355,21 @@ public static class PortedMainMenuChecks
         Check("a panel needing a world is left out when there is none",
             !docked.Contains("Outliner") && !docked.Contains("Inspector"), string.Join(", ", docked));
 
-        Check("and they arrive together rather than one preset knowing about them",
-            docked.Count(d => d is "Placement" or "Physics" or "Voxel Stats") == 3,
+        Check("removed panels are absent from the panel registry",
+            !ManaUiDockDemo.PanelIds.Any(id => id is "placement" or "physics" or "voxelstats" or "lighting" or "search"),
             string.Join(", ", docked));
+
+        var searchMenu = bars[0].Menus.First(menu => menu.Text == "View")
+            .Items.First(item => item.Text == "Search Area...");
+        searchMenu.Invoke();
+        root.UpdateLayout(new Vector2(1280, 900));
+        Check("search opens a modal over the workspace",
+            root.Popups.HasOpenPopups && !root.ContentLayer.IsEnabled && !root.FloatingLayer.IsEnabled);
+        Check("search dialog has a query field", FindAll<TextBox>(root.Popups.Topmost!).Any());
+        root.Popups.Close(root.Popups.Topmost!);
+        Check("closing search restores workspace input", root.ContentLayer.IsEnabled && root.FloatingLayer.IsEnabled);
+        var debugTabs = (TabView)DebugManaView.Build(root.Theme, vm);
+        Check("physics is a debug tab", debugTabs.Tabs.Any(tab => tab.Header == "Physics"));
 
         // The merge list and the factory have to agree. When they were written separately they silently
         // stopped agreeing -- six panels existed in the factory and not in the list, so upgrading a saved
@@ -451,7 +463,7 @@ public static class PortedMainMenuChecks
                     // these were in none of them and choosing any preset silently dropped them. Blur Test
                     // used to be the third: it is now deliberately out of the default set rather than
                     // accidentally out of it, so it is checked above instead.
-                    foreach (var id in new[] { "import", "search" })
+                    foreach (var id in new[] { "import" })
                     {
                         Check($"a preset places {id}", placed.Contains(id), string.Join(", ", placed));
                     }

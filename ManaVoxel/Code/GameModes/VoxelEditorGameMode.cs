@@ -52,10 +52,6 @@ namespace Mana.Code.GameModes
         private string? _meshPickerPreviewAssetPath;
         private ManaSceneNode? _meshPickerPreviewNode;
 
-        // Extra spin the user has dialed in with the scroll wheel while positioning the current preview,
-        // on top of ImportRotationDegrees, applied around the surface normal under the cursor. Reset
-        // whenever a preview starts, commits, or cancels so the next placement starts unspun.
-        private float _meshPickerExtraRotationDegrees;
         private int _meshPickerPreviewSceneStartIndex = -1;
         private int _meshPickerPreviewMeshStartIndex = -1;
         private int _meshPickerPreviewMaterialStartIndex = -1;
@@ -115,7 +111,8 @@ namespace Mana.Code.GameModes
 
         public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
         {
-
+            // Before any UI is built: the preferences panel and the placement panel both read it as they construct.
+            _viewModel.Snap.Restore();
         }
 
         public void RunWebGpu(string? requestedBackend)
@@ -207,7 +204,7 @@ namespace Mana.Code.GameModes
         {
             LoadingCoordinator.Begin();
             var world = Context.World;
-            _transformGizmo = new SceneTransformGizmo(world, _viewModel.History);
+            _transformGizmo = new SceneTransformGizmo(world, _viewModel.History, _viewModel.Snap);
             _trackDebugVisualization = new TrackDebugVisualization(world);
 
             // Shares the editor's picking exclusions so a click-to-move order falls through the grid
@@ -1678,50 +1675,66 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            // Scroll while positioning spins the preview around the surface normal instead of zooming the
-            // camera -- ShouldCaptureEditorMouseInput reports this preview as an editor mouse capture for
-            // exactly that reason. One notch (|scroll|==1) is 15 degrees, matching common editor conventions.
+            // Scroll while positioning spins the preview instead of zooming the camera --
+            // ShouldCaptureEditorMouseInput reports this preview as an editor mouse capture for exactly that
+            // reason. The spin is written into the Placement panel's Rotation, so what the panel shows is
+            // what the next placement will use, rather than a hidden extra angle nobody can see or reset.
             var scrollY = Context.Input.Mice.FirstOrDefault()?.ScrollWheels[0].Y ?? 0.0f;
             if (scrollY != 0.0f)
             {
-                const float degreesPerNotch = 15.0f;
-                _meshPickerExtraRotationDegrees += scrollY * degreesPerNotch;
+                SpinPlacementRotation(scrollY, mouseHit.Normal);
             }
 
-            var placementPosition = mouseHit.Position;
-            if (_viewModel.SnapImportedModelsToGrid && _viewModel.ImportGridSize > 0.0001f)
-            {
-                var gridSize = _viewModel.ImportGridSize;
-                placementPosition = new Vector3(
-                    MathF.Round(placementPosition.X / gridSize) * gridSize,
-                    MathF.Round(placementPosition.Y / gridSize) * gridSize,
-                    MathF.Round(placementPosition.Z / gridSize) * gridSize);
-            }
+            _meshPickerPreviewNode.Position = _viewModel.Snap.SnapPosition(mouseHit.Position) + _viewModel.ImportPositionOffset;
 
-            _meshPickerPreviewNode.Position = placementPosition + _viewModel.ImportPositionOffset;
-
-            var baseRotation = new Vector3(
+            _meshPickerPreviewNode.Rotation = new Vector3(
                 _viewModel.ImportRotationDegrees.X.ToRadians(),
                 _viewModel.ImportRotationDegrees.Y.ToRadians(),
                 _viewModel.ImportRotationDegrees.Z.ToRadians());
-
-            if (_meshPickerExtraRotationDegrees != 0.0f && mouseHit.Normal != Vector3.Zero)
-            {
-                var baseRotationQuat = baseRotation.ToQuaternionFromEuler();
-                var extraRotationQuat = Quaternion.CreateFromAxisAngle(
-                    Vector3.Normalize(mouseHit.Normal), _meshPickerExtraRotationDegrees.ToRadians());
-                _meshPickerPreviewNode.Rotation = Quaternion.Concatenate(baseRotationQuat, extraRotationQuat).ToEuler();
-            }
-            else
-            {
-                _meshPickerPreviewNode.Rotation = baseRotation;
-            }
 
             _meshPickerPreviewNode.Scale = new Vector3(
                 MathF.Max(0.01f, _viewModel.ImportScale.X),
                 MathF.Max(0.01f, _viewModel.ImportScale.Y),
                 MathF.Max(0.01f, _viewModel.ImportScale.Z));
             _meshPickerPreviewNode.UpdateTransform();
+        }
+
+        /// <summary>
+        /// Turns the Placement rotation by <paramref name="notches"/> scroll notches around the surface the
+        /// cursor is over. A notch is the rotation snap step while snapping is on, and 15 degrees otherwise.
+        /// </summary>
+        private void SpinPlacementRotation(float notches, Vector3 surfaceNormal)
+        {
+            var snap = _viewModel.Snap;
+            var degrees = notches * (snap.Enabled ? snap.RotationStepDegrees : 15.0f);
+            var rotation = _viewModel.ImportRotationDegrees;
+
+            if (surfaceNormal == Vector3.Zero || MathF.Abs(surfaceNormal.Y) > 0.999f)
+            {
+                // The common case -- a floor, or nothing under the cursor -- is a plain yaw, kept as one
+                // exact number on Y instead of round-tripping through a quaternion and picking up noise on
+                // the other two axes. A ceiling faces down, so the same notch spins the other way round.
+                var yaw = rotation.Y + (surfaceNormal.Y < 0.0f ? -degrees : degrees);
+                yaw = snap.SnapRotationDegrees(yaw);
+                rotation.Y = yaw - 360.0f * MathF.Round(yaw / 360.0f);
+            }
+            else
+            {
+                // A wall: spin about its normal, as before, and read the result back as the three angles the
+                // panel shows.
+                var current = new Vector3(
+                    rotation.X.ToRadians(),
+                    rotation.Y.ToRadians(),
+                    rotation.Z.ToRadians()).ToQuaternionFromEuler();
+                var spin = Quaternion.CreateFromAxisAngle(Vector3.Normalize(surfaceNormal), degrees.ToRadians());
+                var euler = Quaternion.Concatenate(current, spin).ToEuler();
+                rotation = new Vector3(
+                    float.RadiansToDegrees(euler.X),
+                    float.RadiansToDegrees(euler.Y),
+                    float.RadiansToDegrees(euler.Z));
+            }
+
+            _viewModel.ImportRotationDegrees = rotation;
         }
 
         private void CommitMeshPickerPlacementPreview()
@@ -1738,7 +1751,8 @@ namespace Mana.Code.GameModes
                     world,
                     _meshPickerPreviewSceneStartIndex,
                     _meshPickerPreviewMeshStartIndex,
-                    _meshPickerPreviewMaterialStartIndex);
+                    _meshPickerPreviewMaterialStartIndex,
+                    placedNode);
                 var selectionBefore = _meshPickerPreviewSelectionBefore
                     ?? EditorSelectionSnapshot.Capture(world.Selection);
 
@@ -1763,7 +1777,6 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewMeshStartIndex = -1;
             _meshPickerPreviewMaterialStartIndex = -1;
             _meshPickerPreviewSelectionBefore = null;
-            _meshPickerExtraRotationDegrees = 0.0f;
         }
 
         private void CancelMeshPickerPlacementPreview()
@@ -1777,7 +1790,8 @@ namespace Mana.Code.GameModes
                 RemoveMeshPickerPreviewWorldData(
                     _meshPickerPreviewSceneStartIndex,
                     _meshPickerPreviewMeshStartIndex,
-                    _meshPickerPreviewMaterialStartIndex);
+                    _meshPickerPreviewMaterialStartIndex,
+                    _meshPickerPreviewNode);
             }
 
             _meshPickerPreviewAssetPath = null;
@@ -1786,11 +1800,13 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewMeshStartIndex = -1;
             _meshPickerPreviewMaterialStartIndex = -1;
             _meshPickerPreviewSelectionBefore = null;
-            _meshPickerExtraRotationDegrees = 0.0f;
         }
 
         private ManaSceneNode LoadMeshPickerAsset(string assetReference)
         {
+            // Straight into the scene the editor is working in, not a scene of its own per drag.
+            var scene = _viewModel.ActiveScene ?? Context.World.DefaultScene;
+
             if (TryDecodeZipAssetReference(assetReference, out var zipPath, out var entryPath))
             {
                 using var archive = ZipFile.OpenRead(zipPath);
@@ -1804,17 +1820,27 @@ namespace Mana.Code.GameModes
                 using var memory = new MemoryStream();
                 entryStream.CopyTo(memory);
                 var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
-                return Context.World.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
+                return Context.World.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: scene);
             }
 
-            return Context.World.LoadFromGltf(assetReference);
+            return Context.World.LoadFromGltf(assetReference, into: scene);
         }
 
-        private void RemoveMeshPickerPreviewWorldData(int sceneStart, int meshStart, int materialStart)
+        private void RemoveMeshPickerPreviewWorldData(
+            int sceneStart, int meshStart, int materialStart, ManaSceneNode? previewNode = null)
         {
             var world = Context.World;
             lock (world.SceneLock)
             {
+                // The preview lives in an existing scene now, so it has to be taken out of it by hand.
+                if (previewNode != null)
+                {
+                    foreach (var scene in world.Scenes)
+                    {
+                        scene.Children.Remove(previewNode);
+                    }
+                }
+
                 if (sceneStart >= 0 && sceneStart < world.Scenes.Count)
                 {
                     world.Scenes.RemoveRange(sceneStart, world.Scenes.Count - sceneStart);

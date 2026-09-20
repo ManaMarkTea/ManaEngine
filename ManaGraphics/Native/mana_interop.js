@@ -57,10 +57,38 @@ const SUPPRESSED_KEYS = new Set([
     'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab',
 ]);
 
+// A dead runtime throws on every export call, and mousemove fires constantly: without this a crashed
+// boot buries the real error under thousands of "runtime already exited" lines.
+let runtimeDead = false;
+let guardedInput = null;
+
 function manaInput() {
-    return globalThis.ManaExports
-        ? globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop
-        : null;
+    if (runtimeDead || !globalThis.ManaExports) {
+        return null;
+    }
+
+    if (guardedInput) {
+        return guardedInput;
+    }
+
+    const api = globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop;
+    guardedInput = new Proxy(api, {
+        get(target, name) {
+            const member = target[name];
+            if (typeof member !== 'function') {
+                return member;
+            }
+            return (...args) => {
+                try {
+                    return member.apply(target, args);
+                } catch (error) {
+                    runtimeDead = true;
+                    console.error('[ManaBrowserInterop] input dispatch failed; input disabled:', error);
+                }
+            };
+        }
+    });
+    return guardedInput;
 }
 
 export function installInput() {

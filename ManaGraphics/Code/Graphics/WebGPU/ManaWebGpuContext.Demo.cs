@@ -171,17 +171,23 @@ namespace ManaGraphics.Code.Graphics
                 _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
             }
 
-            foreach (var sceneMesh in _sceneMeshes.Where(mesh => !mesh.Instance.IsTransparent))
+            foreach (var sceneMesh in _sceneMeshes.Where(mesh => !mesh.Instance.IsTransparent && !mesh.Instance.AlwaysOnTop))
             {
                 DrawSceneMesh(renderPass, sceneMesh);
             }
 
             var cameraPosition = _activeRenderScene?.Camera.Position ?? Vector3.Zero;
             foreach (var sceneMesh in _sceneMeshes
-                .Where(mesh => mesh.Instance.IsTransparent)
+                .Where(mesh => mesh.Instance.IsTransparent && !mesh.Instance.AlwaysOnTop)
                 .OrderByDescending(mesh => Vector3.DistanceSquared(
                     mesh.Instance.WorldTransform.Translation,
                     cameraPosition)))
+            {
+                DrawSceneMesh(renderPass, sceneMesh);
+            }
+
+            // Last, so nothing draws over them, and with depth ignored so nothing hides them: editor handles.
+            foreach (var sceneMesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
             {
                 DrawSceneMesh(renderPass, sceneMesh);
             }
@@ -206,7 +212,8 @@ namespace ManaGraphics.Code.Graphics
                 // Only real alpha-blended materials (glTF glass etc) self-cull -- not the intrinsically
                 // transparent shaders (water/liquid/lightning), which stay OpacityMode.Auto/Opaque at the
                 // material level and want both faces for their own volumetric/surface effects.
-                cullBackFaces: sceneMesh.Instance.OpacityMode == ManaOpacityMode.Blend);
+                cullBackFaces: sceneMesh.Instance.OpacityMode == ManaOpacityMode.Blend,
+                alwaysOnTop: sceneMesh.Instance.AlwaysOnTop);
             if (pipeline != null)
             {
                 _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
@@ -323,8 +330,9 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
-            var pipeline = GetOrCreateOutlineMaskPipeline();
-            _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+            // Ordinary meshes first, then the always-on-top ones with their own depth-ignoring pipeline.
+            // Same layout either way, so the bind groups set below stay valid across the switch.
+            _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
 
             // Reuses the frame (group 0) and object (group 1) bind groups already made current by
             // DrawDemoMesh's main pass this frame -- no uniform rewrite needed here at all, since the
@@ -336,13 +344,33 @@ namespace ManaGraphics.Code.Graphics
 
             foreach (var sceneMesh in _sceneMeshes)
             {
-                if (!sceneMesh.Instance.OutlineEnabled)
+                if (!sceneMesh.Instance.OutlineEnabled || sceneMesh.Instance.AlwaysOnTop)
                 {
                     continue;
                 }
 
                 _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
                 sceneMesh.Mesh.Draw(renderPass);
+            }
+
+            if (_sceneMeshes.Any(mesh => mesh.Instance.OutlineEnabled && mesh.Instance.AlwaysOnTop))
+            {
+                _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline(alwaysOnTop: true));
+                if (_frameBindGroup != null)
+                {
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+                }
+
+                foreach (var sceneMesh in _sceneMeshes)
+                {
+                    if (!sceneMesh.Instance.OutlineEnabled || !sceneMesh.Instance.AlwaysOnTop)
+                    {
+                        continue;
+                    }
+
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
+                    sceneMesh.Mesh.Draw(renderPass);
+                }
             }
 
             _api.RenderPassEncoderEnd(renderPass);

@@ -245,23 +245,32 @@ namespace ManaVoxel.Code.UI.ManaUi
                 SnapGrid(theme, viewModel));
         }
 
+        /// <summary>
+        /// The one snap switch, shared with the gizmo and the Edit menu. The sizes live in Edit &gt;
+        /// Preferences rather than here, so this panel stays as small as it was.
+        /// </summary>
         private static UiElement SnapGrid(UiTheme theme, VoxelEditorViewModel viewModel)
         {
-            var snap = new CheckBox("Snap models to grid") { IsChecked = viewModel.SnapImportedModelsToGrid };
-            snap.CheckedChanged += (_, value) => viewModel.SnapImportedModelsToGrid = value;
+            var snap = new CheckBox("Snap to grid") { IsChecked = viewModel.Snap.Enabled };
+            snap.CheckedChanged += (_, value) =>
+            {
+                if (!snap.IsApplyingBinding)
+                {
+                    viewModel.Snap.Enabled = value;
+                }
+            };
 
-            var size = new NumericBox()
-                .Width(72.0f)
-                .Step(0.25f)
-                .Range(0.01f, 100.0f)
-                .Places(2)
-                .Value(viewModel.ImportGridSize);
-            size.ValueChanged += (_, value) => viewModel.ImportGridSize = value;
+            // Polled because the menu and the preferences panel flip the same switch.
+            snap.BindPolled(c => c.IsChecked, () => viewModel.Snap.Enabled);
 
-            return new StackPanel().Vertical(theme.Spacing).Children(
-                snap,
-                new StackPanel().Horizontal(theme.Spacing).Children(
-                    new TextBlock().Text("Grid size").CenterV(), size));
+            var hint = new TextBlock()
+                .Foreground(theme.TextMuted)
+                .FontSize(theme.FontSizeSmall)
+                .Wrap();
+            hint.BindTextPolled(() =>
+                $"Moves in {viewModel.Snap.TranslateStep:0.##} units, turns in {viewModel.Snap.RotationStepDegrees:0.##}°. Change in Edit > Preferences.");
+
+            return new StackPanel().Vertical(theme.Spacing).Children(snap, hint);
         }
 
         private static UiElement Picker(UiTheme theme, MeshAssetLibrary library, MeshThumbnailCache? thumbnails)

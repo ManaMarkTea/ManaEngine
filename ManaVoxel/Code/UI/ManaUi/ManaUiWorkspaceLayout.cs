@@ -30,6 +30,15 @@ namespace ManaVoxel.Code.UI.ManaUi
         public int HomeHostIndex { get; set; }
         public string Id { get; set; } = string.Empty;
 
+        /// <summary>
+        /// What a native window holds when it holds more than the one panel <see cref="Id"/> names. Null for a
+        /// single panel, which keeps older files -- and files this build writes for the common case -- readable.
+        /// </summary>
+        public DockLayoutNode? Layout { get; set; }
+
+        /// <summary>Home host index per panel id, for a <see cref="Layout"/> whose panels came from different columns.</summary>
+        public Dictionary<string, int>? ItemHomes { get; set; }
+
         public float X { get; set; }
 
         public float Y { get; set; }

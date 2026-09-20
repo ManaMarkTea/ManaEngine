@@ -80,6 +80,12 @@ namespace ManaUI
         public event EventHandler<DockItem>? TabDoubleClicked;
         public bool CanDragTabs { get; set; } = true;
 
+        /// <summary>
+        /// Leaves a press on a tab unhandled, so the window above it can take it as a move. For a window whose
+        /// one tab is the whole window: there is nothing to reorder or tear out, and dragging it means moving it.
+        /// </summary>
+        public bool TabsMoveWindow { get; set; }
+
         public IReadOnlyList<DockItem> Items => _items;
 
         public override bool IsEmpty => _items.Count == 0;
@@ -718,6 +724,11 @@ namespace ManaUI
                 return;
             }
             _lastClickedItem = item;
+            if (TabsMoveWindow)
+            {
+                return;
+            }
+
             if (!CanDragTabs)
             {
                 e.Handled = true;

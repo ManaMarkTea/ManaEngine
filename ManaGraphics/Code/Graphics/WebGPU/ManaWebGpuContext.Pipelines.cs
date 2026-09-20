@@ -574,12 +574,13 @@ namespace ManaGraphics.Code.Graphics
         }
 
         private RenderPipeline* GetOrCreatePipeline(
-            string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false)
+            string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false,
+            bool alwaysOnTop = false)
         {
             shaderName ??= "ManaPbrShader";
 
             string pipelineKey =
-                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}";
+                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}_A{(alwaysOnTop ? 1 : 0)}";
             if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
                 return (RenderPipeline*)cachedPipeline;
@@ -608,7 +609,9 @@ namespace ManaGraphics.Code.Graphics
             // precedent already relied on for group 0's TransformUniform.
             var pipeline = CreateDemoRenderPipeline(
                 shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent,
-                disableDepthWrite, cullBackFaces: cullBackFaces);
+                disableDepthWrite || alwaysOnTop,
+                depthCompare: alwaysOnTop ? CompareFunction.Always : CompareFunction.Less,
+                cullBackFaces: cullBackFaces);
             _pipelines[pipelineKey] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
@@ -629,24 +632,40 @@ namespace ManaGraphics.Code.Graphics
             return _sceneCapturePipeline;
         }
 
-        private RenderPipeline* GetOrCreateOutlineMaskPipeline()
+        private RenderPipeline* GetOrCreateOutlineMaskPipeline(bool alwaysOnTop = false)
         {
+            if (alwaysOnTop)
+            {
+                return _outlineMaskAlwaysOnTopPipeline != null
+                    ? _outlineMaskAlwaysOnTopPipeline
+                    : _outlineMaskAlwaysOnTopPipeline = CreateOutlineMaskPipeline(CompareFunction.Always);
+            }
+
             if (_outlineMaskPipeline != null)
             {
                 return _outlineMaskPipeline;
             }
 
+            _outlineMaskPipeline = CreateOutlineMaskPipeline(CompareFunction.LessEqual);
+            return _outlineMaskPipeline;
+        }
+
+        // The mask is depth-tested against what the scene pass left behind, so a highlighted mesh only
+        // shows where nothing is in front of it. Handles that are always on top compare Always instead, or
+        // their hover highlight would vanish behind the model exactly as the handle used to.
+        private RenderPipeline* CreateOutlineMaskPipeline(CompareFunction depthCompare)
+        {
             var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "outline_mask.wgsl"));
-            _outlineMaskPipeline = CreateDemoRenderPipeline(
+            var pipeline = CreateDemoRenderPipeline(
                 shaderModule,
                 TextureFormat.Rgba8Unorm,
                 _demoPipelineLayout,
                 "OutlineMask",
                 disableDepthWrite: true,
-                depthCompare: CompareFunction.LessEqual);
-            _shaderModules["OutlineMask"] = (nint)shaderModule;
-            ManaConsole.WriteDiagnostic("WebGPU outline-mask pipeline created successfully.");
-            return _outlineMaskPipeline;
+                depthCompare: depthCompare);
+            _shaderModules[depthCompare == CompareFunction.Always ? "OutlineMaskAlwaysOnTop" : "OutlineMask"] = (nint)shaderModule;
+            ManaConsole.WriteDiagnostic($"WebGPU outline-mask pipeline created successfully ({depthCompare}).");
+            return pipeline;
         }
 
         private RenderPipeline* GetOrCreateOverlayPipeline(ManaWebGpuOverlayPass overlay)

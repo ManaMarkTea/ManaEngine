@@ -49,15 +49,17 @@ const RoomSize : f32 = 128.0;
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-    // Transparent from outside the room, not just past the wall it draws on: the six faces and four
-    // coves don't all share one consistent "which way is inward" normal (a mirrored far wall/ceiling
-    // reuses the same local geometry as its near counterpart, just translated, so its winding faces the
-    // opposite way), so testing this per-fragment against a normal would make half the faces vanish from
-    // the wrong side. Testing the CAMERA against the room's own bounding box instead sidesteps that
-    // entirely -- once the camera itself has left the [0, RoomSize] cube, every grid surface discards, so
-    // flying outside the room no longer blocks the view back toward it.
-    let camera = frame.camera_position.xyz;
-    if (any(camera < vec3<f32>(0.0)) || any(camera > vec3<f32>(RoomSize))) {
+    // See-through from behind: a surface is dropped only when the camera is on its outer side, so flying
+    // outside the room removes the wall between you and the room but leaves the other faces drawn. The
+    // mesh normals' signs aren't consistent (a mirrored far wall reuses its near wall's winding), so the
+    // normal is flipped to point at the room's centre first. The room is convex, so a camera inside it is
+    // always on the inner side of every surface and nothing is ever dropped from within.
+    let toCenter = vec3<f32>(RoomSize * 0.5) - input.world_position;
+    var inward = normalize(input.world_normal);
+    if (dot(inward, toCenter) < 0.0) {
+        inward = -inward;
+    }
+    if (dot(inward, frame.camera_position.xyz - input.world_position) < 0.0) {
         discard;
     }
 

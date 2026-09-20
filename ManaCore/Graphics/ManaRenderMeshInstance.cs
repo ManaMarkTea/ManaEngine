@@ -23,6 +23,10 @@ namespace ManaCore.Graphics
         public bool IncludeInEnvironmentCapture { get; init; } = true;
         public bool IsTransparent { get; init; }
         public bool DisableDepthWrite { get; init; }
+
+        /// <summary>Drawn after everything else, ignoring depth, so it can never be hidden behind scene geometry. Editor handles.</summary>
+        public bool AlwaysOnTop { get; init; }
+
         public bool OutlineEnabled { get; init; }
         public Vector4 OutlineColor { get; init; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; init; } = 2.0f;

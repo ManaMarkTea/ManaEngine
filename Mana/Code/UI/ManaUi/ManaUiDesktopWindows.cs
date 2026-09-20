@@ -64,9 +64,7 @@ namespace Mana.Code.UI.ManaUi
             private IInputContext? _input;
             private ManaUiHost? _host;
             private IUiWindowRenderer? _surface;
-            private readonly DockTabGroup _tabs = new() { CanDragTabs = false };
-            private DockItem? _item;
-            private bool _changingItem;
+            private readonly DesktopWindowFrame _frame = new();
             private bool _rendering;
             private bool _destroyed;
             private bool _closeRequested;
@@ -84,6 +82,9 @@ namespace Mana.Code.UI.ManaUi
                 options.Position = owner._main.Position + new Vector2D<int>(60, 60);
                 options.ShouldSwapAutomatically = false;
                 options.IsVisible = false;
+
+                // No OS title bar: the tab strip is the handle, and the frame supplies the edges.
+                options.WindowBorder = WindowBorder.Hidden;
                 _window = Window.Create(options);
                 try
                 {
@@ -91,10 +92,10 @@ namespace Mana.Code.UI.ManaUi
                     ManaGraphics.Code.Graphics.ManaWindowIcon.Apply(_window, owner._iconPath);
                     _input = _window.CreateInput();
                     _host = new ManaUiHost(_window, _input, owner._root.Theme, owner._root.Images);
-                    _tabs.TabDoubleClicked += (_, _) => _closeRequested = true;
-                    _tabs.Emptied += (_, _) => { if (!_changingItem) _closeRequested = true; };
+                    _frame.ScreenOrigin = () => new Vector2(_window.Position.X, _window.Position.Y);
+                    _frame.Dock.LayoutChanged += (_, _) => OnLayoutChanged();
                     _host.Root.Background = owner._root.Theme.Background;
-                    _host.Root.Content = _tabs;
+                    _host.Root.Content = _frame;
                     _window.Closing += () => _closeRequested = true;
                     _window.Move += _ => MarkBoundsDirty();
                     _window.Resize += _ => { MarkBoundsDirty(); DrawFrame(0); };
@@ -105,27 +106,24 @@ namespace Mana.Code.UI.ManaUi
                 catch { Dispose(); Destroy(); throw; }
             }
 
-            public DockItem? Item
+            public UiRoot Root => _host!.Root;
+            public DesktopWindowFrame Frame => _frame;
+
+            private void OnLayoutChanged()
             {
-                get => _item;
-                set
+                if (IsDisposed || _frame.Dock.RootNode == null)
                 {
-                    if (ReferenceEquals(_item, value)) return;
-                    _changingItem = true;
-                    try
-                    {
-                        if (_item != null) _tabs.Remove(_item);
-                        _item = value;
-                        if (value != null) _tabs.Add(value);
-                    }
-                    finally { _changingItem = false; }
-                    _host?.Root.InvalidateAll();
-                    _host?.Root.FocusManager.ValidateFocus();
-                    _host?.Root.Input.ClearKeyboardState();
-                    _host?.Root.Input.ReleasePointerCapture();
-                    if (value != null) _window.IsVisible = true;
+                    return;
                 }
+
+                _window.Title = (_frame.Dock.AllItems().FirstOrDefault()?.Title ?? string.Empty) + " — ManaUI";
+                _window.IsVisible = true;
+                _host?.Root.InvalidateAll();
+                _host?.Root.FocusManager.ValidateFocus();
+                _host?.Root.Input.ClearKeyboardState();
+                _host?.Root.Input.ReleasePointerCapture();
             }
+
             public Vector2 Position
             {
                 get => new(_window.Position.X, _window.Position.Y);
@@ -133,13 +131,21 @@ namespace Mana.Code.UI.ManaUi
                 {
                     if (!float.IsFinite(value.X) || !float.IsFinite(value.Y)) return;
                     var position = new Vector2D<int>((int)value.X, (int)value.Y);
-                    // Restore only where the title bar can still be reached on an attached monitor.
+                    // Restore only where the tab strip can still be reached on an attached monitor.
                     var reachable = Silk.NET.Windowing.Monitor.GetMonitors(_window).Any(m =>
                         position.X + 80 > m.Bounds.Origin.X && position.X < m.Bounds.Origin.X + m.Bounds.Size.X &&
                         position.Y >= m.Bounds.Origin.Y && position.Y + 40 < m.Bounds.Origin.Y + m.Bounds.Size.Y);
                     _window.Position = reachable ? position : _owner._main.Position + new Vector2D<int>(60, 60);
                 }
             }
+            public void MoveTo(Vector2 screenOrigin)
+            {
+                if (float.IsFinite(screenOrigin.X) && float.IsFinite(screenOrigin.Y))
+                {
+                    _window.Position = new Vector2D<int>((int)screenOrigin.X, (int)screenOrigin.Y);
+                }
+            }
+
             public Vector2 Size
             {
                 get => new(_window.Size.X, _window.Size.Y);
@@ -171,7 +177,7 @@ namespace Mana.Code.UI.ManaUi
 
             private void DrawFrame(double delta)
             {
-                if (IsDisposed || _rendering || _closeRequested || _item == null || _host == null) return;
+                if (IsDisposed || _rendering || _closeRequested || _frame.Dock.RootNode == null || _host == null) return;
                 _rendering = true;
                 try
                 {
@@ -193,7 +199,16 @@ namespace Mana.Code.UI.ManaUi
             {
                 if (IsDisposed) return;
                 IsDisposed = true;
-                Item = null;
+
+                // Whatever is still docked here is released without being docked anywhere: callers that want
+                // the panels kept move them first.
+                foreach (var item in _frame.Dock.AllItems().ToList())
+                {
+                    item.Owner?.Remove(item);
+                }
+
+                _host?.Root.Input.ClearKeyboardState();
+                _host?.Root.Input.ReleasePointerCapture();
                 _window.IsVisible = false;
             }
 

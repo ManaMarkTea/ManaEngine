@@ -1,3 +1,6 @@
+using Mana.Code.Nodes;
+using ManaVoxel.Code.UI;
+
 namespace ManaVoxel.Code.Automation
 {
     /// <summary>
@@ -80,6 +83,11 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "select_node":
+                        ApplySelectNode(command);
+                        _index++;
+                        break;
+
                     case "screenshot":
                         if (_webGpuContext == null)
                         {
@@ -113,6 +121,42 @@ namespace ManaVoxel.Code.Automation
             }
 
             return command.Path;
+        }
+
+        private void ApplySelectNode(ManaCommand command)
+        {
+            if (string.IsNullOrWhiteSpace(command.Name))
+            {
+                throw new InvalidDataException("Command file: 'select_node' is missing its required 'name'.");
+            }
+
+            var world = _context.World;
+            var node = FindNode(world.DefaultScene.Children, command.Name);
+            if (node == null)
+            {
+                ManaConsole.WriteDiagnostic($"Command file: select_node found no node named '{command.Name}', skipping.");
+                return;
+            }
+
+            EditorSelectionSnapshot.SelectNode(world.Selection, node, sceneGraphChanged: true);
+        }
+
+        private static ManaSceneNode? FindNode(IEnumerable<ManaSceneNode> nodes, string name)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.Name == name)
+                {
+                    return node;
+                }
+
+                if (FindNode(node.Children, name) is { } child)
+                {
+                    return child;
+                }
+            }
+
+            return null;
         }
 
         private void ApplyMoveCamera(ManaCommand command)

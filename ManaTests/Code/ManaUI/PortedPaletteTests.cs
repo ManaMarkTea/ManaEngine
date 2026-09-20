@@ -469,7 +469,7 @@ public static class PortedPaletteChecks
             FindAll<Expander>(stats).Any(e => e.Header == "Session Stats"),
             string.Join(", ", FindAll<Expander>(stats).Select(e => e.Header)));
 
-        Check("and a frame graph", FindAll<Sparkline>(stats).Any(), "sparkline present");
+        Check("voxel stats exclude frame graphs", !FindAll<Sparkline>(stats).Any(), "no sparkline");
 
         // ---------------------------------------------------------------- physics
         root.Content = null;

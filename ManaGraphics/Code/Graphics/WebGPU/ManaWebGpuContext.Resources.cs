@@ -50,6 +50,12 @@ namespace ManaGraphics.Code.Graphics
                 _outlineMaskPipeline = null;
             }
 
+            if (_outlineMaskAlwaysOnTopPipeline != null)
+            {
+                _api.RenderPipelineRelease(_outlineMaskAlwaysOnTopPipeline);
+                _outlineMaskAlwaysOnTopPipeline = null;
+            }
+
             foreach (var overlayPipeline in _overlayPipelines.Values)
             {
                 if (overlayPipeline != 0)

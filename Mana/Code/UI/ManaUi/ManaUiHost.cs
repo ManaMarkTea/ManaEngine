@@ -32,6 +32,7 @@ namespace Mana.Code.UI.ManaUi
 
             Root = new UiRoot(Fonts, theme ?? UiTheme.Dark());
             Root.SetScale(GetFramebufferScale());
+            Root.ScreenOrigin = () => new Vector2(_window.Position.X, _window.Position.Y);
 
             // Matched to the OS so held keys behave the same here as everywhere else on the machine.
             var (repeatDelay, repeatInterval) = ManaUiKeyboardSettings.Read();

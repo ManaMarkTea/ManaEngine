@@ -9,16 +9,38 @@ using Button = ManaUI.Button;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
-    /// <summary>
-    /// Place search: find somewhere by name, then either fly the camera to it or load it into the scene at
-    /// true scale.
-    /// <para>
-    /// A docked panel rather than the floating window ImGui had. Dragging its tab out floats it anyway, so
-    /// nothing is lost, and it gains a place to live that survives a restart.
-    /// </para>
-    /// </summary>
+    /// <summary>Find an area, then fly to it or load it into the scene.</summary>
     public static class PlaceSearchManaView
     {
+        public static void Show(UiRoot root, VoxelEditorViewModel viewModel, PlaceSearchModel model)
+        {
+            var theme = root.Theme;
+            var popup = new UiPopup { StaysOpen = true };
+            popup.BindPolled(p => p.Width, () => root.Size.X);
+            popup.BindPolled(p => p.Height, () => root.Size.Y);
+            var dialog = new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Padding(12.0f);
+            dialog.Background = theme.Background;
+            dialog.BindPolled(d => d.Width, () => MathF.Min(640.0f, root.Size.X));
+            dialog.BindPolled(d => d.Height, () => MathF.Min(560.0f, root.Size.Y));
+            dialog.Children.Add(new Grid().Columns("*, Auto").Rows("Auto").Children(
+                new TextBlock().Text("Search Area").CenterV().GridColumn(0),
+                new Button().Label("Close").OnClick(() => root.Popups.Close(popup)).GridColumn(1)));
+            dialog.Children.Add(Build(theme, viewModel, model).GridRow(1));
+            var overlay = new Grid().Rows("*").Columns("*").Children(dialog.CenterH().CenterV());
+            overlay.Background = new Vector4(0, 0, 0, 0.55f);
+            popup.Child = overlay;
+            var contentEnabled = root.ContentLayer.IsEnabled;
+            var floatingEnabled = root.FloatingLayer.IsEnabled;
+            root.ContentLayer.IsEnabled = false;
+            root.FloatingLayer.IsEnabled = false;
+            popup.Closed += (_, _) =>
+            {
+                root.ContentLayer.IsEnabled = contentEnabled;
+                root.FloatingLayer.IsEnabled = floatingEnabled;
+            };
+            root.Popups.ShowAt(popup, Vector2.Zero);
+        }
+
         public static UiElement Build(UiTheme theme, VoxelEditorViewModel viewModel, PlaceSearchModel model)
         {
             var query = new TextBox { Placeholder = "City, landmark, address…", Text = model.Query };

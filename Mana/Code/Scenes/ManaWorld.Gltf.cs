@@ -14,9 +14,15 @@ namespace Mana
     // it once confirmed. Assimp is no longer referenced anywhere.
     public partial class ManaWorld
     {
+        /// <param name="into">
+        /// The scene the model should land in. Left null, the loader's own one-model wrapper scene is added to
+        /// the world instead -- which is right for a character or a thumbnail, and wrong for anything the user
+        /// places, since every import then shows up as a scene of its own.
+        /// </param>
         public unsafe ManaSceneNode LoadFromGltf(
             string sceneFile,
-            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
+            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null,
+            ManaScene? into = null)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -26,9 +32,7 @@ namespace Mana
             stopwatch.Stop();
             manaPerformanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
 
-            Scenes.AddRange(loader.Scenes);
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
+            Adopt(loader, into);
 
             return rootSceneNode;
         }
@@ -37,7 +41,8 @@ namespace Mana
             ReadOnlyMemory<byte> sceneBytes,
             string virtualFileName,
             Func<string, byte[]?>? externalAssetResolver = null,
-            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null)
+            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null,
+            ManaScene? into = null)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -51,11 +56,33 @@ namespace Mana
                 Duration = stopwatch.Elapsed
             });
 
-            Scenes.AddRange(loader.Scenes);
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
+            Adopt(loader, into);
 
             return rootSceneNode;
+        }
+
+        private void Adopt(ManaSharpGltfLoader loader, ManaScene? into)
+        {
+            if (into == null)
+            {
+                Scenes.AddRange(loader.Scenes);
+            }
+            else
+            {
+                // The loader wraps what it read in a scene of its own. The caller wanted it in this one, so the
+                // nodes move across and the wrapper is simply never added to the world.
+                lock (SceneLock)
+                {
+                    foreach (var wrapper in loader.Scenes)
+                    {
+                        into.Children.AddRange(wrapper.Children);
+                        wrapper.Children.Clear();
+                    }
+                }
+            }
+
+            Meshes.AddRange(loader.Meshes);
+            Materials.AddRange(loader.Materials);
         }
     }
 }

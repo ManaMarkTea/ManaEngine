@@ -12,6 +12,14 @@ namespace Mana
         public ManaMesh Mesh { get; set; }
         public bool IsVisible { get; set; } = true;
         public bool DrawAfterScene { get; set; }
+
+        /// <summary>
+        /// Draws over the whole scene rather than into it, so the mesh is never hidden behind geometry
+        /// that happens to be nearer the camera. For editor handles; needs <see cref="DrawAfterScene"/> on
+        /// OpenGL, which draws it after the scene with depth testing off.
+        /// </summary>
+        public bool AlwaysOnTop { get; set; }
+
         public bool OutlineEnabled { get; set; }
         public Vector4 OutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; set; } = 2.0f;
@@ -226,10 +234,30 @@ namespace Mana
 
             if (DrawAfterScene)
             {
-                Context.World.PostDrawFutures.Add(() => Mesh.Draw(Owner, this));
+                Context.World.PostDrawFutures.Add(DrawAfterSceneNow);
                 return;
             }
 
+            Mesh.Draw(Owner, this);
+        }
+
+        private void DrawAfterSceneNow()
+        {
+#if !MANA_BROWSER
+            if (AlwaysOnTop && Context.GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
+            {
+                var gl = Context.RequireOpenGl();
+                var depthWasOn = gl.IsEnabled(Silk.NET.OpenGL.EnableCap.DepthTest);
+                gl.Disable(Silk.NET.OpenGL.EnableCap.DepthTest);
+                Mesh.Draw(Owner, this);
+                if (depthWasOn)
+                {
+                    gl.Enable(Silk.NET.OpenGL.EnableCap.DepthTest);
+                }
+
+                return;
+            }
+#endif
             Mesh.Draw(Owner, this);
         }
 

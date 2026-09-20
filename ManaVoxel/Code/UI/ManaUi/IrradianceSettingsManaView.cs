@@ -98,7 +98,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Label("Reset to defaults")
                     .Variant(ButtonVariant.Subtle)
                     .StretchH()
-                    .OnClick(() => Reset(settings, defaults))).Scrollable();
+                    .OnClick(() => Reset(settings, defaults)));
         }
 
         private static int Clamp(int mode) => Math.Clamp(mode, 0, DebugModes.Length - 1);

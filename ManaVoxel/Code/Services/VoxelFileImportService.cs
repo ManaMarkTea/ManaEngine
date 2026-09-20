@@ -68,7 +68,7 @@ namespace ManaVoxel.Code.Services
 
         private void ImportModelFile(string file, ManaWorld world, VoxelEditorViewModel viewModel)
         {
-            var model = world.LoadFromGltf(file);
+            var model = world.LoadFromGltf(file, into: viewModel.ActiveScene ?? world.DefaultScene);
             // Tagged as it lands, so an imported model is part of the level rather than something that
             // has to be re-imported by hand after every open.
             model.LevelSource = ManaLevelSource.ForMesh(file);
@@ -102,7 +102,8 @@ namespace ManaVoxel.Code.Services
             var sidecarResolver = CreateZipSidecarResolver(archive, entryPath);
 
             // No temp extraction: the scene file is imported directly from the zip entry's bytes.
-            var model = world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver);
+            var model = world.LoadFromGltfMemory(
+                memory.ToArray(), entryPath, sidecarResolver, into: viewModel.ActiveScene ?? world.DefaultScene);
             model.LevelSource = ManaLevelSource.ForMesh(assetReference);
             ApplyModelTransform(model, viewModel);
             AdvanceImportCursor();
