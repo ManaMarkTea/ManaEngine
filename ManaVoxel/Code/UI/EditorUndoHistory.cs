@@ -144,6 +144,81 @@ namespace ManaVoxel.Code.UI
 
         public bool Undo() => Apply(_undo, _redo, undo: true);
 
+        /// <summary>Removes an inspector component while retaining its instance and settings for undo.
+        /// Authored box colliders recreate their physics registration when restored.</summary>
+        public bool RemoveComponent(global::Mana.ManaComponent component, SceneSelectionState? selection)
+        {
+            if (!SceneEditorOperations.CanRemoveComponent(component)
+                || component is global::Mana.Code.Components.ManaCollisionComponent
+                    and not global::Mana.Code.Components.ManaBoxColliderComponent)
+            {
+                return false;
+            }
+
+            var owner = component.Owner;
+            var world = owner.Context.World;
+            var before = selection == null ? (EditorSelectionSnapshot?)null : EditorSelectionSnapshot.Capture(selection);
+            int index;
+            lock (world.SceneLock)
+            {
+                index = owner.Components.IndexOf(component);
+                if (index < 0 || !SceneEditorOperations.RemoveComponent(selection, component, preserveForUndo: true))
+                {
+                    return false;
+                }
+            }
+
+            Record($"Remove {component.GetType().Name}",
+                () =>
+                {
+                    lock (world.SceneLock)
+                    {
+                        if (!owner.Components.Contains(component))
+                        {
+                            owner.Components.Insert(Math.Min(index, owner.Components.Count), component);
+                            if (component is global::Mana.Code.Components.ManaBoxColliderComponent box) box.RestorePhysics();
+                            if (world.IsPlaying) component.BeginPlay();
+                        }
+                    }
+                    if (selection != null) before!.Value.Apply(selection, sceneGraphChanged: true);
+                },
+                () => SceneEditorOperations.RemoveComponent(selection, component, preserveForUndo: true));
+            return true;
+        }
+
+        public void RecordComponentInsertion(global::Mana.ManaComponent component,
+            SceneSelectionState? selection, EditorSelectionSnapshot? before)
+        {
+            var owner = component.Owner;
+            var world = owner.Context.World;
+            var index = owner.Components.IndexOf(component);
+            Record($"Add {component.GetType().Name}",
+                () =>
+                {
+                    SceneEditorOperations.RemoveComponent(selection, component, preserveForUndo: true);
+                    if (selection != null && before.HasValue) before.Value.Apply(selection, sceneGraphChanged: true);
+                },
+                () =>
+                {
+                    lock (world.SceneLock)
+                    {
+                        if (!owner.Components.Contains(component))
+                        {
+                            owner.Components.Insert(Math.Clamp(index, 0, owner.Components.Count), component);
+                            if (component is global::Mana.Code.Components.ManaBoxColliderComponent box) box.RestorePhysics();
+                            if (world.IsPlaying) component.BeginPlay();
+                        }
+                    }
+                    if (selection != null)
+                    {
+                        selection.SelectedScene = null;
+                        selection.SelectedNode = owner;
+                        selection.SelectedComponent = component;
+                        selection.NotifySceneGraphChanged();
+                    }
+                });
+        }
+
         public bool Redo() => Apply(_redo, _undo, undo: false);
 
         public void Clear()

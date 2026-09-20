@@ -159,7 +159,7 @@ public static class SceneMoveChecks
             // The button itself: present in the outliner, and it does the same thing.
             var (buttonWorld, _) = NewWorld();
             var outliner = SceneOutlinerManaView.Build(new UiRoot(fonts).Theme, buttonWorld, buttonWorld.Selection);
-            var newSceneButton = FindAll<Button>(outliner).FirstOrDefault(b => b.Text == "New Scene");
+            var newSceneButton = FindAll<Button>(outliner).FirstOrDefault(b => b.Tooltip?.StartsWith("New Scene") == true);
             Check("the outliner has a New Scene button", newSceneButton != null);
 
             if (newSceneButton != null)

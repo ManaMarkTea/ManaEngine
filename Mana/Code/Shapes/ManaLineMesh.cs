@@ -259,7 +259,7 @@ namespace Mana.Code.Shapes
         /// <summary>
         /// Rewrites vertex positions (and the normals and shader offsets derived from them) from the current
         /// contents of <see cref="Lines"/> without regenerating the mesh. Returns false if the geometry cannot
-        /// be refreshed this way, in which case the caller must fall back to <see cref="RebuildGeometry"/>.
+        /// be refreshed this way, in which case the caller must fall back to <see cref="ManaProceduralMesh.RebuildGeometry"/>.
         /// <para>
         /// For a caller that only moves existing points -- a terrain drape re-samples each point's radius and
         /// changes nothing else -- this is the difference between a per-frame stall and nearly free. A full

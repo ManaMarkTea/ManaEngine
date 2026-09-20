@@ -182,7 +182,8 @@ namespace Mana.Code.UI
             return component is not CameraComponent || !ReferenceEquals(component.Owner, world.CameraNode);
         }
 
-        public static bool RemoveComponent(SceneSelectionState? selection, ManaComponent? component)
+        public static bool RemoveComponent(SceneSelectionState? selection, ManaComponent? component,
+            bool preserveForUndo = false)
         {
             if (!CanRemoveComponent(component))
             {
@@ -195,6 +196,15 @@ namespace Mana.Code.UI
 
             lock (world.SceneLock)
             {
+                if (!owner.Components.Contains(component)) return false;
+
+                // Retained components must remain reusable; EndPlay releases live audio voices
+                // and registrations without permanently disposing the emitter.
+                if (preserveForUndo && (world.IsPlaying || component is ManaAudioSourceComponent))
+                {
+                    component.EndPlay();
+                }
+
                 if (component is ManaCollisionComponent collision)
                 {
                     var physics = component.Context.Physics;
@@ -231,7 +241,7 @@ namespace Mana.Code.UI
                 selection.NotifySceneGraphChanged();
             }
 
-            if (component is Mana.Code.Components.ManaAudioSourceComponent audio) { audio.Dispose(); }
+            if (!preserveForUndo && component is ManaAudioSourceComponent audio) { audio.Dispose(); }
             return true;
         }
 

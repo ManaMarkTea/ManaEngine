@@ -24,6 +24,16 @@ namespace Mana
         public Vector4 OutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; set; } = 2.0f;
 
+        /// <summary>Temporary editor selection/activity highlight, independent of the custom outline.</summary>
+        public bool EditorOutlineEnabled { get; set; }
+        public Vector4 EditorOutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
+        public float EditorOutlineWidth { get; set; } = 4.0f;
+
+        // A custom outline takes priority so its width and colour remain editable while selected.
+        public bool RenderOutlineEnabled => OutlineEnabled || EditorOutlineEnabled;
+        public Vector4 RenderOutlineColor => OutlineEnabled ? OutlineColor : EditorOutlineColor;
+        public float RenderOutlineWidth => OutlineEnabled ? OutlineWidth : EditorOutlineWidth;
+
         private static long _nextInstanceId;
         private readonly long _instanceId = Interlocked.Increment(ref _nextInstanceId);
 

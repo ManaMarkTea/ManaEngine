@@ -73,6 +73,19 @@ public static class CoursePieceChecks
         }
     }
 
+    /// <summary>
+    /// A piece's trigger volume as the level stores it: on the node's Trigger script, or -- in a level saved before
+    /// volumes had a component of their own -- inside the piece's own script.
+    /// </summary>
+    private static (Vector3 Size, Vector3 Offset) VolumeOf(ManaLevelNode node)
+    {
+        var holder = node.Scripts!.FirstOrDefault(script => script.Type == TriggerVolumeComponent.ScriptType)
+            ?? node.Scripts!.First(script => script.Properties.ContainsKey("size"));
+        var size = ReadVector(holder.Properties["size"]);
+        var offset = holder.Properties.TryGetValue("offset", out var offsetValue) ? ReadVector(offsetValue) : Vector3.Zero;
+        return (size, offset);
+    }
+
     private static Vector3 ReadVector(JsonElement array)
     {
         var values = array.EnumerateArray().Select(value => value.GetSingle()).ToArray();
@@ -117,7 +130,7 @@ public static class CoursePieceChecks
         var box = new Vector3(2.0f, 2.0f, 2.0f);
 
         bool Overlaps(Matrix4x4 world, Vector3 offset, Vector3 feet) =>
-            ManaTriggerComponent.Contains(world, offset, box, feet, 0.4f, 2.0f);
+            TriggerVolumeComponent.Contains(world, offset, box, feet, 0.4f, 2.0f);
 
         Check("standing in a trigger overlaps it", Overlaps(at, Vector3.Zero, new Vector3(10.0f, 0.0f, 0.0f)));
         Check("standing well clear does not", !Overlaps(at, Vector3.Zero, new Vector3(20.0f, 0.0f, 0.0f)));
@@ -137,8 +150,8 @@ public static class CoursePieceChecks
         var thin = new Vector3(1.0f, 2.0f, 20.0f);
         var turned = Matrix4x4.CreateRotationY(MathF.PI * 0.5f) * Matrix4x4.CreateTranslation(0.0f, 0.0f, 0.0f);
         Check("a turned trigger follows its rotation",
-            ManaTriggerComponent.Contains(turned, Vector3.Zero, thin, new Vector3(8.0f, 0.0f, 0.0f), 0.4f, 2.0f)
-            && !ManaTriggerComponent.Contains(turned, Vector3.Zero, thin, new Vector3(0.0f, 0.0f, 8.0f), 0.4f, 2.0f));
+            TriggerVolumeComponent.Contains(turned, Vector3.Zero, thin, new Vector3(8.0f, 0.0f, 0.0f), 0.4f, 2.0f)
+            && !TriggerVolumeComponent.Contains(turned, Vector3.Zero, thin, new Vector3(0.0f, 0.0f, 8.0f), 0.4f, 2.0f));
 
         // ---------------------------------------------------------------- inert outside play
         var editing = CreateCourse();
@@ -342,6 +355,7 @@ public static class CoursePieceChecks
         var cage = marked.VolumeMarker;
         var cageRenderer = cage?.Components.OfType<MeshRendererComponent>().FirstOrDefault();
         Check("an editor tick draws the trigger volume as a wireframe", cage != null && cageRenderer is { IsVisible: true });
+        Check("and keeps it out of the outliner as editor furniture", cage is { IsEditorTransient: true });
 
         var meshBefore = cageRenderer?.Mesh;
         marked.Size = new Vector3(8.0f, 2.0f, 4.0f);
@@ -373,7 +387,12 @@ public static class CoursePieceChecks
         }
 
         var builtLevel = ManaLevelCapture.CaptureScene(built.World, built.World.DefaultScene, "Pieces");
-        var builtTypes = builtLevel.Nodes.SelectMany(node => node.Scripts ?? new List<ManaLevelScript>()).Select(script => script.Type).ToList();
+        var allBuiltTypes = builtLevel.Nodes.SelectMany(node => node.Scripts ?? new List<ManaLevelScript>()).Select(script => script.Type).ToList();
+
+        // Every piece carries a trigger volume of its own, saved as a script beside its behaviour.
+        Check("and each saves its trigger volume beside it", allBuiltTypes.Count(type => type == TriggerVolumeComponent.ScriptType) >= 6,
+            string.Join(", ", allBuiltTypes));
+        var builtTypes = allBuiltTypes.Where(type => type != TriggerVolumeComponent.ScriptType).ToList();
         Check("each ready-made piece saves with its behaviour",
             builtTypes.Count == CoursePieceFactory.Pieces.Length
             && builtTypes.Contains(CollectibleComponent.ScriptType) && builtTypes.Contains(HazardComponent.ScriptType)
@@ -828,6 +847,106 @@ public static class CoursePieceChecks
         stacking.Player.Boost(2.0f, 0.0f);
         Check("and a pad that would not speed you up, or not for any time, is ignored", MathF.Abs(stacking.Player.SpeedScale - 1.5f) < 0.001f);
 
+        // ---------------------------------------------------------------- asking a node for a component by type
+        var lookup = CreateCourse();
+        var lookupNode = new ManaSceneNode(lookup.Context, Matrix4x4.Identity);
+        Check("a node with no such component gives null", lookupNode.GetComponent<TriggerVolumeComponent>() == null
+            && !lookupNode.TryGetComponent<TriggerVolumeComponent>(out _));
+        var firstTrigger = new TriggerVolumeComponent(lookupNode);
+        lookupNode.Components.Add(firstTrigger);
+        lookupNode.Components.Add(new TriggerVolumeComponent(lookupNode));
+        Check("it gives the first of that type", ReferenceEquals(lookupNode.GetComponent<TriggerVolumeComponent>(), firstTrigger)
+            && lookupNode.TryGetComponent<TriggerVolumeComponent>(out var foundTrigger) && ReferenceEquals(foundTrigger, firstTrigger));
+        Check("and finds one by a base type too", lookupNode.GetComponent<ManaComponent>() != null);
+
+        // ---------------------------------------------------------------- the trigger volume is its own component
+        var split = CreateCourse();
+        var splitHazard = split.Place(Vector3.Zero, node => new HazardComponent(node));
+        var splitTrigger = splitHazard.Owner.Components.OfType<TriggerVolumeComponent>().ToList();
+        Check("a piece gets a trigger volume component of its own on the node", splitTrigger.Count == 1);
+        Check("and is not itself a trigger: it listens to one", !typeof(TriggerVolumeComponent).IsAssignableFrom(typeof(HazardComponent))
+            && ReferenceEquals(splitHazard.Trigger, splitTrigger[0]));
+        var second = new CollectibleComponent(splitHazard.Owner);
+        splitHazard.Owner.Components.Add(second);
+        Check("two pieces on one node share the one volume", splitHazard.Owner.Components.OfType<TriggerVolumeComponent>().Count() == 1
+            && ReferenceEquals(second.Trigger, splitHazard.Trigger));
+        Check("the volume carries the piece's defaults, and the piece reads and writes it through",
+            splitHazard.Trigger.Size == new Vector3(2.0f, 2.0f, 2.0f) && splitHazard.Size == splitHazard.Trigger.Size);
+        splitHazard.Trigger.Size = new Vector3(5.0f, 1.0f, 5.0f);
+        Check("changing the trigger changes what the piece sees", splitHazard.Size == new Vector3(5.0f, 1.0f, 5.0f));
+
+        // anything can listen -- it does not have to be a course piece
+        var heard = new List<string>();
+        var eavesdrop = CreateCourse();
+        var bareNode = new ManaSceneNode(eavesdrop.Context, Matrix4x4.Identity) { Name = "Door" };
+        var voice = new TriggerVolumeComponent(bareNode) { Size = new Vector3(2.0f, 2.0f, 2.0f) };
+        bareNode.Components.Add(voice);
+        voice.PlayerEntered += (_, _) => heard.Add("enter");
+        voice.PlayerStayed += (_, _) => heard.Add("stay");
+        voice.PlayerExited += (_, _) => heard.Add("exit");
+        eavesdrop.World.DefaultScene.Children.Add(bareNode);
+        eavesdrop.World.BeginPlay();
+        eavesdrop.Step(Vector3.Zero);
+        eavesdrop.Step(Vector3.Zero);
+        eavesdrop.Step(Far);
+        Check("a trigger tells anyone listening when the player enters, stays and leaves",
+            string.Join(",", heard) == "enter,stay,stay,exit", string.Join(",", heard));
+
+        // and a listener lets go when play ends
+        var stopping = CreateCourse();
+        var stoppingCoin = stopping.Place(Vector3.Zero, node => new CollectibleComponent(node));
+        stopping.World.BeginPlay();
+        stopping.World.EndPlay();
+        stopping.World.BeginPlay();
+        stopping.World.EndPlay();
+        stopping.State.Reset();
+        stopping.World.BeginPlay();
+        stopping.Step(Vector3.Zero);
+        Check("playing again does not subscribe a piece twice", stopping.State.Coins == 1, $"{stopping.State.Coins} coins");
+        stopping.World.EndPlay();
+        var coinsBefore = stopping.State.Coins;
+        stopping.Step(Far);
+        stopping.Step(Vector3.Zero);
+        Check("and once play has ended a trigger does nothing to it", stopping.State.Coins == coinsBefore);
+
+        // a level saved before volumes had a component of their own still loads
+        var legacyLevel = new ManaLevel
+        {
+            Nodes =
+            {
+                new ManaLevelNode
+                {
+                    Name = "Old Coin", Kind = ManaLevelSourceKind.Group,
+                    Scripts = new List<ManaLevelScript>
+                    {
+                        new()
+                        {
+                            Type = CollectibleComponent.ScriptType,
+                            Properties =
+                            {
+                                ["value"] = JsonSerializer.SerializeToElement(3),
+                                ["size"] = JsonSerializer.SerializeToElement(new[] { 4.0f, 5.0f, 6.0f }),
+                                ["offset"] = JsonSerializer.SerializeToElement(new[] { 0.0f, 1.5f, 0.0f })
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var legacyWorld = CreateCourse();
+        var legacyNode = ManaLevelLoader.Load(legacyLevel, legacyWorld.Context, legacyWorld.World.DefaultScene, replaceAuthoredNodes: false).Nodes[0];
+        var legacyCoin = legacyNode.GetComponents<CollectibleComponent>().Single();
+        Check("an older level's size and offset land on the trigger", legacyCoin.Trigger.Size == new Vector3(4.0f, 5.0f, 6.0f) && legacyCoin.Trigger.Offset == new Vector3(0.0f, 1.5f, 0.0f) && legacyCoin.Value == 3,
+            $"{legacyCoin.Trigger.Size} {legacyCoin.Trigger.Offset}");
+
+        // and a new save keeps the volume on its own script, out of the piece's
+        var newSave = ManaLevelCapture.CaptureScene(legacyWorld.World, legacyWorld.World.DefaultScene, "Legacy").Nodes.Single(node => node.Name == "Old Coin");
+        var savedPiece = newSave.Scripts!.Single(script => script.Type == CollectibleComponent.ScriptType);
+        var savedVolume = newSave.Scripts!.Single(script => script.Type == TriggerVolumeComponent.ScriptType);
+        Check("a saved piece has no volume of its own, and its trigger script does",
+            !savedPiece.Properties.ContainsKey("size") && !savedPiece.Properties.ContainsKey("offset") && savedVolume.Properties.ContainsKey("size") && savedVolume.Properties.ContainsKey("offset"),
+            string.Join(",", savedPiece.Properties.Keys));
+
         // ---------------------------------------------------------------- what a shape's size means
         // The generator that built the sample course assumed half-extents and every cube came out half the size it
         // was meant to be, with hazard volumes (sized as intended) hanging out past them. Full extent is the
@@ -851,6 +970,27 @@ public static class CoursePieceChecks
         var diskExtent = ExtentOf(new ManaDisk(extentCourse.Context, Vector4.One, new Vector3(2.4f, 0.3f, 2.4f)));
         Check("and a disk is as wide as its size", MathF.Abs(diskExtent.X - 2.4f) < 0.1f, $"{diskExtent}");
 
+        // ---------------------------------------------------------------- water nodes made in the editor
+        var pool = CreateCourse();
+        var water = new ManaWaterNode(pool.Context, new Vector2(16.0f, 16.0f), 64)
+        {
+            LevelSource = ManaLevelSource.ForWater(new Vector2(16.0f, 16.0f), 64)
+        };
+        pool.World.DefaultScene.Children.Add(water);
+        var mesh = water.Mesh;
+        water.Resize(new Vector2(40.0f, 24.0f), 96);
+        Check("a water node can be resized", water.Mesh.Size == new Vector2(40.0f, 24.0f) && water.Mesh.Resolution == 96 && !ReferenceEquals(water.Mesh, mesh),
+            $"{water.Mesh.Size}, {water.Mesh.Resolution}");
+        Check("the renderer draws the new surface", ReferenceEquals(water.MeshRenderer.Mesh, water.Mesh));
+        water.Resize(new Vector2(-3.0f, 0.0f), 100000);
+        Check("and is kept to sensible limits", water.Mesh.Size.X >= 0.5f && water.Mesh.Size.Y >= 0.5f && water.Mesh.Resolution == ManaWaterNode.MaximumResolution,
+            $"{water.Mesh.Size}, {water.Mesh.Resolution}");
+        water.Resize(new Vector2(40.0f, 24.0f), 96);
+        var savedWater = ManaLevelCapture.CaptureScene(pool.World, pool.World.DefaultScene, "Pool").Nodes.Single();
+        Check("what is saved is the size it was resized to",
+            savedWater.Kind == ManaLevelSourceKind.Water && savedWater.Water is { Resolution: 96 } saved && saved.Size[0] == 40.0f && saved.Size[1] == 24.0f,
+            $"{savedWater.Kind} {savedWater.Water?.Size[0]}x{savedWater.Water?.Size[1]}");
+
         // ---------------------------------------------------------------- the sample course is safe to respawn into
         var courseFile = Path.Combine(AppContext.BaseDirectory, "Levels", "Sample Course.manalevel");
         if (!File.Exists(courseFile))
@@ -861,20 +1001,19 @@ public static class CoursePieceChecks
         if (File.Exists(courseFile))
         {
             var course = ManaLevel.Load(courseFile);
-            var courseHazards = course.Nodes
+            var courseNodes = LevelWalk.Flatten(course.Nodes);
+            var courseHazards = courseNodes
                 .Where(node => node.Scripts?.Any(script => script.Type == HazardComponent.ScriptType) == true)
                 .Select(node =>
                 {
                     var script = node.Scripts!.First(candidate => candidate.Type == HazardComponent.ScriptType);
-                    var size = ReadVector(script.Properties["size"]);
-                    var offset = script.Properties.TryGetValue("offset", out var offsetValue)
-                        ? ReadVector(offsetValue) : Vector3.Zero;
+                    var (size, offset) = VolumeOf(node);
                     var world = Matrix4x4.CreateRotationY(node.Rotation[1]) * Matrix4x4.CreateTranslation(node.Position[0], node.Position[1], node.Position[2]);
                     return (node.Name, world, size, offset);
                 })
                 .ToList();
 
-            var respawnPoints = course.Nodes
+            var respawnPoints = courseNodes
                 .Where(node => node.Kind == ManaLevelSourceKind.PlayerStart
                     || node.Scripts?.Any(script => script.Type is CheckpointComponent.ScriptType or SpringPadComponent.ScriptType or BoostPadComponent.ScriptType) == true)
                 .Select(node => (node.Name, feet: new Vector3(node.Position[0], node.Position[1] + 0.5f, node.Position[2])))
@@ -883,10 +1022,10 @@ public static class CoursePieceChecks
             // A hazard's volume should be the size of the thing that looks dangerous: a volume hanging out past the oil
             // (or short of it) is damage from nothing, or a puddle you can walk through unhurt.
             var mismatched = new List<string>();
-            foreach (var node in course.Nodes.Where(node => node.Kind == ManaLevelSourceKind.Shape && node.Size is { Length: 3 }
+            foreach (var node in courseNodes.Where(node => node.Kind == ManaLevelSourceKind.Shape && node.Size is { Length: 3 }
                 && node.Scripts?.Any(script => script.Type == HazardComponent.ScriptType) == true))
             {
-                var volume = ReadVector(node.Scripts!.First(script => script.Type == HazardComponent.ScriptType).Properties["size"]);
+                var volume = VolumeOf(node).Size;
                 if (MathF.Abs(volume.X - node.Size![0]) > 0.5f || MathF.Abs(volume.Z - node.Size![2]) > 0.5f)
                 {
                     mismatched.Add($"{node.Name}: looks {node.Size[0]}x{node.Size[2]}, hurts over {volume.X}x{volume.Z}");
@@ -895,12 +1034,25 @@ public static class CoursePieceChecks
 
             Check("every hazard's volume matches the shape it sits on", mismatched.Count == 0, string.Join("; ", mismatched));
 
+            // The course is organised Section > Category > item, and grouping it must not have moved anything.
+            var sectionGroups = course.Nodes.Where(node => node.Kind == ManaLevelSourceKind.Group).ToList();
+            Check("the course is grouped into sections at the scene offset the other levels use",
+                sectionGroups.Count >= 5 && course.Nodes.All(node => node.Kind == ManaLevelSourceKind.Group
+                    && node.Position[0] >= 32.0f && node.Position[2] >= 32.0f && node.Children is { Count: > 0 }),
+                $"{course.Nodes.Count} top-level nodes");
+            Check("with categories inside each section", sectionGroups.All(section => section.Children!.All(child => child.Kind == ManaLevelSourceKind.Group)),
+                string.Join(", ", sectionGroups.Take(3).Select(section => section.Name)));
+            var startNode = courseNodes.FirstOrDefault(node => node.Kind == ManaLevelSourceKind.PlayerStart);
+            Check("and the player still starts where the course begins", startNode != null && MathF.Abs(startNode.Position[0] - 38.0f) < 0.01f && MathF.Abs(startNode.Position[2] - 40.0f) < 0.01f,
+                $"{startNode?.Position[0]}, {startNode?.Position[2]}");
+            Check("with nothing lost in the move", courseNodes.Count(node => node.Scripts?.Any(script => script.Type == CollectibleComponent.ScriptType) == true) == 27, "27 coins");
+
             var unsafeSpots = new List<string>();
             foreach (var (spot, feet) in respawnPoints)
             {
                 foreach (var (hazard, world, size, offset) in courseHazards)
                 {
-                    if (ManaTriggerComponent.Contains(world, offset, size, feet, ManaTriggerComponent.PlayerRadius, ManaPawnNode.ReferenceHeight))
+                    if (TriggerVolumeComponent.Contains(world, offset, size, feet, TriggerVolumeComponent.PlayerRadius, ManaPawnNode.ReferenceHeight))
                     {
                         unsafeSpots.Add($"{spot} is inside {hazard}");
                     }
@@ -919,7 +1071,7 @@ public static class CoursePieceChecks
         if (File.Exists(levelFile))
         {
             var sample = ManaLevel.Load(levelFile);
-            var types = sample.Nodes.SelectMany(node => node.Scripts ?? new List<ManaLevelScript>()).Select(script => script.Type).ToList();
+            var types = LevelWalk.Flatten(sample.Nodes).SelectMany(node => node.Scripts ?? new List<ManaLevelScript>()).Select(script => script.Type).ToList();
             Check("the sample course has coins, hazards, checkpoints, a goal, enemies and moving platforms",
                 types.Count(type => type == CollectibleComponent.ScriptType) >= 20
                 && types.Count(type => type == CheckpointComponent.ScriptType) >= 2

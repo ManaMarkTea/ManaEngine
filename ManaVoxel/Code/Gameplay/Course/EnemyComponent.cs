@@ -14,7 +14,7 @@ namespace ManaVoxel.Code.Gameplay.Course
     /// walks a flat beat, and its whole behaviour is a pure step function, which is what makes it testable.
     /// </para>
     /// </summary>
-    public sealed class EnemyComponent : ManaTriggerComponent
+    public sealed class EnemyComponent : ManaTriggerListenerComponent
     {
         public const string ScriptType = "Enemy";
 
@@ -43,10 +43,11 @@ namespace ManaVoxel.Code.Gameplay.Course
         {
             _beatEnd = new EditorVolumeMarker(owner, "Patrol End");
             _start = owner.Position;
-            Size = new Vector3(1.4f, 1.4f, 1.4f);
         }
 
-        protected override Vector4 VolumeColor => MarkerColor;
+        protected override Vector3 DefaultSize => new Vector3(1.4f, 1.4f, 1.4f);
+
+        protected override Vector4 DefaultColor => MarkerColor;
 
         /// <summary>How far the far end of its beat is from where it was placed, in world axes.</summary>
         public Vector3 Travel { get; set; } = new(6.0f, 0.0f, 0.0f);
@@ -225,7 +226,7 @@ namespace ManaVoxel.Code.Gameplay.Course
         private ManaSkeletalAnimationComponent? FindAnimation()
         {
             return (Owner as ManaSkeletalActorNode)?.Animation
-                ?? Owner.Components.OfType<ManaSkeletalAnimationComponent>().FirstOrDefault();
+                ?? Owner.GetComponent<ManaSkeletalAnimationComponent>();
         }
 
         // Switches only when the clip changes: Play restarts the clip, so asking for the same one every

@@ -175,14 +175,14 @@ namespace Mana.Code.Graphics
 
             foreach (var (node, renderer) in outlinedMeshes)
             {
-                if (!renderer.OutlineEnabled || renderer.Mesh?.ImmediateGpuMesh == null)
+                if (!renderer.RenderOutlineEnabled || renderer.Mesh?.ImmediateGpuMesh == null)
                 {
                     continue;
                 }
 
                 _outlineMaskShader.BindShader(renderer.Material, node.WorldTransform, Context.World.MainCamera, node);
-                _outlineMaskShader.FindUniform("outlineColor")?.SetValue(renderer.OutlineColor);
-                _outlineMaskShader.FindUniform("outlineWidth")?.SetValue(Math.Clamp(renderer.OutlineWidth, 1.0f, 4.0f));
+                _outlineMaskShader.FindUniform("outlineColor")?.SetValue(renderer.RenderOutlineColor);
+                _outlineMaskShader.FindUniform("outlineWidth")?.SetValue(Math.Clamp(renderer.RenderOutlineWidth, 1.0f, 4.0f));
                 renderer.Mesh.RenderDirectly();
                 _outlineMaskShader.UnbindShader();
             }

@@ -1,3 +1,4 @@
+using Mana.Code.Levels;
 using Mana.Code.Shapes;
 
 namespace Mana.Code.Nodes
@@ -22,6 +23,29 @@ namespace Mana.Code.Nodes
             Mesh = new ManaWaterPlane(context, Colors.White, size, resolution);
             MeshRenderer = new MeshRendererComponent(this, Mesh);
             Components.Add(MeshRenderer);
+        }
+
+        public const int MinimumResolution = 4;
+        public const int MaximumResolution = 256;
+
+        /// <summary>
+        /// Rebuilds the surface at a new size and resolution, keeping the material -- and with it the water's
+        /// look and any ripples in flight. Clamped: a zero-sized plane is invisible and a huge grid is a
+        /// vertex buffer nobody asked for. The level source follows, so the change is what gets saved.
+        /// </summary>
+        public void Resize(Vector2 size, int resolution)
+        {
+            size = new Vector2(MathF.Max(0.5f, size.X), MathF.Max(0.5f, size.Y));
+            resolution = Math.Clamp(resolution, MinimumResolution, MaximumResolution);
+
+            if (Mesh.Size == size && Mesh.Resolution == resolution)
+            {
+                return;
+            }
+
+            Mesh = new ManaWaterPlane(Context, Colors.White, size, resolution);
+            MeshRenderer.Mesh = Mesh;
+            LevelSource = ManaLevelSource.ForWater(size, resolution);
         }
 
         // worldPosition is projected into this node's local XZ plane (ripples are computed in

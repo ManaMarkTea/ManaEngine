@@ -40,6 +40,28 @@ public static class SceneSelectionDrillDownChecks
         var crateRoot = Node(context, "Crate");
         crateRoot.LevelSource = ManaLevelSource.ForMesh("crate.glb");
 
+        // A coin: a group that carries the behaviour, with a model child that is what gets clicked. The coin is the
+        // object, so its settings have to be reachable from a click on its model.
+        var coin = Node(context, "Coin");
+        coin.LevelSource = ManaLevelSource.Group;
+        coin.Components.Add(new ManaPickupMotionComponent(coin));
+        var coinModel = Node(context, "Coin Model");
+        coinModel.LevelSource = ManaLevelSource.ForMesh("coin.glb");
+        coin.AddChild(coinModel);
+        Check("clicking a model inside a group that carries behaviour selects the group, where the behaviour is",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(coinModel, null), coin));
+        Check("and a further click drills to the model itself",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(coinModel, coin), coinModel));
+
+        // An ordinary group (a section, a category) carries nothing, so a click still picks the thing in it.
+        var category = Node(context, "Pickups");
+        category.LevelSource = ManaLevelSource.Group;
+        var crate = Node(context, "Container");
+        crate.LevelSource = ManaLevelSource.ForMesh("container.glb");
+        category.AddChild(crate);
+        Check("but a group with no behaviour does not swallow what is inside it",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(crate, null), crate));
+
         Check("clicking any part with nothing selected resolves up to the whole object",
             ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(lens, null), helmetRoot),
             "expected the FlightHelmet root, not the Lens child");

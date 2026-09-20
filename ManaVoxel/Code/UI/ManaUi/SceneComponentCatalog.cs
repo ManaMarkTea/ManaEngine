@@ -1,141 +1,105 @@
+using System.Reflection;
 using Mana;
 using Mana.Code.Nodes;
-using Mana.Code.Components;
 using Mana.Code.UI;
-using ManaVoxel.Code.Gameplay.Course;
-using ManaVoxel.Code.Gameplay.Trains;
+using ManaGraphics.Code.Diagnostics;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
     internal sealed class SceneComponentDefinition
     {
         public required string Label { get; init; }
-
         public required string Description { get; init; }
-
         public required Type ComponentType { get; init; }
-
         public bool AllowMultiple { get; init; }
-
         public required Func<ManaSceneNode, ManaComponent> Create { get; init; }
 
-        public bool CanAdd(ManaSceneNode node)
-        {
-            return AllowMultiple || !node.Components.Any(ComponentType.IsInstanceOfType);
-        }
+        public bool CanAdd(ManaSceneNode node) =>
+            AllowMultiple || !node.Components.Any(ComponentType.IsInstanceOfType);
 
         public override string ToString() => Label;
     }
 
     internal static class SceneComponentCatalog
     {
-        public static IReadOnlyList<SceneComponentDefinition> Definitions { get; } =
-            new List<SceneComponentDefinition>
+        private static readonly object CatalogLock = new();
+        private static readonly HashSet<Assembly> Scanned = new();
+        private static readonly List<SceneComponentDefinition> Discovered = new();
+        private static IReadOnlyList<SceneComponentDefinition> _definitions = Array.Empty<SceneComponentDefinition>();
+
+        /// <summary>Cached discovery, including component assemblies loaded after editor startup.</summary>
+        public static IReadOnlyList<SceneComponentDefinition> Definitions
+        {
+            get
             {
-                new()
+                lock (CatalogLock)
                 {
-                    Label = "Audio Source",
-                    Description = "Plays a WAV on a gameplay cue or as a positioned loop. Supports variants and fades.",
-                    ComponentType = typeof(ManaAudioSourceComponent),
-                    AllowMultiple = true,
-                    Create = node => new ManaAudioSourceComponent(node)
-                },
-                new()
-                {
-                    Label = "Coin",
-                    Description = "Collected on touch and counted toward the level's coins.",
-                    ComponentType = typeof(CollectibleComponent),
-                    Create = node => new CollectibleComponent(node)
-                },
-                new()
-                {
-                    Label = "Checkpoint",
-                    Description = "Touching it sets where the player respawns.",
-                    ComponentType = typeof(CheckpointComponent),
-                    Create = node => new CheckpointComponent(node)
-                },
-                new()
-                {
-                    Label = "Hazard",
-                    Description = "Hurts the player while they stand inside it.",
-                    ComponentType = typeof(HazardComponent),
-                    Create = node => new HazardComponent(node)
-                },
-                new()
-                {
-                    Label = "Goal",
-                    Description = "Reaching it completes the level.",
-                    ComponentType = typeof(GoalComponent),
-                    Create = node => new GoalComponent(node)
-                },
-                new()
-                {
-                    Label = "Enemy",
-                    Description = "Patrols a beat and hurts on contact; landing on its head defeats it.",
-                    ComponentType = typeof(EnemyComponent),
-                    Create = node => new EnemyComponent(node)
-                },
-                new()
-                {
-                    Label = "Spring Pad",
-                    Description = "Launches the player up to a set height.",
-                    ComponentType = typeof(SpringPadComponent),
-                    Create = node => new SpringPadComponent(node)
-                },
-                new()
-                {
-                    Label = "Boost Pad",
-                    Description = "Speeds the player up for a few seconds.",
-                    ComponentType = typeof(BoostPadComponent),
-                    Create = node => new BoostPadComponent(node)
-                },
-                new()
-                {
-                    Label = "Moving Platform",
-                    Description = "Slides this node to a far point and back during play, carrying the player.",
-                    ComponentType = typeof(MovingPlatformComponent),
-                    Create = node => new MovingPlatformComponent(node)
-                },
-                new()
-                {
-                    Label = "Train Car",
-                    Description = "Moves this node along the train loop during play.",
-                    ComponentType = typeof(TrainCarComponent),
-                    Create = node => new TrainCarComponent(node)
-                },
-                new()
-                {
-                    Label = "Light Source",
-                    Description = "Adds an editable scene light to this node.",
-                    ComponentType = typeof(ManaLightSourceComponent),
-                    AllowMultiple = true,
-                    Create = node => new ManaLightSourceComponent(node)
-                },
-                new()
-                {
-                    Label = "Pickup Motion",
-                    Description = "Adds reflected script settings for spin and bob motion.",
-                    ComponentType = typeof(ManaPickupMotionComponent),
-                    Create = node => new ManaPickupMotionComponent(node)
+                    var changed = false;
+                    foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        if (assembly.IsDynamic || !Scanned.Add(assembly)) continue;
+                        foreach (var type in LoadableTypes(assembly))
+                        {
+                            if (!type.IsVisible || type.IsAbstract || type.ContainsGenericParameters
+                                || !type.IsSubclassOf(typeof(ManaComponent))) continue;
+
+                            var policy = type.GetCustomAttribute<EditorComponentAttribute>();
+                            if (policy?.CanAdd == false) continue;
+                            var constructor = type.GetConstructor(new[] { typeof(ManaSceneNode) });
+                            if (constructor == null) continue;
+
+                            Discovered.Add(new SceneComponentDefinition
+                            {
+                                Label = ComponentDisplayName.For(type),
+                                Description = $"Add {type.FullName} ({assembly.GetName().Name}).",
+                                ComponentType = type,
+                                AllowMultiple = policy?.AllowMultiple == true,
+                                Create = node => (ManaComponent)constructor.Invoke(new object[] { node })
+                            });
+                            changed = true;
+                        }
+                    }
+
+                    if (changed)
+                    {
+                        _definitions = Discovered.OrderBy(d => d.Label, StringComparer.Ordinal)
+                            .ThenBy(d => d.ComponentType.FullName, StringComparer.Ordinal).ToArray();
+                    }
+                    return _definitions;
                 }
-            };
+            }
+        }
+
+        private static IEnumerable<Type> LoadableTypes(Assembly assembly)
+        {
+            try { return assembly.GetTypes(); }
+            catch (ReflectionTypeLoadException ex) { return ex.Types.OfType<Type>(); }
+            catch (NotSupportedException) { return Array.Empty<Type>(); }
+        }
 
         public static ManaComponent? AddToNode(
             ManaSceneNode node,
             SceneComponentDefinition definition,
-            SceneSelectionState? selection)
+            SceneSelectionState? selection,
+            EditorUndoHistory? history = null)
         {
-            if (!definition.CanAdd(node))
-            {
-                return null;
-            }
-
-            var component = definition.Create(node);
+            var before = selection == null ? (EditorSelectionSnapshot?)null : EditorSelectionSnapshot.Capture(selection);
+            ManaComponent component;
             var world = node.Context.World;
             lock (world.SceneLock)
             {
+                if (!definition.CanAdd(node)) return null;
+                try
+                {
+                    component = definition.Create(node);
+                }
+                catch (Exception ex) when (ex is TargetInvocationException or MemberAccessException)
+                {
+                    ManaConsole.WriteDiagnostic($"Could not add {definition.Label}: {ex.InnerException?.Message ?? ex.Message}");
+                    return null;
+                }
                 node.Components.Add(component);
-                if (world.IsPlaying && component is ManaAudioSourceComponent) { component.BeginPlay(); }
+                if (world.IsPlaying) component.BeginPlay();
             }
 
             if (selection != null)
@@ -146,6 +110,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 selection.NotifySceneGraphChanged();
             }
 
+            history?.RecordComponentInsertion(component, selection, before);
             return component;
         }
     }

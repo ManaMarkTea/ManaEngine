@@ -15,7 +15,7 @@ namespace ManaVoxel.Code.Gameplay.Course
     /// </para>
     /// The pad squashes and springs back when it fires, purely for the look of it.
     /// </summary>
-    public sealed class SpringPadComponent : ManaTriggerComponent
+    public sealed class SpringPadComponent : ManaTriggerListenerComponent
     {
         public const string ScriptType = "SpringPad";
 
@@ -27,11 +27,13 @@ namespace ManaVoxel.Code.Gameplay.Course
 
         public SpringPadComponent(ManaSceneNode owner) : base(owner)
         {
-            Size = new Vector3(2.4f, 1.0f, 2.4f);
-            Offset = new Vector3(0.0f, 0.5f, 0.0f);
         }
 
-        protected override Vector4 VolumeColor => new(0.3f, 1.0f, 0.45f, 1.0f);
+        protected override Vector3 DefaultSize => new Vector3(2.4f, 1.0f, 2.4f);
+
+        protected override Vector3 DefaultOffset => new Vector3(0.0f, 0.5f, 0.0f);
+
+        protected override Vector4 DefaultColor => new(0.3f, 1.0f, 0.45f, 1.0f);
 
         /// <summary>How high above the pad the launch reaches, in world units.</summary>
         public float LaunchHeight { get; set; } = 8.0f;

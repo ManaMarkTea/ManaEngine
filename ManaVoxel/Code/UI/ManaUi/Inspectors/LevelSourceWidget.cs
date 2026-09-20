@@ -74,8 +74,24 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     break;
 
                 case ManaLevelSourceKind.Water:
-                    rows.Add(InspectorControls.Row(context, "Surface", ReadOnly(theme, () => WaterSize(node))));
-                    rows.Add(InspectorControls.Row(context, "Resolution", ReadOnly(theme, () => WaterResolution(node))));
+                    if (node is ManaWaterNode waterNode)
+                    {
+                        rows.Add(InspectorControls.Row(context, "Surface", InspectorControls.Vector2(
+                            () => waterNode.Mesh.Size,
+                            value => waterNode.Resize(value, waterNode.Mesh.Resolution),
+                            step: 0.5f,
+                            places: 2)));
+                        rows.Add(InspectorControls.Row(context, "Resolution", InspectorControls.Scalar(
+                            () => waterNode.Mesh.Resolution,
+                            value => waterNode.Resize(waterNode.Mesh.Size, (int)MathF.Round(value)),
+                            ManaWaterNode.MinimumResolution,
+                            ManaWaterNode.MaximumResolution)));
+                    }
+                    else
+                    {
+                        rows.Add(InspectorControls.Row(context, "Surface", ReadOnly(theme, () => WaterSize(node))));
+                    }
+
                     break;
             }
 
@@ -251,7 +267,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         {
             foreach (var component in node.GetComponents<ManaCollisionComponent>())
             {
-                if (component.Shape is Box found)
+                if (component is not ManaBoxColliderComponent && component.Shape is Box found)
                 {
                     collision = component;
                     box = found;

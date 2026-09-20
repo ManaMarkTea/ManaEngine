@@ -52,6 +52,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 .Register(new TransformWidget())
                 .Register(new LevelSourceWidget())
                 .Register(new CollisionWidget())
+                .Register(new BoxColliderWidget())
                 .Register(new MeshRendererWidget())
                 .Register(new SkeletalAnimationWidget())
                 .Register(new LightWidget())

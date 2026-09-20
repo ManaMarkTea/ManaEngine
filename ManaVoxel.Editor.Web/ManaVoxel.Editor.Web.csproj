@@ -45,6 +45,9 @@
     <!-- Same reasoning as ManaVoxel.Web.csproj: the .manalevel/docking-layout DTOs are only ever
          constructed by System.Text.Json's reflection, invisible to the trimmer. -->
     <TrimmerRootAssembly Include="ManaVoxel.Editor.Web" />
+    <!-- Preserve components discovered and constructed through reflection by the editor. -->
+    <TrimmerRootAssembly Include="Mana" />
+    <TrimmerRootAssembly Include="ManaVoxel" />
   </ItemGroup>
 
   <ItemGroup>

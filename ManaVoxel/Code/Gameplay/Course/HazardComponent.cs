@@ -9,9 +9,9 @@ namespace ManaVoxel.Code.Gameplay.Course
     /// standing in it keeps costing health -- the game state's brief invulnerability after a hit is what
     /// spaces the damage out.
     /// </summary>
-    public sealed class HazardComponent : ManaTriggerComponent
+    public sealed class HazardComponent : ManaTriggerListenerComponent
     {
-        protected override Vector4 VolumeColor => new(1.0f, 0.2f, 0.2f, 1.0f);
+        protected override Vector4 DefaultColor => new(1.0f, 0.2f, 0.2f, 1.0f);
 
         public const string ScriptType = "Hazard";
 

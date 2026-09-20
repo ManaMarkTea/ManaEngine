@@ -36,7 +36,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             ManaWorld world,
             SceneSelectionState selection,
             Action<ManaScene>? saveScene = null,
-            Func<ManaScene, bool>? sceneHasChanges = null)
+            Func<ManaScene, bool>? sceneHasChanges = null,
+            EditorUndoHistory? history = null)
         {
             var tree = new TreeView
             {
@@ -52,7 +53,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // instead. Counting the top two levels is enough to notice nodes being added or removed
                 // without walking the whole graph every frame.
                 RowHeight = MathF.Max(theme.ControlHeight, 28.0f),
-                ItemTemplate = item => BuildRow(theme, world, selection, item, saveScene, sceneHasChanges),
+                ItemTemplate = item => BuildRow(theme, world, selection, item, saveScene, sceneHasChanges, history),
                 StructureSignature = () => StructureSignature(world, selection)
             };
 
@@ -75,8 +76,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new StackPanel().Horizontal(theme.Spacing).GridRow(0).Children(
                     new Button().Label("Collapse all").Variant(ButtonVariant.Subtle)
                         .OnClick(tree.CollapseAll),
-                    new Button().Label("New Scene").Variant(ButtonVariant.Subtle)
-                        .WithTooltip("Adds an empty scene. Move nodes into it from a node's right-click menu.")
+                    new Button().Label("🆕").Variant(ButtonVariant.Subtle)
+                        .WithTooltip("New Scene — adds an empty scene. Move nodes into it from a node's right-click menu.")
                         .OnClick(() => SceneEditorOperations.CreateScene(world, selection)),
                     new TextBlock()
                         .BindTextPolled(() => $"{world.Scenes.Count} scene{(world.Scenes.Count == 1 ? "" : "s")}")
@@ -124,7 +125,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             SceneSelectionState selection,
             object item,
             Action<ManaScene>? saveScene,
-            Func<ManaScene, bool>? sceneHasChanges)
+            Func<ManaScene, bool>? sceneHasChanges,
+            EditorUndoHistory? history)
         {
             var (label, color, muted, icon) = Describe(item);
 
@@ -147,7 +149,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             if (item is not ManaScene scene || saveScene == null || string.IsNullOrWhiteSpace(scene.LevelPath))
             {
-                return new OutlinerActionRow(world, selection, item, labelRow, saveScene);
+                return new OutlinerActionRow(world, selection, item, labelRow, saveScene, history);
             }
 
             var saveButton = new Button()
@@ -167,7 +169,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 labelRow.GridColumn(0),
                 saveButton.GridColumn(1));
 
-            return new OutlinerActionRow(world, selection, item, row, saveScene);
+            return new OutlinerActionRow(world, selection, item, row, saveScene, history);
         }
 
         private static string SaveLabel(ManaScene scene, Func<ManaScene, bool>? sceneHasChanges)
@@ -188,7 +190,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 MeshRendererComponent => ("Mesh Renderer", MeshRendererIconColor, true, OutlinerIconKind.MeshRenderer),
                 ManaLightSourceComponent => ("Light Source", LightSourceIconColor, true, OutlinerIconKind.Light),
                 CameraComponent => ("Camera", ComponentIconColor, true, OutlinerIconKind.Camera),
-                ManaComponent component => (component.GetType().Name, ComponentIconColor, true, OutlinerIconKind.Component),
+                ManaComponent component => (ComponentDisplayName.For(component.GetType()), ComponentIconColor, true, OutlinerIconKind.Component),
                 _ => (item.ToString() ?? "?", ComponentIconColor, true, OutlinerIconKind.Component)
             };
         }
@@ -355,18 +357,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             private readonly SceneSelectionState _selection;
             private readonly object _item;
             private readonly Action<ManaScene>? _saveScene;
+            private readonly EditorUndoHistory? _history;
 
             public OutlinerActionRow(
                 ManaWorld world,
                 SceneSelectionState selection,
                 object item,
                 UiElement content,
-                Action<ManaScene>? saveScene)
+                Action<ManaScene>? saveScene,
+                EditorUndoHistory? history)
             {
                 _world = world;
                 _selection = selection;
                 _item = item;
                 _saveScene = saveScene;
+                _history = history;
                 Child = content;
                 IsHitTestVisible = true;
                 HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -426,7 +431,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 {
                     addComponent.Items.Add(new MenuItem(
                             definition.Label,
-                            () => SceneComponentCatalog.AddToNode(node, definition, _selection))
+                            () => SceneComponentCatalog.AddToNode(node, definition, _selection, _history))
                         .EnabledWhen(() => definition.CanAdd(node))
                         .WithTooltip(definition.Description));
                 }
@@ -489,6 +494,19 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
 
                 addNode.Items.Add(MenuItem.Separator());
+
+                addNode.Items.Add(new MenuItem("Water", () =>
+                {
+                    // 16 x 16 at a modest resolution: enough to see it ripple, small enough to drag around. Size and
+                    // resolution are editable in the inspector afterwards.
+                    var water = new ManaWaterNode(scene.Context, new Vector2(16.0f, 16.0f), 64)
+                    {
+                        LevelSource = ManaLevelSource.ForWater(new Vector2(16.0f, 16.0f), 64)
+                    };
+                    water.Position = position;
+                    water.UpdateTransform();
+                    AddCreatedNode(scene, parent, water);
+                }).WithTooltip("A rippling water surface. Add a Hazard component to make it deadly, and set its size to match."));
 
                 foreach (var (label, build) in CoursePieceFactory.Pieces)
                 {

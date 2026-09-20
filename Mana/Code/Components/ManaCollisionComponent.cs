@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 
 namespace Mana.Code.Components
 {
+    // Created through ManaPhysics, which also registers its body and shape.
+    [EditorComponent(CanAdd = false)]
     public class ManaCollisionComponent : ManaComponent
     {
         public IConvexShape? Shape { get; set; }

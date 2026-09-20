@@ -2228,6 +2228,14 @@ namespace Mana.Code.GameModes
             {
                 if (current.LevelSource != null)
                 {
+                    // A group that carries components is the object, and its meshes are only how it looks: a coin
+                    // is a group holding the Collectible, with a model child to click. Stopping at the model
+                    // selected something with no settings while the coin's own were one level up.
+                    if (current.Parent is { LevelSource.Kind: Mana.Code.Levels.ManaLevelSourceKind.Group, Components.Count: > 0 } behaviour)
+                    {
+                        return behaviour;
+                    }
+
                     return current;
                 }
             }
@@ -2559,7 +2567,7 @@ namespace Mana.Code.GameModes
                     continue;
                 }
 
-                component.OutlineEnabled = false;
+                component.EditorOutlineEnabled = false;
             }
 
             foreach (var component in currentComponents)
@@ -2569,9 +2577,9 @@ namespace Mana.Code.GameModes
                     continue;
                 }
 
-                component.OutlineEnabled = true;
-                component.OutlineColor = PatchUpresInProgressOutlineColor;
-                component.OutlineWidth = 4.0f;
+                component.EditorOutlineEnabled = true;
+                component.EditorOutlineColor = PatchUpresInProgressOutlineColor;
+                component.EditorOutlineWidth = 4.0f;
             }
 
             _lastStreamingHighlightedComponents = currentComponents;
@@ -2681,9 +2689,9 @@ namespace Mana.Code.GameModes
 
                         foreach (var meshRenderer in voxelNode.Components.OfType<MeshRendererComponent>())
                         {
-                            meshRenderer.OutlineEnabled = isActive;
-                            meshRenderer.OutlineColor = activeOutlineColor;
-                            meshRenderer.OutlineWidth = 4.0f;
+                            meshRenderer.EditorOutlineEnabled = isActive;
+                            meshRenderer.EditorOutlineColor = activeOutlineColor;
+                            meshRenderer.EditorOutlineWidth = 4.0f;
                         }
 
                         // Remove selection cages created by older builds now that selection uses the mask pass.
@@ -2727,7 +2735,7 @@ namespace Mana.Code.GameModes
             {
                 if (!targetOutlinedComponents.Contains(meshRenderer))
                 {
-                    meshRenderer.OutlineEnabled = false;
+                    meshRenderer.EditorOutlineEnabled = false;
                 }
             }
 
@@ -2736,9 +2744,9 @@ namespace Mana.Code.GameModes
                 var outlineColor = selectedComponent != null ? GetSelectionOutlineColor(selectedComponent) : GetSelectionOutlineColor(null);
                 foreach (var meshRenderer in targetOutlinedComponents)
                 {
-                    meshRenderer.OutlineEnabled = true;
-                    meshRenderer.OutlineColor = outlineColor;
-                    meshRenderer.OutlineWidth = 4.0f;
+                    meshRenderer.EditorOutlineEnabled = true;
+                    meshRenderer.EditorOutlineColor = outlineColor;
+                    meshRenderer.EditorOutlineWidth = 4.0f;
                 }
             }
 

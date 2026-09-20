@@ -229,6 +229,8 @@ namespace ManaVoxel.Code.Levels
             }
 
             entry.Scripts = CaptureScripts(node);
+            if (source.Kind == ManaLevelSourceKind.Mesh)
+                entry.ChildColliders = ManaLevelMeshColliders.Capture(node);
             return entry;
         }
 
@@ -246,6 +248,8 @@ namespace ManaVoxel.Code.Levels
         {
             foreach (var collision in node.GetComponents<ManaCollisionComponent>())
             {
+                // Authored colliders are saved individually in Scripts, including multiple boxes.
+                if (collision is ManaBoxColliderComponent) continue;
                 if (collision.Shape is ConvexHull)
                 {
                     return new ManaLevelCollision

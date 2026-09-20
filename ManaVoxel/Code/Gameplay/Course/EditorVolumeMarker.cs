@@ -40,6 +40,10 @@ namespace ManaVoxel.Code.Gameplay.Course
                 _node = new ManaSceneNode(_owner.Context, Matrix4x4.Identity)
                 {
                     Name = _name,
+
+                    // Editor furniture, like the gizmos: kept out of the outliner (where it read as one of the
+                    // piece's own children) and never treated as something to select or edit.
+                    IsEditorTransient = true,
                     IncludeInEnvironmentCapture = false
                 };
                 _renderer = new MeshRendererComponent(_node, Build(fullSize, color));

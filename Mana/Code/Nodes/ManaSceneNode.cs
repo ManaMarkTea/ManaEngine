@@ -315,9 +315,9 @@ namespace Mana.Code.Nodes
                         Opacity = (float)renderer.Material.Opacity.Value,
                         AlphaCutoff = (float)renderer.Material.AlphaCutoff,
                         AlwaysOnTop = renderer.AlwaysOnTop,
-                        OutlineEnabled = renderer.OutlineEnabled,
-                        OutlineColor = renderer.OutlineColor,
-                        OutlineWidth = renderer.OutlineWidth,
+                        OutlineEnabled = renderer.RenderOutlineEnabled,
+                        OutlineColor = renderer.RenderOutlineColor,
+                        OutlineWidth = renderer.RenderOutlineWidth,
                         UvTransform = new Vector4(
                             renderer.Material.UvScale.X,
                             renderer.Material.UvScale.Y,
@@ -433,6 +433,31 @@ namespace Mana.Code.Nodes
         public List<T> GetComponents<T>()
         {
             return Components.OfType<T>().ToList();
+        }
+
+        /// <summary>
+        /// The first component of this type (or one derived from it), or null if the node has none. What a component
+        /// that works alongside another on its node -- a listener and its trigger, a platform and its collider --
+        /// reaches for, rather than looping over <see cref="Components"/> itself.
+        /// </summary>
+        public T? GetComponent<T>() where T : class
+        {
+            foreach (var component in Components)
+            {
+                if (component is T match)
+                {
+                    return match;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary><see cref="GetComponent{T}"/> in the shape that reads well in an <c>if</c>.</summary>
+        public bool TryGetComponent<T>(out T component) where T : class
+        {
+            component = GetComponent<T>()!;
+            return component != null;
         }
     }
 

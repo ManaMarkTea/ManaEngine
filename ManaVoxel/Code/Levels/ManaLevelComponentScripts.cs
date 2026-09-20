@@ -30,11 +30,24 @@ namespace ManaVoxel.Code.Levels
             {
                 new()
                 {
+                    Type = "BoxCollider",
+                    ComponentType = typeof(ManaBoxColliderComponent),
+                    Create = node => new ManaBoxColliderComponent(node),
+                    AllowMultiple = true
+                },
+                new()
+                {
                     Type = ManaAudioSourceComponent.ScriptType,
                     ComponentType = typeof(ManaAudioSourceComponent),
                     Create = node => new ManaAudioSourceComponent(node),
                     AllowMultiple = true,
                     AfterPropertiesApplied = component => { _ = ((ManaAudioSourceComponent)component).PrepareAsync(); }
+                },
+                new()
+                {
+                    Type = TriggerVolumeComponent.ScriptType,
+                    ComponentType = typeof(TriggerVolumeComponent),
+                    Create = node => new TriggerVolumeComponent(node)
                 },
                 new()
                 {
@@ -117,6 +130,7 @@ namespace ManaVoxel.Code.Levels
         }
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         public static bool AddToNode(ManaSceneNode node, ManaLevelScript script)
         {
             var definition = Definitions.FirstOrDefault(definition =>
@@ -126,14 +140,28 @@ namespace ManaVoxel.Code.Levels
                 return false;
             }
 
-            var component = definition.AllowMultiple ? null : node.Components.FirstOrDefault(definition.ComponentType.IsInstanceOfType);
-            if (component == null)
+            // Under the scene lock: levels load on a background thread, and the render thread walks every node's
+            // component list under that lock. The node is already in the scene by now (a group's children are
+            // attached as they load), so an unguarded Add races a walk and throws "collection was modified".
+            ManaComponent? component;
+            lock (node.Context.World.SceneLock)
             {
-                component = definition.Create(node);
-                node.Components.Add(component);
+                component = definition.AllowMultiple ? null : node.Components.FirstOrDefault(definition.ComponentType.IsInstanceOfType);
+                if (component == null)
+                {
+                    component = definition.Create(node);
+                    node.Components.Add(component);
+                }
             }
 
             ManaLevelComponentPropertyBag.Apply(component, definition.ComponentType, script.Properties);
+
+            // Levels saved before volumes had a component of their own kept size and offset inside each piece's script.
+            if (component is ManaTriggerListenerComponent listener)
+            {
+                listener.ApplyLegacyVolume(script.Properties, ManaLevel.SerializerOptions);
+            }
+
             definition.AfterPropertiesApplied?.Invoke(component);
             return true;
         }
@@ -215,6 +243,7 @@ namespace ManaVoxel.Code.Levels
                     && property.GetIndexParameters().Length == 0
                     && property.DeclaringType != typeof(ManaObject)
                     && property.DeclaringType != typeof(ManaComponent)
+                    && property.DeclaringType != typeof(ManaCollisionComponent)
                     && !IsIgnored(property));
         }
 

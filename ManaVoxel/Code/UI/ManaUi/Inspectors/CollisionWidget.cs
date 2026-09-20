@@ -148,7 +148,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             {
                 foreach (var component in current.GetComponents<ManaCollisionComponent>())
                 {
-                    if (component.Shape is Box found)
+                    if (component is not ManaBoxColliderComponent && component.Shape is Box found)
                     {
                         owner = current;
                         collision = component;
@@ -171,7 +171,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         {
             for (var current = node; current != null; current = current.Parent)
             {
-                collision = current.GetComponents<ManaCollisionComponent>().FirstOrDefault()!;
+                collision = current.GetComponents<ManaCollisionComponent>()
+                    .FirstOrDefault(component => component is not ManaBoxColliderComponent)!;
                 if (collision != null)
                 {
                     owner = current;

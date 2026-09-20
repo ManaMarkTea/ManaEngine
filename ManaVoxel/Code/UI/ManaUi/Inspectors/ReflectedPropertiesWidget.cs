@@ -74,6 +74,13 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     continue;
                 }
 
+                // [Browsable(false)] is the standard way for a component to say "not for the inspector" -- a forwarder
+                // to another component's setting, say, which would only show the same value twice.
+                if (property.GetCustomAttribute<System.ComponentModel.BrowsableAttribute>() is { Browsable: false })
+                {
+                    continue;
+                }
+
                 if (property.DeclaringType != null && IgnoredDeclaringTypes.Contains(property.DeclaringType))
                 {
                     continue;

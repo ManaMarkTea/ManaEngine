@@ -179,7 +179,7 @@ namespace Mana.Code.Renderers
         {
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
-                if (renderer.IsVisible && renderer.OutlineEnabled)
+                if (renderer.IsVisible && renderer.RenderOutlineEnabled)
                 {
                     yield return (node, renderer);
                 }

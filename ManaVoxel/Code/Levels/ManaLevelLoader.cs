@@ -285,6 +285,7 @@ namespace ManaVoxel.Code.Levels
                     AttachToParent(state.Context, parent, mesh);
                     AddCollisionIfPresent(entry, state.Context, mesh);
                     AddScriptsIfPresent(entry, mesh);
+                    ManaLevelMeshColliders.Apply(mesh, entry.ChildColliders, state.Result.Warnings);
                     return mesh;
 
                 case ManaLevelSourceKind.Voxels:

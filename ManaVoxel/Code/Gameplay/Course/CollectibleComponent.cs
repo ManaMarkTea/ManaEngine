@@ -9,7 +9,7 @@ namespace ManaVoxel.Code.Gameplay.Course
     /// A coin: collected on touch, counted, and hidden for the rest of the run. Pair it with Pickup Motion
     /// for the spin and bob.
     /// </summary>
-    public sealed class CollectibleComponent : ManaTriggerComponent
+    public sealed class CollectibleComponent : ManaTriggerListenerComponent
     {
         public const string ScriptType = "Collectible";
 
@@ -17,8 +17,6 @@ namespace ManaVoxel.Code.Gameplay.Course
 
         public CollectibleComponent(ManaSceneNode owner) : base(owner)
         {
-            Size = new Vector3(1.0f, 1.0f, 1.0f);
-            Offset = new Vector3(0.0f, 0.5f, 0.0f);
         }
 
         public int Value { get; set; } = 1;
@@ -26,7 +24,11 @@ namespace ManaVoxel.Code.Gameplay.Course
         /// <summary>Turns the coin while playing; zero leaves it still. The editor never spins it.</summary>
         public float SpinDegreesPerSecond { get; set; } = 120.0f;
 
-        protected override Vector4 VolumeColor => new(1.0f, 0.85f, 0.15f, 1.0f);
+        protected override Vector3 DefaultSize => new Vector3(1.0f, 1.0f, 1.0f);
+
+        protected override Vector3 DefaultOffset => new Vector3(0.0f, 0.5f, 0.0f);
+
+        protected override Vector4 DefaultColor => new(1.0f, 0.85f, 0.15f, 1.0f);
 
         private Vector3 _restRotation;
 

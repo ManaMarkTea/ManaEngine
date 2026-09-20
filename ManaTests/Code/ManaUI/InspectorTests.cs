@@ -96,6 +96,20 @@ public static class InspectorChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        var source = ComponentSource.Find(typeof(SampleComponent));
+        Check("component source resolves when the filename differs from the type",
+            source != null && Path.GetFileName(source.Path) == "InspectorTests.cs" && source.Line > 0);
+        Check("component source does not resolve inherited framework methods",
+            ComponentSource.Find(typeof(object)) == null);
+        var escapedSource = new ComponentSource.Location(Path.Combine(Path.GetTempPath(), "component #1.cs"), 42);
+        Check("source editor URI escapes filenames and includes the line",
+            escapedSource.EditorUri.Contains("component%20%231.cs") && escapedSource.EditorUri.EndsWith(":42"));
+        var editorUri = new Uri(escapedSource.EditorUri);
+        Check("source editor URI keeps the file host separate from the absolute path",
+            editorUri.Scheme == "vscode" && editorUri.Host == "file"
+            && Uri.UnescapeDataString(editorUri.AbsolutePath).TrimStart('/')
+                == Path.GetFullPath(escapedSource.Path).Replace('\\', '/').TrimStart('/') + ":42");
+
         var root = new UiRoot(fonts);
         var world = new ManaWorld();
         var history = new EditorUndoHistory();
@@ -308,15 +322,85 @@ public static class InspectorChecks
         root.UpdateLayout(new Vector2(420, 700));
 
         var reflected = FindAll<Expander>(view)
-            .FirstOrDefault(e => e.Header.Contains("SampleComponent", StringComparison.Ordinal));
+            .FirstOrDefault(e => e.Header == "Sample");
 
         Check("an unknown component is reflected rather than refused", reflected != null,
             string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
-        Check("and says so in its header", reflected?.Header.Contains("reflected") == true,
+        Check("the component header uses its display name", reflected?.Header == "Sample",
             reflected?.Header ?? "none");
 
         Check("no placeholder is shown", !FindAll<TextBlock>(view)
             .Any(t => t.Text.Contains("No inspector", StringComparison.Ordinal)), "reflection covered it");
+
+        // The course pieces are components like any other: selecting a node that carries one has to show its settings.
+        var pieceNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Spilled Oil" };
+        pieceNode.Components.Add(new ManaVoxel.Code.Gameplay.Course.HazardComponent(pieceNode));
+        pieceNode.Components.Add(new ManaVoxel.Code.Gameplay.Course.CollectibleComponent(pieceNode));
+        scene.Children.Add(pieceNode);
+        world.Selection.SelectedNode = pieceNode;
+        root.UpdateLayout(new Vector2(420, 900));
+        var pieceHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();
+        var pieceLabels = FindAll<TextBlock>(view).Select(t => t.Text.Replace(" ", string.Empty).ToLowerInvariant()).ToList();
+        Check("a hazard on a node appears in its inspector", pieceHeaders.Any(h => h != null && h.Contains("Hazard", StringComparison.OrdinalIgnoreCase)),
+            string.Join(" | ", pieceHeaders));
+        Check("and the volume is a section of its own, not part of the hazard's", pieceHeaders.Any(h => h == "Trigger Volume"), string.Join(" | ", pieceHeaders));
+        Check("with its volume and damage to edit",
+            new[] { "size", "offset", "damage", "kills", "flavor" }.All(name => pieceLabels.Contains(name)),
+            string.Join(", ", pieceLabels.Distinct().Take(40)));
+
+        var hazardChain = ManaVoxel.Code.UI.ManaUi.Inspectors.ComponentInheritance.Chain(typeof(ManaVoxel.Code.Gameplay.Course.HazardComponent));
+        Check("a component's chain is itself, then what it derives from, without ManaComponent",
+            hazardChain.SequenceEqual(new[] { "HazardComponent", "ManaTriggerListenerComponent" }), string.Join(" > ", hazardChain));
+        Check("a component built straight on ManaComponent has just itself",
+            ManaVoxel.Code.UI.ManaUi.Inspectors.ComponentInheritance.Chain(typeof(ManaPickupMotionComponent)).SequenceEqual(new[] { "ManaPickupMotionComponent" }));
+        Check("and the tooltip lays it out one class per line",
+            ManaVoxel.Code.UI.ManaUi.Inspectors.ComponentInheritance.Describe(typeof(ManaVoxel.Code.Gameplay.Course.HazardComponent)).Split('\n').Length == 2);
+        Check("the hazard's header carries that tooltip",
+            FindAll<Expander>(view).Any(e => e.Header == "Hazard" && (e.Tooltip ?? "").Contains("ManaTriggerListenerComponent")),
+            string.Join(" | ", FindAll<Expander>(view).Where(e => e.Header == "Hazard").Select(e => e.Tooltip)));
+
+        // The real thing: a coin exactly as the sample course stores it (a group carrying the Collectible, with a model
+        // child), loaded by the level loader, then selected.
+        var samplePath = ManaVoxel.Code.Levels.ManaLevelLibrary.ResolvePath("Sample Course");
+        if (File.Exists(samplePath))
+        {
+            static ManaVoxel.Code.Levels.ManaLevelNode? FindNode(IEnumerable<ManaVoxel.Code.Levels.ManaLevelNode> nodes, string name)
+            {
+                foreach (var candidate in nodes)
+                {
+                    if (candidate.Name == name)
+                    {
+                        return candidate;
+                    }
+
+                    if (candidate.Children != null && FindNode(candidate.Children, name) is { } inner)
+                    {
+                        return inner;
+                    }
+                }
+
+                return null;
+            }
+
+            var coinEntry = FindNode(ManaVoxel.Code.Levels.ManaLevel.Load(samplePath).Nodes, "Coin 1");
+            if (coinEntry != null)
+            {
+                var coinLevel = new ManaVoxel.Code.Levels.ManaLevel();
+                coinLevel.Nodes.Add(coinEntry);
+                var loadedCoin = ManaVoxel.Code.Levels.ManaLevelLoader.Load(coinLevel, context, scene, replaceAuthoredNodes: false).Nodes[0];
+                world.Selection.SelectedNode = loadedCoin;
+                root.UpdateLayout(new Vector2(420, 900));
+                var coinHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();
+                Check("a coin from the level shows its Collectible in the inspector",
+                    coinHeaders.Any(h => h != null && h.Contains("Collectible", StringComparison.OrdinalIgnoreCase)),
+                    $"{loadedCoin.Name}: {string.Join(" | ", coinHeaders)}; components {string.Join(", ", loadedCoin.Components.Select(c => c.GetType().Name))}");
+            }
+        }
+
+        // Back to the node the checks below are about.
+        world.Selection.SelectedNode = oddNode;
+        root.UpdateLayout(new Vector2(420, 700));
+        reflected = FindAll<Expander>(view).FirstOrDefault(e => e.Header == "Sample");
 
         // Every editable type, and nothing it cannot edit. Getting this wrong in either direction is the
         // failure mode of a reflected inspector: a missing row, or a row that does nothing.
@@ -453,7 +537,7 @@ public static class InspectorChecks
         root.UpdateLayout(new Vector2(420, 700));
 
         var pickupSection = FindAll<Expander>(view)
-            .FirstOrDefault(e => e.Header.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal));
+            .FirstOrDefault(e => e.Header.Contains("Pickup Motion", StringComparison.Ordinal));
 
         Check("but it still gets an inspector", pickupSection != null,
             string.Join(", ", FindAll<Expander>(view).Select(e => e.Header)));
@@ -604,7 +688,7 @@ public static class InspectorChecks
         var bothHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();
         Check("a node with no component selected shows all of them",
             bothHeaders.Any(h => h == "Light Source")
-                && bothHeaders.Any(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal)),
+                && bothHeaders.Any(h => h.Contains("Pickup Motion", StringComparison.Ordinal)),
             string.Join(", ", bothHeaders));
 
         // The node does not change here -- only the component does. That used to be invisible.
@@ -616,7 +700,7 @@ public static class InspectorChecks
 
         var motionFirst = FindAll<Expander>(view).Select(e => e.Header).ToList();
         Check("selecting a component brings it to the top",
-            motionFirst.FindIndex(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal))
+            motionFirst.FindIndex(h => h.Contains("Pickup Motion", StringComparison.Ordinal))
                 < motionFirst.IndexOf("Light Source"),
             string.Join(", ", motionFirst));
 
@@ -629,8 +713,8 @@ public static class InspectorChecks
         var lightFirst = FindAll<Expander>(view).Select(e => e.Header).ToList();
         Check("and switching to a sibling reorders rather than filtering",
             lightFirst.IndexOf("Light Source")
-                < lightFirst.FindIndex(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal))
-                && lightFirst.Any(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal)),
+                < lightFirst.FindIndex(h => h.Contains("Pickup Motion", StringComparison.Ordinal))
+                && lightFirst.Any(h => h.Contains("Pickup Motion", StringComparison.Ordinal)),
             string.Join(", ", lightFirst));
 
         // Clicking the donut in the scene selects its renderer, which is the exact sequence that hid the
@@ -648,7 +732,7 @@ public static class InspectorChecks
 
         var clickedHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();
         Check("clicking a mesh in the scene still shows the node's other components",
-            clickedHeaders.Any(h => h.Contains(nameof(ManaPickupMotionComponent), StringComparison.Ordinal)),
+            clickedHeaders.Any(h => h.Contains("Pickup Motion", StringComparison.Ordinal)),
             string.Join(", ", clickedHeaders));
 
         // A procedural mesh's material renders as PBR whether or not it says so, so it should say so --
@@ -708,6 +792,21 @@ public static class InspectorChecks
             addComponent != null && trainChoice?.Label == "Train Car",
             string.Join(", ", addComponent?.Items.Select(item => item.ToString()) ?? Array.Empty<string>()));
 
+        var componentLabels = addComponent?.Items.Select(item => item.ToString()).ToArray() ?? Array.Empty<string>();
+        Check("component discovery includes an unregistered component from another assembly",
+            componentLabels.Contains("Sample"));
+        Check("component menu uses the actual collectible type rather than Coin",
+            componentLabels.Contains("Collectible") && !componentLabels.Contains("Coin"));
+        Check("component discovery includes previously unlisted engine components",
+            componentLabels.Contains("Spring Arm") && componentLabels.Contains("Camera"));
+        Check("component discovery excludes types requiring additional construction arguments",
+            !componentLabels.Contains("Counting") && !componentLabels.Contains("Mesh Renderer"));
+        Check("component discovery excludes the base type and physics-managed components",
+            !componentLabels.Contains("Mana") && !componentLabels.Contains("Collision")
+            && !componentLabels.Contains("Trigger"));
+        Check("component menu is alphabetically sorted",
+            componentLabels.SequenceEqual(componentLabels.OrderBy(label => label, StringComparer.Ordinal)));
+
         if (addComponent != null && trainChoice?.Label == "Train Car")
         {
             addComponent.SelectedIndex = trainChoice.Value.Index;
@@ -719,7 +818,17 @@ public static class InspectorChecks
             trainComponent != null && ReferenceEquals(world.Selection.SelectedComponent, trainComponent),
             world.Selection.SelectedComponent?.GetType().Name ?? "none");
 
-        var removeTrain = FindAll<Button>(view).FirstOrDefault(button => button.Text == "Remove");
+        if (addComponent != null && trainChoice?.Label == "Train Car")
+        {
+            addComponent.SelectedIndex = trainChoice.Value.Index;
+            Check("automatically discovered components reject duplicates by default",
+                first.Components.OfType<TrainCarComponent>().Count() == 1);
+        }
+
+        history.Clear();
+        var trainIndex = trainComponent == null ? -1 : first.Components.IndexOf(trainComponent);
+        if (trainComponent != null) trainComponent.RouteKey = "Undo route";
+        var removeTrain = FindAll<Button>(view).FirstOrDefault(button => button.Tooltip?.ToString()?.StartsWith("Remove Component") == true);
         Check("component sections offer removal", removeTrain != null);
         if (removeTrain != null)
         {
@@ -734,6 +843,48 @@ public static class InspectorChecks
             && ReferenceEquals(world.Selection.SelectedNode, first)
             && world.Selection.SelectedComponent == null,
             $"{first.Components.OfType<TrainCarComponent>().Count()} train components");
+
+        Check("component removal records an undo command", history.UndoDescription == "Remove TrainCarComponent");
+        history.Undo();
+        root.UpdateLayout(new Vector2(420, 700));
+        Check("undo restores the same component, its settings and its list position",
+            trainIndex >= 0 && ReferenceEquals(first.Components.ElementAtOrDefault(trainIndex), trainComponent)
+            && trainComponent?.RouteKey == "Undo route");
+        Check("undo restores component selection and its inspector",
+            ReferenceEquals(world.Selection.SelectedComponent, trainComponent)
+            && FindAll<Button>(view).Any(button => button.Tooltip?.StartsWith("Remove Component") == true));
+        history.Redo();
+        root.UpdateLayout(new Vector2(420, 700));
+        Check("redo removes the component again", !first.Components.Contains(trainComponent!) && history.CanUndo);
+        history.Undo();
+        history.Redo();
+        Check("component removal supports repeated undo and redo", !first.Components.Contains(trainComponent!));
+
+        // Removing a non-selected component must rebuild even though selection itself stays the same.
+        var retainedAudio = new ManaAudioSourceComponent(first) { Volume = 0.37f };
+        first.Components.Add(retainedAudio);
+        world.Selection.SelectedComponent = null;
+        world.Selection.NotifySceneGraphChanged();
+        root.UpdateLayout(new Vector2(420, 700));
+        history.RemoveComponent(retainedAudio, world.Selection);
+        root.UpdateLayout(new Vector2(420, 700));
+        Check("removing an unselected component refreshes the inspector",
+            !FindAll<Expander>(view).Any(expander => expander.Header == "Audio Source"));
+        history.Undo();
+        root.UpdateLayout(new Vector2(420, 700));
+        Check("undo refreshes components without changing selection",
+            world.Selection.SelectedComponent == null
+            && FindAll<Expander>(view).Any(expander => expander.Header == "Audio Source"));
+        var audioReusable = true;
+        try { retainedAudio.PrepareAsync().GetAwaiter().GetResult(); }
+        catch (ObjectDisposedException) { audioReusable = false; }
+        Check("undo restores reusable audio rather than a disposed emitter",
+            audioReusable && first.Components.Contains(retainedAudio) && retainedAudio.Volume == 0.37f);
+        history.Redo();
+        var removeDescription = history.UndoDescription;
+        Check("removing an already detached component does not create an undo entry",
+            !history.RemoveComponent(retainedAudio, world.Selection) && history.UndoDescription == removeDescription);
+        history.Clear();
 
         var doomed = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Doomed" };
         var doomedChild = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Doomed Child" };
@@ -811,6 +962,50 @@ public static class InspectorChecks
         Check("the material is a sibling, not nested in the renderer",
             sections.IndexOf("Material") > sections.IndexOf("Mesh Renderer"),
             string.Join(", ", sections));
+
+        var outlineToggle = FindAll<CheckBox>(view).Single(box => box.Text == "Outline");
+        var drawAfterToggle = FindAll<CheckBox>(view).Single(box => box.Text == "Draw after scene");
+        history.Clear();
+        meshRenderer.EditorOutlineEnabled = true;
+        meshRenderer.EditorOutlineColor = new Vector4(0, 0.5f, 1, 1);
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("selection highlighting does not enable the custom outline checkbox",
+            !outlineToggle.IsChecked && !meshRenderer.OutlineEnabled && meshRenderer.RenderOutlineEnabled);
+        outlineToggle.IsChecked = true;
+        meshRenderer.OutlineWidth = 1.5f;
+        meshRenderer.OutlineColor = new Vector4(1, 0, 0, 1);
+        var outlinedInstances = new List<ManaRenderMeshInstance>();
+        meshNode.CollectRenderMeshInstances(outlinedInstances);
+        Check("the custom outline reaches rendering while selection highlighting is active",
+            meshRenderer.OutlineEnabled && outlinedInstances.Single().OutlineEnabled
+            && outlinedInstances.Single().OutlineWidth == 1.5f
+            && outlinedInstances.Single().OutlineColor == new Vector4(1, 0, 0, 1));
+        history.Undo();
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("undo keeps the outline checkbox synchronized while preserving selection highlight",
+            !outlineToggle.IsChecked && !meshRenderer.OutlineEnabled && meshRenderer.RenderOutlineEnabled,
+            $"checkbox {outlineToggle.IsChecked}, custom {meshRenderer.OutlineEnabled}, effective {meshRenderer.RenderOutlineEnabled}, redo {history.RedoDescription}");
+        history.Redo();
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("redo updates the outline checkbox", outlineToggle.IsChecked && meshRenderer.OutlineEnabled);
+        history.Clear();
+        meshRenderer.OutlineEnabled = false;
+        meshRenderer.DrawAfterScene = true;
+        root.UpdateLayout(new Vector2(420, 900));
+        Check("mesh renderer checkboxes follow external scene edits without recording new commands",
+            !outlineToggle.IsChecked && drawAfterToggle.IsChecked && !history.CanUndo);
+        meshRenderer.EditorOutlineEnabled = false;
+        outlinedInstances.Clear();
+        meshNode.CollectRenderMeshInstances(outlinedInstances);
+        Check("clearing both outline sources disables the rendered outline", !outlinedInstances.Single().OutlineEnabled);
+        meshRenderer.OutlineEnabled = true;
+        meshRenderer.EditorOutlineEnabled = true;
+        meshRenderer.EditorOutlineEnabled = false;
+        Check("deselecting a mesh preserves its custom outline and width",
+            meshRenderer.RenderOutlineEnabled && meshRenderer.OutlineWidth == 1.5f);
+        meshRenderer.OutlineEnabled = false;
+        meshRenderer.DrawAfterScene = false;
+        root.UpdateLayout(new Vector2(420, 900));
 
         // ---------------------------------------------------------------- the widget registry
         // The panel itself knows nothing about transforms or materials -- it asks the factory what shows

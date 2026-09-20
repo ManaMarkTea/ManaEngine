@@ -186,7 +186,7 @@ namespace ManaVoxel.Code.Gameplay.Course
         // on; SurfaceSize otherwise.
         private (Vector3 Size, Vector3 Offset) Surface()
         {
-            var box = Owner.Components.OfType<ManaCollisionComponent>().FirstOrDefault();
+            var box = Owner.GetComponent<ManaCollisionComponent>();
             if (box?.Shape is Box shape)
             {
                 // The collision offset is in the node's own unscaled space, while the box is already sized in

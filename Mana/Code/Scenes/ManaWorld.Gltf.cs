@@ -14,6 +14,8 @@ namespace Mana
     // it once confirmed. Assimp is no longer referenced anywhere.
     public partial class ManaWorld
     {
+        /// <param name="sceneFile">Path to the glTF or GLB model to load.</param>
+        /// <param name="skeletalActorFactory">Optional factory for skeletal actor nodes; null uses the default actor type.</param>
         /// <param name="into">
         /// The scene the model should land in. Left null, the loader's own one-model wrapper scene is added to
         /// the world instead -- which is right for a character or a thumbnail, and wrong for anything the user

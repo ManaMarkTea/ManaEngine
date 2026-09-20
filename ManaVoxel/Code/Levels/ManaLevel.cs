@@ -160,7 +160,23 @@ namespace ManaVoxel.Code.Levels
 
         public List<ManaLevelScript>? Scripts { get; set; }
 
+        /// <summary>Scene-local box colliders on descendants recreated from a mesh asset.</summary>
+        public List<ManaLevelChildColliders>? ChildColliders { get; set; }
+
         public List<ManaLevelNode>? Children { get; set; }
+    }
+
+    public sealed class ManaLevelChildColliders
+    {
+        public int[] Path { get; set; } = [];
+        public string[] Names { get; set; } = [];
+        public List<ManaLevelBoxCollider> Boxes { get; set; } = [];
+    }
+
+    public sealed class ManaLevelBoxCollider
+    {
+        public Vector3 Size { get; set; } = Vector3.One;
+        public Vector3 Center { get; set; }
     }
 
     /// <summary>

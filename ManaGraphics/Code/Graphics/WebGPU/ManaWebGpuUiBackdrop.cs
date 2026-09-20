@@ -196,9 +196,9 @@ namespace ManaGraphics.Code.Graphics
             }
 
             // Each level reads the one above it, so the bind group for level N samples level N-1.
+            var entries = stackalloc BindGroupEntry[2];
             for (var level = 1u; level < _levels; level++)
             {
-                var entries = stackalloc BindGroupEntry[2];
                 entries[0] = new BindGroupEntry { Binding = 0, Sampler = _sampler };
                 entries[1] = new BindGroupEntry { Binding = 1, TextureView = _levelViews[level - 1] };
 

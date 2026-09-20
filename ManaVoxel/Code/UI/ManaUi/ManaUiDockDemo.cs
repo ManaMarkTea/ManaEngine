@@ -220,7 +220,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // world.Selection is the same instance the ImGui outliner and viewport use, so they can't drift apart.
                 "outliner" when world != null => new DockItem(
                     "Outliner",
-                    SceneOutlinerManaView.Build(theme, world, world.Selection, saveScene, sceneHasChanges)) { Id = "outliner" },
+                    SceneOutlinerManaView.Build(theme, world, world.Selection, saveScene, sceneHasChanges, editor?.History)) { Id = "outliner" },
                 "inspector" when world != null => new DockItem(
                     "Inspector",
                     SceneInspectorManaView.Build(

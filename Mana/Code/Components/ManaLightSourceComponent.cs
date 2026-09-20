@@ -3,6 +3,7 @@ using ManaCore.Graphics;
 
 namespace Mana.Code
 {
+    [EditorComponent(AllowMultiple = true)]
     public class ManaLightSourceComponent : ManaComponent
     {
         public float Intensity { get; set; } = 1.0f;

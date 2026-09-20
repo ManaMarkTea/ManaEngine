@@ -6,6 +6,7 @@ using ManaCore.Diagnostics;
 namespace Mana.Code.Components;
 
 /// <summary>Serializable emitter. Loading never blocks the game loop or starts stale one-shots.</summary>
+[EditorComponent(AllowMultiple = true)]
 public sealed class ManaAudioSourceComponent(ManaSceneNode owner) : ManaComponent(owner), IManaAudioEmitter, IDisposable
 {
     public const string ScriptType = "AudioSource";

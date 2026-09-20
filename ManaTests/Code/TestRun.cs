@@ -118,6 +118,7 @@ public static class TestRunner
         ("ManaUI", "tabs and graphs", TabsAndGraphChecks.Run),
         ("ManaUI", "ported main menu", PortedMainMenuChecks.Run),
         ("ManaUI", "ported scene inspector", InspectorChecks.Run),
+        ("ManaUI", "authored box colliders", BoxColliderChecks.Run),
         ("ManaUI", "world perf and debug panels", WorldPerfAndDebugChecks.Run),
 
         ("Graphics", "pbr material maps", MaterialMapChecks.Run),

@@ -12,6 +12,8 @@ namespace ManaUI
 
         private UiElement? _content;
         private bool _isExpanded = true;
+        private Vector4? _headerForeground;
+        private Vector4? _headerBackground;
 
         public Expander()
         {
@@ -47,6 +49,27 @@ namespace ManaUI
         {
             get => _header.Text;
             set => _header.Text = value ?? string.Empty;
+        }
+
+        /// <summary>Optional heading colour; null follows the theme.</summary>
+        public Vector4? HeaderForeground
+        {
+            get => _headerForeground;
+            set { _headerForeground = value; _header.InvalidateVisual(); }
+        }
+
+        /// <summary>Optional header fill; null follows the theme.</summary>
+        public Vector4? HeaderBackground
+        {
+            get => _headerBackground;
+            set { _headerBackground = value; _header.InvalidateVisual(); }
+        }
+
+        /// <summary>Heading size in logical pixels; NaN follows the theme.</summary>
+        public float HeaderFontSize
+        {
+            get => _header.TextSize;
+            set => _header.TextSize = value;
         }
 
         /// <summary>Extra element on the header row, right-aligned -- a count, a reset button, a toggle.</summary>
@@ -102,7 +125,7 @@ namespace ManaUI
                 _content.Visibility = _isExpanded ? Visibility.Visible : Visibility.Collapsed;
             }
 
-            _header.InvalidateVisual();
+            _header.UpdateDisclosure();
             InvalidateMeasure();
         }
 
@@ -112,10 +135,9 @@ namespace ManaUI
         /// </summary>
         private sealed class ExpanderHeader : Control
         {
-            private const float ChevronSize = 8.0f;
-
             private readonly Expander _owner;
             private readonly TextBlock _label = new();
+            private readonly TextBlock _disclosure = new();
             private readonly Grid _grid = new();
 
             private UiElement? _accessory;
@@ -130,10 +152,9 @@ namespace ManaUI
                 _grid.SetRows("Auto");
                 _grid.ColumnSpacing = 6.0f;
 
-                // Column 0 is left empty and sized to the chevron, which OnRender draws into. A spacer
-                // element would be one more thing to lay out for something that is two triangles wide.
-                _grid.Children.Add(new Border().Size(ChevronSize + 4.0f, ChevronSize).GridColumn(0));
+                _grid.Children.Add(_disclosure.Width(20.0f).CenterV().GridColumn(0));
                 _grid.Children.Add(_label.CenterV().GridColumn(1));
+                UpdateDisclosure();
 
                 Child = _grid;
                 Padding = new Thickness(4.0f, 3.0f);
@@ -143,6 +164,18 @@ namespace ManaUI
             {
                 get => _label.Text;
                 set => _label.Text = value;
+            }
+
+            public float TextSize
+            {
+                get => _label.FontSize;
+                set => _label.FontSize = value;
+            }
+
+            public void UpdateDisclosure()
+            {
+                _disclosure.Text = _owner.IsExpanded ? "🔽" : "▶️";
+                InvalidateVisual();
             }
 
             public UiElement? Accessory
@@ -175,38 +208,11 @@ namespace ManaUI
             {
                 var theme = Theme;
 
-                _label.Foreground = theme.Text;
+                _label.Foreground = _owner.HeaderForeground ?? theme.Text;
                 _label.FontFamily = theme.FontFamilyMedium;
 
-                drawList.FillRect(Bounds, ApplyStateOverlay(theme.Surface), theme.CornerRadius);
+                drawList.FillRect(Bounds, ApplyStateOverlay(_owner.HeaderBackground ?? theme.Surface), theme.CornerRadius);
                 RenderFocusRing(drawList, Bounds, theme.CornerRadius);
-                DrawChevron(drawList, theme);
-            }
-
-            /// <summary>
-            /// Two nested boxes rather than a glyph: the SDF primitive has no triangle, and a font-dependent
-            /// arrow would drift with the theme's font. Right-pointing when collapsed, down when expanded.
-            /// </summary>
-            private void DrawChevron(ManaUiDrawList drawList, UiTheme theme)
-            {
-                var content = Bounds.Deflate(ContentInset);
-                var centre = new Vector2(content.X + (ChevronSize + 4.0f) * 0.5f, content.Center.Y);
-                var color = IsEffectivelyEnabled ? theme.TextMuted : theme.TextDisabled;
-
-                var half = ChevronSize * 0.5f;
-                var corners = new CornerRadius(1.0f);
-
-                if (_owner.IsExpanded)
-                {
-                    drawList.FillRect(
-                        new UiRect(centre.X - half, centre.Y - 1.0f, ChevronSize, 2.0f), color, corners);
-                    drawList.FillRect(
-                        new UiRect(centre.X - 1.0f, centre.Y - half + 1.0f, 2.0f, ChevronSize - 2.0f), color, corners);
-                    return;
-                }
-
-                drawList.FillRect(
-                    new UiRect(centre.X - half, centre.Y - 1.0f, ChevronSize, 2.0f), color, corners);
             }
 
             protected override void OnPointerPressed(UiPointerEventArgs e)

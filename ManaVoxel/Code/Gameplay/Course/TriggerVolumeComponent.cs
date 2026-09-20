@@ -6,24 +6,29 @@ using System.Text.Json.Serialization;
 namespace ManaVoxel.Code.Gameplay.Course
 {
     /// <summary>
-    /// A box that notices the player walking into it. The base of every course piece -- coins, checkpoints,
-    /// hazards, the goal -- so each of those is only "what happens on enter".
+    /// A box that notices the player walking into it, and says so. It knows nothing about coins or damage: it owns
+    /// the volume (<see cref="Size"/> and <see cref="Offset"/>), the wireframe that shows it in the editor, and three
+    /// events. Whatever should happen when the player is inside -- a coin collected, a hazard hurting, a door opening
+    /// -- is a separate component on the same node that subscribes to those events (see
+    /// <see cref="ManaTriggerListenerComponent"/>).
     /// <para>
-    /// A plain overlap test each tick rather than a physics sensor: there is one player, so one box test
-    /// per trigger is cheaper than teaching the narrow phase about non-solid bodies, and it stays testable
-    /// without a physics world. Only ticks while the world is playing, so triggers are inert in the editor.
+    /// A plain overlap test each tick rather than a physics sensor: there is one player, so one box test per trigger
+    /// is cheaper than teaching the narrow phase about non-solid bodies, and it stays testable without a physics
+    /// world. Only ticks while the world is playing, so triggers are inert in the editor.
     /// </para>
     /// </summary>
-    public abstract class ManaTriggerComponent : ManaComponent
+    public sealed class TriggerVolumeComponent : ManaComponent
     {
-        // What the player's capsule is treated as: a box this wide and ReferenceHeight tall, feet at the
-        // node origin. Slightly generous is right for a trigger -- grazing a coin should collect it.
+        public const string ScriptType = "Trigger";
+
+        // What the player's capsule is treated as: a box this wide and ReferenceHeight tall, feet at the node origin.
+        // Slightly generous is right for a trigger -- grazing a coin should collect it.
         public const float PlayerRadius = 0.4f;
 
         private bool _playerInside;
         private readonly EditorVolumeMarker _marker;
 
-        protected ManaTriggerComponent(ManaSceneNode owner) : base(owner)
+        public TriggerVolumeComponent(ManaSceneNode owner) : base(owner)
         {
             _marker = new EditorVolumeMarker(owner);
         }
@@ -34,21 +39,33 @@ namespace ManaVoxel.Code.Gameplay.Course
         /// <summary>Centre of the volume relative to the node, so a coin's volume can sit around the model.</summary>
         public Vector3 Offset { get; set; }
 
+        /// <summary>
+        /// The colour of the editor wireframe, so different pieces can be told apart at a glance. Set by whatever
+        /// creates the trigger for a piece; not saved, since it is a hint for the editor and not part of the level.
+        /// </summary>
+        internal Vector4 EditorColor { get; set; } = new(1.0f, 1.0f, 1.0f, 1.0f);
+
         [JsonIgnore]
         public bool IsPlayerInside => _playerInside;
 
-        /// <summary>Colour of the editor wireframe, so the pieces can be told apart at a glance.</summary>
-        protected virtual Vector4 VolumeColor => new(1.0f, 1.0f, 1.0f, 1.0f);
-
         /// <summary>The editor wireframe, or null before the first tick. Exposed for tests.</summary>
         public ManaSceneNode? VolumeMarker => _marker.Node;
+
+        /// <summary>Raised on the tick the player steps into the volume.</summary>
+        public event Action<ManaPawnNode, ManaGameState>? PlayerEntered;
+
+        /// <summary>Raised on every tick the player is inside, after <see cref="PlayerEntered"/> -- how a damage volume keeps hurting.</summary>
+        public event Action<ManaPawnNode, ManaGameState>? PlayerStayed;
+
+        /// <summary>Raised on the tick the player leaves the volume.</summary>
+        public event Action<ManaPawnNode, ManaGameState>? PlayerExited;
 
         public override void UpdateComponent()
         {
             base.UpdateComponent();
 
             var world = Owner.Context.World;
-            _marker.Update(!world.IsPlaying, Size, Offset, VolumeColor);
+            _marker.Update(!world.IsPlaying, Size, Offset, EditorColor);
 
             var player = world.GameState.Player;
             if (!world.IsPlaying || player == null)
@@ -69,24 +86,24 @@ namespace ManaVoxel.Code.Gameplay.Course
             if (inside && !_playerInside)
             {
                 _playerInside = true;
-                OnPlayerEnter(player, state);
+                PlayerEntered?.Invoke(player, state);
             }
             else if (!inside && _playerInside)
             {
                 _playerInside = false;
-                OnPlayerExit(player, state);
+                PlayerExited?.Invoke(player, state);
             }
 
             if (_playerInside)
             {
-                OnPlayerStay(player, state);
+                PlayerStayed?.Invoke(player, state);
             }
         }
 
         public override void BeginPlay()
         {
             base.BeginPlay();
-            _marker.Update(false, Size, Offset, VolumeColor);
+            _marker.Update(false, Size, Offset, EditorColor);
         }
 
         public override void EndPlay()
@@ -95,23 +112,10 @@ namespace ManaVoxel.Code.Gameplay.Course
             base.EndPlay();
         }
 
-        protected virtual void OnPlayerEnter(ManaPawnNode player, ManaGameState state)
-        {
-        }
-
-        protected virtual void OnPlayerExit(ManaPawnNode player, ManaGameState state)
-        {
-        }
-
-        /// <summary>Every tick the player is inside, after enter -- how a damage volume keeps hurting.</summary>
-        protected virtual void OnPlayerStay(ManaPawnNode player, ManaGameState state)
-        {
-        }
-
         /// <summary>
-        /// Whether the player's box overlaps the trigger's. The player is moved into the trigger's own
-        /// frame (position and rotation, not scale) and the trigger grown by the player's half-extents, so
-        /// it is one point-in-box test however the trigger is turned.
+        /// Whether the player's box overlaps the trigger's. The player is moved into the trigger's own frame
+        /// (position and rotation, not scale) and the trigger grown by the player's half-extents, so it is one
+        /// point-in-box test however the trigger is turned.
         /// </summary>
         public static bool Contains(
             Matrix4x4 triggerWorld,

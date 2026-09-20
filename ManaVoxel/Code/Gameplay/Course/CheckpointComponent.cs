@@ -6,15 +6,16 @@ using System.Text.Json.Serialization;
 namespace ManaVoxel.Code.Gameplay.Course
 {
     /// <summary>Touch it and this becomes where the player comes back after a fall or a death.</summary>
-    public sealed class CheckpointComponent : ManaTriggerComponent
+    public sealed class CheckpointComponent : ManaTriggerListenerComponent
     {
-        protected override Vector4 VolumeColor => new(0.3f, 0.6f, 1.0f, 1.0f);
+        protected override Vector3 DefaultSize => new Vector3(3.0f, 3.0f, 3.0f);
+
+        protected override Vector4 DefaultColor => new(0.3f, 0.6f, 1.0f, 1.0f);
 
         public const string ScriptType = "Checkpoint";
 
         public CheckpointComponent(ManaSceneNode owner) : base(owner)
         {
-            Size = new Vector3(3.0f, 3.0f, 3.0f);
         }
 
         [JsonIgnore]
