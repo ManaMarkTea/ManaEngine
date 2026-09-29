@@ -53,7 +53,8 @@ namespace ManaVoxel.Code.Levels
                             Scale = settings.Scale,
                             Turn = settings.Turn,
                             Align = settings.Align.ToString(),
-                            Smooth = settings.Smooth
+                            Smooth = settings.Smooth,
+                            Offset = settings.Offset == Vector3.Zero ? null : new[] { settings.Offset.X, settings.Offset.Y, settings.Offset.Z }
                         })
                         .ToList(),
                 Layers = onlyDefaultLayer
@@ -147,7 +148,8 @@ namespace ManaVoxel.Code.Levels
                     Scale = tile.Scale,
                     Turn = tile.Turn,
                     Align = Enum.TryParse<GridMapAlign>(tile.Align, ignoreCase: true, out var align) ? align : GridMapAlign.Model,
-                    Smooth = tile.Smooth
+                    Smooth = tile.Smooth,
+                    Offset = tile.Offset is { Length: >= 3 } offset ? new Vector3(offset[0], offset[1], offset[2]) : Vector3.Zero
                 })
                 .ToList();
 

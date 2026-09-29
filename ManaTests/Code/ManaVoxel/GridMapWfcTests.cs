@@ -81,6 +81,24 @@ public static class GridMapWfcChecks
         Check("and keeping to one piece keeps most of them", planned.Average(RoomsIn) >= 4.0, $"{planned.Average(RoomsIn):0.0}");
         Check("the same seed still lays the same rooms", GridMapWfc.Solve(rules, 24, 24, seed: 3, rooms: 5).Placements.SequenceEqual(planned[2].Placements));
 
+        // Big rooms, built from pieces at any size, laid before the rest: kept, whole, and met at every door.
+        var withBig = Enumerable.Range(1, 6).Select(s => GridMapWfc.Solve(rules, 30, 30, seed: s, rooms: 2, bigRooms: 2)).ToList();
+        Check("big rooms are laid, and kept", withBig.All(r => r.Succeeded) && withBig.Average(r => r.BigRooms.Count) >= 1.5,
+            string.Join(", ", withBig.Select(r => $"{r.BigRooms.Count}{(r.Succeeded ? "" : " failed")}")));
+        Check("each as big as the rules ask",
+            withBig.SelectMany(r => r.BigRooms).All(room => room.Width is >= 5 and <= 10 && room.Depth is >= 5 and <= 10),
+            string.Join(", ", withBig.SelectMany(r => r.BigRooms).Select(room => $"{room.Width}x{room.Depth}")));
+        Check("with every door met by a corridor and nothing else touching the room but walls",
+            withBig.Where(r => r.Succeeded).All(r => Mismatches(rules, r.Placements, 30, 30, r.BigRooms).Count == 0),
+            string.Join("; ", withBig.Where(r => r.Succeeded).SelectMany(r => Mismatches(rules, r.Placements, 30, 30, r.BigRooms)).Take(4)));
+
+        // Big areas have to stay quick: a 60x60 dungeon used to take long enough to look hung.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var big = GridMapWfc.Solve(rules, 60, 60, seed: 5, rooms: 12);
+        clock.Stop();
+        Check("a 60x60 dungeon generates in a couple of seconds", big.Succeeded && clock.Elapsed.TotalSeconds < 3.0,
+            $"{clock.Elapsed.TotalSeconds:0.00}s, {big.Placements.Count} tiles, {big.Attempts} attempts; {big.Error}");
+
         // A room painted first stays where it was, and the rest is built round it.
         var small = rules.Tiles.FindIndex(tile => tile.Name == "Small room");
         var kept = GridMapWfc.Solve(rules, 16, 16, seed: 3, keep: [new GridMapWfc.Fixed(6, 6, small, 0)], connectedOnly: false);
@@ -214,7 +232,8 @@ public static class GridMapWfcChecks
     /// cells it covers. Cells no tile covers are the rules' empty tile. Then each pair of neighbours, and each
     /// side facing out, is checked.
     /// </summary>
-    private static List<string> Mismatches(GridMapWfcRules rules, IReadOnlyList<GridMapWfcPlacement> placements, int width, int depth)
+    private static List<string> Mismatches(GridMapWfcRules rules, IReadOnlyList<GridMapWfcPlacement> placements, int width, int depth,
+        IReadOnlyList<GridMapWfc.Room>? bigRooms = null)
     {
         var steps = new[] { (1, 0), (0, -1), (-1, 0), (0, 1) };
         var empty = rules.Tiles.First(tile => tile.Asset == null);
@@ -247,6 +266,30 @@ public static class GridMapWfcChecks
                     {
                         var inside = x + steps[side].Item1 >= 0 && x + steps[side].Item1 < tile.Width && z + steps[side].Item2 >= 0 && z + steps[side].Item2 < tile.Depth;
                         labels[cx, cz, (side + placement.Orientation) % 4] = inside ? null : tile.Socket(side, side is 0 or 2 ? z : x);
+                    }
+                }
+            }
+        }
+
+        // A big room's cells: nothing inside between them, "wall" outward, the joining label at each door.
+        foreach (var room in bigRooms ?? [])
+        {
+            for (var x = room.X; x < room.X + room.Width; x++)
+            {
+                for (var z = room.Z; z < room.Z + room.Depth; z++)
+                {
+                    if (covered[x, z])
+                    {
+                        problems.Add($"a tile on big room cell ({x},{z})");
+                    }
+
+                    covered[x, z] = true;
+                    for (var side = 0; side < 4; side++)
+                    {
+                        var nx = x + steps[side].Item1;
+                        var nz = z + steps[side].Item2;
+                        var inside = nx >= room.X && nx < room.X + room.Width && nz >= room.Z && nz < room.Z + room.Depth;
+                        labels[x, z, side] = inside ? null : room.Doors.Contains((x, z, side)) ? rules.Connects : rules.Boundary;
                     }
                 }
             }

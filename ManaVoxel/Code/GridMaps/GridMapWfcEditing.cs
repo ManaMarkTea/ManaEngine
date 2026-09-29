@@ -75,6 +75,9 @@ namespace ManaVoxel.Code.GridMaps
         /// <summary>How many rooms to lay before the rest is generated round them; see GridMapWfc.Solve.</summary>
         public static int Rooms { get; set; } = 4;
 
+        /// <summary>How many big rooms, built from the rules' room pieces, to lay first; see GridMapWfcBigRooms.</summary>
+        public static int BigRooms { get; set; } = 2;
+
         /// <summary>What the last generate did, for the window to say.</summary>
         public static string Status { get; set; } = string.Empty;
 

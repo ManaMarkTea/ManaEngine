@@ -264,5 +264,16 @@
       },
       "smooth": 0.06
     }
-  ]
+  ],
+  "bigRooms": {
+    "floor": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/template-floor.glb",
+    "wall": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/template-wall.glb",
+    "corner": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/template-corner.glb",
+    "wallTurn": 0,
+    "cornerTurn": 0,
+    "wallOffset": 0.5,
+    "minSize": 5,
+    "maxSize": 10,
+    "smooth": 0.06
+  }
 }

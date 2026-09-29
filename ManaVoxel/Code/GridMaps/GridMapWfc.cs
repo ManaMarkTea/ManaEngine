@@ -75,6 +75,42 @@ namespace ManaVoxel.Code.GridMaps
         };
     }
 
+    /// <summary>
+    /// Rooms of any size, built from pieces rather than modelled whole: a floor for every cell, a wall along
+    /// each edge cell's outer side, a corner piece in each corner, and a gap in the wall for each door. The
+    /// generator lays them before the collapse, which then only has to reach their doors.
+    /// </summary>
+    public sealed class GridMapWfcBigRooms
+    {
+        /// <summary>A floor tile, laid in every cell but the corners.</summary>
+        public string? Floor { get; set; }
+
+        /// <summary>A straight wall, laid in each edge cell on a second layer so the floor stays under it.</summary>
+        public string? Wall { get; set; }
+
+        /// <summary>A corner piece, with its own floor, laid in each corner cell.</summary>
+        public string? Corner { get; set; }
+
+        /// <summary>Quarter turns that face the wall's outside to +Z (south), as the corner's outsides are +X and +Z.</summary>
+        public int WallTurn { get; set; }
+
+        public int CornerTurn { get; set; }
+
+        /// <summary>How far the wall is moved towards the outside, in cells -- a kit wall is built to stand on the line between cells.</summary>
+        public float WallOffset { get; set; } = 0.5f;
+
+        /// <summary>Cells across, and deep, a room can be: at least 3, so every side has a middle for a door.</summary>
+        public int MinSize { get; set; } = 5;
+
+        public int MaxSize { get; set; } = 9;
+
+        /// <summary>Collider flat below this height, as for a tile; see GridMapItemSettings.Smooth.</summary>
+        public float Smooth { get; set; }
+
+        [JsonIgnore]
+        public bool IsUsable => !string.IsNullOrWhiteSpace(Floor);
+    }
+
     /// <summary>A generator's rules, as saved to a .manawfc file.</summary>
     public sealed class GridMapWfcRules
     {
@@ -94,6 +130,9 @@ namespace ManaVoxel.Code.GridMaps
         public string Connects { get; set; } = "open";
 
         public List<GridMapWfcTile> Tiles { get; set; } = new();
+
+        /// <summary>Pieces big rooms are built from, when the rules have them.</summary>
+        public GridMapWfcBigRooms? BigRooms { get; set; }
 
         private static readonly JsonSerializerOptions Json = new()
         {
@@ -135,8 +174,13 @@ namespace ManaVoxel.Code.GridMaps
         /// <summary>Steps across each side, in turn order, as for <see cref="GridMapAutoTile.Neighbours"/>.</summary>
         private static readonly (int X, int Z)[] Steps = [(1, 0), (0, -1), (-1, 0), (0, 1)];
 
+        /// <summary>A big room laid: its first cell, its size, and its door cells with the side each opens on.</summary>
+        public sealed record Room(int X, int Z, int Width, int Depth, IReadOnlyList<(int X, int Z, int Side)> Doors);
+
         public sealed record Result(IReadOnlyList<GridMapWfcPlacement> Placements, int Attempts, string? Error)
         {
+            public IReadOnlyList<Room> BigRooms { get; init; } = [];
+
             public bool Succeeded => Error == null;
         }
 
@@ -156,7 +200,8 @@ namespace ManaVoxel.Code.GridMaps
             IReadOnlyList<Fixed>? keep = null,
             bool connectedOnly = true,
             int maxAttempts = 40,
-            int rooms = 0)
+            int rooms = 0,
+            int bigRooms = 0)
         {
             if (width < 1 || depth < 1 || width > MaxSize || depth > MaxSize)
             {
@@ -174,7 +219,8 @@ namespace ManaVoxel.Code.GridMaps
             // the most tiles, wins. Solves take milliseconds; a dungeon with its rooms cut away is the cost here.
             var wanted = connectedOnly ? Math.Clamp(Candidates, 1, maxAttempts) : 1;
             List<GridMapWfcPlacement>? best = null;
-            var bestScore = (-1, -1);
+            List<Room> bestRooms = [];
+            var bestScore = (-1, -1, -1);
             var attempts = 0;
             for (var attempt = 0; attempt < maxAttempts && wanted > 0; attempt++)
             {
@@ -183,26 +229,29 @@ namespace ManaVoxel.Code.GridMaps
                 // Not HashCode.Combine: that is seeded afresh every run, and a seed has to lay the same dungeon
                 // tomorrow as today.
                 var random = new Random(unchecked(seed * 7919 + attempt * 104729));
-                var pinned = (keep ?? []).Concat(PlaceRooms(rules, width, depth, rooms, keep ?? [], random)).ToList();
-                var solver = new Solver(model, rules, width, depth, random);
+                var big = PlaceBigRooms(rules, width, depth, bigRooms, keep ?? [], random);
+                var pinned = (keep ?? []).Concat(PlaceRooms(rules, width, depth, rooms, keep ?? [], random, big)).ToList();
+                var blocked = BlockedCells(rules, big, width, depth);
+                var solver = new Solver(model, rules, width, depth, random, blocked);
                 if (solver.Run(pinned) is not { } parts)
                 {
                     continue;
                 }
 
                 wanted--;
-                var placed = Place(model, rules, parts, width, depth, connectedOnly);
-                var score = (placed.Count(p => rules.Tiles[p.Tile].Width * rules.Tiles[p.Tile].Depth > 1), placed.Count);
+                var (placed, keptRooms) = Place(model, rules, parts, width, depth, connectedOnly, blocked, big);
+                var score = (keptRooms.Count, placed.Count(p => rules.Tiles[p.Tile].Width * rules.Tiles[p.Tile].Depth > 1), placed.Count);
                 if (score.CompareTo(bestScore) > 0)
                 {
                     best = placed;
+                    bestRooms = keptRooms;
                     bestScore = score;
                 }
             }
 
             if (best != null)
             {
-                return new Result(best, attempts, null);
+                return new Result(best, attempts, null) { BigRooms = bestRooms };
             }
 
             return new Result([], maxAttempts, "No arrangement fits these rules here. Try another seed, a bigger area, or rules with more ways to join.");
@@ -214,7 +263,8 @@ namespace ManaVoxel.Code.GridMaps
         /// to the collapse alone a big tile rarely wins -- every one of its cells has to agree at once -- and a
         /// dungeon comes out as corridors. The collapse then builds the rest round them.
         /// </summary>
-        private static List<Fixed> PlaceRooms(GridMapWfcRules rules, int width, int depth, int count, IReadOnlyList<Fixed> keep, Random random)
+        private static List<Fixed> PlaceRooms(
+            GridMapWfcRules rules, int width, int depth, int count, IReadOnlyList<Fixed> keep, Random random, IReadOnlyList<Room> bigRooms)
         {
             var rooms = new List<Fixed>();
             var candidates = Enumerable.Range(0, rules.Tiles.Count)
@@ -232,6 +282,11 @@ namespace ManaVoxel.Code.GridMaps
                 var tile = rules.Tiles[fix.Tile];
                 var (w, d) = fix.Orientation % 2 == 0 ? (tile.Width, tile.Depth) : (tile.Depth, tile.Width);
                 Mark(fix.X, fix.Z, w, d, margin: 0);
+            }
+
+            foreach (var room in bigRooms)
+            {
+                Mark(room.X, room.Z, room.Width, room.Depth, margin: 1);
             }
 
             var totalWeight = candidates.Sum(t => rules.Tiles[t].Weight);
@@ -300,14 +355,20 @@ namespace ManaVoxel.Code.GridMaps
             }
         }
 
-        private static List<GridMapWfcPlacement> Place(Model model, GridMapWfcRules rules, int[] parts, int width, int depth, bool connectedOnly)
+        private static (List<GridMapWfcPlacement> Placements, List<Room> Rooms) Place(
+            Model model, GridMapWfcRules rules, int[] parts, int width, int depth, bool connectedOnly, string[]?[] blocked, IReadOnlyList<Room> bigRooms)
         {
-            var keep = connectedOnly ? LargestJoined(model, rules, parts, width, depth) : null;
+            var keep = connectedOnly ? LargestJoined(model, rules, parts, width, depth, blocked) : null;
             var placements = new List<GridMapWfcPlacement>();
             for (var z = 0; z < depth; z++)
             {
                 for (var x = 0; x < width; x++)
                 {
+                    if (parts[x + z * width] < 0)
+                    {
+                        continue;
+                    }
+
                     var part = model.Parts[parts[x + z * width]];
                     if (part.X == 0 && part.Z == 0 && rules.Tiles[part.Tile].Asset != null && (keep == null || keep[x + z * width]))
                     {
@@ -316,11 +377,123 @@ namespace ManaVoxel.Code.GridMaps
                 }
             }
 
-            return placements;
+            var rooms = bigRooms.Where(room => keep == null || keep[room.X + room.Z * width]).ToList();
+            return (placements, rooms);
+        }
+
+        /// <summary>
+        /// Big rooms at random sizes and places, a cell clear of the area's edge and of each other, with a door in
+        /// the middle stretch of each side. Kept tiles are left room round too.
+        /// </summary>
+        private static List<Room> PlaceBigRooms(GridMapWfcRules rules, int width, int depth, int count, IReadOnlyList<Fixed> keep, Random random)
+        {
+            var rooms = new List<Room>();
+            if (count <= 0 || rules.BigRooms is not { IsUsable: true } kit)
+            {
+                return rooms;
+            }
+
+            var min = Math.Max(3, Math.Min(kit.MinSize, kit.MaxSize));
+            var max = Math.Max(min, kit.MaxSize);
+            var taken = new bool[width, depth];
+            foreach (var fix in keep)
+            {
+                var tile = rules.Tiles[fix.Tile];
+                var (w, d) = fix.Orientation % 2 == 0 ? (tile.Width, tile.Depth) : (tile.Depth, tile.Width);
+                for (var i = Math.Max(0, fix.X - 1); i < Math.Min(width, fix.X + w + 1); i++)
+                {
+                    for (var j = Math.Max(0, fix.Z - 1); j < Math.Min(depth, fix.Z + d + 1); j++)
+                    {
+                        taken[i, j] = true;
+                    }
+                }
+            }
+
+            for (var tries = 0; rooms.Count < count && tries < count * 40; tries++)
+            {
+                var w = random.Next(min, max + 1);
+                var d = random.Next(min, max + 1);
+                if (w + 2 > width || d + 2 > depth)
+                {
+                    continue;
+                }
+
+                var x = 1 + random.Next(width - w - 1);
+                var z = 1 + random.Next(depth - d - 1);
+                var free = true;
+                for (var i = x - 1; i <= x + w && free; i++)
+                {
+                    for (var j = z - 1; j <= z + d && free; j++)
+                    {
+                        free = !taken[i, j];
+                    }
+                }
+
+                if (!free)
+                {
+                    continue;
+                }
+
+                for (var i = x - 1; i <= x + w; i++)
+                {
+                    for (var j = z - 1; j <= z + d; j++)
+                    {
+                        taken[i, j] = true;
+                    }
+                }
+
+                // One door a side, somewhere along it but never in a corner, which has no straight wall to open.
+                var doors = new List<(int X, int Z, int Side)>
+                {
+                    (x + w - 1, z + random.Next(1, d - 1), 0),
+                    (x + random.Next(1, w - 1), z, 1),
+                    (x, z + random.Next(1, d - 1), 2),
+                    (x + random.Next(1, w - 1), z + d - 1, 3)
+                };
+                rooms.Add(new Room(x, z, w, d, doors));
+            }
+
+            return rooms;
+        }
+
+        /// <summary>
+        /// The big rooms' cells, each with the labels its sides show: its own room inside (a label nothing else
+        /// has), wall on the outside, and the joining label at a door -- so the collapse has to meet every door
+        /// with a corridor and may put its back to the walls.
+        /// </summary>
+        private static string[]?[] BlockedCells(GridMapWfcRules rules, IReadOnlyList<Room> rooms, int width, int depth)
+        {
+            var blocked = new string[]?[width * depth];
+            var join = string.IsNullOrWhiteSpace(rules.Connects) ? "open" : rules.Connects.Trim();
+            var wall = string.IsNullOrWhiteSpace(rules.Boundary) ? DefaultSocket : rules.Boundary.Trim();
+            for (var r = 0; r < rooms.Count; r++)
+            {
+                var room = rooms[r];
+                for (var x = room.X; x < room.X + room.Width; x++)
+                {
+                    for (var z = room.Z; z < room.Z + room.Depth; z++)
+                    {
+                        var sockets = new string[4];
+                        for (var side = 0; side < 4; side++)
+                        {
+                            var nx = x + Steps[side].X;
+                            var nz = z + Steps[side].Z;
+                            var inside = nx >= room.X && nx < room.X + room.Width && nz >= room.Z && nz < room.Z + room.Depth;
+                            sockets[side] = inside ? $"#room{r}"
+                                : room.Doors.Contains((x, z, side)) ? join
+                                : wall;
+                        }
+
+                        blocked[x + z * width] = sockets;
+                    }
+                }
+            }
+
+            return blocked;
         }
 
         /// <summary>The cells of the biggest group joined through the connecting label or through a tile's own parts.</summary>
-        private static bool[]? LargestJoined(Model model, GridMapWfcRules rules, int[] parts, int width, int depth)
+        private static bool[]? LargestJoined(Model model, GridMapWfcRules rules, int[] parts, int width, int depth, string[]?[] blocked)
         {
             var join = rules.Connects?.Trim();
             if (string.IsNullOrEmpty(join))
@@ -334,7 +507,7 @@ namespace ManaVoxel.Code.GridMaps
             var queue = new Queue<int>();
             for (var start = 0; start < group.Length; start++)
             {
-                if (group[start] >= 0 || rules.Tiles[model.Parts[parts[start]].Tile].Asset == null)
+                if (group[start] >= 0 || (blocked[start] == null && rules.Tiles[model.Parts[parts[start]].Tile].Asset == null))
                 {
                     continue;
                 }
@@ -347,10 +520,11 @@ namespace ManaVoxel.Code.GridMaps
                 {
                     var cell = queue.Dequeue();
                     sizes[id]++;
-                    var part = model.Parts[parts[cell]];
+                    // A big room's cells carry their labels themselves; a tile's come from its part.
+                    var sockets = blocked[cell] ?? model.Parts[parts[cell]].Sockets;
                     for (var side = 0; side < 4; side++)
                     {
-                        var label = part.Sockets[side];
+                        var label = sockets[side];
                         if (label != join && !label.StartsWith('#'))
                         {
                             continue;
@@ -505,8 +679,20 @@ namespace ManaVoxel.Code.GridMaps
             private readonly int[] _counts;
             private readonly Stack<int> _pending = new();
 
-            public Solver(Model model, GridMapWfcRules rules, int width, int depth, Random random)
+            // Each cell's weighted choice, kept up to date as its choices narrow, and a fixed tie-break per cell.
+            // Recomputing every cell's on every step made the search grow with the fourth power of the side:
+            // 13 seconds for 60x60.
+            private readonly double[] _entropy;
+            private readonly double[] _noise;
+            private readonly double[] _weights;
+            private readonly double[] _weightLogs;
+
+            // Big rooms' cells: out of the collapse, but their labels still say what may stand beside them.
+            private readonly string[]?[] _blocked;
+
+            public Solver(Model model, GridMapWfcRules rules, int width, int depth, Random random, string[]?[] blocked)
             {
+                _blocked = blocked;
                 _model = model;
                 _rules = rules;
                 _width = width;
@@ -515,6 +701,15 @@ namespace ManaVoxel.Code.GridMaps
                 _words = model.Words;
                 _domains = new ulong[width * depth * _words];
                 _counts = new int[width * depth];
+                _entropy = new double[width * depth];
+                _noise = new double[width * depth];
+                for (var cell = 0; cell < _noise.Length; cell++)
+                {
+                    _noise[cell] = random.NextDouble() * 1e-6;
+                }
+
+                _weights = model.Parts.Select(part => part.Weight).ToArray();
+                _weightLogs = _weights.Select(weight => weight * Math.Log(weight)).ToArray();
             }
 
             public int[]? Run(IReadOnlyList<Fixed> keep)
@@ -522,17 +717,24 @@ namespace ManaVoxel.Code.GridMaps
                 var boundary = _rules.Boundary?.Trim() ?? string.Empty;
                 for (var cell = 0; cell < _counts.Length; cell++)
                 {
+                    if (_blocked[cell] != null)
+                    {
+                        // Settled already: counted as one choice, so it is never picked or run out of choices.
+                        _counts[cell] = 1;
+                        continue;
+                    }
+
                     var x = cell % _width;
                     var z = cell / _width;
                     for (var p = 0; p < _model.Parts.Count; p++)
                     {
-                        if (FacesOutOk(_model.Parts[p], x, z, boundary))
+                        if (FacesOutOk(_model.Parts[p], x, z, boundary) && FitsBlocked(_model.Parts[p], x, z))
                         {
                             _domains[cell * _words + (p >> 6)] |= 1UL << (p & 63);
                         }
                     }
 
-                    _counts[cell] = Count(cell);
+                    Refresh(cell);
                     if (_counts[cell] == 0)
                     {
                         return null;
@@ -572,10 +774,27 @@ namespace ManaVoxel.Code.GridMaps
                 var result = new int[_counts.Length];
                 for (var cell = 0; cell < result.Length; cell++)
                 {
-                    result[cell] = First(cell);
+                    result[cell] = _blocked[cell] != null ? -1 : First(cell);
                 }
 
                 return result;
+            }
+
+            // Beside a big room, a part has to show the room the label the room shows it.
+            private bool FitsBlocked(Part part, int x, int z)
+            {
+                for (var side = 0; side < 4; side++)
+                {
+                    var nx = x + Steps[side].X;
+                    var nz = z + Steps[side].Z;
+                    if (nx >= 0 && nz >= 0 && nx < _width && nz < _depth && _blocked[nx + nz * _width] is { } room
+                        && room[(side + 2) % 4] != part.Sockets[side])
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
 
             // A side facing out of the area may never be half of a tile, and must carry the boundary label if
@@ -680,6 +899,11 @@ namespace ManaVoxel.Code.GridMaps
                         }
 
                         var next = nx + nz * _width;
+                        if (_blocked[next] != null)
+                        {
+                            continue;
+                        }
+
                         var target = _domains.AsSpan(next * _words, _words);
                         var changed = false;
                         for (var w = 0; w < _words; w++)
@@ -694,7 +918,7 @@ namespace ManaVoxel.Code.GridMaps
 
                         if (changed)
                         {
-                            _counts[next] = Count(next);
+                            Refresh(next);
                             if (_counts[next] == 0)
                             {
                                 return false;
@@ -720,7 +944,7 @@ namespace ManaVoxel.Code.GridMaps
                         continue;
                     }
 
-                    var entropy = Entropy(cell) + _random.NextDouble() * 1e-6;
+                    var entropy = _entropy[cell] + _noise[cell];
                     if (entropy < bestEntropy)
                     {
                         bestEntropy = entropy;
@@ -731,18 +955,27 @@ namespace ManaVoxel.Code.GridMaps
                 return best;
             }
 
-            private double Entropy(int cell)
+            /// <summary>Re-reads a cell's count and weighted choice after its choices changed.</summary>
+            private void Refresh(int cell)
             {
+                var count = 0;
                 double sum = 0.0;
                 double sumLog = 0.0;
-                foreach (var p in Members(cell))
+                for (var word = 0; word < _words; word++)
                 {
-                    var weight = _model.Parts[p].Weight;
-                    sum += weight;
-                    sumLog += weight * Math.Log(weight);
+                    var bits = _domains[cell * _words + word];
+                    while (bits != 0)
+                    {
+                        var p = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                        bits &= bits - 1;
+                        count++;
+                        sum += _weights[p];
+                        sumLog += _weightLogs[p];
+                    }
                 }
 
-                return Math.Log(sum) - sumLog / sum;
+                _counts[cell] = count;
+                _entropy[cell] = count > 1 ? Math.Log(sum) - sumLog / sum : 0.0;
             }
 
             private void Collapse(int cell)

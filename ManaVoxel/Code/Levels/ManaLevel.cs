@@ -325,6 +325,9 @@ namespace ManaVoxel.Code.Levels
 
         /// <summary>Collider flat below this height, in the model's units; see GridMapItemSettings.Smooth.</summary>
         public float Smooth { get; set; }
+
+        /// <summary>The model's shift within its tile, in cells; see GridMapItemSettings.Offset. Absent when none.</summary>
+        public float[]? Offset { get; set; }
     }
 
     /// <summary>

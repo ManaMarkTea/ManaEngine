@@ -65,6 +65,12 @@ namespace ManaVoxel.Code.GridMaps
         /// </summary>
         public float Smooth { get; init; }
 
+        /// <summary>
+        /// A shift of the model within its tile, in cells, before the tile is turned. A kit's walls are built to
+        /// stand on the line between two floor tiles, half a cell from where a grid cell's centre puts them.
+        /// </summary>
+        public Vector3 Offset { get; init; }
+
         public bool Fits => Scale <= 0.0f;
     }
 
@@ -391,6 +397,7 @@ namespace ManaVoxel.Code.GridMaps
                 Depth = Math.Clamp(settings.Depth, 1, 32),
                 Scale = float.IsFinite(settings.Scale) ? MathF.Max(0.0f, settings.Scale) : 0.0f,
                 Smooth = float.IsFinite(settings.Smooth) ? MathF.Max(0.0f, settings.Smooth) : 0.0f,
+                Offset = float.IsFinite(settings.Offset.X + settings.Offset.Y + settings.Offset.Z) ? settings.Offset : Vector3.Zero,
                 Turn = WrapOrientation(settings.Turn)
             };
             if (_settings[item] == settings)
@@ -868,6 +875,11 @@ namespace ManaVoxel.Code.GridMaps
             {
                 var deep = (settings.Turn % 2 == 0 ? size.Z : size.X) * scale;
                 model *= Matrix4x4.CreateTranslation(0.0f, 0.0f, (deep - settings.Depth * _cellSize.Z) * 0.5f);
+            }
+
+            if (settings.Offset != Vector3.Zero)
+            {
+                model *= Matrix4x4.CreateTranslation(settings.Offset * _cellSize);
             }
 
             return model;

@@ -508,13 +508,24 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             smooth.WithTooltip("Collision is flat below this height, in the model's units: rubble and cracks stop catching feet. 0 keeps every bump.");
 
+            var offset = InspectorControls.Vector(() => Current().Offset, value =>
+            {
+                var item = GridMapEditing.Brush;
+                if ((uint)item < (uint)gridMap.Palette.Count && value != Current().Offset)
+                {
+                    RecordWholeGrid(context, gridMap, "Tile offset", () => gridMap.SetItemSettings(item, gridMap.ItemSettings(item) with { Offset = value }));
+                }
+            }, 0.05f);
+            offset.WithTooltip("Shift the model within its tile, in cells, before it is turned -- a wall onto the line between cells.");
+
             var section = new StackPanel().Vertical(theme.Spacing).Children(
                 name,
                 Row(theme, "Size", size),
                 Row(theme, "Scale", new Grid().Columns("Auto, *", theme.Spacing).Rows("Auto").Children(fit.CenterV().GridColumn(0), scale.GridColumn(1))),
                 Row(theme, "Turn", turn),
                 Row(theme, "Align", align),
-                Row(theme, "Smooth", smooth));
+                Row(theme, "Smooth", smooth),
+                Row(theme, "Offset", offset));
             section.BindPolled(panel => panel.IsEnabled, () => HasBrush(gridMap));
 
             var frame = new Border().Outline(theme.Border, 1.0f).Rounded(3.0f).PaddingOf(theme.Spacing, theme.Spacing).Content(section);

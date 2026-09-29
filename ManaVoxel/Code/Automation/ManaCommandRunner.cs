@@ -246,8 +246,10 @@ namespace ManaVoxel.Code.Automation
             GridMapWfcEditing.Seed = command.Seed;
             var result = GridMapWfcGenerator.Generate(map, GridMapWfcEditing.Rules,
                 new GridMapWfcGenerator.Area(0, 0, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, 0), command.Seed, keepPainted: false, connectedOnly: true,
-                rooms: GridMapWfcEditing.Rooms);
+                rooms: GridMapWfcEditing.Rooms, bigRooms: GridMapWfcEditing.BigRooms);
             GridMapWfcEditing.Status = result.Succeeded ? $"{result.Placements.Count} tiles" : result.Error ?? "";
+            ManaConsole.WriteDiagnostic("Command file: grid_generate big rooms: "
+                + string.Join(", ", result.BigRooms.Select(room => $"({room.X},{room.Z}) {room.Width}x{room.Depth}")));
         }
 
         private void ApplySelectNode(ManaCommand command)

@@ -16,7 +16,8 @@ namespace ManaVoxel.Code.GridMaps
         public sealed record Area(int X, int Z, int Width, int Depth, int Floor);
 
         /// <summary>Generates into the map, replacing the area. The caller records the undo step.</summary>
-        public static GridMapWfc.Result Generate(ManaGridMapNode gridMap, GridMapWfcRules rules, Area area, int seed, bool keepPainted, bool connectedOnly, int rooms = 0)
+        public static GridMapWfc.Result Generate(
+            ManaGridMapNode gridMap, GridMapWfcRules rules, Area area, int seed, bool keepPainted, bool connectedOnly, int rooms = 0, int bigRooms = 0)
         {
             // Each tile's model is a palette item, sized to the cells the rules say it covers.
             var items = new int[rules.Tiles.Count];
@@ -38,18 +39,16 @@ namespace ManaVoxel.Code.GridMaps
             }
 
             var keep = keepPainted ? Painted(gridMap, rules, items, area) : [];
-            var result = GridMapWfc.Solve(rules, area.Width, area.Depth, seed, keep, connectedOnly, rooms: rooms);
+            var result = GridMapWfc.Solve(rules, area.Width, area.Depth, seed, keep, connectedOnly, rooms: rooms, bigRooms: bigRooms);
             if (!result.Succeeded)
             {
                 return result;
             }
 
-            for (var z = 0; z < area.Depth; z++)
+            ClearArea(gridMap, area);
+            if (WallsLayer(gridMap, create: false) is { } walls)
             {
-                for (var x = 0; x < area.Width; x++)
-                {
-                    gridMap.ClearTile(new GridMapCell(area.X + x, area.Floor, area.Z + z));
-                }
+                OnLayer(gridMap, walls, () => ClearArea(gridMap, area));
             }
 
             foreach (var placement in result.Placements)
@@ -61,7 +60,145 @@ namespace ManaVoxel.Code.GridMaps
                 }
             }
 
+            if (result.BigRooms.Count > 0 && rules.BigRooms is { IsUsable: true } kit)
+            {
+                LayBigRooms(gridMap, kit, result.BigRooms, area);
+            }
+
             return result;
+        }
+
+        private static void ClearArea(ManaGridMapNode gridMap, Area area)
+        {
+            for (var z = 0; z < area.Depth; z++)
+            {
+                for (var x = 0; x < area.Width; x++)
+                {
+                    gridMap.ClearTile(new GridMapCell(area.X + x, area.Floor, area.Z + z));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Builds each big room from the kit's pieces: a floor in every cell, a corner piece in each corner, and on
+        /// the walls layer a wall along every edge cell's outside but where a door is. A cell holds one tile a
+        /// layer, and an edge cell needs a floor and a wall, so the walls go on a layer of their own.
+        /// </summary>
+        private static void LayBigRooms(ManaGridMapNode gridMap, GridMapWfcBigRooms kit, IReadOnlyList<GridMapWfc.Room> rooms, Area area)
+        {
+            int Item(string? asset, GridMapItemSettings settings)
+            {
+                if (string.IsNullOrWhiteSpace(asset))
+                {
+                    return -1;
+                }
+
+                var item = gridMap.AddPaletteItem(asset);
+                if (gridMap.ItemSettings(item) != settings)
+                {
+                    gridMap.SetItemSettings(item, settings);
+                }
+
+                return item;
+            }
+
+            var floor = Item(kit.Floor, GridMapItemSettings.Default with { Smooth = kit.Smooth });
+            var corner = Item(kit.Corner, GridMapItemSettings.Default with { Smooth = kit.Smooth });
+            var wall = Item(kit.Wall, GridMapItemSettings.Default with { Offset = new Vector3(0.0f, 0.0f, kit.WallOffset) });
+            var walls = wall >= 0 ? WallsLayer(gridMap, create: true) : null;
+
+            foreach (var room in rooms)
+            {
+                for (var x = room.X; x < room.X + room.Width; x++)
+                {
+                    for (var z = room.Z; z < room.Z + room.Depth; z++)
+                    {
+                        // Which sides of the room this cell is on: its outsides.
+                        var outside = GridMapSides.None;
+                        outside |= x == room.X + room.Width - 1 ? GridMapSides.East : GridMapSides.None;
+                        outside |= z == room.Z ? GridMapSides.North : GridMapSides.None;
+                        outside |= x == room.X ? GridMapSides.West : GridMapSides.None;
+                        outside |= z == room.Z + room.Depth - 1 ? GridMapSides.South : GridMapSides.None;
+                        var cell = new GridMapCell(area.X + x, area.Floor, area.Z + z);
+
+                        if (GridMapAutoTile.Count(outside) == 2 && corner >= 0)
+                        {
+                            gridMap.SetTile(cell, new GridMapTile(corner, kit.CornerTurn + TurnFor(GridMapSides.East | GridMapSides.South, outside)));
+                            continue;
+                        }
+
+                        if (floor >= 0)
+                        {
+                            gridMap.SetTile(cell, new GridMapTile(floor, 0));
+                        }
+
+                        if (outside == GridMapSides.None || walls is not { } layer)
+                        {
+                            continue;
+                        }
+
+                        foreach (var (side, _, _) in GridMapAutoTile.Neighbours)
+                        {
+                            var index = Array.FindIndex(GridMapAutoTile.Neighbours, n => n.Side == side);
+                            if (outside.HasFlag(side) && !room.Doors.Contains((x, z, index)))
+                            {
+                                OnLayer(gridMap, layer, () => gridMap.SetTile(cell, new GridMapTile(wall, kit.WallTurn + TurnFor(GridMapSides.South, side))));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>The quarter turns that take sides as modelled to the sides wanted.</summary>
+        private static int TurnFor(GridMapSides modelled, GridMapSides wanted)
+        {
+            for (var turn = 0; turn < ManaGridMapNode.OrientationCount; turn++)
+            {
+                if (GridMapAutoTile.Rotate(modelled, turn) == wanted)
+                {
+                    return turn;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <summary>The layer big rooms' walls go on: the one named for the active layer's walls, made when asked.</summary>
+        private static int? WallsLayer(ManaGridMapNode gridMap, bool create)
+        {
+            var name = $"{gridMap.LayerName(gridMap.ActiveLayer)} walls";
+            for (var layer = 0; layer < gridMap.LayerCount; layer++)
+            {
+                if (gridMap.LayerName(layer) == name)
+                {
+                    return layer;
+                }
+            }
+
+            if (!create)
+            {
+                return null;
+            }
+
+            var active = gridMap.ActiveLayer;
+            var made = gridMap.AddLayer(name);
+            gridMap.ActiveLayer = active;
+            return made;
+        }
+
+        private static void OnLayer(ManaGridMapNode gridMap, int layer, Action action)
+        {
+            var active = gridMap.ActiveLayer;
+            gridMap.ActiveLayer = layer;
+            try
+            {
+                action();
+            }
+            finally
+            {
+                gridMap.ActiveLayer = active;
+            }
         }
 
         /// <summary>Tiles of the rules already standing wholly inside the area, as cells the solve must keep.</summary>
@@ -149,7 +286,21 @@ namespace ManaVoxel.Code.GridMaps
                     "wall,open,wall", "wall,wall,open,wall,wall", "wall,open,wall", "wall,wall,open,wall,wall"),
                 Tile("Large room", "room-large.glb", 5, 5, 0.12f, GridMapWfcRotations.None,
                     "wall,wall,open,wall,wall", "wall,wall,open,wall,wall", "wall,wall,open,wall,wall", "wall,wall,open,wall,wall")
-            ]
+            ],
+
+            // The kit's template pieces: a plain floor tile, a straight wall built to stand on a floor tile's edge
+            // (half a cell out from a cell's centre, its outside +Z), and a rounded corner with its own floor
+            // whose outsides are +X and +Z.
+            BigRooms = new GridMapWfcBigRooms
+            {
+                Floor = Kit + "template-floor.glb",
+                Wall = Kit + "template-wall.glb",
+                Corner = Kit + "template-corner.glb",
+                WallOffset = 0.5f,
+                MinSize = 5,
+                MaxSize = 10,
+                Smooth = 0.06f
+            }
         };
 
         public static IReadOnlyList<(string Name, Func<GridMapWfcRules> Create)> All { get; } = [("Dungeon", Dungeon)];

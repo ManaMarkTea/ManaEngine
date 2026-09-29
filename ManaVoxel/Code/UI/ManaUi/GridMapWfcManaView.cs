@@ -59,6 +59,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 RulesFile(theme),
                 RulesSettings(theme),
                 AreaSettings(gridMap, context),
+                new DynamicContent().Showing<object>(() => GridMapWfcEditing.RulesToken, _ => BigRoomSettings(theme)),
                 new DynamicContent().Showing<object>(() => GridMapWfcEditing.RulesToken, _ => TileList(theme)));
         }
 
@@ -217,6 +218,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             rooms.WithTooltip("Rooms to lay first, spread out, before corridors are generated to join them. 0 leaves it all to chance, which mostly makes corridors.");
 
+            var bigRooms = new NumericBox { IsInteger = true, Step = 1.0f, Minimum = 0.0f, Maximum = 20.0f, MinimumFieldHeight = 0.0f, Padding = new Thickness(6.0f, 1.0f) };
+            bigRooms.BindPolled(box => box.Value, () => GridMapWfcEditing.BigRooms);
+            bigRooms.ValueChanged += (_, value) =>
+            {
+                if (!bigRooms.IsApplyingBinding)
+                {
+                    GridMapWfcEditing.BigRooms = Math.Clamp((int)MathF.Round(value), 0, 20);
+                }
+            };
+            bigRooms.WithTooltip("Big rooms, built from the Big rooms pieces at any size in their range, laid before everything else.");
+
             var keep = new CheckBox().Label("Keep painted").OnChanged(value => GridMapWfcEditing.KeepPainted = value);
             keep.BindPolled(box => box.IsChecked, () => GridMapWfcEditing.KeepPainted);
             keep.WithTooltip("Build round the rules' tiles already in the area -- paint a room first, generate the rest round it.");
@@ -240,6 +252,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "Size", size),
                 new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
                     Row(theme, "Seed", seed).GridColumn(0), Row(theme, "Rooms", rooms).GridColumn(1)),
+                Row(theme, "Big", bigRooms),
                 new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(keep, connected),
                 new StackPanel().Horizontal(theme.Spacing).Children(generate, reroll),
                 status);
@@ -258,7 +271,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             var clock = System.Diagnostics.Stopwatch.StartNew();
             var result = GridMapWfcGenerator.Generate(
                 gridMap, GridMapWfcEditing.Rules, area, GridMapWfcEditing.Seed, GridMapWfcEditing.KeepPainted, GridMapWfcEditing.ConnectedOnly,
-                GridMapWfcEditing.Rooms);
+                GridMapWfcEditing.Rooms, GridMapWfcEditing.BigRooms);
             if (!result.Succeeded)
             {
                 gridMap.RestoreState(before);
@@ -271,6 +284,88 @@ namespace ManaVoxel.Code.UI.ManaUi
             var rooms = result.Placements.Count(p => GridMapWfcEditing.Rules.Tiles[p.Tile] is { Width: > 1 } or { Depth: > 1 });
             GridMapWfcEditing.Status = $"{result.Placements.Count} tiles, {rooms} rooms. Seed {GridMapWfcEditing.Seed}, {clock.ElapsedMilliseconds} ms"
                 + (result.Attempts > 1 ? $", {result.Attempts} tries." : ".");
+        }
+
+        // ----- big rooms ------------------------------------------------------------------------------
+
+        /// <summary>The pieces big rooms are built from, and how big they come -- folded away, as it is set once per kit.</summary>
+        private static UiElement BigRoomSettings(UiTheme theme)
+        {
+            var rules = GridMapWfcEditing.Rules;
+            var kit = rules.BigRooms ??= new GridMapWfcBigRooms();
+
+            UiElement Model(Func<string?> read, Action<string?> write, string tooltip)
+            {
+                var name = new TextBlock().Ellipsis().CenterV();
+                name.BindPolled(text => text.Text, () => read() is { } asset ? ManaGridMapNode.TileName(asset) : "none");
+                name.BindPolled(text => text.Foreground, () => read() == null ? theme.TextMuted : theme.Text);
+                var use = new ManaUI.Button().Label("Use selected").Variant(ButtonVariant.Subtle).OnClick(() =>
+                {
+                    if (ManaUiDockDemo.MeshAssets.SelectedAsset is { Length: > 0 } selected)
+                    {
+                        write(selected);
+                        GridMapWfcEditing.Dirty = true;
+                    }
+                });
+                use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(ManaUiDockDemo.MeshAssets.SelectedAsset));
+                var clear = new ManaUI.Button().Label("x").Variant(ButtonVariant.Subtle).OnClick(() =>
+                {
+                    write(null);
+                    GridMapWfcEditing.Dirty = true;
+                });
+                return new Grid().Columns("*, Auto, Auto", 2.0f).Rows("Auto").Children(
+                    name.GridColumn(0), use.GridColumn(1), clear.GridColumn(2)).WithTooltip(tooltip);
+            }
+
+            var size = new VectorBox().Components(2).Step(1.0f).Places(0);
+            size.SetAxes(("Min", 0), ("Max", 2));
+            size.IsInteger = true;
+            size.Minimum = 3.0f;
+            size.Maximum = 40.0f;
+            size.Value2 = new Vector2(kit.MinSize, kit.MaxSize);
+            size.ValueChanged += (_, value) =>
+            {
+                kit.MinSize = Math.Clamp((int)MathF.Round(value.X), 3, 40);
+                kit.MaxSize = Math.Clamp((int)MathF.Round(value.Y), kit.MinSize, 40);
+                GridMapWfcEditing.Dirty = true;
+            };
+            size.WithTooltip("Cells across and deep a big room can be, each picked at random between these");
+
+            var offset = new NumericBox { Step = 0.05f, MinimumFieldHeight = 0.0f, Padding = new Thickness(6.0f, 1.0f) }.Places(2).Value(kit.WallOffset);
+            offset.ValueChanged += (_, value) =>
+            {
+                kit.WallOffset = value;
+                GridMapWfcEditing.Dirty = true;
+            };
+            offset.WithTooltip("How far the wall moves to its outside, in cells: 0.5 puts a kit wall built for a floor tile's edge on the cell's edge");
+
+            ComboBox Turn(Func<int> read, Action<int> write, string tooltip)
+            {
+                var combo = new ComboBox().Options(new[] { "0°", "90°", "180°", "270°" });
+                combo.SelectedIndex = ManaGridMapNode.WrapOrientation(read());
+                combo.SelectionChanged += (_, index) =>
+                {
+                    if (index >= 0)
+                    {
+                        write(index);
+                        GridMapWfcEditing.Dirty = true;
+                    }
+                };
+                combo.WithTooltip(tooltip);
+                return combo;
+            }
+
+            var body = new StackPanel().Vertical(2.0f).Children(
+                Row(theme, "Floor", Model(() => kit.Floor, value => kit.Floor = value, "Laid in every cell but the corners. None turns big rooms off.")),
+                Row(theme, "Wall", Model(() => kit.Wall, value => kit.Wall = value, "Along each edge cell's outside, on a walls layer, but at the doors")),
+                Row(theme, "Corner", Model(() => kit.Corner, value => kit.Corner = value, "In each corner cell, with its own floor")),
+                Row(theme, "Size", size),
+                new Grid().Columns("*, *, *", theme.Spacing).Rows("Auto").Children(
+                    Row(theme, "Out", offset).GridColumn(0),
+                    Turn(() => kit.WallTurn, value => kit.WallTurn = value, "Turns that face the wall's outside to +Z").GridColumn(1),
+                    Turn(() => kit.CornerTurn, value => kit.CornerTurn = value, "Turns that face the corner's outsides to +X and +Z").GridColumn(2)));
+
+            return new Expander().Header("Big rooms").Content(body).Configure(expander => expander.IsExpanded = false);
         }
 
         // ----- the tiles --------------------------------------------------------------------------------
