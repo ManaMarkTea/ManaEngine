@@ -744,6 +744,27 @@ namespace ManaVoxel.Code.UI
             InitialVoxelCount = 0;
         }
 
+        /// <summary>
+        /// Makes a voxel node the one the tools draw into. A node the editor did not make -- one a level
+        /// loaded -- is taken on as a layer first, so selecting it is all it takes to edit it.
+        /// </summary>
+        public void ActivateVoxelNode(ManaVoxelsNode node)
+        {
+            if (ReferenceEquals(node, _previewNode))
+            {
+                return;
+            }
+
+            var index = _voxelLayers.FindIndex(layer => ReferenceEquals(layer.Node, node));
+            if (index >= 0)
+            {
+                ActiveVoxelLayerIndex = index + 1;
+                return;
+            }
+
+            RegisterVoxelLayer(node.Name, string.IsNullOrWhiteSpace(node.Source) ? "Level" : node.Source, node.VoxelShape, node);
+        }
+
         private void RegisterVoxelLayer(string name, string source, ManaVoxelShape shape, ManaVoxelsNode node)
         {
             if (string.IsNullOrWhiteSpace(node.Name) || node.Name == nameof(ManaVoxelsNode))

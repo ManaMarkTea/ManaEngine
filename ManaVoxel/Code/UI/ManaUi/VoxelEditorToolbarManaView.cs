@@ -33,8 +33,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     ToolbarIcons.Divider(theme),
                     BuildPlayGroup(theme, editor.Levels),
                     ToolbarIcons.Divider(theme),
-                    VoxelToolPaletteManaView.BuildTools(theme, editor),
-                    BuildVoxelDetails(theme, editor));
+                    // The tools themselves live in the Voxel Tools window, which this brings up.
+                    VoxelToolPaletteManaView.BuildToolbarToggle(theme, editor));
 
             var scrollable = groups
                 .Scrollable()
@@ -44,33 +44,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             // of the window, and at 6 the toolbar's first and last controls sat a visible 2px closer to the
             // window edge than the rows either side of them.
             return new Grid()
-                .Columns("*, Auto, Auto", theme.Spacing)
+                .Columns("*", theme.Spacing)
                 .Rows("Auto")
                 .Padding(8.0f, 3.0f)
-                .Children(
-                    scrollable.GridColumn(0),
-                    ToolbarIcons.Divider(theme).GridColumn(1),
-                    VoxelToolPaletteManaView.BuildWorkPlane(theme, editor).CenterV().GridColumn(2));
-        }
-
-        private static UiElement BuildVoxelDetails(UiTheme theme, VoxelEditorViewModel editor)
-        {
-            var button = new Button().Label("Voxels...")
-                .WithTooltip("Active voxel node, placement and voxel statistics");
-            button.BindPolled(b => b.Visibility,
-                () => editor.IsSelectToolActive ? Visibility.Collapsed : Visibility.Visible);
-            button.Click += (_, _) =>
-            {
-                if (button.Root is not { } root) return;
-                var popup = new UiPopup
-                {
-                    Width = 360.0f,
-                    Height = MathF.Min(440.0f, root.Size.Y),
-                    Child = new Border { Background = theme.Background, Child = VoxelEditorPanelsManaView.BuildPlacement(theme, editor) }
-                };
-                root.Popups.Show(popup, button);
-            };
-            return button;
+                .Children(scrollable.GridColumn(0));
         }
 
         private static UiElement BuildLevelGroup(UiTheme theme, LevelViewModel levels, ManaWorld? world)

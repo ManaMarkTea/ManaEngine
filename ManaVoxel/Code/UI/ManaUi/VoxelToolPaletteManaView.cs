@@ -41,6 +41,43 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         /// <summary>
+        /// The Voxel Tools window: the tools, whichever settings the current one uses, the work plane, and the
+        /// node being drawn into. It floats while a voxel node is selected or a voxel tool is active (see
+        /// ManaUiDockDemo), so the toolbar keeps only the level, history, gizmo and play controls.
+        /// </summary>
+        public static UiElement BuildWindow(UiTheme theme, VoxelEditorViewModel vm)
+        {
+            var tools = new WrapPanel { Spacing = theme.Spacing };
+            foreach (var button in ToolButtons(theme, vm))
+            {
+                tools.Children.Add(button);
+            }
+
+            return new StackPanel().Vertical(theme.Spacing).Margin(theme.Spacing).Children(
+                    tools,
+                    BuildColorGroup(theme, vm),
+                    BuildShapeColorGroup(theme, vm),
+                    BuildStrokeGroup(theme, vm, divider: false),
+                    BuildTextGroup(theme, vm, stacked: true),
+                    BuildWorkPlaneGroup(theme, vm),
+                    VoxelEditorPanelsManaView.BuildNodeAndPlacement(theme, vm))
+                .Scrollable()
+                .Scrolls(vertical: ScrollBarVisibility.Auto, horizontal: ScrollBarVisibility.Disabled);
+        }
+
+        /// <summary>
+        /// The toolbar's one voxel control: on, it takes up the last voxel tool used, which brings the Voxel
+        /// Tools window up; off, it goes back to selecting.
+        /// </summary>
+        public static Button BuildToolbarToggle(UiTheme theme, VoxelEditorViewModel vm) =>
+            ToolbarIcons.IconButton(
+                theme,
+                DrawStrokeIcon,
+                "Voxel tools: stroke, shapes, paint and erase." + Environment.NewLine + "They also come up with a voxel node selected.",
+                () => !vm.IsSelectToolActive,
+                () => vm.IsSelectToolActive = !vm.IsSelectToolActive);
+
+        /// <summary>
         /// The work plane, which the toolbar pins to the far right rather than folding in with the tools --
         /// it only actually constrains Circle and Text (the only two that read it), and sitting among the
         /// other tool controls made it look like it applied to all of them.
@@ -60,20 +97,24 @@ namespace ManaVoxel.Code.UI.ManaUi
             // whichever tool happens to be current: picking a tool leaves select mode, and picking
             // select leaves whatever tool was active. IsSelectToolActive and SelectedToolIndex stay the
             // two fields VoxelEditorGameMode already reads -- only how this row writes them changes.
-            return new StackPanel().Horizontal(theme.Spacing).Children(
-                ToolButton(theme, DrawSelectIcon, "Select",
-                    () => vm.IsSelectToolActive,
-                    () => vm.IsSelectToolActive = true),
-                ToolButton(theme, DrawStrokeIcon, "Stroke", VoxelToolKind.Stroke, vm),
-                ToolButton(theme, DrawLineIcon, "Line", VoxelToolKind.Line, vm),
-                ToolButton(theme, DrawCircleIcon, "Circle", VoxelToolKind.Circle, vm),
-                ToolButton(theme, DrawSphereIcon, "Sphere", VoxelToolKind.Sphere, vm),
-                ToolButton(theme, DrawSplineIcon, "Spline", VoxelToolKind.Spline, vm),
-                ToolButton(theme, DrawTextIcon, "Text", VoxelToolKind.Text, vm),
-                ToolbarIcons.Divider(theme),
-                ToolButton(theme, DrawPaintIcon, "Paint", VoxelToolKind.Paint, vm),
-                ToolButton(theme, DrawFloodFillIcon, "Flood Fill", VoxelToolKind.FloodFill, vm),
-                ToolButton(theme, DrawEraseIcon, "Erase", VoxelToolKind.Erase, vm));
+            return new StackPanel().Horizontal(theme.Spacing).Children(ToolButtons(theme, vm).ToArray());
+        }
+
+        private static IEnumerable<UiElement> ToolButtons(UiTheme theme, VoxelEditorViewModel vm)
+        {
+            yield return ToolButton(theme, DrawSelectIcon, "Select",
+                () => vm.IsSelectToolActive,
+                () => vm.IsSelectToolActive = true);
+            yield return ToolButton(theme, DrawStrokeIcon, "Stroke", VoxelToolKind.Stroke, vm);
+            yield return ToolButton(theme, DrawLineIcon, "Line", VoxelToolKind.Line, vm);
+            yield return ToolButton(theme, DrawCircleIcon, "Circle", VoxelToolKind.Circle, vm);
+            yield return ToolButton(theme, DrawSphereIcon, "Sphere", VoxelToolKind.Sphere, vm);
+            yield return ToolButton(theme, DrawSplineIcon, "Spline", VoxelToolKind.Spline, vm);
+            yield return ToolButton(theme, DrawTextIcon, "Text", VoxelToolKind.Text, vm);
+            yield return ToolbarIcons.Divider(theme);
+            yield return ToolButton(theme, DrawPaintIcon, "Paint", VoxelToolKind.Paint, vm);
+            yield return ToolButton(theme, DrawFloodFillIcon, "Flood Fill", VoxelToolKind.FloodFill, vm);
+            yield return ToolButton(theme, DrawEraseIcon, "Erase", VoxelToolKind.Erase, vm);
         }
 
         /// <summary>Sets the current tool and leaves select mode -- radio-style, one of the seven at a time.</summary>
@@ -363,14 +404,18 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         // ----- stroke and text --------------------------------------------------------------------------
 
-        private static UiElement BuildStrokeGroup(UiTheme theme, VoxelEditorViewModel vm)
+        private static UiElement BuildStrokeGroup(UiTheme theme, VoxelEditorViewModel vm, bool divider = true)
         {
-            var row = new StackPanel().Horizontal(theme.Spacing).Children(
-                ToolbarIcons.Divider(theme),
-                IntSlider(theme, "Radius", 0, 12,
-                    () => vm.StrokeRadiusVoxels,
-                    v => vm.StrokeRadiusVoxels = v,
-                    width: 150.0f));
+            var row = new StackPanel().Horizontal(theme.Spacing);
+            if (divider)
+            {
+                row.Children.Add(ToolbarIcons.Divider(theme));
+            }
+
+            row.Children.Add(IntSlider(theme, "Radius", 0, 12,
+                () => vm.StrokeRadiusVoxels,
+                v => vm.StrokeRadiusVoxels = v,
+                width: 150.0f));
 
             // Shown only for the tools that use a radius, matching the ImGui palette. Paint and Erase share
             // the same brush-radius field as Stroke rather than getting a field of their own. The divider
@@ -384,7 +429,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     : Visibility.Collapsed);
         }
 
-        private static UiElement BuildTextGroup(UiTheme theme, VoxelEditorViewModel vm)
+        private static UiElement BuildTextGroup(UiTheme theme, VoxelEditorViewModel vm, bool stacked = false)
         {
             var text = new TextBox()
                 .Hint("Text to stamp")
@@ -393,11 +438,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .OnCommitted(value => vm.ToolText = value)
                 .BindPolled(b => b.Text, () => vm.ToolText);
 
-            var row = new StackPanel().Horizontal(theme.Spacing).Children(
-                ToolbarIcons.Divider(theme),
-                Group(theme, "Text", text),
-                IntSlider(theme, "Scale", 1, 8, () => vm.TextScale, v => vm.TextScale = v, width: 130.0f),
-                IntSlider(theme, "Depth", 1, 16, () => vm.TextDepth, v => vm.TextDepth = v, width: 130.0f));
+            // A window is narrow and tall where the toolbar is wide and short, so there the three stack.
+            var row = stacked
+                ? new StackPanel().Vertical(theme.Spacing).Children(
+                    Group(theme, "Text", text),
+                    IntSlider(theme, "Scale", 1, 8, () => vm.TextScale, v => vm.TextScale = v, width: 200.0f),
+                    IntSlider(theme, "Depth", 1, 16, () => vm.TextDepth, v => vm.TextDepth = v, width: 200.0f))
+                : new StackPanel().Horizontal(theme.Spacing).Children(
+                    ToolbarIcons.Divider(theme),
+                    Group(theme, "Text", text),
+                    IntSlider(theme, "Scale", 1, 8, () => vm.TextScale, v => vm.TextScale = v, width: 130.0f),
+                    IntSlider(theme, "Depth", 1, 16, () => vm.TextDepth, v => vm.TextDepth = v, width: 130.0f));
 
             return row.BindPolled(s => s.Visibility, () =>
                 VoxelToolCatalog.GetToolKind(vm.SelectedToolIndex) == VoxelToolKind.Text

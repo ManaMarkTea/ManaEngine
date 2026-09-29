@@ -21,6 +21,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             return EditorTab(theme, viewModel);
         }
 
+        /// <summary>The same without a scroller of its own, for the Voxel Tools window, which scrolls as a whole.</summary>
+        public static UiElement BuildNodeAndPlacement(UiTheme theme, VoxelEditorViewModel viewModel)
+        {
+            return NodeAndPlacement(theme, viewModel);
+        }
+
         /// <summary>Explosion and reassembly tuning, and the bake actions.</summary>
         public static UiElement BuildPhysics(UiTheme theme, VoxelEditorViewModel viewModel)
         {
@@ -62,7 +68,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .GridColumn(1));
         }
 
-        private static UiElement EditorTab(UiTheme theme, VoxelEditorViewModel viewModel)
+        private static UiElement EditorTab(UiTheme theme, VoxelEditorViewModel viewModel) =>
+            NodeAndPlacement(theme, viewModel).Padding(8.0f).Scrollable();
+
+        private static StackPanel NodeAndPlacement(UiTheme theme, VoxelEditorViewModel viewModel)
         {
             // Rebuilt when the set of layers changes, since a combo's options are fixed once built and a
             // node added or removed has to show up.
@@ -72,13 +81,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                     _ => ActiveNodePicker(viewModel))
                 .Empty(new TextBlock().Text("None").Foreground(theme.TextMuted));
 
-            return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
+            return new StackPanel().Vertical(theme.Spacing).Children(
                 Section(theme, "Active Voxel Node"),
                 activeNode,
 
                 Section(theme, "Placement"),
                 Placement(theme, viewModel),
-                BuildStats(theme, viewModel)).Scrollable();
+                BuildStats(theme, viewModel));
         }
 
         private static UiElement ActiveNodePicker(VoxelEditorViewModel viewModel)

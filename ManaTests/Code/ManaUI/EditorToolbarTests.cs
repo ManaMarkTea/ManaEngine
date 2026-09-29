@@ -14,7 +14,11 @@ namespace ManaTests;
 /// did not fit in a 1920-wide window, while the left two thirds of the status bar sat empty.
 /// <para>
 /// What is actually checked here is fit. A toolbar that overruns does not report an error, it silently
-/// clips whatever is furthest right (the voxel tools), which is the part somebody is using.
+/// clips whatever is furthest right, which is the part somebody is using.
+/// </para>
+/// <para>
+/// The voxel tools themselves moved off the strip into the Voxel Tools window, which is checked here too:
+/// it comes up with a voxel tool or a voxel node and goes with them.
 /// </para>
 /// </summary>
 public static class EditorToolbarChecks
@@ -60,8 +64,8 @@ public static class EditorToolbarChecks
         }
 
         // ---------------------------------------------------------------- and stays reachable when it does not
-        root.UpdateLayout(new Vector2(900, 700));
-        root.UpdateLayout(new Vector2(900, 700));
+        root.UpdateLayout(new Vector2(420, 700));
+        root.UpdateLayout(new Vector2(420, 700));
 
         var narrow = Toolbar();
         Check("a window too narrow for the row scrolls it rather than clipping it away",
@@ -143,7 +147,7 @@ public static class EditorToolbarChecks
         var betweenGroups = root.Theme.Spacing * 4.0f + 1.0f;
 
         var row = Row(root);
-        Check("the toolbar has a row of controls to measure", row.Count > 15, $"{row.Count} controls");
+        Check("the toolbar has a row of controls to measure", row.Count > 8, $"{row.Count} controls");
 
         var odd = new List<string>();
         for (var i = 1; i < row.Count; i++)
@@ -172,13 +176,65 @@ public static class EditorToolbarChecks
         var toolbarStrip = FindAll<ScrollViewer>(root.Content!)
             .First(viewer => viewer.Bounds.Y < 80.0f && viewer.HorizontalScrollBar != ScrollBarVisibility.Disabled);
 
+        // The row no longer runs to the right edge -- nothing is pinned there since the work plane moved into
+        // the Voxel Tools window -- so only its start is held to the bars' inset.
         var leftInset = row[0].Bounds.X;
-        var rightInset = root.Size.X - row[^1].Bounds.Right;
-        Check("and the row is inset by the same amount on both sides",
-            MathF.Abs(leftInset - rightInset) < 0.6f, $"{leftInset:0.0} left, {rightInset:0.0} right");
-
-        Check("which is the inset the menu and status bars use",
+        Check("the row starts at the inset the menu and status bars use",
             MathF.Abs(leftInset - 8.0f) < 0.6f, $"{leftInset:0.0}px");
+
+        RunVoxelToolsWindowChecks(root, editor, world, context, Check);
+    }
+
+    private static void RunVoxelToolsWindowChecks(
+        UiRoot root, VoxelEditorViewModel editor, ManaWorld world, ManaContext context, Action<string, bool, string> check)
+    {
+        UiWindow? Window() => ManaUiDockDemo.LastDragController?.FindFloating(ManaUiDockDemo.VoxelToolsPanelId);
+        void Frame()
+        {
+            root.UpdateLayout(new Vector2(1920, 1080));
+            root.UpdateLayout(new Vector2(1920, 1080));
+        }
+
+        world.Selection.SelectedNode = null;
+        editor.IsSelectToolActive = true;
+        Frame();
+        check("the voxel tools window is not up while selecting", Window() == null, "");
+        check("and the toolbar carries no voxel tool buttons, only the one that brings them up",
+            IconButtons(root).Count(button => button.Bounds.X > 0.0f) <= 7, $"{IconButtons(root).Count} icon buttons");
+
+        editor.IsSelectToolActive = false;
+        Frame();
+        var window = Window();
+        check("taking up a voxel tool floats the voxel tools window", window != null, "");
+        check("with the tools in it", window != null && FindAll<Button>(window).Count(button => MathF.Abs(button.Bounds.Width - ToolbarIcons.ButtonSize) < 0.5f) >= 10,
+            window == null ? "" : $"{FindAll<Button>(window).Count} buttons");
+
+        editor.IsSelectToolActive = true;
+        Frame();
+        check("and going back to selecting closes it", Window() == null, "");
+
+        var scene = world.Scenes[0];
+        var voxels = new ManaVoxelsNode(context, Matrix4x4.Identity) { Name = "Loaded Voxels" };
+        scene.Children.Add(voxels);
+        world.Selection.SelectedNode = voxels;
+        Frame();
+        check("selecting a voxel node brings the window up", Window() != null, "");
+        check("and makes that node the one the tools draw into, though the editor did not make it",
+            ReferenceEquals(editor.VoxelNode, voxels), editor.VoxelNode?.Name ?? "none");
+
+        editor.IsSelectToolActive = false;
+        Window()?.Close();
+        Frame();
+        check("closing the window puts the tool down", editor.IsSelectToolActive, "");
+        check("and it stays closed while the same node is selected", Window() == null, "");
+
+        world.Selection.SelectedNode = null;
+        Frame();
+        world.Selection.SelectedNode = voxels;
+        Frame();
+        check("selecting the node again brings it back", Window() != null, "");
+        world.Selection.SelectedNode = null;
+        Frame();
     }
 
     /// <summary>
