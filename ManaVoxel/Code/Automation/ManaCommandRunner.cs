@@ -239,13 +239,19 @@ namespace ManaVoxel.Code.Automation
                 return;
             }
 
-            GridMapWfcEditing.Replace(GridMapWfcPresets.Dungeon(), null);
+            var rules = GridMapWfcPresets.Dungeon();
+            if (command.BigSize > 0 && rules.BigRooms != null)
+            {
+                rules.BigRooms.MinSize = rules.BigRooms.MaxSize = command.BigSize;
+            }
+
+            GridMapWfcEditing.Replace(rules, null);
             GridMapWfcEditing.WindowOpen = true;
             GridMapWfcEditing.Width = command.Size is { Length: >= 2 } size ? size[0] : 16;
             GridMapWfcEditing.Depth = command.Size is { Length: >= 2 } both ? both[1] : 16;
             GridMapWfcEditing.Seed = command.Seed;
             var result = GridMapWfcGenerator.Generate(map, GridMapWfcEditing.Rules,
-                new GridMapWfcGenerator.Area(0, 0, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, 0), command.Seed, keepPainted: false, connectedOnly: true,
+                new GridMapWfcGenerator.Area(0, 0, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, 0), command.Seed, keepPainted: true, connectedOnly: true,
                 rooms: GridMapWfcEditing.Rooms, bigRooms: GridMapWfcEditing.BigRooms);
             GridMapWfcEditing.Status = result.Succeeded ? $"{result.Placements.Count} tiles" : result.Error ?? "";
             ManaConsole.WriteDiagnostic("Command file: grid_generate big rooms: "

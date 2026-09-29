@@ -8,6 +8,8 @@ namespace ManaVoxel.Code.Levels
     {
         private const int BytesPerCell = 10;
 
+        private const int GeneratedBit = 0x80;
+
         /// <summary>Records written before layers, which have no layer byte and all belong to the first layer.</summary>
         private const int BytesPerUnlayeredCell = 9;
 
@@ -16,18 +18,19 @@ namespace ManaVoxel.Code.Levels
             var cells = Enumerable.Range(0, gridMap.LayerCount)
                 .SelectMany(layer => gridMap.LayerCells(layer)
                     .OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.Z).ThenBy(pair => pair.Key.X)
-                    .Select(pair => (Layer: layer, Cell: pair.Key, Tile: pair.Value)))
+                    .Select(pair => (Layer: layer, Cell: pair.Key, Tile: pair.Value, Generated: gridMap.LayerGenerated(layer).Contains(pair.Key))))
                 .ToList();
             var data = new byte[cells.Count * BytesPerCell];
             for (var i = 0; i < cells.Count; i++)
             {
-                var (layer, cell, tile) = cells[i];
+                var (layer, cell, tile, generated) = cells[i];
                 var offset = i * BytesPerCell;
                 WriteCoordinate(data, offset, cell.X);
                 WriteCoordinate(data, offset + 2, cell.Y);
                 WriteCoordinate(data, offset + 4, cell.Z);
                 BitConverter.TryWriteBytes(data.AsSpan(offset + 6, 2), checked((ushort)tile.Item));
-                data[offset + 8] = (byte)tile.Orientation;
+                // The top bit marks a generator's tile, so a level reopened still knows which tiles were painted.
+                data[offset + 8] = (byte)(tile.Orientation | (generated ? GeneratedBit : 0));
                 data[offset + 9] = checked((byte)layer);
             }
 
@@ -95,19 +98,25 @@ namespace ManaVoxel.Code.Levels
                 ? saved
                 : new List<ManaLevelGridMapLayer> { new() { Name = ManaGridMapNode.DefaultLayerName, Visible = true } };
             var cells = names.Select(_ => new Dictionary<GridMapCell, GridMapTile>()).ToList();
-            foreach (var (layer, cell, tile) in DecodeRecords(encoded))
+            var generated = names.Select(_ => new HashSet<GridMapCell>()).ToList();
+            foreach (var (layer, cell, tile, isGenerated) in DecodeRecords(encoded))
             {
-                cells[Math.Min(layer, cells.Count - 1)][cell] = tile;
+                var index = Math.Min(layer, cells.Count - 1);
+                cells[index][cell] = tile;
+                if (isGenerated)
+                {
+                    generated[index].Add(cell);
+                }
             }
 
-            return names.Select((layer, i) => new GridMapLayerState(layer.Name, layer.Visible, cells[i])).ToList();
+            return names.Select((layer, i) => new GridMapLayerState(layer.Name, layer.Visible, cells[i], generated[i])).ToList();
         }
 
         /// <summary>The first layer's cells -- all of them, on a map with one layer.</summary>
         public static List<KeyValuePair<GridMapCell, GridMapTile>> DecodeCells(ManaLevelGridMap encoded) =>
             DecodeLayers(encoded)[0].Cells.ToList();
 
-        private static List<(int Layer, GridMapCell Cell, GridMapTile Tile)> DecodeRecords(ManaLevelGridMap encoded)
+        private static List<(int Layer, GridMapCell Cell, GridMapTile Tile, bool Generated)> DecodeRecords(ManaLevelGridMap encoded)
         {
             var data = Convert.FromBase64String(encoded.Data);
             var stride = encoded.Count > 0 && data.Length == encoded.Count * BytesPerUnlayeredCell ? BytesPerUnlayeredCell : BytesPerCell;
@@ -117,7 +126,7 @@ namespace ManaVoxel.Code.Levels
                 throw new InvalidDataException($"Grid map blob holds {data.Length} bytes, which is not the {encoded.Count} cells the level says.");
             }
 
-            var records = new List<(int, GridMapCell, GridMapTile)>(count);
+            var records = new List<(int, GridMapCell, GridMapTile, bool)>(count);
             for (var i = 0; i < count; i++)
             {
                 var offset = i * stride;
@@ -133,7 +142,8 @@ namespace ManaVoxel.Code.Levels
                         BitConverter.ToInt16(data, offset),
                         BitConverter.ToInt16(data, offset + 2),
                         BitConverter.ToInt16(data, offset + 4)),
-                    new GridMapTile(item, data[offset + 8])));
+                    new GridMapTile(item, data[offset + 8] & 0x7F),
+                    (data[offset + 8] & GeneratedBit) != 0));
             }
 
             return records;

@@ -92,6 +92,15 @@ public static class GridMapWfcChecks
             withBig.Where(r => r.Succeeded).All(r => Mismatches(rules, r.Placements, 30, 30, r.BigRooms).Count == 0),
             string.Join("; ", withBig.Where(r => r.Succeeded).SelectMany(r => Mismatches(rules, r.Placements, 30, 30, r.BigRooms)).Take(4)));
 
+        // The size asked for is the size laid, even when it is most of the area.
+        var huge = GridMapWfcPresets.Dungeon();
+        huge.BigRooms!.MinSize = 20;
+        huge.BigRooms.MaxSize = 20;
+        var hugeResult = GridMapWfc.Solve(huge, 60, 60, seed: 80464, rooms: 4, bigRooms: 2);
+        Check("big rooms twenty cells across are laid and kept when asked for",
+            hugeResult.Succeeded && hugeResult.BigRooms.Count == 2 && hugeResult.BigRooms.All(room => room is { Width: 20, Depth: 20 }),
+            $"{hugeResult.BigRooms.Count} kept: {string.Join(", ", hugeResult.BigRooms.Select(room => $"{room.Width}x{room.Depth}"))}; {hugeResult.Error}");
+
         // Big areas have to stay quick: a 60x60 dungeon used to take long enough to look hung.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var big = GridMapWfc.Solve(rules, 60, 60, seed: 5, rooms: 12);
@@ -212,11 +221,29 @@ public static class GridMapWfcChecks
                 roomItem >= 0 && gridMap.ItemFootprint(roomItem) == new GridMapFootprint(5, 5), "");
             check("and nothing outside the area touched", gridMap.TryGetTile(outside, out _), "");
 
-            var first = gridMap.Cells.ToDictionary(pair => pair.Key, pair => pair.Value);
-            // Without trimming to one piece: the cells left empty may grow a bigger piece, which would win.
+            // A tile painted over one the generator laid is the painter's, and generating again keeps it.
+            var claimed = gridMap.Cells.First(pair => gridMap.IsGenerated(pair.Key) && rules.Tiles.Any(t => t.Asset == gridMap.Palette[pair.Value.Item]));
+            gridMap.SetTile(claimed.Key, claimed.Value with { Orientation = claimed.Value.Orientation });
+            check("painting over a generated tile claims it as painted", !gridMap.IsGenerated(claimed.Key), "");
             var rerun = GridMapWfcGenerator.Generate(gridMap, rules, area, seed: 12, keepPainted: true, connectedOnly: false);
-            check("generating again over what it laid keeps every tile of it, since they are all the rules' own",
-                rerun.Succeeded && first.All(pair => gridMap.TryGetTile(pair.Key, out var tile) && tile == pair.Value), rerun.Error ?? "");
+            check("so generating again keeps it, and builds round it",
+                rerun.Succeeded && gridMap.TryGetTile(claimed.Key, out var stillThere) && stillThere == claimed.Value, rerun.Error ?? "");
+
+            // Generating again with Keep painted on replaces what the generator laid, rather than keeping it all:
+            // kept, the old dungeon filled the area and nothing new -- a big room least of all -- had room.
+            var firstLaid = gridMap.Cells.Where(pair => gridMap.IsGenerated(pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value);
+            GridMapWfcGenerator.Generate(gridMap, rules, area, seed: 99, keepPainted: true, connectedOnly: true);
+            var changed = firstLaid.Count(pair => !gridMap.TryGetTile(pair.Key, out var now) || now != pair.Value);
+            check("re-rolling replaces the generator's own tiles, even with Keep painted on", changed > firstLaid.Count / 4,
+                $"{changed} of {firstLaid.Count} changed");
+            check("and one painted there before is still painted", gridMap.TryGetTile(outside, out _) && !gridMap.IsGenerated(outside), "");
+
+            var saved = ManaVoxel.Code.Levels.ManaLevelGridMapCodec.Encode(gridMap);
+            var layers = ManaVoxel.Code.Levels.ManaLevelGridMapCodec.DecodeLayers(saved);
+            check("which tiles were generated is saved with the level",
+                layers[0].Generated is { } marks && marks.SetEquals(gridMap.LayerGenerated(0)) && !marks.Contains(outside)
+                && layers[0].Cells.All(pair => gridMap.TryGetTile(pair.Key, out var tile) && tile == pair.Value),
+                $"{layers[0].Generated?.Count} marked of {layers[0].Cells.Count}");
 
             gridMap.RestoreState(before);
             check("and undoing puts the map back", gridMap.Cells.Count == 1, $"{gridMap.Cells.Count}");

@@ -282,7 +282,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             var after = gridMap.CaptureState();
             context.History?.Record("Generate", () => gridMap.RestoreState(before), () => gridMap.RestoreState(after));
             var rooms = result.Placements.Count(p => GridMapWfcEditing.Rules.Tiles[p.Tile] is { Width: > 1 } or { Depth: > 1 });
-            GridMapWfcEditing.Status = $"{result.Placements.Count} tiles, {rooms} rooms. Seed {GridMapWfcEditing.Seed}, {clock.ElapsedMilliseconds} ms"
+            // Says when fewer big rooms fitted than were asked for, which otherwise just looks like none were made.
+            var big = GridMapWfcEditing.Rules.BigRooms is { IsUsable: true } && GridMapWfcEditing.BigRooms > 0
+                ? result.BigRooms.Count < GridMapWfcEditing.BigRooms
+                    ? $", {result.BigRooms.Count} of {GridMapWfcEditing.BigRooms} big (no room for more at that size)"
+                    : $", {result.BigRooms.Count} big"
+                : string.Empty;
+            GridMapWfcEditing.Status = $"{result.Placements.Count} tiles, {rooms} rooms{big}. Seed {GridMapWfcEditing.Seed}, {clock.ElapsedMilliseconds} ms"
                 + (result.Attempts > 1 ? $", {result.Attempts} tries." : ".");
         }
 

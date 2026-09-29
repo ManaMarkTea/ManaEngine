@@ -75,7 +75,12 @@ namespace ManaVoxel.Code.GridMaps
     }
 
     /// <summary>One layer of a grid map, as saved and as undo keeps it.</summary>
-    public sealed record GridMapLayerState(string Name, bool Visible, IReadOnlyDictionary<GridMapCell, GridMapTile> Cells);
+    /// <param name="Generated">Anchors a generator laid, as opposed to ones painted; see ManaGridMapNode.IsGenerated.</param>
+    public sealed record GridMapLayerState(
+        string Name,
+        bool Visible,
+        IReadOnlyDictionary<GridMapCell, GridMapTile> Cells,
+        IReadOnlySet<GridMapCell>? Generated = null);
 
     /// <summary>Everything a grid map is, for undo: settings, palette and every layer's cells, taken whole.</summary>
     public sealed record GridMapState(
@@ -216,6 +221,10 @@ namespace ManaVoxel.Code.GridMaps
         /// <summary>Tiles on a layer, by anchor cell.</summary>
         public IReadOnlyDictionary<GridMapCell, GridMapTile> LayerCells(int layer) =>
             (uint)layer < (uint)_layers.Count ? _layers[layer].Cells : new Dictionary<GridMapCell, GridMapTile>();
+
+        /// <summary>Anchors a generator laid on a layer; see <see cref="IsGenerated"/>.</summary>
+        public IReadOnlySet<GridMapCell> LayerGenerated(int layer) =>
+            (uint)layer < (uint)_layers.Count ? _layers[layer].Generated : new HashSet<GridMapCell>();
 
         /// <summary>Every tile on every layer.</summary>
         public int TileCount => _layers.Sum(layer => layer.Cells.Count);
@@ -505,11 +514,28 @@ namespace ManaVoxel.Code.GridMaps
             NotifyChanged();
         }
 
+        /// <summary>
+        /// Whether the tile anchored at a cell was laid by a generator rather than painted. A generator run again
+        /// replaces its own tiles and keeps painted ones, so painting a tile claims it as painted.
+        /// </summary>
+        public bool IsGenerated(GridMapCell anchor) => Active.Generated.Contains(anchor);
+
+        /// <summary>Puts a tile down as a generator's: see <see cref="IsGenerated"/>.</summary>
+        public void SetGeneratedTile(GridMapCell anchor, GridMapTile tile)
+        {
+            SetTile(anchor, tile);
+            if (Active.Cells.ContainsKey(anchor))
+            {
+                Active.Generated.Add(anchor);
+            }
+        }
+
         /// <summary>Puts a tile down with nothing else following: no neighbours re-picked, no change notice.</summary>
         private bool PutTile(GridMapCell anchor, GridMapTile tile)
         {
             if (Active.Cells.TryGetValue(anchor, out var current) && current == tile)
             {
+                Active.Generated.Remove(anchor);
                 return false;
             }
 
@@ -522,6 +548,7 @@ namespace ManaVoxel.Code.GridMaps
             }
 
             Active.Cells[anchor] = tile;
+            Active.Generated.Remove(anchor);
             PlaceAnchor(anchor, tile);
             return true;
         }
@@ -734,6 +761,8 @@ namespace ManaVoxel.Code.GridMaps
                     }
                 }
 
+                layer.Generated.UnionWith((saved.Generated ?? new HashSet<GridMapCell>()).Where(layer.Cells.ContainsKey));
+
                 _layers.Add(layer);
             }
 
@@ -760,7 +789,8 @@ namespace ManaVoxel.Code.GridMaps
             _collision,
             _palette.ToList(),
             _settings.ToList(),
-            _layers.Select(layer => new GridMapLayerState(layer.Name, layer.Visible, new Dictionary<GridMapCell, GridMapTile>(layer.Cells))).ToList(),
+            _layers.Select(layer => new GridMapLayerState(
+                layer.Name, layer.Visible, new Dictionary<GridMapCell, GridMapTile>(layer.Cells), new HashSet<GridMapCell>(layer.Generated))).ToList(),
             _autoTiles.ToList());
 
         /// <summary>
@@ -812,6 +842,9 @@ namespace ManaVoxel.Code.GridMaps
                         PlaceAnchor(layer, anchor, tile);
                     }
                 }
+
+                layer.Generated.Clear();
+                layer.Generated.UnionWith(state.Layers[i].Generated ?? new HashSet<GridMapCell>());
             }
 
             NotifyChanged();
@@ -954,6 +987,8 @@ namespace ManaVoxel.Code.GridMaps
                 return;
             }
 
+            layer.Generated.Remove(anchor);
+
             foreach (var cell in CoveredCells(anchor, tile))
             {
                 if (layer.CoveredBy.TryGetValue(cell, out var owner) && owner == anchor)
@@ -1075,6 +1110,9 @@ namespace ManaVoxel.Code.GridMaps
         public Dictionary<GridMapCell, GridMapTile> Cells { get; } = new();
 
         public Dictionary<GridMapCell, GridMapCell> CoveredBy { get; } = new();
+
+        /// <summary>Anchors a generator laid; see ManaGridMapNode.IsGenerated.</summary>
+        public HashSet<GridMapCell> Generated { get; } = new();
 
         public Dictionary<GridMapCell, ManaSceneNode> Tiles { get; } = new();
     }

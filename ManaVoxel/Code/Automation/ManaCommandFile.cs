@@ -42,6 +42,9 @@ namespace ManaVoxel.Code.Automation
         public int Seed { get; set; } = 1;
 
         public int[]? Size { get; set; }
+
+        /// <summary>grid_generate: big rooms' cells a side, when set; they are otherwise the preset's.</summary>
+        public int BigSize { get; set; }
     }
 
     public static class ManaCommandFile

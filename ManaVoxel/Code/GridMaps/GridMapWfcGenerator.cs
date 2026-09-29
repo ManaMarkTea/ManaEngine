@@ -56,7 +56,7 @@ namespace ManaVoxel.Code.GridMaps
                 var item = items[placement.Tile];
                 if (item >= 0)
                 {
-                    gridMap.SetTile(new GridMapCell(area.X + placement.X, area.Floor, area.Z + placement.Z), new GridMapTile(item, placement.Orientation));
+                    gridMap.SetGeneratedTile(new GridMapCell(area.X + placement.X, area.Floor, area.Z + placement.Z), new GridMapTile(item, placement.Orientation));
                 }
             }
 
@@ -123,13 +123,13 @@ namespace ManaVoxel.Code.GridMaps
 
                         if (GridMapAutoTile.Count(outside) == 2 && corner >= 0)
                         {
-                            gridMap.SetTile(cell, new GridMapTile(corner, kit.CornerTurn + TurnFor(GridMapSides.East | GridMapSides.South, outside)));
+                            gridMap.SetGeneratedTile(cell, new GridMapTile(corner, kit.CornerTurn + TurnFor(GridMapSides.East | GridMapSides.South, outside)));
                             continue;
                         }
 
                         if (floor >= 0)
                         {
-                            gridMap.SetTile(cell, new GridMapTile(floor, 0));
+                            gridMap.SetGeneratedTile(cell, new GridMapTile(floor, 0));
                         }
 
                         if (outside == GridMapSides.None || walls is not { } layer)
@@ -142,7 +142,7 @@ namespace ManaVoxel.Code.GridMaps
                             var index = Array.FindIndex(GridMapAutoTile.Neighbours, n => n.Side == side);
                             if (outside.HasFlag(side) && !room.Doors.Contains((x, z, index)))
                             {
-                                OnLayer(gridMap, layer, () => gridMap.SetTile(cell, new GridMapTile(wall, kit.WallTurn + TurnFor(GridMapSides.South, side))));
+                                OnLayer(gridMap, layer, () => gridMap.SetGeneratedTile(cell, new GridMapTile(wall, kit.WallTurn + TurnFor(GridMapSides.South, side))));
                             }
                         }
                     }
@@ -207,8 +207,9 @@ namespace ManaVoxel.Code.GridMaps
             var kept = new List<GridMapWfc.Fixed>();
             foreach (var (anchor, tile) in gridMap.Cells)
             {
+                // Only what was painted: a generator's own tiles are what running it again replaces.
                 var index = Array.IndexOf(items, tile.Item);
-                if (index < 0 || anchor.Y != area.Floor)
+                if (index < 0 || anchor.Y != area.Floor || gridMap.IsGenerated(anchor))
                 {
                     continue;
                 }
