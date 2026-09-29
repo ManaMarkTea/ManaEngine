@@ -245,7 +245,8 @@ namespace ManaVoxel.Code.Automation
             GridMapWfcEditing.Depth = command.Size is { Length: >= 2 } both ? both[1] : 16;
             GridMapWfcEditing.Seed = command.Seed;
             var result = GridMapWfcGenerator.Generate(map, GridMapWfcEditing.Rules,
-                new GridMapWfcGenerator.Area(0, 0, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, 0), command.Seed, keepPainted: false, connectedOnly: true);
+                new GridMapWfcGenerator.Area(0, 0, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, 0), command.Seed, keepPainted: false, connectedOnly: true,
+                rooms: GridMapWfcEditing.Rooms);
             GridMapWfcEditing.Status = result.Succeeded ? $"{result.Placements.Count} tiles" : result.Error ?? "";
         }
 

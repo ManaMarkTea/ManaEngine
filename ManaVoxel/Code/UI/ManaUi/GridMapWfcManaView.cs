@@ -206,6 +206,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             seed.WithTooltip("The same seed lays the same dungeon");
 
+            var rooms = new NumericBox { IsInteger = true, Step = 1.0f, Minimum = 0.0f, Maximum = 40.0f, MinimumFieldHeight = 0.0f, Padding = new Thickness(6.0f, 1.0f) };
+            rooms.BindPolled(box => box.Value, () => GridMapWfcEditing.Rooms);
+            rooms.ValueChanged += (_, value) =>
+            {
+                if (!rooms.IsApplyingBinding)
+                {
+                    GridMapWfcEditing.Rooms = Math.Clamp((int)MathF.Round(value), 0, 40);
+                }
+            };
+            rooms.WithTooltip("Rooms to lay first, spread out, before corridors are generated to join them. 0 leaves it all to chance, which mostly makes corridors.");
+
             var keep = new CheckBox().Label("Keep painted").OnChanged(value => GridMapWfcEditing.KeepPainted = value);
             keep.BindPolled(box => box.IsChecked, () => GridMapWfcEditing.KeepPainted);
             keep.WithTooltip("Build round the rules' tiles already in the area -- paint a room first, generate the rest round it.");
@@ -227,8 +238,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             return new StackPanel().Vertical(2.0f).Children(
                 Row(theme, "From", origin),
                 Row(theme, "Size", size),
-                new Grid().Columns("*, Auto, Auto", theme.Spacing).Rows("Auto").Children(
-                    Row(theme, "Seed", seed).GridColumn(0), keep.CenterV().GridColumn(1), connected.CenterV().GridColumn(2)),
+                new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
+                    Row(theme, "Seed", seed).GridColumn(0), Row(theme, "Rooms", rooms).GridColumn(1)),
+                new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(keep, connected),
                 new StackPanel().Horizontal(theme.Spacing).Children(generate, reroll),
                 status);
         }
@@ -245,7 +257,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             var before = gridMap.CaptureState();
             var clock = System.Diagnostics.Stopwatch.StartNew();
             var result = GridMapWfcGenerator.Generate(
-                gridMap, GridMapWfcEditing.Rules, area, GridMapWfcEditing.Seed, GridMapWfcEditing.KeepPainted, GridMapWfcEditing.ConnectedOnly);
+                gridMap, GridMapWfcEditing.Rules, area, GridMapWfcEditing.Seed, GridMapWfcEditing.KeepPainted, GridMapWfcEditing.ConnectedOnly,
+                GridMapWfcEditing.Rooms);
             if (!result.Succeeded)
             {
                 gridMap.RestoreState(before);

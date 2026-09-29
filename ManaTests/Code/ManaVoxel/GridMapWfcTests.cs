@@ -67,6 +67,20 @@ public static class GridMapWfcChecks
         var loose = GridMapWfc.Solve(rules, 24, 24, seed: 7, connectedOnly: false);
         Check("unless asked to keep everything", loose.Placements.Count >= result.Placements.Count);
 
+        // Rooms laid first: left to the collapse, a tile needing nine or twenty-five cells to agree rarely wins.
+        int RoomsIn(GridMapWfc.Result laid) => laid.Placements.Count(p => rules.Tiles[p.Tile].Width * rules.Tiles[p.Tile].Depth > 1);
+        var seeds = Enumerable.Range(1, 8).ToList();
+        var chance = seeds.Select(s => GridMapWfc.Solve(rules, 24, 24, seed: s)).ToList();
+        var planned = seeds.Select(s => GridMapWfc.Solve(rules, 24, 24, seed: s, rooms: 5)).ToList();
+        Check("asking for rooms lays them, where chance alone mostly makes corridors",
+            planned.All(r => r.Succeeded) && planned.Average(RoomsIn) >= 5.0 && planned.Average(RoomsIn) >= chance.Average(RoomsIn) + 2.0,
+            $"{chance.Average(RoomsIn):0.0} rooms by chance, {planned.Average(RoomsIn):0.0} asked for 5; {planned.Count(r => !r.Succeeded)} failed");
+        Check("and what is built round them still joins up",
+            planned.Where(r => r.Succeeded).All(r => Mismatches(rules, r.Placements, 24, 24).Count == 0),
+            string.Join("; ", planned.Where(r => r.Succeeded).SelectMany(r => Mismatches(rules, r.Placements, 24, 24)).Take(3)));
+        Check("and keeping to one piece keeps most of them", planned.Average(RoomsIn) >= 4.0, $"{planned.Average(RoomsIn):0.0}");
+        Check("the same seed still lays the same rooms", GridMapWfc.Solve(rules, 24, 24, seed: 3, rooms: 5).Placements.SequenceEqual(planned[2].Placements));
+
         // A room painted first stays where it was, and the rest is built round it.
         var small = rules.Tiles.FindIndex(tile => tile.Name == "Small room");
         var kept = GridMapWfc.Solve(rules, 16, 16, seed: 3, keep: [new GridMapWfc.Fixed(6, 6, small, 0)], connectedOnly: false);

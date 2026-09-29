@@ -16,7 +16,7 @@ namespace ManaVoxel.Code.GridMaps
         public sealed record Area(int X, int Z, int Width, int Depth, int Floor);
 
         /// <summary>Generates into the map, replacing the area. The caller records the undo step.</summary>
-        public static GridMapWfc.Result Generate(ManaGridMapNode gridMap, GridMapWfcRules rules, Area area, int seed, bool keepPainted, bool connectedOnly)
+        public static GridMapWfc.Result Generate(ManaGridMapNode gridMap, GridMapWfcRules rules, Area area, int seed, bool keepPainted, bool connectedOnly, int rooms = 0)
         {
             // Each tile's model is a palette item, sized to the cells the rules say it covers.
             var items = new int[rules.Tiles.Count];
@@ -38,7 +38,7 @@ namespace ManaVoxel.Code.GridMaps
             }
 
             var keep = keepPainted ? Painted(gridMap, rules, items, area) : [];
-            var result = GridMapWfc.Solve(rules, area.Width, area.Depth, seed, keep, connectedOnly);
+            var result = GridMapWfc.Solve(rules, area.Width, area.Depth, seed, keep, connectedOnly, rooms: rooms);
             if (!result.Succeeded)
             {
                 return result;

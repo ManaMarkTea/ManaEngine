@@ -129,6 +129,9 @@ namespace ManaVoxel.Code.GridMaps
 
         private const int MaxSize = 96;
 
+        /// <summary>Finished layouts compared when keeping to one piece; see <see cref="Solve"/>.</summary>
+        private const int Candidates = 6;
+
         /// <summary>Steps across each side, in turn order, as for <see cref="GridMapAutoTile.Neighbours"/>.</summary>
         private static readonly (int X, int Z)[] Steps = [(1, 0), (0, -1), (-1, 0), (0, 1)];
 
@@ -152,7 +155,8 @@ namespace ManaVoxel.Code.GridMaps
             int seed,
             IReadOnlyList<Fixed>? keep = null,
             bool connectedOnly = true,
-            int maxAttempts = 40)
+            int maxAttempts = 40,
+            int rooms = 0)
         {
             if (width < 1 || depth < 1 || width > MaxSize || depth > MaxSize)
             {
@@ -165,16 +169,135 @@ namespace ManaVoxel.Code.GridMaps
                 return new Result([], 0, "The rules have no tiles.");
             }
 
-            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            // Kept to one piece, a layout loses whatever its corridors did not happen to join up -- rooms laid
+            // first most of all. So a few finished layouts are tried and the one that keeps the most rooms, then
+            // the most tiles, wins. Solves take milliseconds; a dungeon with its rooms cut away is the cost here.
+            var wanted = connectedOnly ? Math.Clamp(Candidates, 1, maxAttempts) : 1;
+            List<GridMapWfcPlacement>? best = null;
+            var bestScore = (-1, -1);
+            var attempts = 0;
+            for (var attempt = 0; attempt < maxAttempts && wanted > 0; attempt++)
             {
-                var solver = new Solver(model, rules, width, depth, new Random(HashCode.Combine(seed, attempt)));
-                if (solver.Run(keep ?? []) is { } parts)
+                attempts = attempt + 1;
+
+                // Not HashCode.Combine: that is seeded afresh every run, and a seed has to lay the same dungeon
+                // tomorrow as today.
+                var random = new Random(unchecked(seed * 7919 + attempt * 104729));
+                var pinned = (keep ?? []).Concat(PlaceRooms(rules, width, depth, rooms, keep ?? [], random)).ToList();
+                var solver = new Solver(model, rules, width, depth, random);
+                if (solver.Run(pinned) is not { } parts)
                 {
-                    return new Result(Place(model, rules, parts, width, depth, connectedOnly), attempt + 1, null);
+                    continue;
+                }
+
+                wanted--;
+                var placed = Place(model, rules, parts, width, depth, connectedOnly);
+                var score = (placed.Count(p => rules.Tiles[p.Tile].Width * rules.Tiles[p.Tile].Depth > 1), placed.Count);
+                if (score.CompareTo(bestScore) > 0)
+                {
+                    best = placed;
+                    bestScore = score;
                 }
             }
 
+            if (best != null)
+            {
+                return new Result(best, attempts, null);
+            }
+
             return new Result([], maxAttempts, "No arrangement fits these rules here. Try another seed, a bigger area, or rules with more ways to join.");
+        }
+
+        /// <summary>
+        /// Rooms laid before the collapse: the rules' tiles covering more than one cell, at random places and
+        /// turns, a cell clear of the area's edge and of each other so a corridor can reach every door. Left
+        /// to the collapse alone a big tile rarely wins -- every one of its cells has to agree at once -- and a
+        /// dungeon comes out as corridors. The collapse then builds the rest round them.
+        /// </summary>
+        private static List<Fixed> PlaceRooms(GridMapWfcRules rules, int width, int depth, int count, IReadOnlyList<Fixed> keep, Random random)
+        {
+            var rooms = new List<Fixed>();
+            var candidates = Enumerable.Range(0, rules.Tiles.Count)
+                .Where(t => rules.Tiles[t].Asset != null && rules.Tiles[t].Width * rules.Tiles[t].Depth > 1 && rules.Tiles[t].Weight > 0.0f)
+                .ToList();
+            if (count <= 0 || candidates.Count == 0)
+            {
+                return rooms;
+            }
+
+            // What is taken, with the margin round it: kept tiles first, then each room as it goes in.
+            var taken = new bool[width, depth];
+            foreach (var fix in keep)
+            {
+                var tile = rules.Tiles[fix.Tile];
+                var (w, d) = fix.Orientation % 2 == 0 ? (tile.Width, tile.Depth) : (tile.Depth, tile.Width);
+                Mark(fix.X, fix.Z, w, d, margin: 0);
+            }
+
+            var totalWeight = candidates.Sum(t => rules.Tiles[t].Weight);
+            for (var tries = 0; rooms.Count < count && tries < count * 40; tries++)
+            {
+                // By weight among the rooms, so a rules file can still say large rooms are rarer.
+                var roll = random.NextDouble() * totalWeight;
+                var pick = candidates[^1];
+                foreach (var t in candidates)
+                {
+                    roll -= rules.Tiles[t].Weight;
+                    if (roll <= 0.0)
+                    {
+                        pick = t;
+                        break;
+                    }
+                }
+
+                var turns = Turns(rules.Tiles[pick].Rotations).ToList();
+                var turn = turns[random.Next(turns.Count)];
+                var (tw, td) = turn % 2 == 0 ? (rules.Tiles[pick].Width, rules.Tiles[pick].Depth) : (rules.Tiles[pick].Depth, rules.Tiles[pick].Width);
+                if (tw + 2 > width || td + 2 > depth)
+                {
+                    continue;
+                }
+
+                var x = 1 + random.Next(width - tw - 1);
+                var z = 1 + random.Next(depth - td - 1);
+                if (Free(x - 1, z - 1, tw + 2, td + 2))
+                {
+                    rooms.Add(new Fixed(x, z, pick, turn));
+                    Mark(x, z, tw, td, margin: 1);
+                }
+            }
+
+            return rooms;
+
+            bool Free(int x, int z, int w, int d)
+            {
+                for (var i = x; i < x + w; i++)
+                {
+                    for (var j = z; j < z + d; j++)
+                    {
+                        if (i >= 0 && j >= 0 && i < width && j < depth && taken[i, j])
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            void Mark(int x, int z, int w, int d, int margin)
+            {
+                for (var i = x - margin; i < x + w + margin; i++)
+                {
+                    for (var j = z - margin; j < z + d + margin; j++)
+                    {
+                        if (i >= 0 && j >= 0 && i < width && j < depth)
+                        {
+                            taken[i, j] = true;
+                        }
+                    }
+                }
+            }
         }
 
         private static List<GridMapWfcPlacement> Place(Model model, GridMapWfcRules rules, int[] parts, int width, int depth, bool connectedOnly)

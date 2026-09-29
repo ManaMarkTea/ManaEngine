@@ -72,6 +72,9 @@ namespace ManaVoxel.Code.GridMaps
 
         public static bool ConnectedOnly { get; set; } = true;
 
+        /// <summary>How many rooms to lay before the rest is generated round them; see GridMapWfc.Solve.</summary>
+        public static int Rooms { get; set; } = 4;
+
         /// <summary>What the last generate did, for the window to say.</summary>
         public static string Status { get; set; } = string.Empty;
 
