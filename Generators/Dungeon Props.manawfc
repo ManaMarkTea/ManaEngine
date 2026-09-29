@@ -5,7 +5,9 @@
   "boundary": "wall",
   "connects": "",
   "kind": "props",
+  "then": "Table Clutter",
   "base": "Dungeon",
+  "layer": "props",
   "pairs": [
     [
       "free",
@@ -37,7 +39,7 @@
         1,
         1
       ],
-      "weight": 10.0,
+      "weight": 6.0,
       "modelCell": 0.0,
       "rotations": "None",
       "sockets": {
@@ -181,6 +183,7 @@
         1
       ],
       "weight": 0.7,
+      "tag": "table",
       "on": [
         "room"
       ],
@@ -277,6 +280,92 @@
         ],
         "n": [
           "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Debris",
+      "asset": "Assets/Models/Kenny/debris.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.5,
+      "on": [
+        "room",
+        "corridor"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Wood debris",
+      "asset": "Assets/Models/Kenny/debris-wood.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.4,
+      "on": [
+        "room",
+        "corridor"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Lantern",
+      "asset": "Assets/Models/Kenny/lantern-candle.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.3,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          ">back"
         ],
         "w": [
           "free"

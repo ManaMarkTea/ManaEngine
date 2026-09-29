@@ -639,7 +639,7 @@ namespace ManaVoxel.Code.Levels
                     await catalog.EnsureAsync(node.Asset);
                 foreach (var tile in node.GridMap?.Palette ?? [])
                 {
-                    try { await catalog.EnsureAsync(tile); }
+                    try { await catalog.EnsureAsync(ManaGridMapNode.AssetOf(tile)); }
                     catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload grid map tile '{tile}': {ex.Message}"); }
                 }
                 if (node.Children != null)

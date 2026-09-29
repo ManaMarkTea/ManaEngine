@@ -43,7 +43,9 @@ namespace ManaVoxel.Code.Levels
             {
                 CellSize = new[] { size.X, size.Y, size.Z },
                 // Readable where the zip is one of ours, the same as a placed mesh; see MeshAssetLibrary.ToReadableReference.
-                Palette = gridMap.Palette.Select(MeshAssetLibrary.ToReadableReference).ToList(),
+                Palette = gridMap.Palette
+                    .Select(entry => MeshAssetLibrary.ToReadableReference(ManaGridMapNode.AssetOf(entry)) + ManaGridMapNode.VariantOf(entry))
+                    .ToList(),
                 Collision = gridMap.Collision,
                 Tiles = Enumerable.Range(0, gridMap.Palette.Count).All(item => gridMap.ItemSettings(item) == GridMapItemSettings.Default)
                     ? null

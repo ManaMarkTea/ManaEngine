@@ -154,6 +154,15 @@ public static class GridMapWfcChecks
             && shippedProps.Tiles.Count == propsPreset.Tiles.Count,
             $"then {file?.Then}, props {shippedProps?.Tiles.Count} tiles");
 
+        var shippedClutter = GridMapWfcGenerator.FindRules("Table Clutter");
+        var clutterPreset = GridMapWfcPresets.TableClutter();
+        Check("the Table Clutter rules ship, are the preset, and the props rules lead to them",
+            shippedProps?.Then == "Table Clutter" && shippedClutter is { IsProps: true, Base: "Dungeon Props" }
+            && shippedClutter.Slots?.Count == clutterPreset.Slots?.Count
+            && shippedClutter.Tiles.Select(t => (t.Name, t.Asset, t.Weight, t.ModelCell)).SequenceEqual(clutterPreset.Tiles.Select(t => (t.Name, t.Asset, t.Weight, t.ModelCell)))
+            && shippedProps.Tiles.Single(t => t.Name == "Table").Tag == "table",
+            $"clutter {shippedClutter?.Tiles.Count} tiles");
+
         RunWindowChecks(fonts, Check);
     }
 
@@ -235,7 +244,7 @@ public static class GridMapWfcChecks
             var dungeon = GridMapWfcPresets.Dungeon();
             var props = GridMapWfcPresets.DungeonProps();
             var wrong = new List<string>();
-            int chairs = 0, tables = 0, backed = 0, laid = 0, doorways = 0;
+            int chairs = 0, tables = 0, backed = 0, laid = 0, doorways = 0, onTables = 0, spots = 0;
             for (var seed = 1; seed <= 5; seed++)
             {
                 var world = new ManaWorld();
@@ -313,6 +322,33 @@ public static class GridMapWfcChecks
 
                 doorways += cells.Count(cell => cell.Tag == "door");
 
+                // What stands on the tables: only on a table's cell, in both spots, each raised to the tabletop.
+                if (furnished.Props is { Succeeded: true } clutter)
+                {
+                    var tablesHere = furnished.Placements.Where(p => props.Tiles[p.Tile].Name == "Table").Select(p => (p.X, p.Z)).ToHashSet();
+                    var clutterRules = GridMapWfcPresets.TableClutter();
+                    foreach (var item in clutter.Placements.Where(p => clutterRules.Tiles[p.Tile].Asset != null))
+                    {
+                        onTables++;
+                        if (!tablesHere.Contains((item.X, item.Z)))
+                        {
+                            wrong.Add($"{clutterRules.Tiles[item.Tile].Name} off any table at ({item.X},{item.Z})");
+                        }
+                    }
+
+                    var clutterLayers = Enumerable.Range(0, gridMap.LayerCount).Where(l => gridMap.LayerName(l).StartsWith("Base clutter", StringComparison.Ordinal)).ToList();
+                    spots = Math.Max(spots, clutterLayers.Count);
+                    var raised = clutterLayers.SelectMany(l => gridMap.LayerCells(l).Values).All(t => gridMap.ItemSettings(t.Item).Offset.Y > 0.3f);
+                    if (!raised)
+                    {
+                        wrong.Add("a clutter item not raised to the tabletop");
+                    }
+                }
+                else
+                {
+                    wrong.Add($"seed {seed}: no clutter pass ({furnished.Props?.Error})");
+                }
+
                 // Re-rolling only the props: the dungeon underneath is left exactly as it was.
                 var dungeonCells = gridMap.LayerCells(0).ToDictionary(pair => pair.Key, pair => pair.Value);
                 var before = gridMap.CaptureState();
@@ -329,6 +365,8 @@ public static class GridMapWfcChecks
             check("props are laid over a generated dungeon", laid > 50, $"{laid} props over 5 dungeons");
             check("with tables and the chairs round them", tables > 0 && chairs > 0, $"{tables} tables, {chairs} chairs");
             check("doorways are found", doorways > 10, $"{doorways} door cells over 5 dungeons");
+            check("small things are laid on the tables, in two spots each, on layers of their own",
+                onTables > tables && spots == 2, $"{onTables} on {tables} tables, {spots} spots");
             check("each only where it may stand -- tables off the walls, doorways clear -- its back to a wall, and every chair facing a table",
                 wrong.Count == 0 && backed > 0, string.Join("; ", wrong.Take(5)));
         }

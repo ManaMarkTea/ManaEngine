@@ -173,6 +173,16 @@ namespace ManaVoxel.Code.GridMaps
         /// <summary>For props: the rules file, by name, the dungeon underneath was laid with, to read it by.</summary>
         public string? Base { get; set; }
 
+        /// <summary>For props: the layer they go on, after the dungeon's own -- "props" makes "Base props".</summary>
+        public string? Layer { get; set; }
+
+        /// <summary>
+        /// For props: places within a cell, in cells, to fill one at a time -- each on a layer of its own, since a
+        /// layer holds one tile a cell. Two spots on a tabletop are two things on every table. Unset is one, the
+        /// cell's centre.
+        /// </summary>
+        public List<float[]>? Slots { get; set; }
+
         /// <summary>
         /// Labels that join each other as well as themselves, both ways: ["seat", "table"] lets a chair's front
         /// face a table, ["free", "wall"] lets a prop stand against a wall. Everything else joins only its equal.

@@ -119,9 +119,58 @@ namespace ManaVoxel.Code.GridMaps
         /// re-rolling the furniture leaves the dungeon alone.
         /// </summary>
         public static GridMapWfc.Result GenerateProps(
-            ManaGridMapNode gridMap, GridMapWfcRules props, GridMapWfcRules dungeon, Area area, int seed, bool keepPainted)
+            ManaGridMapNode gridMap, GridMapWfcRules props, GridMapWfcRules dungeon, Area area, int seed, bool keepPainted, int depth = 0)
         {
             var context = ReadDungeon(gridMap, dungeon, area);
+            var slots = props.Slots is { Count: > 0 } listed ? listed : [[0.0f, 0.0f, 0.0f]];
+            var placements = new List<GridMapWfcPlacement>();
+            GridMapWfc.Result? last = null;
+            for (var slot = 0; slot < slots.Count; slot++)
+            {
+                var spot = slots[slot] is { Length: >= 3 } at ? new Vector3(at[0], at[1], at[2]) : Vector3.Zero;
+                var items = PropItems(gridMap, props, slot, spot);
+                var layer = PropsLayer(gridMap, props, slot, create: true)!.Value;
+                var keep = keepPainted ? OnLayer(gridMap, layer, () => Painted(gridMap, props, items, area)) : [];
+
+                // A seed of its own for each spot, so the front of a table does not repeat the back.
+                last = GridMapWfc.Solve(props, area.Width, area.Depth, unchecked(seed + slot * 7919), keep, connectedOnly: false, context: context);
+                if (!last.Succeeded)
+                {
+                    return last;
+                }
+
+                OnLayer(gridMap, layer, () =>
+                {
+                    ClearArea(gridMap, area, onlyGenerated: keepPainted);
+                    foreach (var placement in last.Placements)
+                    {
+                        if (items[placement.Tile] >= 0)
+                        {
+                            gridMap.SetGeneratedTile(
+                                new GridMapCell(area.X + placement.X, area.Floor, area.Z + placement.Z),
+                                new GridMapTile(items[placement.Tile], placement.Orientation));
+                        }
+                    }
+                });
+
+                placements.AddRange(last.Placements);
+            }
+
+            var result = new GridMapWfc.Result(placements, last?.Attempts ?? 0, null);
+
+            // Props can lead to more props -- the furniture to what stands on the tables -- read off what these laid.
+            return depth < 4 && FindRules(props.Then) is { IsProps: true } next
+                ? result with { Props = GenerateProps(gridMap, next, props, area, unchecked(seed + 1), keepPainted, depth + 1) }
+                : result;
+        }
+
+        /// <summary>
+        /// Each props tile's palette item for one spot: kept at its own size against the grid rather than fitted to
+        /// its cells -- a barrel is not a room -- and moved to the spot. A spot after the first is a "#" variant of
+        /// the model, so the same candle can stand at the front of one table and the back of another.
+        /// </summary>
+        private static int[] PropItems(ManaGridMapNode gridMap, GridMapWfcRules props, int slot, Vector3 spot)
+        {
             var items = new int[props.Tiles.Count];
             for (var t = 0; t < props.Tiles.Count; t++)
             {
@@ -132,15 +181,15 @@ namespace ManaVoxel.Code.GridMaps
                     continue;
                 }
 
-                // Kept at its own size against the grid rather than fitted to its cells: a barrel is not a room.
-                items[t] = gridMap.AddPaletteItem(tile.Asset);
+                items[t] = gridMap.AddPaletteItem(slot == 0 ? tile.Asset : $"{tile.Asset}#{slot + 1}");
+                var offset = tile.Offset is { Length: >= 3 } shift ? new Vector3(shift[0], shift[1], shift[2]) : Vector3.Zero;
                 var settings = GridMapItemSettings.Default with
                 {
                     Width = tile.Width,
                     Depth = tile.Depth,
                     Scale = tile.ModelCell > 0.0f ? gridMap.CellSize.X / tile.ModelCell : 0.0f,
                     Smooth = tile.Smooth,
-                    Offset = tile.Offset is { Length: >= 3 } offset ? new Vector3(offset[0], offset[1], offset[2]) : Vector3.Zero
+                    Offset = offset + spot
                 };
                 if (gridMap.ItemSettings(items[t]) != settings)
                 {
@@ -148,29 +197,7 @@ namespace ManaVoxel.Code.GridMaps
                 }
             }
 
-            var layer = PropsLayer(gridMap, create: true)!.Value;
-            var keep = keepPainted ? OnLayer(gridMap, layer, () => Painted(gridMap, props, items, area)) : [];
-            var result = GridMapWfc.Solve(props, area.Width, area.Depth, seed, keep, connectedOnly: false, context: context);
-            if (!result.Succeeded)
-            {
-                return result;
-            }
-
-            OnLayer(gridMap, layer, () =>
-            {
-                ClearArea(gridMap, area, onlyGenerated: keepPainted);
-                foreach (var placement in result.Placements)
-                {
-                    if (items[placement.Tile] >= 0)
-                    {
-                        gridMap.SetGeneratedTile(
-                            new GridMapCell(area.X + placement.X, area.Floor, area.Z + placement.Z),
-                            new GridMapTile(items[placement.Tile], placement.Orientation));
-                    }
-                }
-            });
-
-            return result;
+            return items;
         }
 
         /// <summary>
@@ -181,6 +208,11 @@ namespace ManaVoxel.Code.GridMaps
         /// </summary>
         public static GridMapWfc.Cell[] ReadDungeon(ManaGridMapNode gridMap, GridMapWfcRules dungeon, Area area)
         {
+            if (dungeon.IsProps)
+            {
+                return ReadProps(gridMap, dungeon, area);
+            }
+
             var byAsset = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (var t = 0; t < dungeon.Tiles.Count; t++)
             {
@@ -330,6 +362,39 @@ namespace ManaVoxel.Code.GridMaps
             }
         }
 
+        /// <summary>
+        /// What props passes laid, for one to stand on: each cell tagged by the props tile in it -- a table is
+        /// "table" -- or "empty". There are no walls on a tabletop.
+        /// </summary>
+        private static GridMapWfc.Cell[] ReadProps(ManaGridMapNode gridMap, GridMapWfcRules props, Area area)
+        {
+            var byAsset = new Dictionary<string, GridMapWfcTile>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tile in props.Tiles.Where(tile => tile.Asset != null))
+            {
+                byAsset.TryAdd(tile.Asset!, tile);
+            }
+
+            var cells = new GridMapWfc.Cell[area.Width * area.Depth];
+            var layer = PropsLayer(gridMap, props, 0, create: false);
+            for (var z = 0; z < area.Depth; z++)
+            {
+                for (var x = 0; x < area.Width; x++)
+                {
+                    var at = new GridMapCell(area.X + x, area.Floor, area.Z + z);
+                    var tag = "empty";
+                    if (layer is { } found && gridMap.LayerCells(found).TryGetValue(at, out var laid)
+                        && byAsset.TryGetValue(ManaGridMapNode.AssetOf(gridMap.Palette[laid.Item]), out var tile))
+                    {
+                        tag = string.IsNullOrWhiteSpace(tile.Tag) ? "prop" : tile.Tag.Trim();
+                    }
+
+                    cells[x + z * area.Width] = new GridMapWfc.Cell(tag, GridMapSides.None);
+                }
+            }
+
+            return cells;
+        }
+
         /// <summary>A rules file in Generators/ by name, or a preset of that name, or null for none.</summary>
         public static GridMapWfcRules? FindRules(string? name)
         {
@@ -356,6 +421,13 @@ namespace ManaVoxel.Code.GridMaps
 
         /// <summary>The layer a dungeon's props go on: the one named for the active layer's props, made when asked.</summary>
         private static int? PropsLayer(ManaGridMapNode gridMap, bool create) => NamedLayer(gridMap, "props", create);
+
+        /// <summary>The layer one spot of a props pass goes on: its rules' layer, numbered after the first spot.</summary>
+        private static int? PropsLayer(ManaGridMapNode gridMap, GridMapWfcRules props, int slot, bool create)
+        {
+            var name = string.IsNullOrWhiteSpace(props.Layer) ? "props" : props.Layer.Trim();
+            return NamedLayer(gridMap, slot == 0 ? name : $"{name} {slot + 1}", create);
+        }
 
         /// <summary>
         /// Builds each big room from the kit's pieces: a floor in every cell, a corner piece in each corner, and on
@@ -593,7 +665,55 @@ namespace ManaVoxel.Code.GridMaps
         };
 
         public static IReadOnlyList<(string Name, Func<GridMapWfcRules> Create)> All { get; } =
-            [("Dungeon", Dungeon), ("Dungeon Props", DungeonProps)];
+            [("Dungeon", Dungeon), ("Dungeon Props", DungeonProps), ("Table Clutter", TableClutter)];
+
+        private const string Graveyard = "Assets/Models/Kenny/";
+
+        /// <summary>
+        /// Small things for the dungeon's tables, from Kenney's graveyard pieces and mini-dungeon kit: candles,
+        /// bowls, plates, chalices, potions and lanterns. Read off the props layer -- only a table's cell is
+        /// "table" -- and laid in two spots on each tabletop, raised to the top of Kenney's table.
+        /// </summary>
+        public static GridMapWfcRules TableClutter() => new()
+        {
+            Name = "Table Clutter",
+            Kind = "props",
+            Base = "Dungeon Props",
+            Layer = "clutter",
+            Boundary = string.Empty,
+            Connects = string.Empty,
+            Slots = [[-0.18f, 0.315f, 0.1f], [0.18f, 0.315f, -0.08f]],
+            SideNames = new Dictionary<string, string> { ["free"] = "Anything" },
+            Tiles =
+            [
+                Prop("Nothing", null, 0.8f, GridMapWfcRotations.None, null, "free", "free", "free", "free"),
+                Clutter("Candle", Graveyard + "candle.glb", 1.0f),
+                Clutter("Candles", Graveyard + "candle-multiple.glb", 0.4f),
+                Clutter("Bowl", Graveyard + "detail-bowl.glb", 0.7f),
+                Clutter("Plate", Graveyard + "detail-plate.glb", 0.9f),
+                Clutter("Chalice", Graveyard + "detail-chalice.glb", 0.6f),
+                Clutter("Lantern", Graveyard + "lantern-candle.glb", 0.3f),
+                Clutter("Potion", Props + "potion.glb", 0.5f, modelCell: 2.5f)
+            ]
+        };
+
+        private static GridMapWfcTile Tagged(GridMapWfcTile tile, string tag)
+        {
+            tile.Tag = tag;
+            return tile;
+        }
+
+        private static GridMapWfcTile Clutter(string name, string asset, float weight, float modelCell = 1.0f) => new()
+        {
+            Name = name,
+            Asset = asset,
+            Size = [1, 1],
+            Weight = weight,
+            Rotations = GridMapWfcRotations.All,
+            On = ["table"],
+            ModelCell = modelCell,
+            Sockets = new Dictionary<string, string[]> { ["e"] = ["free"], ["n"] = ["free"], ["w"] = ["free"], ["s"] = ["free"] }
+        };
 
         private const string Props = "zip:kenney_mini-dungeon.zip/Models/GLB format/";
 
@@ -616,6 +736,8 @@ namespace ManaVoxel.Code.GridMaps
             Name = "Dungeon Props",
             Kind = "props",
             Base = "Dungeon",
+            Layer = "props",
+            Then = "Table Clutter",
             Boundary = "wall",
             Connects = string.Empty,
             Pairs =
@@ -634,24 +756,27 @@ namespace ManaVoxel.Code.GridMaps
             },
             Tiles =
             [
-                Prop("Empty", null, 10.0f, GridMapWfcRotations.None, null, "free", "free", "free", "free"),
+                Prop("Empty", null, 6.0f, GridMapWfcRotations.None, null, "free", "free", "free", "free"),
                 Prop("Barrel", "barrel.glb", 1.4f, GridMapWfcRotations.All, ["room"], "free", ">back", "free", "free"),
                 Prop("Chest", "chest.glb", 0.5f, GridMapWfcRotations.All, ["room"], "free", ">back", "free", "free"),
                 Prop("Pot", "pot.glb", 0.6f, GridMapWfcRotations.All, ["room"], "free", ">back", "free", "free"),
                 Prop("Banner", "banner.glb", 0.9f, GridMapWfcRotations.All, ["room", "corridor"], "free", ">back", "free", "free", offset: [0.0f, 0.0f, 0.14f]),
-                Prop("Table", "table.glb", 0.7f, GridMapWfcRotations.Half, ["room"], "table", "table", "table", "table"),
+                Tagged(Prop("Table", "table.glb", 0.7f, GridMapWfcRotations.Half, ["room"], "table", "table", "table", "table"), "table"),
                 Prop("Chair", "chair.glb", 2.5f, GridMapWfcRotations.All, ["room"], "free", "free", "free", ">seat"),
                 Prop("Column", "column.glb", 0.25f, GridMapWfcRotations.None, ["room"], "free", "free", "free", "free"),
                 Prop("Stones", "stones.glb", 0.25f, GridMapWfcRotations.All, ["room", "corridor"], "free", "free", "free", "free"),
+                Prop("Debris", Graveyard + "debris.glb", 0.5f, GridMapWfcRotations.All, ["room", "corridor"], "free", "free", "free", "free", external: true),
+                Prop("Wood debris", Graveyard + "debris-wood.glb", 0.4f, GridMapWfcRotations.All, ["room", "corridor"], "free", "free", "free", "free", external: true),
+                Prop("Lantern", Graveyard + "lantern-candle.glb", 0.3f, GridMapWfcRotations.None, ["room"], "free", ">back", "free", "free", external: true),
                 Prop("Trap", "trap.glb", 0.15f, GridMapWfcRotations.None, ["corridor"], "free", "free", "free", "free")
             ]
         };
 
         private static GridMapWfcTile Prop(string name, string? model, float weight, GridMapWfcRotations rotations, string[]? on,
-            string east, string north, string west, string south, float[]? offset = null) => new()
+            string east, string north, string west, string south, float[]? offset = null, bool external = false) => new()
         {
             Name = name,
-            Asset = model == null ? null : Props + model,
+            Asset = model == null ? null : external ? model : Props + model,
             Size = [1, 1],
             Weight = weight,
             Rotations = rotations,

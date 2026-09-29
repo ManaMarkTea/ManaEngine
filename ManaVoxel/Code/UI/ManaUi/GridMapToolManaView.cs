@@ -661,6 +661,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>An asset's thumbnail, requested from the cache the asset browser uses and shown once it arrives.</summary>
         private static UiImage Thumbnail(string asset, float size)
         {
+            asset = ManaGridMapNode.AssetOf(asset);
             var preview = new UiImage { Fit = UiImageFit.Contain, Width = size, Height = size };
             // A UV carries no size of its own, so without this a Contain fit has nothing to fit and draws nothing.
             preview.SourceSize = new Vector2(MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);

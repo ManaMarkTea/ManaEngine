@@ -856,9 +856,24 @@ namespace ManaVoxel.Code.GridMaps
         /// </summary>
         public static string TileName(string asset)
         {
+            asset = AssetOf(asset);
             var path = MeshAssetLibrary.TryDecodeZip(asset, out _, out var entry) ? entry : asset;
             return Path.GetFileNameWithoutExtension(path.Replace('\\', '/'));
         }
+
+        /// <summary>
+        /// The model a palette entry draws. An entry may end in a "#" variant -- "candle.glb#2" -- so one model
+        /// can be in the palette twice with different settings: a candle at the front of a table and one at the
+        /// back. Everything that loads the model reads it through this.
+        /// </summary>
+        public static string AssetOf(string entry)
+        {
+            var hash = entry.LastIndexOf('#');
+            return hash > 0 && hash > entry.LastIndexOfAny(['/', '\\']) ? entry[..hash] : entry;
+        }
+
+        /// <summary>The "#" variant a palette entry carries, with its "#", or empty for none; see <see cref="AssetOf"/>.</summary>
+        public static string VariantOf(string entry) => entry[AssetOf(entry).Length..];
 
         public static int WrapOrientation(int orientation) =>
             ((orientation % OrientationCount) + OrientationCount) % OrientationCount;
@@ -1142,7 +1157,7 @@ namespace ManaVoxel.Code.GridMaps
             try
             {
                 // A holding scene the world never sees: the model is read for its meshes, not placed.
-                root = ManaGridMapNode.LoadAsset(asset, context.World, new ManaScene(context) { Name = "Grid Map Palette" });
+                root = ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), context.World, new ManaScene(context) { Name = "Grid Map Palette" });
             }
             catch (Exception exception)
             {
