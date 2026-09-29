@@ -19,6 +19,11 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
+        /// <summary>How far the grid is pushed behind whatever shares its depth; see CreateDemoRenderPipeline.</summary>
+        private const int GridDepthBias = 64;
+
+        private const float GridDepthBiasSlope = 2.0f;
+
         private RenderPipeline* CreateDemoRenderPipeline(
             ShaderModule* shaderModule,
             TextureFormat colorFormat,
@@ -81,6 +86,7 @@ namespace ManaGraphics.Code.Graphics
                 // Blending and depth settings are now parameter driven
 
                 var useAdditiveBlend = shaderName == "ManaLightningBallShader";
+                var isGrid = shaderName == "ManaGridShader";
                 var blendState = new BlendState
                 {
                     Color = new BlendComponent
@@ -145,8 +151,12 @@ namespace ManaGraphics.Code.Graphics
                     },
                     StencilReadMask = uint.MaxValue,
                     StencilWriteMask = uint.MaxValue,
-                    DepthBias = 0,
-                    DepthBiasSlopeScale = 0,
+
+                    // The editor grid is the backdrop, and anything laid on it -- a grid map's floor tiles --
+                    // sits at exactly its height. Pushed back a hair, the grid loses every tie instead of
+                    // striping through the floor as the two fight for the same depth.
+                    DepthBias = isGrid ? GridDepthBias : 0,
+                    DepthBiasSlopeScale = isGrid ? GridDepthBiasSlope : 0,
                     DepthBiasClamp = 0
                 };
 

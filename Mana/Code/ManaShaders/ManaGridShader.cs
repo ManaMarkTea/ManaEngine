@@ -31,6 +31,14 @@ namespace Mana.Code
         /// </summary>
         public override void BindShader(ManaMaterial material, Matrix4x4 objectMatrix, CameraComponent camera, ManaSceneNode? owner = null)
         {
+            // Pushed behind anything at its own height -- a grid map's floor tiles -- as the WebGPU pipeline's
+            // depth bias does, so the two do not fight for the same depth.
+            if (Context.OpenGl is { } gl)
+            {
+                gl.Enable(Silk.NET.OpenGL.EnableCap.PolygonOffsetFill);
+                gl.PolygonOffset(2.0f, 64.0f);
+            }
+
             base.BindShader(material, objectMatrix, camera, owner);
             FindUniform("gridFloor")?.SetValue(material.Albedo.Value);
 
@@ -42,6 +50,12 @@ namespace Mana.Code
             FindUniform("gridLine")?.SetValue(new Vector4(emission.X, emission.Y, emission.Z, (float)material.EmissionStrength));
             FindUniform("uvTransform")?.SetValue(new Vector4(
                 material.UvScale.X, material.UvScale.Y, material.UvOffset.X, material.UvOffset.Y));
+        }
+
+        public override void UnbindShader()
+        {
+            base.UnbindShader();
+            Context.OpenGl?.Disable(Silk.NET.OpenGL.EnableCap.PolygonOffsetFill);
         }
     }
 }
