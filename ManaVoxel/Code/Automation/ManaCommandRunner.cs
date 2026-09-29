@@ -99,6 +99,11 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "open_panel":
+                        ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.RequestPanel(command.Name ?? "");
+                        _index++;
+                        break;
+
                     case "grid_generate":
                         ApplyGridGenerate(command);
                         _index++;

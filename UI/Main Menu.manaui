@@ -1,0 +1,27 @@
+{
+  "type": "Border",
+  "name": "Main Menu",
+  "background": "@Surface",
+  "cornerRadius": 8,
+  "padding": [24, 20],
+  "horizontalAlignment": "Center",
+  "verticalAlignment": "Center",
+  "child": {
+    "type": "StackPanel",
+    "spacing": 10,
+    "children": [
+      { "type": "TextBlock", "text": "Mana", "fontSize": 32, "foreground": "@Accent", "horizontalAlignment": "Center" },
+      { "type": "TextBlock", "name": "subtitle", "text": "A little voxel adventure", "foreground": "@TextMuted", "horizontalAlignment": "Center", "bind": { "text": "menu.subtitle" } },
+      { "type": "Button", "name": "play", "text": "Play", "variant": "Primary", "horizontalAlignment": "Stretch", "on": { "click": "menu.play" } },
+      { "type": "Button", "name": "options", "text": "Options", "horizontalAlignment": "Stretch", "on": { "click": "menu.options" } },
+      {
+        "type": "Grid", "columns": "Auto, *", "rows": "Auto", "columnSpacing": 8,
+        "children": [
+          { "type": "TextBlock", "text": "Volume", "verticalAlignment": "Center", "grid": { "column": 0 } },
+          { "type": "Slider", "name": "volume", "minimum": 0, "maximum": 1, "value": 0.8, "grid": { "column": 1 } }
+        ]
+      },
+      { "type": "Button", "name": "quit", "text": "Quit", "variant": "Subtle", "horizontalAlignment": "Stretch", "on": { "click": "menu.quit" } }
+    ]
+  }
+}

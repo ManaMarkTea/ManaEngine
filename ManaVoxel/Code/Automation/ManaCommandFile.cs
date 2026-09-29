@@ -13,7 +13,7 @@ namespace ManaVoxel.Code.Automation
         /// One of: open_level, wait, move_camera, select_node, screenshot, quit, play, stop_play, profile_reset,
         /// profile_dump (writes the frame profiler's per-scope report and average frame rate to <see cref="Path"/>),
         /// grid_autotile (adds a preset set to a grid map and drags it through <see cref="Cells"/>),
-        /// grid_generate (opens the Generator on the grid map named by <see cref="Name"/> and generates with the dungeon preset).
+        /// open_panel (brings up the panel whose id is <see cref="Name"/>), grid_generate (opens the Generator on the grid map named by <see cref="Name"/> and generates with the dungeon preset).
         /// </summary>
         public string Type { get; set; } = "";
 

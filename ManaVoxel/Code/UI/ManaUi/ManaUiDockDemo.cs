@@ -50,12 +50,18 @@ namespace ManaVoxel.Code.UI.ManaUi
             [GridMapToolManaView.PanelId] = "Grid Map",
             [VoxelToolsPanelId] = "Voxel Tools",
             [GridMapWfcManaView.PanelId] = "Generator",
+            [UiDesignerManaView.PanelId] = "UI Designer",
             ["showcase"] = "ManaUI",
             ["about"] = "About",
             ["worldperf"] = "World Perf",
             ["debug"] = "Debug",
             ["preferences"] = "Preferences"
         };
+
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<string> PanelRequests = new();
+
+        /// <summary>Brings a panel up on the next frame, from code with no hold on the workspace -- a command file.</summary>
+        public static void RequestPanel(string id) => PanelRequests.Enqueue(id);
 
         /// <summary>Test seam: the most recently built workspace's drag controller.</summary>
         public static DockDragController? LastDragController { get; private set; }
@@ -86,6 +92,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             GridMapToolManaView.PanelId,
             VoxelToolsPanelId,
             GridMapWfcManaView.PanelId,
+            UiDesignerManaView.PanelId,
             "showcase",
             "about",
             "worldperf",
@@ -156,7 +163,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             [GridMapToolManaView.PanelId] = (null, new Vector2(300.0f, 520.0f)),
             [VoxelToolsPanelId] = (null, new Vector2(300.0f, 460.0f)),
-            [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f))
+            [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f)),
+            [UiDesignerManaView.PanelId] = (null, new Vector2(1120.0f, 640.0f))
         };
 
         /// <summary>The live density subscription, so re-attaching replaces it rather than stacking a second one.</summary>
@@ -250,6 +258,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 GridMapToolManaView.PanelId when world != null => new DockItem(
                     "Grid Map",
                     GridMapToolManaView.Build(theme, world, editor?.History)) { Id = GridMapToolManaView.PanelId },
+                UiDesignerManaView.PanelId => new DockItem("UI Designer", UiDesignerManaView.Build(theme)) { Id = UiDesignerManaView.PanelId },
                 GridMapWfcManaView.PanelId when world != null => new DockItem(
                     "Generator",
                     GridMapWfcManaView.Build(theme, world, editor?.History)) { Id = GridMapWfcManaView.PanelId },
@@ -665,6 +674,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             var selectionWatcher = new TextBlock().Width(0.0f).Height(0.0f);
             selectionWatcher.BindPolled(text => text.Text, () =>
             {
+                while (PanelRequests.TryDequeue(out var requested))
+                {
+                    OpenPanel(requested);
+                }
+
                 SyncGridMapPanel();
                 return string.Empty;
             });
@@ -1042,6 +1056,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 GridMapToolManaView.PanelId => false,
                 VoxelToolsPanelId => false,
                 GridMapWfcManaView.PanelId => false,
+                UiDesignerManaView.PanelId => false,
                 _ => true
             };
         }
@@ -1111,14 +1126,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                     X = window.Position.X,
                     Y = window.Position.Y,
 
-                    // Arranged size, not requested: a resized window comes back the size it was left.
-                    Width = window.Bounds.Width > 0.0f ? window.Bounds.Width : FloatingFallback.X,
-                    Height = window.Bounds.Height > 0.0f ? window.Bounds.Height : FloatingFallback.Y
+                    // Arranged size, not requested: a resized window comes back the size it was left. One opened
+                    // this frame has not been arranged yet, and keeps the size it asked for.
+                    Width = window.Bounds.Width > 0.0f ? window.Bounds.Width : Requested(window.Width, FloatingFallback.X),
+                    Height = window.Bounds.Height > 0.0f ? window.Bounds.Height : Requested(window.Height, FloatingFallback.Y)
                 });
             }
 
             return captured;
         }
+
+        private static float Requested(float size, float fallback) => float.IsFinite(size) && size > 0.0f ? size : fallback;
 
         /// <summary>Size a floating panel comes back at when the file has nothing usable recorded.</summary>
         private static readonly Vector2 FloatingFallback = new(320.0f, 360.0f);
