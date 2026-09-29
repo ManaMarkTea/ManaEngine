@@ -1,4 +1,6 @@
+using Mana.Code.GameModes;
 using Mana.Code.Nodes;
+using ManaVoxel.Code.GridMaps;
 using ManaVoxel.Code.UI;
 
 namespace ManaVoxel.Code.Automation
@@ -89,6 +91,11 @@ namespace ManaVoxel.Code.Automation
 
                     case "select_node":
                         ApplySelectNode(command);
+                        _index++;
+                        break;
+
+                    case "grid_autotile":
+                        ApplyGridAutoTile(command);
                         _index++;
                         break;
 
@@ -183,6 +190,35 @@ namespace ManaVoxel.Code.Automation
             }
 
             return command.Path;
+        }
+
+        // Paints a road (or any preset set) the way a drag would, cell by cell along the path, so a screenshot
+        // can show what the brush does without a hand on the mouse.
+        private void ApplyGridAutoTile(ManaCommand command)
+        {
+            var map = _context.World.Scenes.Select(scene => FindNode(scene.Children, command.Name ?? "")).FirstOrDefault(found => found != null) as ManaGridMapNode;
+            var preset = GridMapAutoTilePresets.All.FirstOrDefault(p => p.Name.Equals(command.Preset ?? "Road", StringComparison.OrdinalIgnoreCase));
+            if (map == null || preset == null)
+            {
+                ManaConsole.WriteDiagnostic($"Command file: grid_autotile found no grid map '{command.Name}' or preset '{command.Preset}', skipping.");
+                return;
+            }
+
+            var set = GridMapAutoTilePresets.AddTo(map, preset);
+            GridMapCell? last = null;
+            foreach (var point in command.Cells ?? [])
+            {
+                var cell = new GridMapCell(point[0], 0, point[1]);
+                foreach (var step in VoxelEditorGameMode.GridStrokePath(last, cell))
+                {
+                    map.PaintAutoTile(set, step);
+                }
+
+                last = cell;
+            }
+
+            GridMapEditing.Begin(map);
+            GridMapEditing.AutoTile = set;
         }
 
         private void ApplySelectNode(ManaCommand command)

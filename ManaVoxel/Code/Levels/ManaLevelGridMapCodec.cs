@@ -60,10 +60,31 @@ namespace ManaVoxel.Code.Levels
                     : Enumerable.Range(0, gridMap.LayerCount)
                         .Select(layer => new ManaLevelGridMapLayer { Name = gridMap.LayerName(layer), Visible = gridMap.IsLayerVisible(layer) })
                         .ToList(),
+                AutoTiles = gridMap.AutoTiles.Count == 0
+                    ? null
+                    : gridMap.AutoTiles
+                        .Select(set => new ManaLevelGridMapAutoTile
+                        {
+                            Name = set.Name,
+                            Pieces = set.Pieces
+                                .Select(piece => new ManaLevelGridMapAutoTilePiece { Item = piece.Item, Sides = GridMapAutoTile.Describe(piece.Sides) })
+                                .ToList()
+                        })
+                        .ToList(),
                 Count = cells.Count,
                 Data = Convert.ToBase64String(data)
             };
         }
+
+        public static List<GridMapAutoTileSet> DecodeAutoTiles(ManaLevelGridMap encoded) =>
+            (encoded.AutoTiles ?? [])
+                .Select(set => new GridMapAutoTileSet(
+                    set.Name,
+                    set.Pieces
+                        .Where(piece => (uint)piece.Item < (uint)encoded.Palette.Count)
+                        .Select(piece => new GridMapAutoTilePiece(piece.Item, GridMapAutoTile.Parse(piece.Sides)))
+                        .ToList()))
+                .ToList();
 
         /// <summary>Every layer, with its cells. A map saved before layers comes back as one default layer.</summary>
         public static List<GridMapLayerState> DecodeLayers(ManaLevelGridMap encoded)

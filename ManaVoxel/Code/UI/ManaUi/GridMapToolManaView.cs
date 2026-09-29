@@ -1,4 +1,5 @@
 using Mana.Code.UI;
+using ManaCore.Assets;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.GridMaps;
@@ -132,11 +133,266 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Layers(gridMap, context),
                     palette,
                     new StackPanel().Horizontal(theme.Spacing).Children(add, remove, clear),
-                    TileSettings(gridMap, context))
+                    AutoTileSets(gridMap, context),
+                    TileSettings(gridMap, context),
+                    AutoTileSettings(gridMap, context))
                 .Margin(theme.Spacing);
         }
 
-        private static bool HasBrush(ManaGridMapNode gridMap) => (uint)GridMapEditing.Brush < (uint)gridMap.Palette.Count;
+        private static bool HasBrush(ManaGridMapNode gridMap) =>
+            !GridMapEditing.IsAutoTile && (uint)GridMapEditing.Brush < (uint)gridMap.Palette.Count;
+
+        private static bool IsSetBrush(ManaGridMapNode gridMap, int set) =>
+            GridMapEditing.AutoTile == set && (uint)set < (uint)gridMap.AutoTiles.Count;
+
+        /// <summary>
+        /// The map's auto-tile sets as brushes -- each paints whichever of its pieces joins the cell to its
+        /// neighbours -- and buttons to add one from a preset or empty.
+        /// </summary>
+        private static UiElement AutoTileSets(ManaGridMapNode gridMap, InspectorContext context)
+        {
+            var theme = context.Theme;
+            var sets = new DynamicContent().Showing<object>(StableKey(() => (gridMap.AutoTilesToken, gridMap.PaletteToken)), _ =>
+            {
+                var wrap = new WrapPanel { Spacing = theme.Spacing };
+                for (var i = 0; i < gridMap.AutoTiles.Count; i++)
+                {
+                    wrap.Children.Add(AutoTileSetTile(gridMap, i, context));
+                }
+
+                return wrap;
+            });
+
+            var buttons = new StackPanel().Horizontal(theme.Spacing);
+            foreach (var preset in GridMapAutoTilePresets.All)
+            {
+                var add = new ManaUI.Button().Label($"+ {preset.Name}").Variant(ButtonVariant.Subtle)
+                    .OnClick(() => AddPreset(gridMap, preset, context));
+                add.WithTooltip($"Add the {preset.Name.ToLowerInvariant()} set: {string.Join(", ", preset.Pieces.Select(piece => ManaGridMapNode.TileName(piece.Asset)))}");
+                buttons.Children.Add(add);
+            }
+
+            var empty = new ManaUI.Button().Label("+ Set").Variant(ButtonVariant.Subtle).OnClick(() =>
+            {
+                var index = -1;
+                RecordWholeGrid(context, gridMap, "Add auto-tile set",
+                    () => index = gridMap.AddAutoTileSet(new GridMapAutoTileSet($"Set {gridMap.AutoTiles.Count + 1}", [])));
+                GridMapEditing.Begin(gridMap);
+                GridMapEditing.AutoTile = index;
+            });
+            empty.WithTooltip("Add an empty auto-tile set, to fill with pieces from the palette.");
+            buttons.Children.Add(empty);
+
+            var heading = new TextBlock().Text("Auto tiles").FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted);
+            heading.WithTooltip("Sets whose pieces pick themselves: paint a road and its bends and junctions follow.");
+            return new StackPanel().Vertical(2.0f).Children(heading, sets, buttons);
+        }
+
+        private static UiElement AutoTileSetTile(ManaGridMapNode gridMap, int set, InspectorContext context)
+        {
+            var theme = context.Theme;
+            var pieces = gridMap.AutoTiles[set].Pieces;
+
+            // Its straight run if it has one -- the piece that reads as the set -- else its first.
+            var face = pieces.FirstOrDefault(piece => piece.Sides is (GridMapSides.East | GridMapSides.West) or (GridMapSides.North | GridMapSides.South))
+                ?? pieces.FirstOrDefault();
+            UiElement picture = face != null && (uint)face.Item < (uint)gridMap.Palette.Count
+                ? Thumbnail(gridMap.Palette[face.Item], TileSize)
+                : new TextBlock().Text("?").FontSize(theme.FontSizeHeading).Foreground(theme.TextMuted).Center();
+
+            // The corner mark says this is a set and not a single tile.
+            var badge = new TextBlock().Text("auto").FontSize(theme.FontSizeSmall).Foreground(theme.TextOnAccent);
+            var badgeBox = new Border().Fill(theme.Accent).Rounded(2.0f).PaddingOf(3.0f, 0.0f).Content(badge);
+            badgeBox.HorizontalAlignment = HorizontalAlignment.Right;
+            badgeBox.VerticalAlignment = VerticalAlignment.Top;
+            var stack = new Grid().Children(picture, badgeBox);
+            stack.Width = TileSize;
+            stack.Height = TileSize;
+
+            var caption = new TextBlock().Text(gridMap.AutoTiles[set].Name).FontSize(theme.FontSizeSmall).Ellipsis().CenterH();
+            caption.Width = TileSize;
+            var frame = new Border().Rounded(3.0f).Content(new StackPanel().Vertical(2.0f).Children(stack, caption));
+            frame.BindPolled(border => border.BorderColor, () => IsSetBrush(gridMap, set) ? theme.Accent : UiColor.Transparent);
+            frame.BindPolled(border => border.BorderThickness, () => IsSetBrush(gridMap, set) ? 2.0f : 0.0f);
+
+            return new ManaUI.Button().Variant(ButtonVariant.Subtle).Content(frame).OnClick(() =>
+            {
+                GridMapEditing.Begin(gridMap);
+                GridMapEditing.AutoTile = set;
+            }).WithTooltip($"{gridMap.AutoTiles[set].Name}: {pieces.Count} pieces, each picked by the neighbours it joins");
+        }
+
+        // A preset's models may still be downloading on the web; the set goes in once they have all arrived,
+        // since a palette item that failed to load stays failed.
+        private static Task? _presetDownload;
+
+        private static void AddPreset(ManaGridMapNode gridMap, GridMapAutoTilePresets.Preset preset, InspectorContext context)
+        {
+            void Add()
+            {
+                var index = -1;
+                RecordWholeGrid(context, gridMap, $"Add {preset.Name} set", () => index = GridMapAutoTilePresets.AddTo(gridMap, preset));
+                GridMapEditing.Begin(gridMap);
+                GridMapEditing.AutoTile = index;
+            }
+
+            if (ManaAssetCatalog.Current is { } catalog && preset.Pieces.Any(piece => !catalog.IsReady(piece.Asset)))
+            {
+                if (_presetDownload is { IsCompleted: false })
+                {
+                    return;
+                }
+
+                var download = Task.WhenAll(preset.Pieces.Select(piece => catalog.EnsureAsync(piece.Asset)));
+                _presetDownload = download;
+                PendingPresets.Add((download, Add));
+                return;
+            }
+
+            Add();
+        }
+
+        private static readonly List<(Task Download, Action Add)> PendingPresets = new();
+
+        /// <summary>Adds any preset whose download has finished. Polled by the window, on the UI thread.</summary>
+        private static void CompletePresetDownloads()
+        {
+            for (var i = PendingPresets.Count - 1; i >= 0; i--)
+            {
+                var (download, add) = PendingPresets[i];
+                if (!download.IsCompleted)
+                {
+                    continue;
+                }
+
+                PendingPresets.RemoveAt(i);
+                if (!download.IsFaulted)
+                {
+                    add();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The brush set's own settings: its name, and each piece -- which palette model it is and which sides
+        /// it joins on as it stands unturned. A piece's sides are what decide where it goes.
+        /// </summary>
+        private static UiElement AutoTileSettings(ManaGridMapNode gridMap, InspectorContext context)
+        {
+            var theme = context.Theme;
+            var body = new DynamicContent().Showing<object>(StableKey(() => (gridMap.AutoTilesToken, gridMap.PaletteToken, GridMapEditing.AutoTile)), _ =>
+            {
+                var set = GridMapEditing.AutoTile;
+                if ((uint)set >= (uint)gridMap.AutoTiles.Count)
+                {
+                    return null;
+                }
+
+                return AutoTileSetEditor(gridMap, set, context);
+            });
+
+            var frame = new Border().Outline(theme.Border, 1.0f).Rounded(3.0f).PaddingOf(theme.Spacing, theme.Spacing).Content(body);
+            frame.BindPolled(border => border.Visibility, () =>
+            {
+                CompletePresetDownloads();
+                return IsSetBrush(gridMap, GridMapEditing.AutoTile) ? Visibility.Visible : Visibility.Collapsed;
+            });
+            return frame;
+        }
+
+        private static UiElement AutoTileSetEditor(ManaGridMapNode gridMap, int set, InspectorContext context)
+        {
+            var theme = context.Theme;
+            var current = gridMap.AutoTiles[set];
+
+            void Change(string description, Func<GridMapAutoTileSet, GridMapAutoTileSet> edit) =>
+                RecordWholeGrid(context, gridMap, description, () => gridMap.SetAutoTileSet(set, edit(gridMap.AutoTiles[set])));
+
+            void ChangePiece(int index, string description, Func<GridMapAutoTilePiece, GridMapAutoTilePiece> edit) =>
+                Change(description, value => value with
+                {
+                    Pieces = value.Pieces.Select((piece, i) => i == index ? edit(piece) : piece).ToList()
+                });
+
+            var name = new TextBox { Text = current.Name };
+            name.TextCommitted += (_, text) =>
+            {
+                if (!string.IsNullOrWhiteSpace(text) && text.Trim() != gridMap.AutoTiles[set].Name)
+                {
+                    Change("Rename auto-tile set", value => value with { Name = text.Trim() });
+                }
+            };
+            name.WithTooltip("Name");
+
+            var removeSet = new ManaUI.Button().Label("Remove").Variant(ButtonVariant.Subtle).OnClick(() =>
+            {
+                RecordWholeGrid(context, gridMap, "Remove auto-tile set", () => gridMap.RemoveAutoTileSet(set));
+                GridMapEditing.Brush = GridMapEditing.Brush;
+            });
+            removeSet.WithTooltip("Remove the set. What it painted stays, as ordinary tiles.");
+
+            var names = Enumerable.Range(0, gridMap.Palette.Count).Select(gridMap.PaletteItemName).ToArray();
+            var rows = new StackPanel().Vertical(2.0f);
+            for (var i = 0; i < current.Pieces.Count; i++)
+            {
+                var index = i;
+                var piece = current.Pieces[i];
+
+                var model = new ComboBox().Options(names);
+                model.SelectedIndex = piece.Item;
+                model.SelectionChanged += (_, item) =>
+                {
+                    if (item >= 0 && item != gridMap.AutoTiles[set].Pieces[index].Item)
+                    {
+                        ChangePiece(index, "Auto-tile piece", value => value with { Item = item });
+                    }
+                };
+                model.WithTooltip("The palette model this piece is");
+
+                var sides = new GridMapSidesPicker { Sides = piece.Sides };
+                sides.SidesChanged += value => ChangePiece(index, "Auto-tile sides", existing => existing with { Sides = value });
+                sides.WithTooltip($"Joins on: {GridMapAutoTile.Describe(piece.Sides)}. Seen from above, -Z up; click a side to toggle it.");
+
+                var drop = new ManaUI.Button().Label("-").Variant(ButtonVariant.Subtle).OnClick(() =>
+                    Change("Remove auto-tile piece", value => value with { Pieces = value.Pieces.Where((_, i) => i != index).ToList() }));
+                drop.WithTooltip("Remove this piece");
+
+                UiElement picture = (uint)piece.Item < (uint)gridMap.Palette.Count ? Thumbnail(gridMap.Palette[piece.Item], 26.0f) : new TextBlock();
+                rows.Children.Add(new Grid().Columns("Auto, *, Auto, Auto", theme.Spacing).Rows("Auto").Children(
+                    picture.CenterV().GridColumn(0), model.CenterV().GridColumn(1), sides.CenterV().GridColumn(2), drop.CenterV().GridColumn(3)));
+            }
+
+            var addPiece = new ManaUI.Button().Label("+ Piece").Variant(ButtonVariant.Subtle).OnClick(() =>
+                Change("Add auto-tile piece", value => value with { Pieces = value.Pieces.Append(new GridMapAutoTilePiece(0, GridMapSides.East | GridMapSides.West)).ToList() }));
+            addPiece.BindPolled(button => button.IsEnabled, () => gridMap.Palette.Count > 0);
+            addPiece.WithTooltip("Add a piece: pick its model from the palette, then the sides it joins on.");
+
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new Grid().Columns("*, Auto", theme.Spacing).Rows("Auto").Children(name.GridColumn(0), removeSet.GridColumn(1)),
+                rows,
+                addPiece);
+        }
+
+        /// <summary>
+        /// One key object for as long as the parts it is made of stay equal. DynamicContent compares by
+        /// reference, so a fresh tuple every poll would rebuild every frame.
+        /// </summary>
+        private static Func<object> StableKey<T>(Func<T> parts)
+        {
+            object? key = null;
+            T last = default!;
+            return () =>
+            {
+                var now = parts();
+                if (key == null || !EqualityComparer<T>.Default.Equals(now, last))
+                {
+                    last = now;
+                    key = new object();
+                }
+
+                return key;
+            };
+        }
 
         /// <summary>
         /// The brush tile's own settings. Bound to whichever tile is the brush, so picking another tile updates
@@ -243,7 +499,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "Align", align));
             section.BindPolled(panel => panel.IsEnabled, () => HasBrush(gridMap));
 
-            return new Border().Outline(theme.Border, 1.0f).Rounded(3.0f).PaddingOf(theme.Spacing, theme.Spacing).Content(section);
+            var frame = new Border().Outline(theme.Border, 1.0f).Rounded(3.0f).PaddingOf(theme.Spacing, theme.Spacing).Content(section);
+            frame.BindPolled(border => border.Visibility, () => GridMapEditing.IsAutoTile ? Visibility.Collapsed : Visibility.Visible);
+            return frame;
         }
 
         /// <summary>Where the palette was last laid out, for a drag from the asset browser to drop onto.</summary>
@@ -353,8 +611,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             caption.Width = TileSize;
 
             var frame = new Border().Rounded(3.0f).Content(new StackPanel().Vertical(2.0f).Children(picture, caption));
-            frame.BindPolled(border => border.BorderColor, () => GridMapEditing.Brush == item ? theme.Accent : UiColor.Transparent);
-            frame.BindPolled(border => border.BorderThickness, () => GridMapEditing.Brush == item ? 2.0f : 0.0f);
+            frame.BindPolled(border => border.BorderColor, () => !GridMapEditing.IsAutoTile && GridMapEditing.Brush == item ? theme.Accent : UiColor.Transparent);
+            frame.BindPolled(border => border.BorderThickness, () => !GridMapEditing.IsAutoTile && GridMapEditing.Brush == item ? 2.0f : 0.0f);
 
             return new ManaUI.Button().Variant(ButtonVariant.Subtle).Content(frame).OnClick(() =>
             {
@@ -366,9 +624,15 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static UiElement PaletteTile(ManaGridMapNode gridMap, int item, InspectorContext context)
         {
             var theme = context.Theme;
-            var asset = gridMap.Palette[item];
+            var error = gridMap.PaletteError(item);
+            return SelectableTile(gridMap, item, Thumbnail(gridMap.Palette[item], TileSize), gridMap.PaletteItemName(item),
+                error == null ? gridMap.PaletteItemName(item) : $"Could not load: {error}", theme);
+        }
 
-            var preview = new UiImage { Fit = UiImageFit.Contain, Width = TileSize, Height = TileSize };
+        /// <summary>An asset's thumbnail, requested from the cache the asset browser uses and shown once it arrives.</summary>
+        private static UiImage Thumbnail(string asset, float size)
+        {
+            var preview = new UiImage { Fit = UiImageFit.Contain, Width = size, Height = size };
             // A UV carries no size of its own, so without this a Contain fit has nothing to fit and draws nothing.
             preview.SourceSize = new Vector2(MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);
 
@@ -395,9 +659,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return Visibility.Visible;
             });
 
-            var error = gridMap.PaletteError(item);
-            return SelectableTile(gridMap, item, preview, gridMap.PaletteItemName(item),
-                error == null ? gridMap.PaletteItemName(item) : $"Could not load: {error}", theme);
+            return preview;
         }
 
         /// <summary>One undo step that puts the whole grid back -- for edits that can move or drop many tiles.</summary>

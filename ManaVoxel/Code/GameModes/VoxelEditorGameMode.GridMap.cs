@@ -11,7 +11,7 @@ namespace Mana.Code.GameModes
 {
     /// <summary>
     /// Painting a grid map in the viewport. While <see cref="GridMapEditing.Target"/> is set the pointer paints
-    /// cells instead of selecting: left-drag paints, Shift erases, Q (or Ctrl+click) picks a cell's tile up as the brush, T turns the tile under the pointer, a right click clears it,
+    /// cells instead of selecting: left-drag paints (an auto-tile set -- a road -- picks each cell's piece as it goes), Shift erases, Q (or Ctrl+click) picks a cell's tile up as the brush, T turns the tile under the pointer, a right click clears it,
     /// R turns the brush (Shift+R the other way), - and + change floor, and Escape stops.
     /// Each stroke is one undo step.
     /// </summary>
@@ -102,8 +102,7 @@ namespace Mana.Code.GameModes
             {
                 if (target.TryGetTileCovering(cell.Value, out _, out var dropped))
                 {
-                    GridMapEditing.Brush = dropped.Item;
-                    GridMapEditing.Orientation = dropped.Orientation;
+                    PickGridBrush(target, dropped);
                 }
                 else
                 {
@@ -166,8 +165,7 @@ namespace Mana.Code.GameModes
                 // Pick: the cell's tile and rotation become the brush. Once per click, not per frame held.
                 if (leftDown && !_gridPickWasDown && target.TryGetTileCovering(cell.Value, out _, out var picked))
                 {
-                    GridMapEditing.Brush = picked.Item;
-                    GridMapEditing.Orientation = picked.Orientation;
+                    PickGridBrush(target, picked);
                 }
 
                 _gridPickWasDown = leftDown;
@@ -188,11 +186,26 @@ namespace Mana.Code.GameModes
                 return true;
             }
 
+            var from = _gridStrokeLastCell;
             _gridStrokeLastCell = cell;
             BeginGridStroke(target);
+            foreach (var step in GridStrokePath(from, cell.Value))
+            {
+                PaintGridCell(target, step, erasing);
+            }
+
+            return true;
+        }
+
+        private void PaintGridCell(ManaGridMapNode target, GridMapCell cell, bool erasing)
+        {
             if (erasing)
             {
-                target.ClearTile(cell.Value);
+                target.ClearTile(cell);
+            }
+            else if (GridMapEditing.IsAutoTile)
+            {
+                target.PaintAutoTile(GridMapEditing.AutoTile, cell);
             }
             else if ((uint)GridMapEditing.Brush < (uint)target.Palette.Count)
             {
@@ -200,15 +213,73 @@ namespace Mana.Code.GameModes
                 // each one knocking out the last. Within one stroke a tile only goes where the stroke has not
                 // already put one.
                 var tile = new GridMapTile(GridMapEditing.Brush, GridMapEditing.Orientation);
-                var covered = target.CoveredCells(cell.Value, tile).ToList();
+                var covered = target.CoveredCells(cell, tile).ToList();
                 if (!covered.Any(_gridStrokeCovered.Contains))
                 {
-                    target.SetTile(cell.Value, tile);
+                    target.SetTile(cell, tile);
                     _gridStrokeCovered.UnionWith(covered);
                 }
             }
+        }
 
-            return true;
+        /// <summary>
+        /// The cells from the last one painted to this one, side by side. A quick drag jumps several cells a
+        /// frame, and a road painted only where the frames landed would come out in pieces.
+        /// </summary>
+        public static IEnumerable<GridMapCell> GridStrokePath(GridMapCell? from, GridMapCell to)
+        {
+            if (from is not { } start || start.Y != to.Y)
+            {
+                yield return to;
+                yield break;
+            }
+
+            var steps = Math.Max(Math.Abs(to.X - start.X), Math.Abs(to.Z - start.Z));
+            var previous = start;
+            for (var i = 1; i <= steps; i++)
+            {
+                var t = i / (float)steps;
+                var next = new GridMapCell(
+                    (int)MathF.Round(start.X + (to.X - start.X) * t),
+                    to.Y,
+                    (int)MathF.Round(start.Z + (to.Z - start.Z) * t));
+                if (next.X != previous.X && next.Z != previous.Z)
+                {
+                    // A diagonal step goes round the corner, so each cell shares a side with the one before.
+                    yield return next with { Z = previous.Z };
+                }
+
+                yield return next;
+                previous = next;
+            }
+        }
+
+        /// <summary>The brush becomes what a tile is: its auto-tile set when it is a piece of one, else the tile itself.</summary>
+        private static void PickGridBrush(ManaGridMapNode target, GridMapTile tile)
+        {
+            GridMapEditing.Brush = tile.Item;
+            GridMapEditing.Orientation = tile.Orientation;
+            var set = target.AutoTileSetOf(tile.Item);
+            if (set >= 0)
+            {
+                GridMapEditing.AutoTile = set;
+            }
+        }
+
+        /// <summary>
+        /// What the brush would put in a cell: the palette item turned as the brush is, or for an auto-tile
+        /// set, the piece it would pick there. Null for Blank or a set with no pieces.
+        /// </summary>
+        private static GridMapTile? GridBrushTile(ManaGridMapNode target, GridMapCell cell)
+        {
+            if (GridMapEditing.IsAutoTile)
+            {
+                return target.ResolveAutoTile(GridMapEditing.AutoTile, cell);
+            }
+
+            return (uint)GridMapEditing.Brush < (uint)target.Palette.Count
+                ? new GridMapTile(GridMapEditing.Brush, GridMapEditing.Orientation)
+                : null;
         }
 
         private void UpdateGridMapKeys(ManaGridMapNode target)
@@ -329,13 +400,13 @@ namespace Mana.Code.GameModes
             SetGridEraseHighlight(erasing ? target.TileNode(cell) : null);
             UpdateGridTargetOverlay(target, cell, erasing);
 
-            var item = GridMapEditing.Brush;
-            if (erasing || (uint)item >= (uint)target.Palette.Count)
+            if (erasing || GridBrushTile(target, cell) is not { } brush)
             {
                 RemoveGridBrushPreview();
                 return;
             }
 
+            var item = brush.Item;
             var key = (target, target.PaletteToken, item, target.ModelTransform(item));
             if (_gridBrushPreview == null || _gridBrushPreviewKey != key)
             {
@@ -357,11 +428,7 @@ namespace Mana.Code.GameModes
                 _pickingExclusions.Add(_gridBrushPreview);
             }
 
-            if (_gridBrushPreview != null)
-            {
-                var tile = new GridMapTile(item, GridMapEditing.Orientation);
-                _gridBrushPreview.SetLocalTransform(target.TileTransform(cell, tile) * target.WorldTransform);
-            }
+            _gridBrushPreview?.SetLocalTransform(target.TileTransform(cell, brush) * target.WorldTransform);
         }
 
         private void HideGridBrush()
@@ -480,8 +547,9 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var item = GridMapEditing.Brush;
-            var key = (target, target.Revision, cell, item, GridMapEditing.Orientation, erasing);
+            var brush = erasing ? null : GridBrushTile(target, cell);
+            var item = brush?.Item ?? GridMapEditing.Blank;
+            var key = (target, target.Revision, cell, item, brush?.Orientation ?? GridMapEditing.Orientation, erasing);
             if (_gridTargetOverlayKey == key)
             {
                 PlaceGridOverlay(_gridTargetOverlay, target);
@@ -501,8 +569,8 @@ namespace Mana.Code.GameModes
             }
             else
             {
-                var valid = (uint)item < (uint)target.Palette.Count;
-                var tile = new GridMapTile(Math.Max(0, item), GridMapEditing.Orientation);
+                var valid = brush != null;
+                var tile = brush ?? new GridMapTile(0, 0);
                 var footprint = valid ? target.Footprint(tile) : new GridMapFootprint(1, 1);
                 var replaces = valid && target.CoveredCells(cell, tile).Any(covered => target.TryGetTileCovering(covered, out _, out _));
                 outline = FootprintOutline(target, cell, footprint, inset: 0.0f);

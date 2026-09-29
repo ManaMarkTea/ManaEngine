@@ -476,7 +476,8 @@ namespace ManaVoxel.Code.Levels
                     settings.Palette,
                     ManaLevelGridMapCodec.DecodeLayers(settings),
                     settings.Collision,
-                    ManaLevelGridMapCodec.DecodeSettings(settings));
+                    ManaLevelGridMapCodec.DecodeSettings(settings),
+                    ManaLevelGridMapCodec.DecodeAutoTiles(settings));
             }
 
             return gridMap;

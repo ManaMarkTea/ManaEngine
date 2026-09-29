@@ -70,7 +70,8 @@ namespace ManaVoxel.Code.GridMaps
         bool Collision,
         IReadOnlyList<string> Palette,
         IReadOnlyList<GridMapItemSettings> Settings,
-        IReadOnlyList<GridMapLayerState> Layers)
+        IReadOnlyList<GridMapLayerState> Layers,
+        IReadOnlyList<GridMapAutoTileSet>? AutoTiles = null)
     {
         /// <summary>The first layer's cells -- all of them, on a map with one layer.</summary>
         public IReadOnlyDictionary<GridMapCell, GridMapTile> Cells => Layers.Count > 0 ? Layers[0].Cells : new Dictionary<GridMapCell, GridMapTile>();
@@ -112,6 +113,7 @@ namespace ManaVoxel.Code.GridMaps
         private readonly List<GridMapItemSettings> _settings = new();
         private readonly List<GridMapLayer> _layers = new() { new GridMapLayer(DefaultLayerName, true) };
         private int _activeLayer;
+        private readonly List<GridMapAutoTileSet> _autoTiles = new();
         private readonly Dictionary<string, GridMapPrototype> _prototypes = new(StringComparer.Ordinal);
         private readonly Dictionary<int, (Matrix4x4 Model, Vector3[] Triangles)> _colliderTriangles = new();
         private Vector3 _cellSize = Vector3.One;
@@ -137,6 +139,9 @@ namespace ManaVoxel.Code.GridMaps
 
         /// <summary>Replaced when a layer is added, removed or renamed -- a view rebuilds its layer list on a new one.</summary>
         public object LayersToken { get; private set; } = new();
+
+        /// <summary>Replaced when an auto-tile set is added, removed or edited.</summary>
+        public object AutoTilesToken { get; private set; } = new();
 
         public Vector3 CellSize
         {
@@ -283,6 +288,16 @@ namespace ManaVoxel.Code.GridMaps
 
             _palette.RemoveAt(index);
             _settings.RemoveAt(index);
+            for (var i = 0; i < _autoTiles.Count; i++)
+            {
+                var pieces = _autoTiles[i].Pieces
+                    .Where(piece => piece.Item != index)
+                    .Select(piece => piece.Item > index ? piece with { Item = piece.Item - 1 } : piece)
+                    .ToList();
+                _autoTiles[i] = _autoTiles[i] with { Pieces = pieces };
+            }
+
+            AutoTilesToken = new object();
             foreach (var layer in _layers)
             {
                 foreach (var (cell, tile) in layer.Cells.ToList())
@@ -460,9 +475,27 @@ namespace ManaVoxel.Code.GridMaps
             }
 
             tile = tile with { Orientation = WrapOrientation(tile.Orientation) };
-            if (Active.Cells.TryGetValue(anchor, out var current) && current == tile)
+            var turnOnly = Active.Cells.TryGetValue(anchor, out var current) && current.Item == tile.Item;
+            if (!PutTile(anchor, tile))
             {
                 return;
+            }
+
+            // Turning a piece leaves which cells are in which set as they were, so its neighbours stay put.
+            if (!turnOnly)
+            {
+                RefreshAutoTileNeighbours(CoveredCells(anchor, tile));
+            }
+
+            NotifyChanged();
+        }
+
+        /// <summary>Puts a tile down with nothing else following: no neighbours re-picked, no change notice.</summary>
+        private bool PutTile(GridMapCell anchor, GridMapTile tile)
+        {
+            if (Active.Cells.TryGetValue(anchor, out var current) && current == tile)
+            {
+                return false;
             }
 
             foreach (var cell in CoveredCells(anchor, tile).ToList())
@@ -475,20 +508,160 @@ namespace ManaVoxel.Code.GridMaps
 
             Active.Cells[anchor] = tile;
             PlaceAnchor(anchor, tile);
-            NotifyChanged();
+            return true;
         }
 
         /// <summary>Clears the tile covering a cell.</summary>
         public void ClearTile(GridMapCell cell)
         {
-            if (!TryGetTileCovering(cell, out var anchor, out _))
+            if (!TryGetTileCovering(cell, out var anchor, out var tile))
             {
                 return;
             }
 
+            var covered = CoveredCells(anchor, tile).ToList();
             RemoveAnchor(anchor);
+            RefreshAutoTileNeighbours(covered);
             NotifyChanged();
         }
+
+        public IReadOnlyList<GridMapAutoTileSet> AutoTiles => _autoTiles;
+
+        public int AddAutoTileSet(GridMapAutoTileSet set)
+        {
+            _autoTiles.Add(Sanitise(set));
+            AutoTilesToken = new object();
+            NotifyChanged();
+            return _autoTiles.Count - 1;
+        }
+
+        /// <summary>Edits a set. Tiles already painted keep their pieces until they are painted or re-picked again.</summary>
+        public void SetAutoTileSet(int index, GridMapAutoTileSet set)
+        {
+            if ((uint)index >= (uint)_autoTiles.Count || _autoTiles[index].SameAs(set))
+            {
+                return;
+            }
+
+            _autoTiles[index] = Sanitise(set);
+            AutoTilesToken = new object();
+            NotifyChanged();
+        }
+
+        /// <summary>Removes a set. Its tiles stay as painted: they are ordinary palette tiles.</summary>
+        public void RemoveAutoTileSet(int index)
+        {
+            if ((uint)index >= (uint)_autoTiles.Count)
+            {
+                return;
+            }
+
+            _autoTiles.RemoveAt(index);
+            AutoTilesToken = new object();
+            NotifyChanged();
+        }
+
+        /// <summary>The first set a palette item is a piece of, or -1.</summary>
+        public int AutoTileSetOf(int item) => _autoTiles.FindIndex(set => set.Contains(item));
+
+        /// <summary>Which of a cell's sides have a tile from the set next to them, on the active layer.</summary>
+        public GridMapSides AutoTileNeighbours(int set, GridMapCell cell)
+        {
+            var sides = GridMapSides.None;
+            if ((uint)set >= (uint)_autoTiles.Count)
+            {
+                return sides;
+            }
+
+            foreach (var (side, x, z) in GridMapAutoTile.Neighbours)
+            {
+                if (TryGetTileCovering(new GridMapCell(cell.X + x, cell.Y, cell.Z + z), out _, out var neighbour)
+                    && _autoTiles[set].Contains(neighbour.Item))
+                {
+                    sides |= side;
+                }
+            }
+
+            return sides;
+        }
+
+        /// <summary>The piece painting the set into a cell would put there, for the brush preview.</summary>
+        public GridMapTile? ResolveAutoTile(int set, GridMapCell cell) =>
+            (uint)set < (uint)_autoTiles.Count && GridMapAutoTile.TryResolve(_autoTiles[set], AutoTileNeighbours(set, cell), out var tile)
+                ? tile
+                : null;
+
+        /// <summary>
+        /// Paints the set into a cell: the piece that joins it to its neighbours from the set, and the neighbours
+        /// re-picked to join it back. False when the set has no pieces.
+        /// </summary>
+        public bool PaintAutoTile(int set, GridMapCell cell)
+        {
+            if (ResolveAutoTile(set, cell) is not { } tile)
+            {
+                return false;
+            }
+
+            if (TryGetTile(cell, out var current) && current == tile)
+            {
+                return true;
+            }
+
+            PutTile(cell, tile);
+            RefreshAutoTileNeighbours(CoveredCells(cell, tile));
+            NotifyChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Re-picks every auto-tile next to the cells given, after those cells changed. One ring only: a
+        /// neighbour re-picked stays in its set, so the cells beyond it see no change.
+        /// </summary>
+        private void RefreshAutoTileNeighbours(IEnumerable<GridMapCell> changed)
+        {
+            if (_autoTiles.Count == 0)
+            {
+                return;
+            }
+
+            var cells = changed.ToHashSet();
+            var anchors = new HashSet<GridMapCell>();
+            foreach (var cell in cells)
+            {
+                foreach (var (_, x, z) in GridMapAutoTile.Neighbours)
+                {
+                    var next = new GridMapCell(cell.X + x, cell.Y, cell.Z + z);
+                    if (!cells.Contains(next) && TryGetTileCovering(next, out var anchor, out _))
+                    {
+                        anchors.Add(anchor);
+                    }
+                }
+            }
+
+            foreach (var anchor in anchors)
+            {
+                if (!TryGetTile(anchor, out var tile))
+                {
+                    continue;
+                }
+
+                var set = AutoTileSetOf(tile.Item);
+                if (set >= 0 && ResolveAutoTile(set, anchor) is { } picked && picked != tile)
+                {
+                    PutTile(anchor, picked);
+                }
+            }
+        }
+
+        /// <summary>Drops pieces whose items are not in the palette.</summary>
+        private GridMapAutoTileSet Sanitise(GridMapAutoTileSet set) => set with
+        {
+            Name = string.IsNullOrWhiteSpace(set.Name) ? $"Set {_autoTiles.Count + 1}" : set.Name.Trim(),
+            Pieces = set.Pieces
+                .Where(piece => (uint)piece.Item < (uint)_palette.Count)
+                .Select(piece => piece with { Sides = piece.Sides & GridMapSides.All })
+                .ToList()
+        };
 
         /// <summary>Clears the active layer.</summary>
         public void ClearAll()
@@ -515,7 +688,8 @@ namespace ManaVoxel.Code.GridMaps
             IEnumerable<string> palette,
             IReadOnlyList<GridMapLayerState> layers,
             bool collision,
-            IEnumerable<GridMapItemSettings>? settings = null)
+            IEnumerable<GridMapItemSettings>? settings = null,
+            IEnumerable<GridMapAutoTileSet>? autoTiles = null)
         {
             foreach (var layer in _layers)
             {
@@ -553,7 +727,14 @@ namespace ManaVoxel.Code.GridMaps
                 _layers.Add(new GridMapLayer(DefaultLayerName, true));
             }
 
+            _autoTiles.Clear();
+            foreach (var set in autoTiles ?? [])
+            {
+                _autoTiles.Add(Sanitise(set));
+            }
+
             _activeLayer = Math.Clamp(_activeLayer, 0, _layers.Count - 1);
+            AutoTilesToken = new object();
             PaletteToken = new object();
             LayersToken = new object();
             RebuildTiles();
@@ -564,7 +745,8 @@ namespace ManaVoxel.Code.GridMaps
             _collision,
             _palette.ToList(),
             _settings.ToList(),
-            _layers.Select(layer => new GridMapLayerState(layer.Name, layer.Visible, new Dictionary<GridMapCell, GridMapTile>(layer.Cells))).ToList());
+            _layers.Select(layer => new GridMapLayerState(layer.Name, layer.Visible, new Dictionary<GridMapCell, GridMapTile>(layer.Cells))).ToList(),
+            _autoTiles.ToList());
 
         /// <summary>
         /// Puts a captured state back. When only cells differ -- a paint stroke -- only the tiles that changed are
@@ -581,9 +763,18 @@ namespace ManaVoxel.Code.GridMaps
             if (!sameSettings)
             {
                 var active = _activeLayer;
-                Load(state.CellSize, state.Palette, state.Layers, state.Collision, state.Settings);
+                Load(state.CellSize, state.Palette, state.Layers, state.Collision, state.Settings, state.AutoTiles);
                 ActiveLayer = active;
                 return;
+            }
+
+            // Sets change no tile by themselves, so putting them back needs no rebuild.
+            var sets = state.AutoTiles ?? [];
+            if (sets.Count != _autoTiles.Count || !sets.Zip(_autoTiles).All(pair => pair.First.SameAs(pair.Second)))
+            {
+                _autoTiles.Clear();
+                _autoTiles.AddRange(sets);
+                AutoTilesToken = new object();
             }
 
             for (var i = 0; i < _layers.Count; i++)

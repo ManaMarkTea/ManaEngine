@@ -1,6 +1,7 @@
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
+using Mana.Code.GameModes;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
@@ -87,6 +88,7 @@ public static class GridMapChecks
             RunRoundTripChecks(Check);
             RunSizingChecks(Check);
             RunLayerChecks(Check);
+            RunAutoTileChecks(Check);
             RunEditorChecks(fonts, Check);
         }
         finally
@@ -322,6 +324,94 @@ public static class GridMapChecks
         var oldLayers = ManaLevelGridMapCodec.DecodeLayers(old);
         Check("a level saved before layers loads into one layer",
             oldLayers.Count == 1 && oldLayers[0].Cells.TryGetValue(new GridMapCell(1, 0, 2), out var oldTile) && oldTile == new GridMapTile(0, 3));
+    }
+
+    private static void RunAutoTileChecks(Action<string, bool, string> check)
+    {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+
+        Check("a quarter turn walks the sides round: +X to -Z",
+            GridMapAutoTile.Rotate(GridMapSides.East, 1) == GridMapSides.North
+            && GridMapAutoTile.Rotate(GridMapSides.West | GridMapSides.South, 1) == (GridMapSides.South | GridMapSides.East)
+            && GridMapAutoTile.Rotate(GridMapSides.East, -1) == GridMapSides.South);
+        Check("sides read back as they are written",
+            GridMapAutoTile.Parse(GridMapAutoTile.Describe(GridMapSides.East | GridMapSides.South)) == (GridMapSides.East | GridMapSides.South)
+            && GridMapAutoTile.Parse("none") == GridMapSides.None && GridMapAutoTile.Parse("15") == GridMapSides.All);
+
+        var context = CreateContext(physics: false);
+        var gridMap = AddGridMap(context);
+        var names = new[] { "square", "end", "straight", "bend", "tee", "cross" };
+        var sides = new[]
+        {
+            GridMapSides.None, GridMapSides.East, GridMapSides.East | GridMapSides.West, GridMapSides.West | GridMapSides.South,
+            GridMapSides.East | GridMapSides.West | GridMapSides.South, GridMapSides.All
+        };
+        var items = names.Select(gridMap.AddPaletteItem).ToArray();
+        var set = gridMap.AddAutoTileSet(new GridMapAutoTileSet("Road", items.Select((item, i) => new GridMapAutoTilePiece(item, sides[i])).ToList()));
+        int Item(string name) => items[Array.IndexOf(names, name)];
+        GridMapTile? At(int x, int z) => gridMap.TryGetTile(new GridMapCell(x, 0, z), out var tile) ? tile : null;
+
+        gridMap.PaintAutoTile(set, new GridMapCell(0, 0, 0));
+        Check("a road cell on its own is the piece that joins nothing", At(0, 0) == new GridMapTile(Item("square"), 0), $"{At(0, 0)}");
+
+        gridMap.PaintAutoTile(set, new GridMapCell(1, 0, 0));
+        Check("a second beside it makes both ends, facing each other",
+            At(0, 0) == new GridMapTile(Item("end"), 0) && At(1, 0) == new GridMapTile(Item("end"), 2), $"{At(0, 0)} {At(1, 0)}");
+
+        gridMap.PaintAutoTile(set, new GridMapCell(2, 0, 0));
+        Check("a third turns the middle one into a straight", At(1, 0)?.Item == Item("straight") && At(2, 0) == new GridMapTile(Item("end"), 2),
+            $"{At(1, 0)} {At(2, 0)}");
+
+        gridMap.PaintAutoTile(set, new GridMapCell(1, 0, 1));
+        Check("a branch off it to +Z makes a T-junction", At(1, 0) == new GridMapTile(Item("tee"), 0), $"{At(1, 0)}");
+        Check("and the branch is an end facing back up it (-Z)", At(1, 1) == new GridMapTile(Item("end"), 1), $"{At(1, 1)}");
+
+        gridMap.PaintAutoTile(set, new GridMapCell(1, 0, -1));
+        Check("one to -Z as well makes a crossroad", At(1, 0)?.Item == Item("cross"), $"{At(1, 0)}");
+
+        gridMap.ClearTile(new GridMapCell(1, 0, -1));
+        Check("clearing it takes the crossroad back to a T", At(1, 0) == new GridMapTile(Item("tee"), 0), $"{At(1, 0)}");
+
+        gridMap.ClearTile(new GridMapCell(2, 0, 0));
+        Check("and clearing the east arm leaves a bend from -X round to +Z", At(1, 0) == new GridMapTile(Item("bend"), 0), $"{At(1, 0)}");
+
+        var before = gridMap.CaptureState();
+        gridMap.SetTile(new GridMapCell(1, 0, 1), new GridMapTile(Item("square"), 0));
+        gridMap.SetTile(new GridMapCell(1, 0, 1), new GridMapTile(gridMap.AddPaletteItem("tree"), 0));
+        Check("a tile from outside the set painted over a road cuts the road there", At(1, 0) == new GridMapTile(Item("end"), 2), $"{At(1, 0)}");
+        gridMap.RestoreState(before);
+        Check("and undoing puts the bend back", At(1, 0) == new GridMapTile(Item("bend"), 0) && gridMap.AutoTiles.Count == 1, $"{At(1, 0)}");
+
+        var level = ManaLevel.FromJson(ManaLevelCapture.Capture(context.World, "Roads").ToJson());
+        var reloaded = CreateContext(physics: false);
+        var loaded = ManaLevelLoader.Load(level, reloaded, reloaded.World.DefaultScene, replaceAuthoredNodes: false)
+            .Nodes.OfType<ManaGridMapNode>().SingleOrDefault();
+        Check("auto-tile sets are saved with their pieces and sides",
+            loaded != null && loaded.AutoTiles.Count == 1 && loaded.AutoTiles[0].SameAs(gridMap.AutoTiles[0]),
+            loaded == null ? "no map" : string.Join(", ", loaded.AutoTiles.SelectMany(s => s.Pieces).Select(p => $"{p.Item}:{p.Sides}")));
+
+        // A set missing a T-junction has to join three ways with what it has: the crossroad, not a gap.
+        var partial = new GridMapAutoTileSet("No tee", gridMap.AutoTiles[set].Pieces.Where(piece => piece.Item != Item("tee")).ToList());
+        GridMapAutoTile.TryResolve(partial, GridMapSides.East | GridMapSides.West | GridMapSides.South, out var nearest);
+        Check("a set without the exact piece uses the nearest that leaves no join missing", nearest.Item == Item("cross"), $"{nearest}");
+
+        gridMap.RemovePaletteItem(Item("square"));
+        Check("removing a palette item drops it from the set and moves the rest down",
+            gridMap.AutoTiles[set].Pieces.Count == 5 && gridMap.AutoTiles[set].Pieces[0].Item == Item("end") - 1);
+
+        var preset = CreateContext(physics: false);
+        var presetMap = AddGridMap(preset);
+        var road = GridMapAutoTilePresets.AddTo(presetMap, GridMapAutoTilePresets.Road);
+        Check("the road preset fills the palette with the city kit's pieces, one set over them",
+            presetMap.Palette.Count == GridMapAutoTilePresets.Road.Pieces.Count
+            && presetMap.AutoTiles[road].Pieces.Count == presetMap.Palette.Count
+            && presetMap.Palette.All(asset => asset.Contains("kenney_city-kit-roads.zip", StringComparison.Ordinal)));
+
+        var path = VoxelEditorGameMode.GridStrokePath(new GridMapCell(0, 0, 0), new GridMapCell(3, 0, 2)).ToList();
+        var joined = path.Zip(path.Skip(1)).All(pair => Math.Abs(pair.First.X - pair.Second.X) + Math.Abs(pair.First.Z - pair.Second.Z) == 1)
+            && Math.Abs(path[0].X) + Math.Abs(path[0].Z) == 1;
+        Check("a quick diagonal drag paints every cell between, each beside the last", joined && path[^1] == new GridMapCell(3, 0, 2) && path.Count == 5,
+            string.Join(" ", path.Select(c => $"({c.X},{c.Z})")));
     }
 
     private static void RunRoundTripChecks(Action<string, bool, string> check)
@@ -569,5 +659,75 @@ public static class GridMapChecks
         gridMap.ClearTile(cell);
         Check("clearing the tile removes its collider from the simulation",
             collider == null || !physics.Simulation.Bodies.BodyExists(collider.Body));
+
+        RunRoadPresetGeometryChecks(Check);
+    }
+
+    /// <summary>
+    /// The road preset's sides against the models themselves: a road piece is open where its asphalt reaches
+    /// the middle of a cell edge. Placed as a painted tile would be, turned, so this also holds the turning
+    /// convention to the neighbour each side is meant to face.
+    /// </summary>
+    private static void RunRoadPresetGeometryChecks(Action<string, bool, string> check)
+    {
+        var context = CreateContext(physics: false);
+        var gridMap = AddGridMap(context);
+        var set = GridMapAutoTilePresets.AddTo(gridMap, GridMapAutoTilePresets.Road);
+        var wrong = new List<string>();
+        foreach (var piece in gridMap.AutoTiles[set].Pieces)
+        {
+            for (var turn = 0; turn < ManaGridMapNode.OrientationCount; turn++)
+            {
+                var anchor = new GridMapCell(turn * 3, 0, 0);
+                var tile = new GridMapTile(piece.Item, turn);
+                gridMap.SetTile(anchor, tile);
+                var node = gridMap.TileNode(anchor);
+                if (node == null)
+                {
+                    wrong.Add($"{gridMap.PaletteItemName(piece.Item)} did not load: {gridMap.PaletteError(piece.Item)}");
+                    break;
+                }
+
+                node.UpdateTransform();
+                var points = new List<Vector3>();
+                Collect(node);
+                var centre = gridMap.CellOrigin(anchor);
+                var open = GridMapSides.None;
+                foreach (var (side, x, z) in GridMapAutoTile.Neighbours)
+                {
+                    // Edge-middle points: on the edge facing this side, near its middle.
+                    var edge = centre + new Vector3(x, 0.0f, z) * 0.5f;
+                    if (points.Any(p => MathF.Abs((p.X - edge.X) * x + (p.Z - edge.Z) * z) < 0.02f
+                            && MathF.Abs((p.X - edge.X) * z + (p.Z - edge.Z) * x) < 0.15f))
+                    {
+                        open |= side;
+                    }
+                }
+
+                var expected = GridMapAutoTile.Rotate(piece.Sides, turn);
+                if (open != expected)
+                {
+                    wrong.Add($"{gridMap.PaletteItemName(piece.Item)} turned {turn}: opens {GridMapAutoTile.Describe(open)}, set says {GridMapAutoTile.Describe(expected)}");
+                }
+
+                void Collect(ManaSceneNode current)
+                {
+                    foreach (var renderer in current.Components.OfType<MeshRendererComponent>())
+                    {
+                        if (renderer.Mesh != null)
+                        {
+                            points.AddRange(renderer.Mesh.GetOrCreateCpuData().Positions.Select(p => Vector3.Transform(p, current.WorldTransform)));
+                        }
+                    }
+
+                    foreach (var child in current.Children)
+                    {
+                        Collect(child);
+                    }
+                }
+            }
+        }
+
+        check("each road piece opens on the sides the preset says, however it is turned", wrong.Count == 0, string.Join("; ", wrong));
     }
 }

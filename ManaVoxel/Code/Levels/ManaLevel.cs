@@ -273,11 +273,30 @@ namespace ManaVoxel.Code.Levels
         /// <summary>The layers the cells' layer bytes index. Absent on a map with just the one default layer.</summary>
         public List<ManaLevelGridMapLayer>? Layers { get; set; }
 
+        /// <summary>Auto-tile sets (roads and the like), by palette index. Absent when there are none.</summary>
+        public List<ManaLevelGridMapAutoTile>? AutoTiles { get; set; }
+
         public bool Collision { get; set; } = true;
 
         public int Count { get; set; }
 
         public string Data { get; set; } = string.Empty;
+    }
+
+    /// <summary>A grid map auto-tile set; see GridMapAutoTileSet.</summary>
+    public sealed class ManaLevelGridMapAutoTile
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public List<ManaLevelGridMapAutoTilePiece> Pieces { get; set; } = new();
+    }
+
+    public sealed class ManaLevelGridMapAutoTilePiece
+    {
+        public int Item { get; set; }
+
+        /// <summary>The sides it joins on, unturned: "E+W", "none". E is +X, N is -Z.</summary>
+        public string Sides { get; set; } = "none";
     }
 
     public sealed class ManaLevelGridMapLayer

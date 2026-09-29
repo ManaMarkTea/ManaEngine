@@ -89,6 +89,7 @@
     <Compile Include="..\ManaVoxel\Code\Levels\ManaComponentReferenceConverter.cs" Link="Levels\ManaComponentReferenceConverter.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelGridMapCodec.cs" Link="Levels\ManaLevelGridMapCodec.cs" />
     <Compile Include="..\ManaVoxel\Code\GridMaps\ManaGridMapNode.cs" Link="GridMaps\ManaGridMapNode.cs" />
+    <Compile Include="..\ManaVoxel\Code\GridMaps\GridMapAutoTile.cs" Link="GridMaps\GridMapAutoTile.cs" />
     <!-- Only the zip-handling halves of these two: their other partials are editor-facing
          (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
          Splitting them was pure code movement; desktop compiles the same class from both files. -->
