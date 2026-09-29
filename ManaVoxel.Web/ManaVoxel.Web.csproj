@@ -61,6 +61,9 @@
          work, not part of this scaffold. -->
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <!-- Pinned here too: RuntimeIdentifier does not flow through Mana's own reference, so without this
+         ManaAudio builds its desktop OpenAL backend and the browser silently falls back to no audio. -->
+    <ProjectReference Include="..\ManaAudio\ManaAudio.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
   </ItemGroup>
 
@@ -83,6 +86,7 @@
     <!-- The shared level script registry now references the course components too. -->
     <Compile Include="..\ManaVoxel\Code\Gameplay\Course\*.cs" Link="Gameplay\Course\%(Filename)%(Extension)" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVector3Converter.cs" Link="Levels\ManaLevelVector3Converter.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaComponentReferenceConverter.cs" Link="Levels\ManaComponentReferenceConverter.cs" />
     <!-- Only the zip-handling halves of these two: their other partials are editor-facing
          (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
          Splitting them was pure code movement; desktop compiles the same class from both files. -->

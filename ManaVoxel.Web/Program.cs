@@ -36,10 +36,10 @@ try
 {
     await ManaCore.Browser.ManaBrowserAssets.InitializeAsync();
     await ManaVoxel.Code.Levels.ManaLevelLoader.EnsureAssetsAsync(
-        ManaVoxel.Code.Levels.ManaLevel.Load("Levels/Little Train Yard.manalevel"));
+        ManaVoxel.Code.Levels.ManaLevel.Load("Levels/Sample Course.manalevel"));
     // The real game: ground, the bundled level, a pawn controller and a follow camera -- the same
     // engine lifecycle the desktop play mode drives, minus the editor. See BrowserPlayGameMode.
-    var playMode = new BrowserPlayGameMode("Levels/Little Train Yard.manalevel", ManaGraphicsBackendKind.WebGpu);
+    var playMode = new BrowserPlayGameMode("Levels/Sample Course.manalevel", ManaGraphicsBackendKind.WebGpu);
 
     // Not padding. Browser wasm is single-threaded, so BrowserPlayGameMode.Load runs inline on the
     // main thread and holds it for seconds -- decoding a 5 MB environment map and unzipping meshes.

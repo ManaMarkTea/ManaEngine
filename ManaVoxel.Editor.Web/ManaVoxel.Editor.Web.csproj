@@ -37,6 +37,9 @@
          ManaVoxel.Web does. ManaGeoTools comes along transitively through it. -->
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <!-- Pinned here too: RuntimeIdentifier does not flow through Mana's own reference, so without this
+         ManaAudio builds its desktop OpenAL backend and the browser silently falls back to no audio. -->
+    <ProjectReference Include="..\ManaAudio\ManaAudio.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\ManaVoxel\ManaVoxel.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
   </ItemGroup>
