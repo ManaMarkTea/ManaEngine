@@ -4,6 +4,7 @@
   "name": "Dungeon",
   "boundary": "wall",
   "connects": "open",
+  "then": "Dungeon Props",
   "tiles": [
     {
       "name": "Empty",

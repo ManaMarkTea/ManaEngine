@@ -1,0 +1,316 @@
+{
+  "format": "mana-wfc",
+  "version": 1,
+  "name": "Dungeon Props",
+  "boundary": "wall",
+  "connects": "",
+  "kind": "props",
+  "base": "Dungeon",
+  "pairs": [
+    [
+      "free",
+      "wall"
+    ],
+    [
+      ">back",
+      "wall"
+    ],
+    [
+      "table",
+      "wall"
+    ],
+    [
+      "table",
+      "free"
+    ],
+    [
+      ">seat",
+      "table"
+    ]
+  ],
+  "tiles": [
+    {
+      "name": "Empty",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 14.0,
+      "modelCell": 0.0,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Barrel",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/barrel.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 1.4,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          ">back"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Chest",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/chest.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.5,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          ">back"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Pot",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/pot.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.6,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          ">back"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Banner",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.9,
+      "on": [
+        "room",
+        "corridor"
+      ],
+      "modelCell": 1.0,
+      "offset": [
+        0.0,
+        0.0,
+        0.14
+      ],
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          ">back"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Table",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/table.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.7,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "Half",
+      "sockets": {
+        "e": [
+          "table"
+        ],
+        "n": [
+          "table"
+        ],
+        "w": [
+          "table"
+        ],
+        "s": [
+          "table"
+        ]
+      }
+    },
+    {
+      "name": "Chair",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/chair.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 2.5,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          ">seat"
+        ]
+      }
+    },
+    {
+      "name": "Column",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/column.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.25,
+      "on": [
+        "room"
+      ],
+      "modelCell": 1.0,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Stones",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/stones.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.25,
+      "on": [
+        "room",
+        "corridor"
+      ],
+      "modelCell": 1.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    },
+    {
+      "name": "Trap",
+      "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/trap.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.15,
+      "on": [
+        "corridor"
+      ],
+      "modelCell": 1.0,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "free"
+        ],
+        "n": [
+          "free"
+        ],
+        "w": [
+          "free"
+        ],
+        "s": [
+          "free"
+        ]
+      }
+    }
+  ]
+}

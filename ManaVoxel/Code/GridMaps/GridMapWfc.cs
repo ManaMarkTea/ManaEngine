@@ -36,6 +36,31 @@ namespace ManaVoxel.Code.GridMaps
         /// <summary>Collider flat below this height, in the model's units -- see GridMapItemSettings.Smooth.</summary>
         public float Smooth { get; set; }
 
+        /// <summary>
+        /// What a cell of this tile is, for a later pass placing things on it: "room", "corridor", "empty"...
+        /// Unset, it is "empty" for a tile with no model, "room" for one covering several cells, and
+        /// "corridor" for the rest.
+        /// </summary>
+        public string? Tag { get; set; }
+
+        /// <summary>For a prop pass: the tags of the cells this tile may stand in. Unset, it may stand anywhere.</summary>
+        public string[]? On { get; set; }
+
+        /// <summary>
+        /// The size of one cell in the model's own units, so a prop keeps its size against the grid -- a barrel
+        /// half a cell high stays half a cell high. Zero fits the model to its cells, as a dungeon piece is.
+        /// </summary>
+        public float ModelCell { get; set; }
+
+        /// <summary>A shift of the model within its tile, in cells -- a banner pulled in off the wall behind it.</summary>
+        public float[]? Offset { get; set; }
+
+        [JsonIgnore]
+        public string EffectiveTag => !string.IsNullOrWhiteSpace(Tag) ? Tag.Trim()
+            : Asset == null ? "empty"
+            : Width * Depth > 1 ? "room"
+            : "corridor";
+
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public GridMapWfcRotations Rotations { get; set; } = GridMapWfcRotations.All;
 
@@ -70,6 +95,10 @@ namespace ManaVoxel.Code.GridMaps
             Size = Size.ToArray(),
             Weight = Weight,
             Smooth = Smooth,
+            Tag = Tag,
+            On = On?.ToArray(),
+            ModelCell = ModelCell,
+            Offset = Offset?.ToArray(),
             Rotations = Rotations,
             Sockets = Sockets.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray())
         };
@@ -129,6 +158,36 @@ namespace ManaVoxel.Code.GridMaps
         /// <summary>A label that joins two cells of the same dungeon, for keeping only the largest joined part.</summary>
         public string Connects { get; set; } = "open";
 
+        /// <summary>
+        /// "props" for rules that furnish a finished dungeon rather than lay one: each cell is offered only
+        /// what may stand on what is there, and a wall between two cells stands between their props.
+        /// </summary>
+        public string? Kind { get; set; }
+
+        [JsonIgnore]
+        public bool IsProps => string.Equals(Kind, "props", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>A props rules file, by name, to run over what these rules lay -- the dungeon's furniture.</summary>
+        public string? Then { get; set; }
+
+        /// <summary>For props: the rules file, by name, the dungeon underneath was laid with, to read it by.</summary>
+        public string? Base { get; set; }
+
+        /// <summary>
+        /// Labels that join each other as well as themselves, both ways: ["seat", "table"] lets a chair's front
+        /// face a table, ["free", "wall"] lets a prop stand against a wall. Everything else joins only its equal.
+        /// </summary>
+        public List<string[]> Pairs { get; set; } = new();
+
+        /// <summary>
+        /// Whether two labels may face each other: the same, or listed together in <see cref="Pairs"/>. A label
+        /// starting with '>' never joins itself -- a chair's ">seat" faces a table, not another chair.
+        /// </summary>
+        public bool Joins(string a, string b) =>
+            (string.Equals(a, b, StringComparison.Ordinal) && !a.StartsWith('>'))
+            || Pairs.Any(pair => pair.Length >= 2
+                && ((pair[0] == a && pair[1] == b) || (pair[0] == b && pair[1] == a)));
+
         public List<GridMapWfcTile> Tiles { get; set; } = new();
 
         /// <summary>Pieces big rooms are built from, when the rules have them.</summary>
@@ -166,6 +225,12 @@ namespace ManaVoxel.Code.GridMaps
 
         public const string DefaultSocket = "wall";
 
+        /// <summary>
+        /// What a prop pass knows of a cell of the finished dungeon: its tag ("room", "corridor", "empty") and
+        /// the sides with a wall -- which a prop's side has to be able to face, and which no prop joins across.
+        /// </summary>
+        public readonly record struct Cell(string Tag, GridMapSides Walls);
+
         private const int MaxSize = 96;
 
         /// <summary>Finished layouts compared when keeping to one piece; see <see cref="Solve"/>.</summary>
@@ -180,6 +245,9 @@ namespace ManaVoxel.Code.GridMaps
         public sealed record Result(IReadOnlyList<GridMapWfcPlacement> Placements, int Attempts, string? Error)
         {
             public IReadOnlyList<Room> BigRooms { get; init; } = [];
+
+            /// <summary>The props pass run after, when the rules name one; null when there was none.</summary>
+            public Result? Props { get; init; }
 
             public bool Succeeded => Error == null;
         }
@@ -201,7 +269,8 @@ namespace ManaVoxel.Code.GridMaps
             bool connectedOnly = true,
             int maxAttempts = 40,
             int rooms = 0,
-            int bigRooms = 0)
+            int bigRooms = 0,
+            IReadOnlyList<Cell>? context = null)
         {
             if (width < 1 || depth < 1 || width > MaxSize || depth > MaxSize)
             {
@@ -232,7 +301,7 @@ namespace ManaVoxel.Code.GridMaps
                 var big = PlaceBigRooms(rules, width, depth, bigRooms, keep ?? [], random);
                 var pinned = (keep ?? []).Concat(PlaceRooms(rules, width, depth, rooms, keep ?? [], random, big)).ToList();
                 var blocked = BlockedCells(rules, big, width, depth);
-                var solver = new Solver(model, rules, width, depth, random, blocked);
+                var solver = new Solver(model, rules, width, depth, random, blocked, context);
                 if (solver.Run(pinned) is not { } parts)
                 {
                     continue;
@@ -651,11 +720,17 @@ namespace ManaVoxel.Code.GridMaps
                     for (var p = 0; p < model.Parts.Count; p++)
                     {
                         var bits = new ulong[words];
-                        if (byLabel.TryGetValue(model.Parts[p].Sockets[side], out var matches))
+                        var label = model.Parts[p].Sockets[side];
+
+                        // Its own label, and any the rules pair it with; a tile's inner labels pair with nothing.
+                        foreach (var (other, matches) in byLabel)
                         {
-                            foreach (var q in matches)
+                            if ((other == label && !label.StartsWith('>')) || (!label.StartsWith('#') && rules.Joins(label, other)))
                             {
-                                bits[q >> 6] |= 1UL << (q & 63);
+                                foreach (var q in matches)
+                                {
+                                    bits[q >> 6] |= 1UL << (q & 63);
+                                }
                             }
                         }
 
@@ -690,8 +765,12 @@ namespace ManaVoxel.Code.GridMaps
             // Big rooms' cells: out of the collapse, but their labels still say what may stand beside them.
             private readonly string[]?[] _blocked;
 
-            public Solver(Model model, GridMapWfcRules rules, int width, int depth, Random random, string[]?[] blocked)
+            // For a prop pass: what each cell of the dungeon is, and where its walls are.
+            private readonly IReadOnlyList<Cell>? _context;
+
+            public Solver(Model model, GridMapWfcRules rules, int width, int depth, Random random, string[]?[] blocked, IReadOnlyList<Cell>? context)
             {
+                _context = context;
                 _blocked = blocked;
                 _model = model;
                 _rules = rules;
@@ -728,7 +807,7 @@ namespace ManaVoxel.Code.GridMaps
                     var z = cell / _width;
                     for (var p = 0; p < _model.Parts.Count; p++)
                     {
-                        if (FacesOutOk(_model.Parts[p], x, z, boundary) && FitsBlocked(_model.Parts[p], x, z))
+                        if (FacesOutOk(_model.Parts[p], x, z, boundary) && FitsBlocked(_model.Parts[p], x, z) && FitsContext(_model.Parts[p], cell))
                         {
                             _domains[cell * _words + (p >> 6)] |= 1UL << (p & 63);
                         }
@@ -780,6 +859,54 @@ namespace ManaVoxel.Code.GridMaps
                 return result;
             }
 
+            // On a finished dungeon: only where its tile may stand, and every side with a wall behind it able to
+            // face a wall -- which is what keeps a chair from facing a wall, and a banner off open floor.
+            private bool FitsContext(Part part, int cell)
+            {
+                if (_context == null)
+                {
+                    return true;
+                }
+
+                var here = _context[cell];
+                var on = _rules.Tiles[part.Tile].On;
+                if (on is { Length: > 0 } && !on.Contains(here.Tag, StringComparer.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                var wall = string.IsNullOrWhiteSpace(_rules.Boundary) ? DefaultSocket : _rules.Boundary.Trim();
+                for (var side = 0; side < 4; side++)
+                {
+                    if (Walled(cell, side) && (part.Sockets[side].StartsWith('#') || !_rules.Joins(part.Sockets[side], wall)))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // A wall between a cell and its neighbour across a side, from either one's side of it.
+            private bool Walled(int cell, int side)
+            {
+                if (_context == null)
+                {
+                    return false;
+                }
+
+                var mask = GridMapAutoTile.Neighbours[side].Side;
+                if (_context[cell].Walls.HasFlag(mask))
+                {
+                    return true;
+                }
+
+                var nx = cell % _width + Steps[side].X;
+                var nz = cell / _width + Steps[side].Z;
+                return nx >= 0 && nz >= 0 && nx < _width && nz < _depth
+                    && _context[nx + nz * _width].Walls.HasFlag(GridMapAutoTile.Neighbours[(side + 2) % 4].Side);
+            }
+
             // Beside a big room, a part has to show the room the label the room shows it.
             private bool FitsBlocked(Part part, int x, int z)
             {
@@ -788,7 +915,7 @@ namespace ManaVoxel.Code.GridMaps
                     var nx = x + Steps[side].X;
                     var nz = z + Steps[side].Z;
                     if (nx >= 0 && nz >= 0 && nx < _width && nz < _depth && _blocked[nx + nz * _width] is { } room
-                        && room[(side + 2) % 4] != part.Sockets[side])
+                        && room[(side + 2) % 4] != part.Sockets[side] && !_rules.Joins(room[(side + 2) % 4], part.Sockets[side]))
                     {
                         return false;
                     }
@@ -811,7 +938,7 @@ namespace ManaVoxel.Code.GridMaps
                     }
 
                     var label = part.Sockets[side];
-                    if (label.StartsWith('#') || (boundary.Length > 0 && label != boundary))
+                    if (label.StartsWith('#') || (boundary.Length > 0 && !_rules.Joins(label, boundary)))
                     {
                         return false;
                     }
@@ -899,7 +1026,7 @@ namespace ManaVoxel.Code.GridMaps
                         }
 
                         var next = nx + nz * _width;
-                        if (_blocked[next] != null)
+                        if (_blocked[next] != null || Walled(cell, side))
                         {
                             continue;
                         }

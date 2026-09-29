@@ -130,6 +130,7 @@ public static class GridMapWfcChecks
         Check("rules that cannot close the area in say so instead of laying something broken", !failed.Succeeded && failed.Error != null);
 
         RunGridMapChecks(rules, Check);
+        RunPropChecks((what, ok, detail) => Check(what, ok, detail));
 
         // The rules that ship in Generators/ are the preset, so a fresh checkout generates the same dungeon.
         var shipped = GridMapWfcGenerator.List().FirstOrDefault(path => Path.GetFileNameWithoutExtension(path) == "Dungeon");
@@ -140,6 +141,18 @@ public static class GridMapWfcChecks
                 && pair.First.Rotations == pair.Second.Rotations && pair.First.Width == pair.Second.Width && pair.First.Depth == pair.Second.Depth
                 && Enumerable.Range(0, 4).All(side => Enumerable.Range(0, 5).All(i => pair.First.Socket(side, i) == pair.Second.Socket(side, i)))),
             shipped ?? $"none in {GridMapWfcGenerator.ResolveFolder()}");
+
+        var shippedProps = GridMapWfcGenerator.FindRules("Dungeon Props");
+        var propsPreset = GridMapWfcPresets.DungeonProps();
+        Check("the Dungeon Props rules file ships, is the preset, and the Dungeon rules lead to it",
+            file?.Then == "Dungeon Props" && shippedProps is { IsProps: true } && shippedProps.Base == "Dungeon"
+            && shippedProps.Pairs.Count == propsPreset.Pairs.Count
+            && shippedProps.Tiles.Zip(propsPreset.Tiles).All(pair => pair.First.Name == pair.Second.Name && pair.First.Asset == pair.Second.Asset
+                && pair.First.Weight == pair.Second.Weight && pair.First.ModelCell == pair.Second.ModelCell
+                && (pair.First.On ?? []).SequenceEqual(pair.Second.On ?? [])
+                && Enumerable.Range(0, 4).All(side => pair.First.Socket(side, 0) == pair.Second.Socket(side, 0)))
+            && shippedProps.Tiles.Count == propsPreset.Tiles.Count,
+            $"then {file?.Then}, props {shippedProps?.Tiles.Count} tiles");
 
         RunWindowChecks(fonts, Check);
     }
@@ -189,6 +202,112 @@ public static class GridMapWfcChecks
         {
             GridMapWfcEditing.WindowOpen = false;
             world.Selection.SelectedNode = null;
+        }
+    }
+
+    /// <summary>
+    /// The props pass: a dungeon laid, then furnished from what it turned out to be. Each rule is checked
+    /// against the dungeon as read back from the map -- a prop only where it may stand, its back to a wall, a
+    /// chair facing a table with no wall between -- and re-rolling the props leaves the dungeon alone.
+    /// </summary>
+    private static void RunPropChecks(Action<string, bool, string> check)
+    {
+        var steps = new[] { (1, 0), (0, -1), (-1, 0), (0, 1) };
+        var originalLoader = ManaGridMapNode.LoadAsset;
+        ManaGridMapNode.LoadAsset = LoadCube;
+        try
+        {
+            var dungeon = GridMapWfcPresets.Dungeon();
+            var props = GridMapWfcPresets.DungeonProps();
+            var wrong = new List<string>();
+            int chairs = 0, tables = 0, backed = 0, laid = 0;
+            for (var seed = 1; seed <= 5; seed++)
+            {
+                var world = new ManaWorld();
+                var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+                world.Context = context;
+                world.DefaultScene = new ManaScene(context) { Name = "Default Scene" };
+                world.Scenes.Add(world.DefaultScene);
+                var gridMap = new ManaGridMapNode(context);
+                world.DefaultScene.Children.Add(gridMap);
+                gridMap.UpdateTransform();
+
+                var area = new GridMapWfcGenerator.Area(0, 0, 30, 30, 0);
+                var result = GridMapWfcGenerator.Generate(gridMap, dungeon, area, seed, keepPainted: true, connectedOnly: true, rooms: 3, bigRooms: 1);
+                if (result.Props is not { Succeeded: true } furnished)
+                {
+                    wrong.Add($"seed {seed}: {result.Error ?? result.Props?.Error ?? "no props pass"}");
+                    continue;
+                }
+
+                var cells = GridMapWfcGenerator.ReadDungeon(gridMap, dungeon, area);
+                GridMapWfc.Cell At(int x, int z) => cells[x + z * 30];
+                bool Walled(int x, int z, int side)
+                {
+                    var (nx, nz) = (x + steps[side].Item1, z + steps[side].Item2);
+                    return At(x, z).Walls.HasFlag(GridMapAutoTile.Neighbours[side].Side)
+                        || nx < 0 || nz < 0 || nx >= 30 || nz >= 30
+                        || At(nx, nz).Walls.HasFlag(GridMapAutoTile.Neighbours[(side + 2) % 4].Side);
+                }
+
+                var byCell = furnished.Placements.ToDictionary(p => (p.X, p.Z), p => p);
+                foreach (var p in furnished.Placements)
+                {
+                    var tile = props.Tiles[p.Tile];
+                    laid++;
+                    if (tile.On is { Length: > 0 } on && !on.Contains(At(p.X, p.Z).Tag))
+                    {
+                        wrong.Add($"{tile.Name} on {At(p.X, p.Z).Tag} at ({p.X},{p.Z})");
+                    }
+
+                    for (var modelled = 0; modelled < 4; modelled++)
+                    {
+                        var side = (modelled + p.Orientation) % 4;
+                        var label = tile.Socket(modelled, 0);
+                        if (label == ">back")
+                        {
+                            backed++;
+                            if (!Walled(p.X, p.Z, side))
+                            {
+                                wrong.Add($"{tile.Name} at ({p.X},{p.Z}) has its back to open floor");
+                            }
+                        }
+
+                        if (label == ">seat")
+                        {
+                            chairs++;
+                            var facing = (p.X + steps[side].Item1, p.Z + steps[side].Item2);
+                            if (Walled(p.X, p.Z, side) || !byCell.TryGetValue(facing, out var other) || props.Tiles[other.Tile].Name != "Table")
+                            {
+                                wrong.Add($"chair at ({p.X},{p.Z}) faces no table");
+                            }
+                        }
+                    }
+
+                    tables += tile.Name == "Table" ? 1 : 0;
+                }
+
+                // Re-rolling only the props: the dungeon underneath is left exactly as it was.
+                var dungeonCells = gridMap.LayerCells(0).ToDictionary(pair => pair.Key, pair => pair.Value);
+                var before = gridMap.CaptureState();
+                var reroll = GridMapWfcGenerator.Generate(gridMap, props, area, seed + 100, keepPainted: true, connectedOnly: false);
+                if (!reroll.Succeeded || gridMap.LayerCells(0).Count != dungeonCells.Count
+                    || dungeonCells.Any(pair => !gridMap.LayerCells(0).TryGetValue(pair.Key, out var t) || t != pair.Value))
+                {
+                    wrong.Add($"seed {seed}: re-rolling props changed the dungeon ({reroll.Error})");
+                }
+
+                gridMap.RestoreState(before);
+            }
+
+            check("props are laid over a generated dungeon", laid > 50, $"{laid} props over 5 dungeons");
+            check("with tables and the chairs round them", tables > 0 && chairs > 0, $"{tables} tables, {chairs} chairs");
+            check("each only where it may stand, its back to a wall, and every chair facing a table",
+                wrong.Count == 0 && backed > 0, string.Join("; ", wrong.Take(5)));
+        }
+        finally
+        {
+            ManaGridMapNode.LoadAsset = originalLoader;
         }
     }
 

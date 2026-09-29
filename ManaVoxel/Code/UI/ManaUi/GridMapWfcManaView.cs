@@ -153,11 +153,45 @@ namespace ManaVoxel.Code.UI.ManaUi
             joins.TextCommitted += (_, text) => Edit(() => GridMapWfcEditing.Rules.Connects = text.Trim());
             joins.WithTooltip("The label that joins two tiles into one dungeon, for keeping it in one piece");
 
+            // A dungeon names the props rules to furnish it with; props name the dungeon rules to read it by.
+            var link = new TextBox();
+            link.BindPolled(box => box.Text, () => (GridMapWfcEditing.Rules.IsProps ? GridMapWfcEditing.Rules.Base : GridMapWfcEditing.Rules.Then) ?? string.Empty);
+            link.TextCommitted += (_, text) => Edit(() =>
+            {
+                var value = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+                if (GridMapWfcEditing.Rules.IsProps)
+                {
+                    GridMapWfcEditing.Rules.Base = value;
+                }
+                else
+                {
+                    GridMapWfcEditing.Rules.Then = value;
+                }
+            });
+            link.BindPolled(box => box.Tooltip, () => GridMapWfcEditing.Rules.IsProps
+                ? "The rules the dungeon underneath was laid with, by file name -- how its tiles are read"
+                : "Props rules to furnish the dungeon with afterwards, by file name. Empty lays no props.");
+            var linkLabel = new TextBlock().Foreground(theme.TextMuted).CenterV();
+            linkLabel.BindPolled(text => text.Text, () => GridMapWfcEditing.Rules.IsProps ? "Base" : "Then");
+            linkLabel.Width = 46.0f;
+
+            var pairs = new TextBox();
+            pairs.BindPolled(box => box.Text, () => string.Join(", ", GridMapWfcEditing.Rules.Pairs.Where(p => p.Length >= 2).Select(p => $"{p[0]}={p[1]}")));
+            pairs.TextCommitted += (_, text) => Edit(() => GridMapWfcEditing.Rules.Pairs = text
+                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Select(pair => pair.Split('=', StringSplitOptions.TrimEntries))
+                .Where(pair => pair.Length == 2 && pair[0].Length > 0 && pair[1].Length > 0)
+                .ToList());
+            pairs.WithTooltip("Labels that join each other as well as themselves: \"free=wall, >seat=table\". "
+                + "A label starting with > never joins itself.");
+
             return new StackPanel().Vertical(2.0f).Children(
                 Row(theme, "Name", name),
                 new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
                     Row(theme, "Edge", boundary).GridColumn(0),
-                    Row(theme, "Joins", joins).GridColumn(1)));
+                    Row(theme, "Joins", joins).GridColumn(1)),
+                new Grid().Columns("Auto, *", theme.Spacing).Rows("Auto").Children(linkLabel.GridColumn(0), link.GridColumn(1)),
+                Row(theme, "Pairs", pairs));
         }
 
         // ----- where to generate ------------------------------------------------------------------------
@@ -244,6 +278,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             var reroll = new ManaUI.Button().Label("Re-roll").OnClick(() => Generate(gridMap, context, reroll: true));
             reroll.WithTooltip("A new seed, and generate again");
 
+            var props = new ManaUI.Button().Label("Props").OnClick(() => RerollProps(gridMap, context));
+            props.BindPolled(button => button.Visibility, () =>
+                !GridMapWfcEditing.Rules.IsProps && !string.IsNullOrWhiteSpace(GridMapWfcEditing.Rules.Then) ? Visibility.Visible : Visibility.Collapsed);
+            props.WithTooltip("Furnish the dungeon again, with a new seed, leaving the dungeon as it is");
+
             var status = new TextBlock().FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).Wrap();
             status.BindPolled(text => text.Text, () => GridMapWfcEditing.Status);
 
@@ -254,7 +293,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Row(theme, "Seed", seed).GridColumn(0), Row(theme, "Rooms", rooms).GridColumn(1)),
                 Row(theme, "Big", bigRooms),
                 new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(keep, connected),
-                new StackPanel().Horizontal(theme.Spacing).Children(generate, reroll),
+                new StackPanel().Horizontal(theme.Spacing).Children(generate, reroll, props),
                 status);
         }
 
@@ -288,8 +327,42 @@ namespace ManaVoxel.Code.UI.ManaUi
                     ? $", {result.BigRooms.Count} of {GridMapWfcEditing.BigRooms} big (no room for more at that size)"
                     : $", {result.BigRooms.Count} big"
                 : string.Empty;
-            GridMapWfcEditing.Status = $"{result.Placements.Count} tiles, {rooms} rooms{big}. Seed {GridMapWfcEditing.Seed}, {clock.ElapsedMilliseconds} ms"
-                + (result.Attempts > 1 ? $", {result.Attempts} tries." : ".");
+            var furnished = result.Props switch
+            {
+                null => string.Empty,
+                { Succeeded: true } laid => $", {laid.Placements.Count} props",
+                { } failed => $", no props ({failed.Error})"
+            };
+            GridMapWfcEditing.Status = GridMapWfcEditing.Rules.IsProps
+                ? $"{result.Placements.Count} props. Seed {GridMapWfcEditing.Seed}, {clock.ElapsedMilliseconds} ms."
+                : $"{result.Placements.Count} tiles, {rooms} rooms{big}{furnished}. Seed {GridMapWfcEditing.Seed}, {clock.ElapsedMilliseconds} ms"
+                    + (result.Attempts > 1 ? $", {result.Attempts} tries." : ".");
+        }
+
+        /// <summary>The dungeon's props alone, again with a new seed: the rules the open ones name to follow them.</summary>
+        private static void RerollProps(ManaGridMapNode gridMap, InspectorContext context)
+        {
+            if (GridMapWfcGenerator.FindRules(GridMapWfcEditing.Rules.Then) is not { IsProps: true } props)
+            {
+                GridMapWfcEditing.Status = $"No props rules called '{GridMapWfcEditing.Rules.Then}' in {GridMapWfcGenerator.FolderName}/.";
+                return;
+            }
+
+            var area = new GridMapWfcGenerator.Area(
+                GridMapWfcEditing.X, GridMapWfcEditing.Z, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, GridMapEditing.Floor);
+            var before = gridMap.CaptureState();
+            var result = GridMapWfcGenerator.GenerateProps(
+                gridMap, props, GridMapWfcEditing.Rules, area, Random.Shared.Next(1, 100000), GridMapWfcEditing.KeepPainted);
+            if (!result.Succeeded)
+            {
+                gridMap.RestoreState(before);
+                GridMapWfcEditing.Status = result.Error ?? "Could not lay props.";
+                return;
+            }
+
+            var after = gridMap.CaptureState();
+            context.History?.Record("Generate props", () => gridMap.RestoreState(before), () => gridMap.RestoreState(after));
+            GridMapWfcEditing.Status = $"{result.Placements.Count} props.";
         }
 
         // ----- big rooms ------------------------------------------------------------------------------
@@ -495,8 +568,63 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
                     Row(theme, "Weight", weight).GridColumn(0), turns.GridColumn(1)),
                 Row(theme, "Smooth", smooth),
+                Row(theme, "Tag", TagField(tile, Changed)),
+                Row(theme, "On", OnField(tile, Changed)),
+                new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
+                    Row(theme, "Unit", UnitField(tile, Changed)).GridColumn(0),
+                    Row(theme, "Offset", OffsetField(tile, Changed)).GridColumn(1)),
                 Sockets(theme, tile, Changed),
                 remove));
+        }
+
+        private static UiElement TagField(GridMapWfcTile tile, Action changed)
+        {
+            var field = new TextBox { Text = tile.Tag ?? string.Empty }.Hint(tile.EffectiveTag);
+            field.TextCommitted += (_, text) =>
+            {
+                tile.Tag = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+                changed();
+            };
+            field.WithTooltip("What its cells are to a props pass: room, corridor, empty... Unset, it is guessed from the tile.");
+            return field;
+        }
+
+        private static UiElement OnField(GridMapWfcTile tile, Action changed)
+        {
+            var field = new TextBox { Text = tile.On is { } on ? string.Join(", ", on) : string.Empty }.Hint("anywhere");
+            field.TextCommitted += (_, text) =>
+            {
+                var tags = GridMapWfcPresets.Split(text);
+                tile.On = tags.Length == 0 ? null : tags;
+                changed();
+            };
+            field.WithTooltip("For props: the tags of the cells it may stand in, comma separated. Empty is anywhere.");
+            return field;
+        }
+
+        private static UiElement UnitField(GridMapWfcTile tile, Action changed)
+        {
+            var field = new NumericBox { Step = 0.1f, Minimum = 0.0f, MinimumFieldHeight = 0.0f, Padding = new Thickness(6.0f, 1.0f) }.Places(2).Value(tile.ModelCell);
+            field.ValueChanged += (_, value) =>
+            {
+                tile.ModelCell = MathF.Max(0.0f, value);
+                changed();
+            };
+            field.WithTooltip("One cell in the model's units, to keep a prop its own size. 0 fits the model to its cells.");
+            return field;
+        }
+
+        private static UiElement OffsetField(GridMapWfcTile tile, Action changed)
+        {
+            var offset = tile.Offset is { Length: >= 3 } o ? new Vector3(o[0], o[1], o[2]) : Vector3.Zero;
+            var field = new VectorBox().Step(0.05f).Places(2).Value(offset);
+            field.ValueChanged += (_, value) =>
+            {
+                tile.Offset = value.X == 0.0f && value.Y == 0.0f && value.Z == 0.0f ? null : [value.X, value.Y, value.Z];
+                changed();
+            };
+            field.WithTooltip("Shift the model within its tile, in cells, before it is turned");
+            return field;
         }
 
         private static string Summary(GridMapWfcTile tile) =>
