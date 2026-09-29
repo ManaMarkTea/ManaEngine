@@ -50,10 +50,45 @@ asset and model logic under its own project, not under ManaUI because a panel ha
 - **Grid maps:** `ManaGridMapNode` (`ManaVoxel/Code/GridMaps/`) is Godot's GridMap -- cells of (palette index, quarter turns) painted from a palette of mesh assets. Each palette asset loads once and its tiles share its meshes; tiles are editor-transient children, so a level saves the palette and one cell blob, never the tiles. Painting lives in `VoxelEditorGameMode.GridMap.cs`, switched on from the Grid Map tool window (`GridMapToolManaView`), which floats while a grid map is selected and exists only then (`GridMapEditing` holds the brush; its Blank brush clears). Each palette item has its own `GridMapItemSettings` -- cells covered, fit-or-fixed scale, turn, align (Model, as authored, by default). Maps have layers; the cell API works on `ActiveLayer`, and a hidden layer builds nothing. `ManaEditorGizmos.Visible` (the camera widget's gizmo button) hides editor-only scene helpers. Auto-tile sets (`GridMapAutoTile.cs`) are roads and the like: palette items tagged with the sides they join on, re-picked with their neighbours as cells change; `GridMapAutoTilePresets` holds the Kenney defaults, all editable in the window.
 - **Generator (WFC):** `GridMapWfc` is wave function collapse over grid map cells: tiles with per-cell socket labels on each side, multi-cell tiles cut into parts that only join each other. Rules are `.manawfc` JSON in `Generators/` (`Dungeon.manawfc` is Kenney's modular dungeon kit), edited in the Generator window (`GridMapWfcManaView`, opened by Generate... in the Grid Map window) and run into an area of the selected map by `GridMapWfcGenerator`. Big rooms of any size are built from pieces (`GridMapWfcBigRooms`) and laid first. Props rules (`Kind: props`, e.g. `Dungeon Props.manawfc`, named by the dungeon rules' `Then`) furnish the result on a props layer, reading each cell's tag and walls off the map (`ReadDungeon`); `Pairs` lets labels join others, and a `>` label never joins itself.
 - **UI from JSON:** `UiMarkup` (`ManaUI/Code/Markup/`) builds a ManaUI tree from a `.manaui` document -- properties by name, `children`/`child`, `grid`/`dock`/`canvas` slots, `bind` (polled values) and `on` (events) against a `UiMarkupData`, colours as hex or `@ThemeToken`. Layouts live in `UI/`; Panels > UI Designer (`UiDesignerManaView`) edits them with an outline, a live preview (click to select) and a properties panel, all through the JSON.
+- **Prefabs:** reusable authored trees in `Content/Prefabs/*.manaprefab` (browse them in the Project panel; see `Content/README.md` for the editor workflow). Model: `ManaVoxel/Code/Assets/ManaPrefab.cs`; loading/instances: `ManaLevelLoader` (`Prefab` kind) and `ManaPrefabRuntime`. Grid map presets are `*.managridpreset` beside them (`ManaGridMapPreset`).
+
 - **Voxel tools:** the tools, their settings and the work plane float in the Voxel Tools window (`VoxelToolPaletteManaView.BuildWindow`) while a voxel node is selected or a voxel tool is on; the toolbar keeps one toggle for it. Selecting a voxel node makes it the one the tools draw into (`VoxelEditorViewModel.ActivateVoxelNode`). The tool windows come and go in `ManaUiDockDemo.SyncToolWindow`.
 - **Play mode:** F5 flips the editor into `PlayModeController` -- character spawned at the `ManaPlayerStartNode`, possessed, follow camera, editor UI collapsed by `ManaUiPlayOverlay`. Ctrl+F5 saves the level and launches `--play` in a second process, which runs `VoxelPlayGameMode`: ground, level, character, no editor.
 - **Shaders:** WGSL shaders at `ManaGraphics/Assets/Shaders/WebGpu/*.wgsl`, copied to output on build.
 - **Physics:** BepuPhysics v2.
+
+## Authoring prefabs (by hand or from code)
+
+A prefab is plain JSON, so one can be authored without the editor -- write the file and run the suite: `ContentAssetChecks` loads and places every prefab in `Content/` and fails on any warning.
+
+```json
+{
+  "format": "mana-prefab", "version": 1,
+  "id": "<32 hex chars, unique per asset>",
+  "name": "Coin",
+  "root": {
+    "id": "<32 hex>", "name": "Coin", "kind": "Group",
+    "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1],
+    "scripts": [
+      { "id": "<32 hex>", "type": "Trigger", "properties": { "size": [0.8, 0.8, 0.8], "offset": [0, 0.4, 0] } },
+      { "id": "<32 hex>", "type": "Collectible", "properties": { "value": 1, "spinDegreesPerSecond": 120 } }
+    ],
+    "children": [
+      { "id": "<32 hex>", "name": "Coin Model", "kind": "Mesh", "position": [0, 0.15, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb" }
+    ]
+  },
+  "properties": [
+    { "id": "<32 hex>", "name": "Value", "nodeId": "<root id>", "componentId": "<Collectible id>", "property": "value", "minimum": 1, "maximum": 100 }
+  ]
+}
+```
+
+- **Root and nodes** are `ManaLevelNode`s, exactly as in a `.manalevel` (camelCase JSON, enums as strings, rotation in radians). Kinds: `Group` (empty parent), `Shape` (`shape`: Cube/Sphere/Pyramid/Wedge/Disk/Torus/Icosahedron/Icosphere/Quad, `color`, `size`), `Mesh` (`asset`: a repo path like `Assets/Models/Kenny/candle.glb` or `zip:<pack>.zip/Models/GLB format/<model>.glb`), plus `Water`, `GridMap`, `Voxels`. One root; put everything else under it. No nested prefabs (`kind: Prefab` inside a prefab is rejected).
+- **Every node and every script needs an `id`** -- 32 hex chars (`uuid4().hex`), unique within the prefab. Overrides and exposed properties key on these, never on names, so never reuse or regenerate them once instances exist.
+- **Components** go in `scripts` by type name: `Trigger`, `Collectible`, `Hazard`, `Checkpoint`, `Goal`, `SpringPad`, `BoostPad`, `MovingPlatform`, `Enemy`, `AudioSource`, `TrainCar`. Their `properties` are the component's own serialized fields -- copy a working example from `Levels/Sample Course.manalevel`.
+- **Exposed properties** (`properties`) let each instance change one value: a component field is `nodeId` + `componentId` + the field name; a node field is `nodeId` + e.g. `position` (no `componentId`). `minimum`/`maximum` are optional.
+- **Placing one in a level** is a node `{ "id": "<32 hex>", "name": "...", "kind": "Prefab", "position": [...], "prefab": { "assetId": "<prefab id>", "assetPath": "Prefabs/Coin.manaprefab", "overrides": [] } }` -- `assetPath` is relative to `Content/`; the id is what is trusted if the file moves. Levels are format version 2.
 
 ## Code Style
 

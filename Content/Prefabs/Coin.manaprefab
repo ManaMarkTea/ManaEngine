@@ -1,0 +1,86 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "c3b8507faf554640a6a44af27124e591",
+  "name": "Coin",
+  "root": {
+    "id": "e8673f36ec694f289858faf262ce64dd",
+    "name": "Coin",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [
+      {
+        "id": "9c6a28ec34014776aa57bcee00c33983",
+        "type": "Trigger",
+        "properties": {
+          "size": [
+            0.8,
+            0.8,
+            0.8
+          ],
+          "offset": [
+            0,
+            0.4,
+            0
+          ]
+        }
+      },
+      {
+        "id": "17f63c62e7d24e79b4b82b203a480130",
+        "type": "Collectible",
+        "properties": {
+          "value": 1,
+          "spinDegreesPerSecond": 120
+        }
+      }
+    ],
+    "children": [
+      {
+        "id": "78815228fa9a4050a9dee5e48a250a6f",
+        "name": "Coin Model",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0.15,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "1d708858a2784d209124cef42c570436",
+      "name": "Value",
+      "nodeId": "e8673f36ec694f289858faf262ce64dd",
+      "componentId": "17f63c62e7d24e79b4b82b203a480130",
+      "property": "value",
+      "minimum": 1,
+      "maximum": 100
+    }
+  ]
+}
