@@ -9,6 +9,10 @@ namespace ManaVoxel.Code.Gameplay.Flight
     /// Jump, then jump again in mid-air, and a flying mount catches you -- Dragonflight-style. Attach to a
     /// <see cref="ManaPawnNode"/>; it does nothing until that second jump.
     /// <para>
+    /// <b>Parked:</b> no game mode attaches this at the moment -- the air jump is a plain double jump
+    /// (MaxJumpCount = 2) instead. Kept, with its tests, to come back to.
+    /// </para>
+    /// <para>
     /// That gesture is free, which is why it is the one used: with <see cref="ManaPawnNode.MaxJumpCount"/>
     /// at its default of 1, a second jump press while airborne already does nothing whatsoever. So Space
     /// means "up" the whole way through -- it jumps, then it takes off, then it is Skyward Ascent -- and

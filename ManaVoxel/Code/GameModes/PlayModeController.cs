@@ -1,5 +1,4 @@
 using Mana.Code.Nodes;
-using ManaVoxel.Code.Gameplay.Flight;
 
 namespace Mana.Code.GameModes
 {
@@ -111,9 +110,10 @@ namespace Mana.Code.GameModes
             _savedReleaseOnEscape = _pawnController.ReleaseOnEscape;
             _savedMouseLookControls = _pawnController.MouseLookControlsEnabled;
 
-            // Flight is a play-mode affordance, added to the character rather than baked into the spawn so
-            // an editor-spawned character stays a plain walker.
-            player.Components.Add(new FlyingMountComponent(player));
+            // A play-mode affordance, set on the character rather than baked into the spawn so an
+            // editor-spawned character stays a single jumper. FlyingMountComponent is parked: re-adding it
+            // here means dropping this back to 1, since it takes off on the air jump.
+            player.MaxJumpCount = 2;
 
             _player = player;
             _startNode = start;

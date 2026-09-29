@@ -226,6 +226,8 @@ namespace ManaVoxel.Web
 
             _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
             _player.UpdateTransform();
+            // Double jump, matching desktop play (VoxelPlayGameMode).
+            _player.MaxJumpCount = 2;
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);

@@ -5,7 +5,6 @@ using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code.Planet;
-using ManaVoxel.Code.Gameplay.Flight;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.UI.ManaUi;
@@ -231,7 +230,8 @@ namespace Mana.Code.GameModes
 
             _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
             _player.UpdateTransform();
-            _player.Components.Add(new FlyingMountComponent(_player));
+            // Double jump. FlyingMountComponent is parked -- see PlayModeController.
+            _player.MaxJumpCount = 2;
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
