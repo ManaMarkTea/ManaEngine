@@ -67,6 +67,14 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     break;
 
                 case ManaLevelSourceKind.PlayerStart:
+                    if (node is ManaPlayerStartNode start)
+                    {
+                        rows.Add(InspectorControls.Row(context, "Character", CharacterSelector(start)));
+                        var height = InspectorControls.Scalar(() => start.CharacterHeight, value => start.CharacterHeight = value, 0.0f, 4.0f);
+                        height.WithTooltip("How tall the player is, in world units -- 1 is a grid map cell. 0 keeps the model's own size.");
+                        rows.Add(InspectorControls.Row(context, "Height", height));
+                    }
+
                     break;
 
                 case ManaLevelSourceKind.Planet:
@@ -98,6 +106,33 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return new Expander()
                 .Header("Level JSON")
                 .Section(theme.Spacing, rows.ToArray());
+        }
+
+        private static readonly Lazy<ManaVoxel.Code.Services.CharacterSpawnService> Characters = new(() => new ManaVoxel.Code.Services.CharacterSpawnService());
+
+        /// <summary>Which character the start spawns: any of them (the game picks), or one from the packs.</summary>
+        private static UiElement CharacterSelector(ManaPlayerStartNode start)
+        {
+            var catalog = Characters.Value.Catalog;
+            var names = new[] { "Any" }.Concat(catalog.Select(asset => $"{asset.PackName} / {asset.DisplayName}")).ToArray();
+            int Current() => 1 + catalog.ToList().FindIndex(asset =>
+                string.Equals(asset.PackName, start.CharacterPack, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(asset.DisplayName, start.CharacterName, StringComparison.OrdinalIgnoreCase));
+
+            var combo = new ComboBox().Options(names).Selected(Current());
+            combo.SelectionChanged += (_, index) =>
+            {
+                if (combo.IsApplyingBinding || index < 0)
+                {
+                    return;
+                }
+
+                start.CharacterPack = index == 0 ? null : catalog[index - 1].PackName;
+                start.CharacterName = index == 0 ? null : catalog[index - 1].DisplayName;
+            };
+            combo.BindPolled(c => c.SelectedIndex, Current);
+            combo.WithTooltip("Who the player is. Any lets the game pick.");
+            return combo;
         }
 
         private static UiElement ShapeSelector(ManaSceneNode node)

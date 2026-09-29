@@ -116,5 +116,20 @@ public static class CharacterScaleChecks
                 Near(hero.WalkSpeed, ManaPawnNode.DefaultWalkSpeed) && Near(hero.JumpHeight, ManaPawnNode.DefaultJumpHeight),
                 $"walk {hero.WalkSpeed:0.##}, jump {hero.JumpHeight:0.##}");
         }
+
+        // Play with a start that names no character still gets the start's height: a metre unless it says.
+        var start = new ManaPlayerStartNode(context, Vector3.Zero);
+        Check("a new player start asks for a one-metre character", Near(start.CharacterHeight, ManaPlayerStartNode.DefaultCharacterHeight));
+        foreach (var (label, from) in new[] { ("a start that names no character", start), ("no start at all", (ManaPlayerStartNode?)null) })
+        {
+            var player = service.SpawnFor(from, world, Vector3.Zero, null, usePhysics: false);
+            player!.TryGetBindPoseHeight(out var local);
+            Check($"{label} plays at a metre, whichever character comes up", Near(local * player.Scale.Y, 1.0f),
+                $"{player.Name}: {local * player.Scale.Y:0.###} tall");
+        }
+
+        start.CharacterHeight = 0.0f;
+        var ownSize = service.SpawnFor(start, world, Vector3.Zero, null, usePhysics: false);
+        Check("and a height of 0 keeps the model's own size", ownSize != null && Near(ownSize.Scale.Y, 1.0f), $"{ownSize?.Scale}");
     }
 }

@@ -89,6 +89,7 @@ public static class GridMapChecks
             RunSizingChecks(Check);
             RunLayerChecks(Check);
             RunAutoTileChecks(Check);
+            RunPlayerStartChecks(Check);
             RunEditorChecks(fonts, Check);
         }
         finally
@@ -412,6 +413,34 @@ public static class GridMapChecks
             && Math.Abs(path[0].X) + Math.Abs(path[0].Z) == 1;
         Check("a quick diagonal drag paints every cell between, each beside the last", joined && path[^1] == new GridMapCell(3, 0, 2) && path.Count == 5,
             string.Join(" ", path.Select(c => $"({c.X},{c.Z})")));
+    }
+
+    /// <summary>A player start's character height survives a save, and a start that says nothing loads at the default.</summary>
+    private static void RunPlayerStartChecks(Action<string, bool, string> check)
+    {
+        var context = CreateContext(physics: false);
+        var start = new ManaPlayerStartNode(context, Vector3.Zero);
+        context.World.DefaultScene.Children.Add(start);
+        var plain = ManaLevel.FromJson(ManaLevelCapture.Capture(context.World, "Start").ToJson());
+        check("a start left at the default height writes no character entry",
+            plain.Nodes.Single(node => node.Kind == ManaLevelSourceKind.PlayerStart).Character == null, "");
+
+        start.CharacterHeight = 0.5f;
+        var level = ManaLevel.FromJson(ManaLevelCapture.Capture(context.World, "Start").ToJson());
+        var reloaded = CreateContext(physics: false);
+        var loaded = ManaLevelLoader.Load(level, reloaded, reloaded.World.DefaultScene, replaceAuthoredNodes: false)
+            .Nodes.OfType<ManaPlayerStartNode>().SingleOrDefault();
+        check("a height set on a start with no character chosen is saved with it",
+            loaded != null && MathF.Abs(loaded.CharacterHeight - 0.5f) < 1e-4f && string.IsNullOrEmpty(loaded.CharacterName),
+            $"{loaded?.CharacterHeight}");
+
+        var bare = ManaLevel.FromJson(ManaLevelCapture.Capture(CreateContext(physics: false).World, "None").ToJson());
+        bare.Nodes.Add(new ManaLevelNode { Kind = ManaLevelSourceKind.PlayerStart, Name = "Old start" });
+        var old = CreateContext(physics: false);
+        var oldStart = ManaLevelLoader.Load(bare, old, old.World.DefaultScene, replaceAuthoredNodes: false)
+            .Nodes.OfType<ManaPlayerStartNode>().SingleOrDefault();
+        check("a start saved with no character entry plays at the default height",
+            oldStart != null && MathF.Abs(oldStart.CharacterHeight - ManaPlayerStartNode.DefaultCharacterHeight) < 1e-4f, $"{oldStart?.CharacterHeight}");
     }
 
     private static void RunRoundTripChecks(Action<string, bool, string> check)

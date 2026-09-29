@@ -194,7 +194,10 @@ namespace ManaVoxel.Code.Levels
         /// <summary>The model's name within the pack, e.g. <c>character-human</c>.</summary>
         public string Name { get; set; } = string.Empty;
 
-        /// <summary>Height to scale the model to, in world units; zero keeps its own size.</summary>
+        /// <summary>
+        /// Height to scale the model to, in world units; zero keeps its own size. A start with no character
+        /// entry at all gets ManaPlayerStartNode.DefaultCharacterHeight.
+        /// </summary>
         public float Height { get; set; }
     }
 

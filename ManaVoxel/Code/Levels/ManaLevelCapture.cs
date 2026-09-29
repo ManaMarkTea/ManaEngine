@@ -181,12 +181,15 @@ namespace ManaVoxel.Code.Levels
                     break;
 
                 case ManaLevelSourceKind.PlayerStart:
-                    if (node is ManaPlayerStartNode start && !string.IsNullOrWhiteSpace(start.CharacterName))
+                    // Written when it asks for a character or for a height other than the default, which is what a
+                    // start with no entry gets on load.
+                    if (node is ManaPlayerStartNode start
+                        && (!string.IsNullOrWhiteSpace(start.CharacterName) || start.CharacterHeight != ManaPlayerStartNode.DefaultCharacterHeight))
                     {
                         entry.Character = new ManaLevelCharacter
                         {
                             Pack = start.CharacterPack ?? string.Empty,
-                            Name = start.CharacterName,
+                            Name = start.CharacterName ?? string.Empty,
                             Height = start.CharacterHeight
                         };
                     }

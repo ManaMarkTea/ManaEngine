@@ -14,8 +14,14 @@ namespace Mana.Code.Nodes
     /// </summary>
     public sealed class ManaPlayerStartNode : ManaSceneNode
     {
-        // Roughly the space a normalised Kenney character occupies (CharacterSpawnService normalises to
-        // two units tall), so what the marker outlines is what will actually stand there.
+        /// <summary>
+        /// How tall the character is made when a start does not say: a metre, one cell of a grid map at its
+        /// default size. Kenney's characters run from 0.7 to 2.7 units as modelled, so the model's own size
+        /// would make the player a different size every time the pack changed.
+        /// </summary>
+        public const float DefaultCharacterHeight = 1.0f;
+
+        // The marker as built; it is scaled to the character height, so it outlines what will stand there.
         private const float MarkerHeight = 2.0f;
         private const float MarkerHalfWidth = 0.4f;
 
@@ -54,7 +60,7 @@ namespace Mana.Code.Nodes
                 new ManaPyramid(context, FacingColor, new Vector3(0.25f, 0.15f, 0.35f))));
             AddChild(_facing);
 
-            UpdateTransform();
+            CharacterHeight = DefaultCharacterHeight;
         }
 
         /// <summary>Pack of the character this start wants the player to be; null lets the game choose.</summary>
@@ -63,8 +69,32 @@ namespace Mana.Code.Nodes
         /// <summary>Model name within <see cref="CharacterPack"/>.</summary>
         public string? CharacterName { get; set; }
 
-        /// <summary>Height to scale the chosen character to, in world units; zero keeps the model's own size.</summary>
-        public float CharacterHeight { get; set; }
+        private float _characterHeight = -1.0f;
+
+        /// <summary>
+        /// Height to scale the character to, in world units -- the chosen one, or the game's pick when none is
+        /// chosen. Zero keeps the model's own size.
+        /// </summary>
+        public float CharacterHeight
+        {
+            get => _characterHeight;
+            set
+            {
+                var height = float.IsFinite(value) ? MathF.Max(0.0f, value) : DefaultCharacterHeight;
+                if (height == _characterHeight)
+                {
+                    return;
+                }
+
+                _characterHeight = height;
+
+                // A model at its own size could be any height; the marker keeps its built size then.
+                var scale = height > 0.0f ? height / MarkerHeight : 1.0f;
+                _marker.SetLocalTransform(Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(0.0f, MarkerHeight * 0.5f * scale, 0.0f));
+                _facing.SetLocalTransform(Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(0.0f, 0.15f * scale, (MarkerHalfWidth + 0.35f) * scale));
+                UpdateTransform();
+            }
+        }
 
         /// <summary>World position the character's feet land on.</summary>
         public Vector3 SpawnPosition => WorldTransform.Translation;

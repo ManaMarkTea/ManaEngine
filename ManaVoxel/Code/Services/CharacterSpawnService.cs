@@ -119,7 +119,12 @@ namespace ManaVoxel.Code.Services
 
         // Cycles through every discovered character so repeated spawns produce a varied crowd rather
         // than a stack of identical models.
-        public ManaPawnNode? SpawnNextCharacter(ManaWorld world, Vector3 position, ManaPawnController? controller = null, bool usePhysics = true)
+        public ManaPawnNode? SpawnNextCharacter(
+            ManaWorld world,
+            Vector3 position,
+            ManaPawnController? controller = null,
+            bool usePhysics = true,
+            float targetHeight = 0.0f)
         {
             var catalog = Catalog;
             if (catalog.Count == 0)
@@ -130,7 +135,7 @@ namespace ManaVoxel.Code.Services
 
             var asset = catalog[_nextCharacterIndex % catalog.Count];
             _nextCharacterIndex++;
-            return Spawn(asset, world, position, controller, usePhysics);
+            return Spawn(asset, world, position, controller, usePhysics, targetHeight);
         }
 
         /// <summary>
@@ -139,13 +144,15 @@ namespace ManaVoxel.Code.Services
         /// </summary>
         public ManaPawnNode? SpawnFor(ManaPlayerStartNode? start, ManaWorld world, Vector3 position, ManaPawnController? controller = null, bool usePhysics = true)
         {
+            // The start's height whichever character it gets, and a metre with no start at all.
+            var height = start?.CharacterHeight ?? ManaPlayerStartNode.DefaultCharacterHeight;
             var index = IndexOf(start?.CharacterPack, start?.CharacterName);
             if (index < 0)
             {
-                return SpawnNextCharacter(world, position, controller, usePhysics);
+                return SpawnNextCharacter(world, position, controller, usePhysics, height);
             }
 
-            return Spawn(Catalog[index], world, position, controller, usePhysics, start!.CharacterHeight);
+            return Spawn(Catalog[index], world, position, controller, usePhysics, height);
         }
 
         // Index of a character in the catalog, or -1. Used to work out where "the next one" is when
