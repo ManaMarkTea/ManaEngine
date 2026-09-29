@@ -175,23 +175,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             linkLabel.BindPolled(text => text.Text, () => GridMapWfcEditing.Rules.IsProps ? "Base" : "Then");
             linkLabel.Width = 46.0f;
 
-            var pairs = new TextBox();
-            pairs.BindPolled(box => box.Text, () => string.Join(", ", GridMapWfcEditing.Rules.Pairs.Where(p => p.Length >= 2).Select(p => $"{p[0]}={p[1]}")));
-            pairs.TextCommitted += (_, text) => Edit(() => GridMapWfcEditing.Rules.Pairs = text
-                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-                .Select(pair => pair.Split('=', StringSplitOptions.TrimEntries))
-                .Where(pair => pair.Length == 2 && pair[0].Length > 0 && pair[1].Length > 0)
-                .ToList());
-            pairs.WithTooltip("Labels that join each other as well as themselves: \"free=wall, >seat=table\". "
-                + "A label starting with > never joins itself.");
-
+            // Which labels join which (the rules' Pairs) is left to the file: a person picks a side's kind by name
+            // in each tile instead -- see Sockets.
             return new StackPanel().Vertical(2.0f).Children(
                 Row(theme, "Name", name),
                 new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
                     Row(theme, "Edge", boundary).GridColumn(0),
                     Row(theme, "Joins", joins).GridColumn(1)),
-                new Grid().Columns("Auto, *", theme.Spacing).Rows("Auto").Children(linkLabel.GridColumn(0), link.GridColumn(1)),
-                Row(theme, "Pairs", pairs));
+                new Grid().Columns("Auto, *", theme.Spacing).Rows("Auto").Children(linkLabel.GridColumn(0), link.GridColumn(1)));
         }
 
         // ----- where to generate ------------------------------------------------------------------------
@@ -573,7 +564,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
                     Row(theme, "Unit", UnitField(tile, Changed)).GridColumn(0),
                     Row(theme, "Offset", OffsetField(tile, Changed)).GridColumn(1)),
-                Sockets(theme, tile, Changed),
+                Sockets(theme, rules, tile, Changed),
                 remove));
         }
 
@@ -634,11 +625,31 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// The labels on each side, laid out as the sides are seen from above with -Z up. A side covering several
         /// cells takes one label per cell, separated by commas, in order of rising X or Z.
         /// </summary>
-        private static UiElement Sockets(UiTheme theme, GridMapWfcTile tile, Action changed)
+        private static UiElement Sockets(UiTheme theme, GridMapWfcRules rules, GridMapWfcTile tile, Action changed)
         {
-            TextBox Side(int side, string tooltip)
+            // Rules that name their kinds of side get a list to pick from for a one-cell tile's sides; a label
+            // the list does not know, or a side covering several cells, is typed.
+            UiElement Side(int side, string tooltip)
             {
                 var key = GridMapWfc.SideKeys[side];
+                var current = tile.Sockets.TryGetValue(key, out var have) && have.Length == 1 ? have[0] : null;
+                if (rules.SideNames.Count > 0 && tile.Width == 1 && tile.Depth == 1 && (current == null || rules.SideNames.ContainsKey(current)))
+                {
+                    var kinds = rules.SideNames.ToList();
+                    var combo = new ComboBox().Options(kinds.Select(kind => kind.Value).ToArray());
+                    combo.SelectedIndex = Math.Max(0, kinds.FindIndex(kind => kind.Key == current));
+                    combo.SelectionChanged += (_, index) =>
+                    {
+                        if (index >= 0)
+                        {
+                            tile.Sockets[key] = [kinds[index].Key];
+                            changed();
+                        }
+                    };
+                    combo.WithTooltip(tooltip.Split(':')[0] + ": what this side of it needs next to it");
+                    return combo;
+                }
+
                 var box = new TextBox { Text = string.Join(",", tile.Sockets.TryGetValue(key, out var labels) ? labels : [GridMapWfc.DefaultSocket]) };
                 box.TextCommitted += (_, text) =>
                 {

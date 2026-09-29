@@ -17,10 +17,6 @@
     ],
     [
       "table",
-      "wall"
-    ],
-    [
-      "table",
       "free"
     ],
     [
@@ -28,6 +24,12 @@
       "table"
     ]
   ],
+  "sideNames": {
+    "free": "Anything",
+    ">back": "Back to a wall",
+    ">seat": "Faces a table",
+    "table": "Table"
+  },
   "tiles": [
     {
       "name": "Empty",
@@ -35,7 +37,7 @@
         1,
         1
       ],
-      "weight": 14.0,
+      "weight": 10.0,
       "modelCell": 0.0,
       "rotations": "None",
       "sockets": {

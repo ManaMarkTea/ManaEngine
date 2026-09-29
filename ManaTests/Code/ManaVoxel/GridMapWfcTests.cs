@@ -146,7 +146,7 @@ public static class GridMapWfcChecks
         var propsPreset = GridMapWfcPresets.DungeonProps();
         Check("the Dungeon Props rules file ships, is the preset, and the Dungeon rules lead to it",
             file?.Then == "Dungeon Props" && shippedProps is { IsProps: true } && shippedProps.Base == "Dungeon"
-            && shippedProps.Pairs.Count == propsPreset.Pairs.Count
+            && shippedProps.Pairs.Count == propsPreset.Pairs.Count && shippedProps.SideNames.Count == propsPreset.SideNames.Count
             && shippedProps.Tiles.Zip(propsPreset.Tiles).All(pair => pair.First.Name == pair.Second.Name && pair.First.Asset == pair.Second.Asset
                 && pair.First.Weight == pair.Second.Weight && pair.First.ModelCell == pair.Second.ModelCell
                 && (pair.First.On ?? []).SequenceEqual(pair.Second.On ?? [])
@@ -194,6 +194,21 @@ public static class GridMapWfcChecks
             check("selecting something else leaves it up, still on the same map",
                 Window() != null && ReferenceEquals(GridMapWfcManaView.Target(world), gridMap), "");
 
+            // Props rules offer each side's kind by name, and do not ask anyone to type pairs of labels.
+            GridMapWfcEditing.Replace(GridMapWfcPresets.DungeonProps(), null);
+            Frame();
+            foreach (var expander in Find<Expander>(Window()!))
+            {
+                expander.IsExpanded = true;
+            }
+
+            Frame();
+            var sideLists = Find<ComboBox>(Window()!).Count(combo => combo.Items.Any(item => item?.ToString() == "Faces a table"));
+            var labelsShown = Find<TextBlock>(Window()!).Any(text => text.Text == "Pairs");
+            check("a props tile's sides are picked from named kinds, with no pairs to know",
+                sideLists >= 4 * 9 && !labelsShown, $"{sideLists} side lists; pairs shown: {labelsShown}");
+            GridMapWfcEditing.Replace(GridMapWfcPresets.Dungeon(), null);
+
             Window()?.Close();
             Frame();
             check("closing it by hand is remembered", !GridMapWfcEditing.WindowOpen && Window() == null, "");
@@ -220,7 +235,7 @@ public static class GridMapWfcChecks
             var dungeon = GridMapWfcPresets.Dungeon();
             var props = GridMapWfcPresets.DungeonProps();
             var wrong = new List<string>();
-            int chairs = 0, tables = 0, backed = 0, laid = 0;
+            int chairs = 0, tables = 0, backed = 0, laid = 0, doorways = 0;
             for (var seed = 1; seed <= 5; seed++)
             {
                 var world = new ManaWorld();
@@ -285,7 +300,18 @@ public static class GridMapWfcChecks
                     }
 
                     tables += tile.Name == "Table" ? 1 : 0;
+                    if (tile.Name == "Table" && Enumerable.Range(0, 4).Any(side => Walled(p.X, p.Z, side)))
+                    {
+                        wrong.Add($"table against a wall at ({p.X},{p.Z})");
+                    }
+
+                    if (At(p.X, p.Z).Tag is "door" or "entry" or "doorstep")
+                    {
+                        wrong.Add($"{tile.Name} in a doorway ({At(p.X, p.Z).Tag}) at ({p.X},{p.Z})");
+                    }
                 }
+
+                doorways += cells.Count(cell => cell.Tag == "door");
 
                 // Re-rolling only the props: the dungeon underneath is left exactly as it was.
                 var dungeonCells = gridMap.LayerCells(0).ToDictionary(pair => pair.Key, pair => pair.Value);
@@ -302,7 +328,8 @@ public static class GridMapWfcChecks
 
             check("props are laid over a generated dungeon", laid > 50, $"{laid} props over 5 dungeons");
             check("with tables and the chairs round them", tables > 0 && chairs > 0, $"{tables} tables, {chairs} chairs");
-            check("each only where it may stand, its back to a wall, and every chair facing a table",
+            check("doorways are found", doorways > 10, $"{doorways} door cells over 5 dungeons");
+            check("each only where it may stand -- tables off the walls, doorways clear -- its back to a wall, and every chair facing a table",
                 wrong.Count == 0 && backed > 0, string.Join("; ", wrong.Take(5)));
         }
         finally
@@ -560,5 +587,25 @@ public static class GridMapWfcChecks
         into.Children.Remove(cube);
         holder.AddChild(cube);
         return holder;
+    }
+
+    private static List<T> Find<T>(UiElement element) where T : UiElement
+    {
+        var found = new List<T>();
+        void Walk(UiElement current)
+        {
+            if (current is T typed)
+            {
+                found.Add(typed);
+            }
+
+            foreach (var child in current.VisualChildren)
+            {
+                Walk(child);
+            }
+        }
+
+        Walk(element);
+        return found;
     }
 }

@@ -203,6 +203,7 @@ namespace ManaVoxel.Code.GridMaps
                 }
             }
 
+            MarkDoorways(cells, area.Width, area.Depth);
             return cells;
 
             GridMapWfc.Cell Read(GridMapCell at)
@@ -268,6 +269,64 @@ namespace ManaVoxel.Code.GridMaps
                 }
 
                 return new GridMapWfc.Cell(rule.EffectiveTag, walled);
+            }
+        }
+
+        /// <summary>
+        /// Keeps the way in and out of every room clear. A room cell open to something that is not room is a
+        /// "door"; the room cells just inside a door are its "entry", and the corridor cells just outside it
+        /// its "doorstep". Props standing on "room" leave all three alone, so no table blocks a doorway.
+        /// </summary>
+        private static void MarkDoorways(GridMapWfc.Cell[] cells, int width, int depth)
+        {
+            bool Open(int x, int z, int side, out int next)
+            {
+                var (nx, nz) = (x + GridMapAutoTile.Neighbours[side].X, z + GridMapAutoTile.Neighbours[side].Z);
+                next = nx + nz * width;
+                return nx >= 0 && nz >= 0 && nx < width && nz < depth
+                    && !cells[x + z * width].Walls.HasFlag(GridMapAutoTile.Neighbours[side].Side)
+                    && !cells[next].Walls.HasFlag(GridMapAutoTile.Neighbours[(side + 2) % 4].Side);
+            }
+
+            var doors = new List<int>();
+            for (var cell = 0; cell < cells.Length; cell++)
+            {
+                if (cells[cell].Tag != "room")
+                {
+                    continue;
+                }
+
+                for (var side = 0; side < 4; side++)
+                {
+                    if (Open(cell % width, cell / width, side, out var next) && cells[next].Tag is not ("room" or "door"))
+                    {
+                        doors.Add(cell);
+                        break;
+                    }
+                }
+            }
+
+            foreach (var door in doors)
+            {
+                cells[door] = cells[door] with { Tag = "door" };
+            }
+
+            foreach (var door in doors)
+            {
+                for (var side = 0; side < 4; side++)
+                {
+                    if (!Open(door % width, door / width, side, out var next))
+                    {
+                        continue;
+                    }
+
+                    cells[next] = cells[next].Tag switch
+                    {
+                        "room" => cells[next] with { Tag = "entry" },
+                        "corridor" => cells[next] with { Tag = "doorstep" },
+                        _ => cells[next]
+                    };
+                }
             }
         }
 
@@ -548,7 +607,9 @@ namespace ManaVoxel.Code.GridMaps
         /// </list>
         /// The '>' keeps those two from joining themselves: two chairs do not face each other, nor two barrels
         /// stand back to back in the middle of a room. Most of a room is left empty, and nothing but stones, traps
-        /// and banners goes in a corridor, so it stays walkable.
+        /// and banners goes in a corridor, so it stays walkable. A table's sides do not join "wall", so a table
+        /// stands out in the room with space round it for chairs, never in a corner. Doorways stay clear: see
+        /// MarkDoorways.
         /// </summary>
         public static GridMapWfcRules DungeonProps() => new()
         {
@@ -561,13 +622,19 @@ namespace ManaVoxel.Code.GridMaps
             [
                 ["free", "wall"],
                 [">back", "wall"],
-                ["table", "wall"],
                 ["table", "free"],
                 [">seat", "table"]
             ],
+            SideNames = new Dictionary<string, string>
+            {
+                ["free"] = "Anything",
+                [">back"] = "Back to a wall",
+                [">seat"] = "Faces a table",
+                ["table"] = "Table"
+            },
             Tiles =
             [
-                Prop("Empty", null, 14.0f, GridMapWfcRotations.None, null, "free", "free", "free", "free"),
+                Prop("Empty", null, 10.0f, GridMapWfcRotations.None, null, "free", "free", "free", "free"),
                 Prop("Barrel", "barrel.glb", 1.4f, GridMapWfcRotations.All, ["room"], "free", ">back", "free", "free"),
                 Prop("Chest", "chest.glb", 0.5f, GridMapWfcRotations.All, ["room"], "free", ">back", "free", "free"),
                 Prop("Pot", "pot.glb", 0.6f, GridMapWfcRotations.All, ["room"], "free", ">back", "free", "free"),

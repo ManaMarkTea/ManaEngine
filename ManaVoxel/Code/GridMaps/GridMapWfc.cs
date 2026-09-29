@@ -180,6 +180,12 @@ namespace ManaVoxel.Code.GridMaps
         public List<string[]> Pairs { get; set; } = new();
 
         /// <summary>
+        /// Plain names for the side labels a person picks between -- "&gt;back" is "Back to a wall" -- so the
+        /// editor offers a side a list of what it can be rather than a label to type and pairs to know.
+        /// </summary>
+        public Dictionary<string, string> SideNames { get; set; } = new();
+
+        /// <summary>
         /// Whether two labels may face each other: the same, or listed together in <see cref="Pairs"/>. A label
         /// starting with '>' never joins itself -- a chair's ">seat" faces a table, not another chair.
         /// </summary>
