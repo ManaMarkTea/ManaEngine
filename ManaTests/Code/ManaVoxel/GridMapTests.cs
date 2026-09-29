@@ -661,6 +661,66 @@ public static class GridMapChecks
             collider == null || !physics.Simulation.Bodies.BodyExists(collider.Body));
 
         RunRoadPresetGeometryChecks(Check);
+        RunWalkChecks(Check);
+    }
+
+    /// <summary>
+    /// A character walks the length of a row of tiles at a steady requested speed, as the controller drives
+    /// it: horizontal velocity set every step, gravity left to the solver. Kit floors are not flat -- stones
+    /// are bevelled, corridors have rubble -- and a tile's colliders must not turn that into drag. It may
+    /// check for a frame where two tiles meet, but never stall.
+    /// </summary>
+    private static void RunWalkChecks(Action<string, bool, string> check)
+    {
+        foreach (var (label, model, height) in new[]
+        {
+            ("a flat floor", "template-floor.glb", 1.8f),
+            ("a dungeon corridor", "corridor.glb", 1.8f),
+            ("a dungeon corridor, small hero", "corridor.glb", 0.76f),
+            ("a dungeon room floor", "room-large.glb", 1.8f)
+        })
+        {
+            var context = CreateContext(physics: true);
+            var gridMap = AddGridMap(context);
+            gridMap.CellSize = new Vector3(4.0f);
+            var item = gridMap.AddPaletteItem(MeshAssetLibrary.EncodeReadableZip(DungeonPack, "Models/GLB format/" + model));
+            var span = model.StartsWith("room-large", StringComparison.Ordinal) ? 5 : 1;
+            // Smoothed as the dungeon rules smooth it, which is how a generated dungeon lays it.
+            var smooth = GridMapWfcPresets.Dungeon().Tiles.FirstOrDefault(tile => tile.Asset?.EndsWith("/" + model, StringComparison.Ordinal) == true)?.Smooth ?? 0.0f;
+            gridMap.SetItemSettings(item, gridMap.ItemSettings(item) with { Width = span, Depth = span, Smooth = smooth });
+            for (var x = 0; x < 8; x += span)
+            {
+                gridMap.SetTile(new GridMapCell(x, 0, 0), new GridMapTile(item, 0));
+            }
+
+            // Down the middle of the corridor, along X, in the room's middle row.
+            var z = span * 4.0f * 0.5f;
+            var body = ManaCharacterBody.Create(context, new Vector3(2.0f, 0.3f, z), height * 0.18f, height);
+            var physics = context.Physics!;
+            const float speed = 3.0f;
+            for (var step = 0; step < 30; step++)
+            {
+                physics.Simulation.Timestep(1.0f / 60.0f, physics.ThreadDispatcher);
+            }
+
+            var start = body.FootPosition;
+            var slowest = float.MaxValue;
+            for (var step = 0; step < 120; step++)
+            {
+                var velocity = body.Velocity;
+                body.Velocity = new Vector3(speed, velocity.Y, 0.0f);
+                var before = body.FootPosition.X;
+                physics.Simulation.Timestep(1.0f / 60.0f, physics.ThreadDispatcher);
+                if (step > 10)
+                {
+                    slowest = MathF.Min(slowest, (body.FootPosition.X - before) * 60.0f);
+                }
+            }
+
+            var travelled = body.FootPosition.X - start.X;
+            check($"walking across {label} keeps its pace", travelled > speed * 2.0f * 0.9f && slowest > speed * 0.3f,
+                $"{travelled:0.00} of {speed * 2.0f:0.00} in 2s, slowest {slowest:0.00} u/s, y {start.Y:0.00} to {body.FootPosition.Y:0.00}");
+        }
     }
 
     /// <summary>

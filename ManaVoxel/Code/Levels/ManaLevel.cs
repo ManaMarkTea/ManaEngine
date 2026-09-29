@@ -319,6 +319,9 @@ namespace ManaVoxel.Code.Levels
         public int Turn { get; set; }
 
         public string Align { get; set; } = "Model";
+
+        /// <summary>Collider flat below this height, in the model's units; see GridMapItemSettings.Smooth.</summary>
+        public float Smooth { get; set; }
     }
 
     /// <summary>

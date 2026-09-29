@@ -669,7 +669,7 @@ namespace Mana.Code.GameModes
         private void UpdateGridGeneratorArea()
         {
             if (!GridMapWfcEditing.WindowOpen || !ManaEditorGizmos.Visible || IsPlaying
-                || Context.World.Selection.SelectedNode is not ManaGridMapNode map)
+                || GridMapWfcEditing.MapFor(Context.World.Selection.SelectedNode, IsInWorld) is not { } map)
             {
                 HideGridOverlay(ref _gridGeneratorOverlay);
                 _gridGeneratorOverlayKey = null;

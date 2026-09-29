@@ -33,6 +33,9 @@ namespace ManaVoxel.Code.GridMaps
 
         public float Weight { get; set; } = 1.0f;
 
+        /// <summary>Collider flat below this height, in the model's units -- see GridMapItemSettings.Smooth.</summary>
+        public float Smooth { get; set; }
+
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public GridMapWfcRotations Rotations { get; set; } = GridMapWfcRotations.All;
 
@@ -66,6 +69,7 @@ namespace ManaVoxel.Code.GridMaps
             Asset = Asset,
             Size = Size.ToArray(),
             Weight = Weight,
+            Smooth = Smooth,
             Rotations = Rotations,
             Sockets = Sockets.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray())
         };

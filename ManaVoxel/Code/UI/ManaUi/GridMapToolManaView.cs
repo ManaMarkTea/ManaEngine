@@ -497,12 +497,24 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             size.WithTooltip("Cells covered, before turning");
 
+            var smooth = new NumericBox { Step = 0.01f, Minimum = 0.0f, MinimumFieldHeight = 0.0f, Padding = new Thickness(6.0f, 1.0f) }.Places(2);
+            smooth.BindPolled(box => box.Value, () => Current().Smooth);
+            smooth.ValueCommitted += (_, value) =>
+            {
+                if (!smooth.IsApplyingBinding && MathF.Abs(value - Current().Smooth) > 1e-4f)
+                {
+                    Change("Tile collision", settings => settings with { Smooth = MathF.Max(0.0f, value) });
+                }
+            };
+            smooth.WithTooltip("Collision is flat below this height, in the model's units: rubble and cracks stop catching feet. 0 keeps every bump.");
+
             var section = new StackPanel().Vertical(theme.Spacing).Children(
                 name,
                 Row(theme, "Size", size),
                 Row(theme, "Scale", new Grid().Columns("Auto, *", theme.Spacing).Rows("Auto").Children(fit.CenterV().GridColumn(0), scale.GridColumn(1))),
                 Row(theme, "Turn", turn),
-                Row(theme, "Align", align));
+                Row(theme, "Align", align),
+                Row(theme, "Smooth", smooth));
             section.BindPolled(panel => panel.IsEnabled, () => HasBrush(gridMap));
 
             var frame = new Border().Outline(theme.Border, 1.0f).Rounded(3.0f).PaddingOf(theme.Spacing, theme.Spacing).Content(section);

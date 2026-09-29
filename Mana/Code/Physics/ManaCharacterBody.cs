@@ -145,6 +145,9 @@ namespace Mana.Code
                 velocity.Linear = value;
                 body.Velocity = velocity;
                 body.Awake = true;
+
+                // Walking, when driven sideways: its contacts stop gripping (see DemoNarrowPhaseCallbacks).
+                Context.Physics.Characters.SetMoving(Handle, value.X * value.X + value.Z * value.Z > 1e-4f);
             }
         }
 

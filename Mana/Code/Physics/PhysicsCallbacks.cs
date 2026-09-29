@@ -290,10 +290,13 @@ namespace Mana.Code
             // The controller zeroes horizontal velocity itself when grounded with no input, so flat
             // ground needs no solver friction. On a slope, however, gravity is resolved sideways by
             // the contact between controller updates; slope-only friction closes that small drift.
+            //
+            // Only while standing, though. A kit floor -- bevelled stones, rubble -- is covered in small
+            // tilts, and gripping each one dragged a character walking at 3 u/s down to under 0.5.
             if (Characters != null && Characters.Involves(pair))
             {
                 pairMaterial.FrictionCoefficient = 0.0f;
-                for (var contactIndex = 0; contactIndex < manifold.Count; contactIndex++)
+                for (var contactIndex = 0; contactIndex < manifold.Count && !Characters.IsMoving(pair); contactIndex++)
                 {
                     if (IsWalkableSlope(manifold.GetNormal(contactIndex)))
                     {

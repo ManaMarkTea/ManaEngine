@@ -23,17 +23,39 @@ namespace ManaVoxel.Code.UI.ManaUi
             var context = new InspectorContext(theme, world.Context, history: history);
             return new DynamicContent()
                 .Showing<ManaGridMapNode>(
-                    () => world.Selection.SelectedNode as ManaGridMapNode,
+                    () => Target(world),
                     gridMap => BuildFor(gridMap, context))
-                .Empty(new TextBlock().Text("Select a grid map.").Foreground(theme.TextMuted).Margin(theme.Spacing))
+                .Empty(new TextBlock().Text("Select a grid map to generate into.").Foreground(theme.TextMuted).Margin(theme.Spacing))
                 .Scrollable()
                 .Scrolls(vertical: ScrollBarVisibility.Auto, horizontal: ScrollBarVisibility.Disabled);
+        }
+
+        /// <summary>The map the window generates into; see <see cref="GridMapWfcEditing.MapFor"/>.</summary>
+        public static ManaGridMapNode? Target(global::Mana.ManaWorld world) =>
+            GridMapWfcEditing.MapFor(world.Selection.SelectedNode, map => IsInWorld(world, map));
+
+        private static bool IsInWorld(global::Mana.ManaWorld world, ManaGridMapNode map)
+        {
+            global::Mana.Code.Nodes.ManaSceneNode root = map;
+            while (root.Parent != null)
+            {
+                root = root.Parent;
+            }
+
+            lock (world.SceneLock)
+            {
+                return world.Scenes.Any(scene => scene.Children.Contains(root));
+            }
         }
 
         public static UiElement BuildFor(ManaGridMapNode gridMap, InspectorContext context)
         {
             var theme = context.Theme;
+            var target = new TextBlock().FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).Ellipsis();
+            target.BindPolled(text => text.Text, () => $"Into {gridMap.Name}");
+            target.WithTooltip("The grid map selected, or the last one generated into while something else is");
             return new StackPanel().Vertical(theme.Spacing).Margin(theme.Spacing).Children(
+                target,
                 RulesFile(theme),
                 RulesSettings(theme),
                 AreaSettings(gridMap, context),
@@ -326,6 +348,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             weight.WithTooltip("How often it is picked, against the others");
 
+            var smooth = new NumericBox { Step = 0.01f, Minimum = 0.0f, MinimumFieldHeight = 0.0f, Padding = new Thickness(6.0f, 1.0f) }.Places(2).Value(tile.Smooth);
+            smooth.ValueChanged += (_, value) =>
+            {
+                tile.Smooth = MathF.Max(0.0f, value);
+                Changed();
+            };
+            smooth.WithTooltip("Collision is flat below this height, in the model's units, so rubble does not catch feet");
+
             var turns = new ComboBox().Options(RotationNames);
             turns.SelectedIndex = Array.IndexOf(RotationValues, tile.Rotations);
             turns.SelectionChanged += (_, choice) =>
@@ -350,6 +380,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "Size", size),
                 new Grid().Columns("*, *", theme.Spacing).Rows("Auto").Children(
                     Row(theme, "Weight", weight).GridColumn(0), turns.GridColumn(1)),
+                Row(theme, "Smooth", smooth),
                 Sockets(theme, tile, Changed),
                 remove));
         }

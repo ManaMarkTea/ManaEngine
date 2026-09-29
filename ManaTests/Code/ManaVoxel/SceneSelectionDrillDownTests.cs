@@ -62,6 +62,21 @@ public static class SceneSelectionDrillDownChecks
         Check("but a group with no behaviour does not swallow what is inside it",
             ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(crate, null), crate));
 
+        // A grid map's tiles are built by the editor from its cells; clicking one with the map selected
+        // must keep the map selected, or its tool windows close.
+        var map = Node(context, "Dungeon");
+        map.LevelSource = ManaLevelSource.GridMap;
+        var tile = Node(context, "corridor (0, 0, 0)");
+        tile.IsEditorTransient = true;
+        var tilePart = Node(context, "corridor");
+        tilePart.IsEditorTransient = true;
+        map.AddChild(tile);
+        tile.AddChild(tilePart);
+        Check("clicking a grid map tile selects the map",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(tilePart, null), map));
+        Check("and clicking one again with the map selected keeps the map, rather than drilling into the tile",
+            ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(tilePart, map), map));
+
         Check("clicking any part with nothing selected resolves up to the whole object",
             ReferenceEquals(VoxelEditorGameMode.ResolveEditorSelectableNode(lens, null), helmetRoot),
             "expected the FlightHelmet root, not the Lens child");

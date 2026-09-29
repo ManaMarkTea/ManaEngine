@@ -651,8 +651,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 var selected = world?.Selection.SelectedNode;
                 SyncToolWindow(GridMapToolManaView.PanelId, selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
-                SyncToolWindow(GridMapWfcManaView.PanelId,
-                    selected is ManaVoxel.Code.GridMaps.ManaGridMapNode && ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
+                // Up until closed, whatever is selected: it works on the last grid map when another thing is.
+                SyncToolWindow(GridMapWfcManaView.PanelId, ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
                 if (editor == null)
                 {
                     return;

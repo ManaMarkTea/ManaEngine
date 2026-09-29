@@ -52,7 +52,8 @@ namespace ManaVoxel.Code.Levels
                             Depth = settings.Depth,
                             Scale = settings.Scale,
                             Turn = settings.Turn,
-                            Align = settings.Align.ToString()
+                            Align = settings.Align.ToString(),
+                            Smooth = settings.Smooth
                         })
                         .ToList(),
                 Layers = onlyDefaultLayer
@@ -145,7 +146,8 @@ namespace ManaVoxel.Code.Levels
                     Depth = tile.Depth,
                     Scale = tile.Scale,
                     Turn = tile.Turn,
-                    Align = Enum.TryParse<GridMapAlign>(tile.Align, ignoreCase: true, out var align) ? align : GridMapAlign.Model
+                    Align = Enum.TryParse<GridMapAlign>(tile.Align, ignoreCase: true, out var align) ? align : GridMapAlign.Model,
+                    Smooth = tile.Smooth
                 })
                 .ToList();
 

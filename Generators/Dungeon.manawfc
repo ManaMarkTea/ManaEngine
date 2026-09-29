@@ -50,7 +50,8 @@
         "s": [
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Corner",
@@ -74,7 +75,8 @@
         "s": [
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Junction",
@@ -98,7 +100,8 @@
         "s": [
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Crossing",
@@ -122,7 +125,8 @@
         "s": [
           "open"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Dead end",
@@ -146,7 +150,8 @@
         "s": [
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Small room",
@@ -178,7 +183,8 @@
           "open",
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Wide room",
@@ -214,7 +220,8 @@
           "wall",
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     },
     {
       "name": "Large room",
@@ -254,7 +261,8 @@
           "wall",
           "wall"
         ]
-      }
+      },
+      "smooth": 0.06
     }
   ]
 }

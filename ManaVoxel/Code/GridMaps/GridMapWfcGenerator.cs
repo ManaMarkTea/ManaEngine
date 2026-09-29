@@ -31,9 +31,9 @@ namespace ManaVoxel.Code.GridMaps
 
                 items[t] = gridMap.AddPaletteItem(tile.Asset);
                 var settings = gridMap.ItemSettings(items[t]);
-                if (settings.Width != tile.Width || settings.Depth != tile.Depth)
+                if (settings.Width != tile.Width || settings.Depth != tile.Depth || settings.Smooth != tile.Smooth)
                 {
-                    gridMap.SetItemSettings(items[t], settings with { Width = tile.Width, Depth = tile.Depth });
+                    gridMap.SetItemSettings(items[t], settings with { Width = tile.Width, Depth = tile.Depth, Smooth = tile.Smooth });
                 }
             }
 
@@ -154,6 +154,8 @@ namespace ManaVoxel.Code.GridMaps
 
         public static IReadOnlyList<(string Name, Func<GridMapWfcRules> Create)> All { get; } = [("Dungeon", Dungeon)];
 
+        // The kit's floors are scattered with cracks and rubble a twentieth of a unit high, flattened out of
+        // the colliders so they do not catch a walking character. The ledge along the walls stays a ledge.
         private static GridMapWfcTile Tile(string name, string? model, int width, int depth, float weight, GridMapWfcRotations rotations,
             string east, string north, string west, string south) => new()
         {
@@ -161,6 +163,7 @@ namespace ManaVoxel.Code.GridMaps
             Asset = model == null ? null : Kit + model,
             Size = [width, depth],
             Weight = weight,
+            Smooth = model == null ? 0.0f : 0.06f,
             Rotations = rotations,
             Sockets = new Dictionary<string, string[]>
             {

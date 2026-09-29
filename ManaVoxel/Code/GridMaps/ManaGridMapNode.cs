@@ -58,6 +58,13 @@ namespace ManaVoxel.Code.GridMaps
 
         public GridMapAlign Align { get; init; } = GridMapAlign.Model;
 
+        /// <summary>
+        /// A height, in the model's own units, below which its collider is flat: every collider point lower
+        /// than this is raised to it. A kit floor is paved with bevelled stones and rubble a hand high, which
+        /// look right but catch a walking character's feet on every edge; the drawn model keeps them.
+        /// </summary>
+        public float Smooth { get; init; }
+
         public bool Fits => Scale <= 0.0f;
     }
 
@@ -115,7 +122,7 @@ namespace ManaVoxel.Code.GridMaps
         private int _activeLayer;
         private readonly List<GridMapAutoTileSet> _autoTiles = new();
         private readonly Dictionary<string, GridMapPrototype> _prototypes = new(StringComparer.Ordinal);
-        private readonly Dictionary<int, (Matrix4x4 Model, Vector3[] Triangles)> _colliderTriangles = new();
+        private readonly Dictionary<int, (Matrix4x4 Model, float Smooth, Vector3[] Triangles)> _colliderTriangles = new();
         private Vector3 _cellSize = Vector3.One;
         private bool _collision = true;
 
@@ -383,6 +390,7 @@ namespace ManaVoxel.Code.GridMaps
                 Width = Math.Clamp(settings.Width, 1, 32),
                 Depth = Math.Clamp(settings.Depth, 1, 32),
                 Scale = float.IsFinite(settings.Scale) ? MathF.Max(0.0f, settings.Scale) : 0.0f,
+                Smooth = float.IsFinite(settings.Smooth) ? MathF.Max(0.0f, settings.Smooth) : 0.0f,
                 Turn = WrapOrientation(settings.Turn)
             };
             if (_settings[item] == settings)
@@ -965,28 +973,45 @@ namespace ManaVoxel.Code.GridMaps
             node.UpdateTransform();
             if (_collision && prototype.Triangles.Length >= 3 && Context.Physics != null)
             {
-                Context.Physics.AddTriangleMeshBody(node, ColliderTriangles(tile.Item, prototype, model));
+                Context.Physics.AddTriangleMeshBody(node, ColliderTriangles(tile.Item, prototype, model, ItemSettings(tile.Item).Smooth));
             }
 
             layer.Tiles[anchor] = node;
         }
 
-        /// <summary>A palette item's triangles placed and scaled as its tiles are, shared by every tile of it.</summary>
-        private Vector3[] ColliderTriangles(int item, GridMapPrototype prototype, Matrix4x4 model)
+        /// <summary>
+        /// A palette item's triangles placed and scaled as its tiles are, shared by every tile of it -- flattened
+        /// below the item's <see cref="GridMapItemSettings.Smooth"/> height, where a triangle wholly below it
+        /// goes flat and one flattened to nothing is dropped.
+        /// </summary>
+        private Vector3[] ColliderTriangles(int item, GridMapPrototype prototype, Matrix4x4 model, float smooth)
         {
-            if (_colliderTriangles.TryGetValue(item, out var cached) && cached.Model == model)
+            if (_colliderTriangles.TryGetValue(item, out var cached) && cached.Model == model && cached.Smooth == smooth)
             {
                 return cached.Triangles;
             }
 
-            var triangles = new Vector3[prototype.Triangles.Length];
-            for (var i = 0; i < triangles.Length; i++)
+            var triangles = new List<Vector3>(prototype.Triangles.Length);
+            for (var i = 0; i + 2 < prototype.Triangles.Length; i += 3)
             {
-                triangles[i] = Vector3.Transform(prototype.Triangles[i], model);
+                var a = Flatten(prototype.Triangles[i]);
+                var b = Flatten(prototype.Triangles[i + 1]);
+                var c = Flatten(prototype.Triangles[i + 2]);
+                if (smooth > 0.0f && Vector3.Cross(b - a, c - a).LengthSquared() < 1e-10f)
+                {
+                    continue;
+                }
+
+                triangles.Add(Vector3.Transform(a, model));
+                triangles.Add(Vector3.Transform(b, model));
+                triangles.Add(Vector3.Transform(c, model));
             }
 
-            _colliderTriangles[item] = (model, triangles);
-            return triangles;
+            var result = triangles.ToArray();
+            _colliderTriangles[item] = (model, smooth, result);
+            return result;
+
+            Vector3 Flatten(Vector3 point) => point.Y < smooth ? point with { Y = smooth } : point;
         }
 
         private void RemoveTileNode(GridMapLayer layer, GridMapCell anchor)

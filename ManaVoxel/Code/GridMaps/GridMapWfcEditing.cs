@@ -9,8 +9,25 @@ namespace ManaVoxel.Code.GridMaps
     {
         private static GridMapWfcRules? _rules;
 
-        /// <summary>Whether the generator window is wanted. It shows while this is set and a grid map is selected.</summary>
+        /// <summary>Whether the generator window is up. It stays up until closed, whatever is selected.</summary>
         public static bool WindowOpen { get; set; }
+
+        private static WeakReference<ManaGridMapNode>? _lastMap;
+
+        /// <summary>
+        /// The map the generator works on: the selected grid map, or when something else is selected, the last
+        /// one it worked on -- so clicking about the scene does not leave the window with nothing to do.
+        /// </summary>
+        public static ManaGridMapNode? MapFor(Mana.Code.Nodes.ManaSceneNode? selected, Func<ManaGridMapNode, bool> isInWorld)
+        {
+            if (selected is ManaGridMapNode map)
+            {
+                _lastMap = new WeakReference<ManaGridMapNode>(map);
+                return map;
+            }
+
+            return _lastMap != null && _lastMap.TryGetTarget(out var last) && isInWorld(last) ? last : null;
+        }
 
         /// <summary>The rules being edited: the first file in Generators, or the dungeon preset when there is none.</summary>
         public static GridMapWfcRules Rules

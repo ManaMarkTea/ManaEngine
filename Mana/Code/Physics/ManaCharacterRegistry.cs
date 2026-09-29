@@ -15,7 +15,43 @@ namespace Mana.Code
     public sealed class ManaCharacterRegistry
     {
         private int[] handles = Array.Empty<int>();
+        private int[] moving = Array.Empty<int>();
         private readonly object writeLock = new();
+
+        /// <summary>
+        /// Marks a character as walking, or not. A walking character is being driven at a velocity set every
+        /// frame, so it needs no grip from its contacts -- grip would only drag it -- while one standing on a
+        /// slope needs it to keep from sliding down. Published the same way as the handles.
+        /// </summary>
+        public void SetMoving(BodyHandle handle, bool isMoving)
+        {
+            var snapshot = moving;
+            if ((Array.IndexOf(snapshot, handle.Value) >= 0) == isMoving)
+            {
+                return;
+            }
+
+            lock (writeLock)
+            {
+                moving = isMoving
+                    ? moving.Append(handle.Value).ToArray()
+                    : moving.Where(value => value != handle.Value).ToArray();
+            }
+        }
+
+        /// <summary>Whether either body of a pair is a character that is walking.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsMoving(CollidablePair pair)
+        {
+            var snapshot = moving;
+            if (snapshot.Length == 0)
+            {
+                return false;
+            }
+
+            return (pair.A.Mobility != CollidableMobility.Static && Array.IndexOf(snapshot, pair.A.BodyHandle.Value) >= 0)
+                || (pair.B.Mobility != CollidableMobility.Static && Array.IndexOf(snapshot, pair.B.BodyHandle.Value) >= 0);
+        }
 
         public void Register(BodyHandle handle)
         {
@@ -47,6 +83,7 @@ namespace Mana.Code
                 Array.Copy(handles, updated, index);
                 Array.Copy(handles, index + 1, updated, index, handles.Length - index - 1);
                 handles = updated;
+                moving = moving.Where(value => value != handle.Value).ToArray();
             }
         }
 

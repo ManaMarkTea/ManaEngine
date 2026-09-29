@@ -137,10 +137,8 @@ public static class GridMapWfcChecks
 
             world.Selection.SelectedNode = null;
             Frame();
-            check("selecting something else puts it away", Window() == null && GridMapWfcEditing.WindowOpen, "");
-            world.Selection.SelectedNode = gridMap;
-            Frame();
-            check("and selecting the map again brings it back", Window() != null, "");
+            check("selecting something else leaves it up, still on the same map",
+                Window() != null && ReferenceEquals(GridMapWfcManaView.Target(world), gridMap), "");
 
             Window()?.Close();
             Frame();

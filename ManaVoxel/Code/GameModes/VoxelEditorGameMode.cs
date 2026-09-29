@@ -2225,6 +2225,14 @@ namespace Mana.Code.GameModes
                 return null;
             }
 
+            // Nothing the editor builds for itself is selectable -- a grid map's tiles are the map's, rebuilt
+            // from its cells -- so a click on one drills no further than the node that owns it. Drilling into a
+            // tile used to select it, which took the selection off the map and shut its tool windows.
+            while (pickedNode.IsEditorTransient && pickedNode.Parent != null)
+            {
+                pickedNode = pickedNode.Parent;
+            }
+
             var authoredRoot = FindAuthoredRoot(pickedNode) ?? pickedNode;
 
             if (currentSelection != null && ReferenceEquals(FindAuthoredRoot(currentSelection) ?? currentSelection, authoredRoot))
