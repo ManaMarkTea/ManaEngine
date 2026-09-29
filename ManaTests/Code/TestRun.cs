@@ -83,6 +83,7 @@ public static class TestRunner
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
+        ("ManaCore", "json formatting", JsonFormatChecks.Run),
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),
         ("Mana", "glTF support and camera framing", GltfSupportChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),

@@ -7,240 +7,127 @@
   "kind": "props",
   "base": "Dungeon Props",
   "layer": "clutter",
-  "slots": [
-    [
-      -0.18,
-      0.315,
-      0.1
-    ],
-    [
-      0.18,
-      0.315,
-      -0.08
-    ]
-  ],
+  "slots": [[-0.18, 0.315, 0.1], [0.18, 0.315, -0.08]],
   "sideNames": {
     "free": "Anything"
   },
   "tiles": [
     {
       "name": "Nothing",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.8,
       "modelCell": 0.0,
       "rotations": "None",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Candle",
       "asset": "Assets/Models/Kenny/candle.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 1.0,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 1.0,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Candles",
       "asset": "Assets/Models/Kenny/candle-multiple.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.4,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 1.0,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Bowl",
       "asset": "Assets/Models/Kenny/detail-bowl.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.7,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 1.0,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Plate",
       "asset": "Assets/Models/Kenny/detail-plate.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.9,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 1.0,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Chalice",
       "asset": "Assets/Models/Kenny/detail-chalice.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.6,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 1.0,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Lantern",
       "asset": "Assets/Models/Kenny/lantern-candle.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.3,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 1.0,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     },
     {
       "name": "Potion",
       "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/potion.glb",
-      "size": [
-        1,
-        1
-      ],
+      "size": [1, 1],
       "weight": 0.5,
-      "on": [
-        "table"
-      ],
+      "on": ["table"],
       "modelCell": 2.5,
       "rotations": "All",
       "sockets": {
-        "e": [
-          "free"
-        ],
-        "n": [
-          "free"
-        ],
-        "w": [
-          "free"
-        ],
-        "s": [
-          "free"
-        ]
+        "e": ["free"],
+        "n": ["free"],
+        "w": ["free"],
+        "s": ["free"]
       }
     }
   ]

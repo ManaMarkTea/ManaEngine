@@ -3,221 +3,81 @@
   "version": 1,
   "name": "Little Train Yard",
   "camera": {
-    "position": [
-      58.899593,
-      4.8226156,
-      95.480164
-    ],
-    "rotation": [
-      -0.4583995,
-      -0.37759978,
-      0
-    ]
+    "position": [58.899593, 4.8226156, 95.480164],
+    "rotation": [-0.4583995, -0.37759978, 0]
   },
   "nodes": [
     {
       "name": "Gameplay",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Player Start",
           "kind": "PlayerStart",
-          "position": [
-            32,
-            0,
-            58
-          ],
-          "rotation": [
-            0,
-            3.1415927,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ]
+          "position": [32, 0, 58],
+          "rotation": [0, 3.1415927, 0],
+          "scale": [1, 1, 1]
         }
       ]
     },
     {
       "name": "Yard Ground",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Rail Yard Grass",
           "kind": "Shape",
-          "position": [
-            32,
-            0.015,
-            32
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [32, 0.015, 32],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.22,
-            0.47,
-            0.27,
-            1
-          ],
-          "size": [
-            30,
-            0.015,
-            24
-          ]
+          "color": [0.22, 0.47, 0.27, 1],
+          "size": [30, 0.015, 24]
         },
         {
           "name": "Ballast Oval Bed",
           "kind": "Shape",
-          "position": [
-            32,
-            0.035,
-            32
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [32, 0.035, 32],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.33,
-            0.34,
-            0.34,
-            1
-          ],
-          "size": [
-            25,
-            0.02,
-            19
-          ]
+          "color": [0.33, 0.34, 0.34, 1],
+          "size": [25, 0.02, 19]
         },
         {
           "name": "Inner Picnic Green",
           "kind": "Shape",
-          "position": [
-            32,
-            0.07,
-            32
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [32, 0.07, 32],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.28,
-            0.58,
-            0.35,
-            1
-          ],
-          "size": [
-            11.5,
-            0.03,
-            7.5
-          ]
+          "color": [0.28, 0.58, 0.35, 1],
+          "size": [11.5, 0.03, 7.5]
         }
       ]
     },
     {
       "name": "Station Structures",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Station Platform",
           "kind": "Shape",
-          "position": [
-            32,
-            0.08,
-            50.8
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [32, 0.08, 50.8],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.5,
-            0.51,
-            0.49,
-            1
-          ],
-          "size": [
-            8.75,
-            0.08,
-            1.6
-          ],
+          "color": [0.5, 0.51, 0.49, 1],
+          "size": [8.75, 0.08, 1.6],
           "collision": {
             "useVisualBounds": true
           }
@@ -225,878 +85,341 @@
         {
           "name": "Station Platform Safety Stripe",
           "kind": "Shape",
-          "position": [
-            32,
-            0.1725,
-            50.26
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [32, 0.1725, 50.26],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.94,
-            0.78,
-            0.12,
-            1
-          ],
-          "size": [
-            6.85,
-            0.0125,
-            0.04
-          ]
+          "color": [0.94, 0.78, 0.12, 1],
+          "size": [6.85, 0.0125, 0.04]
         }
       ]
     },
     {
       "name": "Signals and Crossing",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Signal Mast",
           "kind": "Shape",
-          "position": [
-            18.5,
-            1.05,
-            51.5
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [18.5, 1.05, 51.5],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.08,
-            0.09,
-            0.1,
-            1
-          ],
-          "size": [
-            0.12,
-            1.05,
-            0.12
-          ]
+          "color": [0.08, 0.09, 0.1, 1],
+          "size": [0.12, 1.05, 0.12]
         },
         {
           "name": "Signal Red",
           "kind": "Shape",
-          "position": [
-            18.5,
-            1.75,
-            51.5
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            0.28,
-            0.28,
-            0.28
-          ],
+          "position": [18.5, 1.75, 51.5],
+          "rotation": [0, 0, 0],
+          "scale": [0.28, 0.28, 0.28],
           "shape": "Sphere",
-          "color": [
-            1,
-            0.08,
-            0.06,
-            1
-          ],
-          "size": [
-            0.28,
-            0.28,
-            0.28
-          ]
+          "color": [1, 0.08, 0.06, 1],
+          "size": [0.28, 0.28, 0.28]
         },
         {
           "name": "Signal Green",
           "kind": "Shape",
-          "position": [
-            18.5,
-            1.5,
-            51.5
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            0.24,
-            0.24,
-            0.24
-          ],
+          "position": [18.5, 1.5, 51.5],
+          "rotation": [0, 0, 0],
+          "scale": [0.24, 0.24, 0.24],
           "shape": "Sphere",
-          "color": [
-            0.05,
-            0.92,
-            0.35,
-            1
-          ],
-          "size": [
-            0.24,
-            0.24,
-            0.24
-          ]
+          "color": [0.05, 0.92, 0.35, 1],
+          "size": [0.24, 0.24, 0.24]
         },
         {
           "name": "Crossing Gate",
           "kind": "Shape",
-          "position": [
-            21.2,
-            1.25,
-            51.6
-          ],
-          "rotation": [
-            0,
-            0,
-            0.25
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [21.2, 1.25, 51.6],
+          "rotation": [0, 0, 0.25],
+          "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [
-            0.95,
-            0.94,
-            0.86,
-            1
-          ],
-          "size": [
-            1.25,
-            0.03,
-            0.04
-          ]
+          "color": [0.95, 0.94, 0.86, 1],
+          "size": [1.25, 0.03, 0.04]
         }
       ]
     },
     {
       "name": "Track Loop",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Track Corner NW",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            20
-          ],
-          "rotation": [
-            0,
-            3.1415927,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 20],
+          "rotation": [0, 3.1415927, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Corner NE",
           "kind": "Mesh",
-          "position": [
-            50,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [50, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Corner SE",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            44
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 44],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Corner SW",
           "kind": "Mesh",
-          "position": [
-            14,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            -1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [14, 0.08, 48],
+          "rotation": [0, -1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-corner-large.glb"
         },
         {
           "name": "Track Straight North 00",
           "kind": "Mesh",
-          "position": [
-            14,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [14, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 01",
           "kind": "Mesh",
-          "position": [
-            18,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [18, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 02",
           "kind": "Mesh",
-          "position": [
-            22,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [22, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 03",
           "kind": "Mesh",
-          "position": [
-            26,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [26, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 04",
           "kind": "Mesh",
-          "position": [
-            30,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [30, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 05",
           "kind": "Mesh",
-          "position": [
-            34,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [34, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 06",
           "kind": "Mesh",
-          "position": [
-            38,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [38, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 07",
           "kind": "Mesh",
-          "position": [
-            42,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [42, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight North 08",
           "kind": "Mesh",
-          "position": [
-            46,
-            0.08,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [46, 0.08, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 00",
           "kind": "Mesh",
-          "position": [
-            14,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [14, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 01",
           "kind": "Mesh",
-          "position": [
-            18,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [18, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 02",
           "kind": "Mesh",
-          "position": [
-            22,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [22, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 03",
           "kind": "Mesh",
-          "position": [
-            26,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [26, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 04",
           "kind": "Mesh",
-          "position": [
-            30,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [30, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 05",
           "kind": "Mesh",
-          "position": [
-            34,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [34, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 06",
           "kind": "Mesh",
-          "position": [
-            38,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [38, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 07",
           "kind": "Mesh",
-          "position": [
-            42,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [42, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight South 08",
           "kind": "Mesh",
-          "position": [
-            46,
-            0.08,
-            48
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [46, 0.08, 48],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 00",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            20
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 20],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 01",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            24
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 24],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 02",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            28
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 28],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 03",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            32
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 32],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 04",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            36
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 36],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight West 05",
           "kind": "Mesh",
-          "position": [
-            10,
-            0.08,
-            40
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [10, 0.08, 40],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 00",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            20
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 20],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 01",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            24
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 24],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 02",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            28
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 28],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 03",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            32
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 32],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 04",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            36
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 36],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         },
         {
           "name": "Track Straight East 05",
           "kind": "Mesh",
-          "position": [
-            54,
-            0.08,
-            40
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
+          "position": [54, 0.08, 40],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/railroad-straight.glb"
         }
       ]
@@ -1104,40 +427,16 @@
     {
       "name": "Moving Trains",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Loop Train A 00 Locomotive",
           "kind": "Mesh",
-          "position": [
-            18,
-            0.18,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1.1,
-            1.1,
-            1.1
-          ],
+          "position": [18, 0.18, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1.1, 1.1, 1.1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-locomotive-a.glb",
           "scripts": [
             {
@@ -1164,21 +463,9 @@
         {
           "name": "Loop Train A 01 Boxcar",
           "kind": "Mesh",
-          "position": [
-            14.5,
-            0.18,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1.1,
-            1.1,
-            1.1
-          ],
+          "position": [14.5, 0.18, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1.1, 1.1, 1.1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-box.glb",
           "scripts": [
             {
@@ -1205,21 +492,9 @@
         {
           "name": "Loop Train A 02 Blue Container",
           "kind": "Mesh",
-          "position": [
-            11,
-            0.18,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1.1,
-            1.1,
-            1.1
-          ],
+          "position": [11, 0.18, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1.1, 1.1, 1.1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-container-blue.glb",
           "scripts": [
             {
@@ -1246,21 +521,9 @@
         {
           "name": "Loop Train A 03 Tanker",
           "kind": "Mesh",
-          "position": [
-            7.5,
-            0.18,
-            16
-          ],
-          "rotation": [
-            0,
-            1.5707964,
-            0
-          ],
-          "scale": [
-            1.1,
-            1.1,
-            1.1
-          ],
+          "position": [7.5, 0.18, 16],
+          "rotation": [0, 1.5707964, 0],
+          "scale": [1.1, 1.1, 1.1],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-carriage-tank.glb",
           "scripts": [
             {
@@ -1287,21 +550,9 @@
         {
           "name": "Loop Train B 00 Tram Nose",
           "kind": "Mesh",
-          "position": [
-            46,
-            0.18,
-            48
-          ],
-          "rotation": [
-            0,
-            -1.5707964,
-            0
-          ],
-          "scale": [
-            1.05,
-            1.05,
-            1.05
-          ],
+          "position": [46, 0.18, 48],
+          "rotation": [0, -1.5707964, 0],
+          "scale": [1.05, 1.05, 1.05],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-city-a.glb",
           "scripts": [
             {
@@ -1328,21 +579,9 @@
         {
           "name": "Loop Train B 01 Tram Middle",
           "kind": "Mesh",
-          "position": [
-            49,
-            0.18,
-            48
-          ],
-          "rotation": [
-            0,
-            -1.5707964,
-            0
-          ],
-          "scale": [
-            1.05,
-            1.05,
-            1.05
-          ],
+          "position": [49, 0.18, 48],
+          "rotation": [0, -1.5707964, 0],
+          "scale": [1.05, 1.05, 1.05],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-city-b.glb",
           "scripts": [
             {
@@ -1369,21 +608,9 @@
         {
           "name": "Loop Train B 02 Tram Tail",
           "kind": "Mesh",
-          "position": [
-            52,
-            0.18,
-            48
-          ],
-          "rotation": [
-            0,
-            -1.5707964,
-            0
-          ],
-          "scale": [
-            1.05,
-            1.05,
-            1.05
-          ],
+          "position": [52, 0.18, 48],
+          "rotation": [0, -1.5707964, 0],
+          "scale": [1.05, 1.05, 1.05],
           "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-city-c.glb",
           "scripts": [
             {
@@ -1412,60 +639,24 @@
     {
       "name": "Station Guests",
       "kind": "Group",
-      "position": [
-        32,
-        0,
-        32
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
+      "position": [32, 0, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "children": [
         {
           "name": "Station Visitor",
           "kind": "Mesh",
-          "position": [
-            28.5,
-            0.17,
-            51.05
-          ],
-          "rotation": [
-            0,
-            0.35,
-            0
-          ],
-          "scale": [
-            3,
-            3,
-            3
-          ],
+          "position": [28.5, 0.17, 51.05],
+          "rotation": [0, 0.35, 0],
+          "scale": [3, 3, 3],
           "asset": "zip:kenney_mini-characters.zip/Models/GLB format/character-female-a.glb"
         },
         {
           "name": "Station Visitor Friend",
           "kind": "Mesh",
-          "position": [
-            36,
-            0.17,
-            50.95
-          ],
-          "rotation": [
-            0,
-            -0.55,
-            0
-          ],
-          "scale": [
-            3,
-            3,
-            3
-          ],
+          "position": [36, 0.17, 50.95],
+          "rotation": [0, -0.55, 0],
+          "scale": [3, 3, 3],
           "asset": "zip:kenney_mini-characters.zip/Models/GLB format/character-male-b.glb"
         }
       ]
@@ -1474,20 +665,8 @@
   "playerStart": {
     "name": "Player Start",
     "kind": "PlayerStart",
-    "position": [
-      64,
-      0,
-      90
-    ],
-    "rotation": [
-      0,
-      3.1415927,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ]
+    "position": [64, 0, 90],
+    "rotation": [0, 3.1415927, 0],
+    "scale": [1, 1, 1]
   }
 }

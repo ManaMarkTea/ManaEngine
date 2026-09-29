@@ -114,7 +114,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Path = System.IO.Path.Combine(ResolveFolder(), (stem.Length == 0 ? "Layout" : stem) + UiMarkup.Extension);
             }
 
-            File.WriteAllText(Path, Root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+            File.WriteAllText(Path, ManaCore.Serialization.ManaJsonFormat.Indent(Root.ToJsonString()) + Environment.NewLine);
             Dirty = false;
             Touch(tree: true);
             Dirty = false;

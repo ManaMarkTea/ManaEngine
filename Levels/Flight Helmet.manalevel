@@ -3,46 +3,50 @@
   "version": 1,
   "name": "Flight Helmet",
   "camera": {
-    "position": [ 32, 4.5, 44 ],
-    "rotation": [ -0.12, 0, 0 ]
+    "position": [32, 4.5, 44],
+    "rotation": [-0.12, 0, 0]
   },
   "nodes": [
     {
       "name": "Gallery Floor",
       "kind": "Shape",
-      "position": [ 32, -0.1, 32 ],
-      "rotation": [ 0, 0, 0 ],
-      "scale": [ 1, 1, 1 ],
+      "position": [32, -0.1, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "shape": "Cube",
-      "color": [ 0.18, 0.2, 0.22, 1 ],
-      "size": [ 8, 0.1, 8 ],
-      "collision": { "useVisualBounds": true }
+      "color": [0.18, 0.2, 0.22, 1],
+      "size": [8, 0.1, 8],
+      "collision": {
+        "useVisualBounds": true
+      }
     },
     {
       "name": "Helmet Plinth",
       "kind": "Shape",
-      "position": [ 32, 0.6, 32 ],
-      "rotation": [ 0, 0, 0 ],
-      "scale": [ 1, 1, 1 ],
+      "position": [32, 0.6, 32],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
       "shape": "Cube",
-      "color": [ 0.72, 0.74, 0.76, 1 ],
-      "size": [ 2, 0.6, 2 ],
-      "collision": { "useVisualBounds": true }
+      "color": [0.72, 0.74, 0.76, 1],
+      "size": [2, 0.6, 2],
+      "collision": {
+        "useVisualBounds": true
+      }
     },
     {
       "name": "Flight Helmet",
       "kind": "Mesh",
-      "position": [ 32, 2.84, 32 ],
-      "rotation": [ 0, 0.55, 0 ],
-      "scale": [ 5, 5, 5 ],
+      "position": [32, 2.84, 32],
+      "rotation": [0, 0.55, 0],
+      "scale": [5, 5, 5],
       "asset": "Mana/Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf"
     },
     {
       "name": "Player Start",
       "kind": "PlayerStart",
-      "position": [ 32, 0, 39 ],
-      "rotation": [ 0, 3.1415927, 0 ],
-      "scale": [ 1, 1, 1 ]
+      "position": [32, 0, 39],
+      "rotation": [0, 3.1415927, 0],
+      "scale": [1, 1, 1]
     }
   ]
 }

@@ -69,7 +69,7 @@ namespace ManaVoxel.Code.Levels
             Converters = { new JsonStringEnumConverter(), new ManaLevelVector3Converter(), new ManaComponentReferenceConverter() }
         };
 
-        public string ToJson() => JsonSerializer.Serialize(this, SerializerOptions);
+        public string ToJson() => ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(this, SerializerOptions));
 
         public static ManaLevel FromJson(string json)
         {

@@ -217,7 +217,7 @@ namespace ManaVoxel.Code.GridMaps
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        public string ToJson() => JsonSerializer.Serialize(this, Json);
+        public string ToJson() => ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(this, Json));
 
         public static GridMapWfcRules FromJson(string json) =>
             JsonSerializer.Deserialize<GridMapWfcRules>(json, Json) ?? throw new InvalidDataException("Not a generator rules file.");

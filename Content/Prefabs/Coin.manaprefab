@@ -7,36 +7,16 @@
     "id": "e8673f36ec694f289858faf262ce64dd",
     "name": "Coin",
     "kind": "Group",
-    "position": [
-      0,
-      0,
-      0
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
+    "position": [0, 0, 0],
+    "rotation": [0, 0, 0],
+    "scale": [1, 1, 1],
     "scripts": [
       {
         "id": "9c6a28ec34014776aa57bcee00c33983",
         "type": "Trigger",
         "properties": {
-          "size": [
-            0.8,
-            0.8,
-            0.8
-          ],
-          "offset": [
-            0,
-            0.4,
-            0
-          ]
+          "size": [0.8, 0.8, 0.8],
+          "offset": [0, 0.4, 0]
         }
       },
       {
@@ -53,21 +33,9 @@
         "id": "78815228fa9a4050a9dee5e48a250a6f",
         "name": "Coin Model",
         "kind": "Mesh",
-        "position": [
-          0,
-          0.15,
-          0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
+        "position": [0, 0.15, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
         "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
       }
     ]

@@ -40,7 +40,8 @@ namespace ManaVoxel.Code.Assets
             return preset;
         }
 
-        public void Save(string path) => ManaContentLibrary.Write(path, JsonSerializer.Serialize(this, ManaLevel.SerializerOptions));
+        public void Save(string path) =>
+            ManaContentLibrary.Write(path, ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(this, ManaLevel.SerializerOptions)));
 
         /// <summary>Preserves painted cells by remapping palette indices by asset reference.</summary>
         public void Apply(ManaGridMapNode map)

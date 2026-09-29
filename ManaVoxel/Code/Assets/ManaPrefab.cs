@@ -81,7 +81,7 @@ namespace ManaVoxel.Code.Assets
         public void Save(string path)
         {
             Validate();
-            ManaContentLibrary.Write(path, JsonSerializer.Serialize(this, ManaLevel.SerializerOptions));
+            ManaContentLibrary.Write(path, ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(this, ManaLevel.SerializerOptions)));
         }
 
         public static IEnumerable<ManaLevelNode> Walk(ManaLevelNode root)
