@@ -22,7 +22,10 @@ namespace Mana.Code.Levels
         Planet,
 
         /// <summary>A subdivided, shader-driven water surface.</summary>
-        Water
+        Water,
+
+        /// <summary>A grid of mesh tiles painted from a palette, whose cells are written into the level itself.</summary>
+        GridMap
     }
 
     /// <summary>
@@ -70,6 +73,8 @@ namespace Mana.Code.Levels
         public static ManaLevelSource Voxels { get; } = ForVoxels();
 
         public static ManaLevelSource PlayerStart { get; } = new() { Kind = ManaLevelSourceKind.PlayerStart };
+
+        public static ManaLevelSource GridMap { get; } = new() { Kind = ManaLevelSourceKind.GridMap };
 
         public static ManaLevelSource ForPlanet(string? baselineAsset = null) =>
             new() { Kind = ManaLevelSourceKind.Planet, Asset = baselineAsset };

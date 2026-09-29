@@ -225,7 +225,6 @@ namespace Mana.Code.GameModes
                 GroundPlaneHeight = 0.0f
             };
             _viewModel.AttachPawnController(_pawnController);
-            _pawnController.ChangeCharacterRequested += direction => _viewModel.CycleControlledCharacter(direction);
 
             InitializePlayMode();
 
@@ -1477,6 +1476,11 @@ namespace Mana.Code.GameModes
                 MeshImportRequests.Clear();
             }
 
+            if (TakeGridPaletteDrop(mouseState) || TakeGridPaletteRequest(mouseState))
+            {
+                return;
+            }
+
             // MeshImportRequests, fed by VoxelEditorPanelsManaView, is the only source of a placement now.
             var pendingPath = MeshImportRequests.TakePlacement();
             if (!string.IsNullOrWhiteSpace(pendingPath))
@@ -1906,6 +1910,15 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            // Painting a grid map owns the pointer outright: clicks paint cells rather than selecting.
+            if (UpdateGridMapPainting(inputCaptured, MouseState))
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                _transformGizmo?.Hide();
+                return;
+            }
+
             if (_viewModel.IsSelectToolActive)
             {
                 _toolController.Cancel();
@@ -1914,7 +1927,7 @@ namespace Mana.Code.GameModes
                 var gizmoCaptured = _transformGizmo?.Update(
                     Context.World.Selection.SelectedNode,
                     _viewModel.TransformGizmoMode,
-                    _viewModel.ShowTransformGizmo,
+                    _viewModel.ShowTransformGizmo && ManaEditorGizmos.Visible,
                     inputCaptured,
                     MouseState) == true;
                 UpdateSelectionPointerInteraction(inputCaptured || gizmoCaptured, MouseState);
@@ -2249,7 +2262,7 @@ namespace Mana.Code.GameModes
             CollectSelectedBoxCollisions(selectedNode, collisions);
             CollectPinnedBoxCollisions(collisions);
 
-            if (collisions.Count == 0)
+            if (collisions.Count == 0 || !ManaEditorGizmos.Visible)
             {
                 ClearSelectionColliderDebug();
                 return;

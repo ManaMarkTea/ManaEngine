@@ -240,8 +240,7 @@ namespace Mana.Code.GameModes
             Context.World.GameState.Player = _player;
             Context.World.BeginPlay();
 
-            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to fly; " +
-                        "then Space climbs, Shift surges, A/D turn, S brakes; right-drag steers, left-drag looks), C camera, R restart, Esc quit";
+            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to double jump), C camera, R restart, Esc quit";
         }
 
         public override void Update(double deltaTime)

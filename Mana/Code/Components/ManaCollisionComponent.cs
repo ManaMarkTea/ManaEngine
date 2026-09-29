@@ -13,7 +13,8 @@ namespace Mana.Code.Components
     [EditorComponent(CanAdd = false)]
     public class ManaCollisionComponent : ManaComponent
     {
-        public IConvexShape? Shape { get; set; }
+        // IShape rather than IConvexShape: a triangle mesh (a grid map tile) is not convex.
+        public IShape? Shape { get; set; }
         public TypedIndex ShapeIndex { get; set; }
         public BodyHandle Body { get; set; }
         public bool SyncNodeToPhysics { get; set; } = true;

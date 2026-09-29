@@ -159,14 +159,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             var menu = new MenuItem("Character").WithItems(
                 new MenuItem("Spawn Character", () => viewModel.Commands.SpawnCharacter()),
 
-                new MenuItem("Next Character", () => viewModel.Commands.CycleControlledCharacter(1))
-                    .WithShortcut("Num +")
-                    .EnabledWhen(() => viewModel.PawnController?.PossessedPawn != null),
-
-                new MenuItem("Previous Character", () => viewModel.Commands.CycleControlledCharacter(-1))
-                    .WithShortcut("Num -")
-                    .EnabledWhen(() => viewModel.PawnController?.PossessedPawn != null),
-
                 new MenuItem("Remove All Characters", () => viewModel.Commands.RemoveAllCharacters())
                     .EnabledWhen(() => viewModel.PawnController is { Pawns.Count: > 0 }),
 

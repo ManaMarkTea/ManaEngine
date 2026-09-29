@@ -18,6 +18,7 @@ using ManaGeoTools.Code.Planet;
 using ManaGeoTools.Code.Shapefile;
 #endif
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.GridMaps;
 using ManaVoxel.Code.Loaders;
 using ManaVoxel.Code.Services;
 
@@ -332,6 +333,12 @@ namespace ManaVoxel.Code.Levels
                     AddScriptsIfPresent(entry, water);
                     return water;
 
+                case ManaLevelSourceKind.GridMap:
+                    var gridMap = LoadGridMap(entry, state.Context, state.Scene);
+                    AttachToParent(state.Context, parent, gridMap);
+                    AddScriptsIfPresent(entry, gridMap);
+                    return gridMap;
+
                 default:
                     return null;
             }
@@ -446,6 +453,34 @@ namespace ManaVoxel.Code.Levels
             return planet;
         }
 #endif
+
+        private static ManaGridMapNode LoadGridMap(ManaLevelNode entry, ManaContext context, ManaScene scene)
+        {
+            var gridMap = new ManaGridMapNode(context)
+            {
+                Name = string.IsNullOrWhiteSpace(entry.Name) ? "Grid Map" : entry.Name
+            };
+
+            ApplyTransform(gridMap, entry);
+            lock (context.World.SceneLock)
+            {
+                scene.Children.Add(gridMap);
+            }
+
+            // Tiles take their collider poses from the grid's world transform, so it has to be settled first.
+            gridMap.UpdateTransform();
+            if (entry.GridMap is { } settings)
+            {
+                gridMap.Load(
+                    ManaLevelGridMapCodec.DecodeCellSize(settings),
+                    settings.Palette,
+                    ManaLevelGridMapCodec.DecodeLayers(settings),
+                    settings.Collision,
+                    ManaLevelGridMapCodec.DecodeSettings(settings));
+            }
+
+            return gridMap;
+        }
 
         private static ManaWaterNode LoadWater(ManaLevelNode entry, ManaContext context, ManaScene scene)
         {
@@ -601,6 +636,11 @@ namespace ManaVoxel.Code.Levels
                 }
                 if (!string.IsNullOrWhiteSpace(node.Asset))
                     await catalog.EnsureAsync(node.Asset);
+                foreach (var tile in node.GridMap?.Palette ?? [])
+                {
+                    try { await catalog.EnsureAsync(tile); }
+                    catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload grid map tile '{tile}': {ex.Message}"); }
+                }
                 if (node.Children != null)
                     foreach (var child in node.Children) nodes.Enqueue(child);
             }

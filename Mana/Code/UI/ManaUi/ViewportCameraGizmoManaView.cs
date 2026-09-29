@@ -49,6 +49,13 @@ namespace Mana.Code.UI.ManaUi
             var projectionIcon = (GizmoIcon)projection.Child!;
             projectionIcon.BindPolled(i => i.Alternate, () => camera.OrthoGraphic);
 
+            var gizmos = IconButton(
+                theme,
+                DrawGizmos,
+                "Show gizmos: transform handles, collider and grid map outlines.",
+                () => ManaEditorGizmos.Visible = !ManaEditorGizmos.Visible);
+            ((GizmoIcon)gizmos.Child!).BindPolled(i => i.Alternate, () => !ManaEditorGizmos.Visible);
+
             return new Canvas().Width(GizmoSize).Height(GizmoSize).Children(
                 // The gizmo sits directly on the scene, which is the case backdrop blur exists for: it can
                 // stay light enough to see what is under it and still be readable against anything.
@@ -80,9 +87,11 @@ namespace Mana.Code.UI.ManaUi
                     .At(38.0f, 59.0f).Width(20.0f).Height(14.0f),
 
                 IconButton(theme, DrawViewFromBelow, "Bottom", () => camera.SetViewPreset(CameraViewPreset.Bottom))
-                    .At(10.0f, 76.0f).Width(34.0f).Height(16.0f),
+                    .At(8.0f, 76.0f).Width(24.0f).Height(16.0f),
 
-                projection.At(52.0f, 76.0f).Width(34.0f).Height(16.0f));
+                projection.At(36.0f, 76.0f).Width(24.0f).Height(16.0f),
+
+                gizmos.At(64.0f, 76.0f).Width(24.0f).Height(16.0f));
         }
 
         /// <summary>
@@ -175,6 +184,20 @@ namespace Mana.Code.UI.ManaUi
             drawList.DrawLine(P(box, 0.14f, 0.18f), P(box, 0.86f, 0.18f), color, 1.8f);
             DrawChevron(drawList, new UiRect(box.X, box.Y + box.Height * 0.38f, box.Width, box.Height * 0.52f),
                 UiIconDirection.Up, color, 1.8f);
+        }
+
+        /// <summary>The gizmo toggle: a move handle's three arms, struck through while gizmos are hidden.</summary>
+        private static void DrawGizmos(ManaUiDrawList drawList, UiRect box, Vector4 color, bool hidden)
+        {
+            const float thickness = 1.6f;
+            var centre = P(box, 0.42f, 0.62f);
+            drawList.DrawLine(centre, P(box, 0.42f, 0.14f), color, thickness);
+            drawList.DrawLine(centre, P(box, 0.84f, 0.62f), color, thickness);
+            drawList.DrawLine(centre, P(box, 0.16f, 0.88f), color, thickness);
+            if (hidden)
+            {
+                drawList.DrawLine(P(box, 0.14f, 0.14f), P(box, 0.86f, 0.90f), color, thickness);
+            }
         }
 
         /// <summary>

@@ -30,9 +30,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Bump when a panel is added, removed or renamed; missing panels get merged in on load. Also bump
         /// when a strip's content changes shape enough that a saved size for it is stale -- 18 is the compact
         /// toolbar, whose old saved height was more than twice what its content now measures, and 21 is the
-        /// default panel set shrinking (see OpensByDefault).
+        /// default panel set shrinking (see OpensByDefault). 23 adds the Grid Map tool panel.
         /// </summary>
-        private const int LayoutVersion = 22;
+        private const int LayoutVersion = 23;
 
         private static string DefaultLayoutPath =>
             ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
@@ -46,6 +46,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             ["blurtest"] = "Blur Test",
             ["outliner"] = "Outliner",
             ["inspector"] = "Inspector",
+            // Named for its tab, though it never appears in the Panels menu: it follows the selection.
+            [GridMapToolManaView.PanelId] = "Grid Map",
             ["showcase"] = "ManaUI",
             ["about"] = "About",
             ["worldperf"] = "World Perf",
@@ -79,6 +81,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             "blurtest",
             "outliner",
             "inspector",
+            GridMapToolManaView.PanelId,
             "showcase",
             "about",
             "worldperf",
@@ -139,6 +142,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             return shell;
         }
+
+        // Where the Grid Map window was last left, for the next time a grid map is selected. Per run: a window
+        // that opens by itself should not come back somewhere a screen change has made odd.
+        private static Vector2? _gridMapWindowPosition;
+        private static Vector2 _gridMapWindowSize = new(300.0f, 520.0f);
 
         /// <summary>The live density subscription, so re-attaching replaces it rather than stacking a second one.</summary>
         private static EventHandler? _densityChanged;
@@ -228,6 +236,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                         world.Selection,
                         world.Context,
                         history: editor?.History)) { Id = "inspector" },
+                GridMapToolManaView.PanelId when world != null => new DockItem(
+                    "Grid Map",
+                    GridMapToolManaView.Build(theme, world, editor?.History)) { Id = GridMapToolManaView.PanelId },
                 "worldperf" when world != null => new DockItem(
                     "World Perf",
                     WorldPerfManaView.Build(theme, world).Scrollable()) { Id = "worldperf" },
@@ -510,9 +521,37 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                // Voxel Tools goes back to its own strip, Import to its own, everything else prefers the
+                // The Grid Map tools float over the viewport's top-left corner, where they cover neither the
+                // Outliner nor the Inspector, and come back wherever and however big they were last left.
+                if (id == GridMapToolManaView.PanelId)
+                {
+                    var corner = new Vector2(
+                        (leftPanel.Visibility == Visibility.Collapsed ? 0.0f : leftPanel.Size) + 12.0f,
+                        menuBarHeight + (topPanel.Visibility == Visibility.Collapsed ? 0.0f : topPanel.Size) + 12.0f);
+                    var window = new UiWindow(item.Title)
+                    {
+                        Width = _gridMapWindowSize.X,
+                        Height = _gridMapWindowSize.Y,
+                        Child = item.Content
+                    };
+                    window.Closed += (_, _) =>
+                    {
+                        if (window.Bounds.Width > 0.0f)
+                        {
+                            _gridMapWindowPosition = new Vector2(window.Bounds.X, window.Bounds.Y);
+                            _gridMapWindowSize = new Vector2(window.Bounds.Width, window.Bounds.Height);
+                        }
+                    };
+                    root.ShowWindow(window, _gridMapWindowPosition ?? corner);
+                    dragController.RegisterFloating(window, item);
+                    return;
+                }
+
+                // Voxel Tools goes back to its own strip, Import to its own, and everything else prefers the
                 // right column.
-                var host = id == "tools" ? top : id == "import" ? bottom : right.RootNode != null ? right : left;
+                var host = id == "tools" ? top
+                    : id == "import" ? bottom
+                    : right.RootNode != null ? right : left;
                 host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
 
@@ -529,6 +568,48 @@ namespace ManaVoxel.Code.UI.ManaUi
             bool IsPanelOpen(string id) =>
                 AllDocked(top, left, right, bottom).Any(item => item.Id == id)
                 || dragController.FindFloating(id) != null || dragController.FindDesktop(id) != null;
+
+            // The Grid Map tools exist only while a grid map is selected: they come up with the selection and go
+            // with it. Checked on the first frame as well as on every change, so a layout saved while a grid map
+            // was selected cannot bring the panel back at start-up with nothing to show.
+            var gridMapPanelSynced = false;
+            global::Mana.Code.Nodes.ManaSceneNode? watchedSelection = null;
+            void SyncGridMapPanel()
+            {
+                var selected = world?.Selection.SelectedNode;
+                if (gridMapPanelSynced && ReferenceEquals(selected, watchedSelection))
+                {
+                    return;
+                }
+
+                gridMapPanelSynced = true;
+                watchedSelection = selected;
+                var wanted = selected is ManaVoxel.Code.GridMaps.ManaGridMapNode;
+                if (wanted == IsPanelOpen(GridMapToolManaView.PanelId))
+                {
+                    return;
+                }
+
+                if (wanted)
+                {
+                    TogglePanel(GridMapToolManaView.PanelId);
+                    return;
+                }
+
+                var docked = AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == GridMapToolManaView.PanelId);
+                docked?.Owner?.Remove(docked);
+                dragController.FindFloating(GridMapToolManaView.PanelId)?.Close();
+            }
+
+            // Polled, because selection changes from everywhere -- a viewport click, the outliner, undo --
+            // and none of them know about panels. A binding is read once a frame before layout, which is
+            // exactly a per-frame hook; the watcher is a zero-size text that never actually changes.
+            var selectionWatcher = new TextBlock().Width(0.0f).Height(0.0f);
+            selectionWatcher.BindPolled(text => text.Text, () =>
+            {
+                SyncGridMapPanel();
+                return string.Empty;
+            });
 
             void Choose(WorkspacePreset preset)
             {
@@ -583,6 +664,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Anchor(left: 0.0f, top: 0.0f, right: 0.0f, bottom: 0.0f),
 
                 dockArea,
+
+                selectionWatcher,
 
                 new Border()
                     .Fill(theme.Frosted(theme.Surface))
@@ -897,6 +980,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "debug" => false,
                 // Opened on demand from Edit > Preferences, not something to leave in front of the tools.
                 "preferences" => false,
+                // Opened by selecting a grid map, and closed again with it.
+                GridMapToolManaView.PanelId => false,
                 _ => true
             };
         }
@@ -1101,6 +1186,8 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 new MenuItem("Panels").WithItems(
                     PanelIds
+                        // The Grid Map tools follow the selection; opening them by hand would only show nothing.
+                        .Where(id => id != GridMapToolManaView.PanelId)
                         .Select(id => new MenuItem(
                                 PanelTitles.TryGetValue(id, out var title) ? title : id,
                                 () => togglePanel(id))

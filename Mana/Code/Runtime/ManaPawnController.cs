@@ -50,12 +50,6 @@ namespace Mana.Code
         private bool releaseKeyWasDown;
         private bool jumpKeyWasDown;
         private bool cameraKeyWasDown;
-        private bool nextCharacterKeyWasDown;
-        private bool previousCharacterKeyWasDown;
-
-        // Raised on numpad +/- with the step direction. The controller has no idea what characters
-        // exist -- that catalogue lives with the host's asset services -- so it asks rather than acts.
-        public event Action<int>? ChangeCharacterRequested;
 
         public ManaPawnController(ManaContext context) : base(context)
         {
@@ -322,24 +316,6 @@ namespace Mana.Code
             }
 
             cameraKeyWasDown = cameraKeyDown;
-
-            // Numpad +/- steps through the character catalogue. The host owns the swap itself (it needs
-            // the asset catalogue and the scene), so this only raises the request.
-            var nextCharacterKeyDown = !keyboardCaptured && keyboard?.IsKeyPressed(Key.KeypadAdd) == true;
-            if (nextCharacterKeyDown && !nextCharacterKeyWasDown)
-            {
-                ChangeCharacterRequested?.Invoke(1);
-            }
-
-            nextCharacterKeyWasDown = nextCharacterKeyDown;
-
-            var previousCharacterKeyDown = !keyboardCaptured && keyboard?.IsKeyPressed(Key.KeypadSubtract) == true;
-            if (previousCharacterKeyDown && !previousCharacterKeyWasDown)
-            {
-                ChangeCharacterRequested?.Invoke(-1);
-            }
-
-            previousCharacterKeyWasDown = previousCharacterKeyDown;
 
             var pawn = PossessedPawn;
             if (pawn == null)

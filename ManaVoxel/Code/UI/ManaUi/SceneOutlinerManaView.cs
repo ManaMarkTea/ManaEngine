@@ -1,5 +1,6 @@
 using Mana;
 using ManaVoxel.Code.Gameplay.Course;
+using ManaVoxel.Code.GridMaps;
 using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Levels;
@@ -507,6 +508,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                     water.UpdateTransform();
                     AddCreatedNode(scene, parent, water);
                 }).WithTooltip("A rippling water surface. Add a Hazard component to make it deadly, and set its size to match."));
+
+                addNode.Items.Add(new MenuItem("Grid Map", () =>
+                {
+                    var gridMap = new ManaGridMapNode(scene.Context) { Position = position };
+                    gridMap.UpdateTransform();
+                    AddCreatedNode(scene, parent, gridMap);
+                    GridMapEditing.Begin(gridMap);
+                }).WithTooltip("A grid of tiles painted from a palette of models -- roads, dungeon rooms. Select it to paint."));
 
                 foreach (var (label, build) in CoursePieceFactory.Pieces)
                 {

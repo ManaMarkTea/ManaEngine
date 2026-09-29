@@ -121,7 +121,7 @@ namespace ManaVoxel.Code.Levels
     /// One placed thing. <see cref="Kind"/> decides which of the optional members below carry meaning --
     /// a mesh has an <see cref="Asset"/>, a primitive has a <see cref="Shape"/>, a voxel node has
     /// <see cref="Voxels"/> or an external asset, a planet has <see cref="Planet"/>, water has
-    /// <see cref="Water"/>, a group has <see cref="Children"/>, and a player start has none of them.
+    /// <see cref="Water"/>, a grid map has <see cref="GridMap"/>, a group has <see cref="Children"/>, and a player start has none of them.
     /// </summary>
     public sealed class ManaLevelNode
     {
@@ -154,6 +154,8 @@ namespace ManaVoxel.Code.Levels
         public ManaLevelPlanet? Planet { get; set; }
 
         public ManaLevelWater? Water { get; set; }
+
+        public ManaLevelGridMap? GridMap { get; set; }
 
         /// <summary>On a Player Start: which character the player is, when the level cares.</summary>
         public ManaLevelCharacter? Character { get; set; }
@@ -252,6 +254,52 @@ namespace ManaVoxel.Code.Levels
         public float[] Size { get; set; } = new[] { 16.0f, 16.0f };
 
         public int Resolution { get; set; } = 64;
+    }
+
+    /// <summary>
+    /// A grid map: the palette of mesh assets it paints with, and its cells as one base64 blob of 10-byte
+    /// records (three int16 cell coordinates, a uint16 palette index, a byte of quarter turns and a layer byte)
+    /// -- the same reasoning as <see cref="ManaLevelVoxels"/>, since a painted dungeon runs to thousands of cells.
+    /// </summary>
+    public sealed class ManaLevelGridMap
+    {
+        public float[] CellSize { get; set; } = { 1.0f, 1.0f, 1.0f };
+
+        public List<string> Palette { get; set; } = new();
+
+        /// <summary>Each palette item's settings, in palette order. Absent when every one is the default.</summary>
+        public List<ManaLevelGridMapTile>? Tiles { get; set; }
+
+        /// <summary>The layers the cells' layer bytes index. Absent on a map with just the one default layer.</summary>
+        public List<ManaLevelGridMapLayer>? Layers { get; set; }
+
+        public bool Collision { get; set; } = true;
+
+        public int Count { get; set; }
+
+        public string Data { get; set; } = string.Empty;
+    }
+
+    public sealed class ManaLevelGridMapLayer
+    {
+        public string Name { get; set; } = "Base";
+
+        public bool Visible { get; set; } = true;
+    }
+
+    /// <summary>How one grid map palette item is laid in; see GridMapItemSettings.</summary>
+    public sealed class ManaLevelGridMapTile
+    {
+        public int Width { get; set; } = 1;
+
+        public int Depth { get; set; } = 1;
+
+        /// <summary>Zero fits the model to its cells.</summary>
+        public float Scale { get; set; }
+
+        public int Turn { get; set; }
+
+        public string Align { get; set; } = "Model";
     }
 
     /// <summary>

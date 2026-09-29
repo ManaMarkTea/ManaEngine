@@ -32,6 +32,12 @@ namespace Mana
         public float OrthographicHeight = 80.0f;
         public float PanSpeed = 1.0f;
         public bool TouchpadPanInOrthographic = true;
+
+        /// <summary>
+        /// Q and E fly the camera down and up only while a look drag is held -- set by a tool that wants those
+        /// keys for itself the rest of the time (grid map painting, whose Q picks a tile up).
+        /// </summary>
+        public bool VerticalFlyKeysNeedLook { get; set; }
         public Func<bool>? ShouldCaptureMouseInput { get; set; }
 
         // Mirrors ShouldCaptureMouseInput for the WASD/QE fly block. Something else in the app can lay
@@ -570,7 +576,7 @@ namespace Mana
                 }
             }
 
-            if (!uiCapturesKeyboard)
+            if (!uiCapturesKeyboard && (!VerticalFlyKeysNeedLook || cameraMouseActive))
             {
                 if (KeyboardState.IsKeyPressed(Key.E))
                 {

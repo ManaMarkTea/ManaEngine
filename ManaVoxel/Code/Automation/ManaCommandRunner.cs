@@ -193,7 +193,8 @@ namespace ManaVoxel.Code.Automation
             }
 
             var world = _context.World;
-            var node = FindNode(world.DefaultScene.Children, command.Name);
+            // Every scene, not just the default one: an opened level loads into a scene of its own.
+            var node = world.Scenes.Select(scene => FindNode(scene.Children, command.Name)).FirstOrDefault(found => found != null);
             if (node == null)
             {
                 ManaConsole.WriteDiagnostic($"Command file: select_node found no node named '{command.Name}', skipping.");

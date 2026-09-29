@@ -13,6 +13,10 @@ namespace ManaUI
     {
         private static readonly string[] AxisLabels = { "X", "Y", "Z", "W" };
 
+        // Which theme axis colour each field wears. In step with the field by default; relabelled boxes -- a
+        // width and depth -- borrow the colour of the axis they measure along.
+        private readonly int[] _axisColors = { 0, 1, 2, 3 };
+
         private readonly NumericBox[] _fields = new NumericBox[4];
         private readonly Grid _grid = new();
 
@@ -145,6 +149,21 @@ namespace ManaUI
         }
 
         /// <summary>The field for one component, for anything that needs to configure a single axis.</summary>
+        /// <summary>
+        /// Relabels the fields in order, each with the letter it shows and the axis whose colour it wears -- a
+        /// footprint's W and D, say, in X's red and Z's blue.
+        /// </summary>
+        public void SetAxes(params (string Label, int ColorAxis)[] axes)
+        {
+            for (var i = 0; i < axes.Length && i < _fields.Length; i++)
+            {
+                _fields[i].ChipText = axes[i].Label;
+                _axisColors[i] = Math.Clamp(axes[i].ColorAxis, 0, 3);
+            }
+
+            InvalidateVisual();
+        }
+
         public NumericBox Field(int index)
         {
             return _fields[Math.Clamp(index, 0, _fields.Length - 1)];
@@ -271,7 +290,7 @@ namespace ManaUI
 
             for (var i = 0; i < _fields.Length; i++)
             {
-                _fields[i].ChipColor = theme.AxisColor(i);
+                _fields[i].ChipColor = theme.AxisColor(_axisColors[i]);
             }
         }
     }

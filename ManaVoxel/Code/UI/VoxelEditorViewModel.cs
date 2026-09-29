@@ -437,69 +437,6 @@ namespace ManaVoxel.Code.UI
 
         public IReadOnlyList<CharacterAsset> CharacterCatalog => _characterSpawnService.Catalog;
 
-        // Swaps the controlled character for the next model in the catalogue, landing it where the old
-        // one stood, facing the same way, still possessed and still on the same camera. Implemented as
-        // spawn-then-replace rather than by re-skinning in place: each model brings its own rig, clip
-        // set and proportions, so there is nothing meaningful to keep.
-        public void CycleControlledCharacter(int direction = 1)
-        {
-            CharacterSpawnError = null;
-
-            if (_context == null || PawnController == null)
-            {
-                return;
-            }
-
-            var catalog = _characterSpawnService.Catalog;
-            if (catalog.Count == 0)
-            {
-                CharacterSpawnError = "No character packs found in any Assets folder.";
-                return;
-            }
-
-            var current = PawnController.PossessedPawn;
-            if (current == null)
-            {
-                // Nothing to swap; spawning is the sensible reading of "next character" here.
-                SpawnCharacter();
-                return;
-            }
-
-            var currentIndex = _characterSpawnService.IndexOf(current.SourcePackName, current.Name);
-            var nextIndex = ((currentIndex + direction) % catalog.Count + catalog.Count) % catalog.Count;
-
-            var position = current.Position;
-            var rotation = current.Rotation;
-            var respawnPoint = current.RespawnPoint;
-            var usePhysics = current.Body != null;
-
-            ManaPawnNode? replacement;
-            lock (_context.World.SceneLock)
-            {
-                replacement = _characterSpawnService.Spawn(
-                    catalog[nextIndex],
-                    _context.World,
-                    position,
-                    PawnController,
-                    usePhysics);
-            }
-
-            if (replacement == null)
-            {
-                CharacterSpawnError = _characterSpawnService.LastError ?? "Failed to change character.";
-                return;
-            }
-
-            replacement.Rotation = rotation;
-            replacement.RespawnPoint = respawnPoint;
-            replacement.TeleportTo(position);
-
-            // Possess first, then remove: unregistering the possessed pawn would release possession and
-            // tear the camera off its boom for a frame before the replacement picked it back up.
-            PawnController.Possess(replacement);
-            RemoveCharacter(current);
-        }
-
         /// <summary>
         /// Spawns a character at an exact spot and facing, without possessing it -- what Play needs, where
         /// the Player Start decides both and possession is the caller's business.

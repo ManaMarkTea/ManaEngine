@@ -101,6 +101,51 @@ namespace Mana.Code
             return collisionComponent;
         }
 
+        /// <summary>
+        /// A kinematic triangle-mesh collider, for geometry no box or hull fits -- a corridor piece, a road
+        /// with a kerb. <paramref name="triangles"/> holds three vertices per triangle in the node's own
+        /// space, scale already applied: the body takes the node's position and rotation only.
+        /// Kinematic rather than static so <c>ManaCharacterBody.GroundNode</c> can still say what is underfoot.
+        /// </summary>
+        public ManaCollisionComponent AddTriangleMeshBody(ManaSceneNode node, ReadOnlySpan<Vector3> triangles)
+        {
+            var count = triangles.Length / 3;
+            if (count == 0)
+            {
+                throw new ArgumentException("A triangle mesh collider needs at least one triangle.", nameof(triangles));
+            }
+
+            BufferPool.Take<Triangle>(count, out var buffer);
+            for (var i = 0; i < count; i++)
+            {
+                // Bepu's triangles are one sided and solid where (b - a) x (c - a) points away, the opposite of
+                // glTF's counter-clockwise front faces -- so b and c swap.
+                buffer[i] = new Triangle(triangles[i * 3], triangles[i * 3 + 2], triangles[i * 3 + 1]);
+            }
+
+            var meshShape = new BepuPhysics.Collidables.Mesh(buffer, Vector3.One, BufferPool);
+            var meshIndex = Simulation.Shapes.Add(meshShape);
+            var meshBody = BodyDescription.CreateKinematic(
+                ManaCollisionComponent.CreateBodyPose(node, Vector3.Zero),
+                new CollidableDescription(meshIndex),
+                new BodyActivityDescription());
+            var handle = Simulation.Bodies.Add(meshBody);
+
+            var collisionComponent = new ManaCollisionComponent(node)
+            {
+                Shape = meshShape,
+                ShapeIndex = meshIndex,
+                Body = handle
+            };
+            PhysicsMap[handle] = collisionComponent;
+            lock (Context.World.SceneLock)
+            {
+                node.Components.Add(collisionComponent);
+            }
+
+            return collisionComponent;
+        }
+
         public void AddDynamicBoxBody(ManaSceneNode node, Vector3 size, Vector3 offset, float mass = 1.0f, Vector3? initialLinearVelocity = null)
         {
             Box boxShape = new Box(size.X, size.Y, size.Z);

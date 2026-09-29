@@ -6,6 +6,7 @@ using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using ManaGeoTools.Code.Planet;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.GridMaps;
 
 namespace ManaVoxel.Code.Levels
 {
@@ -222,6 +223,15 @@ namespace ManaVoxel.Code.Levels
                         Size = new[] { water.Mesh.Size.X, water.Mesh.Size.Y },
                         Resolution = water.Mesh.Resolution
                     };
+                    break;
+
+                case ManaLevelSourceKind.GridMap:
+                    if (node is not ManaGridMapNode gridMap)
+                    {
+                        return null;
+                    }
+
+                    entry.GridMap = ManaLevelGridMapCodec.Encode(gridMap);
                     break;
 
                 default:
