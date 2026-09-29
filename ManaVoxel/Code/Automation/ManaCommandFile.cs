@@ -12,7 +12,8 @@ namespace ManaVoxel.Code.Automation
         /// <summary>
         /// One of: open_level, wait, move_camera, select_node, screenshot, quit, play, stop_play, profile_reset,
         /// profile_dump (writes the frame profiler's per-scope report and average frame rate to <see cref="Path"/>),
-        /// grid_autotile (adds a preset set to a grid map and drags it through <see cref="Cells"/>).
+        /// grid_autotile (adds a preset set to a grid map and drags it through <see cref="Cells"/>),
+        /// grid_generate (opens the Generator on the grid map named by <see cref="Name"/> and generates with the dungeon preset).
         /// </summary>
         public string Type { get; set; } = "";
 
@@ -36,6 +37,11 @@ namespace ManaVoxel.Code.Automation
 
         /// <summary>grid_autotile: [x, z] cells to drag the set through, in order, on floor 0.</summary>
         public int[][]? Cells { get; set; }
+
+        /// <summary>grid_generate: the seed, and [width, depth] of the area from cell (0, 0).</summary>
+        public int Seed { get; set; } = 1;
+
+        public int[]? Size { get; set; }
     }
 
     public static class ManaCommandFile

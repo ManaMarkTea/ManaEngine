@@ -49,6 +49,7 @@ namespace Mana.Code.GameModes
         private bool UpdateGridMapPainting(bool inputCaptured, IMouse mouse)
         {
             CompleteGridPaletteDownloads();
+            UpdateGridGeneratorArea();
 
             var target = GridMapEditing.Target;
             if (target != null && (IsPlaying || !ReferenceEquals(Context.World.Selection.SelectedNode, target) || !IsInWorld(target)))
@@ -657,6 +658,34 @@ namespace Mana.Code.GameModes
 
             _pickingExclusions.Remove(overlay);
             overlay = null;
+        }
+
+        private static readonly Vector4 GridGeneratorAreaColor = new(1.0f, 0.8f, 0.2f, 1.0f);
+
+        private ManaSceneNode? _gridGeneratorOverlay;
+        private (ManaGridMapNode Map, int X, int Z, int Width, int Depth, int Floor, Vector3 CellSize)? _gridGeneratorOverlayKey;
+
+        /// <summary>Outlines the area the Generator window fills, while it is up over a selected grid map.</summary>
+        private void UpdateGridGeneratorArea()
+        {
+            if (!GridMapWfcEditing.WindowOpen || !ManaEditorGizmos.Visible || IsPlaying
+                || Context.World.Selection.SelectedNode is not ManaGridMapNode map)
+            {
+                HideGridOverlay(ref _gridGeneratorOverlay);
+                _gridGeneratorOverlayKey = null;
+                return;
+            }
+
+            var key = (map, GridMapWfcEditing.X, GridMapWfcEditing.Z, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, GridMapEditing.Floor, map.CellSize);
+            if (_gridGeneratorOverlayKey == key)
+            {
+                PlaceGridOverlay(_gridGeneratorOverlay, map);
+                return;
+            }
+
+            _gridGeneratorOverlayKey = key;
+            var outline = FootprintOutline(map, new GridMapCell(key.X, key.Floor, key.Z), new GridMapFootprint(key.Width, key.Depth), inset: 0.0f);
+            ReplaceGridOverlay(ref _gridGeneratorOverlay, map, new List<ManaLinePolyline> { outline }, GridGeneratorAreaColor, 0.08f, "Grid Map Generator Area", opacity: 0.9f);
         }
 
         private bool IsInWorld(ManaSceneNode node)

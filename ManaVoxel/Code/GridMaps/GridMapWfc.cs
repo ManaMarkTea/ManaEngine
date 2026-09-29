@@ -1,0 +1,671 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace ManaVoxel.Code.GridMaps
+{
+    /// <summary>Which quarter turns a generator tile may be used at.</summary>
+    public enum GridMapWfcRotations
+    {
+        /// <summary>All four.</summary>
+        All,
+
+        /// <summary>As modelled only.</summary>
+        None,
+
+        /// <summary>As modelled and half way round -- a piece that reads the same from either end.</summary>
+        Half
+    }
+
+    /// <summary>
+    /// One piece a generator lays: a model, the cells it covers, how often it is picked, and a socket label on
+    /// every cell of every side. Two pieces may stand side by side where the labels facing each other are the
+    /// same -- "open" to "open" joins a corridor, "wall" to "wall" puts two backs together.
+    /// </summary>
+    public sealed class GridMapWfcTile
+    {
+        public string Name { get; set; } = "Tile";
+
+        /// <summary>The model, as a palette asset. Null lays nothing -- the empty space between rooms.</summary>
+        public string? Asset { get; set; }
+
+        /// <summary>Cells covered along X and Z, as modelled.</summary>
+        public int[] Size { get; set; } = [1, 1];
+
+        public float Weight { get; set; } = 1.0f;
+
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public GridMapWfcRotations Rotations { get; set; } = GridMapWfcRotations.All;
+
+        /// <summary>
+        /// Labels by side, "e" (+X), "n" (-Z), "w" (-X), "s" (+Z): one per cell along that side, in order of
+        /// rising Z for e and w and rising X for n and s. A side given one label uses it for every cell.
+        /// </summary>
+        public Dictionary<string, string[]> Sockets { get; set; } = new();
+
+        [JsonIgnore]
+        public int Width => Math.Clamp(Size.Length > 0 ? Size[0] : 1, 1, 16);
+
+        [JsonIgnore]
+        public int Depth => Math.Clamp(Size.Length > 1 ? Size[1] : 1, 1, 16);
+
+        /// <summary>The label on one cell of one side (0 E, 1 N, 2 W, 3 S), as modelled.</summary>
+        public string Socket(int side, int index)
+        {
+            var labels = Sockets.TryGetValue(GridMapWfc.SideKeys[side], out var found) ? found : null;
+            if (labels == null || labels.Length == 0)
+            {
+                return GridMapWfc.DefaultSocket;
+            }
+
+            return (labels.Length == 1 ? labels[0] : labels[Math.Clamp(index, 0, labels.Length - 1)]).Trim();
+        }
+
+        public GridMapWfcTile Clone() => new()
+        {
+            Name = Name,
+            Asset = Asset,
+            Size = Size.ToArray(),
+            Weight = Weight,
+            Rotations = Rotations,
+            Sockets = Sockets.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray())
+        };
+    }
+
+    /// <summary>A generator's rules, as saved to a .manawfc file.</summary>
+    public sealed class GridMapWfcRules
+    {
+        public string Format { get; set; } = "mana-wfc";
+
+        public int Version { get; set; } = 1;
+
+        public string Name { get; set; } = "Rules";
+
+        /// <summary>
+        /// The label every side facing out of the generated area must have -- "wall" closes a dungeon in.
+        /// Empty lets anything face out.
+        /// </summary>
+        public string Boundary { get; set; } = "wall";
+
+        /// <summary>A label that joins two cells of the same dungeon, for keeping only the largest joined part.</summary>
+        public string Connects { get; set; } = "open";
+
+        public List<GridMapWfcTile> Tiles { get; set; } = new();
+
+        private static readonly JsonSerializerOptions Json = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        public string ToJson() => JsonSerializer.Serialize(this, Json);
+
+        public static GridMapWfcRules FromJson(string json) =>
+            JsonSerializer.Deserialize<GridMapWfcRules>(json, Json) ?? throw new InvalidDataException("Not a generator rules file.");
+
+        public GridMapWfcRules Clone() => FromJson(ToJson());
+    }
+
+    /// <summary>One tile the generator decided on: which rules tile, turned how, anchored at which cell of the area.</summary>
+    public readonly record struct GridMapWfcPlacement(int Tile, int Orientation, int X, int Z);
+
+    /// <summary>
+    /// Wave function collapse over a grid of cells. Every tile, at every turn it allows, is cut into one part
+    /// per cell it covers; parts of the same tile join only to each other, through labels no other tile has,
+    /// so a big room comes out whole or not at all. Then the usual: collapse the cell with the fewest
+    /// weighted choices left, spread what that rules out to its neighbours, and start over from a new seed
+    /// when a cell runs out of choices.
+    /// </summary>
+    public static class GridMapWfc
+    {
+        public static readonly string[] SideKeys = ["e", "n", "w", "s"];
+
+        public const string DefaultSocket = "wall";
+
+        private const int MaxSize = 96;
+
+        /// <summary>Steps across each side, in turn order, as for <see cref="GridMapAutoTile.Neighbours"/>.</summary>
+        private static readonly (int X, int Z)[] Steps = [(1, 0), (0, -1), (-1, 0), (0, 1)];
+
+        public sealed record Result(IReadOnlyList<GridMapWfcPlacement> Placements, int Attempts, string? Error)
+        {
+            public bool Succeeded => Error == null;
+        }
+
+        /// <summary>A cell the area already has, as a tile and turn, which the solve must keep.</summary>
+        public readonly record struct Fixed(int X, int Z, int Tile, int Orientation);
+
+        /// <summary>
+        /// Fills a <paramref name="width"/> by <paramref name="depth"/> area. <paramref name="keep"/> anchors
+        /// tiles already in place; <paramref name="connectedOnly"/> keeps only the largest joined part, so a
+        /// dungeon is one dungeon and not stray corridors.
+        /// </summary>
+        public static Result Solve(
+            GridMapWfcRules rules,
+            int width,
+            int depth,
+            int seed,
+            IReadOnlyList<Fixed>? keep = null,
+            bool connectedOnly = true,
+            int maxAttempts = 40)
+        {
+            if (width < 1 || depth < 1 || width > MaxSize || depth > MaxSize)
+            {
+                return new Result([], 0, $"The area has to be 1 to {MaxSize} cells each way.");
+            }
+
+            var model = Model.Build(rules);
+            if (model.Parts.Count == 0)
+            {
+                return new Result([], 0, "The rules have no tiles.");
+            }
+
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                var solver = new Solver(model, rules, width, depth, new Random(HashCode.Combine(seed, attempt)));
+                if (solver.Run(keep ?? []) is { } parts)
+                {
+                    return new Result(Place(model, rules, parts, width, depth, connectedOnly), attempt + 1, null);
+                }
+            }
+
+            return new Result([], maxAttempts, "No arrangement fits these rules here. Try another seed, a bigger area, or rules with more ways to join.");
+        }
+
+        private static List<GridMapWfcPlacement> Place(Model model, GridMapWfcRules rules, int[] parts, int width, int depth, bool connectedOnly)
+        {
+            var keep = connectedOnly ? LargestJoined(model, rules, parts, width, depth) : null;
+            var placements = new List<GridMapWfcPlacement>();
+            for (var z = 0; z < depth; z++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var part = model.Parts[parts[x + z * width]];
+                    if (part.X == 0 && part.Z == 0 && rules.Tiles[part.Tile].Asset != null && (keep == null || keep[x + z * width]))
+                    {
+                        placements.Add(new GridMapWfcPlacement(part.Tile, part.Orientation, x, z));
+                    }
+                }
+            }
+
+            return placements;
+        }
+
+        /// <summary>The cells of the biggest group joined through the connecting label or through a tile's own parts.</summary>
+        private static bool[]? LargestJoined(Model model, GridMapWfcRules rules, int[] parts, int width, int depth)
+        {
+            var join = rules.Connects?.Trim();
+            if (string.IsNullOrEmpty(join))
+            {
+                return null;
+            }
+
+            var group = new int[width * depth];
+            Array.Fill(group, -1);
+            var sizes = new List<int>();
+            var queue = new Queue<int>();
+            for (var start = 0; start < group.Length; start++)
+            {
+                if (group[start] >= 0 || rules.Tiles[model.Parts[parts[start]].Tile].Asset == null)
+                {
+                    continue;
+                }
+
+                var id = sizes.Count;
+                sizes.Add(0);
+                group[start] = id;
+                queue.Enqueue(start);
+                while (queue.Count > 0)
+                {
+                    var cell = queue.Dequeue();
+                    sizes[id]++;
+                    var part = model.Parts[parts[cell]];
+                    for (var side = 0; side < 4; side++)
+                    {
+                        var label = part.Sockets[side];
+                        if (label != join && !label.StartsWith('#'))
+                        {
+                            continue;
+                        }
+
+                        var nx = cell % width + Steps[side].X;
+                        var nz = cell / width + Steps[side].Z;
+                        if (nx < 0 || nz < 0 || nx >= width || nz >= depth)
+                        {
+                            continue;
+                        }
+
+                        var next = nx + nz * width;
+                        if (group[next] < 0)
+                        {
+                            group[next] = id;
+                            queue.Enqueue(next);
+                        }
+                    }
+                }
+            }
+
+            if (sizes.Count == 0)
+            {
+                return null;
+            }
+
+            var largest = sizes.IndexOf(sizes.Max());
+            return group.Select(id => id == largest).ToArray();
+        }
+
+        /// <summary>Where a modelled cell of a tile lands, and its footprint, after some quarter turns.</summary>
+        public static (int X, int Z) TurnCell(int x, int z, int width, int depth, int turns)
+        {
+            // One turn takes +X to -Z (as ManaGridMapNode turns tiles), so a cell (x, z) of a w-by-d tile
+            // lands at (z, w-1-x) of the d-by-w one.
+            for (var i = 0; i < ManaGridMapNode.WrapOrientation(turns); i++)
+            {
+                (x, z, width, depth) = (z, width - 1 - x, depth, width);
+            }
+
+            return (x, z);
+        }
+
+        public static IEnumerable<int> Turns(GridMapWfcRotations rotations) => rotations switch
+        {
+            GridMapWfcRotations.None => [0],
+            GridMapWfcRotations.Half => [0, 2],
+            _ => [0, 1, 2, 3]
+        };
+
+        /// <summary>One cell of one tile at one turn: what WFC actually places.</summary>
+        internal sealed record Part(int Tile, int Orientation, int X, int Z, string[] Sockets, double Weight);
+
+        internal sealed class Model
+        {
+            public List<Part> Parts { get; } = new();
+
+            /// <summary>Per side, per part: the parts that may stand across that side.</summary>
+            public ulong[][][] Allowed { get; private set; } = [];
+
+            public int Words => (Parts.Count + 63) / 64;
+
+            public static Model Build(GridMapWfcRules rules)
+            {
+                var model = new Model();
+                var variant = 0;
+                for (var t = 0; t < rules.Tiles.Count; t++)
+                {
+                    var tile = rules.Tiles[t];
+                    var turns = Turns(tile.Rotations).ToList();
+                    var weight = Math.Max(0.0001, tile.Weight) / turns.Count;
+                    foreach (var turn in turns)
+                    {
+                        var parts = new Dictionary<(int, int), int>();
+                        for (var z = 0; z < tile.Depth; z++)
+                        {
+                            for (var x = 0; x < tile.Width; x++)
+                            {
+                                parts[(x, z)] = parts.Count;
+                            }
+                        }
+
+                        for (var z = 0; z < tile.Depth; z++)
+                        {
+                            for (var x = 0; x < tile.Width; x++)
+                            {
+                                var sockets = new string[4];
+                                for (var side = 0; side < 4; side++)
+                                {
+                                    // The side this one faced as modelled, before the turn moved it.
+                                    var modelled = ((side - turn) % 4 + 4) % 4;
+                                    var across = (x + Steps[modelled].X, z + Steps[modelled].Z);
+                                    if (parts.TryGetValue(across, out var neighbour))
+                                    {
+                                        var self = parts[(x, z)];
+                                        sockets[side] = $"#{variant}:{Math.Min(self, neighbour)}-{Math.Max(self, neighbour)}";
+                                    }
+                                    else
+                                    {
+                                        sockets[side] = tile.Socket(modelled, modelled is 0 or 2 ? z : x);
+                                    }
+                                }
+
+                                var (tx, tz) = TurnCell(x, z, tile.Width, tile.Depth, turn);
+                                model.Parts.Add(new Part(t, turn, tx, tz, sockets, weight));
+                            }
+                        }
+
+                        variant++;
+                    }
+                }
+
+                var words = model.Words;
+                model.Allowed = new ulong[4][][];
+                for (var side = 0; side < 4; side++)
+                {
+                    var opposite = (side + 2) % 4;
+                    var byLabel = model.Parts
+                        .Select((part, index) => (part.Sockets[opposite], index))
+                        .GroupBy(pair => pair.Item1, StringComparer.Ordinal)
+                        .ToDictionary(group => group.Key, group => group.Select(pair => pair.index).ToList(), StringComparer.Ordinal);
+                    model.Allowed[side] = new ulong[model.Parts.Count][];
+                    for (var p = 0; p < model.Parts.Count; p++)
+                    {
+                        var bits = new ulong[words];
+                        if (byLabel.TryGetValue(model.Parts[p].Sockets[side], out var matches))
+                        {
+                            foreach (var q in matches)
+                            {
+                                bits[q >> 6] |= 1UL << (q & 63);
+                            }
+                        }
+
+                        model.Allowed[side][p] = bits;
+                    }
+                }
+
+                return model;
+            }
+        }
+
+        private sealed class Solver
+        {
+            private readonly Model _model;
+            private readonly GridMapWfcRules _rules;
+            private readonly int _width;
+            private readonly int _depth;
+            private readonly Random _random;
+            private readonly int _words;
+            private readonly ulong[] _domains;
+            private readonly int[] _counts;
+            private readonly Stack<int> _pending = new();
+
+            public Solver(Model model, GridMapWfcRules rules, int width, int depth, Random random)
+            {
+                _model = model;
+                _rules = rules;
+                _width = width;
+                _depth = depth;
+                _random = random;
+                _words = model.Words;
+                _domains = new ulong[width * depth * _words];
+                _counts = new int[width * depth];
+            }
+
+            public int[]? Run(IReadOnlyList<Fixed> keep)
+            {
+                var boundary = _rules.Boundary?.Trim() ?? string.Empty;
+                for (var cell = 0; cell < _counts.Length; cell++)
+                {
+                    var x = cell % _width;
+                    var z = cell / _width;
+                    for (var p = 0; p < _model.Parts.Count; p++)
+                    {
+                        if (FacesOutOk(_model.Parts[p], x, z, boundary))
+                        {
+                            _domains[cell * _words + (p >> 6)] |= 1UL << (p & 63);
+                        }
+                    }
+
+                    _counts[cell] = Count(cell);
+                    if (_counts[cell] == 0)
+                    {
+                        return null;
+                    }
+
+                    _pending.Push(cell);
+                }
+
+                foreach (var fix in keep)
+                {
+                    if (!Pin(fix) || !Propagate())
+                    {
+                        return null;
+                    }
+                }
+
+                if (!Propagate())
+                {
+                    return null;
+                }
+
+                while (true)
+                {
+                    var cell = LeastChoice();
+                    if (cell < 0)
+                    {
+                        break;
+                    }
+
+                    Collapse(cell);
+                    if (!Propagate())
+                    {
+                        return null;
+                    }
+                }
+
+                var result = new int[_counts.Length];
+                for (var cell = 0; cell < result.Length; cell++)
+                {
+                    result[cell] = First(cell);
+                }
+
+                return result;
+            }
+
+            // A side facing out of the area may never be half of a tile, and must carry the boundary label if
+            // there is one: a room cannot hang off the edge, and a corridor cannot lead out of the dungeon.
+            private bool FacesOutOk(Part part, int x, int z, string boundary)
+            {
+                for (var side = 0; side < 4; side++)
+                {
+                    var nx = x + Steps[side].X;
+                    var nz = z + Steps[side].Z;
+                    if (nx >= 0 && nz >= 0 && nx < _width && nz < _depth)
+                    {
+                        continue;
+                    }
+
+                    var label = part.Sockets[side];
+                    if (label.StartsWith('#') || (boundary.Length > 0 && label != boundary))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // Every cell of a kept tile is held to its own part of it.
+            private bool Pin(Fixed fix)
+            {
+                var tile = fix.Tile < _rules.Tiles.Count ? _rules.Tiles[fix.Tile] : null;
+                if (tile == null)
+                {
+                    return true;
+                }
+
+                var turn = ManaGridMapNode.WrapOrientation(fix.Orientation);
+                var (w, d) = turn % 2 == 0 ? (tile.Width, tile.Depth) : (tile.Depth, tile.Width);
+                for (var p = 0; p < _model.Parts.Count; p++)
+                {
+                    var part = _model.Parts[p];
+                    if (part.Tile != fix.Tile || part.Orientation != turn)
+                    {
+                        continue;
+                    }
+
+                    var x = fix.X + part.X;
+                    var z = fix.Z + part.Z;
+                    if (x < 0 || z < 0 || x >= _width || z >= _depth || part.X >= w || part.Z >= d)
+                    {
+                        continue;
+                    }
+
+                    var cell = x + z * _width;
+                    var span = _domains.AsSpan(cell * _words, _words);
+                    var had = (span[p >> 6] >> (p & 63)) & 1;
+                    span.Clear();
+                    if (had == 0)
+                    {
+                        _counts[cell] = 0;
+                        return false;
+                    }
+
+                    span[p >> 6] = 1UL << (p & 63);
+                    _counts[cell] = 1;
+                    _pending.Push(cell);
+                }
+
+                return true;
+            }
+
+            private bool Propagate()
+            {
+                var allowed = new ulong[_words];
+                while (_pending.Count > 0)
+                {
+                    var cell = _pending.Pop();
+                    var x = cell % _width;
+                    var z = cell / _width;
+                    for (var side = 0; side < 4; side++)
+                    {
+                        var nx = x + Steps[side].X;
+                        var nz = z + Steps[side].Z;
+                        if (nx < 0 || nz < 0 || nx >= _width || nz >= _depth)
+                        {
+                            continue;
+                        }
+
+                        Array.Clear(allowed);
+                        var domain = _domains.AsSpan(cell * _words, _words);
+                        for (var word = 0; word < _words; word++)
+                        {
+                            var bits = domain[word];
+                            while (bits != 0)
+                            {
+                                var p = (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                                bits &= bits - 1;
+                                var from = _model.Allowed[side][p];
+                                for (var w = 0; w < _words; w++)
+                                {
+                                    allowed[w] |= from[w];
+                                }
+                            }
+                        }
+
+                        var next = nx + nz * _width;
+                        var target = _domains.AsSpan(next * _words, _words);
+                        var changed = false;
+                        for (var w = 0; w < _words; w++)
+                        {
+                            var narrowed = target[w] & allowed[w];
+                            if (narrowed != target[w])
+                            {
+                                target[w] = narrowed;
+                                changed = true;
+                            }
+                        }
+
+                        if (changed)
+                        {
+                            _counts[next] = Count(next);
+                            if (_counts[next] == 0)
+                            {
+                                return false;
+                            }
+
+                            _pending.Push(next);
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            // The undecided cell with the least weighted choice left, ties broken at random.
+            private int LeastChoice()
+            {
+                var best = -1;
+                var bestEntropy = double.MaxValue;
+                for (var cell = 0; cell < _counts.Length; cell++)
+                {
+                    if (_counts[cell] <= 1)
+                    {
+                        continue;
+                    }
+
+                    var entropy = Entropy(cell) + _random.NextDouble() * 1e-6;
+                    if (entropy < bestEntropy)
+                    {
+                        bestEntropy = entropy;
+                        best = cell;
+                    }
+                }
+
+                return best;
+            }
+
+            private double Entropy(int cell)
+            {
+                double sum = 0.0;
+                double sumLog = 0.0;
+                foreach (var p in Members(cell))
+                {
+                    var weight = _model.Parts[p].Weight;
+                    sum += weight;
+                    sumLog += weight * Math.Log(weight);
+                }
+
+                return Math.Log(sum) - sumLog / sum;
+            }
+
+            private void Collapse(int cell)
+            {
+                var members = Members(cell).ToList();
+                var total = members.Sum(p => _model.Parts[p].Weight);
+                var roll = _random.NextDouble() * total;
+                var chosen = members[^1];
+                foreach (var p in members)
+                {
+                    roll -= _model.Parts[p].Weight;
+                    if (roll <= 0.0)
+                    {
+                        chosen = p;
+                        break;
+                    }
+                }
+
+                var span = _domains.AsSpan(cell * _words, _words);
+                span.Clear();
+                span[chosen >> 6] = 1UL << (chosen & 63);
+                _counts[cell] = 1;
+                _pending.Push(cell);
+            }
+
+            private IEnumerable<int> Members(int cell)
+            {
+                for (var word = 0; word < _words; word++)
+                {
+                    var bits = _domains[cell * _words + word];
+                    while (bits != 0)
+                    {
+                        yield return (word << 6) + System.Numerics.BitOperations.TrailingZeroCount(bits);
+                        bits &= bits - 1;
+                    }
+                }
+            }
+
+            private int First(int cell) => Members(cell).First();
+
+            private int Count(int cell)
+            {
+                var count = 0;
+                for (var word = 0; word < _words; word++)
+                {
+                    count += System.Numerics.BitOperations.PopCount(_domains[cell * _words + word]);
+                }
+
+                return count;
+            }
+        }
+    }
+}

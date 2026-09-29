@@ -99,6 +99,11 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "grid_generate":
+                        ApplyGridGenerate(command);
+                        _index++;
+                        break;
+
                     case "screenshot":
                         if (_webGpuContext == null)
                         {
@@ -219,6 +224,24 @@ namespace ManaVoxel.Code.Automation
 
             GridMapEditing.Begin(map);
             GridMapEditing.AutoTile = set;
+        }
+
+        private void ApplyGridGenerate(ManaCommand command)
+        {
+            if (_context.World.Scenes.Select(scene => FindNode(scene.Children, command.Name ?? "")).FirstOrDefault(found => found != null) is not ManaGridMapNode map)
+            {
+                ManaConsole.WriteDiagnostic($"Command file: grid_generate found no grid map '{command.Name}', skipping.");
+                return;
+            }
+
+            GridMapWfcEditing.Replace(GridMapWfcPresets.Dungeon(), null);
+            GridMapWfcEditing.WindowOpen = true;
+            GridMapWfcEditing.Width = command.Size is { Length: >= 2 } size ? size[0] : 16;
+            GridMapWfcEditing.Depth = command.Size is { Length: >= 2 } both ? both[1] : 16;
+            GridMapWfcEditing.Seed = command.Seed;
+            var result = GridMapWfcGenerator.Generate(map, GridMapWfcEditing.Rules,
+                new GridMapWfcGenerator.Area(0, 0, GridMapWfcEditing.Width, GridMapWfcEditing.Depth, 0), command.Seed, keepPainted: false, connectedOnly: true);
+            GridMapWfcEditing.Status = result.Succeeded ? $"{result.Placements.Count} tiles" : result.Error ?? "";
         }
 
         private void ApplySelectNode(ManaCommand command)

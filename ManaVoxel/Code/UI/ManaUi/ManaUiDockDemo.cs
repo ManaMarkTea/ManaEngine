@@ -49,6 +49,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Named for its tab, though it never appears in the Panels menu: it follows the selection.
             [GridMapToolManaView.PanelId] = "Grid Map",
             [VoxelToolsPanelId] = "Voxel Tools",
+            [GridMapWfcManaView.PanelId] = "Generator",
             ["showcase"] = "ManaUI",
             ["about"] = "About",
             ["worldperf"] = "World Perf",
@@ -84,6 +85,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             "inspector",
             GridMapToolManaView.PanelId,
             VoxelToolsPanelId,
+            GridMapWfcManaView.PanelId,
             "showcase",
             "about",
             "worldperf",
@@ -153,7 +155,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static readonly Dictionary<string, (Vector2? Position, Vector2 Size)> ToolWindowPlaces = new()
         {
             [GridMapToolManaView.PanelId] = (null, new Vector2(300.0f, 520.0f)),
-            [VoxelToolsPanelId] = (null, new Vector2(300.0f, 460.0f))
+            [VoxelToolsPanelId] = (null, new Vector2(300.0f, 460.0f)),
+            [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f))
         };
 
         /// <summary>The live density subscription, so re-attaching replaces it rather than stacking a second one.</summary>
@@ -247,6 +250,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 GridMapToolManaView.PanelId when world != null => new DockItem(
                     "Grid Map",
                     GridMapToolManaView.Build(theme, world, editor?.History)) { Id = GridMapToolManaView.PanelId },
+                GridMapWfcManaView.PanelId when world != null => new DockItem(
+                    "Generator",
+                    GridMapWfcManaView.Build(theme, world, editor?.History)) { Id = GridMapWfcManaView.PanelId },
                 VoxelToolsPanelId when editor != null => new DockItem(
                     "Voxel Tools",
                     VoxelToolPaletteManaView.BuildWindow(theme, editor)) { Id = VoxelToolsPanelId },
@@ -504,6 +510,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             }
 
+            // Set while a tool window is closed because what it was for went away, not by hand.
+            var closingToolWindow = false;
+
             void TogglePanel(string id)
             {
                 if (dragController.FindDesktop(id) is { } desktop)
@@ -552,11 +561,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                             ToolWindowPlaces[id] = (new Vector2(window.Bounds.X, window.Bounds.Y), new Vector2(window.Bounds.Width, window.Bounds.Height));
                         }
 
-                        // Closing the voxel tools puts the tool down, or the viewport would go on drawing with
-                        // no window saying so.
-                        if (id == VoxelToolsPanelId && editor != null)
+                        // Closed by hand, the voxel tools put the tool down, or the viewport would go on drawing
+                        // with no window saying so; the generator stays shut until asked for again.
+                        if (!closingToolWindow && id == VoxelToolsPanelId && editor != null)
                         {
                             editor.IsSelectToolActive = true;
+                        }
+
+                        if (!closingToolWindow && id == GridMapWfcManaView.PanelId)
+                        {
+                            ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen = false;
                         }
                     };
                     root.ShowWindow(window, place.Position ?? corner);
@@ -613,13 +627,23 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 var docked = AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == id);
                 docked?.Owner?.Remove(docked);
-                dragController.FindFloating(id)?.Close();
+                closingToolWindow = true;
+                try
+                {
+                    dragController.FindFloating(id)?.Close();
+                }
+                finally
+                {
+                    closingToolWindow = false;
+                }
             }
 
             void SyncGridMapPanel()
             {
                 var selected = world?.Selection.SelectedNode;
                 SyncToolWindow(GridMapToolManaView.PanelId, selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
+                SyncToolWindow(GridMapWfcManaView.PanelId,
+                    selected is ManaVoxel.Code.GridMaps.ManaGridMapNode && ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
                 if (editor == null)
                 {
                     return;
@@ -1017,6 +1041,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // Opened by selecting a grid map, and closed again with it.
                 GridMapToolManaView.PanelId => false,
                 VoxelToolsPanelId => false,
+                GridMapWfcManaView.PanelId => false,
                 _ => true
             };
         }
@@ -1222,7 +1247,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new MenuItem("Panels").WithItems(
                     PanelIds
                         // The tool windows follow the selection; opening them by hand would only show nothing.
-                        .Where(id => id != GridMapToolManaView.PanelId && id != VoxelToolsPanelId)
+                        .Where(id => id != GridMapToolManaView.PanelId && id != VoxelToolsPanelId && id != GridMapWfcManaView.PanelId)
                         .Select(id => new MenuItem(
                                 PanelTitles.TryGetValue(id, out var title) ? title : id,
                                 () => togglePanel(id))

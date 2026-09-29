@@ -1,0 +1,260 @@
+{
+  "format": "mana-wfc",
+  "version": 1,
+  "name": "Dungeon",
+  "boundary": "wall",
+  "connects": "open",
+  "tiles": [
+    {
+      "name": "Empty",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 6.0,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "wall"
+        ],
+        "n": [
+          "wall"
+        ],
+        "w": [
+          "wall"
+        ],
+        "s": [
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Corridor",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 3.0,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "open"
+        ],
+        "n": [
+          "wall"
+        ],
+        "w": [
+          "open"
+        ],
+        "s": [
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Corner",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-corner.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 1.5,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "wall"
+        ],
+        "n": [
+          "open"
+        ],
+        "w": [
+          "open"
+        ],
+        "s": [
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Junction",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-junction.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.8,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "open"
+        ],
+        "n": [
+          "open"
+        ],
+        "w": [
+          "open"
+        ],
+        "s": [
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Crossing",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-intersection.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.3,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "open"
+        ],
+        "n": [
+          "open"
+        ],
+        "w": [
+          "open"
+        ],
+        "s": [
+          "open"
+        ]
+      }
+    },
+    {
+      "name": "Dead end",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-end.glb",
+      "size": [
+        1,
+        1
+      ],
+      "weight": 0.4,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "open"
+        ],
+        "n": [
+          "wall"
+        ],
+        "w": [
+          "wall"
+        ],
+        "s": [
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Small room",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/room-small.glb",
+      "size": [
+        3,
+        3
+      ],
+      "weight": 0.35,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "wall",
+          "open",
+          "wall"
+        ],
+        "n": [
+          "wall",
+          "open",
+          "wall"
+        ],
+        "w": [
+          "wall",
+          "open",
+          "wall"
+        ],
+        "s": [
+          "wall",
+          "open",
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Wide room",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/room-wide.glb",
+      "size": [
+        5,
+        3
+      ],
+      "weight": 0.2,
+      "rotations": "All",
+      "sockets": {
+        "e": [
+          "wall",
+          "open",
+          "wall"
+        ],
+        "n": [
+          "wall",
+          "wall",
+          "open",
+          "wall",
+          "wall"
+        ],
+        "w": [
+          "wall",
+          "open",
+          "wall"
+        ],
+        "s": [
+          "wall",
+          "wall",
+          "open",
+          "wall",
+          "wall"
+        ]
+      }
+    },
+    {
+      "name": "Large room",
+      "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/room-large.glb",
+      "size": [
+        5,
+        5
+      ],
+      "weight": 0.12,
+      "rotations": "None",
+      "sockets": {
+        "e": [
+          "wall",
+          "wall",
+          "open",
+          "wall",
+          "wall"
+        ],
+        "n": [
+          "wall",
+          "wall",
+          "open",
+          "wall",
+          "wall"
+        ],
+        "w": [
+          "wall",
+          "wall",
+          "open",
+          "wall",
+          "wall"
+        ],
+        "s": [
+          "wall",
+          "wall",
+          "open",
+          "wall",
+          "wall"
+        ]
+      }
+    }
+  ]
+}

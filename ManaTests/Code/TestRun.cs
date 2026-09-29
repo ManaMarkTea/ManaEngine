@@ -96,6 +96,7 @@ public static class TestRunner
         ("ManaVoxel", "voxel erase collision cleanup", VoxelEraseCollisionChecks.Run),
         ("ManaVoxel", "level save and load", LevelSerializationChecks.Run),
         ("ManaVoxel", "grid map", GridMapChecks.Run),
+        ("ManaVoxel", "grid map generator", GridMapWfcChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
         ("ManaUI", "window resize grip", WindowChecks.RunGrip),

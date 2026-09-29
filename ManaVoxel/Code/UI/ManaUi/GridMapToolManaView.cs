@@ -124,8 +124,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             floor.WithTooltip("Floor painted on (- / +)");
 
+            var generate = new ManaUI.Button().Label("Generate...").Variant(ButtonVariant.Subtle)
+                .OnClick(() => GridMapWfcEditing.WindowOpen = !GridMapWfcEditing.WindowOpen);
+            generate.BindPolled(button => button.Variant, () => GridMapWfcEditing.WindowOpen ? ButtonVariant.Primary : ButtonVariant.Subtle);
+            generate.WithTooltip("Generate a dungeon (or anything else with rules) into an area of this map.");
+
             return new StackPanel().Vertical(theme.Spacing).Children(
-                    new StackPanel().Horizontal(theme.Spacing).Children(paint, count),
+                    new Grid().Columns("Auto, *, Auto", theme.Spacing).Rows("Auto").Children(
+                        paint.GridColumn(0), count.GridColumn(1), generate.GridColumn(2)),
                     Row(theme, "Cell", InspectorControls.Vector(() => gridMap.CellSize, value => gridMap.CellSize = value, 0.25f)),
                     new Grid().Columns("*, Auto", theme.Spacing * 2.0f).Rows("Auto").Children(
                         Row(theme, "Floor", floor).GridColumn(0),
