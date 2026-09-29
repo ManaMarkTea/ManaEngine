@@ -614,7 +614,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
         }
 
-        private static bool IsThumbnailRequestVisible(UiElement? element)
+        internal static bool IsThumbnailRequestVisible(UiElement? element)
         {
             if (element == null || element.Root == null || element.Bounds.IsEmpty)
             {
@@ -1005,6 +1005,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Null drags just this row's.
         /// </summary>
         public MeshAssetLibrary? Library { get; init; }
+        public Func<List<MenuItem>>? ContextMenuItems { get; init; }
+        public Func<bool>? CanDrag { get; init; }
 
         /// <summary>The modifier keys held when the press that became <see cref="Clicked"/> went down.</summary>
         public UiModifiers ClickModifiers { get; private set; }
@@ -1075,6 +1077,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return;
             }
 
+            if (ContextMenuItems != null)
+            {
+                MenuFlyout.ShowAt(root, position, ContextMenuItems());
+                return;
+            }
             var path = _entry.PrimaryPath;
             var isZip = MeshAssetLibrary.TryDecodeZip(path, out var zipPath, out var entryPath);
 
@@ -1149,7 +1156,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return;
             }
 
-            if (!_pressed || Vector2.Distance(e.Position, _pressedAt) < DragThreshold)
+            if (!_pressed || CanDrag?.Invoke() == false || Vector2.Distance(e.Position, _pressedAt) < DragThreshold)
             {
                 return;
             }
@@ -1237,6 +1244,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     public static class MeshImportRequests
     {
         private static string? _placement;
+        public static string? PendingPlacement => _placement;
         private static string? _drag;
         private static IReadOnlyList<string> _dragAll = [];
         private static IReadOnlyList<string> _paletteAdd = [];

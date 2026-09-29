@@ -1,0 +1,39 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "f0c1d9cd75c24ad1b71ed3051ef68356",
+  "name": "New Prefab",
+  "root": {
+    "id": "f97ca1254db341298a0426e9f2b7fc8a",
+    "name": "Pyramid",
+    "kind": "Shape",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "shape": "Pyramid",
+    "color": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "size": [
+      1,
+      1,
+      1
+    ]
+  },
+  "properties": []
+}

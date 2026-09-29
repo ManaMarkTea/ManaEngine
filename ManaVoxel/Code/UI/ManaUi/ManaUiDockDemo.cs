@@ -32,7 +32,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// toolbar, whose old saved height was more than twice what its content now measures, and 21 is the
         /// default panel set shrinking (see OpensByDefault). 23 adds the Grid Map tool panel.
         /// </summary>
-        private const int LayoutVersion = 23;
+        private const int LayoutVersion = 24;
 
         private static string DefaultLayoutPath =>
             ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
@@ -43,6 +43,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             ["level"] = "Level",
             ["tools"] = "Toolbar",
             ["import"] = "Import",
+            ["project"] = "Project",
             ["blurtest"] = "Blur Test",
             ["outliner"] = "Outliner",
             ["inspector"] = "Inspector",
@@ -86,6 +87,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             "level",
             "tools",
             "import",
+            "project",
             "blurtest",
             "outliner",
             "inspector",
@@ -230,6 +232,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "import" when editor != null => new DockItem(
                     "Import",
                     MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
+                "project" when editor != null && world != null => new DockItem(
+                    "Project", ProjectManaView.Build(theme, world, editor)) { Id = "project" },
                 "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable())
                 {
                     Id = "blurtest"
@@ -590,7 +594,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // Voxel Tools goes back to its own strip, Import to its own, and everything else prefers the
                 // right column.
                 var host = id == "tools" ? top
-                    : id == "import" ? bottom
+                    : id is "import" or "project" ? bottom
                     : right.RootNode != null ? right : left;
                 host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
@@ -859,7 +863,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Voxel Tools and Import get their own strips regardless of preset, so a preset only has to
             // arrange the two columns.
             Place(top, resolve, "tools", DockSide.Center);
-            Place(bottom, resolve, "import", DockSide.Center);
+            var import = Place(bottom, resolve, "import", DockSide.Center);
+            Place(bottom, resolve, "project", DockSide.Center, import);
 
             switch (preset)
             {
@@ -1019,7 +1024,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     continue;
                 }
 
-                if (id == "import")
+                if (id is "import" or "project")
                 {
                     bottom.Dock(item, DockSide.Center, DockHost.FindFirstGroup(bottom.RootNode));
                     continue;

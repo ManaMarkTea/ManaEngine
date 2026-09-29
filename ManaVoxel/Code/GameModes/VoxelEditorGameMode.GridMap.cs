@@ -726,6 +726,7 @@ namespace Mana.Code.GameModes
             var leftDown = mouse.IsButtonPressed(MouseButton.Left);
             if (leftDown || !_meshPickerDragWasDown
                 || MeshImportRequests.Dragging == null
+                || Path.GetExtension(MeshImportRequests.Dragging) == ManaVoxel.Code.Assets.ManaPrefab.Extension
                 || Context.World.Selection.SelectedNode is not ManaGridMapNode map
                 || ManaUi is not { } ui
                 || !GridMapToolManaView.IsOverPalette(ui.Root.Input.PointerPosition))
@@ -747,7 +748,10 @@ namespace Mana.Code.GameModes
         private bool TakeGridPaletteRequest(IMouse mouse)
         {
             var target = GridMapEditing.Target;
-            if (target == null)
+            if (target == null
+                || Path.GetExtension(MeshImportRequests.PendingPlacement) == ManaVoxel.Code.Assets.ManaPrefab.Extension
+                || Path.GetExtension(MeshImportRequests.Dragging) == ManaVoxel.Code.Assets.ManaPrefab.Extension
+                || _meshPickerPreviewNode?.PrefabLink != null)
             {
                 return false;
             }

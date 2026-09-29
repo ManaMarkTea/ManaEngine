@@ -94,6 +94,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var node = snapshot.Node!;
             var sections = new StackPanel().Vertical(inspector.Theme.Spacing * 2.0f);
+            sections.Children.Add(ProjectManaView.BuildInspector(inspector.Theme, node));
             sections.Children.Add(InspectorCard(
                 "NODE PROPERTIES", BuildSubject(node, inspector), inspector.Theme));
             sections.Children.Add(BuildNodeActions(node, inspector));

@@ -138,7 +138,7 @@ namespace ManaVoxel.Code.Assets
         public void Request(string assetPath)
         {
             var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
-            if (catalog != null && !catalog.IsReady(assetPath) && catalog.ThumbnailPathOf(assetPath) == null)
+            if (Path.GetExtension(assetPath) != ManaPrefab.Extension && catalog != null && !catalog.IsReady(assetPath) && catalog.ThumbnailPathOf(assetPath) == null)
             {
                 return;
             }
@@ -332,6 +332,7 @@ namespace ManaVoxel.Code.Assets
 
         private byte[]? Generate(string assetPath)
         {
+            if (Path.GetExtension(assetPath) == ManaPrefab.Extension) { return GenerateViaCpuStandalone(_context, assetPath); }
             if (_webGpuContext != null)
             {
                 try
@@ -457,6 +458,10 @@ namespace ManaVoxel.Code.Assets
         public static byte[]? GenerateViaCpuStandalone(
             ManaContext context, string assetPath, Func<string, byte[]?>? externalAssetResolver = null)
         {
+            if (Path.GetExtension(assetPath) == ManaPrefab.Extension)
+            {
+                return GeneratePrefabThumbnail(assetPath);
+            }
             // CPU-only either way: this loads geometry and material colour, nothing else, so it touches no
             // graphics device and is safe away from the render thread. A full LoadFile would build materials
             // and upload buffers.
@@ -467,6 +472,32 @@ namespace ManaVoxel.Code.Assets
             return cpuData == null
                 ? null
                 : MeshThumbnailRasterizer.Render(cpuData, ThumbnailSize, new Vector4(0.82f, 0.84f, 0.88f, 1.0f));
+        }
+
+        private static byte[]? GeneratePrefabThumbnail(string path)
+        {
+            // A separate CPU-only context prevents thumbnail loading from touching the live scene,
+            // renderer, physics or script state on the worker thread.
+            var world = new ManaWorld();
+            var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+            world.Context = context;
+            world.DefaultScene = new ManaScene(context);
+            world.Scenes.Add(world.DefaultScene);
+            var prefab = ManaPrefab.Load(path);
+            void StripRuntime(Levels.ManaLevelNode node)
+            {
+                node.Collision = null;
+                node.ChildColliders = null;
+                node.Scripts = null;
+                if (node.GridMap != null) { node.GridMap.Collision = false; }
+                foreach (var child in node.Children ?? []) { StripRuntime(child); }
+            }
+            StripRuntime(prefab.Root);
+            Levels.ManaLevelLoader.Load(new Levels.ManaLevel { Nodes = [prefab.Root] }, context, world.DefaultScene, false);
+            var root = new ManaSceneNode(context, Matrix4x4.Identity);
+            foreach (var node in world.DefaultScene.Children) { root.Children.Add(node); }
+            var data = FlattenSharpGltfSceneToCpuMesh(root);
+            return data == null ? null : MeshThumbnailRasterizer.Render(data, ThumbnailSize, Vector4.One);
         }
 
         private static ManaMeshCpuData? GenerateFromFileStandalone(

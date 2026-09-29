@@ -8,6 +8,7 @@ using Mana.Code.UI;
 using ManaVoxel.Code.Services;
 using ManaVoxel.Code.Tools;
 using ManaVoxel.Code.Assets;
+using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.Search;
 using ManaVoxel.Code.UI;
 using ManaVoxel.Code.UI.ManaUi;
@@ -1294,6 +1295,15 @@ namespace Mana.Code.GameModes
             };
         }
 
+        private bool IsPlacementPreview(ManaSceneNode node)
+        {
+            for (var current = node; current != null; current = current.Parent)
+            {
+                if (ReferenceEquals(current, _meshPickerPreviewNode)) { return true; }
+            }
+            return false;
+        }
+
         RayHit GetProjectedMouseHit()
         {
             var MouseState = Context.Input.Mice.FirstOrDefault();
@@ -1307,7 +1317,12 @@ namespace Mana.Code.GameModes
 
             var ray = Context.World.MainCamera.ProjectScreenToWorld(mouseStart, mouseEnd);
 
-            var hitHandler = new SingleHitHandler();
+            var hitHandler = new SingleHitHandler
+            {
+                Filter = collidable => collidable.Mobility == BepuPhysics.Collidables.CollidableMobility.Static
+                    || !Context.Physics.PhysicsMap.TryGetValue(collidable.BodyHandle, out var collision)
+                    || !IsPlacementPreview(collision.Owner)
+            };
             Context.Physics.Simulation.RayCast(ray.Origin, ray.Direction, 10000.0f, Context.Physics.BufferPool, ref hitHandler, 0);
 
             RayHit hit = new RayHit();
@@ -1595,14 +1610,21 @@ namespace Mana.Code.GameModes
 
             CancelMeshPickerPlacementPreview();
 
-            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog && !catalog.IsReady(assetReference))
+            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog && (Path.GetExtension(assetReference) == ManaPrefab.Extension || !catalog.IsReady(assetReference)))
             {
                 _meshDownloadPath = assetReference;
                 var generation = _meshDownloadGeneration;
                 try
                 {
                     _viewModel.Levels.SetStatus("Downloading selected asset…");
-                    await catalog.EnsureAsync(assetReference);
+                    if (Path.GetExtension(assetReference) == ManaPrefab.Extension)
+                    {
+                        await ManaLevelLoader.EnsureAssetsAsync(new ManaLevel { Nodes = [ManaPrefab.Load(assetReference).Root] });
+                    }
+                    else
+                    {
+                        await catalog.EnsureAsync(assetReference);
+                    }
                     if (generation != _meshDownloadGeneration) return;
                     _viewModel.Levels.SetStatus("Asset ready — click in the scene to place it.");
                 }
@@ -1632,6 +1654,7 @@ namespace Mana.Code.GameModes
                 var previewNode = LoadMeshPickerAsset(assetReference);
                 _meshPickerPreviewAssetPath = assetReference;
                 _meshPickerPreviewNode = previewNode;
+                if (previewNode.PrefabLink != null) { previewNode.IsEditorTransient = true; }
                 _meshPickerPreviewSceneStartIndex = sceneStart;
                 _meshPickerPreviewMeshStartIndex = meshStart;
                 _meshPickerPreviewMaterialStartIndex = materialStart;
@@ -1766,6 +1789,7 @@ namespace Mana.Code.GameModes
                 _meshPickerPreviewMeshStartIndex >= 0 &&
                 _meshPickerPreviewMaterialStartIndex >= 0)
             {
+                if (placedNode.PrefabLink != null) { placedNode.IsEditorTransient = false; }
                 var insertion = EditorWorldInsertion.Capture(
                     world,
                     _meshPickerPreviewSceneStartIndex,
@@ -1776,7 +1800,12 @@ namespace Mana.Code.GameModes
                     ?? EditorSelectionSnapshot.Capture(world.Selection);
 
                 EditorSelectionSnapshot.SelectNode(world.Selection, placedNode, sceneGraphChanged: true);
-                if (!insertion.IsEmpty)
+                if (placedNode.PrefabLink != null)
+                {
+                    // Prefabs may own physics and audio; the mesh-only insertion undo cannot restore those yet.
+                    _viewModel.History.Clear();
+                }
+                else if (!insertion.IsEmpty)
                 {
                     var displayName = !string.IsNullOrWhiteSpace(assetPath)
                         ? MeshAssetLibrary.DisplayName(assetPath)
@@ -1823,6 +1852,10 @@ namespace Mana.Code.GameModes
 
         private ManaSceneNode LoadMeshPickerAsset(string assetReference)
         {
+            if (Path.GetExtension(assetReference) == ManaPrefab.Extension)
+            {
+                return ProjectAssets.InstantiateForPlacement(assetReference);
+            }
             // Straight into the scene the editor is working in, not a scene of its own per drag.
             var scene = _viewModel.ActiveScene ?? Context.World.DefaultScene;
 
@@ -1854,6 +1887,7 @@ namespace Mana.Code.GameModes
                 // The preview lives in an existing scene now, so it has to be taken out of it by hand.
                 if (previewNode != null)
                 {
+                    if (previewNode.PrefabLink != null) { ManaPrefabRuntime.Destroy(previewNode); }
                     foreach (var scene in world.Scenes)
                     {
                         scene.Children.Remove(previewNode);

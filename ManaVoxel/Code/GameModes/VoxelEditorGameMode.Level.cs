@@ -197,12 +197,25 @@ namespace Mana.Code.GameModes
 
         bool IManaLevelHost.IsPlaying => IsPlaying;
 
-        public bool CanPlay => !IsLoading && !_openingLevel && _playMode != null;
+        private ProjectAssetViewModel ProjectAssets => ProjectAssetViewModel.For(Context.World, _viewModel);
+
+        public bool CanPlay => !IsLoading && !_openingLevel && _playMode != null && !ProjectAssets.IsEditing;
+
+        private bool PrefabEditingBlocksLevelAction()
+        {
+            if (!ProjectAssets.IsEditing)
+            {
+                return false;
+            }
+            _viewModel.Levels.SetStatus("Save and close, or discard the prefab edit in the Project panel first.");
+            return true;
+        }
 
         public bool HasPlayerStart => ManaPlayerStartNode.Find(Context.World) != null;
 
         public void NewLevel()
         {
+            if (PrefabEditingBlocksLevelAction()) { return; }
             if (IsLoading || _openingLevel)
             {
                 return;
@@ -225,6 +238,7 @@ namespace Mana.Code.GameModes
 
         public async void OpenLevel(string path)
         {
+            if (PrefabEditingBlocksLevelAction()) { return; }
             if (IsLoading || _openingLevel)
             {
                 return;
@@ -301,6 +315,12 @@ namespace Mana.Code.GameModes
 
         public void SaveLevel(string path)
         {
+            if (ProjectAssets.IsEditing)
+            {
+                ProjectAssets.SavePrefab();
+                _viewModel.Levels.SetStatus(ProjectAssets.Status);
+                return;
+            }
             if (IsLoading)
             {
                 return;
@@ -355,6 +375,11 @@ namespace Mana.Code.GameModes
 
         public void SaveScene(ManaScene scene)
         {
+            if (ProjectAssets.IsEditing)
+            {
+                ProjectAssets.SavePrefab();
+                return;
+            }
             if (IsLoading)
             {
                 return;
@@ -449,6 +474,7 @@ namespace Mana.Code.GameModes
 
         public void TogglePlay()
         {
+            if (PrefabEditingBlocksLevelAction()) { return; }
             if (_playMode == null || IsLoading || _openingLevel)
             {
                 return;
@@ -475,6 +501,7 @@ namespace Mana.Code.GameModes
 
         public void PlayFromCamera()
         {
+            if (PrefabEditingBlocksLevelAction()) { return; }
             if (_playMode == null || IsLoading || _openingLevel || _playMode.IsPlaying)
             {
                 return;
@@ -497,6 +524,7 @@ namespace Mana.Code.GameModes
         /// </summary>
         public void PlayInNewWindow()
         {
+            if (PrefabEditingBlocksLevelAction()) { return; }
             if (IsLoading)
             {
                 return;

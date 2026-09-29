@@ -254,6 +254,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             return node.LevelSource?.Kind switch
             {
+                ManaLevelSourceKind.Prefab => new Vector4(0.25f, 0.80f, 0.90f, 1.0f),
                 ManaLevelSourceKind.Group => SceneIconColor,
                 ManaLevelSourceKind.Shape => new Vector4(0.62f, 0.74f, 0.95f, 1.0f),
                 ManaLevelSourceKind.Mesh => MeshRendererIconColor,
@@ -267,6 +268,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             return node.LevelSource?.Kind switch
             {
+                ManaLevelSourceKind.Prefab => OutlinerIconKind.Group,
                 ManaLevelSourceKind.Group => OutlinerIconKind.Group,
                 ManaLevelSourceKind.Shape => OutlinerIconKind.Shape,
                 ManaLevelSourceKind.Mesh => OutlinerIconKind.Mesh,
@@ -446,6 +448,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     BuildAddNodeMenu(owningScene, node),
                     BuildMoveToSceneMenu(_world, _selection, node),
                     addComponent,
+                    new MenuItem("Make Prefab", () => ProjectAssetViewModel.For(_world).CreatePrefab(node))
+                        .EnabledWhen(() => ProjectAssetViewModel.For(_world).CanCreatePrefab(node)),
                     MenuItem.Separator(),
                     new MenuItem("Delete Node",
                             () => SceneEditorOperations.DeleteNode(_world, _selection, node))

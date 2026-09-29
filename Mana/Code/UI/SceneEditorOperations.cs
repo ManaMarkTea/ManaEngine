@@ -281,7 +281,7 @@ namespace Mana.Code.UI
             return false;
         }
 
-        private static ManaScene? FindOwningScene(ManaWorld world, ManaSceneNode node)
+        public static ManaScene? FindOwningScene(ManaWorld world, ManaSceneNode node)
         {
             foreach (var scene in world.Scenes)
             {

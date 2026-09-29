@@ -18,7 +18,7 @@ namespace ManaVoxel.Code.Levels
         public const string FormatName = "mana-level";
 
         /// <summary>Bump when an older file can no longer be read as-is.</summary>
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
 
         public const string FileExtension = ".manalevel";
 
@@ -125,6 +125,8 @@ namespace ManaVoxel.Code.Levels
     /// </summary>
     public sealed class ManaLevelNode
     {
+        public string? Id { get; set; }
+        public Assets.ManaPrefabReference? Prefab { get; set; }
         public string Name { get; set; } = string.Empty;
 
         public ManaLevelSourceKind Kind { get; set; }
@@ -225,6 +227,7 @@ namespace ManaVoxel.Code.Levels
     /// <summary>Scene-node behavior data, like a tiny Godot-style script attachment.</summary>
     public sealed class ManaLevelScript
     {
+        public string? Id { get; set; }
         public string Type { get; set; } = string.Empty;
 
         /// <summary>The name a person gave this component, when they did; see <c>ManaComponent.Label</c>.</summary>

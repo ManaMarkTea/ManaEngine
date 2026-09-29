@@ -97,6 +97,7 @@ public static class TestRunner
         ("ManaVoxel", "voxel shape direct edit (paint/erase/flood fill)", VoxelShapeDirectEditChecks.Run),
         ("ManaVoxel", "voxel erase collision cleanup", VoxelEraseCollisionChecks.Run),
         ("ManaVoxel", "level save and load", LevelSerializationChecks.Run),
+        ("ManaVoxel", "prefab assets, overrides and grid presets", PrefabChecks.Run),
         ("ManaVoxel", "grid map", GridMapChecks.Run),
         ("ManaVoxel", "grid map generator", GridMapWfcChecks.Run),
         ("ManaVoxel", "ui designer", UiDesignerChecks.Run),

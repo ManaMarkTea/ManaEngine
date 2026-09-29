@@ -28,6 +28,7 @@ namespace Mana.Code
     {
         public List<RayHit> Hits;
         public RayHit? ClosestHit;
+        public Func<CollidableReference, bool>? Filter;
 
         public SingleHitHandler()
         {
@@ -37,7 +38,7 @@ namespace Mana.Code
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool AllowTest(CollidableReference collidable)
         {
-            return true;
+            return Filter?.Invoke(collidable) ?? true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

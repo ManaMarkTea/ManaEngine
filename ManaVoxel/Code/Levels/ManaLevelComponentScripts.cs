@@ -134,6 +134,7 @@ namespace ManaVoxel.Code.Levels
                 scripts ??= new List<ManaLevelScript>();
                 scripts.Add(new ManaLevelScript
                 {
+                    Id = component.AuthoredId,
                     Type = definition.Type,
                     Name = string.IsNullOrWhiteSpace(component.Label) ? null : component.Label,
                     Properties = ManaLevelComponentPropertyBag.Capture(component, definition.ComponentType)
@@ -179,6 +180,10 @@ namespace ManaVoxel.Code.Levels
             }
 
             ManaLevelComponentPropertyBag.Apply(component, definition.ComponentType, script.Properties);
+            if (!string.IsNullOrWhiteSpace(script.Id))
+            {
+                component.AuthoredId = script.Id;
+            }
 
             // Levels saved before volumes had a component of their own kept size and offset inside each piece's script.
             if (component is ManaTriggerListenerComponent listener)

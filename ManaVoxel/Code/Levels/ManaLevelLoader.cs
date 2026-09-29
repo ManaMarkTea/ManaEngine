@@ -108,6 +108,15 @@ namespace ManaVoxel.Code.Levels
             }
 
             result.VoxelsNode = state.VoxelNodes.FirstOrDefault();
+#if !MANA_BROWSER
+            // What each instance looked like as loaded, for the editor to tell later edits from overrides. The
+            // browser build only plays, and has no capture to do it with.
+            foreach (var instance in result.Nodes.Where(n => n.PrefabLink?.BaselineJson != null && n.Children.Count == 1))
+            {
+                instance.PrefabLink!.AppliedJson = System.Text.Json.JsonSerializer.Serialize(
+                    ManaLevelCapture.CaptureSubtree(instance.Children[0]), ManaLevel.SerializerOptions);
+            }
+#endif
 
             if (level.Camera != null && world.CameraNode != null)
             {
@@ -238,6 +247,25 @@ namespace ManaVoxel.Code.Levels
                     return null;
                 }
 
+                if (!string.IsNullOrWhiteSpace(entry.Id))
+                {
+                    node.AuthoredId = entry.Id;
+                }
+                if (parent != null)
+                {
+                    lock (state.Context.World.SceneLock)
+                    {
+                        state.Scene.Children.Remove(node);
+                    }
+                }
+                if (entry.Kind is not (ManaLevelSourceKind.Group or ManaLevelSourceKind.Prefab))
+                {
+                    foreach (var child in entry.Children ?? [])
+                    {
+                        TryLoadNode(child, state, node);
+                    }
+                }
+
                 state.Result.Nodes.Add(node);
                 if (node is ManaPlayerStartNode start)
                 {
@@ -269,6 +297,38 @@ namespace ManaVoxel.Code.Levels
         {
             switch (entry.Kind)
             {
+                case ManaLevelSourceKind.Prefab:
+                    var instance = LoadGroup(new ManaLevelNode
+                    {
+                        Name = entry.Name, Position = entry.Position, Rotation = entry.Rotation, Scale = entry.Scale, Scripts = entry.Scripts
+                    }, state, parent);
+                    instance.LevelSource = new ManaLevelSource { Kind = ManaLevelSourceKind.Prefab };
+                    var reference = entry.Prefab ?? throw new InvalidDataException("Missing prefab reference.");
+                    instance.PrefabLink = new ManaPrefabLink
+                    {
+                        AssetId = reference.AssetId, AssetPath = reference.AssetPath,
+                        OverridesJson = System.Text.Json.JsonSerializer.Serialize(reference.Overrides, ManaLevel.SerializerOptions)
+                    };
+                    try
+                    {
+                        var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
+                        var prefab = ManaPrefab.Load(path);
+                        instance.PrefabLink.AssetPath = ManaContentLibrary.Reference(path);
+                        instance.PrefabLink.BaselineJson = System.Text.Json.JsonSerializer.Serialize(prefab.Root, ManaLevel.SerializerOptions);
+                        var resolved = ManaPrefabOverrides.Resolve(prefab.Root, reference.Overrides, state.Result.Warnings);
+                        new ManaPrefab { Root = resolved }.Validate();
+                        if (TryLoadNode(resolved, state, instance) == null)
+                        {
+                            instance.PrefabLink.BaselineJson = null;
+                        }
+                    }
+                    catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException or InvalidOperationException)
+                    {
+                        instance.PrefabLink.BaselineJson = null;
+                        state.Result.Warnings.Add($"Prefab '{entry.Name}': {exception.Message} The reference and overrides were preserved.");
+                    }
+                    return instance;
+
                 case ManaLevelSourceKind.Group:
                     return LoadGroup(entry, state, parent);
 
@@ -623,6 +683,20 @@ namespace ManaVoxel.Code.Levels
             var nodes = new Queue<ManaLevelNode>(level.Nodes);
             while (nodes.TryDequeue(out var node))
             {
+                if (node.Prefab is { } reference)
+                {
+                    try
+                    {
+                        var source = ManaPrefab.Load(ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath));
+                        var resolved = ManaPrefabOverrides.Resolve(source.Root, reference.Overrides);
+                        new ManaPrefab { Root = resolved }.Validate();
+                        nodes.Enqueue(resolved);
+                    }
+                    catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException)
+                    {
+                        ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload prefab '{reference.AssetPath}': {exception.Message}");
+                    }
+                }
                 foreach (var script in node.Scripts ?? [])
                 {
                     if (!string.Equals(script.Type, ManaAudioSourceComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) { continue; }

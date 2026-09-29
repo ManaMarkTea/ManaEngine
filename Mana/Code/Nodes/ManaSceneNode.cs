@@ -116,6 +116,10 @@ namespace Mana.Code.Nodes
         /// </summary>
         public Levels.ManaLevelSource? LevelSource { get; set; }
 
+        private string? _authoredId;
+        public string AuthoredId { get => _authoredId ??= Guid.NewGuid().ToString("N"); set => _authoredId = value; }
+        public Levels.ManaPrefabLink? PrefabLink { get; set; }
+
         public override string ToString()
         {
             return $"{Name}";

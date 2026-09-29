@@ -18,6 +18,9 @@ namespace Mana
         /// </summary>
         public string? Label { get; set; }
 
+        private string? _authoredId;
+        public string AuthoredId { get => _authoredId ??= Guid.NewGuid().ToString("N"); set => _authoredId = value; }
+
 
         public ManaSceneNode Owner { get; set; }
         public ManaComponent(ManaSceneNode owner) : base(owner.Context)

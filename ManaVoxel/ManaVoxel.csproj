@@ -32,6 +32,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\Content\**\*.manaprefab;..\Content\**\*.managridpreset">
+      <Link>Content\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />

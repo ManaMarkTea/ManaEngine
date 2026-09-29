@@ -25,7 +25,10 @@ namespace Mana.Code.Levels
         Water,
 
         /// <summary>A grid of mesh tiles painted from a palette, whose cells are written into the level itself.</summary>
-        GridMap
+        GridMap,
+
+        /// <summary>A linked instance of a project prefab.</summary>
+        Prefab
     }
 
     /// <summary>

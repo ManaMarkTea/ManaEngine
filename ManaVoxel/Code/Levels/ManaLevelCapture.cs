@@ -13,11 +13,9 @@ namespace ManaVoxel.Code.Levels
     /// <summary>
     /// Walks a world and writes down what somebody placed in it.
     /// <para>
-    /// The rule is one line long: a node is captured when it carries a <see cref="ManaLevelSource"/>, and
-    /// its subtree is not walked any further once it is, except for authored groups. That second half
-    /// matters -- an imported GLB arrives as a whole hierarchy of mesh nodes under the one node that knows
-    /// which asset it came from, and capturing the children as well would save the same model twice, once
-    /// as a reference and once as a pile of nodes nothing knows how to rebuild.
+    /// Nodes carrying a <see cref="ManaLevelSource"/> are captured together with explicitly authored
+    /// children. Imported model internals and generated helper geometry are rebuilt by their owners.
+    /// Prefab roots instead retain their source reference and instance overrides.
     /// </para>
     /// </summary>
     public static class ManaLevelCapture
@@ -100,8 +98,21 @@ namespace ManaVoxel.Code.Levels
             }
         }
 
+        public static ManaLevelNode CaptureSubtree(ManaSceneNode node)
+        {
+            lock (node.Context.World.SceneLock)
+            {
+                return node.LevelSource is { } source && CaptureSource(node, source) is { } captured
+                    ? captured : throw new InvalidDataException("Select an authored node or group.");
+            }
+        }
+
         private static void CaptureNode(ManaSceneNode node, List<ManaLevelNode> output)
         {
+            if (node.IsEditorTransient)
+            {
+                return;
+            }
             if (node.LevelSource is { } source)
             {
                 var captured = CaptureSource(node, source);
@@ -110,8 +121,7 @@ namespace ManaVoxel.Code.Levels
                     output.Add(captured);
                 }
 
-                // Whether or not it produced an entry, an authored non-group node's subtree belongs to it
-                // -- see the class comment.
+                // CaptureSource handles this node's explicitly authored descendants.
                 return;
             }
 
@@ -125,6 +135,7 @@ namespace ManaVoxel.Code.Levels
         {
             var entry = new ManaLevelNode
             {
+                Id = node.AuthoredId,
                 Name = node.Name,
                 Kind = source.Kind,
                 Position = ToArray(node.Position),
@@ -134,6 +145,10 @@ namespace ManaVoxel.Code.Levels
 
             switch (source.Kind)
             {
+                case ManaLevelSourceKind.Prefab:
+                    entry.Prefab = ManaPrefabRuntime.CaptureReference(node);
+                    entry.Scripts = CaptureScripts(node);
+                    return entry;
                 case ManaLevelSourceKind.Group:
                     entry.Children = new List<ManaLevelNode>();
                     foreach (var child in node.Children)
@@ -171,11 +186,6 @@ namespace ManaVoxel.Code.Levels
                     }
 
                     var voxels = voxelsNode.VoxelShape.CommittedVoxels;
-                    if (voxels.Count == 0)
-                    {
-                        return null;
-                    }
-
                     entry.Asset = source.Asset;
                     entry.Voxels = ManaLevelVoxelCodec.Encode(voxels);
                     break;
@@ -242,6 +252,20 @@ namespace ManaVoxel.Code.Levels
             }
 
             entry.Scripts = CaptureScripts(node);
+            if (source.Kind != ManaLevelSourceKind.Group)
+            {
+                // Imported/generated descendants have no authored source. Explicitly authored children
+                // do, and belong to the scene tree regardless of their parent's node type.
+                entry.Children = new List<ManaLevelNode>();
+                foreach (var child in node.Children.Where(child => child.LevelSource != null && !child.IsEditorTransient))
+                {
+                    CaptureNode(child, entry.Children);
+                }
+                if (entry.Children.Count == 0)
+                {
+                    entry.Children = null;
+                }
+            }
             if (source.Kind == ManaLevelSourceKind.Mesh)
                 entry.ChildColliders = ManaLevelMeshColliders.Capture(node);
             return entry;
