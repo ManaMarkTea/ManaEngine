@@ -79,6 +79,7 @@ public static class TestRunner
         ("ManaUI", "dock drop indicators", DockDropIndicatorChecks.Run),
         ("ManaUI", "tab rows", TabRowChecks.Run),
         ("Mana", "pawn movement", PawnMovementChecks.Run),
+        ("Mana", "pawn landing", PawnLandingChecks.Run),
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),

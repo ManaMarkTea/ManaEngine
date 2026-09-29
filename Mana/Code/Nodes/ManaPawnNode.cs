@@ -578,6 +578,9 @@ namespace Mana.Code.Nodes
 
         private const float DefaultGravity = 64.0f;
 
+        // Resting on the floor still leaves a sliver of gap to the probe; only more than this is closed.
+        private const float GroundSnapSlop = 0.03f;
+
         private void StepPhysicsLocomotion(float deltaSeconds)
         {
             var body = Body!;
@@ -701,6 +704,14 @@ namespace Mana.Code.Nodes
                 else if (velocity.Y < 0.0f)
                 {
                     velocity.Y = 0.0f;
+                }
+
+                // Standing starts when the floor comes in reach of the ground probe, a quarter unit below the
+                // feet, and standing stops the fall. So the gap left is closed now, in one step: otherwise the
+                // pawn crept down it a frame of gravity at a time, sinking into place after every landing.
+                if (body.GroundDistance > GroundSnapSlop && body.GroundDistance < float.MaxValue)
+                {
+                    velocity.Y = MathF.Min(velocity.Y, -(body.GroundDistance - GroundSnapSlop * 0.5f) / deltaSeconds);
                 }
             }
             else if (velocity.Y < 0.0f)
