@@ -76,16 +76,16 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             var add = new ManaUI.Button().Label("Add").Variant(ButtonVariant.Subtle).OnClick(() =>
             {
-                if (ManaUiDockDemo.MeshAssets.SelectedAsset is { Length: > 0 } selected)
+                if (ManaUiDockDemo.MeshAssets.SelectedAssets is { Count: > 0 } selected)
                 {
-                    // Through the request double-clicking makes, so a model still downloading on the web joins
-                    // once it has arrived rather than as a tile that failed to load.
+                    // Through the requests the editor drains while painting, so a model still downloading on the
+                    // web joins once it has arrived rather than as a tile that failed to load.
                     GridMapEditing.Begin(gridMap);
-                    MeshImportRequests.RequestPlacement(selected);
+                    MeshImportRequests.RequestPaletteAdd(selected);
                 }
             });
             add.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(ManaUiDockDemo.MeshAssets.SelectedAsset));
-            add.WithTooltip("Add the model selected in the asset browser.");
+            add.WithTooltip("Add the models selected in the asset browser (Ctrl or Shift click to pick several).");
 
             var remove = new ManaUI.Button().Label("Remove").Variant(ButtonVariant.Subtle).OnClick(() =>
             {

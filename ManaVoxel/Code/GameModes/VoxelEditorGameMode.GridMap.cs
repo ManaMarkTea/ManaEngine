@@ -688,6 +688,21 @@ namespace Mana.Code.GameModes
             ReplaceGridOverlay(ref _gridGeneratorOverlay, map, new List<ManaLinePolyline> { outline }, GridGeneratorAreaColor, 0.08f, "Grid Map Generator Area", opacity: 0.9f);
         }
 
+        /// <summary>
+        /// Takes every grid map helper out of the scene -- brush, outlines, the generator's area -- and stops
+        /// painting. For play, where the update that would otherwise keep them in step does not run.
+        /// </summary>
+        private void HideGridMapEditorVisuals()
+        {
+            GridMapEditing.Stop();
+            EndGridStroke();
+            HideGridBrush();
+            HideGridOverlay(ref _gridFilledOverlay);
+            _gridFilledOverlayKey = null;
+            HideGridOverlay(ref _gridGeneratorOverlay);
+            _gridGeneratorOverlayKey = null;
+        }
+
         private bool IsInWorld(ManaSceneNode node)
         {
             var root = node;
@@ -718,10 +733,7 @@ namespace Mana.Code.GameModes
                 return false;
             }
 
-            if (MeshImportRequests.TakeDrag() is { } dropped)
-            {
-                AddToGridPalette(map, dropped);
-            }
+            AddAllToGridPalette(map, MeshImportRequests.TakeDragAll());
 
             MeshAssetRow.ForceEndActiveDrag();
             _meshPickerDragWasDown = false;
@@ -745,13 +757,16 @@ namespace Mana.Code.GameModes
                 AddToGridPalette(target, picked);
             }
 
+            AddAllToGridPalette(target, MeshImportRequests.TakePaletteAdd());
+
             var leftDown = mouse.IsButtonPressed(MouseButton.Left);
             if (!leftDown && _meshPickerDragWasDown && MeshImportRequests.Dragging != null)
             {
-                var dropped = MeshImportRequests.TakeDrag();
-                if (dropped != null && !MeshImportRequests.PointerOverUi)
+                var overUi = MeshImportRequests.PointerOverUi;
+                var dropped = MeshImportRequests.TakeDragAll();
+                if (!overUi)
                 {
-                    AddToGridPalette(target, dropped);
+                    AddAllToGridPalette(target, dropped);
                 }
 
                 MeshAssetRow.ForceEndActiveDrag();
@@ -759,6 +774,20 @@ namespace Mana.Code.GameModes
 
             _meshPickerDragWasDown = leftDown;
             return true;
+        }
+
+        /// <summary>Adds several models, in order, and makes the first of them the brush.</summary>
+        private void AddAllToGridPalette(ManaGridMapNode target, IReadOnlyList<string> assets)
+        {
+            foreach (var asset in assets)
+            {
+                AddToGridPalette(target, asset);
+            }
+
+            if (assets.Count > 1 && target.Palette.ToList().FindIndex(item => string.Equals(item, assets[0], StringComparison.OrdinalIgnoreCase)) is var first and >= 0)
+            {
+                GridMapEditing.Brush = first;
+            }
         }
 
         /// <summary>

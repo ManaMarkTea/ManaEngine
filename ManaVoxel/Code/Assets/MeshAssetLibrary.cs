@@ -81,7 +81,87 @@ namespace ManaVoxel.Code.Assets
         /// <summary>Set when archives could not be read. A warning rather than a failure: the rest still scanned.</summary>
         public string? ScanError { get; private set; }
 
-        public string? SelectedAsset { get; set; }
+        private string? _selectedAsset;
+        private readonly List<string> _selection = new();
+
+        /// <summary>
+        /// The asset last clicked -- the one single-asset actions (Place, Use selected) act on. Setting it
+        /// selects it alone.
+        /// </summary>
+        public string? SelectedAsset
+        {
+            get => _selectedAsset;
+            set
+            {
+                _selectedAsset = value;
+                _selection.Clear();
+                if (value != null)
+                {
+                    _selection.Add(value);
+                }
+            }
+        }
+
+        /// <summary>Every selected asset, in the order the grid shows them. Holds <see cref="SelectedAsset"/> when it is set.</summary>
+        public IReadOnlyList<string> SelectedAssets => _selection;
+
+        public bool IsSelected(string path) => _selection.Contains(path, StringComparer.Ordinal);
+
+        /// <summary>
+        /// A click on an asset: alone it selects just that one; <paramref name="toggle"/> (Ctrl) adds or removes
+        /// it; <paramref name="range"/> (Shift) selects everything shown from the last one clicked to this.
+        /// </summary>
+        public void Click(string path, bool toggle, bool range)
+        {
+            if (range && _selectedAsset != null)
+            {
+                var order = FilteredEntries.Select(entry => entry.PrimaryPath).ToList();
+                var from = order.IndexOf(_selectedAsset);
+                var to = order.IndexOf(path);
+                if (from >= 0 && to >= 0)
+                {
+                    var span = order.GetRange(Math.Min(from, to), Math.Abs(to - from) + 1);
+                    if (!toggle)
+                    {
+                        _selection.Clear();
+                    }
+
+                    foreach (var item in span.Where(item => !_selection.Contains(item, StringComparer.Ordinal)))
+                    {
+                        _selection.Add(item);
+                    }
+
+                    // The anchor stays where it was, so a second shift-click re-draws the range from it.
+                    SortSelection(order);
+                    return;
+                }
+            }
+
+            if (toggle)
+            {
+                if (_selection.Remove(path))
+                {
+                    _selectedAsset = _selection.LastOrDefault();
+                }
+                else
+                {
+                    _selection.Add(path);
+                    _selectedAsset = path;
+                    SortSelection(FilteredEntries.Select(entry => entry.PrimaryPath).ToList());
+                }
+
+                return;
+            }
+
+            SelectedAsset = path;
+        }
+
+        private void SortSelection(List<string> order)
+        {
+            var sorted = _selection.OrderBy(item => order.IndexOf(item) is var index and >= 0 ? index : int.MaxValue).ToList();
+            _selection.Clear();
+            _selection.AddRange(sorted);
+        }
 
         public string Filter
         {
@@ -276,6 +356,8 @@ namespace ManaVoxel.Code.Assets
             {
                 SelectedAsset = null;
             }
+
+            _selection.RemoveAll(item => !_assets.Contains(item, StringComparer.OrdinalIgnoreCase));
 
             Invalidate();
             _folderTreeDirty = true;

@@ -99,6 +99,7 @@ public static class TestRunner
         ("ManaVoxel", "grid map", GridMapChecks.Run),
         ("ManaVoxel", "grid map generator", GridMapWfcChecks.Run),
         ("ManaVoxel", "ui designer", UiDesignerChecks.Run),
+        ("ManaVoxel", "asset multi-select", AssetMultiSelectChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
         ("ManaUI", "window resize grip", WindowChecks.RunGrip),

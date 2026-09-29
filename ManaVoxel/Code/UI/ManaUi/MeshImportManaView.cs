@@ -533,8 +533,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Wrapped in the same MeshAssetRow the list rows used, so dragging a tile into the scene still
             // works -- that gesture is half of what this panel is for, and the Place button's tooltip promises
             // it. The row handles press, threshold and ghost; the button inside it handles click and hover.
-            draggable = new MeshAssetRow(entry) { Child = tile };
-            draggable.Clicked += (_, _) => library.SelectedAsset = path;
+            draggable = new MeshAssetRow(entry) { Child = tile, Library = library };
+            var row = draggable;
+            draggable.Clicked += (_, _) => library.Click(path,
+                toggle: row.ClickModifiers.HasFlag(UiModifiers.Control) || row.ClickModifiers.HasFlag(UiModifiers.Meta),
+                range: row.ClickModifiers.HasFlag(UiModifiers.Shift));
             draggable.Width = TileWidth;
             draggable.Height = TileHeight;
 
@@ -641,10 +644,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             return true;
         }
 
-        private static bool IsSelected(MeshAssetLibrary library, string path)
-        {
-            return string.Equals(library.SelectedAsset, path, StringComparison.Ordinal);
-        }
+        private static bool IsSelected(MeshAssetLibrary library, string path) => library.IsSelected(path);
 
         private static UiElement FormatBadge(UiTheme theme, string path)
         {
@@ -1001,12 +1001,28 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         /// <summary>
+        /// The library whose selection a drag carries: dragging one of several selected assets drags them all.
+        /// Null drags just this row's.
+        /// </summary>
+        public MeshAssetLibrary? Library { get; init; }
+
+        /// <summary>The modifier keys held when the press that became <see cref="Clicked"/> went down.</summary>
+        public UiModifiers ClickModifiers { get; private set; }
+
+        // What this drag carries: the whole selection when this row is part of it, else only this row.
+        private IReadOnlyList<string> DragAssets =>
+            Library is { SelectedAssets.Count: > 1 } library && library.IsSelected(_entry.PrimaryPath)
+                ? library.SelectedAssets.ToList()
+                : [_entry.PrimaryPath];
+
+        /// <summary>
         /// What follows the cursor while this row is being dragged. Built fresh each time rather than
         /// reusing the row's own content, which is still in the list and cannot be in two places.
         /// </summary>
-        private UiElement BuildGhost(UiTheme theme)
+        private UiElement BuildGhost(UiTheme theme, int count)
         {
             var (label, color) = MeshAssetLibrary.Badge(_entry.PrimaryPath);
+            var name = count > 1 ? $"{count} models" : _entry.DisplayName;
 
             return new Border()
                 .Fill(theme.SurfaceRaised)
@@ -1025,7 +1041,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Foreground(theme.TextOnAccent)
                             .FontSize(theme.FontSizeSmall)),
 
-                    new TextBlock().Text(_entry.DisplayName).CenterV()));
+                    new TextBlock().Text(name).CenterV()));
         }
 
         protected override bool IsSelfHitTestVisible => true;
@@ -1114,6 +1130,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             _pressed = true;
             _pressedAt = e.Position;
+            ClickModifiers = e.Modifiers;
 
             // Captured, because a drag out of the panel is by definition a drag off this row: without it the
             // moves follow the pointer to whatever it is over now, and the gesture ends the instant it starts
@@ -1143,13 +1160,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             // was already being dragged. That is the drag silently dying after a while.
             _dragging = true;
             _activeDraggingRow = this;
-            MeshImportRequests.RequestDrag(_entry.PrimaryPath);
+            var assets = DragAssets;
+            MeshImportRequests.RequestDrag(_entry.PrimaryPath, assets);
             MeshImportRequests.SetPointerOverUi(IsOverUi(e.Position));
 
             if (Root is { } root)
             {
                 _ghost = new UiDragGhost(root);
-                _ghost.Show(BuildGhost(root.Theme), e.Position);
+                _ghost.Show(BuildGhost(root.Theme, assets.Count), e.Position);
             }
         }
 
@@ -1220,9 +1238,27 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         private static string? _placement;
         private static string? _drag;
+        private static IReadOnlyList<string> _dragAll = [];
+        private static IReadOnlyList<string> _paletteAdd = [];
 
         /// <summary>The asset being dragged, until the drop is taken. Null when nothing is being dragged.</summary>
         public static string? Dragging => _drag;
+
+        /// <summary>
+        /// Every asset being dragged -- several when a multi-selection is -- with <see cref="Dragging"/> among
+        /// them. A drop onto a grid map palette takes them all; a drop into the scene places the one.
+        /// </summary>
+        public static IReadOnlyList<string> DraggingAll => _drag == null ? [] : _dragAll;
+
+        /// <summary>Models to add to the selected grid map's palette -- its Add button, with several selected.</summary>
+        public static void RequestPaletteAdd(IReadOnlyList<string> assets) => _paletteAdd = assets.ToList();
+
+        public static IReadOnlyList<string> TakePaletteAdd()
+        {
+            var pending = _paletteAdd;
+            _paletteAdd = [];
+            return pending;
+        }
 
         /// <summary>
         /// True while the dragged mesh is over the interface rather than the scene.
@@ -1238,7 +1274,11 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public static void RequestPlacement(string asset) => _placement = asset;
 
-        public static void RequestDrag(string asset) => _drag = asset;
+        public static void RequestDrag(string asset, IReadOnlyList<string>? all = null)
+        {
+            _drag = asset;
+            _dragAll = all is { Count: > 0 } ? all : [asset];
+        }
 
         /// <summary>Whether a drop should place anything: something dragged, and not over the interface.</summary>
         public static bool CanDrop => _drag != null && !PointerOverUi;
@@ -1258,10 +1298,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             return pending;
         }
 
+        /// <summary>Takes the drop with everything in it -- see <see cref="DraggingAll"/>.</summary>
+        public static IReadOnlyList<string> TakeDragAll()
+        {
+            var all = DraggingAll;
+            _drag = null;
+            _dragAll = [];
+            return all;
+        }
+
         public static void Clear()
         {
             _placement = null;
             _drag = null;
+            _dragAll = [];
+            _paletteAdd = [];
             PointerOverUi = false;
         }
     }

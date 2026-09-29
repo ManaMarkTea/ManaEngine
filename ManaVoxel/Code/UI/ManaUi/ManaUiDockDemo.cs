@@ -650,9 +650,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             void SyncGridMapPanel()
             {
                 var selected = world?.Selection.SelectedNode;
-                SyncToolWindow(GridMapToolManaView.PanelId, selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
+
+                // Editing windows are put away while playing, and come back as they were when play stops.
+                var editing = editor?.Levels.IsPlaying != true;
+                SyncToolWindow(GridMapToolManaView.PanelId, editing && selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
                 // Up until closed, whatever is selected: it works on the last grid map when another thing is.
-                SyncToolWindow(GridMapWfcManaView.PanelId, ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
+                SyncToolWindow(GridMapWfcManaView.PanelId, editing && ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
                 if (editor == null)
                 {
                     return;
@@ -665,7 +668,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
 
                 watchedSelection = selected;
-                SyncToolWindow(VoxelToolsPanelId, selected is global::Mana.Code.Nodes.ManaVoxelsNode || !editor.IsSelectToolActive);
+                SyncToolWindow(VoxelToolsPanelId, editing && (selected is global::Mana.Code.Nodes.ManaVoxelsNode || !editor.IsSelectToolActive));
             }
 
             // Polled, because selection changes from everywhere -- a viewport click, the outliner, undo --

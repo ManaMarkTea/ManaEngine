@@ -2691,6 +2691,7 @@ namespace Mana.Code.GameModes
             {
                 _transformGizmo?.Hide();
                 ClearSelectionColliderDebug();
+                HideGridMapEditorVisuals();
                 PumpPlanetStreaming();
                 _pawnController?.UpdateDriveInput(UiWantsKeyboard);
                 return;
