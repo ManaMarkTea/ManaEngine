@@ -22,6 +22,46 @@ export function getTimeMs() {
     return performance.now() - startTime;
 }
 
+export function getDevicePixelRatio() {
+    return window.devicePixelRatio || 1;
+}
+
+// Reports both sizes, the way GLFW does on macOS: CSS pixels are the window size the UI lays out
+// in, device pixels are the backbuffer. Sending only the device size made the two equal, so
+// ManaUI saw a scale of 1 and drew everything at half size on a Retina display.
+function applyCanvasSize(cssWidth, cssHeight, deviceWidth, deviceHeight) {
+    const logicalWidth = Math.max(1, Math.round(cssWidth));
+    const logicalHeight = Math.max(1, Math.round(cssHeight));
+    const width = Math.max(1, deviceWidth);
+    const height = Math.max(1, deviceHeight);
+    canvas.width = width;
+    canvas.height = height;
+    if (globalThis.ManaExports) {
+        globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop.OnResize(logicalWidth, logicalHeight, width, height);
+    }
+}
+
+let dprQuery = null;
+
+// devicePixelRatio changes (window dragged to another display, browser zoom) resize nothing, so the
+// ResizeObserver never hears about them.
+function watchDevicePixelRatio() {
+    if (dprQuery) {
+        dprQuery.removeEventListener('change', onDevicePixelRatioChanged);
+    }
+    dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    dprQuery.addEventListener('change', onDevicePixelRatioChanged);
+}
+
+function onDevicePixelRatioChanged() {
+    watchDevicePixelRatio();
+    if (canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        applyCanvasSize(canvas.clientWidth, canvas.clientHeight,
+            Math.round(canvas.clientWidth * dpr), Math.round(canvas.clientHeight * dpr));
+    }
+}
+
 export function observeResize() {
     if (!canvas) {
         return;
@@ -32,16 +72,22 @@ export function observeResize() {
     resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
             const dpr = window.devicePixelRatio || 1;
-            const width = Math.max(1, Math.round(entry.contentRect.width * dpr));
-            const height = Math.max(1, Math.round(entry.contentRect.height * dpr));
-            canvas.width = width;
-            canvas.height = height;
-            if (globalThis.ManaExports) {
-                globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop.OnResize(width, height);
-            }
+            const cssWidth = entry.contentRect.width;
+            const cssHeight = entry.contentRect.height;
+            // Exact device pixels where the browser offers them (not Safari); rounding css * dpr
+            // can land a pixel off and blur the whole frame by resampling.
+            const deviceBox = entry.devicePixelContentBoxSize && entry.devicePixelContentBoxSize[0];
+            const width = deviceBox ? deviceBox.inlineSize : Math.round(cssWidth * dpr);
+            const height = deviceBox ? deviceBox.blockSize : Math.round(cssHeight * dpr);
+            applyCanvasSize(cssWidth, cssHeight, width, height);
         }
     });
-    resizeObserver.observe(canvas);
+    try {
+        resizeObserver.observe(canvas, { box: 'device-pixel-content-box' });
+    } catch {
+        resizeObserver.observe(canvas);
+    }
+    watchDevicePixelRatio();
 }
 
 // --- Input ---------------------------------------------------------------
@@ -144,13 +190,14 @@ export function installInput() {
         if (!api) {
             return;
         }
-        const dpr = window.devicePixelRatio || 1;
+        // CSS pixels, like GLFW's window coordinates: ManaUI hit-tests in them, and the camera
+        // scales to framebuffer pixels itself.
         if (document.pointerLockElement === canvas) {
             // Locked: the cursor has no meaningful page position, only per-event deltas.
-            api.OnMouseDelta(e.movementX * dpr, e.movementY * dpr);
+            api.OnMouseDelta(e.movementX, e.movementY);
         } else {
             const rect = canvas.getBoundingClientRect();
-            api.OnMouseMove((e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr);
+            api.OnMouseMove(e.clientX - rect.left, e.clientY - rect.top);
         }
     });
 

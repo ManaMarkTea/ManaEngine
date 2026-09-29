@@ -34,6 +34,9 @@ namespace ManaGraphics.Code.Graphics.Browser
             Current = this;
         }
 
+        // Size is CSS pixels and FramebufferSize device pixels, so their ratio is devicePixelRatio --
+        // the same shape GLFW gives a Retina window, which is what ManaUI and the camera scale from.
+        private Vector2D<int> _size = new(1, 1);
         private Vector2D<int> _framebufferSize = new(1, 1);
         private bool _loaded;
 
@@ -58,15 +61,20 @@ namespace ManaGraphics.Code.Graphics.Browser
 
         private void RefreshSizeFromCanvas()
         {
+            // The canvas reports CSS pixels; the ResizeObserver's first callback replaces the
+            // estimated framebuffer with the exact device-pixel size.
             var width = Math.Max(1, ManaBrowserInterop.GetCanvasWidth());
             var height = Math.Max(1, ManaBrowserInterop.GetCanvasHeight());
-            _framebufferSize = new Vector2D<int>(width, height);
+            var dpr = Math.Max(1.0, ManaBrowserInterop.GetDevicePixelRatio());
+            _size = new Vector2D<int>(width, height);
+            _framebufferSize = new Vector2D<int>((int)Math.Round(width * dpr), (int)Math.Round(height * dpr));
         }
 
-        internal void RaiseFramebufferResize(int width, int height)
+        internal void RaiseResize(int logicalWidth, int logicalHeight, int framebufferWidth, int framebufferHeight)
         {
-            _framebufferSize = new Vector2D<int>(Math.Max(1, width), Math.Max(1, height));
-            Resize?.Invoke(_framebufferSize);
+            _size = new Vector2D<int>(Math.Max(1, logicalWidth), Math.Max(1, logicalHeight));
+            _framebufferSize = new Vector2D<int>(Math.Max(1, framebufferWidth), Math.Max(1, framebufferHeight));
+            Resize?.Invoke(_size);
             FramebufferResize?.Invoke(_framebufferSize);
         }
 
@@ -153,7 +161,7 @@ namespace ManaGraphics.Code.Graphics.Browser
         // ----- IWindowProperties / IViewProperties -----
         public bool IsVisible { get; set; } = true;
         public Vector2D<int> Position { get; set; }
-        public Vector2D<int> Size { get => FramebufferSize; set { } }
+        public Vector2D<int> Size { get => _size; set { } }
         public string Title { get; set; } = string.Empty;
         public WindowState WindowState { get; set; } = WindowState.Normal;
         public WindowBorder WindowBorder { get; set; } = WindowBorder.Fixed;

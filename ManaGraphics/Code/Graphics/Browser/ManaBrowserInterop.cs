@@ -48,6 +48,9 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("getCanvasHeight", ModuleName)]
         internal static partial int GetCanvasHeight();
 
+        [JSImport("getDevicePixelRatio", ModuleName)]
+        internal static partial double GetDevicePixelRatio();
+
         [JSImport("getTimeMs", ModuleName)]
         internal static partial double GetTimeMs();
 
@@ -230,9 +233,9 @@ namespace ManaGraphics.Code.Graphics.Browser
         }
 
         [JSExport]
-        internal static void OnResize(int width, int height)
+        internal static void OnResize(int logicalWidth, int logicalHeight, int framebufferWidth, int framebufferHeight)
         {
-            ManaBrowserWindow.Current?.RaiseFramebufferResize(width, height);
+            ManaBrowserWindow.Current?.RaiseResize(logicalWidth, logicalHeight, framebufferWidth, framebufferHeight);
         }
     }
 }
