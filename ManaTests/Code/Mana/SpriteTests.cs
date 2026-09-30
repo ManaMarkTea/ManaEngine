@@ -56,6 +56,16 @@ public static class SpriteChecks
         sprite.Refresh();
         check("a frame past the end wraps round", renderer != null && Near(renderer.Material.UvOffset, new Vector2(0.75f, 0)), $"{renderer?.Material.UvOffset}");
 
+        var ledgeNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Tiled Ledge" };
+        context.World.DefaultScene.Children.Add(ledgeNode);
+        var tiled = new ManaSpriteComponent(ledgeNode) { Texture = "Content/Sprites/platform.png", PixelsPerUnit = 32, TiledSize = new Vector2(12, 1) };
+        ledgeNode.Components.Add(tiled);
+        tiled.Refresh();
+        var tiledRenderer = ledgeNode.GetComponent<MeshRendererComponent>();
+        check("a tiled sprite is the size asked for, the 4 m picture repeated three times across it",
+            tiledRenderer?.Mesh is ManaSpriteMesh { } tiledMesh && Near(tiledMesh.Size, new Vector2(12, 1)) && Near(tiledRenderer.Material.UvScale, new Vector2(3, 1)),
+            $"{(tiledRenderer?.Mesh as ManaSpriteMesh)?.Size} uv {tiledRenderer?.Material.UvScale}");
+
         var animation = new ManaSpriteAnimationComponent(node) { FramesPerSecond = 4 };
         check("an animation steps a frame each 1/fps", animation.FrameAt(0.0, 4) == 0 && animation.FrameAt(0.26, 4) == 1 && animation.FrameAt(0.8, 4) == 3);
         check("and loops", animation.FrameAt(1.1, 4) == 0);

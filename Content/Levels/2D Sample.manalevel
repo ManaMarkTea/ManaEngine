@@ -232,6 +232,148 @@
       ]
     },
     {
+      "id": "ea0c9d24fa5a4b73b7697f66c35bab67",
+      "name": "Long Ledge",
+      "kind": "Group",
+      "position": [
+        53,
+        4,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "3921e50839354e93b36346ce6425806a",
+          "type": "Sprite",
+          "properties": {
+            "texture": "Content/Sprites/platform.png",
+            "normalMap": "Content/Sprites/platform_n.png",
+            "pixelsPerUnit": 32,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": true,
+            "tiledSize": [
+              8,
+              1
+            ]
+          }
+        },
+        {
+          "id": "3eed649e823e4b2389efb232fe58885f",
+          "type": "PolygonCollider",
+          "properties": {
+            "points": [
+              -4,
+              0,
+              4,
+              0,
+              4,
+              1,
+              -4,
+              1
+            ],
+            "depth": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "9c5f479c76374a9cadebe2e03996b937",
+      "name": "Glowing Coin 1",
+      "kind": "Prefab",
+      "position": [
+        51.5,
+        5.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "50d7ee4e361b4b4e839fd477888c8491",
+        "assetPath": "Prefabs/Glowing Coin.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "3e57c2c73e354d70933e9ae0a1e0fcba",
+      "name": "Glowing Coin 2",
+      "kind": "Prefab",
+      "position": [
+        53,
+        5.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "50d7ee4e361b4b4e839fd477888c8491",
+        "assetPath": "Prefabs/Glowing Coin.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "304a3ee3291f43108685ec485afc7f7d",
+      "name": "Glowing Coin 3",
+      "kind": "Prefab",
+      "position": [
+        54.5,
+        5.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "50d7ee4e361b4b4e839fd477888c8491",
+        "assetPath": "Prefabs/Glowing Coin.manaprefab",
+        "overrides": []
+      }
+    },
+    {
       "id": "7ba1d71b10824d48a746be4fb116853b",
       "name": "Hero",
       "kind": "Group",

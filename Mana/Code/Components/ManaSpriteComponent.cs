@@ -45,11 +45,18 @@ namespace Mana.Code.Components
 
         public Vector4 Tint { get; set; } = Vector4.One;
 
+        /// <summary>
+        /// Draw the picture repeated across this size in metres rather than once at its own -- a long ledge from
+        /// one brick tile. Zero (the default) draws it once. Single-frame pictures only: a sheet cannot repeat one frame.
+        /// </summary>
+        public Vector2 TiledSize { get; set; }
+
         /// <summary>Keep each pixel a crisp square rather than blending neighbours -- off for painted art.</summary>
         public bool PixelArt { get; set; } = true;
 
         private MeshRendererComponent? _renderer;
         private string? _builtKey;
+        private Vector2 _repeats = Vector2.One;
 
         public ManaSpriteComponent(ManaSceneNode owner) : base(owner)
         {
@@ -74,7 +81,7 @@ namespace Mana.Code.Components
 
             var columns = Math.Max(1, Columns);
             var rows = Math.Max(1, Rows);
-            var key = $"{Texture}|{NormalMap}|{PixelsPerUnit}|{Pivot}|{columns}|{rows}|{Tint}|{PixelArt}";
+            var key = $"{Texture}|{NormalMap}|{PixelsPerUnit}|{Pivot}|{columns}|{rows}|{Tint}|{PixelArt}|{TiledSize}";
             if (key != _builtKey || _renderer == null)
             {
                 Rebuild(columns, rows);
@@ -90,10 +97,12 @@ namespace Mana.Code.Components
             var frame = ((shown % FrameCount) + FrameCount) % FrameCount;
             var column = frame % columns;
             var row = frame / columns;
+            // Repeats across a tiled size ride on the UV scale, which the sampler wraps.
+            var repeats = IsTiled(columns, rows) ? _repeats : Vector2.One;
             var material = _renderer.Material;
-            material.UvScale = new Vector2((FlipX ? -1.0f : 1.0f) / columns, 1.0f / rows);
+            material.UvScale = new Vector2((FlipX ? -repeats.X : repeats.X) / columns, repeats.Y / rows);
             // Rows are counted from the top of the sheet, and v runs up it (see ManaSpriteMesh).
-            material.UvOffset = new Vector2((column + (FlipX ? 1 : 0)) / (float)columns, (rows - 1 - row) / (float)rows);
+            material.UvOffset = new Vector2((column + (FlipX ? repeats.X : 0)) / columns, (rows - 1 - row) / (float)rows);
         }
 
         private void Rebuild(int columns, int rows)
@@ -103,6 +112,11 @@ namespace Mana.Code.Components
             var pixels = PngSize(texturePath) ?? new Vector2(PixelsPerUnit, PixelsPerUnit);
             var ppu = MathF.Max(PixelsPerUnit, 0.01f);
             var size = new Vector2(pixels.X / columns / ppu, pixels.Y / rows / ppu);
+            if (IsTiled(columns, rows))
+            {
+                _repeats = TiledSize / size;
+                size = TiledSize;
+            }
 
             var mesh = new ManaSpriteMesh(Owner.Context, texturePath, File.Exists(normalPath ?? "") ? normalPath : null, size, Pivot, Tint, PixelArt);
             lock (Owner.Context.World.SceneLock)
@@ -115,6 +129,8 @@ namespace Mana.Code.Components
                 Owner.Components.Add(_renderer);
             }
         }
+
+        private bool IsTiled(int columns, int rows) => TiledSize.X > 0.0f && TiledSize.Y > 0.0f && columns == 1 && rows == 1;
 
         /// <summary>A PNG's pixel size, read from its header, or null when it is not one.</summary>
         public static Vector2? PngSize(string path)

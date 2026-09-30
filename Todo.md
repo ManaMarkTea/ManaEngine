@@ -31,8 +31,10 @@
     Also done: sprites are pixel art by default (Sprite > Pixel Art: nearest sampling, crisp square pixels; off for
     painted art) -- DevPhotos/2026-09-29 2d-pixel-art-crisp.png. And an animating sprite no longer marks its level
     changed (the playing frame is kept apart from the saved one); the 2D Sample opens clean.
-    Next for 2D: an orthographic camera option, tiling sprites (one platform picture repeated rather than stretched), and editing
-    a PolygonCollider's points in the viewport.
+    Tiling done: Sprite > Tiled Size (metres) repeats the picture across it instead of stretching -- the 2D Sample
+    gained a Long Ledge (8 m of brick from the 4 m tile) with three Glowing Coins to collect on it.
+    Photo: DevPhotos/2026-09-29 2d-tiled-ledge-coins.png.
+    Next for 2D: an orthographic camera option, and editing a PolygonCollider's points in the viewport.
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
     Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /
