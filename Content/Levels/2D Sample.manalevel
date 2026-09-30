@@ -33,6 +33,13 @@
         1,
         1,
         1
+      ],
+      "scripts": [
+        {
+          "id": "539f9dddf6ec494cbdb4d27690de9701",
+          "type": "Platformer2D",
+          "properties": {}
+        }
       ]
     },
     {

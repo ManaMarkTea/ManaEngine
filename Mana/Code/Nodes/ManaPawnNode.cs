@@ -469,6 +469,29 @@ namespace Mana.Code.Nodes
 
         public ManaCharacterBody? Body { get; private set; }
 
+        /// <summary>
+        /// Keeps the pawn on the plane z = this, for side-on (2D) play: only left, right and up move it, and
+        /// anything that pushes it off the plane is undone the next step. Null (the default) is free 3D.
+        /// </summary>
+        public float? PlaneZ { get; set; }
+
+        private Vector3? LockToPlane(ManaCharacterBody body, Vector3? heading, ref Vector3 velocity)
+        {
+            var offPlane = PlaneZ!.Value - body.FootPosition.Z;
+            if (MathF.Abs(offPlane) > 1e-4f)
+            {
+                body.Shift(new Vector3(0.0f, 0.0f, offPlane));
+            }
+            velocity.Z = 0.0f;
+
+            // W and S point into the screen here; with no sideways part they are no heading at all.
+            if (heading is not { } h || MathF.Abs(h.X) < 1e-3f)
+            {
+                return null;
+            }
+            return new Vector3(MathF.Sign(h.X), 0.0f, 0.0f);
+        }
+
         // Jump tuning. The defaults are shaped for the editor's -64 u/s^2 gravity and a 2-unit
         // character; JumpHeight is the apex a full-hold jump reaches from flat ground.
         public float JumpHeight { get; set; } = DefaultJumpHeight;
@@ -633,6 +656,10 @@ namespace Mana.Code.Nodes
             // the body's position, which is now the authority on where the pawn is.
             var footPosition = body.FootPosition;
             var heading = ResolveHeading(footPosition, out var distanceToDestination, out var isDriveHeading);
+            if (PlaneZ.HasValue)
+            {
+                heading = LockToPlane(body, heading, ref velocity);
+            }
 
             var targetSpeed = (WantsToRun ? RunSpeed : WalkSpeed) * SpeedScale;
             var horizontal = new Vector3(velocity.X, 0.0f, velocity.Z);

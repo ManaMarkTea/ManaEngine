@@ -23,9 +23,14 @@
       (drawn procedurally, with normal maps). Photo: DevPhotos/<date> 2d-sprites-torchlit.png. Tests: SpriteChecks.
     - Engine fix on the way: a component can now add another to its node while it ticks (the update loop walks
       components by index), and the level format reads Vector2 ([x, y]).
-    Next for 2D: a 2D player (the pawn constrained to the XY plane, drawn by a sprite, run/jump animations), a
-    side-on orthographic camera saved with the level, tiling sprites (one platform picture stretched without
-    stretching), and editing a PolygonCollider's points in the viewport.
+    Milestone 2 done: a playable 2D character. The Platformer2D script (on the 2D Sample's Player Start) makes
+    F5 / Ctrl+F5 play side-on: A/D run, Space jumps (double jump too), W/S do nothing; the character is held to
+    its plane, drawn by the hero sheet (idle / run / jump frames, flipped by direction) instead of its 3D model,
+    and the camera sits side-on following it. Stop puts everything back. Photo: DevPhotos/2026-09-29
+    2d-player-side-on.png. Tests: Platformer2DChecks. (Add Component names with numbers now read "Platformer 2D".)
+    Next for 2D: an orthographic camera option, pixel-art (nearest) filtering for sprites -- they look soft and
+    jagged at the edges now -- tiling sprites (one platform picture repeated rather than stretched), and editing
+    a PolygonCollider's points in the viewport.
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
     Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /

@@ -13,9 +13,18 @@ internal static class ComponentDisplayName
         var text = new StringBuilder();
         for (var i = 0; i < name.Length; i++)
         {
-            if (i > 0 && char.IsUpper(name[i])
-                && (!char.IsUpper(name[i - 1]) || (i + 1 < name.Length && char.IsLower(name[i + 1]))))
-                text.Append(' ');
+            // "Platformer2D" reads "Platformer 2D": a number starts a word, and the letter after it stays on.
+            if (i > 0)
+            {
+                var previous = name[i - 1];
+                var startsWord = char.IsUpper(name[i])
+                    ? !char.IsDigit(previous) && (!char.IsUpper(previous) || (i + 1 < name.Length && char.IsLower(name[i + 1])))
+                    : char.IsDigit(name[i]) && char.IsLetter(previous);
+                if (startsWord)
+                {
+                    text.Append(' ');
+                }
+            }
             text.Append(name[i]);
         }
         return text.Length > 0 ? text.ToString() : type.Name;
