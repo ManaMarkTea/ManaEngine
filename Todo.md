@@ -38,4 +38,13 @@
 
 [x] Review Changes for prefab variants: the review window works on placed copies; a variant open in the prefab stage could use it too.
 
-[] ManaVoxel\Code\GameModes\VoxelEditorGameMode.cs has A LOT of stuff it shouldn't have, planet stuff mostly, that all needs to be split out into game mode components, or some other class.
+[x] ManaVoxel\Code\GameModes\VoxelEditorGameMode.cs has A LOT of stuff it shouldn't have, planet stuff mostly, that all needs to be split out into game mode components, or some other class.
+    Claude (overnight): VoxelEditorGameMode.cs 3,205 -> 1,273 lines.
+    - Planet, true-scale regions, KML airspace, streaming and planet stats -> EditorPlanetScenery (its own class;
+      the game mode owns one and only reads its Planet to pick/up-res patches).
+    - Dead code deleted: the editor's own water mask and country/state border loaders (unused since planets load
+      through ManaLevelLoader), taking every hard-coded C:\Users\night\...\GeoData path with them. The optional
+      KML file is now MANA_KML_AIRSPACE or ../ManaAirSpace/AirSpaceModels/UnitedStates.xml.
+    - The rest split into partial files by job: .Room (the grid room), .Placement (placing from the Import panel),
+      .ColliderDebug (selection collider wireframes), .Selection (picking + F / End / Escape).
+    Checked: Planet Showcase streams, End still lands on a ledge, all tests pass.
