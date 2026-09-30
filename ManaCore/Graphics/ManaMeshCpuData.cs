@@ -27,5 +27,8 @@ namespace ManaCore.Graphics
         public string? RoughnessTexturePath { get; init; }
         public string? OcclusionTexturePath { get; init; }
         public string? OpacityTexturePath { get; init; }
+
+        /// <summary>Sample the maps without blending texels -- pixel art stays crisp instead of blurring.</summary>
+        public bool NearestFiltering { get; init; }
     }
 }

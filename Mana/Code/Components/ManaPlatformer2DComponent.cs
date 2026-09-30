@@ -216,7 +216,7 @@ namespace Mana.Code.Components
 
                 if (Owner.GetComponent<ManaSpriteComponent>() is { } sprite)
                 {
-                    sprite.Frame = _settings.FrameFor(player.IsGrounded, velocityX, _runSeconds);
+                    sprite.PlayingFrame = _settings.FrameFor(player.IsGrounded, velocityX, _runSeconds);
                     sprite.FlipX = _facingRight != _settings.SheetFacesRight;
                 }
             }

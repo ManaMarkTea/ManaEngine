@@ -33,10 +33,20 @@ namespace Mana.Code.Components
         /// <summary>The frame shown, counted across the sheet then down, from 0.</summary>
         public int Frame { get; set; }
 
+        /// <summary>
+        /// The frame an animation is showing, over <see cref="Frame"/>. Never saved, so a sprite playing in the
+        /// editor does not make its level read as changed every frame.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int? PlayingFrame { get; set; }
+
         /// <summary>Mirror it left to right -- a character turning round.</summary>
         public bool FlipX { get; set; }
 
         public Vector4 Tint { get; set; } = Vector4.One;
+
+        /// <summary>Keep each pixel a crisp square rather than blending neighbours -- off for painted art.</summary>
+        public bool PixelArt { get; set; } = true;
 
         private MeshRendererComponent? _renderer;
         private string? _builtKey;
@@ -64,7 +74,7 @@ namespace Mana.Code.Components
 
             var columns = Math.Max(1, Columns);
             var rows = Math.Max(1, Rows);
-            var key = $"{Texture}|{NormalMap}|{PixelsPerUnit}|{Pivot}|{columns}|{rows}|{Tint}";
+            var key = $"{Texture}|{NormalMap}|{PixelsPerUnit}|{Pivot}|{columns}|{rows}|{Tint}|{PixelArt}";
             if (key != _builtKey || _renderer == null)
             {
                 Rebuild(columns, rows);
@@ -76,7 +86,8 @@ namespace Mana.Code.Components
                 return;
             }
 
-            var frame = ((Frame % FrameCount) + FrameCount) % FrameCount;
+            var shown = PlayingFrame ?? Frame;
+            var frame = ((shown % FrameCount) + FrameCount) % FrameCount;
             var column = frame % columns;
             var row = frame / columns;
             var material = _renderer.Material;
@@ -93,7 +104,7 @@ namespace Mana.Code.Components
             var ppu = MathF.Max(PixelsPerUnit, 0.01f);
             var size = new Vector2(pixels.X / columns / ppu, pixels.Y / rows / ppu);
 
-            var mesh = new ManaSpriteMesh(Owner.Context, texturePath, File.Exists(normalPath ?? "") ? normalPath : null, size, Pivot, Tint);
+            var mesh = new ManaSpriteMesh(Owner.Context, texturePath, File.Exists(normalPath ?? "") ? normalPath : null, size, Pivot, Tint, PixelArt);
             lock (Owner.Context.World.SceneLock)
             {
                 if (_renderer != null)

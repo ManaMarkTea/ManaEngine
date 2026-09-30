@@ -41,6 +41,7 @@ public static class SpriteChecks
         check("sized from its picture: a 32-pixel frame at 32 pixels a metre is 1 m", mesh != null && Near(mesh.Size, new Vector2(1, 1)), $"{mesh?.Size}");
         check("with its feet on the node (pivot at the bottom middle)", mesh != null && mesh.GetOrCreateCpuData().Positions.Min(p => p.Y) == 0.0f
             && Near(new Vector2(mesh.GetOrCreateCpuData().Positions.Min(p => p.X), 0), new Vector2(-0.5f, 0)));
+        check("pixel art by default: sampled nearest, so pixels stay square", mesh?.GetOrCreateCpuData().NearestFiltering == true);
         check("and its normal map with it", mesh?.GetOrCreateCpuData().NormalTexturePath?.EndsWith("hero_n.png", StringComparison.Ordinal) == true);
 
         sprite.Frame = 2;
@@ -64,6 +65,13 @@ public static class SpriteChecks
         animation.FirstFrame = 1;
         animation.FrameCount = 2;
         check("a range plays just its frames", animation.FrameAt(0.0, 4) == 1 && animation.FrameAt(0.3, 4) == 2 && animation.FrameAt(0.55, 4) == 1);
+
+        sprite.Frame = 0;
+        node.Components.Add(animation);
+        ManaTime.GlobalTime.DeltaTime = TimeSpan.FromSeconds(0.3);
+        animation.UpdateComponent();
+        check("playing shows its frame without changing the saved one, so the level stays unchanged",
+            sprite.PlayingFrame == 2 && sprite.Frame == 0, $"playing {sprite.PlayingFrame}, saved {sprite.Frame}");
 
         // An L: concave, six corners -- four triangles, and a solid of both faces plus the sides.
         var l = new[] { new Vector2(0, 0), new Vector2(2, 0), new Vector2(2, 1), new Vector2(1, 1), new Vector2(1, 2), new Vector2(0, 2) };

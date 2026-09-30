@@ -233,6 +233,15 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU demo sampler.");
             }
 
+            // Pixel art: texels stay square up close; mips still blend so it does not shimmer far away.
+            samplerDescriptor.MagFilter = FilterMode.Nearest;
+            samplerDescriptor.MinFilter = FilterMode.Nearest;
+            _nearestSampler = _api.DeviceCreateSampler(_device, &samplerDescriptor);
+            if (_nearestSampler == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU nearest sampler.");
+            }
+
             var clampSamplerDescriptor = new SamplerDescriptor
             {
                 AddressModeU = AddressMode.ClampToEdge,

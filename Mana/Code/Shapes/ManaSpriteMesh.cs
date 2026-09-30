@@ -15,7 +15,7 @@ namespace Mana.Code.Shapes
         public Vector2 Size { get; }
         public Vector2 Pivot { get; }
 
-        public ManaSpriteMesh(ManaContext context, string texturePath, string? normalMapPath, Vector2 size, Vector2 pivot, Vector4 tint)
+        public ManaSpriteMesh(ManaContext context, string texturePath, string? normalMapPath, Vector2 size, Vector2 pivot, Vector4 tint, bool pixelArt = false)
             : base(context)
         {
             Size = size;
@@ -37,7 +37,8 @@ namespace Mana.Code.Shapes
                 TextureCoordinates1 = [new(0, 0), new(1, 0), new(1, 1), new(0, 1)],
                 Indexes = [0, 1, 2, 0, 2, 3],
                 AlbedoTexturePath = texturePath,
-                NormalTexturePath = normalMapPath
+                NormalTexturePath = normalMapPath,
+                NearestFiltering = pixelArt
             });
 
             var material = new ManaMaterial(context)

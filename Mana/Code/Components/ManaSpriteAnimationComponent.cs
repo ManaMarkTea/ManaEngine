@@ -38,7 +38,7 @@ namespace Mana.Code.Components
                 _seconds += ManaTime.GlobalTime.DeltaTime.TotalSeconds;
             }
 
-            sprite.Frame = FrameAt(_seconds, sprite.FrameCount);
+            sprite.PlayingFrame = FrameAt(_seconds, sprite.FrameCount);
         }
 
         /// <summary>The sheet frame shown <paramref name="seconds"/> into the animation.</summary>

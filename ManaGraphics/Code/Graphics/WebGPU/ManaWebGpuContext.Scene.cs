@@ -102,7 +102,7 @@ namespace ManaGraphics.Code.Graphics
             var samplerBindGroupEntry = new BindGroupEntry
             {
                 Binding = 1,
-                Sampler = _demoSampler
+                Sampler = meshData.NearestFiltering ? _nearestSampler : _demoSampler
             };
 
             var textureBindGroupEntry = new BindGroupEntry
@@ -586,7 +586,8 @@ namespace ManaGraphics.Code.Graphics
                 && string.Equals(current.MetallicTexturePath, incoming.MetallicTexturePath, StringComparison.Ordinal)
                 && string.Equals(current.RoughnessTexturePath, incoming.RoughnessTexturePath, StringComparison.Ordinal)
                 && string.Equals(current.OcclusionTexturePath, incoming.OcclusionTexturePath, StringComparison.Ordinal)
-                && string.Equals(current.OpacityTexturePath, incoming.OpacityTexturePath, StringComparison.Ordinal);
+                && string.Equals(current.OpacityTexturePath, incoming.OpacityTexturePath, StringComparison.Ordinal)
+                && current.NearestFiltering == incoming.NearestFiltering;
         }
 
         private static bool CanReuseSceneMesh(ManaRenderMeshInstance current, ManaRenderMeshInstance incoming)

@@ -28,8 +28,10 @@
     its plane, drawn by the hero sheet (idle / run / jump frames, flipped by direction) instead of its 3D model,
     and the camera sits side-on following it. Stop puts everything back. Photo: DevPhotos/2026-09-29
     2d-player-side-on.png. Tests: Platformer2DChecks. (Add Component names with numbers now read "Platformer 2D".)
-    Next for 2D: an orthographic camera option, pixel-art (nearest) filtering for sprites -- they look soft and
-    jagged at the edges now -- tiling sprites (one platform picture repeated rather than stretched), and editing
+    Also done: sprites are pixel art by default (Sprite > Pixel Art: nearest sampling, crisp square pixels; off for
+    painted art) -- DevPhotos/2026-09-29 2d-pixel-art-crisp.png. And an animating sprite no longer marks its level
+    changed (the playing frame is kept apart from the saved one); the 2D Sample opens clean.
+    Next for 2D: an orthographic camera option, tiling sprites (one platform picture repeated rather than stretched), and editing
     a PolygonCollider's points in the viewport.
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.

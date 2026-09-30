@@ -111,6 +111,12 @@ namespace ManaGraphics.Code.Graphics
                 _demoSampler = null;
             }
 
+            if (_nearestSampler != null)
+            {
+                _api.SamplerRelease(_nearestSampler);
+                _nearestSampler = null;
+            }
+
             if (_clampSampler != null)
             {
                 _api.SamplerRelease(_clampSampler);

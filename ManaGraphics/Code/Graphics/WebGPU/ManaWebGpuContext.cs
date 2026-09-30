@@ -105,6 +105,7 @@ namespace ManaGraphics.Code.Graphics
         private uint _sceneCaptureDepthSize;
         private Sampler* _demoSampler;
         private Sampler* _clampSampler;
+        private Sampler* _nearestSampler;
         private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
         private int _framesSinceEnvironmentCapture = int.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
