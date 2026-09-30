@@ -236,6 +236,11 @@ namespace ManaVoxel.Web
             // ships Paused = true so trains hold still in the editor and only run once BeginPlay
             // reaches them. Without this the level loads and renders correctly but nothing in it
             // moves, which looks like a broken animation rather than a lifecycle step never taken.
+            // The player goes in first, as on desktop: the game state resets in BeginPlay, coins and
+            // hazards find the player through it, and the player's own sounds only play for the pawn it names.
+            _spawnPosition = spawnPosition;
+            _spawnYaw = start?.SpawnYawRadians ?? 0.0f;
+            Context.World.GameState.Player = _player;
             Context.World.BeginPlay();
 
             Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
@@ -269,6 +274,19 @@ namespace ManaVoxel.Web
         {
             // UiWantsKeyboard, not a raw poll: when a text field has focus, WASD is typing, not walking.
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+            // The clock, deaths and respawns, as the desktop play mode runs them.
+            Context.World.GameState.Tick((float)deltaTime);
+
+            var restartKeyDown = Context.Input?.Keyboards.FirstOrDefault()?.IsKeyPressed(Silk.NET.Input.Key.R) == true;
+            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard && _player != null)
+            {
+                Context.World.GameState.Restart(Context.World, _spawnPosition, _spawnYaw);
+            }
+            _restartKeyWasDown = restartKeyDown;
         }
+
+        private bool _restartKeyWasDown;
+        private Vector3 _spawnPosition;
+        private float _spawnYaw;
     }
 }
