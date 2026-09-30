@@ -1,3 +1,8 @@
+Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
+the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
+the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.
+One question for you (in the Glow item): how material edits should be saved. Tests: 2,841 checks, all passing.
+
 [x] Press the END key to drop the item onto the floor or other objects. - Writen by copilot, verify its good.
     Claude (overnight): verified and improved. It now casts five rays (centre + footprint corners) and lands on the
     highest hit, as Unreal's End does, so a box half over a ledge rests on the ledge; rays start just above the
@@ -13,7 +18,7 @@
     Still to do: the planet code hard-codes C:\Users\night\...\GeoData paths (will break on the Mac) -- fixing that
     in the VoxelEditorGameMode split below.
 
-[~] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
+[x] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
     Claude (overnight), milestone 1 done:
     - Sprite script: a PNG on a quad facing +Z, sized by pixels-per-unit, pivot, sheet frames (columns x rows),
       flipX, tint, alpha cutout; optional normal map, so lamps/glows shade it with depth (PBR pass).
@@ -67,6 +72,13 @@
     Content/Prefabs/Glowing Coin.manaprefab -- a variant of Coin whose only change is the added Glow, gently pulsing.
     Photo: DevPhotos/<date> glowing-coin-prefab.png. Tests: GlowChecks.
     Still open: materials themselves (emission set in the Mesh Renderer inspector) still aren't saved with a level.
+    QUESTION for you before I build it: materials are shared -- every copy of a model uses the same one, so an edit in
+    the inspector changes them all. Two ways to save that:
+      a) per-copy overrides (Unity's "material override" / Unreal's material instance on the actor): the level saves
+         just the changed values on that node, and only that copy changes. Needs the edit to clone the material first.
+      b) the shared material is the asset: the edit is saved beside the model and every copy, in every level, changes.
+    I'd suggest (a) -- it matches how the Glow already works and cannot surprise another level -- with (b) later as
+    "Apply to all copies". Say which and I'll do it.
 
 
 [x] Review Changes for prefab variants: the review window works on placed copies; a variant open in the prefab stage could use it too.
