@@ -305,6 +305,8 @@ namespace Mana.Code.Nodes
             Body.Velocity = velocity;
             jumpLockoutTimer = JumpLockoutSeconds;
             JumpsUsed = 0;
+            // A launch, not a jump: it keeps plain gravity, so VelocityForHeight still lands it where it says.
+            inJumpArc = false;
         }
 
         public void TeleportTo(Vector3 worldPosition)
@@ -492,21 +494,35 @@ namespace Mana.Code.Nodes
             return new Vector3(MathF.Sign(h.X), 0.0f, 0.0f);
         }
 
-        // Jump tuning. The defaults are shaped for the editor's -64 u/s^2 gravity and a 2-unit
-        // character; JumpHeight is the apex a full-hold jump reaches from flat ground.
+        // Jump tuning, Mario's way. The defaults are shaped for the editor's -64 u/s^2 gravity and a 2-unit
+        // character; JumpHeight is the apex a full-hold standing jump reaches from flat ground.
         public float JumpHeight { get; set; } = DefaultJumpHeight;
 
-        // Mario's defining trick: releasing the button early cuts the rise short, so tapping gives a
-        // hop and holding gives the full arc. Applied as a one-shot multiplier on upward velocity at
-        // the moment of release.
-        public float JumpReleaseCutoff { get; set; } = 0.45f;
+        /// <summary>
+        /// Gravity times this while rising with the button let go: tapping gives a hop, holding the full arc. Heavier
+        /// gravity rather than a cut in speed (SMB's way), so a short hop still curves instead of stopping dead.
+        /// </summary>
+        public float ReleasedGravityMultiplier { get; set; } = 3.0f;
 
-        // Falling faster than you rose is what stops a jump feeling floaty. Applied as extra gravity
-        // on top of the simulation's own, only while descending.
+        /// <summary>Gravity times this near the top of a held jump -- the moment of hang that makes a landing easy to aim.</summary>
+        public float ApexGravityMultiplier { get; set; } = 0.5f;
+
+        /// <summary>How slow, up or down, counts as the top of the jump for <see cref="ApexGravityMultiplier"/>.</summary>
+        public float ApexSpeed { get; set; } = 4.0f;
+
+        // Falling faster than you rose is what stops a jump feeling floaty.
         public float FallGravityMultiplier { get; set; } = 1.9f;
 
-        // Fraction of ground control retained mid-air. 1 is full air control, 0 commits you to the
-        // arc you took off with.
+        /// <summary>The fastest a fall gets, so a long drop stays readable and a landing stays catchable.</summary>
+        public float MaxFallSpeed { get; set; } = 30.0f;
+
+        /// <summary>How much higher a jump from a full run goes than one from standing (0.25: a quarter higher).</summary>
+        public float RunJumpBonus { get; set; } = 0.25f;
+
+        /// <summary>
+        /// Steering in the air as a share of the ground's acceleration. Momentum carries -- letting go mid-air keeps
+        /// the speed you jumped with, as in Mario -- and turning round takes a moment rather than a frame.
+        /// </summary>
         public float AirControl { get; set; } = 0.75f;
 
         /// <summary>
@@ -552,6 +568,9 @@ namespace Mana.Code.Nodes
         private float coyoteTimer;
         private float jumpBufferTimer;
         private float jumpLockoutTimer;
+
+        // In the air from a jump of our own (not a spring or a stomp), so the jump's gravity shaping applies.
+        private bool inJumpArc;
         private bool isGrounded = true;
         private bool wasGrounded = true;
 
@@ -563,29 +582,57 @@ namespace Mana.Code.Nodes
             jumpBufferTimer = JumpBufferSeconds;
         }
 
+        // Letting go is read by the air gravity (ReleasedGravityMultiplier), which cuts the rise short from here.
         public void ReleaseJump()
         {
             IsJumpHeld = false;
-
-            if (Body == null)
-            {
-                return;
-            }
-
-            // Cut the rise short. Only while actually rising -- applying this on the way down would
-            // slow the fall instead, which reads as floatiness.
-            var velocity = Body.Velocity;
-            if (velocity.Y > 0.0f)
-            {
-                velocity.Y *= Math.Clamp(JumpReleaseCutoff, 0.0f, 1.0f);
-                Body.Velocity = velocity;
-            }
         }
 
-        // Take-off speed for the configured apex: v = sqrt(2 * g * h).
+        /// <summary>Take-off speed for a held jump to top out at <see cref="JumpHeight"/>, apex hang included.</summary>
         public float GetJumpVelocity()
         {
-            return VelocityForHeight(JumpHeight);
+            return JumpVelocityFor(JumpHeight);
+        }
+
+        /// <summary>
+        /// Take-off speed that tops out at <paramref name="height"/> when held: plain gravity up to
+        /// <see cref="ApexSpeed"/>, then the lighter apex gravity the rest of the way.
+        /// </summary>
+        public float JumpVelocityFor(float height)
+        {
+            var gravity = Context?.Physics != null ? MathF.Abs(Context.Physics.Gravity.Y) : DefaultGravity;
+            var apexGravity = gravity * Math.Clamp(ApexGravityMultiplier, 0.05f, 1.0f);
+            var apexSpeed = MathF.Min(MathF.Max(ApexSpeed, 0.0f), MathF.Sqrt(2.0f * apexGravity * MathF.Max(height, 0.0f)));
+            var hangHeight = apexSpeed * apexSpeed / (2.0f * apexGravity);
+            float Speed(float h) => MathF.Sqrt(2.0f * gravity * MathF.Max(h - hangHeight, 0.0f) + apexSpeed * apexSpeed);
+
+            // Stepped a frame at a time, a rise comes up about half a frame's travel short of the formula; added back
+            // so the jump reaches the height it says.
+            var frame = Math.Clamp((float)ManaTime.GlobalTime.DeltaTime.TotalSeconds, 1.0f / 240.0f, 1.0f / 30.0f);
+            return Speed(height + Speed(height) * frame * 0.5f);
+        }
+
+        // The vertical speed after a step in the air. The simulation applies plain gravity; this adds the rest.
+        private float AirborneVerticalSpeed(float verticalSpeed, float deltaSeconds)
+        {
+            var gravity = MathF.Abs(Context.Physics.Gravity.Y);
+            var multiplier = 1.0f;
+            if (inJumpArc && IsJumpHeld && MathF.Abs(verticalSpeed) < ApexSpeed)
+            {
+                multiplier = ApexGravityMultiplier;
+            }
+            else if (inJumpArc && verticalSpeed > 0.0f && !IsJumpHeld)
+            {
+                multiplier = ReleasedGravityMultiplier;
+            }
+            else if (verticalSpeed < 0.0f)
+            {
+                multiplier = FallGravityMultiplier;
+            }
+
+            verticalSpeed -= gravity * (multiplier - 1.0f) * deltaSeconds;
+            // The simulation still adds this step's plain gravity after us, so the limit leaves room for it.
+            return MathF.Max(verticalSpeed, -MathF.Max(MaxFallSpeed - gravity * deltaSeconds, 0.1f));
         }
 
         /// <summary>
@@ -629,6 +676,11 @@ namespace Mana.Code.Nodes
 
             var grounded = body.IsGrounded && jumpLockoutTimer <= 0.0f;
             isGrounded = grounded;
+
+            if (grounded)
+            {
+                inJumpArc = false;
+            }
 
             if (grounded && !wasGrounded)
             {
@@ -677,17 +729,12 @@ namespace Mana.Code.Nodes
                 // Toward the target rather than straight to it, at the rate that would take AccelerationSeconds
                 // to reach full speed. Working on the velocity vector means a sharp turn brakes and re-accelerates
                 // on its own instead of snapping to the new heading at full speed.
-                horizontal = grounded
-                    ? MoveTowards(horizontal, desired, GroundAcceleration(targetSpeed) * deltaSeconds)
-                    : Vector3.Lerp(horizontal, desired, Math.Clamp(AirControl, 0.0f, 1.0f));
+                var control = grounded ? 1.0f : Math.Clamp(AirControl, 0.0f, 1.0f);
+                horizontal = MoveTowards(horizontal, desired, GroundAcceleration(targetSpeed) * control * deltaSeconds);
             }
             else if (grounded)
             {
                 horizontal = MoveTowards(horizontal, Vector3.Zero, GroundDeceleration() * deltaSeconds);
-            }
-            else
-            {
-                horizontal = Vector3.Lerp(horizontal, Vector3.Zero, Math.Clamp(AirControl, 0.0f, 1.0f) * deltaSeconds);
             }
 
             // Outside the steering, same as the kinematic path: facing is its own decision, and a pawn
@@ -702,7 +749,10 @@ namespace Mana.Code.Nodes
             var canGroundJump = grounded || coyoteTimer > 0.0f;
             if (jumpBufferTimer > 0.0f && (canGroundJump || JumpsUsed < MaxJumpCount))
             {
-                velocity.Y = GetJumpVelocity();
+                // A running start carries you higher, as in Mario.
+                var runShare = Math.Clamp(horizontal.Length() / MathF.Max(RunSpeed * SpeedScale, 0.01f), 0.0f, 1.0f);
+                velocity.Y = JumpVelocityFor(JumpHeight * (1.0f + MathF.Max(RunJumpBonus, 0.0f) * runShare));
+                inJumpArc = true;
                 EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Jump);
                 JumpsUsed = canGroundJump ? 1 : JumpsUsed + 1;
                 jumpBufferTimer = 0.0f;
@@ -741,11 +791,9 @@ namespace Mana.Code.Nodes
                     velocity.Y = MathF.Min(velocity.Y, -(body.GroundDistance - GroundSnapSlop * 0.5f) / deltaSeconds);
                 }
             }
-            else if (velocity.Y < 0.0f)
+            else
             {
-                // Extra fall gravity, on top of what the pose integrator already applies.
-                var extraGravity = MathF.Abs(Context.Physics.Gravity.Y) * MathF.Max(FallGravityMultiplier - 1.0f, 0.0f);
-                velocity.Y -= extraGravity * deltaSeconds;
+                velocity.Y = AirborneVerticalSpeed(velocity.Y, deltaSeconds);
             }
 
             body.Velocity = velocity;

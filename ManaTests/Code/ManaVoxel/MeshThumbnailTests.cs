@@ -94,6 +94,14 @@ public static class MeshThumbnailChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        // ---------------------------------------------------------------- a picture, for a prefab drawn by a Sprite
+        var coinPrefab = ManaVoxel.Code.Assets.ManaPrefab.Load(Path.Combine(ManaVoxel.Code.Assets.ManaContentLibrary.Root, "Prefabs", "Coin 2D.manaprefab"));
+        var coinIcon = MeshThumbnailCache.SpritePicture(coinPrefab.Root);
+        var middle = (MeshThumbnailCache.ThumbnailSize / 2 * MeshThumbnailCache.ThumbnailSize + MeshThumbnailCache.ThumbnailSize / 2) * 4;
+        Check("a prefab drawn by a Sprite shows its picture, the coin solid in the middle and clear at the corner",
+            coinIcon != null && coinIcon.Length == MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4 && coinIcon[middle + 3] > 200 && coinIcon[3] == 0,
+            coinIcon == null ? "no picture" : $"centre alpha {coinIcon[middle + 3]}, corner alpha {coinIcon[3]}");
+
         // ---------------------------------------------------------------- it draws something
         var pixels = MeshThumbnailRasterizer.Render(Cube(), Size, Tint);
         Check("a cube renders", pixels != null && pixels.Length == Size * Size * 4,

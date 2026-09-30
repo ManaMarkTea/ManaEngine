@@ -40,6 +40,9 @@ namespace Mana.Code.Components
         /// <summary>Whether the sheet is drawn facing right; a left-facing one is mirrored the other way round.</summary>
         public bool SheetFacesRight { get; set; } = true;
 
+        /// <summary>The player's full, held jump in metres while playing side-on; 0 keeps the character's own.</summary>
+        public float JumpHeight { get; set; } = 4.5f;
+
         public float CameraDistance { get; set; } = 12.0f;
         /// <summary>How far the camera looks down, in perspective only; orthographic always looks level.</summary>
         public float CameraPitchDegrees { get; set; } = -5.0f;
@@ -56,6 +59,7 @@ namespace Mana.Code.Components
         private ManaSpringArmComponent? _arm;
         private readonly List<MeshRendererComponent> _hidden = new();
         private float _savedTurnRate;
+        private float _savedJumpHeight;
         private CameraComponent? _camera;
         private (bool Orthographic, float Height) _savedProjection;
         private (float Yaw, float Pitch, float Length, bool Probe, bool FollowYaw, Vector3 Socket) _savedArm;
@@ -82,6 +86,11 @@ namespace Mana.Code.Components
             // Turning is a sprite flip here, so the model's facing may as well arrive at once.
             _savedTurnRate = player.TurnDegreesPerSecond;
             player.TurnDegreesPerSecond = 100000.0f;
+            _savedJumpHeight = player.JumpHeight;
+            if (JumpHeight > 0.0f)
+            {
+                player.JumpHeight = JumpHeight;
+            }
 
             _hidden.Clear();
             HideRenderers(player);
@@ -116,6 +125,7 @@ namespace Mana.Code.Components
 
             _player.PlaneZ = null;
             _player.TurnDegreesPerSecond = _savedTurnRate;
+            _player.JumpHeight = _savedJumpHeight;
             foreach (var renderer in _hidden)
             {
                 renderer.IsVisible = true;

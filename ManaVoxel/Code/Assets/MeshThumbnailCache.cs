@@ -13,6 +13,7 @@ using ManaGraphics.Code.Graphics;
 using ManaVoxel.Code.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -484,6 +485,12 @@ namespace ManaVoxel.Code.Assets
             world.DefaultScene = new ManaScene(context);
             world.Scenes.Add(world.DefaultScene);
             var prefab = ManaPrefab.Load(path);
+            // A prefab drawn by a Sprite has no model to render -- the Sprite is a script, stripped below -- so it
+            // shows its picture instead.
+            if (SpritePicture(prefab.Root) is { } picture)
+            {
+                return picture;
+            }
             void StripRuntime(Levels.ManaLevelNode node)
             {
                 node.Collision = null;
@@ -498,6 +505,83 @@ namespace ManaVoxel.Code.Assets
             foreach (var node in world.DefaultScene.Children) { root.Children.Add(node); }
             var data = FlattenSharpGltfSceneToCpuMesh(root);
             return data == null ? null : MeshThumbnailRasterizer.Render(data, ThumbnailSize, Vector4.One);
+        }
+
+        /// <summary>
+        /// The first frame of the first Sprite in the tree, root first, fitted into a thumbnail as RGBA rows top
+        /// down -- or null when there is no Sprite or its picture cannot be found.
+        /// </summary>
+        public static byte[]? SpritePicture(Levels.ManaLevelNode root)
+        {
+            var sprite = FindSprite(root);
+            if (sprite == null)
+            {
+                return null;
+            }
+
+            string Text(string key) => sprite.Properties.TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
+                ? value.GetString() ?? string.Empty : string.Empty;
+            int Count(string key) => sprite.Properties.TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.Number
+                ? Math.Max(1, value.GetInt32()) : 1;
+
+            var columns = 1;
+            var rows = 1;
+            var reference = Text("texture");
+            if (sprite.Properties.TryGetValue("frames", out var frames) && frames.ValueKind == System.Text.Json.JsonValueKind.Array
+                && frames.GetArrayLength() > 0 && frames[0].GetString() is { Length: > 0 } first)
+            {
+                reference = first;
+            }
+            else
+            {
+                columns = Count("columns");
+                rows = Count("rows");
+            }
+
+            var file = ManaSpritePictures.Resolve(reference);
+            if (file == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(file);
+                var frame = new SixLabors.ImageSharp.Rectangle(0, 0, Math.Max(1, image.Width / columns), Math.Max(1, image.Height / rows));
+                image.Mutate(context => context.Crop(frame));
+                // Fitted with a margin, the way the model thumbnails leave room round the model.
+                var fit = (int)(ThumbnailSize * 0.84f);
+                var scale = MathF.Min((float)fit / image.Width, (float)fit / image.Height);
+                image.Mutate(context => context.Resize(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale))));
+
+                using var canvas = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(ThumbnailSize, ThumbnailSize);
+                var at = new SixLabors.ImageSharp.Point((ThumbnailSize - image.Width) / 2, (ThumbnailSize - image.Height) / 2);
+                canvas.Mutate(context => context.DrawImage(image, at, 1.0f));
+                var pixels = new byte[ThumbnailSize * ThumbnailSize * 4];
+                canvas.CopyPixelDataTo(pixels);
+                return pixels;
+            }
+            catch (Exception exception) when (exception is IOException or SixLabors.ImageSharp.ImageFormatException)
+            {
+                return null;
+            }
+        }
+
+        private static Levels.ManaLevelScript? FindSprite(Levels.ManaLevelNode node)
+        {
+            var own = node.Scripts?.FirstOrDefault(script => string.Equals(script.Type, "Sprite", StringComparison.Ordinal));
+            if (own != null)
+            {
+                return own;
+            }
+            foreach (var child in node.Children ?? [])
+            {
+                if (FindSprite(child) is { } found)
+                {
+                    return found;
+                }
+            }
+            return null;
         }
 
         private static ManaMeshCpuData? GenerateFromFileStandalone(

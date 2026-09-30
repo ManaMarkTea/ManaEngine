@@ -806,7 +806,9 @@ public static class CoursePieceChecks
         var reference = CreateCourse();
         Check("the speed that reaches a height is sqrt(2 g h)",
             MathF.Abs(reference.Player.VelocityForHeight(9.0f) - MathF.Sqrt(2.0f * 64.0f * 9.0f)) < 0.01f);
-        Check("a jump is that speed for the jump's own height", MathF.Abs(reference.Player.GetJumpVelocity() - reference.Player.VelocityForHeight(reference.Player.JumpHeight)) < 0.001f);
+        // Close to, not equal: a held jump hangs at its top and is topped up for the frame stepping (PawnJumpChecks plays it out).
+        Check("a jump leaves at about the speed of a launch to its height",
+            MathF.Abs(reference.Player.GetJumpVelocity() / reference.Player.VelocityForHeight(reference.Player.JumpHeight) - 1.0f) < 0.1f);
         Check("four times the height takes twice the speed", MathF.Abs(reference.Player.VelocityForHeight(12.0f) - 2.0f * reference.Player.VelocityForHeight(3.0f)) < 0.01f);
 
         var spring = CreateCourse();
