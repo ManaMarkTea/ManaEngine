@@ -20,7 +20,7 @@ namespace ManaCore.Diagnostics
         private static Logger? _logger;
 
         public static string DiagnosticLogPath { get; } =
-            Path.Combine(FindLogRoot(), "artifacts", "logs", "ManaGraphicsStartup.log");
+            Path.Combine(FindLogRoot(), "Artifacts", "Logs", "ManaGraphicsStartup.log");
 
         private static string FindLogRoot()
         {

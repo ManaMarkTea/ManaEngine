@@ -122,6 +122,37 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "review_changes":
+                        // Review Changes on the named prefab instance, as its Actions menu opens it.
+                        if (_context.World.Scenes.Select(scene => FindNode(scene.Children, command.Name ?? "")).FirstOrDefault(found => found != null) is { } reviewed)
+                        {
+                            ManaVoxel.Code.UI.ProjectAssetViewModel.For(_context.World).OpenReview(reviewed);
+                        }
+                        _index++;
+                        break;
+
+                    case "emission":
+                        // Emission on every mesh under the named node: colour from position, strength from frames/100.
+                        if (_context.World.Scenes.Select(scene => FindNode(scene.Children, command.Name ?? "")).FirstOrDefault(found => found != null) is { } glowing
+                            && command.Position is { Length: 3 } glow)
+                        {
+                            foreach (var renderer in ManaVoxel.Code.Assets.ManaPrefabRuntime.Walk(glowing).SelectMany(n => n.Components).OfType<global::Mana.MeshRendererComponent>())
+                            {
+                                renderer.Material.Emission.Value = new Vector4(glow[0], glow[1], glow[2], 1.0f);
+                                renderer.Material.EmissionStrength = command.Frames / 100.0;
+                            }
+                        }
+                        _index++;
+                        break;
+
+                    case "open_tools":
+                        if (ManaVoxel.Code.UI.ManaUi.ViewportToolsDrawer.Current is { } drawer)
+                        {
+                            drawer.IsOpen = true;
+                        }
+                        _index++;
+                        break;
+
                     case "open_panel":
                         ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.RequestPanel(command.Name ?? "");
                         _index++;

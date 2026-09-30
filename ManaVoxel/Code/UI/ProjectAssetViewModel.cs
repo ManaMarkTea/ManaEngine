@@ -98,6 +98,41 @@ namespace ManaVoxel.Code.UI
             }
         }
 
+        /// <summary>
+        /// An asset's tooltip: its name, what it is (and for a variant, what it is made from), how many parts it
+        /// has, how many are placed, and where it lives -- facts, not instructions.
+        /// </summary>
+        public string Describe(ManaContentEntry entry)
+        {
+            var folder = Path.GetDirectoryName(entry.RelativePath) ?? "";
+            if (entry.Kind != "Prefab")
+            {
+                return $"{entry.Name}\nGrid map preset \u00b7 {folder}";
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(File.ReadAllText(entry.Path));
+                var json = document.RootElement;
+                var id = json.TryGetProperty("id", out var idElement) ? idElement.GetString() : null;
+                var kind = json.TryGetProperty("base", out var baseElement) && baseElement.ValueKind == JsonValueKind.Object
+                    && baseElement.TryGetProperty("assetPath", out var basePath)
+                    ? $"Variant of {Path.GetFileNameWithoutExtension(basePath.GetString())}"
+                    : json.TryGetProperty("root", out var root) ? $"Prefab \u00b7 {Parts(root)} part{(Parts(root) == 1 ? "" : "s")}" : "Prefab";
+                var scenes = _savedScenes ?? _world.Scenes;
+                var placed = id == null ? 0 : scenes.SelectMany(s => s.Children).SelectMany(ManaPrefabRuntime.Walk).Count(n => n.PrefabLink?.AssetId == id);
+                return $"{entry.Name}\n{kind} \u00b7 {placed} placed \u00b7 {folder}";
+            }
+            catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+            {
+                return $"{entry.Name}\n{exception.Message}";
+            }
+
+            static int Parts(JsonElement node) => 1 + (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array
+                ? children.EnumerateArray().Sum(Parts)
+                : 0);
+        }
+
         public void Refresh() => Run(() => { _entries = ManaContentLibrary.List(); Status = $"{_entries.Count} project assets."; });
 
         public string? SelectedAsset { get; set; }
@@ -396,6 +431,7 @@ namespace ManaVoxel.Code.UI
 
         public void Revert(ManaSceneNode root, ManaPrefabProperty? property = null) => Run(() =>
         {
+            root = Live(root);
             var link = root.PrefabLink ?? throw new InvalidOperationException("Select a prefab instance.");
             var reference = property == null
                 ? new ManaPrefabReference { AssetId = link.AssetId, AssetPath = link.AssetPath }
@@ -412,6 +448,7 @@ namespace ManaVoxel.Code.UI
 
         public void RevertOverride(ManaSceneNode root, ManaPrefabOverride change, string? selectId = null) => Run(() =>
         {
+            root = Live(root);
             var reference = ManaPrefabRuntime.CaptureReference(root);
             reference.Overrides.RemoveAll(o => o.Path.Take(change.Path.Length).SequenceEqual(change.Path));
             var replacement = ManaPrefabRuntime.Replace(root, reference);
@@ -474,6 +511,7 @@ namespace ManaVoxel.Code.UI
 
         public void Unpack(ManaSceneNode root) => Run(() =>
         {
+            root = Live(root);
             if (root.Children.Count != 1)
             {
                 throw new InvalidOperationException("Restore the missing prefab source before unpacking.");
@@ -490,8 +528,119 @@ namespace ManaVoxel.Code.UI
             Status = "Unpacked instance into an independent scene tree.";
         });
 
+        /// <summary>
+        /// The instance as it is in the world now. Every change rebuilds an instance as a new node, and a panel can
+        /// still be holding the one it replaced -- which is how "no longer in the world" kept turning up. Found
+        /// again by its ID instead.
+        /// </summary>
+        private ManaSceneNode Live(ManaSceneNode instance)
+        {
+            if (SceneEditorOperations.FindOwningScene(_world, instance) != null)
+            {
+                return instance;
+            }
+
+            var id = instance.AuthoredId;
+            return _world.Scenes.SelectMany(s => s.Children).SelectMany(ManaPrefabRuntime.Walk)
+                    .FirstOrDefault(n => n.PrefabLink != null && id != null && n.AuthoredId == id)
+                ?? throw new InvalidOperationException($"{instance.Name} has been removed from the level.");
+        }
+
+        /// <summary>The instance the Review Changes window is looking at, while it is open.</summary>
+        public ManaSceneNode? ReviewInstance { get; private set; }
+
+        public bool ReviewOpen { get; set; }
+
+        /// <summary>The reviewed instance as it is now, or null once it has gone from the level.</summary>
+        public ManaSceneNode? CurrentReview
+        {
+            get
+            {
+                if (ReviewInstance == null)
+                {
+                    return null;
+                }
+                try
+                {
+                    return ReviewInstance = Live(ReviewInstance);
+                }
+                catch (InvalidOperationException)
+                {
+                    return null;
+                }
+            }
+        }
+
+        public void OpenReview(ManaSceneNode instance)
+        {
+            ReviewInstance = ManaPrefabRuntime.InstanceRoot(instance) ?? instance;
+            ReviewOpen = true;
+            Token = new object();
+        }
+
+        /// <summary>
+        /// Publishes some of an instance's changes to its prefab -- every placed copy gets them -- and keeps the
+        /// rest as this instance's own overrides.
+        /// </summary>
+        public void ApplyOverrides(ManaSceneNode instance, IReadOnlyList<ManaPrefabOverride> chosen) => Run(() =>
+        {
+            instance = Live(instance);
+            var reference = ManaPrefabRuntime.CaptureReference(instance);
+            var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
+            var asset = ManaPrefab.Load(path);
+            var picked = reference.Overrides.Where(o => chosen.Any(c => c.Path.SequenceEqual(o.Path))).ToList();
+            asset.Root = ManaPrefabOverrides.Resolve(asset.Root, picked);
+            asset.Save(path);
+            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(path);
+
+            // What was applied is now the prefab's own value, so this copy no longer overrides it.
+            var instanceId = instance.AuthoredId;
+            reference.Overrides.RemoveAll(o => picked.Contains(o));
+            ManaPrefabRuntime.Replace(instance, reference);
+            RefreshInstances(asset.Id, _savedScenes ?? _world.Scenes);
+            FindAgain(instanceId);
+            Status = $"Applied {picked.Count} change{(picked.Count == 1 ? "" : "s")} to {asset.Name}.";
+        });
+
+        /// <summary>Puts some of an instance's changes back to its prefab's values, keeping the rest.</summary>
+        public void RevertOverrides(ManaSceneNode instance, IReadOnlyList<ManaPrefabOverride> chosen) => Run(() =>
+        {
+            instance = Live(instance);
+            var reference = ManaPrefabRuntime.CaptureReference(instance);
+            var count = reference.Overrides.RemoveAll(o => chosen.Any(c => c.Path.SequenceEqual(o.Path)));
+            var instanceId = instance.AuthoredId;
+            ManaPrefabRuntime.Replace(instance, reference);
+            _editor?.History.Clear();
+            FindAgain(instanceId);
+            Status = $"Reverted {count} change{(count == 1 ? "" : "s")}.";
+        });
+
+        // An instance is rebuilt when its prefab or overrides change: find it again by its ID, select it, and
+        // keep the review window on it.
+        private void FindAgain(string? instanceId)
+        {
+            var scenes = _savedScenes ?? _world.Scenes;
+            var found = instanceId == null ? null : scenes.SelectMany(s => s.Children).SelectMany(ManaPrefabRuntime.Walk)
+                .FirstOrDefault(n => n.PrefabLink != null && n.AuthoredId == instanceId);
+            if (found == null)
+            {
+                return;
+            }
+
+            if (ReviewInstance != null)
+            {
+                ReviewInstance = found;
+            }
+
+            if (!IsEditing)
+            {
+                EditorSelectionSnapshot.SelectNode(_world.Selection, found, true);
+            }
+        }
+
         public void ApplyToSource(ManaSceneNode instance) => Run(() =>
         {
+            instance = Live(instance);
             var reference = ManaPrefabRuntime.CaptureReference(instance);
             var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
             var asset = ManaPrefab.Load(path);
@@ -559,6 +708,7 @@ namespace ManaVoxel.Code.UI
 
         public void SetProperty(ManaSceneNode instance, ManaPrefabProperty property, string text) => Run(() =>
         {
+            instance = Live(instance);
             var root = ManaLevelCapture.CaptureSubtree(instance.Children.Single());
             var current = ReadProperty(root, property) ?? throw new InvalidDataException("The exposed property target is missing.");
             JsonNode? value;

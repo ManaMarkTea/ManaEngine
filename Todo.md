@@ -7,3 +7,10 @@ Similar to our grid map floating tool, lets move all the voxel arrows and stuff 
 Wave function collapse to populate a dungeon from the kenney dungeon assets, but have it be configurable with some JSON assets and a Window Editor for it.
 
 Add support for UI from JSON.  And an editor for it. (Like UMG in unreal)
+Glow component (next up): levels and prefabs don't save material settings, so emission set in the Inspector is lost on save. Add a "Glow" script (colour, strength, optional light range) that sets emission on the meshes beneath it and adds a small point light, so a "Glowing Coin" is a Coin variant with a Glow added. Strength above 1 blooms.
+
+Finish the Artifacts rename on disk: close Rider and VS Code, then from the repo root run
+  Rename-Item artifacts\obj Obj_tmp; Rename-Item artifacts\Obj_tmp Obj; Rename-Item artifacts Artifacts_tmp; Rename-Item Artifacts_tmp Artifacts
+(the paths in the repo already say Artifacts/Bin, Artifacts/Obj).
+
+Review Changes for prefab variants: the review window works on placed copies; a variant open in the prefab stage could use it too.

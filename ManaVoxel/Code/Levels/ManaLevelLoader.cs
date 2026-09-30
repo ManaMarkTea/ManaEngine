@@ -746,7 +746,7 @@ namespace ManaVoxel.Code.Levels
             }
 
             // Source assets are not all copied to the output. Locate the checkout without
-            // depending on the depth of bin/, artifacts/bin/, or runtime-specific outputs.
+            // depending on the depth of bin/, Artifacts/Bin/, or runtime-specific outputs.
             for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
             {
                 if (!File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))

@@ -105,7 +105,7 @@ dotnet build ManaVoxel.Web
 dotnet build ManaVoxel.Editor.Web
 dotnet build Tools/AudioSmoke.Web -t:Rebuild
 dotnet publish Tools/AudioSmoke.Web -c Release -p:RunAOTCompilation=true
-python -m http.server 8766 --bind 127.0.0.1 --directory artifacts/bin/AudioSmoke.Web/Debug/net10.0/browser-wasm/AppBundle
+python -m http.server 8766 --bind 127.0.0.1 --directory Artifacts/Bin/AudioSmoke.Web/Debug/net10.0/browser-wasm/AppBundle
 ```
 
 The regular suite is headless. `--audio-smoke` requires an actual default output device and plays a
@@ -114,7 +114,7 @@ a real AudioContext to exercise locked-device behavior consistently across autop
 tests the C# → JS PCM upload, completion, looping, positioning and disposal. Rebuild after editing
 the harness JS because the SDK may retain it on an incremental build.
 
-The Release AOT harness is emitted to `artifacts/bin/AudioSmoke.Web/Release/net10.0/browser-wasm/AppBundle`;
+The Release AOT harness is emitted to `Artifacts/Bin/AudioSmoke.Web/Release/net10.0/browser-wasm/AppBundle`;
 serve that directory to check the compiled version.
 
 OpenAL Soft's native package includes Windows, macOS (including arm64) and Linux binaries. Windows

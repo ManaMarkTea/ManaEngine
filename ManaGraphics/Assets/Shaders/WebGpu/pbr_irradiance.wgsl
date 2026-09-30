@@ -277,8 +277,12 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // applies it twice and blows out grazing angles.
     let specular_ibl = reflection_radiance * (f0 * brdf.x + brdf.y) * ibl_intensity;
     let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao;
+    // With an emission map, it says what glows (glTF's rule). Without one, emission shows the surface's own
+    // colour -- texture and all -- as if in full daylight, tinted by the emission colour: a glowing coin still
+    // looks like the coin, where a white stand-in map painted it over in one flat colour.
     let emission_sample = textureSample(emission_texture, color_sampler, uv).rgb;
-    let emissive_color = pow(max(object.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2)) * emission_sample;
+    let emission_source = select(vertex_albedo, emission_sample, object.outline_parameters.z > 0.5);
+    let emissive_color = pow(max(object.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2)) * emission_source;
     let emissive_strength = object.material_emission.a;
     let emissive = emissive_color * emissive_strength;
 

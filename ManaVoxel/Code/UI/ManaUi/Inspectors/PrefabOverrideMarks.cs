@@ -5,6 +5,9 @@ using Mana.Code.Nodes;
 using ManaVoxel.Code.Assets;
 using ManaUI;
 
+// ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
+using Button = ManaUI.Button;
+
 namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 {
     /// <summary>
@@ -58,7 +61,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             var bar = new Border().Fill(theme.Accent).Width(2.0f).GridColumn(0);
             bar.BindPolled(b => b.Visibility, () => Find(node, component, field) != null ? Visibility.Visible : Visibility.Hidden);
 
-            var revert = ToolbarIcons.ActionButton(theme, ToolbarIcons.DrawUndo, "Revert to the prefab's value.", () =>
+            var revert = RevertButton(() =>
             {
                 if (Find(node, component, field) is { } change)
                 {
@@ -69,6 +72,18 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
             return new Grid().Columns("Auto, *, Auto", 3.0f).Rows("Auto").Children(bar, row.GridColumn(1), revert);
         }
+
+        /// <summary>The revert arrow: an emoji, which reads at a glance where a drawn curl was hard to make out.</summary>
+        public static Button RevertButton(Action revert) => new Button
+        {
+            IgnoreThemePadding = true,
+            Width = 26.0f,
+            Height = 22.0f
+        }
+            .Label("↩️")
+            .Variant(ButtonVariant.Subtle)
+            .WithTooltip("Revert to the prefab's value.")
+            .OnClick(revert);
 
         private static List<ManaPrefabOverride> Overrides(ManaSceneNode node)
         {

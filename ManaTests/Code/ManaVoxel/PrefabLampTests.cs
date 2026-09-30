@@ -216,6 +216,53 @@ public static class PrefabLampChecks
             var brighterLight = LightScript(ManaPrefab.Load(brighterPath).Root)!;
             check("a variant of a variant keeps both changes", Same(brighterLight["color"], Blue) && brighterLight["intensity"].GetSingle() == 5.0f);
 
+            // Review Changes: apply one of an instance's changes to the prefab, keep the other, then revert that.
+            var reviewContext = CreateContext();
+            var lampNow = ManaPrefab.Load(lampPath);
+            var light = ManaPrefab.Walk(lampNow.Root).First(n => n.Scripts?.Any(sc => sc.Type == "Light") == true);
+            var lightId = light.Scripts!.First(sc => sc.Type == "Light").Id!;
+            var colourPath = new[] { light.Id!, "scripts", lightId, "properties", "color" };
+            var brightnessPath = new[] { light.Id!, "scripts", lightId, "properties", "intensity" };
+            var placed = new ManaLevelNode
+            {
+                Id = Guid.NewGuid().ToString("N"), Name = "Review Lamp", Kind = ManaLevelSourceKind.Prefab,
+                Position = [0, 0, 0], Rotation = [0, 0, 0], Scale = [1, 1, 1],
+                Prefab = new ManaPrefabReference
+                {
+                    AssetId = lampNow.Id, AssetPath = "Prefabs/Lamp.manaprefab",
+                    Overrides =
+                    [
+                        new ManaPrefabOverride { Path = colourPath, Value = System.Text.Json.Nodes.JsonNode.Parse("[1, 0.15, 0.1, 1]") },
+                        new ManaPrefabOverride { Path = brightnessPath, Value = System.Text.Json.Nodes.JsonValue.Create(3.5) }
+                    ]
+                }
+            };
+            var loaded = ManaLevelLoader.Load(new ManaLevel { Nodes = [placed] }, reviewContext, reviewContext.World.DefaultScene, replaceAuthoredNodes: false);
+            var reviewed = loaded.Nodes.First(n => n.PrefabLink != null);
+            var review = ManaVoxel.Code.UI.ProjectAssetViewModel.For(reviewContext.World);
+            review.OpenReview(reviewed);
+            var brightnessChange = ManaPrefabRuntime.CaptureReference(reviewed).Overrides.First(o => o.Path.SequenceEqual(brightnessPath));
+            review.ApplyOverrides(reviewed, [brightnessChange]);
+            var published = LightScript(ManaPrefab.Load(lampPath).Root)!;
+            var afterApply = review.CurrentReview;
+            var remaining = afterApply == null ? [] : ManaPrefabRuntime.CaptureReference(afterApply).Overrides;
+            check("applying one change publishes it to the prefab and leaves the other on the copy",
+                Math.Abs(published["intensity"].GetSingle() - 3.5f) < 1e-3f && Same(published["color"], White)
+                && remaining.Count == 1 && remaining[0].Path.SequenceEqual(colourPath), $"{review.Status} {remaining.Count}");
+            if (afterApply != null && remaining.Count == 1)
+            {
+                review.RevertOverrides(afterApply, remaining);
+                var reverted = review.CurrentReview;
+                check("and reverting the other leaves the copy matching its prefab",
+                    reverted != null && ManaPrefabRuntime.CaptureReference(reverted).Overrides.Count == 0, review.Status);
+            }
+
+            // Handed a copy the level has since rebuilt, an action finds the live one rather than failing.
+            var stale = reviewed;
+            review.SetProperty(stale, lampNow.Properties.First(pr => pr.Property == "intensity"), "1.5");
+            check("an action on a rebuilt copy works on the live one", !review.Status.Contains("no longer", StringComparison.Ordinal)
+                && !review.Status.Contains("removed", StringComparison.Ordinal), review.Status);
+
             // A variant made from itself is a loop, and is refused rather than hanging the loader.
             var loopFile = JsonNode.Parse(File.ReadAllText(bluePath))!;
             loopFile["base"]!["assetId"] = loopFile["id"]!.GetValue<string>();

@@ -10,6 +10,9 @@ public sealed class ViewportToolsDrawer : Panel
     private readonly Border _body;
     private bool _isOpen;
 
+    /// <summary>The drawer most recently built, for the command file's open_tools.</summary>
+    public static ViewportToolsDrawer? Current { get; private set; }
+
     public bool IsOpen
     {
         get => _isOpen;
@@ -38,17 +41,22 @@ public sealed class ViewportToolsDrawer : Panel
             if (!size.IsApplyingBinding) editor.Snap.GizmoSize = value;
         };
         size.BindPolled(s => s.Value, () => editor.Snap.GizmoSize);
-        var reset = new Button("Reset size");
-        reset.Click += (_, _) => editor.Snap.GizmoSize = 1.0f;
+        var reset = ToolbarIcons.ActionButton(theme, ToolbarIcons.DrawUndo, "Back to the default size.", () => editor.Snap.GizmoSize = 1.0f);
 
-        _body = new Border().Fill(theme.SurfaceRaised).Rounded(theme.CornerRadius).PaddingOf(8);
+        // One scroll for the whole drawer: the preferences panel's own scroll, nested inside, clipped its
+        // rows. Just the snap rows are shared with it now.
+        _body = new Border().Fill(theme.SurfaceRaised).Rounded(theme.CornerRadius).PaddingOf(10);
         _body.Child = new StackPanel().Vertical(8).Children(
-            new TextBlock().Text("Gizmo size").FontFamily(theme.FontFamilyMedium),
-            size,
-            new TextBlock().Text("Arrow length in world units").FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted),
-            new TextBlock().Text("Drag a square to move on two axes. Or hold Shift when grabbing an arrow.").FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).Wrap(),
-            reset,
-            PreferencesManaView.Build(theme, editor).Height(210)).Scrollable();
+            PreferencesManaView.Heading(theme, "Gizmo"),
+            new Grid().Columns("52, *, Auto", 4.0f).Rows("Auto").Children(
+                new TextBlock().Text("Size").Foreground(theme.TextMuted).CenterV().GridColumn(0),
+                size.GridColumn(1),
+                reset.CenterV().GridColumn(2)),
+            PreferencesManaView.Heading(theme, "Snap"),
+            PreferencesManaView.SnapRows(theme, editor.Snap),
+            new TextBlock().Text("Shift-drag an arrow, or drag a square, to move on a plane.")
+                .FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).Wrap()).Scrollable();
+        Current = this;
         Children.Add(_body);
         Children.Add(_tab);
         IsOpen = false;
@@ -56,6 +64,7 @@ public sealed class ViewportToolsDrawer : Panel
 
     protected override Vector2 MeasureOverride(Vector2 availableSize)
     {
+
         _tab.Measure(new Vector2(88, 28));
         if (IsOpen) _body.Measure(new Vector2(availableSize.X, MathF.Max(0, availableSize.Y - 32)));
         return availableSize;

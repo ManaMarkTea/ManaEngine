@@ -124,7 +124,8 @@ namespace ManaGraphics.Code.Graphics
                 OutlineParameters = new Vector4(
                     Math.Clamp(meshInstance.OutlineWidth, 1.0f, 4.0f),
                     meshInstance.OutlineEnabled ? 1.0f : 0.0f,
-                    0.0f,
+                    // z: the material has an emission map of its own (pbr_irradiance.wgsl's emission).
+                    string.IsNullOrEmpty(meshInstance.MeshData.EmissionTexturePath) ? 0.0f : 1.0f,
                     0.0f),
                 // -1 means "no per-object override, use the frame's global debug mode" -- valid debug
                 // mode indexes are >= 0 (see ManaIrradianceSettings.WebGpuDebugMode).

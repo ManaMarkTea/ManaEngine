@@ -101,7 +101,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 && e.RelativePath.Contains(model.Search, StringComparison.OrdinalIgnoreCase)).ToList();
             if (entries.Count == 0)
             {
-                return new TextBlock().Text("No matching assets. Right-click a node in the Outliner and choose Make Prefab.").Wrap().Foreground(theme.TextMuted);
+                return new TextBlock().Text("No assets here yet. Make one from an object's right-click menu in the Outliner.").Wrap().Foreground(theme.TextMuted);
             }
             var tiles = new WrapPanel { Spacing = theme.Spacing };
             foreach (var entry in entries)
@@ -124,7 +124,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     ContextMenuItems = () => AssetMenu(model, entry)
                 };
                 row.Clicked += (_, _) => model.SelectedAsset = entry.Path;
-                row.Tooltip = entry.RelativePath + (entry.Kind == "Prefab" ? " · Drag into the viewport. Right-click to place, edit or delete." : " · Right-click to apply or delete.");
+                row.Tooltip = model.Describe(entry);
                 var sync = MeshImportManaView.Throttled<object?>(() =>
                 {
                     if (entry.Kind == "Prefab" && MeshImportManaView.IsThumbnailRequestVisible(row))
@@ -164,19 +164,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             return items;
         }
 
-        private static UiElement BuildEditing(UiTheme theme, ProjectAssetViewModel model)
+        private static UiElement? BuildEditing(UiTheme theme, ProjectAssetViewModel model)
         {
             if (!model.IsEditing)
             {
-                return new TextBlock().Text("Edit a prefab to expose properties and update its instances.").Wrap().Foreground(theme.TextMuted);
+                return null;
             }
-            return new StackPanel().Vertical(theme.Spacing).Children(
-                new TextBlock().Text($"Editing: {model.EditingName}").Foreground(theme.Accent),
-                new StackPanel().Horizontal(4).Children(
-                    new Button().Label("Save").OnClick(() => model.SavePrefab()),
-                    new Button().Label("Save & Close").OnClick(() => model.SavePrefab(true)),
-                    new Button().Label("Discard").OnClick(model.DiscardEditing)),
-                new TextBlock().Text("Select a node to expose its properties in the Inspector. New nodes must be children of the prefab root.").Wrap());
+            return new StackPanel().Horizontal(4).Children(
+                new TextBlock().Text($"Editing {model.EditingName}").Foreground(theme.Accent).CenterV(),
+                new Button().Label("Save").OnClick(() => model.SavePrefab()),
+                new Button().Label("Save & Close").OnClick(() => model.SavePrefab(true)),
+                new Button().Label("Discard").OnClick(model.DiscardEditing));
         }
 
         public static UiElement BuildInspector(UiTheme theme, ManaSceneNode node)
@@ -231,14 +229,24 @@ namespace ManaVoxel.Code.UI.ManaUi
                 var reference = ManaPrefabRuntime.CaptureReference(instance);
                 var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
                 var asset = ManaPrefab.Load(path);
-                panel.Children.Add(new TextBlock().Text($"{asset.Name} · {reference.Overrides.Count} overrides").Foreground(theme.Accent));
-                panel.Children.Add(new StackPanel().Horizontal(4).Children(
-                    new Button().Label("Edit Source").OnClick(() => model.OpenPrefab(path)),
-                    new Button().Label("Refresh").OnClick(model.RefreshSelected),
-                    new Button().Label("Unpack").OnClick(() => model.Unpack(instance))));
-                panel.Children.Add(new StackPanel().Horizontal(4).Children(
-                    new Button().Label("Revert All").OnClick(() => model.Revert(instance)),
-                    new Button().Label("Apply to Prefab").OnClick(() => model.ApplyToSource(instance))));
+                // One line saying whether this copy still matches its prefab, and every action in one menu.
+                var changes = reference.Overrides.Count;
+                var summary = new TextBlock()
+                    .Text(changes == 0 ? $"Same as {asset.Name}" : $"{changes} change{(changes == 1 ? "" : "s")} from {asset.Name}")
+                    .Foreground(changes == 0 ? theme.TextMuted : theme.Accent)
+                    .Ellipsis()
+                    .CenterV();
+                panel.Children.Add(new Grid().Columns("*, Auto", 4).Rows("Auto").Children(
+                    summary.GridColumn(0),
+                    ActionsMenu(theme, [
+                        new MenuItem("Review Changes…", () => model.OpenReview(instance)).EnabledWhen(() => changes > 0),
+                        new MenuItem("Edit Prefab", () => model.OpenPrefab(path)),
+                        new MenuItem("Revert All Changes", () => model.Revert(instance)).EnabledWhen(() => changes > 0),
+                        new MenuItem("Apply Changes to Prefab", () => model.ApplyToSource(instance)).EnabledWhen(() => changes > 0),
+                        MenuItem.Separator(),
+                        new MenuItem("Refresh from Prefab", model.RefreshSelected),
+                        new MenuItem("Unpack", () => model.Unpack(instance))
+                    ]).GridColumn(1)));
                 if (instance.Children.Count == 1)
                 {
                     var root = ManaLevelCapture.CaptureSubtree(instance.Children[0]);
@@ -277,6 +285,30 @@ namespace ManaVoxel.Code.UI.ManaUi
             return new Expander().Header("Prefab Instance").Content(panel);
         }
 
+        /// <summary>A button that drops a menu: "Actions", with a chevron.</summary>
+        private static Button ActionsMenu(UiTheme theme, List<MenuItem> items)
+        {
+            var button = new Button();
+            button.Child = new StackPanel().Horizontal(4).Children(
+                new TextBlock().Text("Actions").CenterV(),
+                new ToolbarIcons.ToolbarIcon((drawList, box, colour) =>
+                {
+                    var middle = box.X + box.Width * 0.5f;
+                    var top = box.Y + box.Height * 0.4f;
+                    var bottom = box.Y + box.Height * 0.62f;
+                    drawList.DrawLine(new Vector2(middle - box.Width * 0.22f, top), new Vector2(middle, bottom), colour, 1.5f);
+                    drawList.DrawLine(new Vector2(middle + box.Width * 0.22f, top), new Vector2(middle, bottom), colour, 1.5f);
+                }) { Width = 12, Height = 12, Color = theme.Text }.CenterV());
+            button.OnClick(() =>
+            {
+                if (button.Root is { } root)
+                {
+                    MenuFlyout.ShowBelow(root, button, items);
+                }
+            });
+            return button;
+        }
+
         /// <summary>
         /// A value row marked the way the Inspector marks them: an accent bar and a revert arrow while it differs
         /// from the prefab, nothing extra while it does not.
@@ -289,7 +321,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             var row = new Grid().Columns("Auto, Auto, *, Auto", 4.0f).Rows("Auto").Children(bar, name, editor.GridColumn(2));
             if (overridden)
             {
-                row.Children.Add(ToolbarIcons.ActionButton(theme, ToolbarIcons.DrawUndo, "Revert to the prefab's value.", revert).GridColumn(3));
+                row.Children.Add(Inspectors.PrefabOverrideMarks.RevertButton(revert).GridColumn(3));
             }
             return row;
         }
@@ -297,7 +329,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static string OverrideValue(ManaPrefabOverride change) => change.Remove ? "removed"
             : change.Value == null ? "" : Display(change.Value);
 
-        private static string OverrideLabel(ManaPrefab asset, ManaPrefabOverride change)
+        internal static string OverrideLabel(ManaPrefab asset, ManaPrefabOverride change)
         {
             var node = ManaPrefab.Walk(asset.Root).FirstOrDefault(n => n.Id == change.Path.FirstOrDefault());
             var field = change.Path.LastOrDefault() ?? "Property";
@@ -305,7 +337,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 : $"{node?.Name ?? "Missing node"} / {field}";
         }
 
-        private static string Display(JsonNode value) => value is JsonArray array
+        internal static string Display(JsonNode value) => value is JsonArray array
             ? string.Join(", ", array.Select(v => v?.ToString() ?? ""))
             : value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : value.ToString();
 

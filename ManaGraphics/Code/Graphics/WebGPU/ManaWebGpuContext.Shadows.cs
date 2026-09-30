@@ -336,7 +336,9 @@ namespace ManaGraphics.Code.Graphics
             }
 
             Span<float> splits = stackalloc float[CascadeCount];
-            const float splitLambda = 0.6f;
+            // Mostly logarithmic, so the nearest cascade is a few metres deep and its texels a few millimetres
+            // across; at 0.6 it reached 20 m and a shadow at your feet was drawn in blocks.
+            const float splitLambda = 0.9f;
             for (var i = 0; i < CascadeCount; i++)
             {
                 var p = (i + 1) / (float)CascadeCount;
@@ -448,8 +450,10 @@ namespace ManaGraphics.Code.Graphics
                 foreach (var sceneMesh in _sceneMeshes)
                 {
                     // The editor room only receives: its floor casting onto itself is nothing but acne, and
-                    // its ceiling would put the whole room in shade. Handles cast nothing either.
+                    // its ceiling would put the whole room in shade. Editor helpers -- handles, collider and
+                    // trigger wireframes, markers -- are kept out of reflections the same way, and cast nothing.
                     if (sceneMesh.Instance.IsTransparent || sceneMesh.Instance.AlwaysOnTop
+                        || !sceneMesh.Instance.IncludeInEnvironmentCapture
                         || sceneMesh.Instance.ShaderName == "ManaGridShader")
                     {
                         continue;
