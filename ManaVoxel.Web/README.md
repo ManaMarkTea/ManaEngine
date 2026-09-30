@@ -6,6 +6,18 @@ bundled level, and a controllable character. No editor.
 See `WebPort-Plan.md` at the repo root for the porting history and the reasoning behind the
 browser-specific workarounds.
 
+## Levels and the menu
+
+The page opens on a level selector: every level in `Content/Levels`, with a picture from
+`Content/Levels/Pictures/<name>.jpg` and a line from `LEVEL_DESCRIPTIONS` in
+`Tools/WebAssets/publish_assets.py`, which writes the list (`levels.json`) at publish time. Levels the
+browser cannot play yet are left off in `UNPLAYABLE_LEVELS` there. Picking one reloads the page with
+`?level=Content/Levels/<file>`; only then does the engine download, and the level is the program's argument.
+
+Escape while playing opens the pause menu (Resume, Restart level, Choose another level); the game stops
+while it is open and the page keeps its keys and clicks. The menu talks to the game through
+`BrowserGameControls` (JS exports from this assembly).
+
 ## Build and run
 
 ```bash

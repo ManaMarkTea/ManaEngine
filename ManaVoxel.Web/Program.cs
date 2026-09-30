@@ -35,11 +35,21 @@ ManaBrowserInterop.ReportLoadingProgress("Starting engine", 0.0f);
 try
 {
     await ManaCore.Browser.ManaBrowserAssets.InitializeAsync();
-    await ManaVoxel.Code.Levels.ManaLevelLoader.EnsureAssetsAsync(
-        ManaVoxel.Code.Levels.ManaLevel.Load("Content/Levels/Sample Course.manalevel"));
+
+    // The level picked on the selector page (main.js passes it as the program's argument), or the Sample Course.
+    // Only a bundled level: the argument comes off the URL, and nothing else in the file system is a level.
+    var levelPath = "Content/Levels/Sample Course.manalevel";
+    if (args.Length > 0 && args[0].StartsWith("Content/Levels/", StringComparison.Ordinal) && !args[0].Contains("..")
+        && args[0].EndsWith(".manalevel", StringComparison.Ordinal) && File.Exists(args[0]))
+    {
+        levelPath = args[0];
+    }
+    Console.WriteLine($"[BrowserPlay] Level: {levelPath}");
+
+    await ManaVoxel.Code.Levels.ManaLevelLoader.EnsureAssetsAsync(ManaVoxel.Code.Levels.ManaLevel.Load(levelPath));
     // The real game: ground, the bundled level, a pawn controller and a follow camera -- the same
     // engine lifecycle the desktop play mode drives, minus the editor. See BrowserPlayGameMode.
-    var playMode = new BrowserPlayGameMode("Content/Levels/Sample Course.manalevel", ManaGraphicsBackendKind.WebGpu);
+    var playMode = new BrowserPlayGameMode(levelPath, ManaGraphicsBackendKind.WebGpu);
 
     // Not padding. Browser wasm is single-threaded, so BrowserPlayGameMode.Load runs inline on the
     // main thread and holds it for seconds -- decoding a 5 MB environment map and unzipping meshes.

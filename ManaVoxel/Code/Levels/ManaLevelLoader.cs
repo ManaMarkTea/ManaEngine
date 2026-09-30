@@ -678,6 +678,25 @@ namespace ManaVoxel.Code.Levels
             return world.LoadFromGltf(assetReference, into: into);
         }
 
+        private static readonly System.Text.RegularExpressions.Regex PackReference = new(@"zip:([^/""\\]+\.zip)/", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex SpriteAssetPath = new(@"""assetPath""\s*:\s*""([^""]+\.mana(?:sheet|slice))""", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>The asset packs a script's sprites draw from: named in its own fields, or in the sheets and slices it points at.</summary>
+        private static IEnumerable<string> SpritePacks(ManaLevelScript script)
+        {
+            var text = System.Text.Json.JsonSerializer.Serialize(script.Properties);
+            var packs = new HashSet<string>(PackReference.Matches(text).Select(match => match.Groups[1].Value), StringComparer.OrdinalIgnoreCase);
+            foreach (System.Text.RegularExpressions.Match asset in SpriteAssetPath.Matches(text))
+            {
+                var file = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, asset.Groups[1].Value);
+                if (File.Exists(file))
+                {
+                    packs.UnionWith(PackReference.Matches(File.ReadAllText(file)).Select(match => match.Groups[1].Value));
+                }
+            }
+            return packs;
+        }
+
         public static async Task EnsureAssetsAsync(ManaLevel level)
         {
             var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
@@ -701,6 +720,12 @@ namespace ManaVoxel.Code.Levels
                 }
                 foreach (var script in node.Scripts ?? [])
                 {
+                    // Sprites read their pictures out of asset packs, named inside the script or in the sheet or slice it uses.
+                    foreach (var pack in SpritePacks(script))
+                    {
+                        try { await catalog.EnsureAsync($"zip:{pack}/"); }
+                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload sprite pack '{pack}': {ex.Message}"); }
+                    }
                     if (!string.Equals(script.Type, ManaAudioSourceComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) { continue; }
                     string Text(string key) => script.Properties.FirstOrDefault(pair =>
                         string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value is var value
@@ -725,6 +750,12 @@ namespace ManaVoxel.Code.Levels
 
         public static string ResolveAssetPath(string assetReference)
         {
+            // The browser has no checkout to search: a catalog asset is wherever the catalog downloaded it.
+            if (ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf(assetReference) is { } downloaded && File.Exists(downloaded))
+            {
+                return downloaded;
+            }
+
             if (Path.IsPathRooted(assetReference))
             {
                 return Path.GetFullPath(assetReference);

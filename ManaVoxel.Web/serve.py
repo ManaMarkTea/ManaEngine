@@ -17,7 +17,6 @@ Usage:  python3 serve.py [port]          (defaults to 8000, serves the published
 import functools
 import http.server
 import os
-import socketserver
 import sys
 
 DEFAULT_PORT = 8000
@@ -49,8 +48,11 @@ def main():
         return 1
 
     handler = functools.partial(NoCacheHandler, directory=APP_BUNDLE)
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", port), handler) as httpd:
+    # Threaded: the engine download is dozens of requests at once, and a one-at-a-time server refuses some of them
+    # once its queue fills -- the boot then fails with "Failed to fetch" on a framework file.
+    http.server.ThreadingHTTPServer.allow_reuse_address = True
+    http.server.ThreadingHTTPServer.daemon_threads = True
+    with http.server.ThreadingHTTPServer(("", port), handler) as httpd:
         print(f"Serving {APP_BUNDLE}")
         print(f"  http://localhost:{port}/   (no-store: every reload gets fresh files)")
         try:

@@ -31,7 +31,7 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/Levels/**/*.manalevel">
       <TargetPath>Content/Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Content/**/*.managridpreset">
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Content/**/*.managridpreset;$(MSBuildThisFileDirectory)Content/**/*.manasheet;$(MSBuildThisFileDirectory)Content/**/*.manaslice">
       <TargetPath>Content/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)Tools/WebAssets/asset-downloads.js" Link="asset-downloads.js" />

@@ -149,12 +149,21 @@ function manaInput() {
     return guardedInput;
 }
 
+// A page's own menu over the game (the web build's pause menu) sets this while it is open, so the keys and clicks
+// meant for the menu never reach the game. Releases still go through: a key held when the menu opened must not stay down.
+function inputBlocked() {
+    return globalThis.ManaMenuOpen === true;
+}
+
 export function installInput() {
     if (!canvas) {
         return;
     }
 
     window.addEventListener('keydown', (e) => {
+        if (inputBlocked()) {
+            return;
+        }
         if (SUPPRESSED_KEYS.has(e.code)) {
             e.preventDefault();
         }
@@ -187,7 +196,7 @@ export function installInput() {
 
     canvas.addEventListener('mousemove', (e) => {
         const api = manaInput();
-        if (!api) {
+        if (!api || inputBlocked()) {
             return;
         }
         // CSS pixels, like GLFW's window coordinates: ManaUI hit-tests in them, and the camera
@@ -203,7 +212,7 @@ export function installInput() {
 
     canvas.addEventListener('mousedown', (e) => {
         const api = manaInput();
-        if (api) {
+        if (api && !inputBlocked()) {
             api.OnMouseDown(e.button);
         }
     });
@@ -220,7 +229,7 @@ export function installInput() {
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
         const api = manaInput();
-        if (api) {
+        if (api && !inputBlocked()) {
             // deltaMode 1 is lines, 2 is pages; normalize both to something close to pixels so a
             // notch means roughly the same amount of zoom regardless of the user's OS/browser.
             const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1;

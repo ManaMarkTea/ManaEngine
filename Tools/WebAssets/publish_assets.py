@@ -96,6 +96,7 @@ def publish(root, output):
                     if Path(entry).suffix.lower() in (".glb", ".gltf"):
                         models.append(dict(path=path, entry=entry))
 
+    publish_levels(root, output)
     catalog = dict(version=1, files=files, models=models)
     temporary = output / "asset-catalog.json.tmp"
     temporary.write_text(json.dumps(catalog, separators=(",", ":")), encoding="utf-8")
@@ -108,6 +109,54 @@ def publish(root, output):
     print(f"External library: {len(files)} files, {len(models)} models, "
           f"{sum(item['size'] for item in files) / 1024**2:.1f} MiB; not part of startup download.")
     return catalog
+
+
+# Levels the browser cannot play yet, and why -- left off the selector rather than shown and failing.
+UNPLAYABLE_LEVELS = {
+    "Planet Showcase": "streams elevation data the web build does not ship",
+}
+
+# A line under each level's name on its card.
+LEVEL_DESCRIPTIONS = {
+    "Sample Course": "The obstacle course: coins, springs, hazards, enemies and moving platforms.",
+    "2D Sample": "A side-on run through five biomes -- grass, desert, snow, mushrooms and a castle.",
+    "Little Train Yard": "Trains on a loop around a small yard.",
+    "Little Pond": "A quiet pond with water to wade into.",
+    "Prefab Lamps": "Lamps placed from one prefab, a red one among them.",
+    "Voxel Showcase": "Characters and props built from voxels.",
+    "PBR Gallery": "Materials side by side under the same light.",
+    "Flight Helmet": "The Khronos flight helmet, up close.",
+}
+
+# The order the selector shows them in: the ones made to be played first, then the showcases.
+LEVEL_ORDER = ["Sample Course", "2D Sample", "Little Train Yard", "Little Pond", "Prefab Lamps", "Voxel Showcase", "PBR Gallery", "Flight Helmet"]
+
+
+def publish_levels(root, output):
+    """levels.json: what the page's level selector lists -- each bundled level's name, file, picture and size.
+    A level's picture is Content/Levels/Pictures/<name>.jpg, copied beside the list."""
+    levels = []
+    pictures = output / "level-pictures"
+    pictures.mkdir(exist_ok=True)
+    for source in sorted((root / "Content" / "Levels").rglob("*.manalevel")):
+        document = json.loads(source.read_text(encoding="utf-8-sig"))
+        name = document.get("name") or source.stem
+        if name in UNPLAYABLE_LEVELS:
+            continue
+        def count(nodes):
+            return sum(1 + count(node.get("children") or []) for node in nodes or [])
+        entry = dict(name=name, file="Content/Levels/" + source.relative_to(root / "Content" / "Levels").as_posix(),
+                     description=LEVEL_DESCRIPTIONS.get(name, ""), nodes=count(document.get("nodes")))
+        picture = root / "Content" / "Levels" / "Pictures" / f"{name}.jpg"
+        if picture.exists():
+            shutil.copyfile(picture, pictures / picture.name)
+            entry["picture"] = "level-pictures/" + picture.name
+        levels.append(entry)
+    levels.sort(key=lambda level: (LEVEL_ORDER.index(level["name"]) if level["name"] in LEVEL_ORDER else len(LEVEL_ORDER), level["name"]))
+    temporary = output / "levels.json.tmp"
+    temporary.write_text(json.dumps(dict(levels=levels), indent=1), encoding="utf-8")
+    temporary.replace(output / "levels.json")
+    print(f"Level selector: {len(levels)} levels.")
 
 
 if __name__ == "__main__":

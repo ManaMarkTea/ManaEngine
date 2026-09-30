@@ -100,10 +100,114 @@ function installDownloadProgress() {
     };
 }
 
-try {
+// --- Level selector ----------------------------------------------------------------------------------
+// The page opens on a list of levels; picking one reloads it with ?level=, and only then does the engine download.
+// levels.json is written at publish time from Content/Levels (see Tools/WebAssets/publish_assets.py).
+async function showLevelSelector() {
+    document.getElementById('manaLoading').remove();
+    const select = document.getElementById('manaSelect');
+    const list = document.getElementById('manaLevels');
+    select.classList.add('mana-open');
+
+    let levels = [];
+    try {
+        const response = await fetch('levels.json', { cache: 'no-store' });
+        levels = response.ok ? (await response.json()).levels : [];
+    } catch (error) {
+        console.warn('[ManaSelect] levels.json unavailable:', error);
+    }
+    if (levels.length === 0) {
+        // An older publish without the list: the game still plays its default level.
+        levels = [{ name: 'Sample Course', file: 'Content/Levels/Sample Course.manalevel', description: '' }];
+    }
+
+    for (const level of levels) {
+        const card = document.createElement('button');
+        card.className = 'mana-level';
+        card.title = level.name;
+        const picture = document.createElement('div');
+        picture.className = 'mana-level-picture';
+        picture.textContent = level.name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
+        if (level.picture) {
+            picture.style.backgroundImage = `url("${encodeURI(level.picture)}")`;
+            picture.textContent = '';
+        }
+        const body = document.createElement('div');
+        body.className = 'mana-level-body';
+        const name = document.createElement('div');
+        name.className = 'mana-level-name';
+        name.textContent = level.name;
+        const description = document.createElement('div');
+        description.className = 'mana-level-description';
+        description.textContent = level.description || '';
+        body.append(name, description);
+        card.append(picture, body);
+        card.addEventListener('click', () => {
+            location.search = '?level=' + encodeURIComponent(level.file);
+        });
+        list.append(card);
+    }
+    list.querySelector('button')?.focus();
+}
+
+// --- Pause menu ------------------------------------------------------------------------------------------
+// Escape while playing opens it and pauses the game; Resume (or Escape again) carries on, Restart goes back to the
+// start of the level, and Choose another level returns to the selector -- a fresh page, so a fresh game.
+function installPauseMenu(game, graphics) {
+    const menu = document.getElementById('manaMenu');
+    const hint = document.getElementById('manaHint');
+    let ready = false;
+
+    // Playable once the loading screen has gone; before that there is nothing to pause.
+    const hide = globalThis.ManaLoading.hide;
+    globalThis.ManaLoading.hide = function () {
+        hide();
+        ready = true;
+        hint.classList.add('mana-shown');
+        setTimeout(() => hint.classList.remove('mana-shown'), 5000);
+    };
+
+    const setOpen = open => {
+        globalThis.ManaMenuOpen = open;
+        menu.classList.toggle('mana-open', open);
+        game.SetPaused(open);
+        if (open) {
+            // Whatever was held when the menu opened is let go, or the character walks on after Resume.
+            graphics.OnFocusLost();
+            document.getElementById('manaResume').focus();
+        } else {
+            document.getElementById('manaCanvas').focus?.();
+        }
+    };
+
+    // Capture phase, so the game's own key handler never sees this Escape.
+    window.addEventListener('keydown', event => {
+        if (event.code !== 'Escape' || !ready) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(!globalThis.ManaMenuOpen);
+    }, { capture: true });
+
+    document.getElementById('manaResume').addEventListener('click', () => setOpen(false));
+    document.getElementById('manaRestart').addEventListener('click', () => {
+        game.Restart();
+        setOpen(false);
+    });
+    document.getElementById('manaQuit').addEventListener('click', () => {
+        location.search = '';
+    });
+}
+
+const chosenLevel = new URLSearchParams(location.search).get('level');
+
+if (!chosenLevel) {
+    await showLevelSelector();
+} else try {
     installDownloadProgress();
 
-    const runtime = await dotnet.create();
+    const runtime = await dotnet.withApplicationArguments(chosenLevel).create();
     const { runMain } = runtime;
 
     // Downloads are done; from here the engine's own load owns the bar, reported from C# through
@@ -119,6 +223,9 @@ try {
     // is why the adapter/device request stalled with no visible error at all. getAssemblyExports
     // lives on the runtime instance dotnet.create() returns, not as a named export of dotnet.js.
     globalThis.ManaExports = await runtime.getAssemblyExports('ManaGraphics');
+    const gameExports = await runtime.getAssemblyExports('ManaVoxel.Web');
+    installPauseMenu(gameExports.ManaVoxel.Web.BrowserGameControls,
+        globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop);
 
     // Does not wait for the game: browser bring-up is async and non-blocking, so this returns
     // long before there is anything on the canvas. The overlay is dismissed from the C# side,

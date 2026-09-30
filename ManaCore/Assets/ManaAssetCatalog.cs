@@ -191,6 +191,9 @@ public sealed class ManaAssetCatalog
     /// which need <see cref="Key"/> to resolve; this one already has the resolved path.</summary>
     public string LocalFilePath(string catalogPath) => LocalPath(catalogPath);
 
+    /// <summary>Where a reference's own file lands once downloaded, or null when the catalog does not hold it.</summary>
+    public string? LocalFileOf(string reference) => Key(reference) is { } key ? LocalPath(key) : null;
+
     private IEnumerable<string> Closure(string key)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);

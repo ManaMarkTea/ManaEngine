@@ -199,6 +199,12 @@ namespace Mana
         // packs sit in the repo's Assets/, and the program runs from a build folder several levels down.
         private static string? FindZip(string zipName)
         {
+            // In the browser the packs are not on disk to be found: the asset catalog downloads them on demand, and a
+            // level preloads the ones its sprites use (ManaLevelLoader.EnsureAssetsAsync).
+            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog && File.Exists(catalog.LocalFilePath("Assets/" + zipName)))
+            {
+                return catalog.LocalFilePath("Assets/" + zipName);
+            }
             return PackFiles().FirstOrDefault(zip => string.Equals(Path.GetFileName(zip), zipName, StringComparison.OrdinalIgnoreCase));
         }
 

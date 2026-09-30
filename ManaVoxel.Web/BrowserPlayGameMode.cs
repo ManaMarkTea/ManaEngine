@@ -38,10 +38,26 @@ namespace ManaVoxel.Web
         /// <summary>The character being played, once there is one.</summary>
         public ManaPawnNode? Player => _player;
 
+        /// <summary>The game being played, for the page's menu to pause and restart.</summary>
+        public static BrowserPlayGameMode? Current { get; private set; }
+
+        /// <summary>Set while the page's menu is open.</summary>
+        public static bool Paused { get; set; }
+
+        /// <summary>Back to the start of the level, as R does.</summary>
+        public void Restart()
+        {
+            if (_player != null)
+            {
+                Context.World.GameState.Restart(Context.World, _spawnPosition, _spawnYaw);
+            }
+        }
+
         public BrowserPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
             : base(graphicsBackend)
         {
             _levelPath = levelPath;
+            Current = this;
 
             // Desktop shows the loading screen through ManaUI, which does not exist here: EnableManaUi
             // is off below. The browser's screen is the HTML overlay in index.html
@@ -76,7 +92,14 @@ namespace ManaVoxel.Web
                 requestedBackend: null,
                 () => Context.World.CreateRenderScene(),
                 (window, input) => LoadForGraphicsBackend(window, input, new ManaWebGpuGraphicsDevice(null)),
-                deltaTime => update(deltaTime),
+                // Paused by the page's menu: the scene still draws, but nothing moves or counts down.
+                deltaTime =>
+                {
+                    if (!Paused)
+                    {
+                        update(deltaTime);
+                    }
+                },
                 deltaTime => Render(deltaTime),
                 (webGpuContext, input) =>
                 {
@@ -275,17 +298,28 @@ namespace ManaVoxel.Web
             // UiWantsKeyboard, not a raw poll: when a text field has focus, WASD is typing, not walking.
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             // The clock, deaths and respawns, as the desktop play mode runs them.
-            Context.World.GameState.Tick((float)deltaTime);
+            var state = Context.World.GameState;
+            state.Tick((float)deltaTime);
+
+            // There is no HUD in the browser yet, so the score goes to the console as it changes.
+            if (state.Coins != _loggedCoins || state.Deaths != _loggedDeaths)
+            {
+                _loggedCoins = state.Coins;
+                _loggedDeaths = state.Deaths;
+                Console.WriteLine($"[BrowserPlay] Coins {state.Coins}/{state.TotalCoins}, deaths {state.Deaths}");
+            }
 
             var restartKeyDown = Context.Input?.Keyboards.FirstOrDefault()?.IsKeyPressed(Silk.NET.Input.Key.R) == true;
-            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard && _player != null)
+            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard)
             {
-                Context.World.GameState.Restart(Context.World, _spawnPosition, _spawnYaw);
+                Restart();
             }
             _restartKeyWasDown = restartKeyDown;
         }
 
         private bool _restartKeyWasDown;
+        private int _loggedCoins;
+        private int _loggedDeaths;
         private Vector3 _spawnPosition;
         private float _spawnYaw;
     }

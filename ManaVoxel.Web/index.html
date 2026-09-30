@@ -145,6 +145,98 @@
       overflow-y: auto;
     }
 
+    /* ---- Level selector: the page's front door, shown until a level is chosen ------------------------- */
+    #manaSelect {
+      position: fixed;
+      inset: 0;
+      display: none;
+      overflow-y: auto;
+      background: radial-gradient(ellipse at top, #26292F 0%, var(--mana-background) 70%);
+    }
+    #manaSelect.mana-open { display: block; }
+    .mana-select-inner { max-width: 980px; margin: 0 auto; padding: 56px 24px 40px; }
+    .mana-select-inner .mana-title { animation: none; font-size: 26px; margin-bottom: 6px; }
+    .mana-select-subtitle { text-align: center; color: var(--mana-text-muted); font-size: 14px; margin: 0 0 32px; }
+    .mana-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .mana-level {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      padding: 0;
+      overflow: hidden;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+      background: var(--mana-surface);
+      border: 1px solid var(--mana-border);
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      transition: transform 120ms ease-out, border-color 120ms ease-out;
+    }
+    .mana-level:hover, .mana-level:focus-visible { transform: translateY(-2px); border-color: var(--mana-accent); outline: none; }
+    .mana-level-picture {
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      background: linear-gradient(135deg, #34373D, #22242A);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.18);
+    }
+    .mana-level-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+    .mana-level-name { font-size: 15px; font-weight: 600; }
+    .mana-level-description { font-size: 12.5px; color: var(--mana-text-muted); line-height: 1.4; }
+    .mana-select-footer { margin-top: 28px; text-align: center; font-size: 12px; color: var(--mana-text-muted); }
+
+    /* ---- Pause menu: Escape while playing ------------------------------------------------------------ */
+    #manaMenu {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 11, 13, 0.55);
+      backdrop-filter: blur(3px);
+    }
+    #manaMenu.mana-open { display: flex; }
+    #manaMenu .mana-card { width: 300px; min-height: 0; gap: 10px; }
+    #manaMenu .mana-title { animation: none; margin-bottom: 6px; }
+    .mana-button {
+      font: inherit;
+      font-size: 14px;
+      padding: 10px 14px;
+      color: #DFE1E5;
+      background: #35383E;
+      border: 1px solid var(--mana-border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .mana-button:hover, .mana-button:focus-visible { background: #3F434A; border-color: var(--mana-accent); outline: none; }
+    .mana-button.mana-primary { background: var(--mana-accent); border-color: var(--mana-accent); color: white; }
+    .mana-button.mana-primary:hover { background: #5B96EE; }
+    .mana-menu-hint { text-align: center; font-size: 12px; color: var(--mana-text-muted); margin: 4px 0 0; }
+
+    /* A reminder the menu exists, for the first seconds of play. */
+    #manaHint {
+      position: fixed;
+      right: 16px;
+      bottom: 14px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--mana-text-muted);
+      background: rgba(30, 31, 34, 0.75);
+      border: 1px solid var(--mana-border);
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 400ms ease-out;
+      pointer-events: none;
+    }
+    #manaHint.mana-shown { opacity: 1; }
+
     @media (prefers-reduced-motion: reduce) {
       .mana-title, .mana-sweep { animation: none; }
       .mana-fill { transition: none; }
@@ -165,6 +257,27 @@
       <p class="mana-percent" id="manaLoadingPercent">0%</p>
     </div>
   </div>
+
+  <div id="manaSelect">
+    <div class="mana-select-inner">
+      <h1 class="mana-title">MANA RENDERER</h1>
+      <p class="mana-select-subtitle">Choose a level to play</p>
+      <div class="mana-levels" id="manaLevels"></div>
+      <p class="mana-select-footer">WASD to move, Shift to run, Space to jump (again in the air to double jump), Esc for the menu</p>
+    </div>
+  </div>
+
+  <div id="manaMenu" role="dialog" aria-modal="true" aria-label="Paused">
+    <div class="mana-card">
+      <h1 class="mana-title">PAUSED</h1>
+      <button class="mana-button mana-primary" id="manaResume">Resume</button>
+      <button class="mana-button" id="manaRestart">Restart level</button>
+      <button class="mana-button" id="manaQuit">Choose another level</button>
+      <p class="mana-menu-hint">Esc to resume</p>
+    </div>
+  </div>
+
+  <div id="manaHint">Esc &mdash; menu</div>
 
   <script>
     // Deliberately an inline classic script, not part of main.js: main.js is a module, so it does
