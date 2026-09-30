@@ -18,13 +18,7 @@ using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics;
 using ManaGeoTools.Code;
-using ManaGeoTools.Code.Geo;
-using ManaGeoTools.Code.GeoTiff;
-using ManaGeoTools.Code.GeoTiff.Terrarium;
-using ManaGeoTools.Code.Kml;
 using ManaGeoTools.Code.Planet;
-using ManaGeoTools.Code.Region;
-using ManaGeoTools.Code.Shapefile;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
@@ -91,13 +85,10 @@ namespace Mana.Code.GameModes
         private readonly ManaSceneNode?[] _gridWallCoves = new ManaSceneNode?[4];
         private bool? _gridRoomRounded;
         private bool? _gridWallsShown;
-        private PlanetNode? _planet;
-        private RegionNode? _region;
-        private ManaSceneNode? _kmlDemo;
-        private bool _kmlAirspaceAttached;
-        private Task<ManaSceneNode?>? _kmlAirspaceLoadTask;
-        private ManaSceneNode? _countryBorders;
-        private ManaSceneNode? _stateBorders;
+        // The planet, true-scale regions and the KML airspace overlay live in EditorPlanetScenery; the game mode
+        // only reads the planet, to pick and up-res its patches.
+        private EditorPlanetScenery _planetScenery = null!;
+        private PlanetNode? _planet => _planetScenery?.Planet;
         private ManaWaterNode? _water;
         private bool _waterRipplePointerWasDown;
         private ManaWebGpuContext? _webGpuContext;
@@ -217,6 +208,7 @@ namespace Mana.Code.GameModes
         {
             LoadingCoordinator.Begin();
             var world = Context.World;
+            _planetScenery = new EditorPlanetScenery(Context, _viewModel);
             _transformGizmo = new SceneTransformGizmo(world, _viewModel.History, _viewModel.Snap);
             _trackDebugVisualization = new TrackDebugVisualization(world);
 
@@ -301,7 +293,7 @@ namespace Mana.Code.GameModes
                     // View > Show Airspace (KML) is switched on, so startup never pays for an overlay
                     // that's off by default (see SyncKmlAirspaceVisibility).
                     Loading.Report(new ManaLoadingProgress("Checking for KML placemarks", 0.9f));
-                    _viewModel.KmlAirspaceAvailable = File.Exists(KmlDemoFilePath);
+                    _planetScenery.ProbeKmlAirspace();
 
                     LoadingCoordinator.CompleteBackgroundWork();
                 }
@@ -712,391 +704,6 @@ namespace Mana.Code.GameModes
             world.RecordFrameStat("GPU: ClearFrame Total", TimeSpan.FromMilliseconds(_webGpuContext.LastFrameTotalMs));
         }
 
-        // Local convenience path to real-world KML airspace data (AirspaceConverter output, sourced
-        // externally, ~10.5MB) — not a repo asset, degrades to a no-op via the File.Exists guard on
-        // any machine without it. The KML geometry layer renders LineString/LinearRing/Polygon data
-        // with ManaLineMesh, so line-like airspace boundaries draw directly instead of relying on
-        // polygon triangulation.
-        private const string KmlDemoFilePath = @"C:\Users\night\Code\ManaAirSpace\AirSpaceModels\UnitedStates.xml";
-
-        // Where a loaded RegionNode's center sits in world space. A region is built at true scale (1 unit
-        // == 1 meter), so even the smallest offered size is a 1km square -- four times the 256-unit voxel
-        // grid on a side. Parked well clear to the west of everything else in this scene (grid at
-        // 0..256, planet centered at 200,60,200 with radius 40) so the largest offered region still can't
-        // reach any of it.
-        private static readonly Vector3 RegionWorldOrigin = new(-3000.0f, 0.0f, 0.0f);
-
-        // Camera arrival framing, both as multiples of the region's half-extent so every offered size is
-        // framed the same way: back off far enough to take the whole box in, from an eye height where
-        // relief still reads as relief rather than as a flat map.
-        private const float RegionArrivalDistanceFactor = 3.0f;
-        private const float RegionArrivalHeightFactor = 0.5f;
-
-        // The camera's default 1000-unit far clip was sized for this scene's original contents (a
-        // 256-unit voxel grid, a radius-40 planet). A region is true-scale, so even the smallest offered
-        // one is a 1km box viewed from ~1.5km back -- entirely beyond that plane. Widened to fit whenever
-        // a region loads, and restored from this saved value if a later region needs less.
-        //
-        // The near plane moves with it. Pushing far out alone would leave a near:far ratio of over a
-        // million at the largest region size, which is well past what a 24-bit depth buffer can resolve
-        // and shows up as z-fighting across flat terrain. Scaling both keeps the ratio fixed at a
-        // comfortable ~10,000:1 regardless of region size.
-        private const float RegionNearClipDivisor = 2000.0f;
-        private float? _farClipBeforeRegion;
-        private float? _nearClipBeforeRegion;
-
-        // Consumes the "load this place as a true-scale region" request the search panel queues (see
-        // VoxelSearchPanelView / RegionLoadRequest). Main thread only: this swaps scene-graph children.
-        private void ProcessPendingRegionRequest()
-        {
-            var request = _viewModel.PendingRegionRequest;
-            if (request == null)
-            {
-                return;
-            }
-
-            _viewModel.PendingRegionRequest = null;
-
-            try
-            {
-                lock (Context.World.SceneLock)
-                {
-                    // One region at a time -- these are large true-scale meshes and there's no placement
-                    // scheme for a second one, so a new request replaces the old rather than stacking up.
-                    if (_region != null)
-                    {
-                        Context.World.DefaultScene.Children.Remove(_region);
-                    }
-
-                    _region = new RegionNode(
-                        Context,
-                        request.PlaceName,
-                        new LatLong(request.Longitude, request.Latitude),
-                        request.HalfExtentMeters,
-                        zoom: request.Zoom,
-                        resolution: null,
-                        hexRadiusMeters: request.HexRadiusMeters,
-                        stepStrength: request.StepStrength);
-                    _region.Position = RegionWorldOrigin;
-                    _region.UpdateTransform();
-                    Context.World.DefaultScene.Children.Add(_region);
-                }
-
-                var camera = Context.World.MainCamera;
-                if (camera != null)
-                {
-                    _farClipBeforeRegion ??= camera.FarClipPlane;
-                    _nearClipBeforeRegion ??= camera.NearClipPlane;
-                    camera.FarClipPlane = MathF.Max(
-                        _farClipBeforeRegion.Value,
-                        request.HalfExtentMeters * (RegionArrivalDistanceFactor + 2.0f));
-                    camera.NearClipPlane = MathF.Max(
-                        _nearClipBeforeRegion.Value,
-                        request.HalfExtentMeters / RegionNearClipDivisor);
-
-                    // Required: NearClipPlane/FarClipPlane are plain fields, and the projection matrix is
-                    // only rebuilt on demand (constructor, window resize, or an Inspector edit -- see
-                    // CameraComponentImGuiView, which calls this after every clip-plane drag). Without it
-                    // the widened range never reaches the matrix and the region stays clipped away
-                    // entirely, until some unrelated edit happens to rebuild the projection.
-                    camera.UpdateProjection();
-
-                    // Flown to immediately, while the node is still an empty placeholder -- the terrain
-                    // pops in underneath the camera a moment later via ProcessPendingLoad. Better than
-                    // waiting on the fetch and leaving the user staring at the planet with no feedback.
-                    // Aimed above the center rather than at it so a horizontally-oriented camera ends up
-                    // looking down at the terrain instead of standing inside it.
-                    var arrivalTarget = RegionWorldOrigin + new Vector3(0.0f, request.HalfExtentMeters * RegionArrivalHeightFactor, 0.0f);
-                    camera.FlyToWorldPosition(arrivalTarget, request.HalfExtentMeters * RegionArrivalDistanceFactor);
-                }
-
-                ManaConsole.WriteDiagnostic($"Loading region '{request.PlaceName}': {_region.DescribeStatus()}");
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to start region load: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to start region load: {ex}");
-            }
-        }
-
-        // Parses the KML and builds its scene node WITHOUT attaching it to anything -- runs on a
-        // background thread (see SyncKmlAirspaceVisibility), so it must not touch the live scene graph.
-        // Returns null if the load failed; the caller turns that into "unavailable".
-        private ManaSceneNode? BuildKmlAirspaceNode()
-        {
-            try
-            {
-                // Same "shrink ratio" reasoning as the planet, and the same radius, so the two read
-                // as the same-scale world: real Earth radius/altitude scaled down to fit this scene.
-                const float radius = 40.0f;
-                var altitudeScale = radius / PlanetLoader.EarthRadiusMeters;
-                var kml = new Kml(KmlDemoFilePath, radius, altitudeScale);
-
-                // Still one draw call per rendered KML mesh with no culling/LOD/batching, so revisit
-                // if airspace overlays ever become a frame bottleneck.
-                var node = KmlSceneBuilder.BuildPlacemarks(Context, kml);
-                node.Name = "US Airspace (KML)";
-                return node;
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to load demo KML: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to load demo KML: {ex}");
-                return null;
-            }
-        }
-
-        // Main thread only. Drives the whole lifecycle of the View > Show Airspace (KML) toggle: kicks off
-        // the lazy first load, adopts the finished node, and attaches/detaches it on every later toggle.
-        // Attachment is kept on the main thread (rather than done by the loading task itself) because the
-        // node parents under _planet, whose children are concurrently rewritten by ProcessPendingSplits/
-        // ProcessPendingMerges -- same reasoning as the comment on those calls in Update().
-        private void SyncKmlAirspaceVisibility()
-        {
-            if (!_viewModel.KmlAirspaceAvailable)
-            {
-                return;
-            }
-
-            if (_kmlAirspaceLoadTask != null && _kmlAirspaceLoadTask.IsCompleted)
-            {
-                // BuildKmlAirspaceNode swallows its own failures into a null return, so a faulted task
-                // here means something escaped it entirely -- treat both the same way.
-                _kmlDemo = _kmlAirspaceLoadTask.IsCompletedSuccessfully ? _kmlAirspaceLoadTask.Result : null;
-                _kmlAirspaceLoadTask = null;
-                _viewModel.KmlAirspaceLoading = false;
-
-                if (_kmlDemo == null)
-                {
-                    // Nothing to show and retrying would just fail again -- retire the menu item rather
-                    // than leaving a toggle that silently does nothing.
-                    _viewModel.KmlAirspaceAvailable = false;
-                    _viewModel.ShowKmlAirspace = false;
-                    return;
-                }
-            }
-
-            if (!_viewModel.ShowKmlAirspace)
-            {
-                DetachKmlAirspace();
-                return;
-            }
-
-            if (_kmlDemo == null)
-            {
-                if (_kmlAirspaceLoadTask == null)
-                {
-                    _viewModel.KmlAirspaceLoading = true;
-                    _kmlAirspaceLoadTask = Task.Run(() =>
-                    {
-                        if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
-                        {
-                            System.Threading.Thread.CurrentThread.Name = "KML airspace load";
-                        }
-
-                        return BuildKmlAirspaceNode();
-                    });
-                }
-
-                return;
-            }
-
-            AttachKmlAirspace();
-        }
-
-        private void AttachKmlAirspace()
-        {
-            if (_kmlDemo == null || _kmlAirspaceAttached)
-            {
-                return;
-            }
-
-            lock (Context.World.SceneLock)
-            {
-                // Parented under the planet (not the scene root) so it moves with it — its geometry
-                // is already built on the same radius/origin convention as the planet (Kml.EarthRadius
-                // == the planet's own radius above), so it needs to sit at the planet's local origin,
-                // not an arbitrary world-space offset.
-                if (_planet != null)
-                {
-                    _planet.AddChild(_kmlDemo);
-                    _kmlDemo.Position = Vector3.Zero;
-                }
-                else
-                {
-                    _kmlDemo.Position = new Vector3(280.0f, 60.0f, 200.0f);
-                    Context.World.DefaultScene.Children.Add(_kmlDemo);
-                }
-
-                _kmlDemo.UpdateTransform();
-            }
-
-            _kmlAirspaceAttached = true;
-        }
-
-        private void DetachKmlAirspace()
-        {
-            if (_kmlDemo == null || !_kmlAirspaceAttached)
-            {
-                return;
-            }
-
-            lock (Context.World.SceneLock)
-            {
-                // Tracked with an explicit bool rather than inferred from Parent: the scene-root path
-                // below is a bare list Add, which (unlike ManaSceneNode.AddChild) never sets Parent.
-                if (_kmlDemo.Parent != null)
-                {
-                    _kmlDemo.Parent.RemoveChild(_kmlDemo);
-                }
-                else
-                {
-                    Context.World.DefaultScene.Children.Remove(_kmlDemo);
-                }
-            }
-
-            _kmlAirspaceAttached = false;
-        }
-
-        // Natural Earth's admin-0 country boundaries, 50m resolution (~100K raw points across 242
-        // countries/territories before decimation -- see CountryBorderLines). A 10m version sits
-        // alongside it in the same folder for a future zoom-dependent LOD pass; not wired up yet.
-        // Not a repo asset (sourced externally, ~800KB), same treatment as KmlDemoFilePath -- degrades
-        // to a no-op via the File.Exists guard on any machine without it.
-        private const string CountryBordersZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_50m_admin_0_countries.zip";
-        private const string CountryBordersShpEntryName = "ne_50m_admin_0_countries.shp";
-        private const string StateBordersZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_50m_admin_1_states_provinces.zip";
-        private const string StateBordersShpEntryName = "ne_50m_admin_1_states_provinces.shp";
-
-        // Natural Earth physical polygons, same non-repo GeoData folder as the boundary shapefiles --
-        // absent files just leave the mask empty and colouring stays elevation-only.
-        private const string LakesZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_10m_lakes.zip";
-        private const string OceanZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_10m_ocean.zip";
-
-        private static void LoadWaterMask()
-        {
-            var mask = new GeoWaterMask();
-            mask.AddLakes(GeoPolygonSet.TryLoadFromZip(LakesZipPath, "ne_10m_lakes.shp"));
-            mask.Add(GeoPolygonSet.TryLoadFromZip(OceanZipPath, "ne_10m_ocean.shp"));
-
-            if (!mask.HasAnyData)
-            {
-                ManaConsole.WriteDiagnostic("[Water] No Natural Earth water polygons found; colouring stays elevation-only.");
-                return;
-            }
-
-            GeoWaterMask.Shared = mask;
-            foreach (var set in mask.Sets)
-            {
-                ManaConsole.WriteDiagnostic($"[Water] Loaded {set.Name}: {set.RingCount:N0} rings.");
-            }
-        }
-
-        private void AddCountryBordersDemo()
-        {
-            try
-            {
-                var node = BuildBoundaryLineNode(
-                    CountryBordersZipPath,
-                    CountryBordersShpEntryName,
-                    "Country Borders",
-                    thickness: 0.08f,
-                    radiusOffset: 0.01f,
-                    minSegmentDegrees: 0.15f,
-                    color: new Vector4(1.0f, 0.75f, 0.3f, 1.0f),
-                    emissionStrength: 2.0f);
-                if (node == null)
-                {
-                    return;
-                }
-
-                _countryBorders = node;
-                AddPlanetOverlayNode(_countryBorders);
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to load country borders: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to load country borders: {ex}");
-            }
-        }
-
-        private void AddStateBordersDemo()
-        {
-            try
-            {
-                var node = BuildBoundaryLineNode(
-                    StateBordersZipPath,
-                    StateBordersShpEntryName,
-                    "State/Province Borders",
-                    thickness: 0.035f,
-                    radiusOffset: 0.014f,
-                    minSegmentDegrees: 0.20f,
-                    color: new Vector4(0.62f, 0.86f, 1.0f, 1.0f),
-                    emissionStrength: 1.35f);
-                if (node == null)
-                {
-                    return;
-                }
-
-                _stateBorders = node;
-                AddPlanetOverlayNode(_stateBorders);
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to load state/province borders: {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to load state/province borders: {ex}");
-            }
-        }
-
-        private ManaSceneNode? BuildBoundaryLineNode(
-            string zipPath,
-            string shpEntryName,
-            string name,
-            float thickness,
-            float radiusOffset,
-            float minSegmentDegrees,
-            Vector4 color,
-            float emissionStrength)
-        {
-            if (_planet == null || !File.Exists(zipPath))
-            {
-                return null;
-            }
-
-            var rings = ReadShapefileRingsFromZip(zipPath, shpEntryName);
-
-            // Built on the bare sphere, then draped onto the terrain below -- radiusOffset becomes a
-            // hover above the sampled surface rather than above the sea-level radius.
-            var built = CountryBorderLines.BuildDrapeable(
-                Context, rings, _planet.Radius, thickness, minSegmentDegrees, color, emissionStrength);
-
-            var draped = new PlanetDrapedLines(_planet.PatchesPerFaceEdge, built.Mesh, built.LinePoints, built.LineLatLongs, radiusOffset);
-
-            // This runs on the background load thread while RedrapePlanetOverlays iterates the list on
-            // the main thread -- an unguarded List add against a concurrent read corrupts it.
-            lock (_drapedOverlays)
-            {
-                _drapedOverlays.Add(draped);
-            }
-            // No initial drape: the baseline height decode snapshots every patch it touches, so the
-            // first real terrain arrives through the normal changed-patch path.
-
-            return new ManaMeshSceneNode(Context, built.Mesh)
-            {
-                Name = name,
-                IncludeInEnvironmentCapture = false,
-            };
-        }
-
-        private readonly List<PlanetDrapedLines> _drapedOverlays = new();
-
-        // Points re-draped per overlay per frame. The work is a batched radius sample plus a vector
-        // multiply per point, so this is a small slice of a frame -- measured at well under a millisecond
-        // for the whole budget, against 25-75ms for the whole-mesh ribbon rebuild that follows a drain.
-        // Generous on purpose for that reason: the points are nearly free and clearing them sooner is what
-        // lets the expensive rebuild coalesce into one (see PlanetDrapedLines.RebuildSettleFrames).
-        private const int DrapePointsPerFrame = 8192;
-
         /// <summary>
         /// Moves finished mesh previews into the UI atlas. Main thread, a few per frame -- see
         /// MeshThumbnailImages.Pump for why the upload is throttled rather than done as results arrive.
@@ -1121,174 +728,6 @@ namespace Mana.Code.GameModes
                     MeshThumbnailImages.Pump(root, cache);
                 }
             }
-        }
-
-        // Every per-frame streaming step that has to happen on the main thread, in dependency order:
-        // decide what to refine, then adopt whatever finished, then feed the overlays that read the
-        // results. Each step is individually budgeted per frame, so calling this more than once per frame
-        // would quietly multiply every one of those budgets -- hence the UpdateFrame guard.
-        //
-        // Three callers, at most one of which pumps on any given frame: Update always runs, DrawImGui
-        // only when ImGui owns the UI, and UpdateEditorPerFrameState only when ManaUI does (see
-        // Render's comment on why that third one exists at all).
-        private long _lastStreamingPumpFrame = -1;
-
-        private void PumpPlanetStreaming()
-        {
-            if (_lastStreamingPumpFrame == UpdateFrame)
-            {
-                return;
-            }
-
-            _lastStreamingPumpFrame = UpdateFrame;
-
-            // Individually scoped rather than timed as one block: every one of these is a plausible hitch
-            // source with a different fix, and the whole point is to find out which.
-            using (ManaFrameProfiler.Measure("Streaming: Total"))
-            {
-                // Must run on the main thread -- finalizing a completed patch split touches the scene
-                // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
-                // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).
-                using (ManaFrameProfiler.Measure("Streaming: AutoLod"))
-                {
-                    _planet?.UpdateAutoLod(Context.World.MainCamera);
-                }
-
-                using (ManaFrameProfiler.Measure("Streaming: NearOcean"))
-                {
-                    _planet?.UpdateNearOcean(Context.World.MainCamera);
-                }
-
-                using (ManaFrameProfiler.Measure("Streaming: DetailChase"))
-                {
-                    _planet?.UpdateDetailChase();
-                }
-
-                using (ManaFrameProfiler.Measure("Streaming: Split Finalize"))
-                {
-                    _planet?.ProcessPendingSplits();
-                }
-
-                using (ManaFrameProfiler.Measure("Streaming: Merge Finalize"))
-                {
-                    _planet?.ProcessPendingMerges();
-                }
-
-                // Same main-thread requirement, for the same reason -- adopts a finished region mesh.
-                using (ManaFrameProfiler.Measure("Streaming: Region Adopt"))
-                {
-                    _region?.ProcessPendingLoad();
-                }
-
-                using (ManaFrameProfiler.Measure("Streaming: Overlay Drape"))
-                {
-                    RedrapePlanetOverlays();
-                }
-            }
-        }
-
-        // Main thread, once per frame from Update. Never blocks: patches the planet is too busy to
-        // report on go back on its queue, and draping itself is spread over as many frames as it needs.
-        private void RedrapePlanetOverlays()
-        {
-            if (_planet == null)
-            {
-                return;
-            }
-
-            PlanetDrapedLines[] overlays;
-            lock (_drapedOverlays)
-            {
-                overlays = _drapedOverlays.ToArray();
-            }
-
-            // No overlays is the common case (nothing has loaded a border/airspace dataset yet), and the
-            // snapshot queue still has to be emptied -- each entry pins a patch's CPU mesh, so leaving it
-            // alone grows it for as long as terrain streams.
-            if (overlays.Length == 0)
-            {
-                _planet.DiscardChangedPatches();
-                return;
-            }
-
-            // Bounded on purpose: QueueChanged is paid in full per snapshot (it scans the whole root
-            // patch's point bucket), before the per-point drape budget below gets any say.
-            var changed = _planet.DrainChangedPatches();
-            if (changed.Count > 0)
-            {
-                foreach (var overlay in overlays)
-                {
-                    overlay.QueueChanged(changed);
-                }
-            }
-
-            // Overlays are told whether the producer still has snapshots queued: a rebuild that fires
-            // between two halves of one streaming burst costs the same as one that covers the whole burst.
-            var moreChangesInbound = _planet.PendingChangedPatchCount > 0;
-
-            foreach (var overlay in overlays)
-            {
-                if (overlay.Tick(DrapePointsPerFrame, moreChangesInbound))
-                {
-                    ManaConsole.WriteDiagnostic(
-                        $"[Drape] {overlay.Mesh.Name}: {overlay.LastMovedCount} point(s) moved, " +
-                        $"max {overlay.LastMaxDisplacement:0.####} units.");
-                    overlay.ResetStats();
-                }
-            }
-        }
-
-        private static List<IReadOnlyList<(double Longitude, double Latitude)>> ReadShapefileRingsFromZip(string zipPath, string shpEntryName)
-        {
-            var rings = new List<IReadOnlyList<(double Longitude, double Latitude)>>();
-            using var archive = ZipFile.OpenRead(zipPath);
-            var shpEntry = archive.GetEntry(shpEntryName)
-                ?? throw new InvalidOperationException($"'{shpEntryName}' not found in {zipPath}.");
-            using var shpStream = shpEntry.Open();
-            foreach (var ring in ShapefilePolygonReader.ReadRings(shpStream))
-            {
-                rings.Add(ring);
-            }
-
-            return rings;
-        }
-
-        private void AddPlanetOverlayNode(ManaSceneNode node)
-        {
-            if (_planet == null)
-            {
-                return;
-            }
-
-            // Parented under the planet so overlays move/rotate with it, same reasoning as the KML
-            // overlay above.
-            _planet.AddChild(node);
-            node.Position = Vector3.Zero;
-            node.UpdateTransform();
-        }
-
-        private static string ResolveManaAssetPath(string relativePath)
-        {
-            string[] candidates =
-            {
-                Path.Combine(Environment.CurrentDirectory, relativePath),
-                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
-                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
-                Path.Combine(AppContext.BaseDirectory, relativePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
-            };
-
-            foreach (var candidate in candidates)
-            {
-                var fullPath = Path.GetFullPath(candidate);
-                if (File.Exists(fullPath))
-                {
-                    return fullPath;
-                }
-            }
-
-            return relativePath;
         }
 
         private async void Window_FileDrop(string[] files)
@@ -1424,13 +863,13 @@ namespace Mana.Code.GameModes
             SyncWaterVisibility();
             SyncWireframeViewOption();
             SyncNormalsViewOption();
-            SyncKmlAirspaceVisibility();
+            _planetScenery.SyncKmlAirspaceVisibility();
             SyncGridRoomShape();
             SyncGridRoomWalls();
             SyncVisualBoundsColliders();
-            ProcessPendingRegionRequest();
+            _planetScenery.ProcessPendingRegionRequest();
 
-            PumpPlanetStreaming();
+            _planetScenery.PumpStreaming(UpdateFrame);
             PushPlanetStreamingStatusToWorldPerf();
             UpdateWaterRippleInteraction();
         }
@@ -1462,25 +901,7 @@ namespace Mana.Code.GameModes
                 $"worst {ManaFrameProfiler.WorstGcPauseMs:0.0}ms, {ManaFrameProfiler.GcPauseTimePercentage:0.0}% of wall clock, "
                 + $"heap {ManaFrameProfiler.HeapMb:0}MB, {(ManaFrameProfiler.IsServerGc ? "server" : "workstation")} GC");
 
-            if (_planet == null)
-            {
-                return;
-            }
-
-            world.RecordFrameStatText("Planet snapshot queue", $"{_planet.PendingChangedPatchCount} pending");
-
-            // Surfaced next to the heap figure above because the two are related: this cache never evicts by
-            // design (merges rely on a child's fetched tiles still being there), so it is the standing
-            // explanation for a heap that grows the longer you fly, and pause times grow with the heap.
-            var tileCount = _planet.HeightLibrary?.Tiles.Count ?? 0;
-            world.RecordFrameStatText("Height tiles cached", $"{tileCount} (never evicted)");
-
-            var status = _planet.GetStreamingStatus();
-            Context.World.RecordFrameStatText("Planet patches resident", status.TotalLeaves.ToString());
-            Context.World.RecordFrameStatText("Planet up-res in progress", status.PatchesUpresInProgress.ToString());
-            Context.World.RecordFrameStatText("Planet splits in progress", status.PatchesSplitting.ToString());
-            Context.World.RecordFrameStatText("Planet merges in progress", status.PatchesMerging.ToString());
-            Context.World.RecordFrameStatText("Planet tile fetches active", $"{status.ActiveTileFetches}/{status.MaxConcurrentTileFetches}");
+            _planetScenery.PushStreamingStatus();
         }
 
         // TEMP diagnostic instrumentation -- remove once the "50GB memory growth" report is root-caused.
@@ -2899,7 +2320,7 @@ namespace Mana.Code.GameModes
                 _transformGizmo?.Hide();
                 ClearSelectionColliderDebug();
                 HideGridMapEditorVisuals();
-                PumpPlanetStreaming();
+                _planetScenery.PumpStreaming(UpdateFrame);
                 _pawnController?.UpdateDriveInput(UiWantsKeyboard);
                 return;
             }
@@ -3006,13 +2427,13 @@ namespace Mana.Code.GameModes
             SyncWaterVisibility();
             SyncWireframeViewOption();
             SyncNormalsViewOption();
-            SyncKmlAirspaceVisibility();
+            _planetScenery.SyncKmlAirspaceVisibility();
             SyncGridRoomShape();
             SyncGridRoomWalls();
             SyncVisualBoundsColliders();
-            ProcessPendingRegionRequest();
+            _planetScenery.ProcessPendingRegionRequest();
 
-            PumpPlanetStreaming();
+            _planetScenery.PumpStreaming(UpdateFrame);
 
             // The whole window, in the same coordinate space as the mouse: dropping used to be bounded by
             // the ImGui main viewport (minus a manual carve-out for ImGui's own import window), but with

@@ -352,26 +352,9 @@ namespace Mana.Code.GameModes
             }
         }
 
-        private void ResetLoadedPlanet()
-        {
-            DetachKmlAirspace();
-            _planet = null;
-            _countryBorders = null;
-            _stateBorders = null;
-            lock (_drapedOverlays)
-            {
-                _drapedOverlays.Clear();
-            }
-        }
+        private void ResetLoadedPlanet() => _planetScenery.Reset();
 
-        private void AdoptLoadedPlanet(ManaGeoTools.Code.Planet.PlanetNode? planet)
-        {
-            _planet = planet;
-            if (_planet != null && _viewModel.ShowKmlAirspace)
-            {
-                AttachKmlAirspace();
-            }
-        }
+        private void AdoptLoadedPlanet(ManaGeoTools.Code.Planet.PlanetNode? planet) => _planetScenery.Adopt(planet);
 
         public void SaveScene(ManaScene scene)
         {
