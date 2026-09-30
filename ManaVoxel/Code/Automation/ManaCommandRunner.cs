@@ -29,6 +29,9 @@ namespace ManaVoxel.Code.Automation
         private int _waitFramesRemaining;
         private Task? _pendingScreenshot;
 
+        /// <summary>The editor's End key, for the command file's drop_to_floor.</summary>
+        public Action? DropToFloor { get; init; }
+
         public ManaCommandRunner(
             string commandFilePath,
             ManaContext context,
@@ -142,6 +145,24 @@ namespace ManaVoxel.Code.Automation
                                 renderer.Material.EmissionStrength = command.Frames / 100.0;
                             }
                         }
+                        _index++;
+                        break;
+
+                    case "dirty_report":
+                        // Each opened level's saved snapshot beside a fresh capture, to diff what makes it read as changed.
+                        foreach (var scene in _context.World.Scenes.Where(scene => !string.IsNullOrWhiteSpace(scene.SavedLevelContentJson)))
+                        {
+                            var fresh = ManaVoxel.Code.Levels.ManaLevelCapture.CaptureSceneContentJson(_context.World, scene, scene.Name ?? "");
+                            File.WriteAllText(RequirePath(command) + ".saved.json", scene.SavedLevelContentJson);
+                            File.WriteAllText(RequirePath(command) + ".now.json", fresh);
+                            File.WriteAllLines(RequirePath(command) + ".colliders.txt", scene.Children.SelectMany(ManaVoxel.Code.Assets.ManaPrefabRuntime.Walk)
+                                .SelectMany(n => n.Components.OfType<global::Mana.Code.Components.ManaCollisionComponent>().Select(c => $"{n.Name}: {c.GetType().Name} follows={c.FollowsVisualBounds} shape={c.Shape?.GetType().Name}")));
+                        }
+                        _index++;
+                        break;
+
+                    case "drop_to_floor":
+                        DropToFloor?.Invoke();
                         _index++;
                         break;
 

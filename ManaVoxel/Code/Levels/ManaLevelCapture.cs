@@ -302,7 +302,8 @@ namespace ManaVoxel.Code.Levels
 
                 var size = new Vector3(box.Width, box.Height, box.Length);
                 var offset = collision.Position;
-                if (ManaCollisionBounds.MatchesVisualBox(node, size, offset))
+                // Still meant to fit the model, even while the model is part-loaded and the two differ.
+                if (collision.FollowsVisualBounds ?? ManaCollisionBounds.MatchesVisualBox(node, size, offset))
                 {
                     return new ManaLevelCollision
                     {

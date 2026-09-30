@@ -268,14 +268,15 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
             var colliderSize = ColliderSizeForShape(shape, size);
             var offset = collision.Position;
-            if (ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset))
+            var fitted = ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset);
+            if (fitted)
             {
                 colliderSize = visualSize;
                 offset = visualOffset;
             }
 
             node.Context.Physics.RemoveBody(collision.Body);
-            node.Context.Physics.AddBoxBody(node, colliderSize, offset);
+            node.Context.Physics.AddBoxBody(node, colliderSize, offset).FollowsVisualBounds = fitted ? true : null;
         }
 
         private static Vector3 ColliderSizeForShape(string shape, Vector3 size)

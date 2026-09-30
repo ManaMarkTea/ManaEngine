@@ -616,13 +616,13 @@ namespace ManaVoxel.Code.Levels
                     && ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset))
                 {
                     var offset = collision.Offset != null ? ToVector3(collision.Offset) : visualOffset;
-                    context.Physics.AddBoxBody(node, visualSize, offset);
+                    context.Physics.AddBoxBody(node, visualSize, offset).FollowsVisualBounds = collision.Offset == null;
                     return;
                 }
 
                 if (collision.Size != null)
                 {
-                    context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset));
+                    context.Physics.AddBoxBody(node, ToVector3(collision.Size), ToVector3(collision.Offset)).FollowsVisualBounds = false;
                 }
             }
         }

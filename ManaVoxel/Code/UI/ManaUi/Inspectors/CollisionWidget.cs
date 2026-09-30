@@ -136,6 +136,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             var replacement = owner.Context.Physics.AddBoxBody(owner, size, offset);
             replacement.ShowDebug = showDebug;
             replacement.SyncNodeToPhysics = syncNodeToPhysics;
+            replacement.FollowsVisualBounds = true;
         }
 
         private static bool TryGetBoxCollision(

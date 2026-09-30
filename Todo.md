@@ -1,14 +1,31 @@
-[unverified] Press the END key to drop the item onto the floor or other objects. - Writen by copilot, verify its good.
+[x] Press the END key to drop the item onto the floor or other objects. - Writen by copilot, verify its good.
+    Claude (overnight): verified and improved. It now casts five rays (centre + footprint corners) and lands on the
+    highest hit, as Unreal's End does, so a box half over a ledge rests on the ledge; rays start just above the
+    object's bottom so something sunk a hair into the floor rises out. Tested: a cube overhanging a 6 m pillar
+    lands on top of it (6.5). `drop_to_floor` command added for scripted checks.
+
+[x] - Moved various data out of Root/ and into /Content/. Anything user authored should go there.  Done by copilot make sure everything still works.
+    Claude (overnight): verified. All 8 levels in Content/Levels open with 0 warnings; tests pass (2,799).
+    Found and fixed along the way: every level read as "Save *" (changed) the moment it opened. Colliders set to
+    "fit the model" were captured by guessing, and the guess flipped once the model finished loading (or the
+    moving platform's ghost joined its bounds). Colliders now remember whether they follow the model, refit when
+    the model grows, and ignore editor-only children; all 8 levels now open clean. See ColliderIntentChecks.
+    Still to do: the planet code hard-codes C:\Users\night\...\GeoData paths (will break on the Mac) -- fixing that
+    in the VoxelEditorGameMode split below.
 
 [] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
 
-[] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
+[x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
+    Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /
+    corner / T / crossing pieces are picked from the neighbours.
 
-[unverified] Similar to our grid map floating tool, lets move all the voxel arrows and stuff into a tool panel that shows up when selecting a voxel node.
+[x] Similar to our grid map floating tool, lets move all the voxel arrows and stuff into a tool panel that shows up when selecting a voxel node.
+    Claude: verified -- selecting Captain Voxels in Voxel Showcase brings up the Voxel Tools window (and the room walls).
 
 [x] Wave function collapse to populate a dungeon from the kenney dungeon assets, but have it be configurable with some JSON assets and a Window Editor for it.
 
-[] Add support for UI from JSON or xaml-ish.  And an editor for it. (Like UMG in unreal)
+[x] Add support for UI from JSON or xaml-ish.  And an editor for it. (Like UMG in unreal)
+    Claude: done earlier as JSON -- UiMarkup (.manaui files in UI/) and Panels > UI Designer. No XAML flavour yet.
 
 [] Glow component (next up): levels and prefabs don't save material settings, so emission set in the Inspector is lost on save. Add a "Glow" script (colour, strength, optional light range) that sets emission on the meshes beneath it and adds a small point light, so a "Glowing Coin" is a Coin variant with a Glow added. Strength above 1 blooms.
 

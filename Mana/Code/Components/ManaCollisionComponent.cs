@@ -20,6 +20,14 @@ namespace Mana.Code.Components
         public bool SyncNodeToPhysics { get; set; } = true;
         public bool ShowDebug { get; set; }
 
+        /// <summary>
+        /// True: sized to fit the model's visual bounds and meant to keep fitting them -- saved as "use visual
+        /// bounds" and refitted when the model changes size, as it does while its parts load. False: a size of its
+        /// own, loaded from a level, saved as that size. Null: made in the editor, so a save checks whether it
+        /// happens to fit the model.
+        /// </summary>
+        public bool? FollowsVisualBounds { get; set; }
+
         public ManaCollisionComponent(ManaSceneNode owner) : base(owner)
         {
 

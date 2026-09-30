@@ -725,7 +725,10 @@ namespace Mana.Code.GameModes
                         {
                             TogglePlay();
                         }
-                    });
+                    })
+                {
+                    DropToFloor = DropSelectedToFloor
+                };
             }
 
             _commandRunner.Tick();

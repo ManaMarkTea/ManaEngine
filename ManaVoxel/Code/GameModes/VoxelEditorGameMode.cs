@@ -511,6 +511,17 @@ namespace Mana.Code.GameModes
         /// The room's walls, ceiling and coves show while drawing voxels -- a voxel node selected or a voxel tool
         /// on -- or when Show Room is on. Otherwise only the floor is drawn; the walls' colliders stay regardless.
         /// </summary>
+        private int _visualBoundsFrame;
+
+        /// <summary>Every half second or so, refits colliders that follow a model's bounds the model has outgrown.</summary>
+        private void SyncVisualBoundsColliders()
+        {
+            if (++_visualBoundsFrame % 30 == 0)
+            {
+                ManaCollisionBounds.RefitAll(Context.World);
+            }
+        }
+
         private void SyncGridRoomWalls()
         {
             var drawing = !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive);
@@ -1416,6 +1427,7 @@ namespace Mana.Code.GameModes
             SyncKmlAirspaceVisibility();
             SyncGridRoomShape();
             SyncGridRoomWalls();
+            SyncVisualBoundsColliders();
             ProcessPendingRegionRequest();
 
             PumpPlanetStreaming();
@@ -2221,9 +2233,10 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            // The ray starts at the footprint's own bottom, not its centre: a raycast from the middle of a
-            // tall object would sail past a floor that only reaches partway up its height.
-            var footprint = new Vector3((worldMin.X + worldMax.X) * 0.5f, worldMin.Y, (worldMin.Z + worldMax.Z) * 0.5f);
+            // The rays start just above the footprint's own bottom, not its centre: a raycast from the middle
+            // of a tall object would sail past a floor that only reaches partway up its height, and from exactly
+            // the bottom it would miss a floor the object has already sunk a hair into.
+            var start = worldMin.Y + MathF.Min(0.05f, (worldMax.Y - worldMin.Y) * 0.25f);
 
             // Against the physics world rather than the scene picker used everywhere else: most placed
             // shapes/imports carry no collider at all (collision is opt-in, see the Inspector's Collision
@@ -2246,13 +2259,27 @@ namespace Mana.Code.GameModes
                 }
             }
 
-            var hit = ManaScenePicker.PickWithHit(Context.World.Scenes, footprint, -Vector3.UnitY, excluded);
-            if (hit == null)
+            // Five rays -- the centre and the footprint's corners, pulled in a little -- and the highest thing any
+            // of them lands on wins, as Unreal's End does: a table half over a ledge rests on the ledge rather
+            // than dropping through to whatever is under its middle.
+            var centre = new Vector2((worldMin.X + worldMax.X) * 0.5f, (worldMin.Z + worldMax.Z) * 0.5f);
+            var half = new Vector2(worldMax.X - worldMin.X, worldMax.Z - worldMin.Z) * 0.45f;
+            float? landing = null;
+            foreach (var corner in new[] { Vector2.Zero, new Vector2(-1, -1), new Vector2(1, -1), new Vector2(-1, 1), new Vector2(1, 1) })
+            {
+                var at = centre + corner * half;
+                if (ManaScenePicker.PickWithHit(Context.World.Scenes, new Vector3(at.X, start, at.Y), -Vector3.UnitY, excluded) is { } found)
+                {
+                    landing = MathF.Max(landing ?? float.MinValue, found.Position.Y);
+                }
+            }
+
+            if (landing == null)
             {
                 return;
             }
 
-            var riseNeeded = hit.Value.Position.Y - worldMin.Y;
+            var riseNeeded = landing.Value - worldMin.Y;
             if (MathF.Abs(riseNeeded) < 0.0001f)
             {
                 return;
@@ -2982,6 +3009,7 @@ namespace Mana.Code.GameModes
             SyncKmlAirspaceVisibility();
             SyncGridRoomShape();
             SyncGridRoomWalls();
+            SyncVisualBoundsColliders();
             ProcessPendingRegionRequest();
 
             PumpPlanetStreaming();

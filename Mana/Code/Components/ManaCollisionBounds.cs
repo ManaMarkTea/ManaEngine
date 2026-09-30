@@ -35,6 +35,71 @@ namespace Mana.Code.Components
             return size.X > 0.0f && size.Y > 0.0f && size.Z > 0.0f;
         }
 
+        /// <summary>
+        /// Refits a collider that follows its model's visual bounds when the model's box has changed, keeping its
+        /// settings. Returns the collider in use afterwards -- a new one when it was refitted.
+        /// </summary>
+        public static ManaCollisionComponent Refit(ManaCollisionComponent collision)
+        {
+            if (collision.FollowsVisualBounds != true || collision.Shape is not BepuPhysics.Collidables.Box box)
+            {
+                return collision;
+            }
+
+            var owner = collision.Owner;
+            if (!TryGetVisualBox(owner, out var size, out var offset)
+                || (NearlyEqual(new Vector3(box.Width, box.Height, box.Length), size, 0.001f) && NearlyEqual(collision.Position, offset, 0.001f)))
+            {
+                return collision;
+            }
+
+            var showDebug = collision.ShowDebug;
+            var syncNodeToPhysics = collision.SyncNodeToPhysics;
+            owner.Context.Physics.RemoveBody(collision.Body);
+            var replacement = owner.Context.Physics.AddBoxBody(owner, size, offset);
+            replacement.ShowDebug = showDebug;
+            replacement.SyncNodeToPhysics = syncNodeToPhysics;
+            replacement.FollowsVisualBounds = true;
+            return replacement;
+        }
+
+        /// <summary>Refits every collider in the world that follows its model's bounds and has fallen behind it.</summary>
+        public static void RefitAll(ManaWorld world)
+        {
+            var following = new List<ManaCollisionComponent>();
+            void Visit(ManaSceneNode node)
+            {
+                foreach (var component in node.Components)
+                {
+                    if (component is ManaCollisionComponent { FollowsVisualBounds: true } collision)
+                    {
+                        following.Add(collision);
+                    }
+                }
+                foreach (var child in node.Children)
+                {
+                    Visit(child);
+                }
+            }
+
+            lock (world.SceneLock)
+            {
+                foreach (var scene in world.Scenes)
+                {
+                    foreach (var node in scene.Children)
+                    {
+                        Visit(node);
+                    }
+                }
+
+                // Collected first: a refit swaps the component out of the node it was found on.
+                foreach (var collision in following)
+                {
+                    Refit(collision);
+                }
+            }
+        }
+
         public static bool MatchesVisualBox(
             ManaSceneNode node,
             Vector3 size,
@@ -86,7 +151,8 @@ namespace Mana.Code.Components
                 AddRendererBounds(renderer, nodeToRoot, ref hasBounds, ref localMin, ref localMax);
             }
 
-            foreach (var child in node.Children)
+            // Editor-only children -- a moving platform's destination ghost, selection helpers -- are not the model.
+            foreach (var child in node.Children.Where(child => !child.IsEditorTransient))
             {
                 CollectVisualBounds(child, rootWorldToLocal, ref hasBounds, ref localMin, ref localMax);
             }
