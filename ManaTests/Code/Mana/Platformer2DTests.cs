@@ -77,7 +77,7 @@ public static class Platformer2DChecks
 
         check("frames: idle standing, running while moving, jumping in the air",
             platformer.FrameFor(true, 0.0f, 0.0) == platformer.IdleFrame
-            && platformer.FrameFor(true, 5.0f, 0.25) == platformer.RunFirstFrame + 2
+            && platformer.FrameFor(true, 5.0f, 1.0 / platformer.RunFramesPerSecond + 0.01) == platformer.RunFirstFrame + 1
             && platformer.FrameFor(false, 5.0f, 0.25) == platformer.JumpFrame);
 
         world.EndPlay();

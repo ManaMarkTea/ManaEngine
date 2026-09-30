@@ -4,12 +4,12 @@
   "name": "2D Sample",
   "camera": {
     "position": [
-      40,
-      3.2,
-      51
+      48,
+      3.5,
+      60
     ],
     "rotation": [
-      -0.06,
+      -0.03,
       0,
       0
     ]
@@ -20,8 +20,8 @@
       "name": "Player Start",
       "kind": "PlayerStart",
       "position": [
-        36,
-        2.2,
+        34,
+        1.2,
         40
       ],
       "rotation": [
@@ -39,79 +39,42 @@
           "id": "539f9dddf6ec494cbdb4d27690de9701",
           "type": "Platformer2D",
           "properties": {}
-        }
-      ]
-    },
-    {
-      "id": "46f38dfe743f49c1ae748ca5afb68aa9",
-      "name": "Platform Left",
-      "kind": "Group",
-      "position": [
-        36,
-        1,
-        40
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "scripts": [
-        {
-          "id": "8abef9cc1f7a4fb7b2eba4c387b2728f",
-          "type": "Sprite",
-          "properties": {
-            "texture": "Content/Sprites/platform.png",
-            "normalMap": "Content/Sprites/platform_n.png",
-            "pixelsPerUnit": 32,
-            "pivot": [
-              0.5,
-              0
-            ],
-            "columns": 1,
-            "rows": 1,
-            "frame": 0,
-            "flipX": false,
-            "tint": [
-              1,
-              1,
-              1,
-              1
-            ],
-            "pixelArt": true
-          }
         },
         {
-          "id": "3f468b80f3ec4205900cc87494355537",
-          "type": "PolygonCollider",
+          "id": "effcd4fa533943f8bb7f22b1462d5cf5",
+          "type": "AudioSource",
           "properties": {
-            "points": [
-              -2,
+            "clipPath": "Assets/Audio/Starter/Gameplay/jump.wav",
+            "variants": "",
+            "cue": "Jump",
+            "global": true,
+            "spatial": false,
+            "localOffset": [
               0,
-              2,
               0,
-              2,
-              1,
-              -2,
-              1
+              0
             ],
-            "depth": 2
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
           }
         }
       ]
     },
     {
-      "id": "6e7a781300bb4e3cae1f9a186e84e348",
-      "name": "Platform Middle",
+      "id": "05047d2640104fb08334cf4cc94577f8",
+      "name": "Ground Left",
       "kind": "Group",
       "position": [
-        40.5,
-        2,
+        37,
+        0,
         40
       ],
       "rotation": [
@@ -126,12 +89,15 @@
       ],
       "scripts": [
         {
-          "id": "e1e43704cb4147c19fedff6f878b4edc",
+          "id": "2df3dcb785e5489599941cdc2954a92d",
           "type": "Sprite",
           "properties": {
-            "texture": "Content/Sprites/platform.png",
-            "normalMap": "Content/Sprites/platform_n.png",
-            "pixelsPerUnit": 32,
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top.png",
+            "frames": [],
+            "leftEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top_left.png",
+            "rightEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top_right.png",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
             "pivot": [
               0.5,
               0
@@ -146,152 +112,27 @@
               1,
               1
             ],
-            "pixelArt": true
-          }
-        },
-        {
-          "id": "817e7e0d4a534d7a98ffa1f6cedf2f6f",
-          "type": "PolygonCollider",
-          "properties": {
-            "points": [
-              -2,
-              0,
-              2,
-              0,
-              2,
-              1,
-              -2,
-              1
-            ],
-            "depth": 2
-          }
-        }
-      ]
-    },
-    {
-      "id": "bfc8f57260a84074934d88c46d21523a",
-      "name": "Platform Right",
-      "kind": "Group",
-      "position": [
-        45,
-        3,
-        40
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "scripts": [
-        {
-          "id": "a72b8dc008ff479baf37508ad804fbe6",
-          "type": "Sprite",
-          "properties": {
-            "texture": "Content/Sprites/platform.png",
-            "normalMap": "Content/Sprites/platform_n.png",
-            "pixelsPerUnit": 32,
-            "pivot": [
-              0.5,
-              0
-            ],
-            "columns": 1,
-            "rows": 1,
-            "frame": 0,
-            "flipX": false,
-            "tint": [
-              1,
-              1,
-              1,
-              1
-            ],
-            "pixelArt": true
-          }
-        },
-        {
-          "id": "c67fbbecb1644e789ff315c5362a679a",
-          "type": "PolygonCollider",
-          "properties": {
-            "points": [
-              -2,
-              0,
-              2,
-              0,
-              2,
-              1,
-              -2,
-              1
-            ],
-            "depth": 2
-          }
-        }
-      ]
-    },
-    {
-      "id": "ea0c9d24fa5a4b73b7697f66c35bab67",
-      "name": "Long Ledge",
-      "kind": "Group",
-      "position": [
-        53,
-        4,
-        40
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "scripts": [
-        {
-          "id": "3921e50839354e93b36346ce6425806a",
-          "type": "Sprite",
-          "properties": {
-            "texture": "Content/Sprites/platform.png",
-            "normalMap": "Content/Sprites/platform_n.png",
-            "pixelsPerUnit": 32,
-            "pivot": [
-              0.5,
-              0
-            ],
-            "columns": 1,
-            "rows": 1,
-            "frame": 0,
-            "flipX": false,
-            "tint": [
-              1,
-              1,
-              1,
-              1
-            ],
-            "pixelArt": true,
+            "pixelArt": false,
+            "unlit": true,
             "tiledSize": [
-              8,
+              12,
               1
             ]
           }
         },
         {
-          "id": "3eed649e823e4b2389efb232fe58885f",
+          "id": "71f03d6d91954852858aaea1868b0a62",
           "type": "PolygonCollider",
           "properties": {
             "points": [
-              -4,
-              0,
-              4,
-              0,
-              4,
-              1,
-              -4,
-              1
+              -6.0,
+              0.0,
+              6.0,
+              0.0,
+              6.0,
+              1.0,
+              -6.0,
+              1.0
             ],
             "depth": 2
           }
@@ -299,86 +140,65 @@
       ]
     },
     {
-      "id": "9c5f479c76374a9cadebe2e03996b937",
-      "name": "Glowing Coin 1",
-      "kind": "Prefab",
-      "position": [
-        51.5,
-        5.3,
-        40
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "prefab": {
-        "assetId": "50d7ee4e361b4b4e839fd477888c8491",
-        "assetPath": "Prefabs/Glowing Coin.manaprefab",
-        "overrides": []
-      }
-    },
-    {
-      "id": "3e57c2c73e354d70933e9ae0a1e0fcba",
-      "name": "Glowing Coin 2",
-      "kind": "Prefab",
-      "position": [
-        53,
-        5.3,
-        40
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "prefab": {
-        "assetId": "50d7ee4e361b4b4e839fd477888c8491",
-        "assetPath": "Prefabs/Glowing Coin.manaprefab",
-        "overrides": []
-      }
-    },
-    {
-      "id": "304a3ee3291f43108685ec485afc7f7d",
-      "name": "Glowing Coin 3",
-      "kind": "Prefab",
-      "position": [
-        54.5,
-        5.3,
-        40
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "prefab": {
-        "assetId": "50d7ee4e361b4b4e839fd477888c8491",
-        "assetPath": "Prefabs/Glowing Coin.manaprefab",
-        "overrides": []
-      }
-    },
-    {
-      "id": "7ba1d71b10824d48a746be4fb116853b",
-      "name": "Hero",
+      "id": "7526a9115bb94a83b7b7250176625dcd",
+      "name": "Ground Left Fill",
       "kind": "Group",
       "position": [
-        40.5,
+        37,
+        -3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "766e9e1ea57e4abea04c2d9b82570a54",
+          "type": "Sprite",
+          "properties": {
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_center.png",
+            "frames": [],
+            "leftEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_left.png",
+            "rightEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_right.png",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              12,
+              3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "94cd19aa3c0643db9ba55beab3a11e9c",
+      "name": "Platform Low",
+      "kind": "Group",
+      "position": [
+        47,
         3,
         40
       ],
@@ -394,17 +214,20 @@
       ],
       "scripts": [
         {
-          "id": "e5bb91d30f764eda862fe9653b0015bb",
+          "id": "642ef57af88c4a9e9f2d1219fa72bfca",
           "type": "Sprite",
           "properties": {
-            "texture": "Content/Sprites/hero.png",
-            "normalMap": "Content/Sprites/hero_n.png",
-            "pixelsPerUnit": 32,
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_horizontal_middle.png",
+            "frames": [],
+            "leftEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_horizontal_left.png",
+            "rightEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_horizontal_right.png",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
             "pivot": [
               0.5,
               0
             ],
-            "columns": 4,
+            "columns": 1,
             "rows": 1,
             "frame": 0,
             "flipX": false,
@@ -414,30 +237,41 @@
               1,
               1
             ],
-            "pixelArt": true
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              3,
+              1
+            ]
           }
         },
         {
-          "id": "814e59137a96429da061080b600cd913",
-          "type": "SpriteAnimation",
+          "id": "da63aa1f1d6b405d8b570310d7691ff6",
+          "type": "PolygonCollider",
           "properties": {
-            "framesPerSecond": 6,
-            "firstFrame": 0,
-            "frameCount": 0,
-            "loop": true,
-            "playing": true
+            "points": [
+              -1.5,
+              0.0,
+              1.5,
+              0.0,
+              1.5,
+              1.0,
+              -1.5,
+              1.0
+            ],
+            "depth": 2
           }
         }
       ]
     },
     {
-      "id": "97d05ecbad14483baf18fa9645aa5be0",
-      "name": "Torch",
+      "id": "fee8a954580649408841a1087722c6ee",
+      "name": "Platform High",
       "kind": "Group",
       "position": [
-        42.5,
-        3.5,
-        41.4
+        51.5,
+        5,
+        40
       ],
       "rotation": [
         0,
@@ -451,36 +285,691 @@
       ],
       "scripts": [
         {
-          "id": "5b875c27394e4f3daa8c0389ddaa90aa",
-          "type": "Glow",
+          "id": "a43d76753eab44a3b0f5b3b39ab12a4a",
+          "type": "Sprite",
           "properties": {
-            "color": [
-              1,
-              0.62,
-              0.3,
-              1
-            ],
-            "strength": 1.5,
-            "lightRange": 7,
-            "lightIntensity": 0.9,
-            "lightOffset": [
-              0,
-              0,
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_horizontal_middle.png",
+            "frames": [],
+            "leftEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_horizontal_left.png",
+            "rightEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_horizontal_right.png",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
               0
             ],
-            "pulseSpeed": 1.2,
-            "enabled": true
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              3,
+              1
+            ]
+          }
+        },
+        {
+          "id": "b3f26fb1629849049d460d64c0471bb9",
+          "type": "PolygonCollider",
+          "properties": {
+            "points": [
+              -1.5,
+              0.0,
+              1.5,
+              0.0,
+              1.5,
+              1.0,
+              -1.5,
+              1.0
+            ],
+            "depth": 2
           }
         }
       ]
     },
     {
-      "id": "6a661f624cfd47f0bda8216aa15739c8",
-      "name": "Backdrop Mountains",
+      "id": "b628945f8a9f4052b712971fe8b7fc4d",
+      "name": "Ground Right",
       "kind": "Group",
       "position": [
-        44,
+        60,
+        0,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "1db438522a5946e0a5625eec7153a39e",
+          "type": "Sprite",
+          "properties": {
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top.png",
+            "frames": [],
+            "leftEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top_left.png",
+            "rightEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top_right.png",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              12,
+              1
+            ]
+          }
+        },
+        {
+          "id": "c3b68379f7ca439bbbd3ba89a455bff3",
+          "type": "PolygonCollider",
+          "properties": {
+            "points": [
+              -6.0,
+              0.0,
+              6.0,
+              0.0,
+              6.0,
+              1.0,
+              -6.0,
+              1.0
+            ],
+            "depth": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "ba77cd7195dd4fcca458a1d1e063049c",
+      "name": "Ground Right Fill",
+      "kind": "Group",
+      "position": [
+        60,
         -3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "bd05180e337044c3ac6818254f145af3",
+          "type": "Sprite",
+          "properties": {
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_center.png",
+            "frames": [],
+            "leftEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_left.png",
+            "rightEnd": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_right.png",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              12,
+              3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "980d5ec5cda04bb4a22e009b9726cc2b",
+      "name": "Water",
+      "kind": "Group",
+      "position": [
+        48.5,
+        -1,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "57bfc2bf19084b43b2c5f80e1411d457",
+          "type": "Sprite",
+          "properties": {
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/water_top.png",
+            "frames": [],
+            "leftEnd": "",
+            "rightEnd": "",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              11,
+              1
+            ]
+          }
+        },
+        {
+          "id": "294799e0969e4b9088515d60a349e11e",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              11,
+              1,
+              2
+            ],
+            "offset": [
+              0,
+              0.5,
+              0
+            ]
+          }
+        },
+        {
+          "id": "ab1153bf8dcd471a8c2e408e8ddbfcda",
+          "type": "Hazard",
+          "properties": {
+            "damage": 1,
+            "flavor": "Drowned",
+            "kills": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "18ad88c7932d491fbb04afd619f44dcc",
+      "name": "Water Deep",
+      "kind": "Group",
+      "position": [
+        48.5,
+        -4,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "41da8927131f448a93ba03e856d70bf4",
+          "type": "Sprite",
+          "properties": {
+            "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/water.png",
+            "frames": [],
+            "leftEnd": "",
+            "rightEnd": "",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              11,
+              3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "0685bbae96d14e13ae880ec5c6367444",
+      "name": "Coin 1",
+      "kind": "Prefab",
+      "position": [
+        39,
+        1.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "542a1ddde4634a5ebd6fd6d40a889c73",
+        "assetPath": "Prefabs/Coin 2D.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "43197402cb014b609484703dc31be248",
+      "name": "Coin 2",
+      "kind": "Prefab",
+      "position": [
+        47,
+        4.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "542a1ddde4634a5ebd6fd6d40a889c73",
+        "assetPath": "Prefabs/Coin 2D.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "9d4984a1d47943128da33ca7ac6560a4",
+      "name": "Coin 3",
+      "kind": "Prefab",
+      "position": [
+        49.3,
+        6.8,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "542a1ddde4634a5ebd6fd6d40a889c73",
+        "assetPath": "Prefabs/Coin 2D.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "f93be0ccc8e548039c92983c26130477",
+      "name": "Coin 4",
+      "kind": "Prefab",
+      "position": [
+        51.5,
+        6.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "542a1ddde4634a5ebd6fd6d40a889c73",
+        "assetPath": "Prefabs/Coin 2D.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "2dde474326184595b74d95e044461409",
+      "name": "Coin 5",
+      "kind": "Prefab",
+      "position": [
+        56,
+        1.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "542a1ddde4634a5ebd6fd6d40a889c73",
+        "assetPath": "Prefabs/Coin 2D.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "e0aae6aa02aa452c9699bb6a56aec544",
+      "name": "Coin 6",
+      "kind": "Prefab",
+      "position": [
+        57,
+        1.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "542a1ddde4634a5ebd6fd6d40a889c73",
+        "assetPath": "Prefabs/Coin 2D.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "5db7ab7f9f0a498f8eed6eb5017b40ec",
+      "name": "Slime",
+      "kind": "Group",
+      "position": [
+        61,
+        1,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "5efc299d977b4445b5981cfca67a60d4",
+          "type": "Sprite",
+          "properties": {
+            "texture": "",
+            "frames": [
+              "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_walk_a.png",
+              "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_walk_b.png"
+            ],
+            "leftEnd": "",
+            "rightEnd": "",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "13954f2cc5844b5a93f9f6d63e6a18da",
+          "type": "SpriteAnimation",
+          "properties": {
+            "framesPerSecond": 4,
+            "firstFrame": 0,
+            "frameCount": 0,
+            "loop": true,
+            "playing": true
+          }
+        },
+        {
+          "id": "3b82a3c27fe4456bbd22a1b033886afb",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.7,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.35,
+              0
+            ]
+          }
+        },
+        {
+          "id": "74bb467231b94388aaf5336c54ea0883",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -4,
+              0,
+              0
+            ],
+            "speed": 1.2,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "1ebbc19358d346b180aef65ac049382f",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "0927bfd2279f4c028bf881274392691e",
+      "name": "Goal Flag",
+      "kind": "Group",
+      "position": [
+        64.5,
+        1,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "748341c9973b48cf966856e1dda71850",
+          "type": "Sprite",
+          "properties": {
+            "texture": "",
+            "frames": [
+              "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_green_a.png",
+              "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_green_b.png"
+            ],
+            "leftEnd": "",
+            "rightEnd": "",
+            "normalMap": "",
+            "pixelsPerUnit": 64,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true,
+            "tiledSize": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "id": "4fb765db876242fe916692724fcdfa45",
+          "type": "SpriteAnimation",
+          "properties": {
+            "framesPerSecond": 3,
+            "firstFrame": 0,
+            "frameCount": 0,
+            "loop": true,
+            "playing": true
+          }
+        },
+        {
+          "id": "91733eb8353342ea99d4add2d51497b7",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              1,
+              2,
+              1.5
+            ],
+            "offset": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "id": "2da63a6962c84ead83f43b3f8f140b75",
+          "type": "Goal",
+          "properties": {
+            "requireAllCoins": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "93d27d1abfd048dcb35ebec96ae10fbe",
+      "name": "Backdrop",
+      "kind": "Group",
+      "position": [
+        48,
+        -6,
         32
       ],
       "rotation": [
@@ -495,102 +984,232 @@
       ],
       "scripts": [
         {
-          "id": "2b40e3fe2fc54ab0860fb65f310bdd43",
-          "type": "Sprite",
-          "properties": {
-            "texture": "Content/Sprites/mountains.png",
-            "normalMap": "",
-            "pixelsPerUnit": 8,
-            "pivot": [
-              0.5,
-              0
-            ],
-            "columns": 1,
-            "rows": 1,
-            "frame": 0,
-            "flipX": false,
-            "tint": [
-              1,
-              1,
-              1,
-              1
-            ],
-            "pixelArt": true,
-            "tiledSize": [
-              128,
-              8
-            ]
-          }
-        },
-        {
-          "id": "e82ca035cf9647509b5f35e53793e48e",
+          "id": "c8ef693ccd91437f80d1b722648dcb2c",
           "type": "Parallax",
           "properties": {
             "factor": [
-              0.8,
-              0.8
+              0.85,
+              0.85
             ]
           }
         }
-      ]
-    },
-    {
-      "id": "6401068b2c0a4a62834104c0a88da723",
-      "name": "Backdrop Hills",
-      "kind": "Group",
-      "position": [
-        44,
-        -3,
-        36
       ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "scripts": [
+      "children": [
         {
-          "id": "31c526099ba64c8996d45bf29c6d48e2",
-          "type": "Sprite",
-          "properties": {
-            "texture": "Content/Sprites/hills.png",
-            "normalMap": "",
-            "pixelsPerUnit": 12,
-            "pivot": [
-              0.5,
-              0
-            ],
-            "columns": 1,
-            "rows": 1,
-            "frame": 0,
-            "flipX": false,
-            "tint": [
-              1,
-              1,
-              1,
-              1
-            ],
-            "pixelArt": true,
-            "tiledSize": [
-              128,
-              4
-            ]
-          }
+          "id": "56cf507b739a4126b950031effd8cc9a",
+          "name": "Backdrop Hills",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "ce8b994a4ee247a39981197750182af0",
+              "type": "Sprite",
+              "properties": {
+                "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Backgrounds/Default/background_color_hills.png",
+                "frames": [],
+                "leftEnd": "",
+                "rightEnd": "",
+                "normalMap": "",
+                "pixelsPerUnit": 21.333333333333332,
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "columns": 1,
+                "rows": 1,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": true,
+                "tiledSize": [
+                  192,
+                  12
+                ]
+              }
+            }
+          ]
         },
         {
-          "id": "2f753e80d1be4b8a9e8e8f964bbd07a4",
-          "type": "Parallax",
-          "properties": {
-            "factor": [
-              0.5,
-              0.5
-            ]
-          }
+          "id": "a7e8f29a809f4b33bf59de21eae5e9a6",
+          "name": "Backdrop Clouds",
+          "kind": "Group",
+          "position": [
+            0,
+            12,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "e0fb389f22f9405ca22c37ecd3433931",
+              "type": "Sprite",
+              "properties": {
+                "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Backgrounds/Default/background_clouds.png",
+                "frames": [],
+                "leftEnd": "",
+                "rightEnd": "",
+                "normalMap": "",
+                "pixelsPerUnit": 21.333333333333332,
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "columns": 1,
+                "rows": 1,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": true,
+                "tiledSize": [
+                  192,
+                  12
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "8d20965834804fab9b71bc427744d057",
+          "name": "Backdrop Sky",
+          "kind": "Group",
+          "position": [
+            0,
+            24,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "30aacce0530a41bcb6e998420cd36f3c",
+              "type": "Sprite",
+              "properties": {
+                "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Backgrounds/Default/background_solid_sky.png",
+                "frames": [],
+                "leftEnd": "",
+                "rightEnd": "",
+                "normalMap": "",
+                "pixelsPerUnit": 21.333333333333332,
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "columns": 1,
+                "rows": 1,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": true,
+                "tiledSize": [
+                  192,
+                  36
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "61d41b9f0fb244dc952821cd03247606",
+          "name": "Backdrop Grass",
+          "kind": "Group",
+          "position": [
+            0,
+            -24,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "c8fcacd016664efd887abd1454e029fe",
+              "type": "Sprite",
+              "properties": {
+                "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Backgrounds/Default/background_solid_grass.png",
+                "frames": [],
+                "leftEnd": "",
+                "rightEnd": "",
+                "normalMap": "",
+                "pixelsPerUnit": 21.333333333333332,
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "columns": 1,
+                "rows": 1,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": true,
+                "tiledSize": [
+                  192,
+                  24
+                ]
+              }
+            }
+          ]
         }
       ]
     }

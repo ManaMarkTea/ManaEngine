@@ -10,19 +10,32 @@ namespace Mana.Code.Components
     /// </summary>
     public sealed class ManaPlatformer2DComponent : ManaComponent
     {
-        public string Texture { get; set; } = "Content/Sprites/hero.png";
-        public string NormalMap { get; set; } = "Content/Sprites/hero_n.png";
-        public int Columns { get; set; } = 4;
+        private const string KenneyCharacters = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_green_";
+
+        /// <summary>The player's pictures, one per frame -- Kenney's green character by default: idle, two walk steps, jump.</summary>
+        public string[] Frames { get; set; } =
+            [KenneyCharacters + "idle.png", KenneyCharacters + "walk_a.png", KenneyCharacters + "walk_b.png", KenneyCharacters + "jump.png"];
+
+        /// <summary>A sheet instead of <see cref="Frames"/>: one picture cut into columns x rows.</summary>
+        public string Texture { get; set; } = string.Empty;
+        public string NormalMap { get; set; } = string.Empty;
+        public int Columns { get; set; } = 1;
         public int Rows { get; set; } = 1;
 
-        /// <summary>Pixels per metre for the player's sprite; 16 makes a 32-pixel frame the character's 2 m.</summary>
-        public float PixelsPerUnit { get; set; } = 16.0f;
+        /// <summary>Pixels per metre for the player's sprite; 56 makes Kenney's 128-pixel frames a two-metre character.</summary>
+        public float PixelsPerUnit { get; set; } = 56.0f;
+
+        /// <summary>Crisp square pixels; off for smooth art like Kenney's.</summary>
+        public bool PixelArt { get; set; }
+
+        /// <summary>Drawn as painted, ignoring the lights -- right for flat art like Kenney's.</summary>
+        public bool Unlit { get; set; } = true;
 
         public int IdleFrame { get; set; }
-        public int RunFirstFrame { get; set; }
-        public int RunFrameCount { get; set; } = 4;
-        public int JumpFrame { get; set; } = 1;
-        public float RunFramesPerSecond { get; set; } = 10.0f;
+        public int RunFirstFrame { get; set; } = 1;
+        public int RunFrameCount { get; set; } = 2;
+        public int JumpFrame { get; set; } = 3;
+        public float RunFramesPerSecond { get; set; } = 8.0f;
 
         /// <summary>Whether the sheet is drawn facing right; a left-facing one is mirrored the other way round.</summary>
         public bool SheetFacesRight { get; set; } = true;
@@ -76,7 +89,8 @@ namespace Mana.Code.Components
             var node = new ManaSceneNode(Owner.Context, Matrix4x4.Identity) { Name = "2D Player Sprite", IsEditorTransient = true };
             node.Components.Add(new ManaSpriteComponent(node)
             {
-                Texture = Texture, NormalMap = NormalMap, Columns = Columns, Rows = Rows, PixelsPerUnit = PixelsPerUnit
+                Frames = Frames, Texture = Texture, NormalMap = NormalMap, Columns = Columns, Rows = Rows,
+                PixelsPerUnit = PixelsPerUnit, PixelArt = PixelArt, Unlit = Unlit
             });
             node.Components.Add(new SpriteDriver(node, this));
             player.AddChild(node);

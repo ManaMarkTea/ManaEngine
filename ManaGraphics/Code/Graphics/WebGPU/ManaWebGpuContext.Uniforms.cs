@@ -126,7 +126,8 @@ namespace ManaGraphics.Code.Graphics
                     meshInstance.OutlineEnabled ? 1.0f : 0.0f,
                     // z: the material has an emission map of its own (pbr_irradiance.wgsl's emission).
                     string.IsNullOrEmpty(meshInstance.MeshData.EmissionTexturePath) ? 0.0f : 1.0f,
-                    0.0f),
+                    // w: unlit, drawn as its colour (pbr_irradiance.wgsl).
+                    meshInstance.Unlit ? 1.0f : 0.0f),
                 // -1 means "no per-object override, use the frame's global debug mode" -- valid debug
                 // mode indexes are >= 0 (see ManaIrradianceSettings.WebGpuDebugMode).
                 DebugModeOverride = meshInstance.PbrDebugMode ?? -1.0f,

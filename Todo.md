@@ -1,7 +1,11 @@
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
 the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.
-One question for you (in the Glow item): how material edits should be saved. Tests: 2,841 checks, all passing.
+One question for you (in the Glow item): how material edits should be saved.
+2026-09-30: the 2D Sample now uses Kenney's New Platformer Pack (Assets/kenney_new-platformer-pack-1.1.zip): the green
+character, grass terrain, gold coins (Content/Prefabs/Coin 2D), water, a slime, a goal flag and the painted backdrop.
+Sprites read straight from the zip; the pack's .ogg sounds need Ogg support in ManaAudio first, so the sample uses
+the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-pack.png. Tests: 2,841 checks, all passing.
 
 [x] Press the END key to drop the item onto the floor or other objects. - Writen by copilot, verify its good.
     Claude (overnight): verified and improved. It now casts five rays (centre + footprint corners) and lands on the

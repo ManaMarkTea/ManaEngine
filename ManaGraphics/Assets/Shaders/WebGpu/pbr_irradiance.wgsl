@@ -151,6 +151,16 @@ fn debug_color_to_surface(value : vec3<f32>) -> vec3<f32> {
     return pow(max(value, vec3<f32>(0.0)), vec3<f32>(2.2));
 }
 
+// Unlit: the value the tone map (ACES, hdr_tonemap.wgsl) turns back into this colour, so flat art shows as drawn.
+// Exact up to 0.9; brighter is held there, where only the whitest parts bloom a touch.
+fn mana_unlit(colour : vec3<f32>) -> vec3<f32> {
+    let y = min(max(colour, vec3<f32>(0.0)), vec3<f32>(0.9));
+    let qa = 2.51 - 2.43 * y;
+    let qb = 0.03 - 0.59 * y;
+    let qc = -0.14 * y;
+    return (-qb + sqrt(qb * qb - 4.0 * qa * qc)) / (2.0 * qa);
+}
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // One transform for every map, so a tiled brick stays registered across albedo, normal and roughness.
@@ -287,6 +297,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let emissive = emissive_color * emissive_strength;
 
     var color = ambient + direct + emissive;
+    if (object.outline_parameters.w > 0.5) {
+        color = mana_unlit(vertex_albedo);
+    }
 
     // ManaOpacityMode: 1 opaque, 2 cutout, 3 blend. Cutout discards below the threshold and is otherwise
     // fully solid, which is what foliage and grates want -- no sorting, no depth-write cost. Blend keeps

@@ -321,6 +321,7 @@ namespace Mana.Code.Nodes
                         Metallic = renderer.Material.Metallic.Value,
                         Roughness = renderer.Material.Roughness.Value,
                         FlatShaded = renderer.Material.FlatShaded,
+                        Unlit = renderer.Material.Unlit,
                         AmbientOcclusion = renderer.Material.Occlusion.Value,
                         Emission = glowing?.Color ?? renderer.Material.Emission.Value,
                         EmissionStrength = glowing != null ? glowStrength : (float)renderer.Material.EmissionStrength,

@@ -66,6 +66,43 @@ public static class SpriteChecks
             tiledRenderer?.Mesh is ManaSpriteMesh { } tiledMesh && Near(tiledMesh.Size, new Vector2(12, 1)) && Near(tiledRenderer.Material.UvScale, new Vector2(3, 1)),
             $"{(tiledRenderer?.Mesh as ManaSpriteMesh)?.Size} uv {tiledRenderer?.Material.UvScale}");
 
+        // Kenney's platformer pack: pictures read straight out of the zip, frames given one picture each.
+        const string pack = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/";
+        var packed = ManaSpritePictures.Resolve(pack + "Tiles/Default/coin_gold.png");
+        check("a picture inside a pack is read out of the zip", packed != null && ManaSpriteComponent.PngSize(packed) == new Vector2(64, 64), packed ?? "not found");
+        var walkerNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Walker" };
+        context.World.DefaultScene.Children.Add(walkerNode);
+        var walker = new ManaSpriteComponent(walkerNode)
+        {
+            Frames = [pack + "Characters/Default/character_green_idle.png", pack + "Characters/Default/character_green_walk_a.png", pack + "Characters/Default/character_green_jump.png"],
+            PixelsPerUnit = 64
+        };
+        walkerNode.Components.Add(walker);
+        walker.Frame = 1;
+        walker.Refresh();
+        var walkerRenderer = walkerNode.GetComponent<MeshRendererComponent>();
+        var walkerMesh = walkerRenderer?.Mesh as ManaSpriteMesh;
+        var strip = walkerMesh?.GetOrCreateCpuData().AlbedoTexturePath;
+        check("separate frame pictures become one strip, a frame each, the sprite one frame's size",
+            strip != null && ManaSpriteComponent.PngSize(strip) == new Vector2(384, 128) && walkerMesh != null && Near(walkerMesh.Size, new Vector2(2, 2))
+            && walkerRenderer != null && Near(walkerRenderer.Material.UvScale, new Vector2(1.0f / 3.0f, 1)) && Near(walkerRenderer.Material.UvOffset, new Vector2(1.0f / 3.0f, 0)),
+            $"{(strip == null ? "no strip" : ManaSpriteComponent.PngSize(strip))} size {walkerMesh?.Size} uv {walkerRenderer?.Material.UvScale} {walkerRenderer?.Material.UvOffset}");
+
+        var groundNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Ground" };
+        context.World.DefaultScene.Children.Add(groundNode);
+        var ground = new ManaSpriteComponent(groundNode)
+        {
+            Texture = pack + "Tiles/Default/terrain_grass_block_center.png", LeftEnd = pack + "Tiles/Default/terrain_grass_block_left.png",
+            RightEnd = pack + "Tiles/Default/terrain_grass_block_right.png", PixelsPerUnit = 64, TiledSize = new Vector2(6, 2)
+        };
+        groundNode.Components.Add(ground);
+        ground.Refresh();
+        var groundRenderer = groundNode.GetComponent<MeshRendererComponent>();
+        var groundPicture = (groundRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
+        check("a tiled sprite with ends is drawn as one picture: an end, the middle between, an end, rows deep",
+            groundPicture != null && ManaSpriteComponent.PngSize(groundPicture) == new Vector2(6 * 64, 2 * 64) && groundRenderer != null && Near(groundRenderer.Material.UvScale, Vector2.One),
+            $"{(groundPicture == null ? "none" : ManaSpriteComponent.PngSize(groundPicture))} uv {groundRenderer?.Material.UvScale}");
+
         var animation = new ManaSpriteAnimationComponent(node) { FramesPerSecond = 4 };
         check("an animation steps a frame each 1/fps", animation.FrameAt(0.0, 4) == 0 && animation.FrameAt(0.26, 4) == 1 && animation.FrameAt(0.8, 4) == 3);
         check("and loops", animation.FrameAt(1.1, 4) == 0);

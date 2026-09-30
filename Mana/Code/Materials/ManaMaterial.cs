@@ -50,6 +50,9 @@ namespace Mana.Code.Materials
         /// <summary>Shade with per-triangle geometric normals instead of interpolated vertex ones.</summary>
         public bool FlatShaded = false;
 
+        /// <summary>Show the colour as drawn, ignoring lights -- flat art like Kenney's 2D sprites.</summary>
+        public bool Unlit = false;
+
         /// <summary>
         /// How many times a texture repeats across the surface's own UVs, per axis.
         /// <para>
@@ -406,6 +409,7 @@ namespace Mana.Code.Materials
             copy.Emission = (ManaTextureVector4)copy.Emission.Clone();
             copy.Metallic = (ManaTextureSingle)copy.Metallic.Clone();
             copy.FlatShaded = FlatShaded;
+            copy.Unlit = Unlit;
             copy.Roughness = (ManaTextureSingle)copy.Roughness.Clone();
             copy.Occlusion = (ManaTextureSingle)copy.Occlusion.Clone();
             copy.Opacity = (ManaTextureSingle)copy.Opacity.Clone();

@@ -15,8 +15,18 @@ namespace Mana.Code.Components
     /// </summary>
     public sealed class ManaSpriteComponent : ManaComponent
     {
-        /// <summary>The picture: a PNG, as a repo path (Content/Sprites/hero.png).</summary>
+        /// <summary>The picture: a PNG, as a repo path (Content/Sprites/hero.png) or inside a pack (zip:pack.zip/Sprites/x.png).</summary>
         public string Texture { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Separate pictures, one per frame, instead of one sheet -- how packs like Kenney's ship animation.
+        /// When set they are the sheet, one frame each, and <see cref="Texture"/>, columns and rows are unused.
+        /// </summary>
+        public string[] Frames { get; set; } = [];
+
+        /// <summary>Pictures drawn once at the ends of a tiled sprite, with <see cref="Texture"/> repeated between -- a platform's rounded edges.</summary>
+        public string LeftEnd { get; set; } = string.Empty;
+        public string RightEnd { get; set; } = string.Empty;
 
         /// <summary>Optional normal map for the same picture, so lights shade it as if it had depth.</summary>
         public string NormalMap { get; set; } = string.Empty;
@@ -54,16 +64,20 @@ namespace Mana.Code.Components
         /// <summary>Keep each pixel a crisp square rather than blending neighbours -- off for painted art.</summary>
         public bool PixelArt { get; set; } = true;
 
+        /// <summary>Show the picture as drawn, whatever the lights -- flat art. Off lets lamps and the sun shade it.</summary>
+        public bool Unlit { get; set; }
+
         private MeshRendererComponent? _renderer;
         private string? _builtKey;
         private Vector2 _repeats = Vector2.One;
+        private Vector2 _pixels = Vector2.One;
 
         public ManaSpriteComponent(ManaSceneNode owner) : base(owner)
         {
             Name = "Sprite";
         }
 
-        public int FrameCount => Math.Max(1, Columns) * Math.Max(1, Rows);
+        public int FrameCount => Frames.Length > 0 ? Frames.Length : Math.Max(1, Columns) * Math.Max(1, Rows);
 
         public override void UpdateComponent()
         {
@@ -74,14 +88,14 @@ namespace Mana.Code.Components
         /// <summary>Builds or rebuilds the quad when the picture or its size changed, and shows the current frame.</summary>
         public void Refresh()
         {
-            if (string.IsNullOrWhiteSpace(Texture))
+            if (string.IsNullOrWhiteSpace(Texture) && Frames.Length == 0)
             {
                 return;
             }
 
-            var columns = Math.Max(1, Columns);
-            var rows = Math.Max(1, Rows);
-            var key = $"{Texture}|{NormalMap}|{PixelsPerUnit}|{Pivot}|{columns}|{rows}|{Tint}|{PixelArt}|{TiledSize}";
+            var columns = Frames.Length > 0 ? Frames.Length : Math.Max(1, Columns);
+            var rows = Frames.Length > 0 ? 1 : Math.Max(1, Rows);
+            var key = $"{Texture}|{string.Join(',', Frames)}|{LeftEnd}|{RightEnd}|{NormalMap}|{PixelsPerUnit}|{Pivot}|{columns}|{rows}|{Tint}|{PixelArt}|{Unlit}|{TiledSize}";
             if (key != _builtKey || _renderer == null)
             {
                 Rebuild(columns, rows);
@@ -98,27 +112,48 @@ namespace Mana.Code.Components
             var column = frame % columns;
             var row = frame / columns;
             // Repeats across a tiled size ride on the UV scale, which the sampler wraps.
-            var repeats = IsTiled(columns, rows) ? _repeats : Vector2.One;
+            var repeats = _repeats;
+            // Half a texel in from each edge of a frame that does not repeat: smooth sampling would otherwise
+            // blend in the neighbouring frame, or wrap the far edge round -- a faint line along the border.
+            var inset = new Vector2(
+                repeats.X == 1.0f && !PixelArt ? 0.5f / MathF.Max(_pixels.X, 1.0f) : 0.0f,
+                repeats.Y == 1.0f && !PixelArt ? 0.5f / MathF.Max(_pixels.Y, 1.0f) : 0.0f);
+            var cell = new Vector2(repeats.X / columns - 2.0f * inset.X, repeats.Y / rows - 2.0f * inset.Y);
+            var corner = new Vector2((float)column / columns + inset.X, (float)(rows - 1 - row) / rows + inset.Y);
             var material = _renderer.Material;
-            material.UvScale = new Vector2((FlipX ? -repeats.X : repeats.X) / columns, repeats.Y / rows);
             // Rows are counted from the top of the sheet, and v runs up it (see ManaSpriteMesh).
-            material.UvOffset = new Vector2((column + (FlipX ? repeats.X : 0)) / columns, (rows - 1 - row) / (float)rows);
+            material.UvScale = new Vector2(FlipX ? -cell.X : cell.X, cell.Y);
+            material.UvOffset = new Vector2(FlipX ? corner.X + cell.X : corner.X, corner.Y);
         }
 
         private void Rebuild(int columns, int rows)
         {
-            var texturePath = ManaTexture.ResolveTexturePath(Texture);
-            var normalPath = string.IsNullOrWhiteSpace(NormalMap) ? null : ManaTexture.ResolveTexturePath(NormalMap);
+            var texturePath = (Frames.Length > 0 ? ManaSpritePictures.Join(Frames) : ManaSpritePictures.Resolve(Texture))
+                ?? ManaTexture.ResolveTexturePath(Texture);
+            var normalPath = string.IsNullOrWhiteSpace(NormalMap) ? null : ManaSpritePictures.Resolve(NormalMap);
             var pixels = PngSize(texturePath) ?? new Vector2(PixelsPerUnit, PixelsPerUnit);
+            _pixels = pixels;
             var ppu = MathF.Max(PixelsPerUnit, 0.01f);
             var size = new Vector2(pixels.X / columns / ppu, pixels.Y / rows / ppu);
+            _repeats = Vector2.One;
             if (IsTiled(columns, rows))
             {
-                _repeats = TiledSize / size;
+                if (HasEnds && JoinEnds(size) is { } joined)
+                {
+                    // The ends are part of the picture now, joined once, so it is drawn whole rather than repeated.
+                    texturePath = joined;
+                    normalPath = null;
+                    _pixels = PngSize(joined) ?? _pixels;
+                }
+                else
+                {
+                    _repeats = TiledSize / size;
+                }
                 size = TiledSize;
             }
 
             var mesh = new ManaSpriteMesh(Owner.Context, texturePath, File.Exists(normalPath ?? "") ? normalPath : null, size, Pivot, Tint, PixelArt);
+            mesh.Materials[0].Unlit = Unlit;
             lock (Owner.Context.World.SceneLock)
             {
                 if (_renderer != null)
@@ -128,6 +163,27 @@ namespace Mana.Code.Components
                 _renderer = new MeshRendererComponent(Owner, mesh);
                 Owner.Components.Add(_renderer);
             }
+        }
+
+        private bool HasEnds => !string.IsNullOrWhiteSpace(LeftEnd) || !string.IsNullOrWhiteSpace(RightEnd);
+
+        // Left end, the middle as many times as fits between, right end: whole tiles, as near the tiled size as they come.
+        private string? JoinEnds(Vector2 tile)
+        {
+            var ends = new[] { LeftEnd, RightEnd }.Count(end => !string.IsNullOrWhiteSpace(end));
+            var count = Math.Max((int)MathF.Round(TiledSize.X / MathF.Max(tile.X, 1e-4f)), ends + 1);
+            var pieces = new List<string>();
+            if (!string.IsNullOrWhiteSpace(LeftEnd))
+            {
+                pieces.Add(LeftEnd);
+            }
+            pieces.AddRange(Enumerable.Repeat(Texture, count - ends));
+            if (!string.IsNullOrWhiteSpace(RightEnd))
+            {
+                pieces.Add(RightEnd);
+            }
+            var rows = Math.Max(1, (int)MathF.Round(TiledSize.Y / MathF.Max(tile.Y, 1e-4f)));
+            return ManaSpritePictures.Join(pieces, rows);
         }
 
         private bool IsTiled(int columns, int rows) => TiledSize.X > 0.0f && TiledSize.Y > 0.0f && columns == 1 && rows == 1;

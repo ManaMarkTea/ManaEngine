@@ -67,6 +67,11 @@ namespace ManaVoxel.Code.Gameplay.Course
 
         public int Damage { get; set; } = 1;
 
+        /// <summary>For an enemy drawn by a Sprite: which way its picture looks. Kenney's enemies look left.</summary>
+        public bool SpriteFacesRight { get; set; }
+
+        private bool? _startFlip;
+
         /// <summary>How fast a stomp throws the player back up.</summary>
         public float BounceSpeed { get; set; } = 9.0f;
 
@@ -86,11 +91,16 @@ namespace ManaVoxel.Code.Gameplay.Course
             _hideAfterSeconds = 0.0f;
             _playingClip = null;
             Owner.Context.World.GameState.RegisterEnemy();
+            _startFlip = Owner.GetComponent<Mana.Code.Components.ManaSpriteComponent>()?.FlipX;
         }
 
         public override void EndPlay()
         {
             Owner.Position = _start;
+            if (_startFlip is { } flip && Owner.GetComponent<Mana.Code.Components.ManaSpriteComponent>() is { } sprite)
+            {
+                sprite.FlipX = flip;
+            }
             _hidden.Restore();
             IsDefeated = false;
             _chasing = false;
@@ -208,7 +218,15 @@ namespace ManaVoxel.Code.Gameplay.Course
             }
 
             var heading = Horizontal(next - position);
-            if (heading.LengthSquared() > 1e-8f)
+            if (heading.LengthSquared() > 1e-8f && Owner.GetComponent<Mana.Code.Components.ManaSpriteComponent>() is { } sprite)
+            {
+                // A picture turned to face its path would go edge-on; it is mirrored instead.
+                if (MathF.Abs(heading.X) > 1e-6f)
+                {
+                    sprite.FlipX = (heading.X > 0.0f) != SpriteFacesRight;
+                }
+            }
+            else if (heading.LengthSquared() > 1e-8f)
             {
                 var turned = Owner.Rotation;
 

@@ -1,0 +1,135 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "542a1ddde4634a5ebd6fd6d40a889c73",
+  "name": "Coin 2D",
+  "root": {
+    "id": "d13f911eba70494dad6e4c122c2fe85e",
+    "name": "Coin 2D",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [
+      {
+        "id": "cbbea059cdd448898b0ba93411add571",
+        "type": "Sprite",
+        "properties": {
+          "texture": "",
+          "frames": [
+            "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_gold.png",
+            "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_gold_side.png"
+          ],
+          "leftEnd": "",
+          "rightEnd": "",
+          "normalMap": "",
+          "pixelsPerUnit": 64,
+          "pivot": [
+            0.5,
+            0
+          ],
+          "columns": 1,
+          "rows": 1,
+          "frame": 0,
+          "flipX": false,
+          "tint": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "pixelArt": false,
+          "unlit": true,
+          "tiledSize": [
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "eacab07bf01247b58c215b9e1e08f964",
+        "type": "SpriteAnimation",
+        "properties": {
+          "framesPerSecond": 3,
+          "firstFrame": 0,
+          "frameCount": 0,
+          "loop": true,
+          "playing": true
+        }
+      },
+      {
+        "id": "8910995512dc4778a7c0515fb8f056d6",
+        "type": "Trigger",
+        "properties": {
+          "size": [
+            0.7,
+            0.7,
+            1.2
+          ],
+          "offset": [
+            0,
+            0.5,
+            0
+          ]
+        }
+      },
+      {
+        "id": "18b0b41bd6a944e7a8f2c9f35d3a9277",
+        "type": "Collectible",
+        "properties": {
+          "value": 1,
+          "spinDegreesPerSecond": 0
+        }
+      },
+      {
+        "id": "59156e3753804a1588ad4279675b6224",
+        "type": "AudioSource",
+        "properties": {
+          "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+          "variants": "",
+          "cue": "Pickup",
+          "global": false,
+          "spatial": true,
+          "localOffset": [
+            0,
+            0,
+            0
+          ],
+          "playOnBegin": false,
+          "loop": false,
+          "volume": 0.75,
+          "pitch": 1,
+          "referenceDistance": 5,
+          "maxDistance": 45,
+          "rolloff": 1,
+          "bus": "Sfx",
+          "fadeSeconds": 0.08,
+          "delaySeconds": 0
+        }
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "90e09274875748a492952efc752636c2",
+      "name": "Value",
+      "nodeId": "d13f911eba70494dad6e4c122c2fe85e",
+      "componentId": "18b0b41bd6a944e7a8f2c9f35d3a9277",
+      "property": "value",
+      "minimum": 1,
+      "maximum": 100
+    }
+  ]
+}
