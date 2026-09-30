@@ -9,7 +9,7 @@ namespace ManaVoxel.Code.GridMaps
     /// </summary>
     public static class GridMapWfcGenerator
     {
-        public const string FolderName = "Generators";
+        public const string FolderName = "Content/Generators";
 
         public const string Extension = ".manawfc";
 
@@ -395,7 +395,7 @@ namespace ManaVoxel.Code.GridMaps
             return cells;
         }
 
-        /// <summary>A rules file in Generators/ by name, or a preset of that name, or null for none.</summary>
+        /// <summary>A rules file in Content/Generators/ by name, or a preset of that name, or null for none.</summary>
         public static GridMapWfcRules? FindRules(string? name)
         {
             if (string.IsNullOrWhiteSpace(name))

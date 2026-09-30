@@ -132,7 +132,7 @@ public static class GridMapWfcChecks
         RunGridMapChecks(rules, Check);
         RunPropChecks((what, ok, detail) => Check(what, ok, detail));
 
-        // The rules that ship in Generators/ are the preset, so a fresh checkout generates the same dungeon.
+        // The rules that ship in Content/Generators/ are the preset, so a fresh checkout generates the same dungeon.
         var shipped = GridMapWfcGenerator.List().FirstOrDefault(path => Path.GetFileNameWithoutExtension(path) == "Dungeon");
         var file = shipped == null ? null : GridMapWfcGenerator.Load(shipped);
         Check("the Dungeon rules file ships, and is the preset",

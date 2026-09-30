@@ -28,8 +28,8 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-dungeon.zip">
       <TargetPath>Assets/kenney_mini-dungeon.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Levels/**/*.manalevel">
-      <TargetPath>Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/Levels/**/*.manalevel">
+      <TargetPath>Content/Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Content/**/*.managridpreset">
       <TargetPath>Content/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>

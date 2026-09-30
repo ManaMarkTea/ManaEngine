@@ -61,6 +61,7 @@ namespace Mana.Code.GameModes
         private bool _directEditPointerWasDown;
         private Vector3? _lastDirectEditPosition;
         private bool _frameSelectedKeyWasDown;
+        private bool _dropSelectedToFloorKeyWasDown;
         private bool _escapeSelectionKeyWasDown;
         private HashSet<MeshRendererComponent> _lastOutlinedSelectionComponents = new();
         private HashSet<MeshRendererComponent> _lastStreamingHighlightedComponents = new();
@@ -951,15 +952,15 @@ namespace Mana.Code.GameModes
         // alongside it in the same folder for a future zoom-dependent LOD pass; not wired up yet.
         // Not a repo asset (sourced externally, ~800KB), same treatment as KmlDemoFilePath -- degrades
         // to a no-op via the File.Exists guard on any machine without it.
-        private const string CountryBordersZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_50m_admin_0_countries.zip";
+        private const string CountryBordersZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_50m_admin_0_countries.zip";
         private const string CountryBordersShpEntryName = "ne_50m_admin_0_countries.shp";
-        private const string StateBordersZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_50m_admin_1_states_provinces.zip";
+        private const string StateBordersZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_50m_admin_1_states_provinces.zip";
         private const string StateBordersShpEntryName = "ne_50m_admin_1_states_provinces.shp";
 
-        // Natural Earth physical polygons, same non-repo Data folder as the boundary shapefiles --
+        // Natural Earth physical polygons, same non-repo GeoData folder as the boundary shapefiles --
         // absent files just leave the mask empty and colouring stays elevation-only.
-        private const string LakesZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_10m_lakes.zip";
-        private const string OceanZipPath = @"C:\Users\night\Code\ManaRenderer\Data\ne_10m_ocean.zip";
+        private const string LakesZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_10m_lakes.zip";
+        private const string OceanZipPath = @"C:\Users\night\Code\ManaRenderer\GeoData\ne_10m_ocean.zip";
 
         private static void LoadWaterMask()
         {
@@ -2182,6 +2183,121 @@ namespace Mana.Code.GameModes
             Context.World.MainCamera.TryFrameSelection(selection.SelectedComponent as MeshRendererComponent, selection.SelectedNode);
         }
 
+        // "End to drop to floor" -- same edge-detection idiom as the F shortcut above. Casts straight down
+        // from the selection's own footprint and settles it onto whatever the ray finds first (the editor
+        // grid, a voxel mesh, another prop), rather than only the literal ground plane.
+        private void UpdateDropSelectedToFloorShortcut()
+        {
+            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            var keyDown = !UiWantsKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.End);
+            var pressed = keyDown && !_dropSelectedToFloorKeyWasDown;
+            _dropSelectedToFloorKeyWasDown = keyDown;
+
+            if (!pressed)
+            {
+                return;
+            }
+
+            DropSelectedToFloor();
+        }
+
+        private void DropSelectedToFloor()
+        {
+            var selection = Context.World.Selection;
+            var node = selection.SelectedNode;
+            if (node == null)
+            {
+                return;
+            }
+
+            if (!CameraComponent.TryComputeSelectionWorldBounds(
+                selection.SelectedComponent as MeshRendererComponent, node, out var worldMin, out var worldMax))
+            {
+                return;
+            }
+
+            // The ray starts at the footprint's own bottom, not its centre: a raycast from the middle of a
+            // tall object would sail past a floor that only reaches partway up its height.
+            var footprint = new Vector3((worldMin.X + worldMax.X) * 0.5f, worldMin.Y, (worldMin.Z + worldMax.Z) * 0.5f);
+
+            // Against the physics world rather than the scene picker used everywhere else: most placed
+            // shapes/imports carry no collider at all (collision is opt-in, see the Inspector's Collision
+            // section), so a physics-only raycast sailed straight through them to whatever collidable was
+            // underneath -- usually the grid floor. ManaScenePicker ray-tests the actual mesh triangles
+            // instead, which is exactly what decides whether something looks like it is resting on
+            // something else. The whole subtree is excluded, not just the node itself, so a multi-mesh
+            // selection (the lamp's post plus its head) cannot detect its own geometry as the floor. Every
+            // IsEditorTransient node is excluded too -- the selection's own yellow collider-debug box (see
+            // RebuildSelectionColliderDebug) sits almost exactly at these same bounds and is not part of
+            // this subtree, so without this the ray immediately re-hit it and "dropped" by a hair each
+            // press instead of ever reaching whatever is actually below.
+            var excluded = new HashSet<ManaSceneNode>();
+            CollectSubtree(node, excluded);
+            foreach (var scene in Context.World.Scenes)
+            {
+                foreach (var child in scene.Children)
+                {
+                    CollectTransientNodes(child, excluded);
+                }
+            }
+
+            var hit = ManaScenePicker.PickWithHit(Context.World.Scenes, footprint, -Vector3.UnitY, excluded);
+            if (hit == null)
+            {
+                return;
+            }
+
+            var riseNeeded = hit.Value.Position.Y - worldMin.Y;
+            if (MathF.Abs(riseNeeded) < 0.0001f)
+            {
+                return;
+            }
+
+            var worldDelta = new Vector3(0.0f, riseNeeded, 0.0f);
+            if (node.Parent != null)
+            {
+                if (!Matrix4x4.Invert(node.Parent.WorldTransform, out var worldToParent))
+                {
+                    return;
+                }
+
+                worldDelta = Vector3.TransformNormal(worldDelta, worldToParent);
+            }
+
+            var before = SceneNodeTransformState.Capture(node);
+            node.Position += worldDelta;
+            node.UpdateTransform();
+            var after = SceneNodeTransformState.Capture(node);
+            _viewModel.History.RecordTransform(node, before, after, $"Drop {node.Name} to Floor", selection);
+        }
+
+        private static void CollectSubtree(ManaSceneNode node, HashSet<ManaSceneNode> into)
+        {
+            into.Add(node);
+            foreach (var child in node.Children)
+            {
+                CollectSubtree(child, into);
+            }
+        }
+
+        private static void CollectTransientNodes(ManaSceneNode node, HashSet<ManaSceneNode> into)
+        {
+            if (node.IsEditorTransient)
+            {
+                into.Add(node);
+            }
+
+            foreach (var child in node.Children)
+            {
+                CollectTransientNodes(child, into);
+            }
+        }
+
         // Escape backs all the way out: it already releases a possessed pawn (ManaPawnController) and
         // cancels an in-progress mesh-picker placement (HandleMeshPickerEscapeCancel) as two independent
         // edge-detected consumers of the same key -- this is the third, clearing whatever is selected and
@@ -2897,6 +3013,7 @@ namespace Mana.Code.GameModes
             // hit-tested like anything else, and UiWantsMouse already knows.
             UpdateVoxelPointerInteraction(UiWantsMouse);
             UpdateFrameSelectedShortcut();
+            UpdateDropSelectedToFloorShortcut();
             UpdateEscapeSelectionShortcut();
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
 

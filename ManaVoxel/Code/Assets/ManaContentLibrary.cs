@@ -7,7 +7,7 @@ namespace ManaVoxel.Code.Assets
     public static class ManaContentLibrary
     {
 #if MANA_BROWSER
-        // The browser bundles Content/ into its file system beside Levels/ (see WebAssets.props).
+        // The browser bundles Content/ into its file system, including Content/Levels/ (see WebAssets.props).
         public static string Root => Path.GetFullPath("Content");
 
         private const string GridMapPresetExtension = ".managridpreset";

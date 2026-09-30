@@ -2,7 +2,7 @@
   "sampleRate": 48000,
   "channels": 1,
   "bitsPerSample": 16,
-  "sourceLevel": "Levels/Sample Course.manalevel",
+  "sourceLevel": "Content/Levels/Sample Course.manalevel",
   "sourceLevelSha256": "70d01f4ca72ebce374914dff65436702f408dcd18a75831903a1824712543525",
   "provenance": "Original procedural synthesis; no third-party samples or recordings.",
   "sounds": [

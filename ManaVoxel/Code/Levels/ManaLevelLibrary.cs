@@ -10,7 +10,7 @@ namespace ManaVoxel.Code.Levels
     /// </summary>
     public static class ManaLevelLibrary
     {
-        public const string FolderName = "Levels";
+        public const string FolderName = "Content/Levels";
 
         /// <summary>
         /// The folder levels are read from and written to, created if this is the first time. Never throws

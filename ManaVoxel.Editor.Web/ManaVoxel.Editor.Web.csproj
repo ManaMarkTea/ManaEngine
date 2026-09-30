@@ -7,7 +7,7 @@
        ManaVoxel.csproj's own RuntimeIdentifiers/SetTargetFramework wiring; so this project
        exists to reference the real thing (VoxelEditorGameMode and everything under it) rather
        than re-linking a hand-picked subset of its files by source the way ManaVoxel.Web has to
-       for play mode's handful of Levels/Services types. Same "always browser-wasm, permanently
+       for play mode's handful of Content/Levels/Services types. Same "always browser-wasm, permanently
        fixed RuntimeIdentifier, never invoked two ways" reasoning as ManaVoxel.Web.csproj: nothing
        else references THIS project, so there is no RID-conditioned-restore poisoning risk here
        either. -->

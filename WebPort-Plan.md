@@ -1343,6 +1343,6 @@ real bugs found and fixed along the way, then one genuine blocker found and NOT 
   acceptable.
 - **M7**: standalone Bepu wasm test passes with correct physics results compared to the
   same test run natively (desktop `dotnet run`).
-- **Full pass**: `dotnet run --project ManaVoxel -- --play "Levels/Sample Course.manalevel"`
+- **Full pass**: `dotnet run --project ManaVoxel -- --play "Content/Levels/Sample Course.manalevel"`
   vs. the browser build of the same level — compare visually and confirm play mode
   (movement, camera) works equivalently.

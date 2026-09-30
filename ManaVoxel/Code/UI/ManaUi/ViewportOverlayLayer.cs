@@ -120,6 +120,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             get => _arrangedAgainst;
             set
             {
+                // Published unconditionally (not just on change): CameraComponent reads this to keep "F to
+                // frame selected" (see VoxelEditorGameMode.UpdateFrameSelectedShortcut) inside what is
+                // actually visible, rather than the whole window some of which sits under this layer's own
+                // docked columns.
+                Mana.Code.UI.ManaEditorGizmos.Viewport = value;
+
                 if (_arrangedAgainst.Equals(value))
                 {
                     return;

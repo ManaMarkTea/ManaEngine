@@ -6,7 +6,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
     /// The Generator window: rules for <see cref="GridMapWfc"/>, read from and saved to .manawfc files in
-    /// Generators/, and the area of the selected grid map to generate into. Every tile of the rules can be
+    /// Content/Generators/, and the area of the selected grid map to generate into. Every tile of the rules can be
     /// edited here -- its model, the cells it covers, how often it comes up, which turns it may take and the
     /// labels on its sides -- so a kit other than Kenney's is a new rules file, not new code.
     /// </summary>

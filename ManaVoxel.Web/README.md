@@ -85,10 +85,10 @@ and a stack trace in a console nobody had open.
 
 ## Changing the level
 
-Change the path passed to `BrowserPlayGameMode` in `Program.cs` to a level under `Levels/`.
+Change the path passed to `BrowserPlayGameMode` in `Program.cs` to a level under `Content/Levels/`.
 
 Both browser projects import `WebAssets.props`, which embeds shaders, two Roboto fonts,
-default textures, the mini-character pack, and all `.manalevel` files under `Levels/`.
+default textures, the mini-character pack, and all `.manalevel` files under `Content/Levels/`.
 `Tools/WebAssets/publish_assets.py` publishes every file under `Assets/`, `Mana/Assets/`,
 `ManaGraphics/Assets/`, `ManaUI/Assets/`, and `ManaVoxel/Assets/` as separate hashed files,
 plus a small catalog. The only exclusion is the oversized desktop planet source

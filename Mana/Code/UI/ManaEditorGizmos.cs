@@ -1,3 +1,5 @@
+using ManaUI;
+
 namespace Mana.Code.UI
 {
     /// <summary>
@@ -7,6 +9,14 @@ namespace Mana.Code.UI
     public static class ManaEditorGizmos
     {
         public static bool Visible { get; set; } = true;
+
+        /// <summary>
+        /// What is left of the window once docked panels have taken their share, in logical UI pixels --
+        /// published every frame by <c>ViewportOverlayLayer.Viewport</c>, which is the only place that
+        /// actually knows it. <see cref="ManaUI.UiRect.Empty"/> (the default) means no UI frame has run yet
+        /// or there is no dock layout at all; readers should treat that as "the whole window".
+        /// </summary>
+        public static UiRect Viewport { get; set; } = UiRect.Empty;
 
         /// <summary>
         /// Keeps the editor room's walls and ceiling up. Off, they show only while drawing voxels, where they

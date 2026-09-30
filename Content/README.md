@@ -1,6 +1,6 @@
 # Authored project assets
 
-The editor's **Project** panel browses this folder. Imported source art remains in `Assets`; levels remain in `Levels`.
+The editor's **Project** panel browses this folder. Imported source art remains in `Assets`; levels live under `Content/Levels`, and grid map generator rules under `Content/Generators`.
 
 - Right-click an authored node or group in the Outliner and choose **Make Prefab**. That node becomes a linked instance; its name supplies a unique asset filename. Prefabs are saved under `Prefabs` as `.manaprefab` JSON.
 - Browse folders and thumbnail tiles in **Project**. Right-click a prefab and choose **Place**, then click the viewport, or drag its tile directly into the viewport. Placement uses the same surface preview, snapping and rotation as Import; Escape cancels. **Delete** removes the source asset while leaving placed instances intact.

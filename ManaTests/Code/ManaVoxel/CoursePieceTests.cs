@@ -1110,10 +1110,10 @@ public static class CoursePieceChecks
             $"{savedWater.Kind} {savedWater.Water?.Size[0]}x{savedWater.Water?.Size[1]}");
 
         // ---------------------------------------------------------------- the sample course is safe to respawn into
-        var courseFile = Path.Combine(AppContext.BaseDirectory, "Levels", "Sample Course.manalevel");
+        var courseFile = Path.Combine(AppContext.BaseDirectory, "Content", "Levels", "Sample Course.manalevel");
         if (!File.Exists(courseFile))
         {
-            courseFile = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Levels", "Sample Course.manalevel"));
+            courseFile = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Content", "Levels", "Sample Course.manalevel"));
         }
 
         if (File.Exists(courseFile))
@@ -1183,8 +1183,8 @@ public static class CoursePieceChecks
         }
 
         // ---------------------------------------------------------------- the shipped sample level
-        var samplePath = Path.Combine(AppContext.BaseDirectory, "Levels", "Sample Course.manalevel");
-        var sourcePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Levels", "Sample Course.manalevel"));
+        var samplePath = Path.Combine(AppContext.BaseDirectory, "Content", "Levels", "Sample Course.manalevel");
+        var sourcePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Content", "Levels", "Sample Course.manalevel"));
         var levelFile = File.Exists(samplePath) ? samplePath : sourcePath;
         if (File.Exists(levelFile))
         {

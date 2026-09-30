@@ -4,7 +4,7 @@
 Mono 48 kHz PCM16 WAV throughout; spatial playback is supported. The preview plays loops once so
 **Play all** can continue to the next sound.
 
-Designed against the current `Levels/Sample Course.manalevel`: 24 coins, two checkpoints, five enemies,
+Designed against the current `Content/Levels/Sample Course.manalevel`: 24 coins, two checkpoints, five enemies,
 two moving platforms, damaging oil/track hazards and lethal harbor water. The finish does **not**
 require every coin. The scene's cannons, item boxes, bananas and parked trains have no corresponding
 gameplay scripts, so this pack does not invent firing, power-up or driving events for them.

@@ -208,7 +208,7 @@ public static class CourseAudioChecks
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
         {
-            string path = Path.Combine(directory.FullName, "Levels", "Sample Course.manalevel");
+            string path = Path.Combine(directory.FullName, "Content", "Levels", "Sample Course.manalevel");
             if (File.Exists(path)) { return path; }
         }
         throw new FileNotFoundException("Sample Course.manalevel");

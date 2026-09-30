@@ -1,4 +1,4 @@
-"""Original procedural effects tailored to Levels/Sample Course.manalevel. Standard library only."""
+"""Original procedural effects tailored to Content/Levels/Sample Course.manalevel. Standard library only."""
 from array import array
 import hashlib
 import json
@@ -10,7 +10,7 @@ import wave
 from generate_starter_pack import RATE, ROOT, TAU, chime, impact, mix, noise, tone, write_preview, write_wav
 
 OUTPUT = ROOT / "Mana/Assets/Audio/SampleCourse"
-LEVEL = ROOT / "Levels/Sample Course.manalevel"
+LEVEL = ROOT / "Content/Levels/Sample Course.manalevel"
 
 
 def periodic_noise(duration, cutoff, seed):
@@ -148,7 +148,7 @@ def main():
         metrics = (write_loop if loop else write_wav)(path, samples, peak)
         entries.append({"file": name + ".wav", "description": description, "loop": loop, "courseNodes": nodes, **metrics})
     manifest = {"sampleRate": RATE, "channels": 1, "bitsPerSample": 16,
-                "sourceLevel": "Levels/Sample Course.manalevel", "sourceLevelSha256": hashlib.sha256(LEVEL.read_bytes()).hexdigest(),
+                "sourceLevel": "Content/Levels/Sample Course.manalevel", "sourceLevelSha256": hashlib.sha256(LEVEL.read_bytes()).hexdigest(),
                 "provenance": "Original procedural synthesis; no third-party samples or recordings.", "sounds": entries}
     (OUTPUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     write_preview(entries, output=OUTPUT, title="Sample Course sounds",

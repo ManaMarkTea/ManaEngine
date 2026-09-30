@@ -5,6 +5,7 @@ using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using ManaCore.Graphics;
 using ManaCore.Input;
+using ManaUI;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 
@@ -291,12 +292,121 @@ namespace Mana
         // put the camera on top of (or behind) its own near plane.
         private const float FramingPaddingMultiplier = 1.25f;
 
+        // Below this, "how much window is visible" has collapsed to a sliver (or nothing has published a
+        // viewport at all) and treating it literally would send the camera to a wildly wrong distance.
+        private const float MinVisibleHalfFovRadians = 0.02f;
+
+        // A plain FlyToWorldPosition (forward-axis-only, see below) lands the framed point exactly at the
+        // centre of the WHOLE window, not the centre of whatever is left of it once docked panels
+        // (Outliner, Inspector, tool windows) have taken their share -- so on screen the selection reads
+        // both too small (sized against the full window) and off-centre (aimed at a point a covered
+        // panel may sit right on top of). This sizes the distance against the visible viewport
+        // (Mana.Code.UI.ManaEditorGizmos.Viewport, published every frame by ViewportOverlayLayer) and
+        // then nudges the camera sideways/up, still without rotating it, so the selection projects to
+        // that viewport's own centre instead of the window's.
         private void FrameWorldBounds(Vector3 worldCenter, float worldRadius)
         {
             var radius = MathF.Max(worldRadius, 0.05f);
-            var distance = (radius / MathF.Sin(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f)) * FramingPaddingMultiplier;
-            FlyToWorldPosition(worldCenter, distance);
+            var viewport = Mana.Code.UI.ManaEditorGizmos.Viewport;
+            var windowSize = Context.Window.Size;
+
+            var verticalHalfFovRad = EffectiveFieldOfViewDegrees.ToRadians() * 0.5f;
+            var horizontalHalfFovRad = MathF.Atan(MathF.Tan(verticalHalfFovRad) * AspectRatio);
+
+            var (widthFraction, heightFraction) = GetVisibleViewportFraction(viewport, windowSize);
+            var visibleVerticalHalfFovRad = MathF.Max(
+                MathF.Atan(MathF.Tan(verticalHalfFovRad) * heightFraction), MinVisibleHalfFovRadians);
+            var visibleHorizontalHalfFovRad = MathF.Max(
+                MathF.Atan(MathF.Tan(horizontalHalfFovRad) * widthFraction), MinVisibleHalfFovRadians);
+
+            var distanceForHeight = radius / MathF.Sin(visibleVerticalHalfFovRad);
+            var distanceForWidth = radius / MathF.Sin(visibleHorizontalHalfFovRad);
+            var distance = MathF.Max(MathF.Max(distanceForHeight, distanceForWidth) * FramingPaddingMultiplier, NearClipPlane * 2.0f);
+
+            // How far off the window's own centre the viewport's centre sits, in normalized device
+            // coordinates -- i.e. exactly the on-screen shift the selection needs so it lands there
+            // instead. At distance D a full NDC unit of screen X/Y corresponds to D*tan(halfFov) world
+            // units, so that same NDC offset converts to a camera-local lateral/vertical translation by
+            // just scaling by that, with the sign flipped (moving the camera right moves what it sees
+            // left on screen).
+            var (ndcX, ndcY) = GetViewportCenterNdcOffset(viewport, windowSize);
+            var lateralOffset = -ndcX * distance * MathF.Tan(horizontalHalfFovRad);
+            var verticalOffset = -ndcY * distance * MathF.Tan(verticalHalfFovRad);
+
+            var targetPosition = worldCenter
+                - Owner.Forward.Normalized() * distance
+                + Owner.Right.Normalized() * lateralOffset
+                + Owner.Up.Normalized() * verticalOffset;
+            _viewCenterDistance = distance;
+            BeginFramingTransition(targetPosition);
         }
+
+        // Snapping straight to the framed position reads as a jump cut; easing there over a short,
+        // fixed duration instead (ticked from UpdateComponent, like every other per-frame camera
+        // motion) keeps the "where did the selection go" moment readable without slowing the shortcut
+        // down enough to feel laggy.
+        private const float FramingTransitionDurationSeconds = 0.25f;
+
+        private bool _isFramingTransitionActive;
+        private Vector3 _framingTransitionStart;
+        private Vector3 _framingTransitionTarget;
+        private float _framingTransitionElapsedSeconds;
+
+        private void BeginFramingTransition(Vector3 targetPosition)
+        {
+            _framingTransitionStart = Owner.Position;
+            _framingTransitionTarget = targetPosition;
+            _framingTransitionElapsedSeconds = 0.0f;
+            _isFramingTransitionActive = true;
+        }
+
+        private void UpdateFramingTransition()
+        {
+            // Clamped the same way ManaAudioSourceComponent's per-frame work is: a stutter should not
+            // make the camera leap most of the way there in one tick.
+            var deltaSeconds = (float)Math.Clamp(ManaTime.GlobalTime.DeltaTime.TotalSeconds, 0.0, 0.1);
+            _framingTransitionElapsedSeconds += deltaSeconds;
+
+            var t = Math.Clamp(_framingTransitionElapsedSeconds / FramingTransitionDurationSeconds, 0.0f, 1.0f);
+            var eased = 1.0f - MathF.Pow(1.0f - t, 3.0f); // ease-out cubic: fast start, gentle arrival
+            Owner.Position = Vector3.Lerp(_framingTransitionStart, _framingTransitionTarget, eased);
+            UpdateViewMatrix();
+
+            if (t >= 1.0f)
+            {
+                _isFramingTransitionActive = false;
+            }
+        }
+
+        // Both fractions are 1 (the whole window) when nothing has published a viewport yet -- headless
+        // tests, ManaSceneViewer, or the first frame -- which reproduces the old unconstrained behaviour.
+        private static (float Width, float Height) GetVisibleViewportFraction(UiRect viewport, Vector2D<int> windowSize)
+        {
+            if (viewport.IsEmpty || windowSize.X <= 0 || windowSize.Y <= 0)
+            {
+                return (1.0f, 1.0f);
+            }
+
+            return (
+                Math.Clamp(viewport.Width / windowSize.X, 0.0f, 1.0f),
+                Math.Clamp(viewport.Height / windowSize.Y, 0.0f, 1.0f));
+        }
+
+        // Zero (no shift) under the same "nothing published yet" fallback as GetVisibleViewportFraction.
+        // UI rects are Y-down pixels; NDC Y is up, hence the flip on the Y term.
+        private static (float X, float Y) GetViewportCenterNdcOffset(UiRect viewport, Vector2D<int> windowSize)
+        {
+            if (viewport.IsEmpty || windowSize.X <= 0 || windowSize.Y <= 0)
+            {
+                return (0.0f, 0.0f);
+            }
+
+            var center = viewport.Center;
+            var ndcX = (center.X - windowSize.X * 0.5f) / (windowSize.X * 0.5f);
+            var ndcY = -(center.Y - windowSize.Y * 0.5f) / (windowSize.Y * 0.5f);
+            return (ndcX, ndcY);
+        }
+
 
         // Repositions the camera along its CURRENT forward direction (orientation untouched, same idiom
         // as SetViewPreset/FrameWorldBounds) so worldPosition ends up exactly distance units in front of
@@ -509,6 +619,28 @@ namespace Mana
         public override void UpdateComponent()
         {
             base.UpdateComponent();
+
+            if (_isFramingTransitionActive)
+            {
+                // Manual control reclaims the camera immediately rather than fighting the lerp -- anything
+                // that flies or reattaches it while "F to frame selected" is still easing in should just win.
+                var cancelKeyboard = Context.Input.Keyboards.FirstOrDefault();
+                var cancelMouse = Context.Input.Mice.FirstOrDefault();
+                bool manualMovementActive = AttachedSpringArm != null
+                    || (cancelMouse != null && (cancelMouse.IsButtonPressed(MouseButton.Right) || cancelMouse.IsButtonPressed(MouseButton.Middle)))
+                    || (cancelKeyboard != null && (cancelKeyboard.IsKeyPressed(Key.W) || cancelKeyboard.IsKeyPressed(Key.A)
+                        || cancelKeyboard.IsKeyPressed(Key.S) || cancelKeyboard.IsKeyPressed(Key.D)
+                        || cancelKeyboard.IsKeyPressed(Key.Q) || cancelKeyboard.IsKeyPressed(Key.E)));
+
+                if (manualMovementActive)
+                {
+                    _isFramingTransitionActive = false;
+                }
+                else
+                {
+                    UpdateFramingTransition();
+                }
+            }
 
             if (AttachedSpringArm != null)
             {
