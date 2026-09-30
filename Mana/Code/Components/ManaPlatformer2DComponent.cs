@@ -28,14 +28,23 @@ namespace Mana.Code.Components
         public bool SheetFacesRight { get; set; } = true;
 
         public float CameraDistance { get; set; } = 12.0f;
+        /// <summary>How far the camera looks down, in perspective only; orthographic always looks level.</summary>
         public float CameraPitchDegrees { get; set; } = -5.0f;
         public float CameraHeight { get; set; } = 1.5f;
+
+        /// <summary>Flat, no-perspective view -- every layer the same size however far back. Off shows depth.</summary>
+        public bool Orthographic { get; set; } = true;
+
+        /// <summary>How many metres of the level the orthographic view shows top to bottom.</summary>
+        public float ViewHeight { get; set; } = 12.0f;
 
         private ManaPawnNode? _player;
         private ManaSceneNode? _spriteNode;
         private ManaSpringArmComponent? _arm;
         private readonly List<MeshRendererComponent> _hidden = new();
         private float _savedTurnRate;
+        private CameraComponent? _camera;
+        private (bool Orthographic, float Height) _savedProjection;
         private (float Yaw, float Pitch, float Length, bool Probe, bool FollowYaw, Vector3 Socket) _savedArm;
 
         public ManaPlatformer2DComponent(ManaSceneNode owner) : base(owner)
@@ -72,6 +81,15 @@ namespace Mana.Code.Components
             node.Components.Add(new SpriteDriver(node, this));
             player.AddChild(node);
             _spriteNode = node;
+
+            if (Orthographic && Owner.Context.World.MainCamera is { } camera)
+            {
+                _camera = camera;
+                _savedProjection = (camera.OrthoGraphic, camera.OrthographicHeight);
+                camera.OrthographicHeight = MathF.Max(1.0f, ViewHeight);
+                camera.SetProjectionMode(true);
+                camera.UpdateProjection();
+            }
         }
 
         public override void EndPlay()
@@ -94,6 +112,14 @@ namespace Mana.Code.Components
             {
                 _player.RemoveChild(_spriteNode);
                 _spriteNode = null;
+            }
+
+            if (_camera != null)
+            {
+                _camera.OrthographicHeight = _savedProjection.Height;
+                _camera.SetProjectionMode(_savedProjection.Orthographic);
+                _camera.UpdateProjection();
+                _camera = null;
             }
 
             if (_arm != null)
@@ -133,7 +159,8 @@ namespace Mana.Code.Components
             if (_arm != null)
             {
                 _arm.YawRadians = 0.0f;
-                _arm.PitchRadians = CameraPitchDegrees * MathF.PI / 180.0f;
+                // Looking level in orthographic keeps the ground plane edge-on; any pitch shows it filling the view.
+                _arm.PitchRadians = Orthographic ? 0.0f : CameraPitchDegrees * MathF.PI / 180.0f;
                 _arm.ArmLength = CameraDistance;
                 _arm.ProbeForCollision = false;
                 _arm.FollowTargetYaw = false;

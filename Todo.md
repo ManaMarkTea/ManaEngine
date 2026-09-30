@@ -34,7 +34,10 @@
     Tiling done: Sprite > Tiled Size (metres) repeats the picture across it instead of stretching -- the 2D Sample
     gained a Long Ledge (8 m of brick from the 4 m tile) with three Glowing Coins to collect on it.
     Photo: DevPhotos/2026-09-29 2d-tiled-ledge-coins.png.
-    Next for 2D: an orthographic camera option, and editing a PolygonCollider's points in the viewport.
+    Orthographic done: Platformer2D > Orthographic (on by default) plays with a flat view, View Height metres tall,
+    looking level; stopping puts the editor's perspective back. The sky keeps its gradient and clouds under an
+    orthographic camera now (it used to go one flat colour). Photo: DevPhotos/2026-09-29 2d-orthographic-play.png.
+    Next for 2D: editing a PolygonCollider's points in the viewport; parallax background layers.
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
     Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /

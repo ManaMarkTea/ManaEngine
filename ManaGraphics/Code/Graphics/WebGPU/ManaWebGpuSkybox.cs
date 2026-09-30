@@ -114,7 +114,15 @@ namespace ManaGraphics.Code.Graphics
             var directionOnlyView = camera.View;
             directionOnlyView.Translation = Vector3.Zero;
 
-            var directionViewProjection = directionOnlyView * aspectCorrectedProjection;
+            // An orthographic view has one direction for every pixel, which would flatten the sky to a single
+            // colour; a stand-in perspective of the same shape gives it back its gradient and clouds.
+            var projection = aspectCorrectedProjection;
+            if (MathF.Abs(projection.M44 - 1.0f) < 1e-6f && MathF.Abs(projection.M11) > 1e-9f)
+            {
+                projection = Matrix4x4.CreatePerspectiveFieldOfView(55.0f * MathF.PI / 180.0f, projection.M22 / projection.M11, 0.1f, 1000.0f);
+            }
+
+            var directionViewProjection = directionOnlyView * projection;
             if (!Matrix4x4.Invert(directionViewProjection, out var inverse))
             {
                 // Degenerate only when the projection itself is degenerate (a zero far plane, say), which
