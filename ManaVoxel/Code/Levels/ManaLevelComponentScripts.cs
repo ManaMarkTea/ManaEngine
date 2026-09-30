@@ -46,6 +46,24 @@ namespace ManaVoxel.Code.Levels
                 // A light on a node -- a lamp's bulb, a torch -- so it survives a save, and a prefab can carry one.
                 new()
                 {
+                    Type = "Sprite",
+                    ComponentType = typeof(Mana.Code.Components.ManaSpriteComponent),
+                    Create = node => new Mana.Code.Components.ManaSpriteComponent(node)
+                },
+                new()
+                {
+                    Type = "SpriteAnimation",
+                    ComponentType = typeof(Mana.Code.Components.ManaSpriteAnimationComponent),
+                    Create = node => new Mana.Code.Components.ManaSpriteAnimationComponent(node)
+                },
+                new()
+                {
+                    Type = "PolygonCollider",
+                    ComponentType = typeof(Mana.Code.Components.ManaPolygonColliderComponent),
+                    Create = node => new Mana.Code.Components.ManaPolygonColliderComponent(node)
+                },
+                new()
+                {
                     Type = "Glow",
                     ComponentType = typeof(Mana.Code.Components.ManaGlowComponent),
                     Create = node => new Mana.Code.Components.ManaGlowComponent(node)
@@ -162,6 +180,9 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaGlowComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteAnimationComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPolygonColliderComponent))]
         /// <param name="occurrence">
         /// Which of its kind this script is on the node, counting from zero. For a type a node may only have one of,
         /// it is ignored in practice; for a type that can repeat without <c>AllowMultiple</c> (trigger volumes), it

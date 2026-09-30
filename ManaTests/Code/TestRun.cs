@@ -82,6 +82,7 @@ public static class TestRunner
         ("Mana", "pawn landing", PawnLandingChecks.Run),
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
+        ("Mana", "sprites", SpriteChecks.Run),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
         ("ManaCore", "sky clock", SkyClockChecks.Run),
         ("ManaCore", "json formatting", JsonFormatChecks.Run),

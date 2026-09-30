@@ -1,0 +1,325 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "2D Sample",
+  "camera": {
+    "position": [
+      40,
+      3.2,
+      51
+    ],
+    "rotation": [
+      -0.06,
+      0,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "id": "cf72291bb0e9413a92385a3223dd5228",
+      "name": "Player Start",
+      "kind": "PlayerStart",
+      "position": [
+        36,
+        2.2,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "46f38dfe743f49c1ae748ca5afb68aa9",
+      "name": "Platform Left",
+      "kind": "Group",
+      "position": [
+        36,
+        1,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "8abef9cc1f7a4fb7b2eba4c387b2728f",
+          "type": "Sprite",
+          "properties": {
+            "texture": "Content/Sprites/platform.png",
+            "normalMap": "Content/Sprites/platform_n.png",
+            "pixelsPerUnit": 32,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": "3f468b80f3ec4205900cc87494355537",
+          "type": "PolygonCollider",
+          "properties": {
+            "points": [
+              -2,
+              0,
+              2,
+              0,
+              2,
+              1,
+              -2,
+              1
+            ],
+            "depth": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "6e7a781300bb4e3cae1f9a186e84e348",
+      "name": "Platform Middle",
+      "kind": "Group",
+      "position": [
+        40.5,
+        2,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "e1e43704cb4147c19fedff6f878b4edc",
+          "type": "Sprite",
+          "properties": {
+            "texture": "Content/Sprites/platform.png",
+            "normalMap": "Content/Sprites/platform_n.png",
+            "pixelsPerUnit": 32,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": "817e7e0d4a534d7a98ffa1f6cedf2f6f",
+          "type": "PolygonCollider",
+          "properties": {
+            "points": [
+              -2,
+              0,
+              2,
+              0,
+              2,
+              1,
+              -2,
+              1
+            ],
+            "depth": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "bfc8f57260a84074934d88c46d21523a",
+      "name": "Platform Right",
+      "kind": "Group",
+      "position": [
+        45,
+        3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "a72b8dc008ff479baf37508ad804fbe6",
+          "type": "Sprite",
+          "properties": {
+            "texture": "Content/Sprites/platform.png",
+            "normalMap": "Content/Sprites/platform_n.png",
+            "pixelsPerUnit": 32,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 1,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": "c67fbbecb1644e789ff315c5362a679a",
+          "type": "PolygonCollider",
+          "properties": {
+            "points": [
+              -2,
+              0,
+              2,
+              0,
+              2,
+              1,
+              -2,
+              1
+            ],
+            "depth": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "7ba1d71b10824d48a746be4fb116853b",
+      "name": "Hero",
+      "kind": "Group",
+      "position": [
+        40.5,
+        3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "e5bb91d30f764eda862fe9653b0015bb",
+          "type": "Sprite",
+          "properties": {
+            "texture": "Content/Sprites/hero.png",
+            "normalMap": "Content/Sprites/hero_n.png",
+            "pixelsPerUnit": 32,
+            "pivot": [
+              0.5,
+              0
+            ],
+            "columns": 4,
+            "rows": 1,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "id": "814e59137a96429da061080b600cd913",
+          "type": "SpriteAnimation",
+          "properties": {
+            "framesPerSecond": 6,
+            "firstFrame": 0,
+            "frameCount": 0,
+            "loop": true,
+            "playing": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "97d05ecbad14483baf18fa9645aa5be0",
+      "name": "Torch",
+      "kind": "Group",
+      "position": [
+        42.5,
+        3.5,
+        41.4
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "5b875c27394e4f3daa8c0389ddaa90aa",
+          "type": "Glow",
+          "properties": {
+            "color": [
+              1,
+              0.62,
+              0.3,
+              1
+            ],
+            "strength": 1.5,
+            "lightRange": 7,
+            "lightIntensity": 0.9,
+            "lightOffset": [
+              0,
+              0,
+              0
+            ],
+            "pulseSpeed": 1.2,
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -47,6 +47,51 @@ namespace ManaVoxel.Code.Levels
     /// Writes a <see cref="Vector4"/> -- a colour, mostly -- as <c>[r, g, b, a]</c>, for the same reason: its members
     /// are fields, so without this a light's colour saved as <c>{}</c> and came back black.
     /// </summary>
+    /// <summary>A Vector2 as [x, y] -- a sprite's pivot, say.</summary>
+    internal sealed class ManaLevelVector2Converter : JsonConverter<Vector2>
+    {
+        public override Vector2 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                reader.Skip();
+                return default;
+            }
+
+            if (reader.TokenType != JsonTokenType.StartArray)
+            {
+                throw new JsonException("Expected [x, y].");
+            }
+
+            var values = new float[2];
+            var count = 0;
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+            {
+                if (count >= 2)
+                {
+                    throw new JsonException("Expected two numbers in [x, y].");
+                }
+
+                values[count++] = reader.GetSingle();
+            }
+
+            if (count != 2)
+            {
+                throw new JsonException("Expected [x, y].");
+            }
+
+            return new Vector2(values[0], values[1]);
+        }
+
+        public override void Write(Utf8JsonWriter writer, Vector2 value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            writer.WriteNumberValue(value.X);
+            writer.WriteNumberValue(value.Y);
+            writer.WriteEndArray();
+        }
+    }
+
     internal sealed class ManaLevelVector4Converter : JsonConverter<Vector4>
     {
         public override Vector4 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

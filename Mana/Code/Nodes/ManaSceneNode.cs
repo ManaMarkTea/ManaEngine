@@ -252,8 +252,11 @@ namespace Mana.Code.Nodes
                 child.UpdateTransform();
             }
 
-            foreach (ManaComponent component in Components)
+            // By index, not foreach: a component may add one to its own node while it ticks (a Sprite its mesh
+            // renderer, a PolygonCollider its body), and the new one simply gets its turn at the end.
+            for (var i = 0; i < Components.Count; i++)
             {
+                var component = Components[i];
                 if (!component.UpdatesBeforeNodeTransform)
                 {
                     component.UpdateComponent();

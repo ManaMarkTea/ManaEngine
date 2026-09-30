@@ -13,7 +13,19 @@
     Still to do: the planet code hard-codes C:\Users\night\...\GeoData paths (will break on the Mac) -- fixing that
     in the VoxelEditorGameMode split below.
 
-[] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
+[~] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
+    Claude (overnight), milestone 1 done:
+    - Sprite script: a PNG on a quad facing +Z, sized by pixels-per-unit, pivot, sheet frames (columns x rows),
+      flipX, tint, alpha cutout; optional normal map, so lamps/glows shade it with depth (PBR pass).
+    - SpriteAnimation script: fps, frame range, loop -- plays in the editor too.
+    - PolygonCollider script: any outline (concave OK -- ear-clipped, extruded to a solid), rebuilt when edited.
+    - Sample: Content/Levels/2D Sample.manalevel (platforms, walking hero, a torch Glow); art in Content/Sprites
+      (drawn procedurally, with normal maps). Photo: DevPhotos/<date> 2d-sprites-torchlit.png. Tests: SpriteChecks.
+    - Engine fix on the way: a component can now add another to its node while it ticks (the update loop walks
+      components by index), and the level format reads Vector2 ([x, y]).
+    Next for 2D: a 2D player (the pawn constrained to the XY plane, drawn by a sprite, run/jump animations), a
+    side-on orthographic camera saved with the level, tiling sprites (one platform picture stretched without
+    stretching), and editing a PolygonCollider's points in the viewport.
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
     Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /
