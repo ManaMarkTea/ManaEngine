@@ -9,22 +9,19 @@ namespace ManaVoxel.Code.Assets
 #if MANA_BROWSER
         // The browser bundles Content/ into its file system, including Content/Levels/ (see WebAssets.props).
         public static string Root => Path.GetFullPath("Content");
-
-        private const string GridMapPresetExtension = ".managridpreset";
 #else
         public static string Root => ManaProjectFolder.Resolve("Content");
-
-        private const string GridMapPresetExtension = ManaGridMapPreset.Extension;
 #endif
 
         public static IReadOnlyList<ManaContentEntry> List(string? root = null)
         {
             root ??= Root;
             return Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-                .Where(p => Path.GetExtension(p) is ManaPrefab.Extension or GridMapPresetExtension)
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .Select(p => new ManaContentEntry(p, Path.GetRelativePath(root, p), Path.GetFileNameWithoutExtension(p),
-                    Path.GetExtension(p) == ManaPrefab.Extension ? "Prefab" : "Grid Map Preset")).ToList();
+                .Select(p => (Path: p, Kind: ManaContentKinds.ForPath(p)))
+                .Where(item => item.Kind != null)
+                .OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+                .Select(item => new ManaContentEntry(item.Path, Path.GetRelativePath(root, item.Path), Path.GetFileNameWithoutExtension(item.Path),
+                    item.Kind?.Name ?? string.Empty)).ToList();
         }
 
         public static string NewPath(string name, string folder, string extension)

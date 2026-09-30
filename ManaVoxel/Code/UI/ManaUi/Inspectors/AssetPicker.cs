@@ -14,8 +14,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
     /// </summary>
     public static class AssetPicker
     {
-        /// <summary>Opens an asset in its editor window, by file; set by whoever owns those windows.</summary>
-        public static Action<string>? OpenInEditor { get; set; }
+        /// <summary>Opens an asset in its editor window, by file; the sprite assets open in the Sprite Asset window.</summary>
+        public static Action<string>? OpenInEditor { get; set; } = SpriteAssetEditing.Open;
 
         public static UiElement Build(UiTheme theme, string label, string extension, Func<ManaAssetRef> read, Action<ManaAssetRef> write)
         {

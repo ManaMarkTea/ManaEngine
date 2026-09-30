@@ -138,7 +138,7 @@ namespace ManaVoxel.Code.Assets
         /// </summary>
         /// <summary>A user-made asset in Content/ (a prefab, a sprite sheet, a 9-slice): drawn on the CPU from its file, never downloaded.</summary>
         public static bool IsContentAsset(string assetPath) =>
-            Path.GetExtension(assetPath) is ManaPrefab.Extension or Mana.Code.Content.ManaSpriteSheet.Extension or Mana.Code.Content.ManaSpriteSlice.Extension;
+            ManaContentKinds.ForPath(assetPath)?.HasThumbnail == true || MeshAssetLibrary.FormatOf(assetPath) == MeshAssetFormats.Png;
 
         public void Request(string assetPath)
         {
@@ -466,6 +466,10 @@ namespace ManaVoxel.Code.Assets
             if (Path.GetExtension(assetPath) == ManaPrefab.Extension)
             {
                 return GeneratePrefabThumbnail(assetPath);
+            }
+            if (MeshAssetLibrary.FormatOf(assetPath) == MeshAssetFormats.Png)
+            {
+                return ManaSpritePictures.Resolve(MeshAssetLibrary.SpritePicture(assetPath)) is { } picture ? PictureIcon(picture, 1, 1, 0) : null;
             }
             if (Path.GetExtension(assetPath) == Mana.Code.Content.ManaSpriteSheet.Extension)
             {

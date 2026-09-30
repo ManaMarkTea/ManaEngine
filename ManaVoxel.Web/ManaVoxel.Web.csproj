@@ -91,6 +91,7 @@
     <Compile Include="..\ManaVoxel\Code\GridMaps\ManaGridMapNode.cs" Link="GridMaps\ManaGridMapNode.cs" />
     <Compile Include="..\ManaVoxel\Code\GridMaps\GridMapAutoTile.cs" Link="GridMaps\GridMapAutoTile.cs" />
     <Compile Include="..\ManaVoxel\Code\Assets\ManaPrefab.cs" Link="Assets\ManaPrefab.cs" />
+    <Compile Include="..\ManaVoxel\Code\Assets\ManaContentKinds.cs" Link="Assets\ManaContentKinds.cs" />
     <Compile Include="..\ManaVoxel\Code\Assets\ManaContentLibrary.cs" Link="Assets\ManaContentLibrary.cs" />
     <!-- Only the zip-handling halves of these two: their other partials are editor-facing
          (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.

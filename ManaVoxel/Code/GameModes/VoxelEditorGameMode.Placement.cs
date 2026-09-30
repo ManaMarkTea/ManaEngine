@@ -401,11 +401,60 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewSelectionBefore = null;
         }
 
+        /// <summary>
+        /// A node drawing the asset, for a sprite asset or a picture: a sheet playing its first animation, a 9-slice
+        /// three tiles wide, or a picture as a Sprite. Saved with the level like any placed group. Null for a model.
+        /// </summary>
+        private ManaSceneNode? SpriteNodeFor(string assetReference)
+        {
+            var extension = Path.GetExtension(assetReference);
+            ManaSceneNode Node(string name) => new(Context, Matrix4x4.Identity)
+            {
+                Name = name, LevelSource = new Mana.Code.Levels.ManaLevelSource { Kind = Mana.Code.Levels.ManaLevelSourceKind.Group }
+            };
+
+            ManaSceneNode? node = null;
+            if (extension == Mana.Code.Content.ManaSpriteSheet.Extension)
+            {
+                node = Node(Path.GetFileNameWithoutExtension(assetReference));
+                var sheet = Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(assetReference);
+                node.Components.Add(new ManaSpriteSheetComponent(node)
+                {
+                    Sheet = Mana.Code.Content.ManaContentAssets.Reference(assetReference), Animation = sheet?.Animations.FirstOrDefault()?.Name ?? string.Empty
+                });
+            }
+            else if (extension == Mana.Code.Content.ManaSpriteSlice.Extension)
+            {
+                node = Node(Path.GetFileNameWithoutExtension(assetReference));
+                node.Components.Add(new ManaSprite9SliceComponent(node) { Slice = Mana.Code.Content.ManaContentAssets.Reference(assetReference) });
+            }
+            else if (MeshAssetLibrary.FormatOf(assetReference) == MeshAssetFormats.Png)
+            {
+                node = Node(Path.GetFileNameWithoutExtension(MeshAssetLibrary.FileName(assetReference)));
+                node.Components.Add(new ManaSpriteComponent(node) { Texture = MeshAssetLibrary.SpritePicture(assetReference) });
+            }
+
+            if (node != null)
+            {
+                var scene = _viewModel.ActiveScene ?? Context.World.DefaultScene;
+                lock (Context.World.SceneLock)
+                {
+                    scene.Children.Add(node);
+                }
+                node.UpdateTransform();
+            }
+            return node;
+        }
+
         private ManaSceneNode LoadMeshPickerAsset(string assetReference)
         {
             if (Path.GetExtension(assetReference) == ManaPrefab.Extension)
             {
                 return ProjectAssets.InstantiateForPlacement(assetReference);
+            }
+            if (SpriteNodeFor(assetReference) is { } sprite)
+            {
+                return sprite;
             }
             // Straight into the scene the editor is working in, not a scene of its own per drag.
             var scene = _viewModel.ActiveScene ?? Context.World.DefaultScene;

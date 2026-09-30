@@ -26,9 +26,9 @@ namespace Mana.Code.Components
         [Category("Look")]
         public bool PixelArt { get; set; }
 
-        /// <summary>Show the picture as drawn, whatever the lights -- flat art. Off lets lamps and the sun shade it.</summary>
+        /// <summary>Show the picture as drawn, whatever the lights -- flat art, as 2D sprites usually are. Off lets lamps and the sun shade it.</summary>
         [Category("Look")]
-        public bool Unlit { get; set; }
+        public bool Unlit { get; set; } = true;
 
         /// <summary>A picture laid out for drawing: its file, how many frames across and down, its size in metres, and repeats.</summary>
         protected readonly record struct SpriteLayout(string Picture, string? NormalMap, int Columns, int Rows, Vector2 Size, Vector2 Pivot, Vector2 Repeats);

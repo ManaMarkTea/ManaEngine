@@ -527,6 +527,7 @@ namespace ManaVoxel.Code.Assets
                 ".obj" => MeshAssetFormats.Obj,
                 ".stl" => MeshAssetFormats.Stl,
                 ".ply" => MeshAssetFormats.Ply,
+                ".png" => MeshAssetFormats.Png,
                 _ => MeshAssetFormats.None
             };
         }
@@ -543,6 +544,7 @@ namespace ManaVoxel.Code.Assets
                 ".dae" => ("DAE", new Vector4(0.62f, 0.48f, 0.90f, 1.0f)),
                 ".stl" => ("STL", new Vector4(0.54f, 0.84f, 0.42f, 1.0f)),
                 ".ply" => ("PLY", new Vector4(0.48f, 0.77f, 0.86f, 1.0f)),
+                ".png" => ("PNG", new Vector4(0.95f, 0.45f, 0.70f, 1.0f)),
                 _ => ("MESH", new Vector4(0.75f, 0.75f, 0.75f, 1.0f))
             };
         }
@@ -644,6 +646,46 @@ namespace ManaVoxel.Code.Assets
         {
             var relative = Path.GetRelativePath(Environment.CurrentDirectory, path);
             return string.IsNullOrWhiteSpace(relative) ? Path.GetFileName(path) : relative.Replace('\\', '/');
+        }
+
+        /// <summary>
+        /// Whether a PNG is offered as a sprite picture: a loose one inside a Sprites folder, or one in a pack that
+        /// has no models -- not at the pack's top (previews), not a packed sheet, and only one size of a pack that
+        /// ships two (Kenney's Double folder repeats Default at twice the pixels).
+        /// </summary>
+        public static bool IsSpritePicture(string path, bool packHasModels, bool looseFile)
+        {
+            var normalized = path.Replace('\\', '/');
+            if (!normalized.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            var folders = normalized.Split('/')[..^1];
+            if (looseFile)
+            {
+                return folders.Any(folder => folder.Equals("Sprites", StringComparison.OrdinalIgnoreCase));
+            }
+            return !packHasModels && folders.Length > 0
+                && !folders.Any(folder => folder.Equals("Double", StringComparison.OrdinalIgnoreCase)
+                    || folder.Equals("Spritesheets", StringComparison.OrdinalIgnoreCase)
+                    || folder.Equals("Vector", StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// What a Sprite stores for a picture listed here: a pack picture as "zip:pack.zip/path", a loose one by its
+        /// path from the project, so a level still finds it on another machine.
+        /// </summary>
+        public static string SpritePicture(string asset)
+        {
+            if (TryDecodeZip(asset, out var zipPath, out var entryPath))
+            {
+                return EncodeReadableZip(Path.GetFileName(zipPath), entryPath);
+            }
+            var project = Path.GetDirectoryName(Mana.Code.Content.ManaContentAssets.Root) ?? Environment.CurrentDirectory;
+            var full = Path.GetFullPath(asset);
+            return full.StartsWith(project, StringComparison.OrdinalIgnoreCase)
+                ? Path.GetRelativePath(project, full).Replace(Path.DirectorySeparatorChar, '/')
+                : full;
         }
 
         public static bool IsSupported(string extension)
@@ -871,6 +913,14 @@ namespace ManaVoxel.Code.Assets
                     }
                 }
 
+                foreach (var picture in Directory.EnumerateFiles(root, "*.png", SearchOption.AllDirectories))
+                {
+                    if (IsSpritePicture(Path.GetRelativePath(root, picture), packHasModels: false, looseFile: true))
+                    {
+                        found.Add(Path.GetFullPath(picture));
+                    }
+                }
+
                 foreach (var zip in Directory.EnumerateFiles(root, "*.zip", SearchOption.AllDirectories))
                 {
                     if (!ScanZip(zip, found))
@@ -904,6 +954,7 @@ namespace ManaVoxel.Code.Assets
             try
             {
                 using var archive = ZipFile.OpenRead(zipPath);
+                var modelsBefore = found.Count;
 
                 foreach (var entry in archive.Entries)
                 {
@@ -938,6 +989,16 @@ namespace ManaVoxel.Code.Assets
                     }
 
                     found.Add(EncodeZip(zipPath, entry.FullName));
+                }
+
+                // A pack's pictures are sprites only when it has no models: a 3D pack's PNGs are the models' textures.
+                var hasModels = found.Count > modelsBefore;
+                foreach (var entry in archive.Entries)
+                {
+                    if (IsSpritePicture(entry.FullName, hasModels, looseFile: false))
+                    {
+                        found.Add(EncodeZip(zipPath, entry.FullName));
+                    }
                 }
 
                 return true;
@@ -979,10 +1040,13 @@ namespace ManaVoxel.Code.Assets
         Stl = 1 << 5,
         Ply = 1 << 6,
 
-        /// <summary>What the importer handles best, and so what the panel opens showing.</summary>
-        Default = Glb | Gltf,
+        /// <summary>Pictures for sprites: a 2D pack's, or anything in a Sprites folder.</summary>
+        Png = 1 << 7,
 
-        All = Glb | Gltf | Fbx | Dae | Obj | Stl | Ply
+        /// <summary>What the importer handles best, and so what the panel opens showing.</summary>
+        Default = Glb | Gltf | Png,
+
+        All = Glb | Gltf | Fbx | Dae | Obj | Stl | Ply | Png
     }
 
     /// <summary>A folder of assets. Names may span several real folders where a chain of them was collapsed.</summary>

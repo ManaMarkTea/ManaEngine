@@ -17,9 +17,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             var model = ProjectAssetViewModel.For(world, editor);
             var search = new TextBox { Placeholder = "Search project assets", Text = model.Search };
             search.TextChanged += (_, _) => model.Search = search.Text;
-            var type = new ComboBox().Options(new[] { "All", "Prefab", "Grid Map Preset" });
+            var kinds = new[] { "All" }.Concat(ManaContentKinds.All.Select(kind => kind.Name)).ToArray();
+            var type = new ComboBox().Options(kinds);
             type.SelectedIndex = 0;
-            type.SelectionChanged += (_, index) => model.Kind = index switch { 1 => "Prefab", 2 => "Grid Map Preset", _ => "All" };
+            type.SelectionChanged += (_, index) => model.Kind = index > 0 && index < kinds.Length ? kinds[index] : "All";
             var name = new TextBox { Text = model.AssetName, Placeholder = "New asset name" };
             name.TextChanged += (_, _) => model.AssetName = name.Text;
             var status = new TextBlock().BindTextPolled(() => model.Status).Wrap().Foreground(theme.TextMuted);
@@ -44,6 +45,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 folders.GridColumn(0),
                 new Grid().Rows("Auto, *, Auto", theme.Spacing).Columns("*").GridColumn(1).Children(
                     new StackPanel().Horizontal(theme.Spacing).Children(search.Width(200), type.Width(130),
+                        NewMenu(theme, model),
                         new Button().Label("Refresh").OnClick(model.Refresh)),
                     list.Scrollable().GridRow(1),
                     new StackPanel().Vertical(4).GridRow(2).Children(edit,
@@ -111,7 +113,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Fit = UiImageFit.Contain, Width = 86, Height = 86,
                     SourceSize = new Vector2(MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize)
                 };
-                var badge = new TextBlock().Text(entry.Kind == "Prefab" ? "PREFAB" : "GRID").Foreground(theme.Accent).Center();
+                var kind = ManaContentKinds.Named(entry.Kind);
+                var badge = new TextBlock().Text(kind?.Badge ?? "ASSET").Foreground(theme.Accent).Center();
                 var frame = new Border().Rounded(3).Content(new Grid().Rows("*, Auto", 2).Columns("*").Children(
                     new Grid().Rows("*").Columns("*").Children(preview.Center(), badge),
                     new TextBlock().Text(entry.Name).Ellipsis().CenterH().GridRow(1)));
@@ -120,14 +123,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                 var row = new MeshAssetRow(new MeshAssetEntry(entry.Path, entry.Name, [entry.Path]))
                 {
                     Child = frame, Width = 106, Height = 120,
-                    CanDrag = () => entry.Kind == "Prefab" && model.CanEdit && !model.IsEditing,
+                    CanDrag = () => ProjectAssetViewModel.CanPlace(entry) && model.CanEdit && !model.IsEditing,
                     ContextMenuItems = () => AssetMenu(model, entry)
                 };
                 row.Clicked += (_, _) => model.SelectedAsset = entry.Path;
                 row.Tooltip = model.Describe(entry);
                 var sync = MeshImportManaView.Throttled<object?>(() =>
                 {
-                    if (entry.Kind == "Prefab" && MeshImportManaView.IsThumbnailRequestVisible(row))
+                    if (kind?.HasThumbnail == true && MeshImportManaView.IsThumbnailRequestVisible(row))
                     {
                         if (row.Root is { } root) { MeshThumbnailImages.Touch(root, entry.Path); }
                         ManaUiDockDemo.MeshThumbnails?.Request(entry.Path);
@@ -154,6 +157,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                 items.Add(new MenuItem("Create Variant", () => model.CreateVariant(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing)
                     .WithTooltip("A prefab made from this one that keeps only what you change in it -- a blue lamp from a lamp."));
                 items.Add(new MenuItem("Refresh Thumbnail", () => ManaUiDockDemo.MeshThumbnails?.ForceRefresh(entry.Path)));
+            }
+            else if (entry.Kind == ManaContentKinds.SpriteSheet.Name || entry.Kind == ManaContentKinds.Slice.Name)
+            {
+                items.Add(new MenuItem("Place", () => model.RequestPlacement(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
+                items.Add(new MenuItem("Edit", () => model.OpenAsset(entry.Path)));
+                items.Add(new MenuItem("Refresh Thumbnail", () => ManaUiDockDemo.MeshThumbnails?.ForceRefresh(entry.Path)));
+            }
+            else if (entry.Kind == ManaContentKinds.Generator.Name)
+            {
+                items.Add(new MenuItem("Open in Generator", () => model.OpenAsset(entry.Path)));
             }
             else
             {
@@ -278,12 +291,19 @@ namespace ManaVoxel.Code.UI.ManaUi
             return new Expander().Header("Prefab Instance").Content(panel);
         }
 
+        /// <summary>"New", dropping the kinds that can be made from nothing; the new one opens in its editor.</summary>
+        private static UiElement NewMenu(UiTheme theme, ProjectAssetViewModel model) =>
+            DropMenu(theme, "New", ManaContentKinds.All.Where(kind => kind.CanCreate)
+                .Select(kind => new MenuItem(kind.Name, () => model.CreateAsset(kind)).EnabledWhen(() => model.CanEdit)).ToList());
+
         /// <summary>A button that drops a menu: "Actions", with a chevron.</summary>
-        private static Button ActionsMenu(UiTheme theme, List<MenuItem> items)
+        private static Button ActionsMenu(UiTheme theme, List<MenuItem> items) => DropMenu(theme, "Actions", items);
+
+        private static Button DropMenu(UiTheme theme, string label, List<MenuItem> items)
         {
             var button = new Button();
             button.Child = new StackPanel().Horizontal(4).Children(
-                new TextBlock().Text("Actions").CenterV(),
+                new TextBlock().Text(label).CenterV(),
                 new ToolbarIcons.ToolbarIcon((drawList, box, colour) =>
                 {
                     var middle = box.X + box.Width * 0.5f;

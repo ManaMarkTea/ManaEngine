@@ -110,6 +110,12 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "open_asset":
+                        // An asset in its own editor, as the Project panel's Edit does it.
+                        ManaVoxel.Code.UI.ProjectAssetViewModel.For(_context.World).OpenAsset(Path.GetFullPath(RequirePath(command)));
+                        _index++;
+                        break;
+
                     case "sky":
                         // The sky mode by name; a time of day holds the cycle still there, for a screenshot.
                         if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(command.Name, true, out var skyMode))

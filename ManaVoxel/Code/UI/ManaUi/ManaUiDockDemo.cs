@@ -51,6 +51,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             [GridMapToolManaView.PanelId] = "Grid Map",
             [VoxelToolsPanelId] = "Voxel Tools",
             [GridMapWfcManaView.PanelId] = "Generator",
+            [SpriteAssetManaView.PanelId] = "Sprite Asset",
             [PrefabChangesManaView.PanelId] = "Review Changes",
             [UiDesignerManaView.PanelId] = "UI Designer",
             ["showcase"] = "ManaUI",
@@ -95,6 +96,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             GridMapToolManaView.PanelId,
             VoxelToolsPanelId,
             GridMapWfcManaView.PanelId,
+            SpriteAssetManaView.PanelId,
             PrefabChangesManaView.PanelId,
             UiDesignerManaView.PanelId,
             "showcase",
@@ -168,6 +170,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             [GridMapToolManaView.PanelId] = (null, new Vector2(300.0f, 520.0f)),
             [VoxelToolsPanelId] = (null, new Vector2(300.0f, 460.0f)),
             [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f)),
+            [SpriteAssetManaView.PanelId] = (null, new Vector2(400.0f, 640.0f)),
             [PrefabChangesManaView.PanelId] = (null, new Vector2(480.0f, 320.0f)),
             [UiDesignerManaView.PanelId] = (null, new Vector2(1120.0f, 640.0f))
         };
@@ -268,6 +271,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 UiDesignerManaView.PanelId => new DockItem("UI Designer", UiDesignerManaView.Build(theme)) { Id = UiDesignerManaView.PanelId },
                 PrefabChangesManaView.PanelId when world != null => new DockItem(
                     "Review Changes", PrefabChangesManaView.Build(theme, world)) { Id = PrefabChangesManaView.PanelId },
+                SpriteAssetManaView.PanelId => new DockItem("Sprite Asset", SpriteAssetManaView.Build(theme)) { Id = SpriteAssetManaView.PanelId },
                 GridMapWfcManaView.PanelId when world != null => new DockItem(
                     "Generator",
                     GridMapWfcManaView.Build(theme, world, editor?.History)) { Id = GridMapWfcManaView.PanelId },
@@ -586,6 +590,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                             editor.IsSelectToolActive = true;
                         }
 
+                        if (!closingToolWindow && id == SpriteAssetManaView.PanelId)
+                        {
+                            SpriteAssetEditing.Close();
+                        }
+
                         if (!closingToolWindow && id == GridMapWfcManaView.PanelId)
                         {
                             ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen = false;
@@ -670,6 +679,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 SyncToolWindow(GridMapToolManaView.PanelId, editing && selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
                 // Up until closed, whatever is selected: it works on the last grid map when another thing is.
                 SyncToolWindow(GridMapWfcManaView.PanelId, editing && ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
+                // Up while an asset is open in it; Edit in the Inspector or the Project panel opens one.
+                SyncToolWindow(SpriteAssetManaView.PanelId, editing && SpriteAssetEditing.WindowOpen);
                 // Up while asked for, and gone once its instance has left the level.
                 if (world != null)
                 {
@@ -1082,6 +1093,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 GridMapToolManaView.PanelId => false,
                 VoxelToolsPanelId => false,
                 GridMapWfcManaView.PanelId => false,
+                SpriteAssetManaView.PanelId => false,
                 PrefabChangesManaView.PanelId => false,
                 UiDesignerManaView.PanelId => false,
                 _ => true
@@ -1294,6 +1306,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     PanelIds
                         // The tool windows follow the selection; opening them by hand would only show nothing.
                         .Where(id => id != GridMapToolManaView.PanelId && id != VoxelToolsPanelId && id != GridMapWfcManaView.PanelId
+                            && id != SpriteAssetManaView.PanelId
                             && id != PrefabChangesManaView.PanelId)
                         .Select(id => new MenuItem(
                                 PanelTitles.TryGetValue(id, out var title) ? title : id,

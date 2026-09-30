@@ -224,7 +224,7 @@ public static class MeshImportChecks
 
         // Seven checkboxes in a row used to be the format filter, wrapping to two lines in a narrow panel.
         // That whole row collapsed into one dropdown button instead, so what matters now is: the button
-        // itself is compact and always in the panel, opening it reveals all seven formats as checkboxes in
+        // itself is compact and always in the panel, opening it reveals all eight formats (PNG for sprites among them) as checkboxes in
         // a popup (unconstrained by the panel's own width), and toggling one actually changes what the
         // library considers enabled.
         var formatsButton = FindAll<Button>(root.Content!)
@@ -232,7 +232,7 @@ public static class MeshImportChecks
         Check("the panel has a formats dropdown button", formatsButton != null, formatsButton?.Text ?? "none");
 
         // Library() defaults to MeshAssetFormats.All, so every format starts enabled.
-        Check("it starts showing every format enabled", formatsButton?.Text == "Formats (7/7)", formatsButton?.Text ?? "none");
+        Check("it starts showing every format enabled", formatsButton?.Text == "Formats (8/8)", formatsButton?.Text ?? "none");
 
         Press(root, formatsButton!.Bounds.Center);
         root.UpdateLayout(defaultSize);
@@ -240,7 +240,7 @@ public static class MeshImportChecks
 
         var formatsPopup = root.Popups.Topmost;
         var formatToggles = formatsPopup != null ? FindAll<CheckBox>(formatsPopup) : new List<CheckBox>();
-        Check("clicking it opens a popup with all seven formats", formatToggles.Count == 7, $"{formatToggles.Count} toggles");
+        Check("clicking it opens a popup with all eight formats", formatToggles.Count == 8, $"{formatToggles.Count} toggles");
 
         // The popup floats in the popup layer rather than being laid out inside the panel, so it is never
         // constrained by the panel's own width -- unlike the old inline row, it cannot overflow or need to
@@ -260,7 +260,7 @@ public static class MeshImportChecks
             !library.IsFormatEnabled(MeshAssetFormats.Glb), $"{library.IsFormatEnabled(MeshAssetFormats.Glb)}");
 
         Check("and the button's own count reflects it",
-            formatsButton.Text == "Formats (6/7)", formatsButton.Text);
+            formatsButton.Text == "Formats (7/8)", formatsButton.Text);
 
         // Re-enabled so the rest of this run (which assumes the default library.Formats = All) is unaffected.
         library.SetFormatEnabled(MeshAssetFormats.Glb, true);

@@ -2,6 +2,11 @@ Claude, overnight summary (2026-09-29): every item below is done and pushed; the
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
 the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.
 One question for you (in the Glow item): how material edits should be saved.
+2026-09-30 (later): sprites reworked into three components -- Sprite, Sprite Sheet, Sprite 9-Slice -- on reusable
+assets (.manasheet, .manaslice in Content/Sprites) set up once in the Sprite Asset window; every user-made asset kind
+now comes from one registry (ManaContentKinds) the Project panel lists, with New. The Import panel lists 2D pictures
+(PNG format) to drag in, or turn a selection into a sheet or a 9-slice. DevPhotos/2026-09-30 sprite-sheet-editor.png,
+nine-slice-editor.png.
 2026-09-30: the 2D Sample now uses Kenney's New Platformer Pack (Assets/kenney_new-platformer-pack-1.1.zip): the green
 character, grass terrain, gold coins (Content/Prefabs/Coin 2D), water, a slime, a goal flag and the painted backdrop.
 Sprites read straight from the zip; the pack's .ogg sounds need Ogg support in ManaAudio first, so the sample uses

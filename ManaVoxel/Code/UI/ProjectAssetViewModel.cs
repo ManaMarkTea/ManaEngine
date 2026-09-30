@@ -107,7 +107,7 @@ namespace ManaVoxel.Code.UI
             var folder = Path.GetDirectoryName(entry.RelativePath) ?? "";
             if (entry.Kind != "Prefab")
             {
-                return $"{entry.Name}\nGrid map preset \u00b7 {folder}";
+                return $"{entry.Name}\n{entry.Kind} \u00b7 {folder}";
             }
 
             try
@@ -158,10 +158,62 @@ namespace ManaVoxel.Code.UI
         public void RequestPlacement(string path) => Run(() =>
         {
             if (IsEditing) { throw new InvalidOperationException("Finish editing the prefab before placing instances."); }
-            ManaPrefab.Load(path);
+            if (Path.GetExtension(path) == ManaPrefab.Extension)
+            {
+                ManaPrefab.Load(path);
+            }
             ManaUi.MeshImportRequests.RequestPlacement(path);
             Status = "Move into the viewport and click to place. Escape cancels.";
         });
+
+        /// <summary>Whether an asset of this kind goes into the scene by dragging or Place: a prefab, a sprite sheet, a 9-slice.</summary>
+        public static bool CanPlace(ManaContentEntry entry) =>
+            entry.Kind == ManaContentKinds.Prefab.Name || entry.Kind == ManaContentKinds.SpriteSheet.Name || entry.Kind == ManaContentKinds.Slice.Name;
+
+        /// <summary>A new, blank asset of the kind, in its usual folder under a name not yet taken, opened in its editor.</summary>
+        public void CreateAsset(ManaContentKind kind) => Run(() =>
+        {
+            if (kind.Blank == null)
+            {
+                throw new InvalidOperationException($"A {kind.Name} is made from something, not from nothing.");
+            }
+            var name = $"New {kind.Name}";
+            for (var suffix = 2; File.Exists(Path.Combine(ManaContentLibrary.Root, kind.Folder, name + kind.Extension)); suffix++)
+            {
+                name = $"New {kind.Name} {suffix}";
+            }
+            var path = ManaContentLibrary.NewPath(name, kind.Folder, kind.Extension);
+            Mana.Code.Content.ManaContentAssets.Save(kind.Blank(name), path);
+            _entries = ManaContentLibrary.List();
+            SelectedAsset = path;
+            OpenAsset(path);
+            Status = $"Made {name} in {kind.Folder}.";
+        });
+
+        /// <summary>Opens an asset in its own editor window: a sheet or a slice in the sprite editor, rules in the Generator.</summary>
+        public void OpenAsset(string path)
+        {
+            var kind = ManaContentKinds.ForPath(path);
+            if (kind == ManaContentKinds.SpriteSheet || kind == ManaContentKinds.Slice)
+            {
+                ManaUi.SpriteAssetEditing.Open(path);
+            }
+            else if (kind == ManaContentKinds.Generator)
+            {
+                if (GridMapWfcEditing.TryOpen(path, out var error))
+                {
+                    GridMapWfcEditing.WindowOpen = true;
+                }
+                else
+                {
+                    Status = error ?? "The rules could not be opened.";
+                }
+            }
+            else if (kind == ManaContentKinds.Prefab)
+            {
+                OpenPrefab(path);
+            }
+        }
 
         public ManaSceneNode InstantiateForPlacement(string path)
         {

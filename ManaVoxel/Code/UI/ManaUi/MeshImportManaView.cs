@@ -867,7 +867,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             MeshAssetFormats.Dae,
             MeshAssetFormats.Obj,
             MeshAssetFormats.Stl,
-            MeshAssetFormats.Ply
+            MeshAssetFormats.Ply,
+            MeshAssetFormats.Png
         };
 
         /// <summary>
@@ -1111,7 +1112,39 @@ namespace ManaVoxel.Code.UI.ManaUi
                     () => TextBox.Clipboard.Text = isZip ? $"{zipPath} :: {entryPath}" : path)
             };
 
+            // Pictures picked together can become a sprite asset: frames of a sheet, or the pieces of a 9-slice.
+            var pictures = PickedPictures(path);
+            if (pictures.Count > 0)
+            {
+                items.Insert(2, new MenuItem($"Make Sprite Sheet ({pictures.Count} frame{(pictures.Count == 1 ? "" : "s")})",
+                    () => MakeSpriteAsset(SpriteAssetFactory.Sheet(pictures), Mana.Code.Content.ManaSpriteSheet.Extension))
+                    .WithTooltip("A sheet with these as its frames, in the order shown"));
+                items.Insert(3, new MenuItem("Make 9-Slice", () => MakeSpriteAsset(SpriteAssetFactory.Slice(pictures), Mana.Code.Content.ManaSpriteSlice.Extension))
+                    .WithTooltip("Each picture goes where its name says (top_left, top, left, center...); the rest can be set in the editor"));
+                items.Insert(4, MenuItem.Separator());
+            }
+
             MenuFlyout.ShowAt(root, position, items);
+        }
+
+        // The selected pictures when this one is among them, else just this one; none unless they are all pictures.
+        private List<string> PickedPictures(string path)
+        {
+            var picked = Library != null && Library.IsSelected(path) ? Library.SelectedAssets.ToList() : [path];
+            return picked.All(asset => MeshAssetLibrary.FormatOf(asset) == MeshAssetFormats.Png)
+                ? picked.Select(MeshAssetLibrary.SpritePicture).ToList()
+                : [];
+        }
+
+        private static void MakeSpriteAsset(object asset, string extension)
+        {
+            var name = asset switch
+            {
+                Mana.Code.Content.ManaSpriteSheet sheet => sheet.Name,
+                Mana.Code.Content.ManaSpriteSlice slice => slice.Name,
+                _ => "Sprite"
+            };
+            SpriteAssetEditing.Open(SpriteAssetFactory.Save(asset, name, extension));
         }
 
         protected override void OnPointerPressed(UiPointerEventArgs e)

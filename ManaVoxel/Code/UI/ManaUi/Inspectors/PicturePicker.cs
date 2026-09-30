@@ -43,6 +43,24 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return button;
         }
 
+        /// <summary>One picture as a square tile, thumbnail only -- for a grid of them, like a 9-slice's pieces.</summary>
+        public static UiElement Tile(UiTheme theme, string label, float size, Func<string> read, Action<string> write)
+        {
+            var thumb = new UiImage { Fit = UiImageFit.Contain }.Size(size - 6.0f, size - 6.0f);
+            BindThumbnail(thumb, read);
+            var empty = new TextBlock().Text("+").Foreground(theme.TextMuted).Center();
+            empty.BindPolled(t => t.Visibility, () => read().Length == 0 ? Visibility.Visible : Visibility.Collapsed);
+
+            var button = new Button().Variant(ButtonVariant.Subtle).Size(size, size);
+            button.Padding = new Thickness(0.0f);
+            button.IgnoreThemePadding = true;
+            button.Child = new Border().Fill(theme.SurfaceAlt).Outline(theme.BorderStrong, 1.0f).Rounded(theme.CornerRadiusCompact).Size(size, size)
+                .Content(new Grid().Rows("*").Columns("*").Children(empty, thumb.Center()));
+            button.BindPolled(b => b.Tooltip, () => read() is { Length: > 0 } picture ? $"{label}: {picture}" : $"{label}: click to choose a picture");
+            button.OnClick(() => Open(theme, button, label, write));
+            return button;
+        }
+
         /// <summary>A list of pictures -- a sprite's frames: a slot each, removable, and one to add another.</summary>
         public static UiElement List(UiTheme theme, string label, Func<string[]> read, Action<string[]> write)
         {
