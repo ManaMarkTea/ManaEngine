@@ -93,3 +93,5 @@ One question for you (in the Glow item): how material edits should be saved. Tes
     - The rest split into partial files by job: .Room (the grid room), .Placement (placing from the Import panel),
       .ColliderDebug (selection collider wireframes), .Selection (picking + F / End / Escape).
     Checked: Planet Showcase streams, End still lands on a ledge, all tests pass.
+
+[] Shadows seem to be slightly off, they don't touch the ground at the same spot that the actor does.
