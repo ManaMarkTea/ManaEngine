@@ -1,0 +1,39 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "842c9b9885554718aac58c5a5fd2247e",
+  "name": "Barnacle",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/barnacle_attack_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/barnacle_attack_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/barnacle_attack_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "attack_rest",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    }
+  ]
+}

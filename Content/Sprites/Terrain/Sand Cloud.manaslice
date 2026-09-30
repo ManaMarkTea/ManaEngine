@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "2561cf93f3d74375a0efc0030eeada1a",
+  "name": "Sand Cloud",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_sand_cloud_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_sand_cloud_middle.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_sand_cloud_right.png",
+  "left": "",
+  "center": "",
+  "right": "",
+  "bottomLeft": "",
+  "bottom": "",
+  "bottomRight": ""
+}

@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "23bb3bb34f4f4309b5b35782ef597fdc",
+  "name": "Purple Cloud",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_purple_cloud_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_purple_cloud_middle.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_purple_cloud_right.png",
+  "left": "",
+  "center": "",
+  "right": "",
+  "bottomLeft": "",
+  "bottom": "",
+  "bottomRight": ""
+}

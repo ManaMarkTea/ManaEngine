@@ -1,0 +1,86 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "0dac86cb21914c1e8bd3a094376d5cb0",
+  "name": "Pink Alien",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_idle.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_walk_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_walk_b.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_jump.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_duck.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_hit.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_climb_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_climb_b.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_pink_front.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 56,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 8,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 8,
+      "loop": true
+    },
+    {
+      "name": "jump",
+      "frames": [
+        3
+      ],
+      "framesPerSecond": 8,
+      "loop": false
+    },
+    {
+      "name": "duck",
+      "frames": [
+        4
+      ],
+      "framesPerSecond": 8,
+      "loop": false
+    },
+    {
+      "name": "hit",
+      "frames": [
+        5
+      ],
+      "framesPerSecond": 8,
+      "loop": false
+    },
+    {
+      "name": "climb",
+      "frames": [
+        6,
+        7
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    },
+    {
+      "name": "front",
+      "frames": [
+        8
+      ],
+      "framesPerSecond": 8,
+      "loop": false
+    }
+  ]
+}

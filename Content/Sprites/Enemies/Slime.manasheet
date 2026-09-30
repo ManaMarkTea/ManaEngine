@@ -5,6 +5,7 @@
   "name": "Slime",
   "frames": [
     "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_flat.png",
     "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_walk_a.png",
     "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_walk_b.png"
   ],
@@ -19,7 +20,7 @@
   ],
   "animations": [
     {
-      "name": "idle",
+      "name": "rest",
       "frames": [
         0
       ],
@@ -27,10 +28,26 @@
       "loop": true
     },
     {
+      "name": "flat",
+      "frames": [
+        1
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
       "name": "walk",
       "frames": [
-        1,
-        2
+        2,
+        3
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
       ],
       "framesPerSecond": 4,
       "loop": true

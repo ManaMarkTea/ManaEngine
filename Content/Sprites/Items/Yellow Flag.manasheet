@@ -1,0 +1,30 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "1dc8d93db3644e21ac68076968aad66f",
+  "name": "Yellow Flag",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_yellow_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_yellow_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "wave",
+      "frames": [
+        0,
+        1
+      ],
+      "framesPerSecond": 3,
+      "loop": true
+    }
+  ]
+}

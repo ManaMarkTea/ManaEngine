@@ -1,0 +1,39 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "f8890ff4bd054eee99999ba1ca3e8bee",
+  "name": "Torch",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_on_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_on_b.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_off.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "burn",
+      "frames": [
+        0,
+        1
+      ],
+      "framesPerSecond": 5,
+      "loop": true
+    },
+    {
+      "name": "off",
+      "frames": [
+        2
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    }
+  ]
+}

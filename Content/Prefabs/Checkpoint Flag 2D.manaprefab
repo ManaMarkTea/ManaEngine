@@ -1,0 +1,72 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "7b1c550834594c3dbe6737f7186f0eed",
+  "name": "Checkpoint Flag 2D",
+  "root": {
+    "id": "f15a365fcbb9481e82c9ceb9338bec14",
+    "name": "Checkpoint Flag 2D",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [
+      {
+        "id": "08468175c37f4603a311d2cbb40fcbe3",
+        "type": "SpriteSheet",
+        "properties": {
+          "sheet": {
+            "assetId": "6fc18a6f11b34620a88ac57c86fbccb0",
+            "assetPath": "Sprites/Items/Blue Flag.manasheet"
+          },
+          "animation": "wave",
+          "playing": true,
+          "frame": 0,
+          "flipX": false,
+          "tint": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "pixelArt": false,
+          "unlit": true
+        }
+      },
+      {
+        "id": "f5a96b91846f46069645944e2095b26c",
+        "type": "Trigger",
+        "properties": {
+          "size": [
+            1.5,
+            3,
+            2
+          ],
+          "offset": [
+            0,
+            1.5,
+            0
+          ]
+        }
+      },
+      {
+        "id": "ade6c323f2ee4594a79783c40844bfe9",
+        "type": "Checkpoint",
+        "properties": {}
+      }
+    ]
+  },
+  "properties": []
+}

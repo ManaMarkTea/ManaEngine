@@ -1,0 +1,235 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "5ecdb446e8c1401cb54c018921ac044c",
+  "name": "Angry Block",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_blue.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_coin.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_coin_active.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_empty.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_empty_warning.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_exclamation.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_exclamation_active.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_fall.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_green.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_idle.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_plank.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_planks.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_red.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_spikes.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_coin.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_coin_active.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_danger.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_danger_active.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_empty.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_empty_active.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_exclamation.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_strong_exclamation_active.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/block_yellow.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "rest",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "blue",
+      "frames": [
+        1
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "coin",
+      "frames": [
+        2
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "coin_active",
+      "frames": [
+        3
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "empty",
+      "frames": [
+        4
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "empty_warning",
+      "frames": [
+        5
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "exclamation",
+      "frames": [
+        6
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "exclamation_active",
+      "frames": [
+        7
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "fall",
+      "frames": [
+        8
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "green",
+      "frames": [
+        9
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "plank",
+      "frames": [
+        11
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "planks",
+      "frames": [
+        12
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "red",
+      "frames": [
+        13
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "spikes",
+      "frames": [
+        14
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_coin",
+      "frames": [
+        15
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_coin_active",
+      "frames": [
+        16
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_danger",
+      "frames": [
+        17
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_danger_active",
+      "frames": [
+        18
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_empty",
+      "frames": [
+        19
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_empty_active",
+      "frames": [
+        20
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_exclamation",
+      "frames": [
+        21
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "strong_exclamation_active",
+      "frames": [
+        22
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "yellow",
+      "frames": [
+        23
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    }
+  ]
+}

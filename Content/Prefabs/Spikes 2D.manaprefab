@@ -1,0 +1,80 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "1d8cef1745314420b02a2024d0ed9aca",
+  "name": "Spikes 2D",
+  "root": {
+    "id": "d5c2ec3c870a40d8b35b076ee123e00c",
+    "name": "Spikes 2D",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [
+      {
+        "id": "e2ca288829ad42f6a7757495c026ccc2",
+        "type": "Sprite",
+        "properties": {
+          "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/spikes.png",
+          "normalMap": "",
+          "pixelsPerUnit": 64,
+          "pivot": [
+            0.5,
+            0
+          ],
+          "repeatSize": [
+            0,
+            0
+          ],
+          "flipX": false,
+          "tint": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "pixelArt": false,
+          "unlit": true
+        }
+      },
+      {
+        "id": "5d2a50a3512f413b93d753c7674a4b2d",
+        "type": "Trigger",
+        "properties": {
+          "size": [
+            0.9,
+            0.5,
+            1.5
+          ],
+          "offset": [
+            0,
+            0.25,
+            0
+          ]
+        }
+      },
+      {
+        "id": "a9b25597621541a09183f3df005355fc",
+        "type": "Hazard",
+        "properties": {
+          "damage": 1,
+          "flavor": "Generic",
+          "kills": false
+        }
+      }
+    ]
+  },
+  "properties": []
+}

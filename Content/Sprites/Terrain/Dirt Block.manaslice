@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "5a29b08c938a4053b0d57479cfd711ac",
+  "name": "Dirt Block",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_top_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_top.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_top_right.png",
+  "left": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_left.png",
+  "center": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_center.png",
+  "right": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_right.png",
+  "bottomLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_bottom_left.png",
+  "bottom": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_bottom.png",
+  "bottomRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_dirt_block_bottom_right.png"
+}

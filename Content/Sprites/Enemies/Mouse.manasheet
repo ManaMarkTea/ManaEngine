@@ -1,0 +1,47 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "c833885c4ff14e5399e35c34b75fc364",
+  "name": "Mouse",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/mouse_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/mouse_walk_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/mouse_walk_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "rest",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    }
+  ]
+}

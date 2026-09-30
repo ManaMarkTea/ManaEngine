@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "b10b2e58a91542e5bf006ad780e09f64",
+  "name": "Lava",
+  "pixelsPerUnit": 64,
+  "topLeft": "",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/lava_top.png",
+  "topRight": "",
+  "left": "",
+  "center": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/lava.png",
+  "right": "",
+  "bottomLeft": "",
+  "bottom": "",
+  "bottomRight": ""
+}

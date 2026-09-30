@@ -2,6 +2,10 @@ Claude, overnight summary (2026-09-29): every item below is done and pushed; the
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
 the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.
 One question for you (in the Glow item): how material edits should be saved.
+2026-09-30 (evening): the whole pack built into assets (5 characters, 18 enemies, items, terrain slices for six grounds)
+and the 2D Sample grown into a five-biome run: grass -> desert (cacti, a spike pit crossed on a moving platform, snails)
+-> snow (clouds over a gap, a spring up to a coin cache) -> mushroom (bees, flies, ladybugs) -> stone castle (torches,
+lava, a saw, the exit door). 28 coins and 4 gems, checkpoints between biomes. DevPhotos/2026-09-30 2d-biome-*.png.
 2026-09-30 (later): sprites reworked into three components -- Sprite, Sprite Sheet, Sprite 9-Slice -- on reusable
 assets (.manasheet, .manaslice in Content/Sprites) set up once in the Sprite Asset window; every user-made asset kind
 now comes from one registry (ManaContentKinds) the Project panel lists, with New. The Import panel lists 2D pictures

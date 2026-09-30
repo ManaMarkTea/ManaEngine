@@ -1,0 +1,47 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "7dabccf16d0c42a580b19d8b8114c3f2",
+  "name": "Yellow Fish",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fish_yellow_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fish_yellow_swim_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fish_yellow_swim_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "rest",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "swim",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    }
+  ]
+}

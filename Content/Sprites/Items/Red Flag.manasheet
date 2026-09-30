@@ -1,0 +1,30 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "c6f15b3c18ef44e4ae4ac0f607accda7",
+  "name": "Red Flag",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_red_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_red_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "wave",
+      "frames": [
+        0,
+        1
+      ],
+      "framesPerSecond": 3,
+      "loop": true
+    }
+  ]
+}

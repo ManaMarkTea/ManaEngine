@@ -91,6 +91,8 @@ namespace ManaVoxel.Code.Gameplay.Course
             _hideAfterSeconds = 0.0f;
             _playingClip = null;
             Owner.Context.World.GameState.RegisterEnemy();
+            // The route's end marker is an editor aid; left up, it would ride along beside the enemy all game.
+            _beatEnd.Update(false, BeatEndSize, Vector3.Zero, MarkerColor);
             _startFlip = Owner.GetComponent<Mana.Code.Components.ManaSpriteBase>()?.FlipX;
         }
 

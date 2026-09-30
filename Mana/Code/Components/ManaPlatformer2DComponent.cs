@@ -12,8 +12,8 @@ namespace Mana.Code.Components
     /// </summary>
     public sealed class ManaPlatformer2DComponent : ManaComponent
     {
-        /// <summary>The sample character Kenney's pack provides: Content/Sprites/Green Alien.manasheet.</summary>
-        public static readonly ManaAssetRef GreenAlien = new("5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c", "Sprites/Green Alien.manasheet");
+        /// <summary>The sample character Kenney's pack provides: Content/Sprites/Characters/Green Alien.manasheet.</summary>
+        public static readonly ManaAssetRef GreenAlien = new("5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c", "Sprites/Characters/Green Alien.manasheet");
 
         /// <summary>The player's sprite sheet: its pictures, size and animations are set up in the sheet.</summary>
         [AssetKind(ManaSpriteSheet.Extension), Category("Character")]

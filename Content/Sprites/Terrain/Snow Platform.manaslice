@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "87ac37cda62c463b9e1235793ea32e9f",
+  "name": "Snow Platform",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_snow_horizontal_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_snow_horizontal_middle.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_snow_horizontal_right.png",
+  "left": "",
+  "center": "",
+  "right": "",
+  "bottomLeft": "",
+  "bottom": "",
+  "bottomRight": ""
+}

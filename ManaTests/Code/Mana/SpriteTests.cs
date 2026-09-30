@@ -110,18 +110,18 @@ public static class SpriteChecks
         var alienRenderer = alienNode.GetComponent<MeshRendererComponent>();
         var strip = (alienRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
         check("a sheet of separate pictures becomes one strip, a frame each",
-            strip != null && ManaSpriteBase.PngSize(strip) == new Vector2(4 * 128, 128) && alien.FrameCount == 4,
+            strip != null && ManaSpriteBase.PngSize(strip) == new Vector2(9 * 128, 128) && alien.FrameCount == 9,
             $"{(strip == null ? "no strip" : ManaSpriteBase.PngSize(strip))}, {alien.FrameCount} frames");
 
         // ---- Sprite 9-Slice ---------------------------------------------------------------------------------------
-        var block = ManaContentAssets.Load<ManaSpriteSlice>(Path.Combine(ManaContentAssets.Root, "Sprites", "Grass Block.manaslice"));
+        var block = ManaContentAssets.Load<ManaSpriteSlice>(Path.Combine(ManaContentAssets.Root, "Sprites", "Terrain", "Grass Block.manaslice"));
         check("a slice asset loads", block != null);
         if (block != null)
         {
             var layout = block.Layout(4, 3);
-            check("laid out: rounded corners on top, edges down the sides, the middle filling in",
+            check("laid out: rounded corners top and bottom, edges down the sides, the middle filling in",
                 layout[0][0].EndsWith("block_top_left.png") && layout[0][1].EndsWith("block_top.png") && layout[0][3].EndsWith("block_top_right.png")
-                && layout[1][0].EndsWith("block_left.png") && layout[1][2].EndsWith("block_center.png") && layout[2][3].EndsWith("block_right.png"),
+                && layout[1][0].EndsWith("block_left.png") && layout[1][2].EndsWith("block_center.png") && layout[2][3].EndsWith("block_bottom_right.png"),
                 string.Join(" / ", layout.Select(row => string.Join(", ", row.Select(Path.GetFileNameWithoutExtension)))));
             var single = block.Layout(3, 1);
             check("and one tile high, just the top row", single.Count == 1 && single[0][0].EndsWith("block_top_left.png"));
@@ -130,7 +130,7 @@ public static class SpriteChecks
         var groundNode = Node("Ground");
         var ground = new ManaSprite9SliceComponent(groundNode)
         {
-            Slice = ManaContentAssets.Reference(Path.Combine(ManaContentAssets.Root, "Sprites", "Grass Block.manaslice")), Size = new Vector2(6, 2)
+            Slice = ManaContentAssets.Reference(Path.Combine(ManaContentAssets.Root, "Sprites", "Terrain", "Grass Block.manaslice")), Size = new Vector2(6, 2)
         };
         groundNode.Components.Add(ground);
         ground.Refresh();

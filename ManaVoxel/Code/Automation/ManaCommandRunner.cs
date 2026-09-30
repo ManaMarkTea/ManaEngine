@@ -110,6 +110,15 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "teleport_player":
+                        // Straight to a spot while playing, to look at a stretch of a level without walking there.
+                        if (command.Position is { Length: 3 } spot && _context.World.GameState.Player is { } player)
+                        {
+                            player.TeleportTo(new Vector3(spot[0], spot[1], spot[2]));
+                        }
+                        _index++;
+                        break;
+
                     case "open_asset":
                         // An asset in its own editor, as the Project panel's Edit does it.
                         ManaVoxel.Code.UI.ProjectAssetViewModel.For(_context.World).OpenAsset(Path.GetFullPath(RequirePath(command)));

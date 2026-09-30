@@ -1,0 +1,113 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "f4959687bed04af7a093747569d92974",
+  "name": "Gem 2D",
+  "root": {
+    "id": "f829dad0b3974b79aa7c3b5277f8ba4d",
+    "name": "Gem 2D",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [
+      {
+        "id": "2b308c0aa0934f299f91df32aac9d4d9",
+        "type": "Sprite",
+        "properties": {
+          "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/gem_blue.png",
+          "normalMap": "",
+          "pixelsPerUnit": 64,
+          "pivot": [
+            0.5,
+            0
+          ],
+          "repeatSize": [
+            0,
+            0
+          ],
+          "flipX": false,
+          "tint": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "pixelArt": false,
+          "unlit": true
+        }
+      },
+      {
+        "id": "eb040069510c4dd9af50ce502c9ccf49",
+        "type": "Trigger",
+        "properties": {
+          "size": [
+            0.7,
+            0.7,
+            1.2
+          ],
+          "offset": [
+            0,
+            0.5,
+            0
+          ]
+        }
+      },
+      {
+        "id": "3194968beb0d4518a44284c0626c465b",
+        "type": "Collectible",
+        "properties": {
+          "value": 5,
+          "spinDegreesPerSecond": 0
+        }
+      },
+      {
+        "id": "b6123762189b4e4186cc44ba0775718d",
+        "type": "AudioSource",
+        "properties": {
+          "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+          "variants": "",
+          "cue": "Pickup",
+          "global": false,
+          "spatial": true,
+          "localOffset": [
+            0,
+            0,
+            0
+          ],
+          "playOnBegin": false,
+          "loop": false,
+          "volume": 0.75,
+          "pitch": 1,
+          "referenceDistance": 5,
+          "maxDistance": 45,
+          "rolloff": 1,
+          "bus": "Sfx",
+          "fadeSeconds": 0.08,
+          "delaySeconds": 0
+        }
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "7a711c6db79f455b8e3d21faed594287",
+      "name": "Value",
+      "nodeId": "f829dad0b3974b79aa7c3b5277f8ba4d",
+      "componentId": "3194968beb0d4518a44284c0626c465b",
+      "property": "value"
+    }
+  ]
+}

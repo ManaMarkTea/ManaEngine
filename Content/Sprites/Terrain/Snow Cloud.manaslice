@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "2db192d5a4e3441d85690f9f99b6ef28",
+  "name": "Snow Cloud",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_snow_cloud_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_snow_cloud_middle.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_snow_cloud_right.png",
+  "left": "",
+  "center": "",
+  "right": "",
+  "bottomLeft": "",
+  "bottom": "",
+  "bottomRight": ""
+}

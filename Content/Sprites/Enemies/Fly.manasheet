@@ -1,0 +1,47 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "a45937c6eb7d4763b7cf5354555c1d46",
+  "name": "Fly",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fly_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fly_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fly_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "rest",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "move",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    }
+  ]
+}

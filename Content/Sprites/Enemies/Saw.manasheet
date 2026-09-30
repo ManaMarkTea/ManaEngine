@@ -1,0 +1,47 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "5c85617bebab4625ac92d5d8bd6a7f95",
+  "name": "Saw",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/saw_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/saw_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/saw_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "rest",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "move",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 6,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    }
+  ]
+}

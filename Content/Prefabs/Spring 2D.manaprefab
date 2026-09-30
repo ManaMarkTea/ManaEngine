@@ -1,0 +1,82 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "78ca43827f5141b2b428097552b35903",
+  "name": "Spring 2D",
+  "root": {
+    "id": "122db19615794fc09497953f1e7241bf",
+    "name": "Spring 2D",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [
+      {
+        "id": "921340f3f0ed43a48638ce6f582f6c59",
+        "type": "SpriteSheet",
+        "properties": {
+          "sheet": {
+            "assetId": "4d6a79370a614b618bdeb8f7f4766d2a",
+            "assetPath": "Sprites/Items/Spring.manasheet"
+          },
+          "animation": "idle",
+          "playing": true,
+          "frame": 0,
+          "flipX": false,
+          "tint": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "pixelArt": false,
+          "unlit": true
+        }
+      },
+      {
+        "id": "d3e0325987254ec3abfd085f6571a3d7",
+        "type": "Trigger",
+        "properties": {
+          "size": [
+            1.0,
+            0.6,
+            1.5
+          ],
+          "offset": [
+            0,
+            0.3,
+            0
+          ]
+        }
+      },
+      {
+        "id": "1fefc38c88d544e5b65e320255412927",
+        "type": "SpringPad",
+        "properties": {
+          "launchHeight": 9
+        }
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "fc63b10f08934b65b1fbf0692c508549",
+      "name": "Launch Height",
+      "nodeId": "122db19615794fc09497953f1e7241bf",
+      "componentId": "1fefc38c88d544e5b65e320255412927",
+      "property": "launchHeight"
+    }
+  ]
+}

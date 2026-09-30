@@ -1,0 +1,30 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "924d800b12184627bdd874a055cd4b8b",
+  "name": "Bronze Coin",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_bronze.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_bronze_side.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "spin",
+      "frames": [
+        0,
+        1
+      ],
+      "framesPerSecond": 3,
+      "loop": true
+    }
+  ]
+}

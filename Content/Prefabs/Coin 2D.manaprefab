@@ -29,7 +29,7 @@
         "properties": {
           "sheet": {
             "assetId": "d08393e46b944b17aeb6279445045300",
-            "assetPath": "Sprites/Gold Coin.manasheet"
+            "assetPath": "Sprites/Items/Gold Coin.manasheet"
           },
           "animation": "spin",
           "playing": true,

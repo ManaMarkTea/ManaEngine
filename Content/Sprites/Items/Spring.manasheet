@@ -1,0 +1,37 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "4d6a79370a614b618bdeb8f7f4766d2a",
+  "name": "Spring",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/spring.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/spring_out.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    },
+    {
+      "name": "launch",
+      "frames": [
+        1
+      ],
+      "framesPerSecond": 1,
+      "loop": false
+    }
+  ]
+}

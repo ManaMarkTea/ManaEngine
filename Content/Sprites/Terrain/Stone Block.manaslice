@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "84842adf1dfd42aca5486810040e54ad",
+  "name": "Stone Block",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_top_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_top.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_top_right.png",
+  "left": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_left.png",
+  "center": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_center.png",
+  "right": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_right.png",
+  "bottomLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_bottom_left.png",
+  "bottom": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_bottom.png",
+  "bottomRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_stone_block_bottom_right.png"
+}

@@ -10,7 +10,7 @@
   "left": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_left.png",
   "center": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_center.png",
   "right": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_right.png",
-  "bottomLeft": "",
-  "bottom": "",
-  "bottomRight": ""
+  "bottomLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_bottom_left.png",
+  "bottom": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_bottom.png",
+  "bottomRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_bottom_right.png"
 }
