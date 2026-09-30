@@ -331,6 +331,19 @@ namespace Mana
             if (node == null) return;
             foreach (var component in node.Components)
             {
+                // A Glow's light is a small point light of its own colour, gathered with the lamps'.
+                if (component is Mana.Code.Components.ManaGlowComponent { Enabled: true, LightRange: > 0.0f } glow)
+                {
+                    if (local.Count < ManaRenderScene.MaxLocalLights)
+                    {
+                        var at = Vector3.Transform(glow.LightOffset, node.WorldTransform);
+                        var colour = new Vector3(glow.Color.X, glow.Color.Y, glow.Color.Z) * glow.CurrentStrength() * glow.LightIntensity * LocalLightPowerScale;
+                        local.Add((new Vector4(at, glow.LightRange), new Vector4(colour, 1.0f)));
+                    }
+
+                    continue;
+                }
+
                 if (component is not ManaLightSourceComponent { Enabled: true } light)
                 {
                     continue;
@@ -367,6 +380,25 @@ namespace Mana
             {
                 CollectLightsFromNode(child, output, local, ref sun);
             }
+        }
+
+        /// <summary>The placed point lights -- lamps, glows -- as a render scene gets them: xyz position, w range; colour.</summary>
+        public List<(Vector4 Position, Vector4 Color)> CollectPlacedLights()
+        {
+            var grid = new List<(Vector3 Position, Vector3 Color)>();
+            var local = new List<(Vector4 Position, Vector4 Color)>();
+            (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun = default;
+            lock (SceneLock)
+            {
+                foreach (var scene in Scenes)
+                {
+                    foreach (var child in scene.Children)
+                    {
+                        CollectLightsFromNode(child, grid, local, ref sun);
+                    }
+                }
+            }
+            return local;
         }
 
         public ManaRenderScene CreateRenderScene()

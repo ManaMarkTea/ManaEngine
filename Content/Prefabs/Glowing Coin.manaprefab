@@ -1,0 +1,43 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "50d7ee4e361b4b4e839fd477888c8491",
+  "name": "Glowing Coin",
+  "base": {
+    "assetId": "c3b8507faf554640a6a44af27124e591",
+    "assetPath": "Prefabs/Coin.manaprefab",
+    "overrides": [
+      {
+        "path": [
+          "e8673f36ec694f289858faf262ce64dd",
+          "scripts",
+          "56fdad85b2b5419e9e87325b800b5d94"
+        ],
+        "value": {
+          "id": "56fdad85b2b5419e9e87325b800b5d94",
+          "type": "Glow",
+          "properties": {
+            "color": [
+              1,
+              0.85,
+              0.4,
+              1
+            ],
+            "strength": 1.6,
+            "lightRange": 3,
+            "lightIntensity": 0.5,
+            "lightOffset": [
+              0,
+              0.4,
+              0
+            ],
+            "pulseSpeed": 0.6,
+            "enabled": true
+          }
+        },
+        "add": true
+      }
+    ]
+  },
+  "properties": []
+}

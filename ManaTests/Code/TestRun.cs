@@ -107,6 +107,7 @@ public static class TestRunner
         ("ManaVoxel", "content assets", ContentAssetChecks.Run),
         ("ManaVoxel", "prefab lamps", PrefabLampChecks.Run),
         ("ManaVoxel", "collider intent", ColliderIntentChecks.Run),
+        ("ManaVoxel", "glow", GlowChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
         ("ManaUI", "window resize grip", WindowChecks.RunGrip),

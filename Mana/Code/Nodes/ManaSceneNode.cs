@@ -276,11 +276,25 @@ namespace Mana.Code.Nodes
 
         public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
         {
-            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture);
+            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture, null);
         }
 
-        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture)
+        // `glow` is the nearest enabled Glow on this node or above it: it replaces the emission of every mesh
+        // beneath (see ManaGlowComponent), leaving the shared materials untouched.
+        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture, Components.ManaGlowComponent? glow)
         {
+            foreach (var component in Components)
+            {
+                if (component is Components.ManaGlowComponent { Enabled: true } own)
+                {
+                    glow = own;
+                    break;
+                }
+            }
+
+            // Editor helpers under a glowing node -- its trigger box, say -- are not the thing that glows.
+            var glowing = includeInEnvironmentCapture ? glow : null;
+            var glowStrength = glowing?.CurrentStrength() ?? 0.0f;
             foreach (var component in Components)
             {
                 if (component is not MeshRendererComponent renderer || !renderer.IsVisible || renderer.Mesh == null)
@@ -305,8 +319,8 @@ namespace Mana.Code.Nodes
                         Roughness = renderer.Material.Roughness.Value,
                         FlatShaded = renderer.Material.FlatShaded,
                         AmbientOcclusion = renderer.Material.Occlusion.Value,
-                        Emission = renderer.Material.Emission.Value,
-                        EmissionStrength = (float)renderer.Material.EmissionStrength,
+                        Emission = glowing?.Color ?? renderer.Material.Emission.Value,
+                        EmissionStrength = glowing != null ? glowStrength : (float)renderer.Material.EmissionStrength,
                         PbrDebugMode = GetPbrDebugMode(renderer.Material),
                         IncludeInEnvironmentCapture = includeInEnvironmentCapture,
                         // Blending is a material decision as much as a shader one: a PBR shader is opaque
@@ -344,7 +358,7 @@ namespace Mana.Code.Nodes
 
             foreach (var child in Children)
             {
-                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture);
+                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, child.IsEditorTransient ? null : glow);
             }
         }
 

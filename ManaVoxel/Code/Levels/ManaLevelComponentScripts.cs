@@ -46,6 +46,12 @@ namespace ManaVoxel.Code.Levels
                 // A light on a node -- a lamp's bulb, a torch -- so it survives a save, and a prefab can carry one.
                 new()
                 {
+                    Type = "Glow",
+                    ComponentType = typeof(Mana.Code.Components.ManaGlowComponent),
+                    Create = node => new Mana.Code.Components.ManaGlowComponent(node)
+                },
+                new()
+                {
                     Type = "Light",
                     ComponentType = typeof(ManaLightSourceComponent),
                     Create = node => new ManaLightSourceComponent(node),
@@ -155,6 +161,7 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaGlowComponent))]
         /// <param name="occurrence">
         /// Which of its kind this script is on the node, counting from zero. For a type a node may only have one of,
         /// it is ignored in practice; for a type that can repeat without <c>AllowMultiple</c> (trigger volumes), it

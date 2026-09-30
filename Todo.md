@@ -27,7 +27,13 @@
 [x] Add support for UI from JSON or xaml-ish.  And an editor for it. (Like UMG in unreal)
     Claude: done earlier as JSON -- UiMarkup (.manaui files in UI/) and Panels > UI Designer. No XAML flavour yet.
 
-[] Glow component (next up): levels and prefabs don't save material settings, so emission set in the Inspector is lost on save. Add a "Glow" script (colour, strength, optional light range) that sets emission on the meshes beneath it and adds a small point light, so a "Glowing Coin" is a Coin variant with a Glow added. Strength above 1 blooms.
+[x] Glow component (next up): levels and prefabs don't save material settings, so emission set in the Inspector is lost on save. Add a "Glow" script (colour, strength, optional light range) that sets emission on the meshes beneath it and adds a small point light, so a "Glowing Coin" is a Coin variant with a Glow added. Strength above 1 blooms.
+    Claude (overnight): done. "Glow" script (Add component > Glow): colour, strength (above 1 blooms), light range,
+    light intensity, light offset, pulse speed. It makes everything beneath its node glow without touching the shared
+    materials (so other coins stay plain) and brings its own small point light. New prefab:
+    Content/Prefabs/Glowing Coin.manaprefab -- a variant of Coin whose only change is the added Glow, gently pulsing.
+    Photo: DevPhotos/<date> glowing-coin-prefab.png. Tests: GlowChecks.
+    Still open: materials themselves (emission set in the Mesh Renderer inspector) still aren't saved with a level.
 
 
 [x] Review Changes for prefab variants: the review window works on placed copies; a variant open in the prefab stage could use it too.
