@@ -1,4 +1,4 @@
-name: Build web editor
+name: Build web editor and play, deploy to GitHub Pages
 
 # Publish the directory directly: immutable assets remain separate files and Butler uploads deltas.
 on:
@@ -13,10 +13,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # RunAOTCompilation + the emscripten native build in ManaVoxel.Editor.Web.csproj are both slow;
-    # give this real headroom rather than hitting the default 6-hour cap's opposite problem of no
-    # cap at all silently hanging a stuck build.
-    timeout-minutes: 45
+    # RunAOTCompilation + the emscripten native build in ManaVoxel.Editor.Web.csproj/ManaVoxel.Web.csproj
+    # are both slow, and this job now publishes both; give it real headroom rather than hitting the
+    # default 6-hour cap's opposite problem of no cap at all silently hanging a stuck build.
+    timeout-minutes: 60
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -56,7 +56,7 @@ jobs:
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools --skip-manifest-update
 
-      - name: Publish web editor and external asset library
+      - name: Publish web editor
         # ManaVoxel.Editor.Web's browser-wasm publish graph currently builds some referenced
         # projects more than once; keep them serialized so GenerateDepsFile does not race on the
         # shared browser-wasm output path (for example ManaCore.deps.json).
@@ -70,24 +70,43 @@ jobs:
           dotnet run --project Tools/ThumbnailBaker --
           --app-bundle Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
 
-      - name: Move the external asset library off the itch.io bundle
-        # itch.io caps a browser-embedded build's *extracted* size at 500MB; the external asset
-        # library alone is already well past that. It moves to GitHub Pages instead, and the
-        # itch-bound copy of the catalog is repointed at absolute URLs there -- ManaAssetCatalog
-        # and asset-downloads.js both already handle an absolute blob URL unchanged, so nothing
-        # else about the build needs to know which host it ends up shipped to.
-        run: >
-          python Tools/WebAssets/split_for_itch.py
-          --app-bundle Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
-          --library-out pages-site/web-assets/AssetLibrary
-          --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
+      - name: Publish web play
+        run: dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1
 
-      - name: Upload asset library artifact
+      - name: Move both apps' external asset libraries off to a shared GitHub Pages folder
+        # itch.io caps a browser-embedded build's *extracted* size at 500MB; the external asset
+        # library alone is already well past that. It moves to GitHub Pages instead, and each
+        # app's own copy of the catalog is repointed at the same absolute URL there --
+        # ManaAssetCatalog and asset-downloads.js both already handle an absolute blob URL
+        # unchanged, so nothing else about either build needs to know which host it ends up
+        # shipped to. Both apps split into the same --library-out: files are content-hashed, so a
+        # name shared between the editor and play catalogs collides harmlessly (identical bytes).
+        run: |
+          python Tools/WebAssets/split_for_itch.py \
+            --app-bundle Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle \
+            --library-out pages-site/web-assets/AssetLibrary \
+            --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
+          python Tools/WebAssets/split_for_itch.py \
+            --app-bundle Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle \
+            --library-out pages-site/web-assets/AssetLibrary \
+            --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
+
+      - name: Assemble GitHub Pages site
+        # editor/ and play/ are each self-contained (relative asset paths only), so hosting them
+        # under a subfolder needs no rewriting beyond the asset-catalog split above. The landing
+        # page at the site root is the selector between them.
+        run: |
+          mkdir -p pages-site/editor pages-site/play
+          cp -r Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle/. pages-site/editor/
+          cp -r Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle/. pages-site/play/
+          cp Tools/WebAssets/pages-index.html pages-site/index.html
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: pages-site
 
-      - name: Deploy asset library to GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 

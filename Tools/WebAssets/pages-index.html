@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ManaRenderer — Web</title>
+  <style>
+    /* Same palette as ManaVoxel.Web/ManaVoxel.Editor.Web's own loading screens (ManaUI's dark
+       UiTheme), so the selector matches whichever app is picked next. */
+    :root {
+      --mana-background: #1E1F22;
+      --mana-surface:    #2B2D30;
+      --mana-border:     #3B3E43;
+      --mana-text-muted: #9DA0A8;
+      --mana-accent:     #4A88E8;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--mana-background);
+      color: #DFE1E5;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    main {
+      width: 100%;
+      max-width: 640px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--mana-accent);
+    }
+
+    p.sub {
+      margin: 0 0 32px;
+      font-size: 13px;
+      color: var(--mana-text-muted);
+    }
+
+    .cards {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    a.card {
+      flex: 1 1 220px;
+      display: block;
+      padding: 28px 20px;
+      background: var(--mana-surface);
+      border: 1px solid var(--mana-border);
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 150ms ease-out, transform 150ms ease-out;
+    }
+
+    a.card:hover {
+      border-color: var(--mana-accent);
+      transform: translateY(-2px);
+    }
+
+    a.card h2 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    a.card p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--mana-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>MANA RENDERER</h1>
+    <p class="sub">Runs entirely in the browser via WebGPU/WASM. First load downloads the engine and can take a minute.</p>
+    <div class="cards">
+      <a class="card" href="play/index.html">
+        <h2>Play</h2>
+        <p>Load a level and play it — character, physics, no editor UI.</p>
+      </a>
+      <a class="card" href="editor/index.html">
+        <h2>Editor</h2>
+        <p>The full voxel editor — panels, asset browser, undo/redo.</p>
+      </a>
+    </div>
+  </main>
+</body>
+</html>
