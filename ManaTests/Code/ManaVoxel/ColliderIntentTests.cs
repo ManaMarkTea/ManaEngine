@@ -55,6 +55,28 @@ public static class ColliderIntentChecks
         check("saved again, the fitted one still says use visual bounds", fittedSaved?.UseVisualBounds == true && fittedSaved.Size == null, "");
         check("and the sized one still has its size, though it matches the model", sizedSaved?.UseVisualBounds == false && sizedSaved.Size != null, "");
 
+        // A group can be solid: a moving sprite platform stands the player on its box. It used to be dropped on load
+        // (the player fell straight through) and again on save.
+        var groupLevel = new ManaLevel
+        {
+            Name = "Group Collider",
+            Nodes =
+            [
+                new ManaLevelNode
+                {
+                    Id = Guid.NewGuid().ToString("N"), Name = "Mover", Kind = ManaLevelSourceKind.Group,
+                    Position = [10, 2, 0], Rotation = [0, 0, 0], Scale = [1, 1, 1],
+                    Collision = new ManaLevelCollision { Size = [3, 1, 2], Offset = [0, 0.5f, 0] }
+                }
+            ]
+        };
+        var mover = ManaLevelLoader.Load(groupLevel, context, context.World.DefaultScene, replaceAuthoredNodes: false).Nodes.First(n => n.Name == "Mover");
+        var moverBox = mover.GetComponent<ManaCollisionComponent>();
+        check("a group's collision box is built when it loads", moverBox?.Shape is BepuPhysics.Collidables.Box { Width: 3, Height: 1, Length: 2 }, $"{moverBox?.Shape}");
+        var moverSaved = ManaLevelCapture.Capture(context.World, "Group Collider").Nodes.First(n => n.Name == "Mover").Collision;
+        check("and is still there when the level is saved", moverSaved?.Size is [3, 1, 2] && moverSaved.Offset is [0, 0.5f, 0],
+            moverSaved?.Size == null ? "missing" : string.Join(",", moverSaved.Size));
+
         // A model that grows -- the rest of it finishing loading -- takes a following collider with it.
         var grown = result.Nodes.First(n => n.Name == "Fitted");
         grown.Scale = new Vector3(2, 2, 2);

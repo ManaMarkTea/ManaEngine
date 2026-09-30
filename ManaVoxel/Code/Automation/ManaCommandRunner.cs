@@ -119,6 +119,15 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "log_player":
+                        // Where the player is and whether it stands, for a scripted check of a level's footing.
+                        if (_context.World.GameState.Player is { } logged)
+                        {
+                            ManaConsole.WriteDiagnostic($"Command file: player {command.Name} at {logged.Body?.FootPosition ?? logged.Position}, grounded {logged.IsGrounded}");
+                        }
+                        _index++;
+                        break;
+
                     case "open_asset":
                         // An asset in its own editor, as the Project panel's Edit does it.
                         ManaVoxel.Code.UI.ProjectAssetViewModel.For(_context.World).OpenAsset(Path.GetFullPath(RequirePath(command)));

@@ -419,6 +419,8 @@ namespace ManaVoxel.Code.Levels
             }
 
             AttachToParent(state.Context, parent, group);
+            // A group can be solid too -- a sprite platform that moves stands the player on this box.
+            AddCollisionIfPresent(entry, state.Context, group);
             AddScriptsIfPresent(entry, group);
 
             if (entry.Children != null)

@@ -150,6 +150,7 @@ namespace ManaVoxel.Code.Levels
                     entry.Scripts = CaptureScripts(node);
                     return entry;
                 case ManaLevelSourceKind.Group:
+                    entry.Collision = CaptureCollision(node);
                     entry.Children = new List<ManaLevelNode>();
                     foreach (var child in node.Children)
                     {
