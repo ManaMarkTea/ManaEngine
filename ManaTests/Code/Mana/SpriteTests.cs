@@ -70,6 +70,12 @@ public static class SpriteChecks
         const string pack = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/";
         var packed = ManaSpritePictures.Resolve(pack + "Tiles/Default/coin_gold.png");
         check("a picture inside a pack is read out of the zip", packed != null && ManaSpriteComponent.PngSize(packed) == new Vector2(64, 64), packed ?? "not found");
+        var listed = ManaSpritePictures.PackPictures();
+        check("the picker lists pack pictures by the path a sprite stores",
+            listed.Any(p => p.Reference == pack + "Tiles/Default/coin_gold.png" && p.Name == "coin_gold.png" && p.Folder == "kenney_new-platformer-pack-1.1"),
+            $"{listed.Count} pictures");
+        check("and costs nothing to look up once copied out", ManaSpritePictures.TryGetResolved(pack + "Tiles/Default/coin_gold.png") == packed);
+
         var walkerNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Walker" };
         context.World.DefaultScene.Children.Add(walkerNode);
         var walker = new ManaSpriteComponent(walkerNode)

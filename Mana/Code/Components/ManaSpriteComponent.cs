@@ -16,19 +16,24 @@ namespace Mana.Code.Components
     public sealed class ManaSpriteComponent : ManaComponent
     {
         /// <summary>The picture: a PNG, as a repo path (Content/Sprites/hero.png) or inside a pack (zip:pack.zip/Sprites/x.png).</summary>
+        [PicturePath]
         public string Texture { get; set; } = string.Empty;
 
         /// <summary>
         /// Separate pictures, one per frame, instead of one sheet -- how packs like Kenney's ship animation.
         /// When set they are the sheet, one frame each, and <see cref="Texture"/>, columns and rows are unused.
         /// </summary>
+        [PicturePath]
         public string[] Frames { get; set; } = [];
 
         /// <summary>Pictures drawn once at the ends of a tiled sprite, with <see cref="Texture"/> repeated between -- a platform's rounded edges.</summary>
+        [PicturePath]
         public string LeftEnd { get; set; } = string.Empty;
+        [PicturePath]
         public string RightEnd { get; set; } = string.Empty;
 
         /// <summary>Optional normal map for the same picture, so lights shade it as if it had depth.</summary>
+        [PicturePath]
         public string NormalMap { get; set; } = string.Empty;
 
         /// <summary>How many of the picture's pixels make a metre.</summary>

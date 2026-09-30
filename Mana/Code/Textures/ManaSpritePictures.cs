@@ -51,6 +51,16 @@ namespace Mana
             return extracted;
         }
 
+        /// <summary>The picture's file if finding it costs nothing -- a repo path, or a pack picture already copied out.</summary>
+        public static string? TryGetResolved(string reference)
+        {
+            if (!reference.StartsWith(ZipPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return Resolve(reference);
+            }
+            return Resolved.TryGetValue(reference, out var known) && File.Exists(known) ? known : null;
+        }
+
         /// <summary>
         /// The pictures joined left to right into one, each in a cell the size of the largest and standing on its
         /// floor, centred across -- so frames of slightly different sizes still keep a character's feet still.
@@ -177,6 +187,11 @@ namespace Mana
         // packs sit in the repo's Assets/, and the program runs from a build folder several levels down.
         private static string? FindZip(string zipName)
         {
+            return PackFiles().FirstOrDefault(zip => string.Equals(Path.GetFileName(zip), zipName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static IEnumerable<string> PackFiles()
+        {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var start in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
             {
@@ -187,20 +202,60 @@ namespace Mana
                     {
                         continue;
                     }
+                    string[] zips;
                     try
                     {
-                        var hit = Directory.EnumerateFiles(assets, zipName, SearchOption.AllDirectories).FirstOrDefault();
-                        if (hit != null)
-                        {
-                            return hit;
-                        }
+                        zips = Directory.GetFiles(assets, "*.zip", SearchOption.AllDirectories);
                     }
                     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                     {
+                        continue;
+                    }
+                    foreach (var zip in zips)
+                    {
+                        yield return zip;
                     }
                 }
             }
-            return null;
+        }
+
+        private static List<(string Reference, string Name, string Folder)>? _packPictures;
+
+        /// <summary>
+        /// Every PNG inside the asset packs, as the "zip:" reference a sprite stores, its file name and its pack's
+        /// name -- for a picker. Read from the zips' directories only, once; nothing is extracted until chosen.
+        /// </summary>
+        public static IReadOnlyList<(string Reference, string Name, string Folder)> PackPictures()
+        {
+            if (_packPictures != null)
+            {
+                return _packPictures;
+            }
+
+            var found = new List<(string Reference, string Name, string Folder)>();
+            var zipsSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var zip in PackFiles())
+            {
+                if (!zipsSeen.Add(Path.GetFileName(zip)))
+                {
+                    continue;
+                }
+                try
+                {
+                    using var archive = ZipFile.OpenRead(zip);
+                    foreach (var entry in archive.Entries)
+                    {
+                        if (entry.FullName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        {
+                            found.Add(($"{ZipPrefix}{Path.GetFileName(zip)}/{entry.FullName}", entry.Name, Path.GetFileNameWithoutExtension(zip)));
+                        }
+                    }
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+                {
+                }
+            }
+            return _packPictures = found;
         }
 
         private static void Save(Image<Rgba32> image, string output)

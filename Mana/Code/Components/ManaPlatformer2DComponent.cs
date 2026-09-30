@@ -13,11 +13,14 @@ namespace Mana.Code.Components
         private const string KenneyCharacters = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_green_";
 
         /// <summary>The player's pictures, one per frame -- Kenney's green character by default: idle, two walk steps, jump.</summary>
+        [PicturePath]
         public string[] Frames { get; set; } =
             [KenneyCharacters + "idle.png", KenneyCharacters + "walk_a.png", KenneyCharacters + "walk_b.png", KenneyCharacters + "jump.png"];
 
         /// <summary>A sheet instead of <see cref="Frames"/>: one picture cut into columns x rows.</summary>
+        [PicturePath]
         public string Texture { get; set; } = string.Empty;
+        [PicturePath]
         public string NormalMap { get; set; } = string.Empty;
         public int Columns { get; set; } = 1;
         public int Rows { get; set; } = 1;

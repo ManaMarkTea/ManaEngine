@@ -49,7 +49,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 var row = InspectorControls.Row(
                     context,
                     Humanise(property.Name),
-                    Editor(subject, property),
+                    Editor(subject, property, theme),
                     XmlDocSummaries.For(property));
 
                 // Saved script fields are the property names in camelCase, which is what an override's path holds.
@@ -92,7 +92,9 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     continue;
                 }
 
-                if (!IsSupported(property.PropertyType))
+                var isPictureList = property.PropertyType == typeof(string[])
+                    && property.GetCustomAttribute<Mana.Code.Components.PicturePathAttribute>() != null;
+                if (!IsSupported(property.PropertyType) && !isPictureList)
                 {
                     continue;
                 }
@@ -198,7 +200,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return combo;
         }
 
-        private static UiElement Editor(object subject, PropertyInfo property)
+        private static UiElement Editor(object subject, PropertyInfo property, UiTheme theme)
         {
             var type = property.PropertyType;
 
@@ -268,6 +270,18 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 };
                 combo.BindPolled(c => c.SelectedIndex, () => Math.Max(0, Array.IndexOf(names, Read()?.ToString())));
                 return combo;
+            }
+
+            if (property.GetCustomAttribute<Mana.Code.Components.PicturePathAttribute>() != null)
+            {
+                if (type == typeof(string))
+                {
+                    return PicturePicker.Slot(theme, Humanise(property.Name), () => Read() as string ?? string.Empty, value => Write(value));
+                }
+                if (type == typeof(string[]))
+                {
+                    return PicturePicker.List(theme, Humanise(property.Name), () => Read() as string[] ?? [], value => Write(value));
+                }
             }
 
             if (type == typeof(string))

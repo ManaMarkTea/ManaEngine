@@ -265,15 +265,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                     }
                 }
 
-                // Every other change this instance makes, each with the same arrow back to the prefab's value.
-                var exposed = asset.Properties.Select(ProjectAssetViewModel.PropertyPath).ToList();
-                foreach (var change in reference.Overrides.Where(o => !exposed.Any(path => path.SequenceEqual(o.Path))))
-                {
-                    var captured = change;
-                    panel.Children.Add(OverrideRow(theme, OverrideLabel(asset, change),
-                        new TextBlock().Text(OverrideValue(change)).Ellipsis().Foreground(theme.TextMuted),
-                        true, () => model.RevertOverride(instance, captured)));
-                }
+                // Other changes are marked where they are, on their own rows with the revert arrow
+                // (PrefabOverrideMarks); listing them here too made this section grow and shove the inspector
+                // down with every edit.
             }
             catch (Exception exception)
             {
@@ -281,7 +275,6 @@ namespace ManaVoxel.Code.UI.ManaUi
                 panel.Children.Add(new Button().Label("Retry Source").OnClick(model.RefreshSelected));
                 panel.Children.Add(new Button().Label("Revert All").OnClick(() => model.Revert(instance)));
             }
-            panel.Children.Add(new TextBlock().BindTextPolled(() => model.Status).Wrap().Foreground(theme.TextMuted));
             return new Expander().Header("Prefab Instance").Content(panel);
         }
 
@@ -325,9 +318,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
             return row;
         }
-
-        private static string OverrideValue(ManaPrefabOverride change) => change.Remove ? "removed"
-            : change.Value == null ? "" : Display(change.Value);
 
         internal static string OverrideLabel(ManaPrefab asset, ManaPrefabOverride change)
         {
