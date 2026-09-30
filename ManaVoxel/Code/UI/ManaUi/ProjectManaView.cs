@@ -124,7 +124,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     ContextMenuItems = () => AssetMenu(model, entry)
                 };
                 row.Clicked += (_, _) => model.SelectedAsset = entry.Path;
-                row.Tooltip = entry.RelativePath + (entry.Kind == "Prefab" ? " · Drag into the viewport. Right-click to place, edit or delete." : " · Right-click to apply or delete.");
+                row.Tooltip = entry.RelativePath + (entry.Kind == "Prefab" ? " Â· Drag into the viewport. Right-click to place, edit or delete." : " Â· Right-click to apply or delete.");
                 var sync = MeshImportManaView.Throttled<object?>(() =>
                 {
                     if (entry.Kind == "Prefab" && MeshImportManaView.IsThumbnailRequestVisible(row))
@@ -151,6 +151,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 items.Add(new MenuItem("Place", () => model.RequestPlacement(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
                 items.Add(new MenuItem("Edit Prefab", () => model.OpenPrefab(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
+                items.Add(new MenuItem("Create Variant", () => model.CreateVariant(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing)
+                    .WithTooltip("A prefab made from this one that keeps only what you change in it -- a blue lamp from a lamp."));
                 items.Add(new MenuItem("Refresh Thumbnail", () => ManaUiDockDemo.MeshThumbnails?.ForceRefresh(entry.Path)));
             }
             else
@@ -244,29 +246,25 @@ namespace ManaVoxel.Code.UI.ManaUi
                     {
                         var value = ProjectAssetViewModel.ReadProperty(root, property);
                         var overridden = reference.Overrides.Any(o => o.Path.SequenceEqual(ProjectAssetViewModel.PropertyPath(property)));
-                        panel.Children.Add(new TextBlock().Text(property.Name + (overridden ? " â€¢ Modified" : "")));
                         if (value == null)
                         {
-                            panel.Children.Add(new TextBlock().Text("Property target is missing.").Foreground(theme.Warning));
+                            panel.Children.Add(new TextBlock().Text($"{property.Name}: its target is missing.").Foreground(theme.Warning));
                             continue;
                         }
-                        var (input, read) = PropertyEditor(value, property);
-                        panel.Children.Add(input);
-                        panel.Children.Add(new StackPanel().Horizontal(4).Children(
-                            new Button().Label("Set").OnClick(() => model.SetProperty(instance, property, read())),
-                            new Button().Label("Revert").OnClick(() => model.Revert(instance, property))));
-                        if (property.Minimum.HasValue || property.Maximum.HasValue)
-                        {
-                            panel.Children.Add(new TextBlock().Text($"Range: {property.Minimum?.ToString() ?? "any"} to {property.Maximum?.ToString() ?? "any"}").Foreground(theme.TextMuted));
-                        }
+                        var captured = property;
+                        var input = PropertyEditor(value, property, text => model.SetProperty(instance, captured, text));
+                        panel.Children.Add(OverrideRow(theme, property.Name, input, overridden, () => model.Revert(instance, captured)));
                     }
                 }
-                foreach (var change in reference.Overrides)
+
+                // Every other change this instance makes, each with the same arrow back to the prefab's value.
+                var exposed = asset.Properties.Select(ProjectAssetViewModel.PropertyPath).ToList();
+                foreach (var change in reference.Overrides.Where(o => !exposed.Any(path => path.SequenceEqual(o.Path))))
                 {
                     var captured = change;
-                    panel.Children.Add(new StackPanel().Horizontal(4).Children(
-                        new TextBlock().Text(OverrideLabel(asset, change)).Ellipsis().Width(180),
-                        new Button().Label("Revert").OnClick(() => model.RevertOverride(instance, captured))));
+                    panel.Children.Add(OverrideRow(theme, OverrideLabel(asset, change),
+                        new TextBlock().Text(OverrideValue(change)).Ellipsis().Foreground(theme.TextMuted),
+                        true, () => model.RevertOverride(instance, captured)));
                 }
             }
             catch (Exception exception)
@@ -278,6 +276,26 @@ namespace ManaVoxel.Code.UI.ManaUi
             panel.Children.Add(new TextBlock().BindTextPolled(() => model.Status).Wrap().Foreground(theme.TextMuted));
             return new Expander().Header("Prefab Instance").Content(panel);
         }
+
+        /// <summary>
+        /// A value row marked the way the Inspector marks them: an accent bar and a revert arrow while it differs
+        /// from the prefab, nothing extra while it does not.
+        /// </summary>
+        private static UiElement OverrideRow(UiTheme theme, string label, UiElement editor, bool overridden, Action revert)
+        {
+            var bar = new Border().Fill(overridden ? theme.Accent : UiColor.Transparent).Width(2.0f).GridColumn(0);
+            var name = new TextBlock().Text(label).Ellipsis().Width(110.0f).CenterV().GridColumn(1)
+                .Foreground(overridden ? theme.Text : theme.TextMuted);
+            var row = new Grid().Columns("Auto, Auto, *, Auto", 4.0f).Rows("Auto").Children(bar, name, editor.GridColumn(2));
+            if (overridden)
+            {
+                row.Children.Add(ToolbarIcons.ActionButton(theme, ToolbarIcons.DrawUndo, "Revert to the prefab's value.", revert).GridColumn(3));
+            }
+            return row;
+        }
+
+        private static string OverrideValue(ManaPrefabOverride change) => change.Remove ? "removed"
+            : change.Value == null ? "" : Display(change.Value);
 
         private static string OverrideLabel(ManaPrefab asset, ManaPrefabOverride change)
         {
@@ -291,20 +309,32 @@ namespace ManaVoxel.Code.UI.ManaUi
             ? string.Join(", ", array.Select(v => v?.ToString() ?? ""))
             : value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : value.ToString();
 
-        private static (UiElement Input, Func<string> Read) PropertyEditor(JsonNode value, ManaPrefabProperty property)
+        /// <summary>An editor for an exposed value that sets it on the instance when an edit is finished.</summary>
+        private static UiElement PropertyEditor(JsonNode value, ManaPrefabProperty property, Action<string> commit)
         {
+            static string Join(Vector4 v, int count) => string.Join(",", new[] { v.X, v.Y, v.Z, v.W }
+                .Take(count).Select(n => n.ToString("R", CultureInfo.InvariantCulture)));
+
             if (value is JsonArray { Count: >= 2 and <= 4 } array)
             {
                 var numbers = array.Select(v => v!.GetValue<float>()).Concat(new float[4]).Take(4).ToArray();
-                var vector = new VectorBox().Components(array.Count).Step(0.1f).Places(3);
-                vector.Vector = new Vector4(numbers[0], numbers[1], numbers[2], numbers[3]);
-                return (vector, () => string.Join(",", new[] { vector.Vector.X, vector.Vector.Y, vector.Vector.Z, vector.Vector.W }
-                    .Take(array.Count).Select(n => n.ToString("R", CultureInfo.InvariantCulture))));
+                var vector = new Vector4(numbers[0], numbers[1], numbers[2], numbers[3]);
+                if (array.Count == 4 && property.Property.Contains("col", StringComparison.OrdinalIgnoreCase))
+                {
+                    var colour = new ColorField { Color = vector };
+                    colour.ColorCommitted += (_, picked) => commit(Join(picked, 4));
+                    return colour;
+                }
+                var box = new VectorBox().Components(array.Count).Step(0.1f).Places(3);
+                box.Vector = vector;
+                box.ValueCommitted += (_, entered) => commit(Join(entered, array.Count));
+                return box;
             }
             if (value.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
             {
                 var checkbox = new CheckBox().Checked(value.GetValue<bool>());
-                return (checkbox, () => checkbox.IsChecked.ToString());
+                checkbox.CheckedChanged += (_, on) => commit(on.ToString());
+                return checkbox;
             }
             if (value.GetValueKind() == JsonValueKind.Number)
             {
@@ -314,10 +344,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Maximum = (float)(property.Maximum ?? float.PositiveInfinity),
                     Value = value.GetValue<float>(), Step = 0.1f
                 };
-                return (numeric, () => numeric.Value.ToString("R", CultureInfo.InvariantCulture));
+                numeric.ValueCommitted += (_, entered) => commit(entered.ToString("R", CultureInfo.InvariantCulture));
+                return numeric;
             }
             var text = new TextBox { Text = Display(value) };
-            return (text, () => text.Text);
+            text.TextCommitted += (_, entered) => commit(entered);
+            return text;
         }
 
         private static UiElement BuildExposure(UiTheme theme, ProjectAssetViewModel model)

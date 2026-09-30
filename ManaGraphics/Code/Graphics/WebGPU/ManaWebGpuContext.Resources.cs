@@ -190,6 +190,16 @@ namespace ManaGraphics.Code.Graphics
 
         private void ReleaseDepthResources()
         {
+            if (_handleDepthTextureView != null)
+            {
+                _api.TextureViewRelease(_handleDepthTextureView);
+                _handleDepthTextureView = null;
+            }
+            if (_handleDepthTexture != null)
+            {
+                _api.TextureRelease(_handleDepthTexture);
+                _handleDepthTexture = null;
+            }
             if (_depthTextureView != null)
             {
                 _api.TextureViewRelease(_depthTextureView);
@@ -243,6 +253,17 @@ namespace ManaGraphics.Code.Graphics
             if (_depthTextureView == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU depth texture view.");
+            }
+
+            _handleDepthTexture = _api.DeviceCreateTexture(_device, &depthTextureDescriptor);
+            if (_handleDepthTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU handle depth texture.");
+            }
+            _handleDepthTextureView = _api.TextureCreateView(_handleDepthTexture, &depthTextureViewDescriptor);
+            if (_handleDepthTextureView == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU handle depth texture view.");
             }
         }
 

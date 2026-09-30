@@ -54,6 +54,8 @@ namespace ManaGraphics.Code.Graphics
         private volatile bool _disposed;
         private Texture* _depthTexture;
         private TextureView* _depthTextureView;
+        private Texture* _handleDepthTexture;
+        private TextureView* _handleDepthTextureView;
         private TextureFormat _surfaceFormat;
         private readonly TextureFormat _depthFormat = TextureFormat.Depth24Plus;
         private Vector2D<int> _framebufferSize;
@@ -390,7 +392,14 @@ namespace ManaGraphics.Code.Graphics
                 _clampSampler,
                 environment.EnvironmentMapResource.TextureView,
                 _activeRenderScene.Camera,
-                GetAspectCorrectedProjection(_activeRenderScene.Camera));
+                GetAspectCorrectedProjection(_activeRenderScene.Camera),
+                // A still sky's sun sits where the scene's own sun is, if it has one (its direction is the way the
+                // light travels); a day-night cycle moves its own.
+                _activeRenderScene.HasSun && _activeRenderScene.Sky.Mode != ManaSkyMode.DayNightCycle
+                    ? -_activeRenderScene.SunDirection
+                    : _activeRenderScene.Sky.TowardSun,
+                _activeRenderScene.Sky,
+                ManaSky.Seconds);
         }
 
         private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
@@ -781,6 +790,19 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _api.RenderPassEncoderEnd(sceneRenderPass);
+            if (!SuspendSceneWork && _sceneMeshes.Any(mesh => mesh.Instance.AlwaysOnTop))
+            {
+                // Keep the scene color, but depth-test handles against one another, not the scene.
+                sceneColorAttachment.LoadOp = LoadOp.Load;
+                depthStencilAttachment.View = _handleDepthTextureView;
+                var handlePass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
+                foreach (var mesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
+                {
+                    DrawSceneMesh(handlePass, mesh);
+                }
+                _api.RenderPassEncoderEnd(handlePass);
+                _api.RenderPassEncoderRelease(handlePass);
+            }
             LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
             if (useHdrPost)

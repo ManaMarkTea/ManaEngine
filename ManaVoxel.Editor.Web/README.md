@@ -32,7 +32,7 @@ Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=py
 For local serving, upload or serve the **entire AppBundle directory** as one unit:
 
 ```text
-ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle/
+artifacts/bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle/
 ```
 
 itch.io is different: it caps a browser-embedded ("played in the browser") build's *extracted*

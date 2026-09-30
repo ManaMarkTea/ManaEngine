@@ -1,0 +1,131 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Prefab Lamps",
+  "camera": {
+    "position": [40, 3.2, 50],
+    "rotation": [-0.25, 0, 0]
+  },
+  "nodes": [
+    {
+      "id": "750591498d4e4aca9062ec82a7800df9",
+      "name": "Player Start",
+      "kind": "PlayerStart",
+      "position": [40, 0.5, 49],
+      "rotation": [0, 3.1416, 0],
+      "scale": [1, 1, 1]
+    },
+    {
+      "id": "eeb6356c69914357950c3915fe8177dd",
+      "name": "Floor",
+      "kind": "Shape",
+      "position": [40, -0.1, 44],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "shape": "Cube",
+      "color": [0.5, 0.5, 0.52, 1],
+      "size": [16, 0.2, 8],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "6f0c43746d67472ea7c251182d4642f3",
+      "name": "White Lamp",
+      "kind": "Prefab",
+      "position": [34, 0, 44],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "prefab": {
+        "assetId": "499f5cf016e442acb2b5827176ee718c",
+        "assetPath": "Prefabs/Lamp.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "7636171bb4594002a92fcf5167c49fe7",
+      "name": "Red Lamp",
+      "kind": "Prefab",
+      "position": [37, 0, 44],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "prefab": {
+        "assetId": "499f5cf016e442acb2b5827176ee718c",
+        "assetPath": "Prefabs/Lamp.manaprefab",
+        "overrides": [
+          {
+            "path": [
+              "2d7389e40156471eaa67d49570a63d69",
+              "scripts",
+              "e9408b192fcb4a0e8d186ae291cb8282",
+              "properties",
+              "color"
+            ],
+            "value": [1, 0.15, 0.1, 1]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c24771e944e04948b90d0aab13ae74fb",
+      "name": "Green Lamp",
+      "kind": "Prefab",
+      "position": [40, 0, 44],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "prefab": {
+        "assetId": "499f5cf016e442acb2b5827176ee718c",
+        "assetPath": "Prefabs/Lamp.manaprefab",
+        "overrides": [
+          {
+            "path": [
+              "2d7389e40156471eaa67d49570a63d69",
+              "scripts",
+              "e9408b192fcb4a0e8d186ae291cb8282",
+              "properties",
+              "color"
+            ],
+            "value": [0.2, 1, 0.3, 1]
+          }
+        ]
+      }
+    },
+    {
+      "id": "1b2f5f78d6e74145ba10b98ae093a1eb",
+      "name": "Blue Lamp",
+      "kind": "Prefab",
+      "position": [43, 0, 44],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "prefab": {
+        "assetId": "3cd0e2244e954f35aba679302415466a",
+        "assetPath": "Prefabs/Blue Lamp.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "1cb6c8b25fae4df492a7122795ad0838",
+      "name": "Bright Blue Lamp",
+      "kind": "Prefab",
+      "position": [46, 0, 44],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "prefab": {
+        "assetId": "3cd0e2244e954f35aba679302415466a",
+        "assetPath": "Prefabs/Blue Lamp.manaprefab",
+        "overrides": [
+          {
+            "path": [
+              "2d7389e40156471eaa67d49570a63d69",
+              "scripts",
+              "e9408b192fcb4a0e8d186ae291cb8282",
+              "properties",
+              "intensity"
+            ],
+            "value": 3
+          }
+        ]
+      }
+    }
+  ]
+}

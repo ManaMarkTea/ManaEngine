@@ -319,9 +319,13 @@ namespace Mana
         }
 
 
+        // A placed light of intensity 1 lights a table-lamp's worth of floor a metre or so below it.
+        private const float LocalLightPowerScale = 8.0f;
+
         private void CollectLightsFromNode(
             ManaSceneNode node,
             List<(Vector3 Position, Vector3 Color)> output,
+            List<(Vector4 Position, Vector4 Color)> local,
             ref (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun)
         {
             if (node == null) return;
@@ -348,13 +352,20 @@ namespace Mana
                 }
 
                 var lightColorVec3 = new Vector3(light.Color.X, light.Color.Y, light.Color.Z);
-                var lightColor = lightColorVec3 * light.Intensity * 256.0f * 256.0f; // Scale by grid light power scale
-                output.Add((node.WorldTransform.Translation, lightColor));
+                if (light.IsGridLight)
+                {
+                    // Scale by grid light power scale: these sit 256 units up.
+                    output.Add((node.WorldTransform.Translation, lightColorVec3 * light.Intensity * 256.0f * 256.0f));
+                }
+                else if (local.Count < ManaRenderScene.MaxLocalLights)
+                {
+                    local.Add((new Vector4(node.WorldTransform.Translation, Math.Max(light.Range, 0.01f)), new Vector4(lightColorVec3 * light.Intensity * LocalLightPowerScale, 1.0f)));
+                }
             }
 
             foreach (var child in node.Children)
             {
-                CollectLightsFromNode(child, output, ref sun);
+                CollectLightsFromNode(child, output, local, ref sun);
             }
         }
 
@@ -362,6 +373,7 @@ namespace Mana
         {
             var meshes = new List<ManaRenderMeshInstance>();
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
+            var localLights = new List<(Vector4 Position, Vector4 Color)>();
             (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun = default;
 
             var collectStopwatch = Stopwatch.StartNew();
@@ -388,7 +400,7 @@ namespace Mana
                     {
                         foreach (var child in scene.Children)
                         {
-                            CollectLightsFromNode(child, collectedLights, ref sun);
+                            CollectLightsFromNode(child, collectedLights, localLights, ref sun);
                         }
                     }
                 }
@@ -407,10 +419,10 @@ namespace Mana
             const float debugGridSize = 256.0f;
             var defaultPositions = new Vector3[]
             {
-                new Vector3(0.0f, debugGridSize, 0.0f),
-                new Vector3(debugGridSize, debugGridSize, 0.0f),
-                new Vector3(0.0f, debugGridSize, debugGridSize),
-                new Vector3(debugGridSize, debugGridSize, debugGridSize)
+                new Vector3(-debugGridSize * 0.5f, debugGridSize, -debugGridSize * 0.5f),
+                new Vector3(debugGridSize * 0.5f, debugGridSize, -debugGridSize * 0.5f),
+                new Vector3(-debugGridSize * 0.5f, debugGridSize, debugGridSize * 0.5f),
+                new Vector3(debugGridSize * 0.5f, debugGridSize, debugGridSize * 0.5f)
             };
             var defaultWeights = new float[] { 1.0f, 0.8f, 0.5f, 0.3f };
             const float gridLightPowerScale = debugGridSize * debugGridSize;
@@ -435,8 +447,23 @@ namespace Mana
                 }
             }
 
+            var sky = ManaSky.Tick(IrradianceSettings);
+            for (var i = 0; i < lightColors.Length; i++)
+            {
+                var dimmed = new Vector3(lightColors[i].X, lightColors[i].Y, lightColors[i].Z) * sky.SunTint * sky.Daylight;
+                lightColors[i] = new Vector4(dimmed, lightColors[i].W);
+            }
+
+            // A scene with no sun of its own is lit by the sky's -- sun by day, moon by night -- and casts
+            // shadows from it. A level's own directional light still wins.
+            if (!sun.Found && ManaSky.Light(sky) is { } skyLight)
+            {
+                sun = (true, skyLight.Direction, skyLight.Colour, true);
+            }
+
             return new ManaRenderScene
             {
+                Sky = sky,
                 Camera = new ManaCameraData(
                     MainCamera._ViewMatrix,
                     MainCamera._ProjectionMatrix,
@@ -448,11 +475,25 @@ namespace Mana
                 EnvironmentReflectionSource = EnvironmentReflectionSource.Clone(),
                 LightPositions = lightPositions,
                 LightColors = lightColors,
+                LocalLightPositions = PadLocal(localLights.Select(l => l.Position)),
+                LocalLightColors = PadLocal(localLights.Select(l => l.Color)),
                 HasSun = sun.Found,
                 SunDirection = sun.Found ? sun.Direction : -Vector3.UnitY,
                 SunColor = sun.Found ? sun.Color : Vector4.One,
                 SunCastsShadows = sun.Found && sun.CastsShadows
             };
+        }
+
+        private static Vector4[] PadLocal(IEnumerable<Vector4> values)
+        {
+            var slots = new Vector4[ManaRenderScene.MaxLocalLights];
+            var i = 0;
+            foreach (var value in values)
+            {
+                slots[i++] = value;
+            }
+
+            return slots;
         }
 
     }

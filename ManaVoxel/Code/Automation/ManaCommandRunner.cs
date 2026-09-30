@@ -99,6 +99,29 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "open_prefab":
+                        // Edit Prefab, as the Project panel's menu does it.
+                        var prefabs = ManaVoxel.Code.UI.ProjectAssetViewModel.For(_context.World);
+                        prefabs.OpenPrefab(Path.GetFullPath(RequirePath(command)));
+                        ManaConsole.WriteDiagnostic($"Command file: open_prefab: {prefabs.Status}");
+                        _index++;
+                        break;
+
+                    case "sky":
+                        // The sky mode by name; a time of day holds the cycle still there, for a screenshot.
+                        if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(command.Name, true, out var skyMode))
+                        {
+                            _context.World.IrradianceSettings.Sky = skyMode;
+                        }
+                        if (command.TimeOfDay is { } timeOfDay)
+                        {
+                            _context.World.IrradianceSettings.TimeOfDay = timeOfDay;
+                            _context.World.IrradianceSettings.TimeSpeed = 0.0f;
+                            _context.World.IrradianceSettings.RealTime = false;
+                        }
+                        _index++;
+                        break;
+
                     case "open_panel":
                         ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.RequestPanel(command.Name ?? "");
                         _index++;
@@ -279,6 +302,13 @@ namespace ManaVoxel.Code.Automation
 
         private static ManaSceneNode? FindNode(IEnumerable<ManaSceneNode> nodes, string name)
         {
+            // "Red Lamp/Bulb": the Bulb under Red Lamp, where every lamp has one.
+            var slash = name.IndexOf('/');
+            if (slash > 0)
+            {
+                return FindNode(nodes, name[..slash]) is { } parent ? FindNode(parent.Children, name[(slash + 1)..]) : null;
+            }
+
             foreach (var node in nodes)
             {
                 if (node.Name == name)

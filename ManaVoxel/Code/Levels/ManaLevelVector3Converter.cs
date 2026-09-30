@@ -42,4 +42,60 @@ namespace ManaVoxel.Code.Levels
             writer.WriteEndArray();
         }
     }
+
+    /// <summary>
+    /// Writes a <see cref="Vector4"/> -- a colour, mostly -- as <c>[r, g, b, a]</c>, for the same reason: its members
+    /// are fields, so without this a light's colour saved as <c>{}</c> and came back black.
+    /// </summary>
+    internal sealed class ManaLevelVector4Converter : JsonConverter<Vector4>
+    {
+        public override Vector4 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            // What a file saved before this converter holds: nothing, as {}. Read as the default, not refused.
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                reader.Skip();
+                return default;
+            }
+
+            if (reader.TokenType != JsonTokenType.StartArray)
+            {
+                throw new JsonException("Expected [x, y, z, w].");
+            }
+
+            var values = new float[4];
+            var count = 0;
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+            {
+                if (count >= 4)
+                {
+                    throw new JsonException("Expected at most four numbers in [x, y, z, w].");
+                }
+
+                values[count++] = reader.GetSingle();
+            }
+
+            // Three numbers is an opaque colour.
+            if (count == 3)
+            {
+                values[3] = 1.0f;
+            }
+            else if (count != 4)
+            {
+                throw new JsonException("Expected [x, y, z] or [x, y, z, w].");
+            }
+
+            return new Vector4(values[0], values[1], values[2], values[3]);
+        }
+
+        public override void Write(Utf8JsonWriter writer, Vector4 value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            writer.WriteNumberValue(value.X);
+            writer.WriteNumberValue(value.Y);
+            writer.WriteNumberValue(value.Z);
+            writer.WriteNumberValue(value.W);
+            writer.WriteEndArray();
+        }
+    }
 }

@@ -66,7 +66,7 @@ namespace ManaVoxel.Code.Levels
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(), new ManaLevelVector3Converter(), new ManaComponentReferenceConverter() }
+            Converters = { new JsonStringEnumConverter(), new ManaLevelVector3Converter(), new ManaLevelVector4Converter(), new ManaComponentReferenceConverter() }
         };
 
         public string ToJson() => ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(this, SerializerOptions));

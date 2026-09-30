@@ -22,8 +22,8 @@ import sys
 
 DEFAULT_PORT = 8002
 APP_BUNDLE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "bin", "Release", "net10.0", "browser-wasm", "AppBundle",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "artifacts", "bin", "ManaVoxel.Editor.Web", "Release", "net10.0", "browser-wasm", "AppBundle",
 )
 
 

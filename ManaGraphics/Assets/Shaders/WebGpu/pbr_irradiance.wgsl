@@ -7,6 +7,7 @@ struct VertexOutput {
 };
 
 #include "include/uniforms.wgsl"
+#include "include/point_lights.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/shadows.wgsl"
@@ -206,6 +207,32 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let attenuation = 1.0 / (distance * distance);
         let radiance = light_color * attenuation;
 
+        let ndotl = max(dot(n, l), 0.0);
+
+        let ndf = distribution_ggx(n, h, specular_roughness);
+        let g = geometry_smith(n, v, l, specular_roughness);
+        let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
+        let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
+
+        let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
+        direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl;
+    }
+
+    // Placed point lights -- lamps, torches. Inverse square, windowed to reach zero at the light's range so a
+    // lamp lights its surroundings and not the whole level.
+    for (var i = 0u; i < 16u; i = i + 1u) {
+        let light_color = frame.local_light_colors[i].rgb;
+        let range = frame.local_light_positions[i].w;
+        if (range <= 0.0) {
+            continue;
+        }
+
+        let to_light = frame.local_light_positions[i].xyz - input.world_position;
+        let distance = max(length(to_light), 0.05);
+        let radiance = light_color * mana_point_light_attenuation(distance, range);
+
+        let l = to_light / distance;
+        let h = normalize(v + l);
         let ndotl = max(dot(n, l), 0.0);
 
         let ndf = distribution_ggx(n, h, specular_roughness);

@@ -36,7 +36,7 @@ namespace Mana.Code.GameModes
         private const string ManaWindowTitle = "Mana";
         // The demo grid room's full width/depth -- see the matching comment where the room is built for
         // why this can't just change there alone.
-        private const float GridSize = 256.0f;
+        public const float GridSize = 256.0f;
 
         private readonly VoxelEditorViewModel _viewModel = new();
         private readonly PlaceSearchNavigator _navigator = new();
@@ -89,6 +89,7 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _gridWallXFar;
         private readonly ManaSceneNode?[] _gridWallCoves = new ManaSceneNode?[4];
         private bool? _gridRoomRounded;
+        private bool? _gridWallsShown;
         private PlanetNode? _planet;
         private RegionNode? _region;
         private ManaSceneNode? _kmlDemo;
@@ -363,6 +364,10 @@ namespace Mana.Code.GameModes
 
             RemoveGridRoom();
 
+            // The room is centred on the origin, so the world axes cross in the middle of the floor. Every
+            // quad is still built from its corner, which is why each position below starts from here.
+            var corner = new Vector3(-halfGridSize, 0.0f, -halfGridSize);
+
             // Full enclosed box: floor, ceiling, and all four walls. xzPlane/yxPlane/zyPlane keep their
             // original names and positions (the "near" faces at Y=0/Z=0/X=0); the other three are their
             // mirrors at Y=gridSize/Z=gridSize/X=gridSize.
@@ -374,15 +379,15 @@ namespace Mana.Code.GameModes
             lock (Context.World.SceneLock)
             {
                 // Floor and ceiling: full extent, never trimmed -- see the comment above.
-                xzPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane XZ");
-                ceilingPlane = shapes.AddQuad(new Vector3(0, gridSize, 0), Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane Ceiling");
+                xzPlane = shapes.AddQuad(corner, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane XZ");
+                ceilingPlane = shapes.AddQuad(corner + new Vector3(0, gridSize, 0), Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane Ceiling");
 
                 // The four walls. Each is trimmed at BOTH ends of its horizontal extent once rounded --
                 // every wall touches two of the room's four vertical corners, not one.
-                yxPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.YX, 0, gridSize, coveRadius, gridSize - coveRadius, "Grid Plane YX");
-                zyPlane = shapes.AddQuad(Vector3.Zero, Colors.White, ManaQuadPlanes.ZY, coveRadius, gridSize - coveRadius, 0, gridSize, "Grid Plane ZY");
-                wallZFar = shapes.AddQuad(new Vector3(0, 0, gridSize), Colors.White, ManaQuadPlanes.YX, 0, gridSize, coveRadius, gridSize - coveRadius, "Grid Plane YX Far");
-                wallXFar = shapes.AddQuad(new Vector3(gridSize, 0, 0), Colors.White, ManaQuadPlanes.ZY, coveRadius, gridSize - coveRadius, 0, gridSize, "Grid Plane ZY Far");
+                yxPlane = shapes.AddQuad(corner, Colors.White, ManaQuadPlanes.YX, 0, gridSize, coveRadius, gridSize - coveRadius, "Grid Plane YX");
+                zyPlane = shapes.AddQuad(corner, Colors.White, ManaQuadPlanes.ZY, coveRadius, gridSize - coveRadius, 0, gridSize, "Grid Plane ZY");
+                wallZFar = shapes.AddQuad(corner + new Vector3(0, 0, gridSize), Colors.White, ManaQuadPlanes.YX, 0, gridSize, coveRadius, gridSize - coveRadius, "Grid Plane YX Far");
+                wallXFar = shapes.AddQuad(corner + new Vector3(gridSize, 0, 0), Colors.White, ManaQuadPlanes.ZY, coveRadius, gridSize - coveRadius, 0, gridSize, "Grid Plane ZY Far");
 
                 if (rounded)
                 {
@@ -429,7 +434,7 @@ namespace Mana.Code.GameModes
                     {
                         var (position, crossA, crossB, name) = corners[i];
                         var cove = shapes.AddGridCoveFillet(
-                            Vector3.UnitY, crossA, crossB, gridSize, coveRadius, position: position, name: name);
+                            Vector3.UnitY, crossA, crossB, gridSize, coveRadius, position: corner + position, name: name);
                         cove.LevelSource = null;
                         wallCoves[i] = cove;
                     }
@@ -498,6 +503,30 @@ namespace Mana.Code.GameModes
             }
 
             _gridRoomRounded = rounded;
+            _gridWallsShown = null;
+        }
+
+        /// <summary>
+        /// The room's walls, ceiling and coves show while drawing voxels -- a voxel node selected or a voxel tool
+        /// on -- or when Show Room is on. Otherwise only the floor is drawn; the walls' colliders stay regardless.
+        /// </summary>
+        private void SyncGridRoomWalls()
+        {
+            var drawing = !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive);
+            var show = ManaEditorGizmos.ShowRoom || drawing;
+            if (_gridWallsShown == show)
+            {
+                return;
+            }
+
+            _gridWallsShown = show;
+            foreach (var node in new[] { _gridCeilingPlane, _gridYxPlane, _gridZyPlane, _gridWallZFar, _gridWallXFar }.Concat(_gridWallCoves))
+            {
+                foreach (var renderer in node?.GetComponents<MeshRendererComponent>() ?? [])
+                {
+                    renderer.IsVisible = show;
+                }
+            }
         }
 
         /// <summary>Tears down whatever <see cref="BuildGridRoom"/> last built, if anything. A no-op the first time.</summary>
@@ -1385,6 +1414,7 @@ namespace Mana.Code.GameModes
             SyncNormalsViewOption();
             SyncKmlAirspaceVisibility();
             SyncGridRoomShape();
+            SyncGridRoomWalls();
             ProcessPendingRegionRequest();
 
             PumpPlanetStreaming();
@@ -2835,6 +2865,7 @@ namespace Mana.Code.GameModes
             SyncNormalsViewOption();
             SyncKmlAirspaceVisibility();
             SyncGridRoomShape();
+            SyncGridRoomWalls();
             ProcessPendingRegionRequest();
 
             PumpPlanetStreaming();

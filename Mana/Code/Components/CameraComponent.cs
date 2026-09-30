@@ -236,7 +236,7 @@ namespace Mana
             return true;
         }
 
-        private static bool TryComputeSelectionWorldBounds(MeshRendererComponent? selectedComponent, ManaSceneNode? selectedNode, out Vector3 worldMin, out Vector3 worldMax)
+        public static bool TryComputeSelectionWorldBounds(MeshRendererComponent? selectedComponent, ManaSceneNode? selectedNode, out Vector3 worldMin, out Vector3 worldMax)
         {
             // Local function can't capture the method's own out parameters directly (C# forbids it), so
             // accumulate into plain locals and assign the out parameters once at the end.

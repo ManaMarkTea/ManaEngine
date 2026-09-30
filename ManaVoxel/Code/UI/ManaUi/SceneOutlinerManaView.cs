@@ -40,9 +40,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             Func<ManaScene, bool>? sceneHasChanges = null,
             EditorUndoHistory? history = null)
         {
+            var prefabs = ProjectAssetViewModel.For(world);
             var tree = new TreeView
             {
                 ItemsSource = world.Scenes,
+                // A prefab being edited opens all the way down: it is small, and its insides are what is being edited.
+                IsExpandedByDefault = _ => prefabs.IsEditing,
                 ChildrenSelector = ChildrenOf,
 
                 // Answered without materialising anything. ChildrenOf has to combine a node's children and
@@ -59,6 +62,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
 
             tree.BindPolled(t => t.RevealedSelectedItem, () => CurrentSelectionItem(selection));
+
+            // Followed rather than captured: opening a level or a prefab replaces the list, not its contents.
+            tree.BindPolled(t => t.ItemsSource, () => prefabs.EditingScenes ?? (System.Collections.IEnumerable)world.Scenes);
             tree.SelectionChanged += (_, item) =>
             {
                 if (!tree.IsApplyingBinding)
@@ -73,7 +79,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             // No "OUTLINER" caption row: the dock tab immediately above says exactly that, and a panel that
             // repeats its own tab spends a row of height saying nothing. The tool row below carries the
             // scene count, which is the part that was actually worth reading.
-            return new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Padding(5.0f).Children(
+            var prefabBar = new DynamicContent().Showing<object>(() => (object?)prefabs.EditingAsset ?? prefabs,
+                _ => prefabs.IsEditing ? BuildPrefabBar(theme, prefabs) : null).GridRow(1);
+
+            return new Grid().Rows("Auto, Auto, *", theme.Spacing).Columns("*").Padding(5.0f).Children(
+                prefabBar,
                 new StackPanel().Horizontal(theme.Spacing).GridRow(0).Children(
                     new Button().Label("Collapse all").Variant(ButtonVariant.Subtle)
                         .OnClick(tree.CollapseAll),
@@ -81,11 +91,28 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .WithTooltip("New Scene — adds an empty scene. Move nodes into it from a node's right-click menu.")
                         .OnClick(() => SceneEditorOperations.CreateScene(world, selection)),
                     new TextBlock()
-                        .BindTextPolled(() => $"{world.Scenes.Count} scene{(world.Scenes.Count == 1 ? "" : "s")}")
+                        .BindTextPolled(() => (prefabs.EditingScenes ?? world.Scenes).Count is var count && count == 1 ? "1 scene" : $"{count} scenes")
                         .Foreground(theme.TextMuted)
                         .CenterV()),
 
-                tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f).GridRow(1));
+                tree.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f).GridRow(2));
+        }
+
+        /// <summary>Says a prefab is open, not the level, and how to get back.</summary>
+        private static UiElement BuildPrefabBar(UiTheme theme, ProjectAssetViewModel prefabs)
+        {
+            return new Border().Fill(theme.Selected).Content(
+                new StackPanel().Vertical(4.0f).Padding(6.0f).Children(
+                    new TextBlock().Text($"Editing prefab: {prefabs.EditingName}").Foreground(theme.Text),
+                    new TextBlock().Text(prefabs.EditingAsset?.Base is { } source
+                            ? $"A variant of {Path.GetFileNameWithoutExtension(source.AssetPath)}: only what you change is kept."
+                            : "Changes reach every placed copy when saved.")
+                        .Wrap().Foreground(theme.TextMuted),
+                    new StackPanel().Horizontal(4.0f).Children(
+                        new Button().Label("Save").OnClick(() => prefabs.SavePrefab()),
+                        new Button().Label("Save & Back").WithTooltip("Save the prefab, update its placed instances, and return to the level.")
+                            .OnClick(() => prefabs.SavePrefab(true)),
+                        new Button().Label("Discard").Variant(ButtonVariant.Subtle).OnClick(prefabs.DiscardEditing))));
         }
 
         private static bool HasChildren(object item)

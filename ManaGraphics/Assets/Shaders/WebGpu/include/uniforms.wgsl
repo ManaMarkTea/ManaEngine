@@ -26,6 +26,9 @@ struct FrameUniform {
     sun_direction : vec4<f32>,
     // rgb = color, a = intensity.
     sun_color : vec4<f32>,
+    // Placed point lights (ManaRenderScene.LocalLight*): xyz position, w range; rgb colour x intensity.
+    local_light_positions : array<vec4<f32>, 16>,
+    local_light_colors : array<vec4<f32>, 16>,
 };
 
 struct ObjectUniform {

@@ -45,9 +45,10 @@ namespace ManaGraphics.Code.Graphics
                 CameraPosition = new Vector4(camera.Position, 1.0f),
                 IrradianceFactors = new Vector4(
                     Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
-                    Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.IblIntensity * _activeRenderScene.Sky.Daylight, 0.0f, 8.0f),
                     Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
-                    1.0f),
+                    // w = daylight, 0..1 (ManaSky): the unlit editor grid dims with it at night.
+                    _activeRenderScene.Sky.Daylight),
                 LightPositions0 = _activeRenderScene.LightPositions[0],
                 LightPositions1 = _activeRenderScene.LightPositions[1],
                 LightPositions2 = _activeRenderScene.LightPositions[2],
@@ -71,6 +72,12 @@ namespace ManaGraphics.Code.Graphics
                     ? _activeRenderScene.SunColor
                     : Vector4.Zero
             };
+
+            for (var i = 0; i < ManaRenderScene.MaxLocalLights; i++)
+            {
+                uniform.LocalLightPositions[i] = _activeRenderScene.LocalLightPositions[i];
+                uniform.LocalLightColors[i] = _activeRenderScene.LocalLightColors[i];
+            }
 
             _api.QueueWriteBuffer(_queue, _frameUniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuFrameUniform));
         }
@@ -328,6 +335,14 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 CascadeSplitFar;
             public Vector4 SunDirection;
             public Vector4 SunColor;
+            public LocalLightArray LocalLightPositions;
+            public LocalLightArray LocalLightColors;
+        }
+
+        [System.Runtime.CompilerServices.InlineArray(ManaRenderScene.MaxLocalLights)]
+        private struct LocalLightArray
+        {
+            private Vector4 _element;
         }
 
         // Written per mesh, only when the mesh's transform/material actually changed since last

@@ -44,6 +44,12 @@ namespace ManaGraphics.Code.Graphics
         private struct SkyboxUniform
         {
             public Matrix4x4 InverseDirectionViewProjection;
+
+            // xyz = direction towards the sun; w = 0 the environment image, 1 a day sky, 2 space.
+            public Vector4 Sun;
+
+            // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = how far the clouds have drifted.
+            public Vector4 Parameters;
         }
 
         public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat depthFormat, string shaderPath)
@@ -66,7 +72,10 @@ namespace ManaGraphics.Code.Graphics
             Sampler* clampSampler,
             TextureView* environmentView,
             ManaCameraData camera,
-            Matrix4x4 aspectCorrectedProjection)
+            Matrix4x4 aspectCorrectedProjection,
+            Vector3 towardSun,
+            ManaSky.State sky,
+            float seconds)
         {
             if (_failed || clampSampler == null || environmentView == null)
             {
@@ -77,7 +86,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 EnsurePipeline(colorFormat);
                 EnsureBindGroup(clampSampler, environmentView);
-                UpdateUniform(camera, aspectCorrectedProjection);
+                UpdateUniform(camera, aspectCorrectedProjection, towardSun, sky, seconds);
             }
             catch (Exception ex)
             {
@@ -96,7 +105,7 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
         }
 
-        private void UpdateUniform(ManaCameraData camera, Matrix4x4 aspectCorrectedProjection)
+        private void UpdateUniform(ManaCameraData camera, Matrix4x4 aspectCorrectedProjection, Vector3 towardSun, ManaSky.State sky, float seconds)
         {
             // Same trick ManaIrradianceRenderer.RenderEnvironmentBackground uses on OpenGL: the view's
             // translation is zeroed before combining with the projection, so unprojecting a screen position
@@ -114,7 +123,13 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var uniform = new SkyboxUniform { InverseDirectionViewProjection = inverse };
+            var sun = towardSun.LengthSquared() > 1e-6f ? Vector3.Normalize(towardSun) : Vector3.UnitY;
+            var uniform = new SkyboxUniform
+            {
+                InverseDirectionViewProjection = inverse,
+                Sun = new Vector4(sun, sky.Mode switch { ManaSkyMode.Photo => 0.0f, ManaSkyMode.Space => 2.0f, _ => 1.0f }),
+                Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, 0.0f)
+            };
             _api.QueueWriteBuffer(_queue, _uniformBuffer, 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }
 

@@ -43,6 +43,14 @@ namespace ManaVoxel.Code.Levels
                     AllowMultiple = true,
                     AfterPropertiesApplied = component => { _ = ((ManaAudioSourceComponent)component).PrepareAsync(); }
                 },
+                // A light on a node -- a lamp's bulb, a torch -- so it survives a save, and a prefab can carry one.
+                new()
+                {
+                    Type = "Light",
+                    ComponentType = typeof(ManaLightSourceComponent),
+                    Create = node => new ManaLightSourceComponent(node),
+                    AllowMultiple = true
+                },
                 new()
                 {
                     Type = TriggerVolumeComponent.ScriptType,
@@ -146,6 +154,7 @@ namespace ManaVoxel.Code.Levels
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]
         /// <param name="occurrence">
         /// Which of its kind this script is on the node, counting from zero. For a type a node may only have one of,
         /// it is ignored in practice; for a type that can repeat without <c>AllowMultiple</c> (trigger volumes), it

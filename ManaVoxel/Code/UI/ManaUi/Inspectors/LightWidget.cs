@@ -26,35 +26,44 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 c => c.SelectedIndex,
                 () => Math.Max(0, Array.IndexOf(typeNames, light.LightType.ToString())));
 
+            // Each row marked when a prefab instance or variant changes it from its source.
+            UiElement Marked(string field, UiElement row) => PrefabOverrideMarks.Mark(context, row, light.Owner, light, field);
+
             return new Expander()
                 .Header("Light Source")
                 .Section(theme.Spacing,
-                    new CheckBox().Label("Enabled")
+                    Marked("enabled", new CheckBox().Label("Enabled")
                         .Checked(light.Enabled)
-                        .OnChanged(value => light.Enabled = value),
+                        .OnChanged(value => light.Enabled = value)),
 
-                    InspectorControls.Row(context, "Type", typeCombo, null,
+                    Marked("lightType", InspectorControls.Row(context, "Type", typeCombo, null,
                         "Point lights fill the 4-light grid the PBR shader samples every pixel. Directional "
                         + "is a single sun -- only the first enabled one in the scene is used, and it can "
-                        + "cast cascaded shadow maps."),
+                        + "cast cascaded shadow maps.")),
 
-                    InspectorControls.Row(context, "Intensity", InspectorControls.Scalar(
+                    Marked("intensity", InspectorControls.Row(context, "Intensity", InspectorControls.Scalar(
                         () => light.Intensity,
                         value => light.Intensity = value,
                         0.0f,
-                        20.0f)),
+                        20.0f))),
 
-                    InspectorControls.Row(context, "Direction", InspectorControls.Vector(
+                    Marked("range", InspectorControls.Row(context, "Range", InspectorControls.Scalar(
+                        () => light.Range,
+                        value => light.Range = value,
+                        0.1f,
+                        50.0f), null, "How far a point light reaches, in metres. It fades smoothly to nothing there.")),
+
+                    Marked("direction", InspectorControls.Row(context, "Direction", InspectorControls.Vector(
                         () => light.Direction,
                         value => light.Direction = value,
-                        step: 0.05f)),
+                        step: 0.05f))),
 
-                    InspectorControls.Row(context, "Colour",
-                        InspectorControls.Colour(() => light.Color, value => light.Color = value)),
+                    Marked("color", InspectorControls.Row(context, "Colour",
+                        InspectorControls.Colour(() => light.Color, value => light.Color = value))),
 
-                    new CheckBox().Label("Casts Shadows")
+                    Marked("castsShadows", new CheckBox().Label("Casts Shadows")
                         .Checked(light.CastsShadows)
-                        .OnChanged(value => light.CastsShadows = value));
+                        .OnChanged(value => light.CastsShadows = value)));
         }
     }
 }

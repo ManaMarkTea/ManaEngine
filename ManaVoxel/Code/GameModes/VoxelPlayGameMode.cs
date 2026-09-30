@@ -125,8 +125,9 @@ namespace Mana.Code.GameModes
                     lock (world.SceneLock)
                     {
                         var shapes = new ManaShapeFactory(Context, world.DefaultScene);
+                        // Centred on the origin, as the editor's room floor is.
                         ground = shapes.AddQuad(
-                            Vector3.Zero,
+                            new Vector3(-GroundSize * 0.5f, 0.0f, -GroundSize * 0.5f),
                             Colors.White,
                             ManaQuadPlanes.XZ,
                             0,
@@ -212,7 +213,7 @@ namespace Mana.Code.GameModes
             // exactly onto a box collider's corner edge can land with no contact generated at all (see
             // PlayModeController.DefaultSpawnPosition's matching comment), which reads as falling through
             // a floor that is visibly right there.
-            var spawnPosition = start?.SpawnPosition ?? new Vector3(GroundSize * 0.5f, 0.0f, GroundSize * 0.5f);
+            var spawnPosition = start?.SpawnPosition ?? Vector3.Zero;
             spawnPosition.Y += 0.5f;
             _spawnPosition = spawnPosition;
             _spawnYaw = start?.SpawnYawRadians ?? 0.0f;

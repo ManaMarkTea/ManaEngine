@@ -37,6 +37,13 @@ namespace ManaVoxel.Code.UI
         private IReadOnlyList<ManaContentEntry>? _entries;
         private string? _sourceOnOpen;
 
+        // The editor room's walls, ceiling and coves: a prefab is edited on the floor alone, like Unity's prefab stage.
+        private static readonly HashSet<string> RoomOnlyNames = new(StringComparer.Ordinal)
+        {
+            "Grid Plane Ceiling", "Grid Plane YX", "Grid Plane ZY", "Grid Plane YX Far", "Grid Plane ZY Far",
+            "Grid Cove X0-Z0", "Grid Cove X0-ZFar", "Grid Cove XFar-ZFar", "Grid Cove XFar-Z0"
+        };
+
         private ProjectAssetViewModel(ManaWorld world) { _world = world; }
         public bool IsEditing => _editingAsset != null;
         public string EditingName => _editingAsset?.Name ?? string.Empty;
@@ -64,6 +71,9 @@ namespace ManaVoxel.Code.UI
             }
         }
         public ManaPrefab? EditingAsset => _editingAsset;
+
+        /// <summary>While a prefab is open, the one scene the Outliner shows: the prefab's own, as Unity's prefab stage.</summary>
+        public IReadOnlyList<ManaScene>? EditingScenes { get; private set; }
         public ManaSceneNode? Selected => _world.Selection.SelectedNode;
         public ManaSceneNode? SelectedInstance => ManaPrefabRuntime.InstanceRoot(Selected);
         public bool CanEdit => _editor?.Levels.IsPlaying != true && (_editor == null || _editor.Levels.Host == null || _editor.Levels.CanPlay || IsEditing);
@@ -158,6 +168,32 @@ namespace ManaVoxel.Code.UI
             Status = $"Deleted {Path.GetFileNameWithoutExtension(full)}. Placed instances remain in the world.";
         });
 
+        /// <summary>
+        /// Makes a variant of a prefab beside it -- "Lamp Variant" -- holding no changes yet, and opens it to edit.
+        /// Whatever is changed and saved there is all the variant keeps; the rest follows its base.
+        /// </summary>
+        public void CreateVariant(string path) => Run(() =>
+        {
+            if (IsEditing)
+            {
+                throw new InvalidOperationException("Finish editing this prefab before making a variant.");
+            }
+
+            var source = ManaPrefab.Load(path);
+            var folder = Path.GetRelativePath(ManaContentLibrary.Root, Path.GetDirectoryName(Path.GetFullPath(path))!);
+            var name = $"{source.Name} Variant";
+            for (var suffix = 2; File.Exists(Path.Combine(ManaContentLibrary.Root, folder, name + ManaPrefab.Extension)); suffix++)
+            {
+                name = $"{source.Name} Variant {suffix}";
+            }
+
+            var variantPath = ManaContentLibrary.NewPath(name, folder, ManaPrefab.Extension);
+            ManaPrefab.CreateVariant(source, path, name).Save(variantPath);
+            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(variantPath);
+            _entries = ManaContentLibrary.List();
+            Status = $"Made {name}, a variant of {source.Name}. Edit it and save: only what you change is kept.";
+        });
+
         public void CreatePrefab() => Run(() =>
         {
             if (IsEditing)
@@ -240,10 +276,12 @@ namespace ManaVoxel.Code.UI
             _savedCamera = _world.CameraNode == null ? null : SceneNodeTransformState.Capture(_world.CameraNode);
             // Retain camera and editor helpers in a separate scene; authored level content is isolated.
             var helpers = new ManaScene(_world.Context) { Name = "Editor" };
-            helpers.Children.AddRange(_savedScenes.SelectMany(s => s.Children).Where(n => n.LevelSource == null));
+            helpers.Children.AddRange(_savedScenes.SelectMany(s => s.Children).Where(n => n.LevelSource == null && !RoomOnlyNames.Contains(n.Name ?? "")));
+
             _world.Scenes = [helpers, scene];
             _world.DefaultScene = scene;
             _editingScene = scene;
+            EditingScenes = [scene];
             _editingAsset = asset;
             _editingPath = path;
             _sourceOnOpen = File.ReadAllText(path);
@@ -251,6 +289,12 @@ namespace ManaVoxel.Code.UI
             _editor?.ResetVoxelLayersAfterLevelChange();
             _editor?.History.Clear();
             EditorSelectionSnapshot.SelectNode(_world.Selection, scene.Children[0], true);
+            // A three-quarter view from above, so the prefab is seen standing on the floor, then framed whole.
+            scene.Children[0].UpdateTransform();
+            if (_world.CameraNode != null)
+            {
+                _world.CameraNode.Rotation = new Vector3(-25.0f.ToRadians(), 35.0f.ToRadians(), 0.0f);
+            }
             _world.MainCamera?.TryFrameSelection(null, scene.Children[0]);
             Status = $"Editing {asset.Name}. Save updates its placed instances; Discard returns to the level.";
         });
@@ -311,6 +355,7 @@ namespace ManaVoxel.Code.UI
             _savedSelection.Apply(_world.Selection, true);
             _savedScenes = null;
             _editingScene = null;
+            EditingScenes = null;
             _editingAsset = null;
             _editingPath = null;
             _editor?.History.Clear();
@@ -365,14 +410,67 @@ namespace ManaVoxel.Code.UI
             Status = "Reverted prefab overrides.";
         });
 
-        public void RevertOverride(ManaSceneNode root, ManaPrefabOverride change) => Run(() =>
+        public void RevertOverride(ManaSceneNode root, ManaPrefabOverride change, string? selectId = null) => Run(() =>
         {
             var reference = ManaPrefabRuntime.CaptureReference(root);
-            reference.Overrides.RemoveAll(o => o.Path.SequenceEqual(change.Path));
-            ManaPrefabRuntime.Replace(root, reference);
+            reference.Overrides.RemoveAll(o => o.Path.Take(change.Path.Length).SequenceEqual(change.Path));
+            var replacement = ManaPrefabRuntime.Replace(root, reference);
             _editor?.History.Clear();
+            Reselect(replacement, selectId);
             Status = "Reverted override.";
         });
+
+        /// <summary>What the variant open for editing changes from its base, as it stands in the scene now.</summary>
+        public List<ManaPrefabOverride> VariantOverrides()
+        {
+            var root = _editingScene?.Children.FirstOrDefault(n => n.LevelSource != null);
+            if (_editingAsset?.BaseRoot is not { } baseRoot || root == null)
+            {
+                return [];
+            }
+
+            return ManaPrefabOverrides.Diff(ManaPrefabOverrides.Flatten(baseRoot), ManaPrefabOverrides.Flatten(ManaLevelCapture.CaptureSubtree(root)));
+        }
+
+        /// <summary>Puts one of the open variant's values back to its base's, rebuilding the tree it is edited in.</summary>
+        public void RevertVariantOverride(ManaPrefabOverride change, string? selectId = null) => Run(() =>
+        {
+            if (_editingAsset?.BaseRoot is not { } baseRoot || _editingScene == null)
+            {
+                return;
+            }
+
+            var remaining = VariantOverrides().Where(o => !o.Path.Take(change.Path.Length).SequenceEqual(change.Path)).ToList();
+            var tree = ManaPrefabOverrides.Resolve(baseRoot, remaining);
+            var old = _editingScene.Children.ToList();
+            var result = ManaLevelLoader.Load(new ManaLevel { Nodes = [tree] }, _world.Context, _editingScene, false);
+            if (result.Warnings.Count > 0)
+            {
+                throw new InvalidDataException(string.Join("; ", result.Warnings));
+            }
+
+            // Only the prefab's own nodes are swapped; anything else in its scene stays put.
+            foreach (var node in old.Where(n => n.LevelSource != null))
+            {
+                ManaPrefabRuntime.Destroy(node);
+                _editingScene.Children.Remove(node);
+            }
+
+            _editor?.History.Clear();
+            if (_editingScene.Children.FirstOrDefault(n => n.LevelSource != null) is { } root)
+            {
+                Reselect(root, selectId);
+            }
+
+            Status = "Reverted to the base's value.";
+        });
+
+        private void Reselect(ManaSceneNode root, string? id)
+        {
+            var node = id == null ? root : ManaPrefabRuntime.Walk(root).FirstOrDefault(n => n.AuthoredId == id) ?? root;
+            EditorSelectionSnapshot.SelectNode(_world.Selection, node, true);
+            _world.Selection.NotifySceneGraphChanged();
+        }
 
         public void Unpack(ManaSceneNode root) => Run(() =>
         {

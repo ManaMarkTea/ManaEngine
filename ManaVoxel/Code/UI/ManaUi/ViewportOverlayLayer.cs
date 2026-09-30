@@ -11,6 +11,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         Fill,
 
         TopRight,
+        RightTools,
         BottomLeft,
         BottomRight
     }
@@ -74,6 +75,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (editor != null)
             {
                 Add(new VoxelPlacementDepthOverlay(editor, camera), ViewportSlot.Fill);
+                Add(new SelectionTransformOverlay(editor, camera), ViewportSlot.Fill);
+                Add(new ViewportToolsDrawer(theme, editor), ViewportSlot.RightTools,
+                    new Vector2(300, 350), size => size.X >= 320 && size.Y >= 180);
             }
 
             // Needs neither a camera nor an editor context -- it reads ManaAssetDownloadActivity directly,
@@ -168,6 +172,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                         viewport.Y + margin,
                         slot.Size.X,
                         slot.Size.Y),
+
+                    ViewportSlot.RightTools => new UiRect(
+                        viewport.Right - slot.Size.X - margin,
+                        viewport.Y + ViewportCameraGizmoManaView.GizmoSize + margin + 8,
+                        slot.Size.X,
+                        MathF.Max(0, MathF.Min(slot.Size.Y, viewport.Height - ViewportCameraGizmoManaView.GizmoSize - margin * 2 - 8))),
 
                     ViewportSlot.BottomLeft => new UiRect(
                         viewport.X + margin,

@@ -46,11 +46,16 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 // The property's own doc comment, shown the way Unreal shows a UPROPERTY tooltip. Nothing
                 // here was written for a UI, so the comment above the field is the only description that
                 // exists -- and it is usually the right one.
-                rows.Children.Add(InspectorControls.Row(
+                var row = InspectorControls.Row(
                     context,
                     Humanise(property.Name),
                     Editor(subject, property),
-                    XmlDocSummaries.For(property)));
+                    XmlDocSummaries.For(property));
+
+                // Saved script fields are the property names in camelCase, which is what an override's path holds.
+                rows.Children.Add(subject is ManaComponent component
+                    ? PrefabOverrideMarks.Mark(context, row, component.Owner, component, System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(property.Name))
+                    : row);
             }
 
             // Named for what it is, so nobody mistakes a reflected list for a considered one.

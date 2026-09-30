@@ -11,6 +11,8 @@ namespace Mana.Code.GameModes
     /// </summary>
     internal sealed class SceneTransformGizmo
     {
+        // Arrow centre (0.94) plus half its height (0.34 / 2), measured from the pivot.
+        internal const float TranslationTipDistance = 1.11f;
         private static readonly Vector4 XColor = new(0.92f, 0.18f, 0.16f, 1.0f);
         private static readonly Vector4 YColor = new(0.22f, 0.82f, 0.28f, 1.0f);
         private static readonly Vector4 ZColor = new(0.18f, 0.46f, 0.96f, 1.0f);
@@ -41,12 +43,19 @@ namespace Mana.Code.GameModes
         private Vector3 _dragStartRotation;
         private Vector3 _dragStartScale;
         private SceneTransformGizmoMode _dragMode;
+        private bool _dragInPlane;
+        private Vector3 _dragPlaneStart;
+        private Vector3 _dragPlaneU;
+        private Vector3 _dragPlaneV;
 
         private enum GizmoAxis
         {
             X,
             Y,
-            Z
+            Z,
+            XY,
+            YZ,
+            XZ
         }
 
         public SceneTransformGizmo(ManaWorld world, EditorUndoHistory history, EditorSnapSettings snap)
@@ -194,6 +203,14 @@ namespace Mana.Code.GameModes
                 new Vector3(0.055f, 0.055f, 0.72f), ZColor);
             AddPyramidHandle("Move Z arrow", GizmoAxis.Z, new Vector3(0.0f, 0.0f, 0.94f),
                 new Vector3(MathF.PI * 0.5f, 0.0f, 0.0f), ZColor);
+
+            // Each square moves within its own plane; its colour identifies the excluded axis.
+            AddBoxHandle("Move XY plane", GizmoAxis.XY, new Vector3(0.32f, 0.32f, 0), Vector3.Zero,
+                new Vector3(0.22f, 0.22f, 0.015f), ZColor);
+            AddBoxHandle("Move YZ plane", GizmoAxis.YZ, new Vector3(0, 0.32f, 0.32f), Vector3.Zero,
+                new Vector3(0.015f, 0.22f, 0.22f), XColor);
+            AddBoxHandle("Move XZ plane", GizmoAxis.XZ, new Vector3(0.32f, 0, 0.32f), Vector3.Zero,
+                new Vector3(0.22f, 0.015f, 0.22f), YColor);
         }
 
         private void BuildScaleHandles()
@@ -288,12 +305,8 @@ namespace Mana.Code.GameModes
                 _pivotWorld = targetWorld.Translation;
             }
 
-            var camera = _world.MainCamera;
-            _displayScale = camera.OrthoGraphic
-                ? MathF.Max(0.05f, camera.OrthographicHeight * 0.11f)
-                : Math.Clamp(Vector3.Distance(camera.Owner.WorldTransform.Translation, _pivotWorld) * 0.11f, 0.05f, 100.0f);
-
             _root.Position = _pivotWorld;
+            if (!_activeAxis.HasValue) _displayScale = _snap.GizmoSize / TranslationTipDistance;
             _root.Rotation = _orientationWorld.ToEuler();
             _root.Scale = new Vector3(_displayScale);
             _root.UpdateTransform();
@@ -327,7 +340,7 @@ namespace Mana.Code.GameModes
             GizmoAxis? closestAxis = null;
             var closestDistance = float.PositiveInfinity;
 
-            foreach (var axis in Enum.GetValues<GizmoAxis>())
+            foreach (var axis in new[] { GizmoAxis.X, GizmoAxis.Y, GizmoAxis.Z })
             {
                 var axisWorld = AxisWorld(axis);
                 var segmentStart = _pivotWorld + axisWorld * (_displayScale * handleStart);
@@ -350,7 +363,7 @@ namespace Mana.Code.GameModes
             GizmoAxis? closestAxis = null;
             var closestError = float.PositiveInfinity;
 
-            foreach (var axis in Enum.GetValues<GizmoAxis>())
+            foreach (var axis in new[] { GizmoAxis.X, GizmoAxis.Y, GizmoAxis.Z })
             {
                 var normal = AxisWorld(axis);
                 var denominator = Vector3.Dot(rayDirection, normal);
@@ -434,10 +447,28 @@ namespace Mana.Code.GameModes
             _dragStartScale = _target.Scale;
             _dragPivotWorld = _pivotWorld;
             _dragMode = mode;
-            var axisWorld = AxisWorld(axis);
+            var normalAxis = axis switch
+            {
+                GizmoAxis.XY => GizmoAxis.Z,
+                GizmoAxis.YZ => GizmoAxis.X,
+                GizmoAxis.XZ => GizmoAxis.Y,
+                _ => axis
+            };
+            var axisWorld = AxisWorld(normalAxis);
             _dragAxisWorld = axisWorld;
 
-            if (mode == SceneTransformGizmoMode.Rotate)
+            var keyboard = _world.Context.Input.Keyboards.FirstOrDefault();
+            _dragInPlane = mode == SceneTransformGizmoMode.Translate &&
+                ((int)axis >= (int)GizmoAxis.XY || keyboard?.IsKeyPressed(Key.ShiftLeft) == true || keyboard?.IsKeyPressed(Key.ShiftRight) == true);
+
+            if (_dragInPlane)
+            {
+                _dragPlaneU = AxisWorld((GizmoAxis)(((int)normalAxis + 1) % 3));
+                _dragPlaneV = AxisWorld((GizmoAxis)(((int)normalAxis + 2) % 3));
+                if (!TryPlanePoint(rayOrigin, rayDirection, _dragPivotWorld, axisWorld, out _dragPlaneStart))
+                    return;
+            }
+            else if (mode == SceneTransformGizmoMode.Rotate)
             {
                 if (!TryPlaneVector(rayOrigin, rayDirection, _dragPivotWorld, axisWorld, out _dragStartPlaneVector))
                 {
@@ -473,7 +504,17 @@ namespace Mana.Code.GameModes
             var axis = _activeAxis.Value;
             var axisWorld = _dragAxisWorld;
 
-            if (mode == SceneTransformGizmoMode.Rotate)
+            if (_dragInPlane)
+            {
+                if (!TryPlanePoint(rayOrigin, rayDirection, _dragPivotWorld, axisWorld, out var point))
+                    return;
+
+                var delta = point - _dragPlaneStart;
+                var worldDelta = _dragPlaneU * _snap.SnapDragDistance(_dragPivotWorld, _dragPlaneU, Vector3.Dot(delta, _dragPlaneU))
+                    + _dragPlaneV * _snap.SnapDragDistance(_dragPivotWorld, _dragPlaneV, Vector3.Dot(delta, _dragPlaneV));
+                ApplyWorldTranslation(worldDelta);
+            }
+            else if (mode == SceneTransformGizmoMode.Rotate)
             {
                 if (!TryPlaneVector(rayOrigin, rayDirection, _dragPivotWorld, axisWorld, out var currentVector))
                 {
@@ -519,13 +560,7 @@ namespace Mana.Code.GameModes
                 else
                 {
                     var worldDelta = axisWorld * _snap.SnapDragDistance(_dragPivotWorld, axisWorld, delta);
-                    var localDelta = worldDelta;
-                    if (_target.Parent != null && Matrix4x4.Invert(_target.Parent.WorldTransform, out var worldToParent))
-                    {
-                        localDelta = Vector3.TransformNormal(worldDelta, worldToParent);
-                    }
-
-                    _target.Position = _dragStartPosition + localDelta;
+                    ApplyWorldTranslation(worldDelta);
                 }
             }
 
@@ -551,7 +586,32 @@ namespace Mana.Code.GameModes
             }
 
             _activeAxis = null;
+            _dragInPlane = false;
             UpdateHighlight();
+        }
+
+        private void ApplyWorldTranslation(Vector3 worldDelta)
+        {
+            if (_target == null) return;
+            if (_target.Parent != null)
+            {
+                if (!Matrix4x4.Invert(_target.Parent.WorldTransform, out var worldToParent)) return;
+                worldDelta = Vector3.TransformNormal(worldDelta, worldToParent);
+            }
+            _target.Position = _dragStartPosition + worldDelta;
+        }
+
+        private static bool TryPlanePoint(Vector3 rayOrigin, Vector3 rayDirection,
+            Vector3 origin, Vector3 normal, out Vector3 point)
+        {
+            point = Vector3.Zero;
+            var denominator = Vector3.Dot(rayDirection, normal);
+            if (MathF.Abs(denominator) < 0.001f) return false;
+            var distance = Vector3.Dot(origin - rayOrigin, normal) / denominator;
+            if (!float.IsFinite(distance) || distance < 0) return false;
+            // Relative to the pivot to retain precision far from the world origin.
+            point = rayOrigin - origin + rayDirection * distance;
+            return float.IsFinite(point.X) && float.IsFinite(point.Y) && float.IsFinite(point.Z);
         }
 
         private static string DescribeMode(SceneTransformGizmoMode mode) => mode switch

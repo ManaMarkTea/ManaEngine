@@ -6,7 +6,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build Mana (debug launch)",
-      "program": "${workspaceFolder}/Mana/bin/Debug/net10.0/Mana.dll",
+      "program": "${workspaceFolder}/artifacts/bin/Mana/Debug/net10.0/Mana.dll",
       "args": [
         "--webgpu"
       ],
@@ -19,7 +19,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build Mana (debug launch)",
-      "program": "${workspaceFolder}/Mana/bin/Debug/net10.0/Mana.dll",
+      "program": "${workspaceFolder}/artifacts/bin/Mana/Debug/net10.0/Mana.dll",
       "args": [
         "--graphics", "opengl"
       ],
@@ -32,7 +32,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build ManaVoxel (debug launch)",
-      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
+      "program": "${workspaceFolder}/artifacts/bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
       "args": [
         "--webgpu"
       ],
@@ -48,7 +48,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build ManaVoxel (debug launch)",
-      "program": "${workspaceFolder}/ManaVoxel/bin/Debug/net10.0/ManaVoxel.dll",
+      "program": "${workspaceFolder}/artifacts/bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
       "args": [
         "--graphics", "opengl"
       ],

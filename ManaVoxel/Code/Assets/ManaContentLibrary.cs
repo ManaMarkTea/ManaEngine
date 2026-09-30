@@ -52,7 +52,7 @@ namespace ManaVoxel.Code.Assets
             {
                 throw new InvalidDataException("Prefab reference must stay inside Content.");
             }
-            if (File.Exists(candidate) && ManaPrefab.Load(candidate).Id == id)
+            if (File.Exists(candidate) && ManaPrefab.ReadId(candidate) == id)
             {
                 return candidate;
             }
@@ -61,7 +61,7 @@ namespace ManaVoxel.Code.Assets
             {
                 try
                 {
-                    if (ManaPrefab.Load(entry.Path).Id == id)
+                    if (ManaPrefab.ReadId(entry.Path) == id)
                     {
                         matches.Add(entry.Path);
                     }

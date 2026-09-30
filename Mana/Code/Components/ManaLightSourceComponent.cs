@@ -16,6 +16,12 @@ namespace Mana.Code
         /// <summary>Only meaningful when <see cref="LightType"/> is Directional -- casts cascaded shadow maps.</summary>
         public bool CastsShadows { get; set; }
 
+        /// <summary>How far a point light reaches, in metres; it fades smoothly to nothing there.</summary>
+        public float Range { get; set; } = 8.0f;
+
+        // The irradiance renderer's far-off fill lights, which keep the four grid slots rather than a lamp's.
+        internal bool IsGridLight { get; set; }
+
         public ManaLightSourceComponent(ManaSceneNode owner) : base(owner)
         {
             Name = "Point Light";

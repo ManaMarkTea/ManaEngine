@@ -56,6 +56,13 @@ namespace Mana.Code.UI.ManaUi
                 () => ManaEditorGizmos.Visible = !ManaEditorGizmos.Visible);
             ((GizmoIcon)gizmos.Child!).BindPolled(i => i.Alternate, () => !ManaEditorGizmos.Visible);
 
+            var room = IconButton(
+                theme,
+                DrawRoom,
+                "Show the room's walls and ceiling. Off, they appear only while drawing voxels.",
+                () => ManaEditorGizmos.ShowRoom = !ManaEditorGizmos.ShowRoom);
+            ((GizmoIcon)room.Child!).BindPolled(i => i.Alternate, () => ManaEditorGizmos.ShowRoom);
+
             return new Canvas().Width(GizmoSize).Height(GizmoSize).Children(
                 // The gizmo sits directly on the scene, which is the case backdrop blur exists for: it can
                 // stay light enough to see what is under it and still be readable against anything.
@@ -87,11 +94,13 @@ namespace Mana.Code.UI.ManaUi
                     .At(38.0f, 59.0f).Width(20.0f).Height(14.0f),
 
                 IconButton(theme, DrawViewFromBelow, "Bottom", () => camera.SetViewPreset(CameraViewPreset.Bottom))
-                    .At(8.0f, 76.0f).Width(24.0f).Height(16.0f),
+                    .At(6.0f, 76.0f).Width(20.0f).Height(16.0f),
 
-                projection.At(36.0f, 76.0f).Width(24.0f).Height(16.0f),
+                projection.At(27.0f, 76.0f).Width(20.0f).Height(16.0f),
 
-                gizmos.At(64.0f, 76.0f).Width(24.0f).Height(16.0f));
+                gizmos.At(48.0f, 76.0f).Width(20.0f).Height(16.0f),
+
+                room.At(69.0f, 76.0f).Width(20.0f).Height(16.0f));
         }
 
         /// <summary>
@@ -197,6 +206,26 @@ namespace Mana.Code.UI.ManaUi
             if (hidden)
             {
                 drawList.DrawLine(P(box, 0.14f, 0.14f), P(box, 0.86f, 0.90f), color, thickness);
+            }
+        }
+
+        /// <summary>The room toggle: a floor, with the two back walls standing on it while the room is shown.</summary>
+        private static void DrawRoom(ManaUiDrawList drawList, UiRect box, Vector4 color, bool shown)
+        {
+            const float thickness = 1.6f;
+            var left = P(box, 0.14f, 0.80f);
+            var corner = P(box, 0.50f, 0.62f);
+            var right = P(box, 0.86f, 0.80f);
+            var front = P(box, 0.50f, 0.96f);
+            drawList.DrawLine(left, corner, color, thickness);
+            drawList.DrawLine(corner, right, color, thickness);
+            drawList.DrawLine(right, front, color, thickness);
+            drawList.DrawLine(front, left, color, thickness);
+            if (shown)
+            {
+                drawList.DrawLine(left, P(box, 0.14f, 0.22f), color, thickness);
+                drawList.DrawLine(corner, P(box, 0.50f, 0.04f), color, thickness);
+                drawList.DrawLine(right, P(box, 0.86f, 0.22f), color, thickness);
             }
         }
 

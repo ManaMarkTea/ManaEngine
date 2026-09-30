@@ -186,11 +186,7 @@ namespace ManaGraphics.Code.Graphics
                 DrawSceneMesh(renderPass, sceneMesh);
             }
 
-            // Last, so nothing draws over them, and with depth ignored so nothing hides them: editor handles.
-            foreach (var sceneMesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
-            {
-                DrawSceneMesh(renderPass, sceneMesh);
-            }
+            // Always-on-top handles are drawn in a separate pass with their own depth buffer.
         }
 
         private void DrawSceneMesh(RenderPassEncoder* renderPass, ManaWebGpuSceneMesh sceneMesh)
@@ -330,8 +326,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
-            // Ordinary meshes first, then the always-on-top ones with their own depth-ignoring pipeline.
-            // Same layout either way, so the bind groups set below stay valid across the switch.
+            // Ordinary meshes use scene depth; handles use their separate depth attachment below.
             _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
 
             // Reuses the frame (group 0) and object (group 1) bind groups already made current by
@@ -355,7 +350,12 @@ namespace ManaGraphics.Code.Graphics
 
             if (_sceneMeshes.Any(mesh => mesh.Instance.OutlineEnabled && mesh.Instance.AlwaysOnTop))
             {
-                _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline(alwaysOnTop: true));
+                _api.RenderPassEncoderEnd(renderPass);
+                _api.RenderPassEncoderRelease(renderPass);
+                colorAttachment.LoadOp = LoadOp.Load;
+                depthAttachment.View = _handleDepthTextureView;
+                renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
+                _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
                 if (_frameBindGroup != null)
                 {
                     _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);

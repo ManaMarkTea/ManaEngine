@@ -22,6 +22,30 @@ namespace ManaCore.Graphics
         /// <summary>Length of each vertex-normal debug line, in world units.</summary>
         public float VertexNormalLength { get; set; } = 1.0f;
 
+        /// <summary>
+        /// What the background shows. Every mode but Photo is computed per pixel -- the environment image is only
+        /// a 512-pixel cube and reads as a smear behind the scene. Reflections still use the image.
+        /// </summary>
+        public ManaSkyMode Sky { get; set; } = ManaSkyMode.Day;
+
+        /// <summary>Where in the day the cycle is, 0..1: 0 is sunrise (6 am), 0.25 noon, 0.5 sunset, 0.75 midnight.</summary>
+        public float TimeOfDay { get; set; } = 0.12f;
+
+        /// <summary>
+        /// How fast the cycle runs, in sky seconds per real second: 60 is a minute a second, 3600 an hour a
+        /// second (a day in 24 s). 0 holds it still.
+        /// </summary>
+        public float TimeSpeed { get; set; } = 300.0f;
+
+        /// <summary>Follows the wall clock instead: the sky is as it is outside right now.</summary>
+        public bool RealTime { get; set; }
+
+        // When ManaSky.Tick last moved the clock on, so each frame advances it by the time since.
+        internal double LastTickSeconds = -1.0;
+
+        // How far the clouds have drifted, in seconds of wind -- see ManaSky.Tick.
+        internal double CloudSeconds;
+
         public ManaIrradianceSettings Clone()
         {
             return new ManaIrradianceSettings
@@ -40,7 +64,11 @@ namespace ManaCore.Graphics
                 WebGpuDebugMode = WebGpuDebugMode,
                 WireframeEnabled = WireframeEnabled,
                 VertexNormalsEnabled = VertexNormalsEnabled,
-                VertexNormalLength = VertexNormalLength
+                VertexNormalLength = VertexNormalLength,
+                Sky = Sky,
+                TimeOfDay = TimeOfDay,
+                TimeSpeed = TimeSpeed,
+                RealTime = RealTime
             };
         }
     }

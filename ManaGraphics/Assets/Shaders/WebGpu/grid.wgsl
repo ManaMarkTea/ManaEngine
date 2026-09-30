@@ -8,6 +8,7 @@ struct VertexOutput {
 }
 
 #include "include/uniforms.wgsl"
+#include "include/point_lights.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/shadows.wgsl"
@@ -47,6 +48,24 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 // reconstruction below both assume a plane's 0..1 UV spans exactly this many world units.
 const RoomSize : f32 = 256.0;
 
+// The world axes, in the transform gizmo's colours (UiTheme.AxisX/AxisY/AxisZ).
+const AxisXColor : vec3<f32> = vec3<f32>(0.780, 0.329, 0.314);
+const AxisYColor : vec3<f32> = vec3<f32>(0.427, 0.627, 0.353);
+const AxisZColor : vec3<f32> = vec3<f32>(0.353, 0.529, 0.780);
+
+// How far, in pixels, a point is from the world axis running along `along` (0 = X, 1 = Y, 2 = Z): the
+// larger of its distances from the two planes that meet in that axis.
+fn axis_pixels(position : vec3<f32>, footprint : vec3<f32>, along : u32) -> f32 {
+    let off = abs(position) / footprint;
+    if (along == 0u) {
+        return max(off.y, off.z);
+    }
+    if (along == 1u) {
+        return max(off.x, off.z);
+    }
+    return max(off.x, off.y);
+}
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // See-through from behind: a surface is dropped only when the camera is on its outer side, so flying
@@ -54,7 +73,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // mesh normals' signs aren't consistent (a mirrored far wall reuses its near wall's winding), so the
     // normal is flipped to point at the room's centre first. The room is convex, so a camera inside it is
     // always on the inner side of every surface and nothing is ever dropped from within.
-    let toCenter = vec3<f32>(RoomSize * 0.5) - input.world_position;
+    // The room is centred on the origin in X and Z (VoxelEditorGameMode.BuildGridRoom), and stands on Y = 0.
+    let toCenter = vec3<f32>(0.0, RoomSize * 0.5, 0.0) - input.world_position;
     var inward = normalize(input.world_normal);
     if (dot(inward, toCenter) < 0.0) {
         inward = -inward;
@@ -189,6 +209,17 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     colorVal = mix(colorVal, lineColor, mainLineMix);
     colorVal = mix(colorVal, lineColor, 1.0 - smoothstep(0.0, 4.0 * lineThickness, aLineDist));
 
+    // The world axes drawn over the grid wherever a surface holds one -- X and Z cross at the floor's
+    // centre -- so which way is +X is readable at a glance. Kept wider and stronger than a tile line and
+    // faded only a little with distance, since there are just the three of them.
+    let axisFootprint = max(fwidth(input.world_position), vec3<f32>(1e-5));
+    let axisWidth = 3.0 * max(lineThickness, 0.5);
+    // Mixed in after the lighting below rather than here: they glow, so they read at night too.
+    let axisStrength = mix(1.0, 0.6, fadeT);
+    let axisX = (1.0 - smoothstep(0.0, axisWidth, axis_pixels(input.world_position, axisFootprint, 0u))) * axisStrength;
+    let axisZ = (1.0 - smoothstep(0.0, axisWidth, axis_pixels(input.world_position, axisFootprint, 2u))) * axisStrength;
+    let axisY = (1.0 - smoothstep(0.0, axisWidth, axis_pixels(input.world_position, axisFootprint, 1u))) * axisStrength;
+
     // Darkened, not blacked out, where the sun's shadow falls -- this room is a decorative,
     // otherwise-unlit backdrop, not a PBR surface, so a soft multiply reads as "something is between the
     // room and the light" without pretending this floor is really being lit at all. Gated on
@@ -196,6 +227,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // active shadow-casting sun this frame, frame.cascade_view_projections can hold last frame's stale
     // matrices, so skipping the sample entirely is what keeps a disabled/removed sun from leaving a
     // ghost shadow behind.
+    // Preserve the themed surface colour as diffuse albedo before sun shadows and night dimming.
+    let local_albedo = srgb_to_linear(colorVal.rgb);
     var shadow = 1.0;
     if (frame.sun_direction.w > 0.5) {
         let sun_ndotl = max(dot(normalize(input.world_normal), normalize(-frame.sun_direction.xyz)), 0.0);
@@ -203,5 +236,25 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     }
     colorVal = vec4<f32>(colorVal.rgb * mix(0.35, 1.0, shadow), colorVal.a);
 
-    return vec4<f32>(srgb_to_linear(colorVal.rgb), -1.0);
+    // Night falls on the floor too (frame.irradiance_factors.w is ManaSky's daylight), to a dim moonlit grey.
+    colorVal = vec4<f32>(colorVal.rgb * mix(0.05, 1.0, frame.irradiance_factors.w), colorVal.a);
+
+    // The axes are emissive: full colour by day, and brighter than the dimmed floor by night, so they glow.
+    let axisGlow = mix(1.6, 1.0, frame.irradiance_factors.w);
+    colorVal = mix(colorVal, vec4<f32>(AxisXColor * axisGlow, 1.0), axisX);
+    colorVal = mix(colorVal, vec4<f32>(AxisZColor * axisGlow, 1.0), axisZ);
+    colorVal = mix(colorVal, vec4<f32>(AxisYColor * axisGlow, 1.0), axisY);
+
+    // Lamps illuminate the room independently of daylight. Use its inward-facing normal so
+    // mirrored walls and the floor all receive light from inside the room.
+    var local_diffuse = vec3<f32>(0.0);
+    for (var i = 0u; i < 16u; i = i + 1u) {
+        let to_light = frame.local_light_positions[i].xyz - input.world_position;
+        let distance = max(length(to_light), 0.05);
+        let attenuation = mana_point_light_attenuation(distance, frame.local_light_positions[i].w);
+        let ndotl = max(dot(inward, to_light / distance), 0.0);
+        local_diffuse += local_albedo / 3.14159265 * frame.local_light_colors[i].rgb * attenuation * ndotl;
+    }
+
+    return vec4<f32>(srgb_to_linear(colorVal.rgb) + local_diffuse, -1.0);
 }

@@ -199,10 +199,10 @@ namespace Mana.Code.Renderers
 
         private static readonly Vector3[] gridLightPositions =
         {
-            new Vector3(0.0f, DebugGridSize, 0.0f),
-            new Vector3(DebugGridSize, DebugGridSize, 0.0f),
-            new Vector3(0.0f, DebugGridSize, DebugGridSize),
-            new Vector3(DebugGridSize, DebugGridSize, DebugGridSize),
+            new Vector3(-DebugGridSize * 0.5f, DebugGridSize, -DebugGridSize * 0.5f),
+            new Vector3(DebugGridSize * 0.5f, DebugGridSize, -DebugGridSize * 0.5f),
+            new Vector3(-DebugGridSize * 0.5f, DebugGridSize, DebugGridSize * 0.5f),
+            new Vector3(DebugGridSize * 0.5f, DebugGridSize, DebugGridSize * 0.5f),
         };
 
         private static readonly string[] gridLightNames =
@@ -401,6 +401,7 @@ namespace Mana.Code.Renderers
                 var light = new ManaLightSourceComponent(lightNode)
                 {
                     Name = "PBR Point Light",
+                    IsGridLight = true,
                     Color = settings.LightColor,
                     Intensity = settings.LightIntensity * lightWeights[i]
                 };

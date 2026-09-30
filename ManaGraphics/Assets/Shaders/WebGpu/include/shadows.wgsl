@@ -42,7 +42,13 @@ fn mana_sun_shadow_factor(world_position : vec3<f32>, ndotl : f32) -> f32 {
     }
 
     let shadow_uv = light_ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5, 0.5);
-    let shadow_depth = light_ndc.z;
+
+    // Pulled towards the light, more so on surfaces the light grazes, so a surface never shadows itself
+    // with the stair-step pattern of its own depth texels. Scaled per cascade: farther ones cover more
+    // ground per texel.
+    let slope = sqrt(max(1.0 - ndotl * ndotl, 0.0)) / max(ndotl, 0.1);
+    let bias = (0.00025 + 0.0006 * min(slope, 8.0)) * f32(cascade + 1u);
+    let shadow_depth = light_ndc.z - bias;
 
     // 3x3 manual PCF: the comparison sampler itself is Nearest (see CreateShadowMapResources), so the
     // softening comes entirely from this multi-tap average rather than hardware-filtered comparison,

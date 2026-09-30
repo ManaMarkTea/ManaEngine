@@ -751,10 +751,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Blur(theme.BackdropBlur)
                     .Outline(theme.Border, 1.0f)
                     .Height(menuBarHeight)
-                    .Content(new Grid().Columns("*, Auto").Rows("Auto").Children(
-                        BuildMenuBar(vm, state, Choose, ResetPanels, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, OpenPanel, editor)
+                    .Content(new Grid().Columns("*, Auto, Auto").Rows("Auto").Children(
+                        BuildMenuBar(vm, state, Choose, ResetPanels, debug, root, ChooseTheme, ChooseFont, ChooseBlur, TogglePanel, IsPanelOpen, OpenPanel, editor, world)
                             .GridColumn(0),
-                        BuildClock(theme).Margin(0.0f, 0.0f, 12.0f, 0.0f).GridColumn(1)))
+                        (world == null ? new Border() : SkyClockManaView.Build(theme, world.IrradianceSettings))
+                            .Margin(0.0f, 0.0f, 12.0f, 0.0f).CenterV().GridColumn(1),
+                        BuildClock(theme).Margin(0.0f, 0.0f, 12.0f, 0.0f).GridColumn(2)))
                     .Anchor(top: 0.0f, left: 0.0f, right: 0.0f),
 
                 new Border()
@@ -1246,7 +1248,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             Action<string> togglePanel,
             Func<string, bool> isPanelOpen,
             Action<string> openPanel,
-            VoxelEditorViewModel? editor)
+            VoxelEditorViewModel? editor,
+            global::Mana.ManaWorld? world)
         {
             var bar = new MenuBar();
 
@@ -1317,6 +1320,22 @@ namespace ManaVoxel.Code.UI.ManaUi
                             }
                         })
                         .Checkable(() => editor?.ShowWireframe ?? vm.ShowWireframe),
+                    new MenuItem("Sky").WithItems(
+                        new[]
+                        {
+                            (ManaCore.Graphics.ManaSkyMode.Day, "Day"),
+                            (ManaCore.Graphics.ManaSkyMode.DayNightCycle, "Day and Night"),
+                            (ManaCore.Graphics.ManaSkyMode.Space, "Space"),
+                            (ManaCore.Graphics.ManaSkyMode.Photo, "Photo")
+                        }.Select(choice => new MenuItem(choice.Item2, () =>
+                            {
+                                if (world != null)
+                                {
+                                    world.IrradianceSettings.Sky = choice.Item1;
+                                }
+                            })
+                            .Checkable(() => world?.IrradianceSettings.Sky == choice.Item1)
+                            .EnabledWhen(() => world != null)).ToArray()),
                     MenuItem.Separator(),
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
@@ -1346,6 +1365,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 return;
             }
+
+            // LCARS is a starship's bridge: its sky is space. Every other theme gets a day.
+            world.IrradianceSettings.Sky = theme.Kind == UiThemeKind.Lcars
+                ? ManaCore.Graphics.ManaSkyMode.Space
+                : ManaCore.Graphics.ManaSkyMode.Day;
 
             lock (world.SceneLock)
             {

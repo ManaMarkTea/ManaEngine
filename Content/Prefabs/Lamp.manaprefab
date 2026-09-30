@@ -1,0 +1,66 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "499f5cf016e442acb2b5827176ee718c",
+  "name": "Lamp",
+  "root": {
+    "id": "1cddbc477f5c4579adc1a064b576fdba",
+    "name": "Lamp",
+    "kind": "Group",
+    "position": [0, 0, 0],
+    "rotation": [0, 0, 0],
+    "scale": [1, 1, 1],
+    "children": [
+      {
+        "id": "dbc8aafada6140f592ee23ecf5e503d7",
+        "name": "Post",
+        "kind": "Mesh",
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "asset": "Assets/Models/Kenny/lightpost-single.glb"
+      },
+      {
+        "id": "2d7389e40156471eaa67d49570a63d69",
+        "name": "Bulb",
+        "kind": "Group",
+        "position": [0, 1.15, 0.26],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "scripts": [
+          {
+            "id": "e9408b192fcb4a0e8d186ae291cb8282",
+            "type": "Light",
+            "properties": {
+              "intensity": 1,
+              "color": [1, 1, 1, 1],
+              "direction": [0, -1, 0],
+              "enabled": true,
+              "lightType": "Point",
+              "castsShadows": false,
+              "range": 6
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "5a249e8386e54a47838033183886606b",
+      "name": "Light Color",
+      "nodeId": "2d7389e40156471eaa67d49570a63d69",
+      "componentId": "e9408b192fcb4a0e8d186ae291cb8282",
+      "property": "color"
+    },
+    {
+      "id": "068625ee2af24647bd502766a7de664e",
+      "name": "Brightness",
+      "nodeId": "2d7389e40156471eaa67d49570a63d69",
+      "componentId": "e9408b192fcb4a0e8d186ae291cb8282",
+      "property": "intensity",
+      "minimum": 0,
+      "maximum": 8
+    }
+  ]
+}

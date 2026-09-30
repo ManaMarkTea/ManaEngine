@@ -68,7 +68,7 @@ jobs:
         # that step moves the library out to GitHub Pages.
         run: >
           dotnet run --project Tools/ThumbnailBaker --
-          --app-bundle ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
+          --app-bundle artifacts/bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
 
       - name: Move the external asset library off the itch.io bundle
         # itch.io caps a browser-embedded build's *extracted* size at 500MB; the external asset
@@ -78,7 +78,7 @@ jobs:
         # else about the build needs to know which host it ends up shipped to.
         run: >
           python Tools/WebAssets/split_for_itch.py
-          --app-bundle ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
+          --app-bundle artifacts/bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
           --library-out pages-site/web-assets/AssetLibrary
           --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
 
@@ -95,7 +95,7 @@ jobs:
         uses: KikimoraGames/itch-publish@v0.0.3
         with:
           butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
-          gameData: ManaVoxel.Editor.Web/bin/Release/net10.0/browser-wasm/AppBundle
+          gameData: artifacts/bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
           itchUsername: manamarktea
           itchGameId: mana-editor
           buildChannel: web

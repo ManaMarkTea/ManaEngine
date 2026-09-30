@@ -20,7 +20,26 @@ namespace ManaCore.Diagnostics
         private static Logger? _logger;
 
         public static string DiagnosticLogPath { get; } =
-            Path.Combine(Environment.CurrentDirectory, "ManaGraphicsStartup.log");
+            Path.Combine(FindLogRoot(), "artifacts", "logs", "ManaGraphicsStartup.log");
+
+        private static string FindLogRoot()
+        {
+            // Resolve the checkout even when dotnet run or the debugger starts in a project folder.
+            foreach (var start in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
+            {
+                for (var directory = new DirectoryInfo(start); directory != null; directory = directory.Parent)
+                {
+                    if (File.Exists(Path.Combine(directory.FullName, "Directory.Build.props")) &&
+                        File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))
+                    {
+                        return directory.FullName;
+                    }
+                }
+            }
+
+            // Standalone builds keep their diagnostics beneath the launch directory.
+            return Environment.CurrentDirectory;
+        }
 
         /// <summary>
         /// Set the moment this type is first touched, which for every entry point is at or near the very

@@ -14,23 +14,23 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return new Expander()
                 .Header("Transform")
                 .Section(theme.Spacing,
-                    InspectorControls.Row(context, "Position", TransformVector(
+                    PrefabOverrideMarks.Mark(context, InspectorControls.Row(context, "Position", TransformVector(
                         node,
                         context,
                         () => node.Position,
                         value => node.Position = value,
                         step: 0.1f,
-                        "Move")),
+                        "Move")), node, null, "position"),
 
-                    InspectorControls.Row(context, "Rotation", Rotation(node, context)),
+                    PrefabOverrideMarks.Mark(context, InspectorControls.Row(context, "Rotation", Rotation(node, context)), node, null, "rotation"),
 
-                    InspectorControls.Row(context, "Scale", TransformVector(
+                    PrefabOverrideMarks.Mark(context, InspectorControls.Row(context, "Scale", TransformVector(
                         node,
                         context,
                         () => node.Scale,
                         value => node.Scale = value,
                         step: 0.05f,
-                        "Scale")));
+                        "Scale")), node, null, "scale"));
         }
 
         /// <summary>

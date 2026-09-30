@@ -45,6 +45,9 @@ namespace ManaVoxel.Code.Automation
 
         /// <summary>grid_generate: big rooms' cells a side, when set; they are otherwise the preset's.</summary>
         public int BigSize { get; set; }
+
+        /// <summary>sky: where in the day to hold a day-night cycle, 0..1 (0 sunrise, 0.25 noon, 0.5 sunset).</summary>
+        public float? TimeOfDay { get; set; }
     }
 
     public static class ManaCommandFile

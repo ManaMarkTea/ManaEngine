@@ -196,6 +196,28 @@ public static class LevelSerializationChecks
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         Check("gizmo drag projection helpers are available", projectAxis != null && distanceToHandle != null);
 
+        var projectPlane = gizmoType?.GetMethod("TryPlanePoint",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Check("two-axis gizmo projection is available", projectPlane != null);
+        if (projectPlane != null)
+        {
+            foreach (var normal in new[] { Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ,
+                         Vector3.Normalize(new Vector3(1, 2, 3)) })
+            {
+                var wanted = Vector3.Cross(normal, new Vector3(2, 3, 4));
+                var pivot = new Vector3(40, 5, -20);
+                object?[] ray = { pivot + normal * 10, Vector3.Normalize(wanted - normal * 10), pivot, normal, Vector3.Zero };
+                var hit = projectPlane.Invoke(null, ray) is true;
+                var point = (Vector3)ray[4]!;
+                Check("plane movement preserves the excluded axis, including rotated handles",
+                    hit && Vector3.Distance(point, wanted) < 0.001f && MathF.Abs(Vector3.Dot(point, normal)) < 0.001f);
+            }
+            object?[] centre = { new Vector3(0, 0, 10), -Vector3.UnitZ, Vector3.Zero, Vector3.UnitZ, Vector3.One };
+            Check("a plane drag may start exactly at its origin", projectPlane.Invoke(null, centre) is true && (Vector3)centre[4]! == Vector3.Zero);
+            object?[] parallel = { new Vector3(0, 0, 10), Vector3.UnitX, Vector3.Zero, Vector3.UnitZ, Vector3.Zero };
+            Check("an edge-on plane refuses an unstable drag", projectPlane.Invoke(null, parallel) is false);
+        }
+
         if (projectAxis != null)
         {
             object?[] centerRay =

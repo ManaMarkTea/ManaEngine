@@ -733,9 +733,7 @@ namespace ManaVoxel.Code.Levels
             {
                 Environment.CurrentDirectory,
                 Path.Combine(Environment.CurrentDirectory, "Mana"),
-                AppContext.BaseDirectory,
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana")
+                AppContext.BaseDirectory
             };
 
             foreach (var root in roots)
@@ -745,6 +743,27 @@ namespace ManaVoxel.Code.Levels
                 {
                     return candidate;
                 }
+            }
+
+            // Source assets are not all copied to the output. Locate the checkout without
+            // depending on the depth of bin/, artifacts/bin/, or runtime-specific outputs.
+            for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
+            {
+                if (!File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))
+                {
+                    continue;
+                }
+
+                foreach (var root in new[] { directory.FullName, Path.Combine(directory.FullName, "Mana") })
+                {
+                    var candidate = Path.GetFullPath(Path.Combine(root, normalized));
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+
+                break;
             }
 
             return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, normalized));

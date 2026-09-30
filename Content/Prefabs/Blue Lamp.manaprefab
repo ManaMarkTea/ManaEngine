@@ -1,0 +1,23 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "3cd0e2244e954f35aba679302415466a",
+  "name": "Blue Lamp",
+  "base": {
+    "assetId": "499f5cf016e442acb2b5827176ee718c",
+    "assetPath": "Prefabs/Lamp.manaprefab",
+    "overrides": [
+      {
+        "path": [
+          "2d7389e40156471eaa67d49570a63d69",
+          "scripts",
+          "e9408b192fcb4a0e8d186ae291cb8282",
+          "properties",
+          "color"
+        ],
+        "value": [0.2, 0.45, 1, 1]
+      }
+    ]
+  },
+  "properties": []
+}

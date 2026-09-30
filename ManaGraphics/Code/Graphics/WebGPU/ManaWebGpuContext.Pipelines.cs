@@ -619,8 +619,8 @@ namespace ManaGraphics.Code.Graphics
             // precedent already relied on for group 0's TransformUniform.
             var pipeline = CreateDemoRenderPipeline(
                 shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent,
-                disableDepthWrite || alwaysOnTop,
-                depthCompare: alwaysOnTop ? CompareFunction.Always : CompareFunction.Less,
+                alwaysOnTop ? false : disableDepthWrite,
+                depthCompare: CompareFunction.Less,
                 cullBackFaces: cullBackFaces);
             _pipelines[pipelineKey] = (nint)pipeline;
 
@@ -661,8 +661,7 @@ namespace ManaGraphics.Code.Graphics
         }
 
         // The mask is depth-tested against what the scene pass left behind, so a highlighted mesh only
-        // shows where nothing is in front of it. Handles that are always on top compare Always instead, or
-        // their hover highlight would vanish behind the model exactly as the handle used to.
+        // shows where nothing is in front of it. Handles use their own depth buffer for the same test.
         private RenderPipeline* CreateOutlineMaskPipeline(CompareFunction depthCompare)
         {
             var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "outline_mask.wgsl"));

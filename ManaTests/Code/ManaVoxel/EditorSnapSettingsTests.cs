@@ -82,6 +82,7 @@ public static class EditorSnapChecks
             first.TranslateStep = 2.5f;
             first.RotationStepDegrees = 45.0f;
             first.ScaleStep = 0.5f;
+            first.GizmoSize = 1.75f;
 
             var second = new EditorSnapSettings();
             second.Restore(file);
@@ -89,6 +90,7 @@ public static class EditorSnapChecks
                 second.Enabled && Near(second.TranslateStep, 2.5f) && Near(second.RotationStepDegrees, 45.0f)
                 && Near(second.ScaleStep, 0.5f),
                 $"{second.Enabled} {second.TranslateStep} {second.RotationStepDegrees} {second.ScaleStep}");
+            Check("manual gizmo size is remembered", Near(second.GizmoSize, 1.75f));
 
             File.WriteAllText(file, "{ not json");
             var corrupt = new EditorSnapSettings();
@@ -109,6 +111,7 @@ public static class EditorSnapChecks
             File.WriteAllText(file, "{\"enabled\":true,\"translateStep\":-3,\"rotationStepDegrees\":0,\"scaleStep\":0}");
             var hostile = new EditorSnapSettings();
             hostile.Restore(file);
+            Check("older preferences keep the original gizmo size", Near(hostile.GizmoSize, 1.0f));
             Check("and hand-edited nonsense is clamped on the way in",
                 Near(hostile.TranslateStep, EditorSnapSettings.MinimumTranslateStep)
                 && Near(hostile.RotationStepDegrees, EditorSnapSettings.MinimumRotationStepDegrees)
@@ -188,6 +191,27 @@ public static class EditorSnapChecks
 
         tick.IsChecked = false;
         Check("the panel's own switch is the same one the menu drives", !panelVm.Snap.Enabled);
+
+        var drawer = new ViewportToolsDrawer(root.Theme, panelVm);
+        root.Content = drawer;
+        root.UpdateLayout(new Vector2(300, 350));
+        Check("a closed viewport drawer leaves the scene clickable", root.HitTest(30, 100) == null);
+        drawer.IsOpen = true;
+        root.UpdateLayout(new Vector2(300, 350));
+        Check("the open drawer captures clicks over its controls", root.HitTest(30, 100) != null);
+        var sizeSlider = FindAll<SliderBox>(drawer).Single();
+        sizeSlider.Value = 2.0f;
+        root.UpdateLayout(new Vector2(300, 350));
+        Check("the viewport slider updates gizmo size", Near(panelVm.Snap.GizmoSize, 2));
+        panelVm.Snap.GizmoSize = float.NaN;
+        root.UpdateLayout(new Vector2(300, 350));
+        Check("invalid size recovers and is reflected in the slider", Near(sizeSlider.Value, 1));
+        var drawerSwitch = FindAll<CheckBox>(drawer).Single();
+        drawerSwitch.IsChecked = true;
+        Check("viewport snapping uses the same setting as Preferences", panelVm.Snap.Enabled);
+        drawer.IsOpen = false;
+        root.UpdateLayout(new Vector2(300, 350));
+        Check("closing the drawer releases the scene again", root.HitTest(30, 100) == null);
     }
 
     private static List<T> FindAll<T>(UiElement? element) where T : UiElement

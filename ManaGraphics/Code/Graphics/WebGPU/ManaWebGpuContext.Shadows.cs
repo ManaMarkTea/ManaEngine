@@ -21,7 +21,13 @@ namespace ManaGraphics.Code.Graphics
     {
         private const int CascadeCount = 3;
         private const int ShadowMapResolution = 2048;
-        private const float MaxShadowDistance = 300.0f;
+        // Shadows reach this far from the camera. Three cascades over 300 units left each texel too coarse
+        // for anything the size of a lamp post to cast a shadow worth the name.
+        private const float MaxShadowDistance = 150.0f;
+
+        // How far behind each cascade the light's box starts, so casters outside the view -- up a tall
+        // tower, or behind the camera -- still shadow what is in it.
+        private const float CasterReach = 200.0f;
 
         private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[CascadeCount];
         private readonly float[] _cascadeSplitFar = new float[CascadeCount];
@@ -31,9 +37,11 @@ namespace ManaGraphics.Code.Graphics
         private readonly TextureView*[] _shadowCascadeRenderViews = new TextureView*[CascadeCount];
         private Sampler* _shadowSampler;
 
-        private WebGpuBuffer* _shadowUniformBuffer;
+        // One light matrix buffer per cascade. A single shared one, rewritten between cascades, left every
+        // cascade drawn with the last one's matrix: queue writes all land before the command buffer runs.
+        private readonly WebGpuBuffer*[] _shadowUniformBuffers = new WebGpuBuffer*[CascadeCount];
         private BindGroupLayout* _shadowBindGroupLayout;
-        private BindGroup* _shadowBindGroup;
+        private readonly BindGroup*[] _shadowBindGroups = new BindGroup*[CascadeCount];
         private PipelineLayout* _shadowPipelineLayout;
         private RenderPipeline* _shadowPipeline;
 
@@ -135,10 +143,13 @@ namespace ManaGraphics.Code.Graphics
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
                 Size = (ulong)sizeof(ManaWebGpuShadowUniform)
             };
-            _shadowUniformBuffer = _api.DeviceCreateBuffer(_device, &shadowUniformBufferDescriptor);
-            if (_shadowUniformBuffer == null)
+            for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
-                throw new InvalidOperationException("Failed to create WebGPU shadow uniform buffer.");
+                _shadowUniformBuffers[cascade] = _api.DeviceCreateBuffer(_device, &shadowUniformBufferDescriptor);
+                if (_shadowUniformBuffers[cascade] == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU shadow uniform buffer.");
+                }
             }
 
             var shadowBindGroupLayoutEntry = new BindGroupLayoutEntry
@@ -163,23 +174,26 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU shadow bind group layout.");
             }
 
-            var shadowBindGroupEntry = new BindGroupEntry
+            for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
-                Binding = 0,
-                Buffer = _shadowUniformBuffer,
-                Offset = 0,
-                Size = (ulong)sizeof(ManaWebGpuShadowUniform)
-            };
-            var shadowBindGroupDescriptor = new BindGroupDescriptor
-            {
-                Layout = _shadowBindGroupLayout,
-                EntryCount = 1,
-                Entries = &shadowBindGroupEntry
-            };
-            _shadowBindGroup = _api.DeviceCreateBindGroup(_device, &shadowBindGroupDescriptor);
-            if (_shadowBindGroup == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU shadow bind group.");
+                var shadowBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 0,
+                    Buffer = _shadowUniformBuffers[cascade],
+                    Offset = 0,
+                    Size = (ulong)sizeof(ManaWebGpuShadowUniform)
+                };
+                var shadowBindGroupDescriptor = new BindGroupDescriptor
+                {
+                    Layout = _shadowBindGroupLayout,
+                    EntryCount = 1,
+                    Entries = &shadowBindGroupEntry
+                };
+                _shadowBindGroups[cascade] = _api.DeviceCreateBindGroup(_device, &shadowBindGroupDescriptor);
+                if (_shadowBindGroups[cascade] == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU shadow bind group.");
+                }
             }
 
             // Group 1 reuses _objectBindGroupLayout (the ordinary per-mesh model/material bind group) so
@@ -354,9 +368,9 @@ namespace ManaGraphics.Code.Graphics
                     radius = MathF.Max(radius, Vector3.Distance(center, corners[c]));
                 }
 
-                var lightEye = center - sunDirection * radius * 1.5f;
+                var lightEye = center - sunDirection * (radius + CasterReach);
                 var lightView = Matrix4x4.CreateLookAt(lightEye, center, up);
-                var lightProjection = Matrix4x4.CreateOrthographic(radius * 2.0f, radius * 2.0f, 0.01f, radius * 3.0f);
+                var lightProjection = Matrix4x4.CreateOrthographic(radius * 2.0f, radius * 2.0f, 0.01f, radius * 2.0f + CasterReach);
 
                 _cascadeViewProjections[i] = lightView * lightProjection;
                 _cascadeSplitFar[i] = cascadeFar;
@@ -397,7 +411,7 @@ namespace ManaGraphics.Code.Graphics
         private void RenderShadowCascades(CommandEncoder* commandEncoder)
         {
             if (_activeRenderScene == null || !_activeRenderScene.HasSun || !_activeRenderScene.SunCastsShadows
-                || _shadowPipeline == null || _shadowBindGroup == null || _shadowUniformBuffer == null)
+                || _shadowPipeline == null || _shadowBindGroups[CascadeCount - 1] == null)
             {
                 return;
             }
@@ -405,7 +419,7 @@ namespace ManaGraphics.Code.Graphics
             for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
                 var lightViewProjection = _cascadeViewProjections[cascade];
-                _api.QueueWriteBuffer(_queue, _shadowUniformBuffer, 0, &lightViewProjection, (nuint)sizeof(Matrix4x4));
+                _api.QueueWriteBuffer(_queue, _shadowUniformBuffers[cascade], 0, &lightViewProjection, (nuint)sizeof(Matrix4x4));
 
                 var depthAttachment = new RenderPassDepthStencilAttachment
                 {
@@ -429,11 +443,14 @@ namespace ManaGraphics.Code.Graphics
 
                 var pass = _api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
                 _api.RenderPassEncoderSetPipeline(pass, _shadowPipeline);
-                _api.RenderPassEncoderSetBindGroup(pass, 0, _shadowBindGroup, 0, null);
+                _api.RenderPassEncoderSetBindGroup(pass, 0, _shadowBindGroups[cascade], 0, null);
 
                 foreach (var sceneMesh in _sceneMeshes)
                 {
-                    if (sceneMesh.Instance.IsTransparent)
+                    // The editor room only receives: its floor casting onto itself is nothing but acne, and
+                    // its ceiling would put the whole room in shade. Handles cast nothing either.
+                    if (sceneMesh.Instance.IsTransparent || sceneMesh.Instance.AlwaysOnTop
+                        || sceneMesh.Instance.ShaderName == "ManaGridShader")
                     {
                         continue;
                     }
@@ -470,10 +487,13 @@ namespace ManaGraphics.Code.Graphics
                 _shadowPipelineLayout = null;
             }
 
-            if (_shadowBindGroup != null)
+            for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
-                _api.BindGroupRelease(_shadowBindGroup);
-                _shadowBindGroup = null;
+                if (_shadowBindGroups[cascade] != null)
+                {
+                    _api.BindGroupRelease(_shadowBindGroups[cascade]);
+                    _shadowBindGroups[cascade] = null;
+                }
             }
 
             if (_shadowBindGroupLayout != null)
@@ -482,10 +502,13 @@ namespace ManaGraphics.Code.Graphics
                 _shadowBindGroupLayout = null;
             }
 
-            if (_shadowUniformBuffer != null)
+            for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
-                _api.BufferRelease(_shadowUniformBuffer);
-                _shadowUniformBuffer = null;
+                if (_shadowUniformBuffers[cascade] != null)
+                {
+                    _api.BufferRelease(_shadowUniformBuffers[cascade]);
+                    _shadowUniformBuffers[cascade] = null;
+                }
             }
 
             if (_shadowSampler != null)

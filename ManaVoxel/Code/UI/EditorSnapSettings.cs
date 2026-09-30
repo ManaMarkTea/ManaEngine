@@ -39,6 +39,14 @@ namespace ManaVoxel.Code.UI
         private float _translateStep = DefaultTranslateStep;
         private float _rotationStepDegrees = DefaultRotationStepDegrees;
         private float _scaleStep = DefaultScaleStep;
+        private float _gizmoSize = 1.0f;
+
+        /// <summary>Manual world-size multiplier for transform handles, independent of camera distance.</summary>
+        public float GizmoSize
+        {
+            get => _gizmoSize;
+            set => SetStep(ref _gizmoSize, float.IsFinite(value) ? Math.Clamp(value, 0.25f, 3.0f) : 1.0f, 0.25f);
+        }
         private string? _persistPath;
 
         public bool Enabled
@@ -169,6 +177,7 @@ namespace ManaVoxel.Code.UI
                     _translateStep = Math.Max(MinimumTranslateStep, stored.TranslateStep);
                     _rotationStepDegrees = Math.Max(MinimumRotationStepDegrees, stored.RotationStepDegrees);
                     _scaleStep = Math.Max(MinimumScaleStep, stored.ScaleStep);
+                    GizmoSize = stored.GizmoSize;
                 }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -198,7 +207,7 @@ namespace ManaVoxel.Code.UI
             }
 
             var json = JsonSerializer.Serialize(
-                new StoredSettings(_enabled, _translateStep, _rotationStepDegrees, _scaleStep),
+                new StoredSettings(_enabled, _translateStep, _rotationStepDegrees, _scaleStep, _gizmoSize),
                 SerializerOptions);
 
             try
@@ -230,6 +239,7 @@ namespace ManaVoxel.Code.UI
             bool Enabled,
             float TranslateStep,
             float RotationStepDegrees,
-            float ScaleStep);
+            float ScaleStep,
+            float GizmoSize = 1.0f);
     }
 }

@@ -24,7 +24,7 @@
     Only used with -Launch. Time to let the app finish startup/loading before tracing. Default 25.
 
 .PARAMETER OutDir
-    Where trace + report files land. Default <repo root>\PerfTraces (gitignored).
+    Where trace + report files land. Default <repo root>\artifacts\traces (gitignored).
 
 .PARAMETER TopCount
     How many functions to list in each ranking of the report. Default 25; raise it to see below the wrappers
@@ -43,14 +43,14 @@
 
 .EXAMPLE
     # Re-analyze a previous capture:
-    .\tools\Profiling\Run-PerfTrace.ps1 -TraceFile PerfTraces\trace_2026-08-05_180512.nettrace
+    .\tools\Profiling\Run-PerfTrace.ps1 -TraceFile artifacts\traces\trace_2026-08-05_180512.nettrace
 #>
 param(
     [int]$DurationSeconds = 15,
     [switch]$Launch,
     [int]$WarmupSeconds = 25,
     [int]$TopCount = 25,
-    [string]$OutDir = "$PSScriptRoot\..\..\PerfTraces",
+    [string]$OutDir = "$PSScriptRoot\..\..\artifacts\traces",
     [string]$TraceFile = ""
 )
 
