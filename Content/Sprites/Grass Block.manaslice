@@ -1,0 +1,16 @@
+{
+  "format": "mana-sprite-slice",
+  "version": 1,
+  "id": "34d0a82f815f48c3a72bf11a30d53eed",
+  "name": "Grass Block",
+  "pixelsPerUnit": 64,
+  "topLeft": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top_left.png",
+  "top": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top.png",
+  "topRight": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_top_right.png",
+  "left": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_left.png",
+  "center": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_center.png",
+  "right": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/terrain_grass_block_right.png",
+  "bottomLeft": "",
+  "bottom": "",
+  "bottomRight": ""
+}

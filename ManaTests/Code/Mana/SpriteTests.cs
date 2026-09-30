@@ -1,6 +1,7 @@
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
+using Mana.Code.Content;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using ManaUI;
@@ -8,11 +9,14 @@ using ManaUI;
 namespace ManaTests;
 
 /// <summary>
-/// 2D pieces: a Sprite sized from its picture and showing the frame asked for, a SpriteAnimation stepping through a
-/// sheet, and a PolygonCollider that turns any outline -- concave included -- into a solid.
+/// 2D pieces: a Sprite (one picture, sized from its pixels, repeatable), a Sprite Sheet playing named animations
+/// from a sheet asset, a Sprite 9-Slice laying a slice asset out as a block, and a PolygonCollider that turns any
+/// outline -- concave included -- into a solid.
 /// </summary>
 public static class SpriteChecks
 {
+    private const string Pack = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/";
+
     public static void Run(ManaFontManager fonts, Action<string, bool, string> report)
     {
         void check(string what, bool ok, string detail = "") => report(what, ok, detail);
@@ -23,109 +27,121 @@ public static class SpriteChecks
         context.World.DefaultScene = new ManaScene(context) { Name = "Default Scene" };
         context.World.Scenes.Add(context.World.DefaultScene);
 
-        // The hero sheet: 128 x 32 pixels, four frames across, 32 pixels a metre -- so each frame is 1 m square.
-        var node = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Hero" };
-        context.World.DefaultScene.Children.Add(node);
-        var sprite = new ManaSpriteComponent(node)
+        ManaSceneNode Node(string name)
         {
-            Texture = "Content/Sprites/hero.png", NormalMap = "Content/Sprites/hero_n.png", Columns = 4, PixelsPerUnit = 32
-        };
-        node.Components.Add(sprite);
-        check("the test sheet is where the sample level expects it", ManaSpriteComponent.PngSize(ManaTexture.ResolveTexturePath(sprite.Texture)) == new Vector2(128, 32),
-            $"{ManaSpriteComponent.PngSize(ManaTexture.ResolveTexturePath(sprite.Texture))}");
+            var node = new ManaSceneNode(context, Matrix4x4.Identity) { Name = name };
+            context.World.DefaultScene.Children.Add(node);
+            return node;
+        }
 
-        sprite.Refresh();
-        var renderer = node.GetComponent<MeshRendererComponent>();
-        var mesh = renderer?.Mesh as ManaSpriteMesh;
-        check("a sprite draws with a mesh renderer on its own node", renderer != null && mesh != null);
-        check("sized from its picture: a 32-pixel frame at 32 pixels a metre is 1 m", mesh != null && Near(mesh.Size, new Vector2(1, 1)), $"{mesh?.Size}");
-        check("with its feet on the node (pivot at the bottom middle)", mesh != null && mesh.GetOrCreateCpuData().Positions.Min(p => p.Y) == 0.0f
-            && Near(new Vector2(mesh.GetOrCreateCpuData().Positions.Min(p => p.X), 0), new Vector2(-0.5f, 0)));
-        check("pixel art by default: sampled nearest, so pixels stay square", mesh?.GetOrCreateCpuData().NearestFiltering == true);
-        check("and its normal map with it", mesh?.GetOrCreateCpuData().NormalTexturePath?.EndsWith("hero_n.png", StringComparison.Ordinal) == true);
+        // ---- Sprite: one picture ----------------------------------------------------------------------------------
+        var ledgeNode = Node("Ledge Picture");
+        var picture = new ManaSpriteComponent(ledgeNode) { Texture = "Content/Sprites/platform.png", NormalMap = "Content/Sprites/platform_n.png", PixelsPerUnit = 32 };
+        ledgeNode.Components.Add(picture);
+        picture.Refresh();
+        var pictureRenderer = ledgeNode.GetComponent<MeshRendererComponent>();
+        var pictureMesh = pictureRenderer?.Mesh as ManaSpriteMesh;
+        check("a sprite draws with a mesh renderer on its own node", pictureRenderer != null && pictureMesh != null);
+        check("sized from its picture: 128 x 32 pixels at 32 a metre is 4 x 1 m", pictureMesh != null && Near(pictureMesh.Size, new Vector2(4, 1)), $"{pictureMesh?.Size}");
+        check("standing on the node (pivot at the bottom middle)", pictureMesh != null && pictureMesh.GetOrCreateCpuData().Positions.Min(p => p.Y) == 0.0f
+            && Near(new Vector2(pictureMesh.GetOrCreateCpuData().Positions.Min(p => p.X), 0), new Vector2(-2f, 0)));
+        check("with its normal map", pictureMesh?.GetOrCreateCpuData().NormalTexturePath?.EndsWith("platform_n.png", StringComparison.Ordinal) == true);
+        check("smooth by default; pixel art is asked for", pictureMesh?.GetOrCreateCpuData().NearestFiltering == false);
+        picture.PixelArt = true;
+        picture.Refresh();
+        check("and then sampled nearest, so pixels stay square", (ledgeNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NearestFiltering == true);
 
-        sprite.Frame = 2;
-        sprite.Refresh();
-        check("frame 2 shows the third quarter of the sheet", renderer != null && Near(renderer.Material.UvScale, new Vector2(0.25f, 1)) && Near(renderer.Material.UvOffset, new Vector2(0.5f, 0)),
-            $"{renderer?.Material.UvScale} {renderer?.Material.UvOffset}");
-        sprite.FlipX = true;
-        sprite.Refresh();
-        check("and flipped, the same quarter mirrored", renderer != null && Near(renderer.Material.UvScale, new Vector2(-0.25f, 1)) && Near(renderer.Material.UvOffset, new Vector2(0.75f, 0)),
-            $"{renderer?.Material.UvScale} {renderer?.Material.UvOffset}");
-        sprite.Frame = 6;
-        sprite.Refresh();
-        check("a frame past the end wraps round", renderer != null && Near(renderer.Material.UvOffset, new Vector2(0.75f, 0)), $"{renderer?.Material.UvOffset}");
+        picture.RepeatSize = new Vector2(12, 1);
+        picture.Refresh();
+        pictureRenderer = ledgeNode.GetComponent<MeshRendererComponent>();
+        check("repeated across a size: the 4 m picture three times across 12 m",
+            pictureRenderer?.Mesh is ManaSpriteMesh { } repeated && Near(repeated.Size, new Vector2(12, 1)) && Near(pictureRenderer.Material.UvScale, new Vector2(3, 1)),
+            $"{(pictureRenderer?.Mesh as ManaSpriteMesh)?.Size} uv {pictureRenderer?.Material.UvScale}");
 
-        var ledgeNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Tiled Ledge" };
-        context.World.DefaultScene.Children.Add(ledgeNode);
-        var tiled = new ManaSpriteComponent(ledgeNode) { Texture = "Content/Sprites/platform.png", PixelsPerUnit = 32, TiledSize = new Vector2(12, 1) };
-        ledgeNode.Components.Add(tiled);
-        tiled.Refresh();
-        var tiledRenderer = ledgeNode.GetComponent<MeshRendererComponent>();
-        check("a tiled sprite is the size asked for, the 4 m picture repeated three times across it",
-            tiledRenderer?.Mesh is ManaSpriteMesh { } tiledMesh && Near(tiledMesh.Size, new Vector2(12, 1)) && Near(tiledRenderer.Material.UvScale, new Vector2(3, 1)),
-            $"{(tiledRenderer?.Mesh as ManaSpriteMesh)?.Size} uv {tiledRenderer?.Material.UvScale}");
-
-        // Kenney's platformer pack: pictures read straight out of the zip, frames given one picture each.
-        const string pack = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/";
-        var packed = ManaSpritePictures.Resolve(pack + "Tiles/Default/coin_gold.png");
-        check("a picture inside a pack is read out of the zip", packed != null && ManaSpriteComponent.PngSize(packed) == new Vector2(64, 64), packed ?? "not found");
+        // ---- Pictures in packs -------------------------------------------------------------------------------------
+        var packed = ManaSpritePictures.Resolve(Pack + "Tiles/Default/coin_gold.png");
+        check("a picture inside a pack is read out of the zip", packed != null && ManaSpriteBase.PngSize(packed) == new Vector2(64, 64), packed ?? "not found");
         var listed = ManaSpritePictures.PackPictures();
         check("the picker lists pack pictures by the path a sprite stores",
-            listed.Any(p => p.Reference == pack + "Tiles/Default/coin_gold.png" && p.Name == "coin_gold.png" && p.Folder == "kenney_new-platformer-pack-1.1"),
+            listed.Any(p => p.Reference == Pack + "Tiles/Default/coin_gold.png" && p.Name == "coin_gold.png" && p.Folder == "kenney_new-platformer-pack-1.1"),
             $"{listed.Count} pictures");
-        check("and costs nothing to look up once copied out", ManaSpritePictures.TryGetResolved(pack + "Tiles/Default/coin_gold.png") == packed);
+        check("and costs nothing to look up once copied out", ManaSpritePictures.TryGetResolved(Pack + "Tiles/Default/coin_gold.png") == packed);
 
-        var walkerNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Walker" };
-        context.World.DefaultScene.Children.Add(walkerNode);
-        var walker = new ManaSpriteComponent(walkerNode)
-        {
-            Frames = [pack + "Characters/Default/character_green_idle.png", pack + "Characters/Default/character_green_walk_a.png", pack + "Characters/Default/character_green_jump.png"],
-            PixelsPerUnit = 64
-        };
-        walkerNode.Components.Add(walker);
-        walker.Frame = 1;
-        walker.Refresh();
-        var walkerRenderer = walkerNode.GetComponent<MeshRendererComponent>();
-        var walkerMesh = walkerRenderer?.Mesh as ManaSpriteMesh;
-        var strip = walkerMesh?.GetOrCreateCpuData().AlbedoTexturePath;
-        check("separate frame pictures become one strip, a frame each, the sprite one frame's size",
-            strip != null && ManaSpriteComponent.PngSize(strip) == new Vector2(384, 128) && walkerMesh != null && Near(walkerMesh.Size, new Vector2(2, 2))
-            && walkerRenderer != null && Near(walkerRenderer.Material.UvScale, new Vector2(1.0f / 3.0f, 1)) && Near(walkerRenderer.Material.UvOffset, new Vector2(1.0f / 3.0f, 0)),
-            $"{(strip == null ? "no strip" : ManaSpriteComponent.PngSize(strip))} size {walkerMesh?.Size} uv {walkerRenderer?.Material.UvScale} {walkerRenderer?.Material.UvOffset}");
+        // ---- Sprite Sheet: a grid cut from one picture ------------------------------------------------------------
+        var blob = new ManaAssetRef("b1c9e27a0f3d4c5e8a6b7d9e0f1a2b3c", "Sprites/Blob.manasheet");
+        check("a sheet asset is found by its path", ManaContentAssets.Load<ManaSpriteSheet>(blob, ManaSpriteSheet.Extension)?.Name == "Blob");
+        check("and by its id alone, wherever it has moved to",
+            ManaContentAssets.Resolve(blob with { AssetPath = "Somewhere/Else.manasheet" }, ManaSpriteSheet.Extension)?.EndsWith("Blob.manasheet", StringComparison.Ordinal) == true);
 
-        var groundNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Ground" };
-        context.World.DefaultScene.Children.Add(groundNode);
-        var ground = new ManaSpriteComponent(groundNode)
+        var blobNode = Node("Blob");
+        var sheet = new ManaSpriteSheetComponent(blobNode) { Sheet = blob, Frame = 2, PixelArt = true };
+        blobNode.Components.Add(sheet);
+        sheet.Refresh();
+        var sheetRenderer = blobNode.GetComponent<MeshRendererComponent>();
+        check("a sheet sprite is one frame big: 32 pixels at 32 a metre is 1 m",
+            sheetRenderer?.Mesh is ManaSpriteMesh { } frameMesh && Near(frameMesh.Size, new Vector2(1, 1)), $"{(sheetRenderer?.Mesh as ManaSpriteMesh)?.Size}");
+        check("frame 2 shows the third quarter of the sheet", sheetRenderer != null && Near(sheetRenderer.Material.UvScale, new Vector2(0.25f, 1)) && Near(sheetRenderer.Material.UvOffset, new Vector2(0.5f, 0)),
+            $"{sheetRenderer?.Material.UvScale} {sheetRenderer?.Material.UvOffset}");
+        sheet.FlipX = true;
+        sheet.Refresh();
+        check("and flipped, the same quarter mirrored", sheetRenderer != null && Near(sheetRenderer.Material.UvScale, new Vector2(-0.25f, 1)) && Near(sheetRenderer.Material.UvOffset, new Vector2(0.75f, 0)),
+            $"{sheetRenderer?.Material.UvScale} {sheetRenderer?.Material.UvOffset}");
+        check("and the sheet's normal map with it", (sheetRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath?.EndsWith("hero_n.png", StringComparison.Ordinal) == true);
+
+        sheet.Animation = "walk";
+        sheet.Advance(0.0);
+        sheet.Advance(0.3);
+        check("a named animation plays: walk at 4 a second is on its second frame after 0.3 s", sheet.PlayingFrame == 1, $"{sheet.PlayingFrame}");
+        sheet.Advance(1.0);
+        check("and loops round", sheet.PlayingFrame == 1, $"{sheet.PlayingFrame} at 1.3 s");
+        check("without touching the saved frame, so the level stays unchanged", sheet.Frame == 2);
+        sheet.Animation = "idle";
+        sheet.Advance(0.1);
+        check("a different one starts from its own beginning", sheet.PlayingFrame == 0);
+
+        var animation = new ManaSpriteAnimation { Frames = [3, 5, 7], FramesPerSecond = 2, Loop = false };
+        check("an animation holds its last frame when it does not loop", animation.FrameAt(0.0) == 3 && animation.FrameAt(0.6) == 5 && animation.FrameAt(9.0) == 7);
+
+        // ---- Sprite Sheet: one picture per frame (the Green Alien) ------------------------------------------------
+        var alienNode = Node("Alien");
+        var alien = new ManaSpriteSheetComponent(alienNode) { Sheet = ManaPlatformer2DComponent.GreenAlien, Animation = "walk" };
+        alienNode.Components.Add(alien);
+        alien.Refresh();
+        var alienRenderer = alienNode.GetComponent<MeshRendererComponent>();
+        var strip = (alienRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
+        check("a sheet of separate pictures becomes one strip, a frame each",
+            strip != null && ManaSpriteBase.PngSize(strip) == new Vector2(4 * 128, 128) && alien.FrameCount == 4,
+            $"{(strip == null ? "no strip" : ManaSpriteBase.PngSize(strip))}, {alien.FrameCount} frames");
+
+        // ---- Sprite 9-Slice ---------------------------------------------------------------------------------------
+        var block = ManaContentAssets.Load<ManaSpriteSlice>(Path.Combine(ManaContentAssets.Root, "Sprites", "Grass Block.manaslice"));
+        check("a slice asset loads", block != null);
+        if (block != null)
         {
-            Texture = pack + "Tiles/Default/terrain_grass_block_center.png", LeftEnd = pack + "Tiles/Default/terrain_grass_block_left.png",
-            RightEnd = pack + "Tiles/Default/terrain_grass_block_right.png", PixelsPerUnit = 64, TiledSize = new Vector2(6, 2)
+            var layout = block.Layout(4, 3);
+            check("laid out: rounded corners on top, edges down the sides, the middle filling in",
+                layout[0][0].EndsWith("block_top_left.png") && layout[0][1].EndsWith("block_top.png") && layout[0][3].EndsWith("block_top_right.png")
+                && layout[1][0].EndsWith("block_left.png") && layout[1][2].EndsWith("block_center.png") && layout[2][3].EndsWith("block_right.png"),
+                string.Join(" / ", layout.Select(row => string.Join(", ", row.Select(Path.GetFileNameWithoutExtension)))));
+            var single = block.Layout(3, 1);
+            check("and one tile high, just the top row", single.Count == 1 && single[0][0].EndsWith("block_top_left.png"));
+        }
+
+        var groundNode = Node("Ground");
+        var ground = new ManaSprite9SliceComponent(groundNode)
+        {
+            Slice = ManaContentAssets.Reference(Path.Combine(ManaContentAssets.Root, "Sprites", "Grass Block.manaslice")), Size = new Vector2(6, 2)
         };
         groundNode.Components.Add(ground);
         ground.Refresh();
         var groundRenderer = groundNode.GetComponent<MeshRendererComponent>();
         var groundPicture = (groundRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
-        check("a tiled sprite with ends is drawn as one picture: an end, the middle between, an end, rows deep",
-            groundPicture != null && ManaSpriteComponent.PngSize(groundPicture) == new Vector2(6 * 64, 2 * 64) && groundRenderer != null && Near(groundRenderer.Material.UvScale, Vector2.One),
-            $"{(groundPicture == null ? "none" : ManaSpriteComponent.PngSize(groundPicture))} uv {groundRenderer?.Material.UvScale}");
+        check("a 9-slice is drawn as one picture of whole tiles, the size asked for",
+            groundPicture != null && ManaSpriteBase.PngSize(groundPicture) == new Vector2(6 * 64, 2 * 64)
+            && groundRenderer?.Mesh is ManaSpriteMesh { } groundMesh && Near(groundMesh.Size, new Vector2(6, 2)),
+            $"{(groundPicture == null ? "none" : ManaSpriteBase.PngSize(groundPicture))}");
 
-        var animation = new ManaSpriteAnimationComponent(node) { FramesPerSecond = 4 };
-        check("an animation steps a frame each 1/fps", animation.FrameAt(0.0, 4) == 0 && animation.FrameAt(0.26, 4) == 1 && animation.FrameAt(0.8, 4) == 3);
-        check("and loops", animation.FrameAt(1.1, 4) == 0);
-        animation.Loop = false;
-        check("or, not looping, holds the last", animation.FrameAt(5.0, 4) == 3);
-        animation.Loop = true;
-        animation.FirstFrame = 1;
-        animation.FrameCount = 2;
-        check("a range plays just its frames", animation.FrameAt(0.0, 4) == 1 && animation.FrameAt(0.3, 4) == 2 && animation.FrameAt(0.55, 4) == 1);
-
-        sprite.Frame = 0;
-        node.Components.Add(animation);
-        ManaTime.GlobalTime.DeltaTime = TimeSpan.FromSeconds(0.3);
-        animation.UpdateComponent();
-        check("playing shows its frame without changing the saved one, so the level stays unchanged",
-            sprite.PlayingFrame == 2 && sprite.Frame == 0, $"playing {sprite.PlayingFrame}, saved {sprite.Frame}");
-
+        // ---- Polygon collider -------------------------------------------------------------------------------------
         // An L: concave, six corners -- four triangles, and a solid of both faces plus the sides.
         var l = new[] { new Vector2(0, 0), new Vector2(2, 0), new Vector2(2, 1), new Vector2(1, 1), new Vector2(1, 2), new Vector2(0, 2) };
         var triangles = ManaPolygonColliderComponent.Triangulate(l);
@@ -134,8 +150,7 @@ public static class SpriteChecks
         var solid = ManaPolygonColliderComponent.Extrude(l, 1.0f, Vector3.One);
         check("and made a solid: two faces and the sides", solid.Length == (4 * 2 + 6 * 2) * 3, $"{solid.Length / 3} triangles");
 
-        var ledge = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Ledge" };
-        context.World.DefaultScene.Children.Add(ledge);
+        var ledge = Node("Ledge");
         var collider = new ManaPolygonColliderComponent(ledge) { Points = [-2, 0, 2, 0, 2, 1, -2, 1], Depth = 2 };
         ledge.Components.Add(collider);
         collider.Rebuild();

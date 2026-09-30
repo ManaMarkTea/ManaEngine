@@ -52,9 +52,15 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
-                    Type = "SpriteAnimation",
-                    ComponentType = typeof(Mana.Code.Components.ManaSpriteAnimationComponent),
-                    Create = node => new Mana.Code.Components.ManaSpriteAnimationComponent(node)
+                    Type = "SpriteSheet",
+                    ComponentType = typeof(Mana.Code.Components.ManaSpriteSheetComponent),
+                    Create = node => new Mana.Code.Components.ManaSpriteSheetComponent(node)
+                },
+                new()
+                {
+                    Type = "Sprite9Slice",
+                    ComponentType = typeof(Mana.Code.Components.ManaSprite9SliceComponent),
+                    Create = node => new Mana.Code.Components.ManaSprite9SliceComponent(node)
                 },
                 new()
                 {
@@ -195,7 +201,8 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPlatformer2DComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaParallaxComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteComponent))]
-        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteAnimationComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteSheetComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSprite9SliceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPolygonColliderComponent))]
         /// <param name="occurrence">
         /// Which of its kind this script is on the node, counting from zero. For a type a node may only have one of,

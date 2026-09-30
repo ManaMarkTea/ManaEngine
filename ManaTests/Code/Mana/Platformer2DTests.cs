@@ -65,7 +65,7 @@ public static class Platformer2DChecks
 
         check("playing, the player is held to the plane it stands on", pawn.PlaneZ is { } z && MathF.Abs(z - pawn.Position.Z) < 1e-4f, $"{pawn.PlaneZ}");
         check("its model is hidden", !modelRenderer.IsVisible);
-        var sprite = platformer.SpriteNode?.GetComponent<ManaSpriteComponent>();
+        var sprite = platformer.SpriteNode?.GetComponent<ManaSpriteSheetComponent>();
         check("and a sprite rides on it instead", sprite != null && ReferenceEquals(platformer.SpriteNode?.Parent, pawn));
 
         pawn.Rotation = new Vector3(0.0f, 1.2f, 0.0f);
@@ -75,10 +75,9 @@ public static class Platformer2DChecks
         check("square to the camera however the pawn is turned or scaled", Near(spriteWorld.M11, 1) && Near(spriteWorld.M33, 1) && Near(spriteWorld.M22, 1)
             && Vector3.Distance(spriteWorld.Translation, pawn.WorldTransform.Translation) < 1e-3f, $"{spriteWorld}");
 
-        check("frames: idle standing, running while moving, jumping in the air",
-            platformer.FrameFor(true, 0.0f, 0.0) == platformer.IdleFrame
-            && platformer.FrameFor(true, 5.0f, 1.0 / platformer.RunFramesPerSecond + 0.01) == platformer.RunFirstFrame + 1
-            && platformer.FrameFor(false, 5.0f, 0.25) == platformer.JumpFrame);
+        check("animations: idle standing, walking while moving, jumping in the air",
+            platformer.AnimationFor(true, 0.0f) == "idle" && platformer.AnimationFor(true, 5.0f) == "walk" && platformer.AnimationFor(false, 5.0f) == "jump");
+        check("drawn from the Green Alien sheet", sprite?.Sheet == ManaPlatformer2DComponent.GreenAlien && sprite?.Asset?.Animation("walk") != null);
 
         world.EndPlay();
         check("stopping shows the model again, drops the sprite and frees the plane",

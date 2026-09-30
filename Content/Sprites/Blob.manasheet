@@ -1,0 +1,37 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "b1c9e27a0f3d4c5e8a6b7d9e0f1a2b3c",
+  "name": "Blob",
+  "frames": [],
+  "texture": "Content/Sprites/hero.png",
+  "columns": 4,
+  "rows": 1,
+  "normalMap": "Content/Sprites/hero_n.png",
+  "pixelsPerUnit": 32,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "walk",
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    }
+  ]
+}

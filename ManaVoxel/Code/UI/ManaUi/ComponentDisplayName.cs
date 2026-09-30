@@ -6,6 +6,11 @@ internal static class ComponentDisplayName
 {
     public static string For(Type type)
     {
+        // A name the type gives itself wins -- "Sprite 9-Slice" is not something capitals can spell.
+        if (System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.ComponentModel.DisplayNameAttribute>(type) is { DisplayName.Length: > 0 } named)
+        {
+            return named.DisplayName;
+        }
         var name = type.Name;
         if (name.EndsWith("Component", StringComparison.Ordinal)) name = name[..^9];
         if (name.StartsWith("Mana", StringComparison.Ordinal) && name.Length > 4 && char.IsUpper(name[4]))

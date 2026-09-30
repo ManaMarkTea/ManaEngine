@@ -40,9 +40,19 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         {
             var theme = context.Theme;
             var rows = new StackPanel().Vertical(theme.Spacing);
+            string? category = null;
 
             foreach (var property in Editable(subject))
             {
+                // [Category] groups a component's settings under a heading -- a sprite's picture apart from its look.
+                var group = property.GetCustomAttribute<System.ComponentModel.CategoryAttribute>()?.Category;
+                if (group != null && group != category)
+                {
+                    rows.Children.Add(new TextBlock().Text(group).Foreground(theme.Accent).FontSize(theme.FontSizeSmall)
+                        .Configure(heading => heading.Margin = new Thickness(0.0f, category == null ? 0.0f : 6.0f, 0.0f, 0.0f)));
+                }
+                category = group ?? category;
+
                 // The property's own doc comment, shown the way Unreal shows a UPROPERTY tooltip. Nothing
                 // here was written for a UI, so the comment above the field is the only description that
                 // exists -- and it is usually the right one.
@@ -102,8 +112,31 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 found.Add(property);
             }
 
+            // A type that groups its properties is shown as written -- each group in the order it is declared, the
+            // component's own before what it inherits; one that does not keeps the alphabetical list.
+            if (found.Any(property => property.GetCustomAttribute<System.ComponentModel.CategoryAttribute>() != null))
+            {
+                var groups = found
+                    .OrderBy(property => Depth(subject.GetType(), property.DeclaringType))
+                    .ThenBy(property => property.MetadataToken)
+                    .GroupBy(property => property.GetCustomAttribute<System.ComponentModel.CategoryAttribute>()?.Category ?? string.Empty)
+                    .OrderBy(group => group.Key.Length == 0 ? 0 : 1);
+                return groups.SelectMany(group => group).ToList();
+            }
+
             found.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
             return found;
+        }
+
+        // How many steps up from the subject's own type a property is declared: 0 for its own.
+        private static int Depth(Type type, Type? declaring)
+        {
+            var depth = 0;
+            for (var current = type; current != null && current != declaring; current = current.BaseType)
+            {
+                depth++;
+            }
+            return depth;
         }
 
         private static bool IsSupported(Type type)
@@ -117,6 +150,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 || type == typeof(Vector3)
                 || type == typeof(Vector4)
                 || type == typeof(ManaComponentReference)
+                || type == typeof(Mana.Code.Content.ManaAssetRef)
                 || type.IsEnum;
         }
 
@@ -270,6 +304,13 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 };
                 combo.BindPolled(c => c.SelectedIndex, () => Math.Max(0, Array.IndexOf(names, Read()?.ToString())));
                 return combo;
+            }
+
+            if (type == typeof(Mana.Code.Content.ManaAssetRef))
+            {
+                var extension = property.GetCustomAttribute<Mana.Code.Content.AssetKindAttribute>()?.Extension ?? ".json";
+                return AssetPicker.Build(theme, Humanise(property.Name), extension,
+                    () => Read() as Mana.Code.Content.ManaAssetRef ?? Mana.Code.Content.ManaAssetRef.None, value => Write(value));
             }
 
             if (property.GetCustomAttribute<Mana.Code.Components.PicturePathAttribute>() != null)

@@ -25,23 +25,14 @@
     "scripts": [
       {
         "id": "cbbea059cdd448898b0ba93411add571",
-        "type": "Sprite",
+        "type": "SpriteSheet",
         "properties": {
-          "texture": "",
-          "frames": [
-            "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_gold.png",
-            "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_gold_side.png"
-          ],
-          "leftEnd": "",
-          "rightEnd": "",
-          "normalMap": "",
-          "pixelsPerUnit": 64,
-          "pivot": [
-            0.5,
-            0
-          ],
-          "columns": 1,
-          "rows": 1,
+          "sheet": {
+            "assetId": "d08393e46b944b17aeb6279445045300",
+            "assetPath": "Sprites/Gold Coin.manasheet"
+          },
+          "animation": "spin",
+          "playing": true,
           "frame": 0,
           "flipX": false,
           "tint": [
@@ -51,22 +42,7 @@
             1
           ],
           "pixelArt": false,
-          "unlit": true,
-          "tiledSize": [
-            0,
-            0
-          ]
-        }
-      },
-      {
-        "id": "eacab07bf01247b58c215b9e1e08f964",
-        "type": "SpriteAnimation",
-        "properties": {
-          "framesPerSecond": 3,
-          "firstFrame": 0,
-          "frameCount": 0,
-          "loop": true,
-          "playing": true
+          "unlit": true
         }
       },
       {

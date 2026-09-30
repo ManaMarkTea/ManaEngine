@@ -136,10 +136,14 @@ namespace ManaVoxel.Code.Assets
         /// something to show well before the full model finishes downloading.
         /// </para>
         /// </summary>
+        /// <summary>A user-made asset in Content/ (a prefab, a sprite sheet, a 9-slice): drawn on the CPU from its file, never downloaded.</summary>
+        public static bool IsContentAsset(string assetPath) =>
+            Path.GetExtension(assetPath) is ManaPrefab.Extension or Mana.Code.Content.ManaSpriteSheet.Extension or Mana.Code.Content.ManaSpriteSlice.Extension;
+
         public void Request(string assetPath)
         {
             var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
-            if (Path.GetExtension(assetPath) != ManaPrefab.Extension && catalog != null && !catalog.IsReady(assetPath) && catalog.ThumbnailPathOf(assetPath) == null)
+            if (!IsContentAsset(assetPath) && catalog != null && !catalog.IsReady(assetPath) && catalog.ThumbnailPathOf(assetPath) == null)
             {
                 return;
             }
@@ -333,7 +337,7 @@ namespace ManaVoxel.Code.Assets
 
         private byte[]? Generate(string assetPath)
         {
-            if (Path.GetExtension(assetPath) == ManaPrefab.Extension) { return GenerateViaCpuStandalone(_context, assetPath); }
+            if (IsContentAsset(assetPath)) { return GenerateViaCpuStandalone(_context, assetPath); }
             if (_webGpuContext != null)
             {
                 try
@@ -463,6 +467,14 @@ namespace ManaVoxel.Code.Assets
             {
                 return GeneratePrefabThumbnail(assetPath);
             }
+            if (Path.GetExtension(assetPath) == Mana.Code.Content.ManaSpriteSheet.Extension)
+            {
+                return Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(assetPath) is { } sheet ? SheetIcon(sheet) : null;
+            }
+            if (Path.GetExtension(assetPath) == Mana.Code.Content.ManaSpriteSlice.Extension)
+            {
+                return Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSlice>(assetPath) is { } slice ? SliceIcon(slice) : null;
+            }
             // CPU-only either way: this loads geometry and material colour, nothing else, so it touches no
             // graphics device and is safe away from the render thread. A full LoadFile would build materials
             // and upload buffers.
@@ -508,48 +520,61 @@ namespace ManaVoxel.Code.Assets
         }
 
         /// <summary>
-        /// The first frame of the first Sprite in the tree, root first, fitted into a thumbnail as RGBA rows top
-        /// down -- or null when there is no Sprite or its picture cannot be found.
+        /// The picture of the first sprite in the tree, root first -- a Sprite's picture, a Sprite Sheet's first frame,
+        /// a 9-Slice as a small block -- fitted into a thumbnail as RGBA rows top down, or null when there is none.
         /// </summary>
         public static byte[]? SpritePicture(Levels.ManaLevelNode root)
         {
-            var sprite = FindSprite(root);
-            if (sprite == null)
+            if (FindSprite(root) is not { } sprite)
             {
                 return null;
             }
 
             string Text(string key) => sprite.Properties.TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
                 ? value.GetString() ?? string.Empty : string.Empty;
-            int Count(string key) => sprite.Properties.TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.Number
-                ? Math.Max(1, value.GetInt32()) : 1;
+            Mana.Code.Content.ManaAssetRef Asset(string key) => sprite.Properties.TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.Object
+                ? System.Text.Json.JsonSerializer.Deserialize<Mana.Code.Content.ManaAssetRef>(value, Mana.Code.Content.ManaContentAssets.Json) ?? Mana.Code.Content.ManaAssetRef.None
+                : Mana.Code.Content.ManaAssetRef.None;
 
-            var columns = 1;
-            var rows = 1;
-            var reference = Text("texture");
-            if (sprite.Properties.TryGetValue("frames", out var frames) && frames.ValueKind == System.Text.Json.JsonValueKind.Array
-                && frames.GetArrayLength() > 0 && frames[0].GetString() is { Length: > 0 } first)
+            return sprite.Type switch
             {
-                reference = first;
-            }
-            else
-            {
-                columns = Count("columns");
-                rows = Count("rows");
-            }
+                "SpriteSheet" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(Asset("sheet"), Mana.Code.Content.ManaSpriteSheet.Extension) is { } sheet
+                    ? SheetIcon(sheet) : null,
+                "Sprite9Slice" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSlice>(Asset("slice"), Mana.Code.Content.ManaSpriteSlice.Extension) is { } slice
+                    ? SliceIcon(slice) : null,
+                _ => ManaSpritePictures.Resolve(Text("texture")) is { } file ? PictureIcon(file, 1, 1, 0) : null
+            };
+        }
 
-            var file = ManaSpritePictures.Resolve(reference);
-            if (file == null)
+        /// <summary>A sheet's thumbnail: the first frame of its idle animation, or its first frame.</summary>
+        public static byte[]? SheetIcon(Mana.Code.Content.ManaSpriteSheet sheet)
+        {
+            var frame = (sheet.Animation("idle") ?? sheet.Animations.FirstOrDefault())?.Frames.FirstOrDefault() ?? 0;
+            if (sheet.Frames.Count > 0)
             {
-                return null;
+                return ManaSpritePictures.Resolve(sheet.Frames[Math.Clamp(frame, 0, sheet.Frames.Count - 1)]) is { } file ? PictureIcon(file, 1, 1, 0) : null;
             }
+            return ManaSpritePictures.Resolve(sheet.Texture) is { } sheetFile ? PictureIcon(sheetFile, sheet.Columns, sheet.Rows, frame) : null;
+        }
 
+        /// <summary>A 9-slice's thumbnail: its pieces laid out as a block three tiles square.</summary>
+        public static byte[]? SliceIcon(Mana.Code.Content.ManaSpriteSlice slice)
+        {
+            return ManaSpritePictures.JoinGrid(slice.Layout(3, 3)) is { } file ? PictureIcon(file, 1, 1, 0) : null;
+        }
+
+        // One frame of a picture cut into columns x rows, fitted with a margin the way model thumbnails leave room.
+        private static byte[]? PictureIcon(string file, int columns, int rows, int frame)
+        {
             try
             {
                 using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(file);
-                var frame = new SixLabors.ImageSharp.Rectangle(0, 0, Math.Max(1, image.Width / columns), Math.Max(1, image.Height / rows));
-                image.Mutate(context => context.Crop(frame));
-                // Fitted with a margin, the way the model thumbnails leave room round the model.
+                columns = Math.Max(1, columns);
+                rows = Math.Max(1, rows);
+                var width = Math.Max(1, image.Width / columns);
+                var height = Math.Max(1, image.Height / rows);
+                var cell = Math.Clamp(frame, 0, columns * rows - 1);
+                image.Mutate(context => context.Crop(new SixLabors.ImageSharp.Rectangle(cell % columns * width, cell / columns * height, width, height)));
                 var fit = (int)(ThumbnailSize * 0.84f);
                 var scale = MathF.Min((float)fit / image.Width, (float)fit / image.Height);
                 image.Mutate(context => context.Resize(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale))));
@@ -567,9 +592,11 @@ namespace ManaVoxel.Code.Assets
             }
         }
 
+        private static readonly string[] SpriteScripts = ["Sprite", "SpriteSheet", "Sprite9Slice"];
+
         private static Levels.ManaLevelScript? FindSprite(Levels.ManaLevelNode node)
         {
-            var own = node.Scripts?.FirstOrDefault(script => string.Equals(script.Type, "Sprite", StringComparison.Ordinal));
+            var own = node.Scripts?.FirstOrDefault(script => SpriteScripts.Contains(script.Type, StringComparer.Ordinal));
             if (own != null)
             {
                 return own;

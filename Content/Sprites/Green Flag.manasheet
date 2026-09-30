@@ -1,0 +1,30 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "5779591fdf91495f9b1040e6548611f0",
+  "name": "Green Flag",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_green_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/flag_green_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "wave",
+      "frames": [
+        0,
+        1
+      ],
+      "framesPerSecond": 3,
+      "loop": true
+    }
+  ]
+}

@@ -65,61 +65,73 @@ namespace Mana
         /// The pictures joined left to right into one, each in a cell the size of the largest and standing on its
         /// floor, centred across -- so frames of slightly different sizes still keep a character's feet still.
         /// </summary>
-        /// <param name="rows">How many times the joined row repeats downwards -- a block of ground several tiles deep.</param>
+        /// <param name="rows">How many times the joined row repeats downwards.</param>
         public static string? Join(IReadOnlyList<string> references, int rows = 1)
         {
-            rows = Math.Max(1, rows);
-            if (references.Count == 0)
-            {
-                return null;
-            }
-            if (references.Count == 1 && rows == 1)
+            if (references.Count == 1 && rows <= 1)
             {
                 return Resolve(references[0]);
             }
+            return JoinGrid(Enumerable.Repeat(references, Math.Max(1, rows)).ToList());
+        }
 
-            var files = references.Select(Resolve).ToList();
-            if (files.Any(file => file == null))
+        /// <summary>A grid of pictures, top row first, joined into one: each in a cell the size of the largest, standing on its floor.</summary>
+        public static string? JoinGrid(IReadOnlyList<IReadOnlyList<string>> grid)
+        {
+            if (grid.Count == 0 || grid.Any(row => row.Count == 0))
             {
                 return null;
             }
 
-            var key = Hash(string.Join("|", files.Select(file => $"{file}@{File.GetLastWriteTimeUtc(file!).Ticks}")) + $"|rows {rows}");
-            var output = Path.Combine(CacheFolder, "joined", key + ".png");
+            var distinct = grid.SelectMany(row => row).Distinct(StringComparer.Ordinal).ToList();
+            var files = distinct.ToDictionary(reference => reference, Resolve, StringComparer.Ordinal);
+            if (files.Values.Any(file => file == null))
+            {
+                return null;
+            }
+
+            var layout = string.Join("/", grid.Select(row => string.Join("|", row.Select(reference => files[reference]))));
+            var stamps = string.Join("|", files.Values.Distinct().Select(file => File.GetLastWriteTimeUtc(file!).Ticks));
+            var output = Path.Combine(CacheFolder, "joined", Hash(layout + "#" + stamps) + ".png");
             if (File.Exists(output))
             {
                 return output;
             }
 
+            var images = new Dictionary<string, Image<Rgba32>>(StringComparer.Ordinal);
             try
             {
-                var images = files.Select(file => Image.Load<Rgba32>(file!)).ToList();
-                try
+                foreach (var (reference, file) in files)
                 {
-                    var cellWidth = images.Max(image => image.Width);
-                    var cellHeight = images.Max(image => image.Height);
-                    using var strip = new Image<Rgba32>(cellWidth * images.Count, cellHeight * rows);
-                    for (var row = 0; row < rows; row++)
+                    images[reference] = Image.Load<Rgba32>(file!);
+                }
+                var cellWidth = images.Values.Max(image => image.Width);
+                var cellHeight = images.Values.Max(image => image.Height);
+                var columns = grid.Max(row => row.Count);
+                using var joined = new Image<Rgba32>(cellWidth * columns, cellHeight * grid.Count);
+                for (var row = 0; row < grid.Count; row++)
+                {
+                    for (var column = 0; column < grid[row].Count; column++)
                     {
-                        for (var i = 0; i < images.Count; i++)
-                        {
-                            var image = images[i];
-                            var at = new Point(i * cellWidth + (cellWidth - image.Width) / 2, (row + 1) * cellHeight - image.Height);
-                            strip.Mutate(context => context.DrawImage(image, at, 1.0f));
-                        }
+                        var image = images[grid[row][column]];
+                        var at = new Point(column * cellWidth + (cellWidth - image.Width) / 2, (row + 1) * cellHeight - image.Height);
+                        joined.Mutate(context => context.DrawImage(image, at, 1.0f));
                     }
-                    Save(strip, output);
                 }
-                finally
-                {
-                    images.ForEach(image => image.Dispose());
-                }
+                Save(joined, output);
                 return output;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ImageFormatException)
             {
                 ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Sprite pictures could not be joined: {exception.Message}");
                 return null;
+            }
+            finally
+            {
+                foreach (var image in images.Values)
+                {
+                    image.Dispose();
+                }
             }
         }
 

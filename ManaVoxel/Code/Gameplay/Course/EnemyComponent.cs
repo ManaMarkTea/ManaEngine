@@ -91,13 +91,13 @@ namespace ManaVoxel.Code.Gameplay.Course
             _hideAfterSeconds = 0.0f;
             _playingClip = null;
             Owner.Context.World.GameState.RegisterEnemy();
-            _startFlip = Owner.GetComponent<Mana.Code.Components.ManaSpriteComponent>()?.FlipX;
+            _startFlip = Owner.GetComponent<Mana.Code.Components.ManaSpriteBase>()?.FlipX;
         }
 
         public override void EndPlay()
         {
             Owner.Position = _start;
-            if (_startFlip is { } flip && Owner.GetComponent<Mana.Code.Components.ManaSpriteComponent>() is { } sprite)
+            if (_startFlip is { } flip && Owner.GetComponent<Mana.Code.Components.ManaSpriteBase>() is { } sprite)
             {
                 sprite.FlipX = flip;
             }
@@ -218,7 +218,7 @@ namespace ManaVoxel.Code.Gameplay.Course
             }
 
             var heading = Horizontal(next - position);
-            if (heading.LengthSquared() > 1e-8f && Owner.GetComponent<Mana.Code.Components.ManaSpriteComponent>() is { } sprite)
+            if (heading.LengthSquared() > 1e-8f && Owner.GetComponent<Mana.Code.Components.ManaSpriteBase>() is { } sprite)
             {
                 // A picture turned to face its path would go edge-on; it is mirrored instead.
                 if (MathF.Abs(heading.X) > 1e-6f)

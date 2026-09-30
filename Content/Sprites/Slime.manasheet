@@ -1,0 +1,39 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "0f8cb6ad2efb42a9bb8472dcc4970b3f",
+  "name": "Slime",
+  "frames": [
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_rest.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_walk_a.png",
+    "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/slime_normal_walk_b.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 64,
+  "pivot": [
+    0.5,
+    0
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "frames": [
+        1,
+        2
+      ],
+      "framesPerSecond": 4,
+      "loop": true
+    }
+  ]
+}

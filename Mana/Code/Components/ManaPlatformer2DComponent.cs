@@ -1,60 +1,67 @@
+using System.ComponentModel;
+using Mana.Code.Content;
 using Mana.Code.Nodes;
 
 namespace Mana.Code.Components
 {
     /// <summary>
     /// Makes a level play side-on. While playing, the player is held to the plane it spawns on
-    /// (A/D run, Space jumps), drawn by a sprite sheet instead of its 3D model -- idle, run and jump frames,
-    /// facing the way it last moved -- and watched by a camera from +Z. Put it on any node, typically the
+    /// (A/D run, Space jumps), drawn from a sprite sheet asset instead of its 3D model -- its idle, run and jump
+    /// animations, facing the way it last moved -- and watched by a camera from +Z. Put it on any node, typically the
     /// Player Start; everything it changes is put back when play stops.
     /// </summary>
     public sealed class ManaPlatformer2DComponent : ManaComponent
     {
-        private const string KenneyCharacters = "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Characters/Default/character_green_";
+        /// <summary>The sample character Kenney's pack provides: Content/Sprites/Green Alien.manasheet.</summary>
+        public static readonly ManaAssetRef GreenAlien = new("5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c", "Sprites/Green Alien.manasheet");
 
-        /// <summary>The player's pictures, one per frame -- Kenney's green character by default: idle, two walk steps, jump.</summary>
-        [PicturePath]
-        public string[] Frames { get; set; } =
-            [KenneyCharacters + "idle.png", KenneyCharacters + "walk_a.png", KenneyCharacters + "walk_b.png", KenneyCharacters + "jump.png"];
+        /// <summary>The player's sprite sheet: its pictures, size and animations are set up in the sheet.</summary>
+        [AssetKind(ManaSpriteSheet.Extension), Category("Character")]
+        public ManaAssetRef Sheet { get; set; } = GreenAlien;
 
-        /// <summary>A sheet instead of <see cref="Frames"/>: one picture cut into columns x rows.</summary>
-        [PicturePath]
-        public string Texture { get; set; } = string.Empty;
-        [PicturePath]
-        public string NormalMap { get; set; } = string.Empty;
-        public int Columns { get; set; } = 1;
-        public int Rows { get; set; } = 1;
+        /// <summary>The sheet's animation played standing still.</summary>
+        [Category("Character")]
+        public string IdleAnimation { get; set; } = "idle";
 
-        /// <summary>Pixels per metre for the player's sprite; 56 makes Kenney's 128-pixel frames a two-metre character.</summary>
-        public float PixelsPerUnit { get; set; } = 56.0f;
+        [Category("Character")]
+        public string RunAnimation { get; set; } = "walk";
+
+        /// <summary>Played in the air, going up or coming down.</summary>
+        [Category("Character")]
+        public string JumpAnimation { get; set; } = "jump";
+
+        /// <summary>Whether the sheet's pictures face right; a left-facing one is mirrored the other way round.</summary>
+        [Category("Character")]
+        public bool SheetFacesRight { get; set; } = true;
 
         /// <summary>Crisp square pixels; off for smooth art like Kenney's.</summary>
+        [Category("Character")]
         public bool PixelArt { get; set; }
 
         /// <summary>Drawn as painted, ignoring the lights -- right for flat art like Kenney's.</summary>
+        [Category("Character")]
         public bool Unlit { get; set; } = true;
 
-        public int IdleFrame { get; set; }
-        public int RunFirstFrame { get; set; } = 1;
-        public int RunFrameCount { get; set; } = 2;
-        public int JumpFrame { get; set; } = 3;
-        public float RunFramesPerSecond { get; set; } = 8.0f;
-
-        /// <summary>Whether the sheet is drawn facing right; a left-facing one is mirrored the other way round.</summary>
-        public bool SheetFacesRight { get; set; } = true;
-
         /// <summary>The player's full, held jump in metres while playing side-on; 0 keeps the character's own.</summary>
+        [Category("Movement")]
         public float JumpHeight { get; set; } = 4.5f;
 
+        [Category("Camera")]
         public float CameraDistance { get; set; } = 12.0f;
+
         /// <summary>How far the camera looks down, in perspective only; orthographic always looks level.</summary>
+        [Category("Camera")]
         public float CameraPitchDegrees { get; set; } = -5.0f;
+
+        [Category("Camera")]
         public float CameraHeight { get; set; } = 1.5f;
 
         /// <summary>Flat, no-perspective view -- every layer the same size however far back. Off shows depth.</summary>
+        [Category("Camera")]
         public bool Orthographic { get; set; } = true;
 
         /// <summary>How many metres of the level the orthographic view shows top to bottom.</summary>
+        [Category("Camera")]
         public float ViewHeight { get; set; } = 12.0f;
 
         private ManaPawnNode? _player;
@@ -99,11 +106,7 @@ namespace Mana.Code.Components
             HideRenderers(player);
 
             var node = new ManaSceneNode(Owner.Context, Matrix4x4.Identity) { Name = "2D Player Sprite", IsEditorTransient = true };
-            node.Components.Add(new ManaSpriteComponent(node)
-            {
-                Frames = Frames, Texture = Texture, NormalMap = NormalMap, Columns = Columns, Rows = Rows,
-                PixelsPerUnit = PixelsPerUnit, PixelArt = PixelArt, Unlit = Unlit
-            });
+            node.Components.Add(new ManaSpriteSheetComponent(node) { Sheet = Sheet, Animation = IdleAnimation, PixelArt = PixelArt, Unlit = Unlit });
             node.Components.Add(new SpriteDriver(node, this));
             player.AddChild(node);
             _spriteNode = node;
@@ -214,19 +217,14 @@ namespace Mana.Code.Components
             }
         }
 
-        /// <summary>The frame to show: jumping in the air, running while moving, idle otherwise.</summary>
-        public int FrameFor(bool grounded, float speedX, double runSeconds)
+        /// <summary>The animation to play: jumping in the air, running while moving, idle otherwise.</summary>
+        public string AnimationFor(bool grounded, float speedX)
         {
             if (!grounded)
             {
-                return JumpFrame;
+                return JumpAnimation;
             }
-            if (MathF.Abs(speedX) > 0.3f)
-            {
-                var step = (int)Math.Floor(runSeconds * Math.Max(RunFramesPerSecond, 0.0f));
-                return RunFirstFrame + step % Math.Max(1, RunFrameCount);
-            }
-            return IdleFrame;
+            return MathF.Abs(speedX) > 0.3f ? RunAnimation : IdleAnimation;
         }
 
         /// <summary>
@@ -236,7 +234,6 @@ namespace Mana.Code.Components
         private sealed class SpriteDriver : ManaComponent
         {
             private readonly ManaPlatformer2DComponent _settings;
-            private double _runSeconds;
             private bool _facingRight = true;
 
             public SpriteDriver(ManaSceneNode owner, ManaPlatformer2DComponent settings) : base(owner)
@@ -261,16 +258,11 @@ namespace Mana.Code.Components
                 if (MathF.Abs(velocityX) > 0.3f)
                 {
                     _facingRight = velocityX > 0.0f;
-                    _runSeconds += ManaTime.GlobalTime.DeltaTime.TotalSeconds;
-                }
-                else
-                {
-                    _runSeconds = 0.0;
                 }
 
-                if (Owner.GetComponent<ManaSpriteComponent>() is { } sprite)
+                if (Owner.GetComponent<ManaSpriteSheetComponent>() is { } sprite)
                 {
-                    sprite.PlayingFrame = _settings.FrameFor(player.IsGrounded, velocityX, _runSeconds);
+                    sprite.Animation = _settings.AnimationFor(player.IsGrounded, velocityX);
                     sprite.FlipX = _facingRight != _settings.SheetFacesRight;
                 }
             }
