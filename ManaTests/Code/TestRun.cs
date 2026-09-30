@@ -84,6 +84,7 @@ public static class TestRunner
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("Mana", "sprites", SpriteChecks.Run),
         ("Mana", "platformer 2D", Platformer2DChecks.Run),
+        ("Mana", "parallax", Platformer2DChecks.RunParallax),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
         ("ManaCore", "sky clock", SkyClockChecks.Run),
         ("ManaCore", "json formatting", JsonFormatChecks.Run),

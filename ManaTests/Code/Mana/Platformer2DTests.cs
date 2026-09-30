@@ -85,5 +85,21 @@ public static class Platformer2DChecks
             modelRenderer.IsVisible && platformer.SpriteNode == null && !pawn.Children.Any(c => c.Name == "2D Player Sprite") && pawn.PlaneZ == null);
     }
 
+    /// <summary>A parallax layer follows that share of the camera's travel, and goes back where it was on stop.</summary>
+    public static void RunParallax(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        world.Context = context;
+        var layer = new ManaSceneNode(context, Matrix4x4.Identity) { Position = new Vector3(10, 0, -5) };
+        var parallax = new ManaParallaxComponent(layer) { Factor = new Vector2(0.75f, 0.25f) };
+        check("a layer follows its share of the camera: three quarters across, a quarter up",
+            parallax.OffsetFor(layer.Position, new Vector3(8, 4, 3)) == new Vector3(16, 1, -5), $"{parallax.OffsetFor(layer.Position, new Vector3(8, 4, 3))}");
+        parallax.BeginPlay();
+        layer.Position = new Vector3(99, 99, 99);
+        parallax.EndPlay();
+        check("and is back where it was placed when play stops", layer.Position == new Vector3(10, 0, -5), $"{layer.Position}");
+    }
+
     private static bool Near(float a, float b) => MathF.Abs(a - b) < 1e-3f;
 }

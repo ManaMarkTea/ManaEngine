@@ -37,7 +37,10 @@
     Orthographic done: Platformer2D > Orthographic (on by default) plays with a flat view, View Height metres tall,
     looking level; stopping puts the editor's perspective back. The sky keeps its gradient and clouds under an
     orthographic camera now (it used to go one flat colour). Photo: DevPhotos/2026-09-29 2d-orthographic-play.png.
-    Next for 2D: editing a PolygonCollider's points in the viewport; parallax background layers.
+    Parallax done: a Parallax script (factor x/y: 0 moves with the level, 1 stays with the camera) on backdrop
+    sprites; the 2D Sample has far mountains and nearer hills (Content/Sprites/mountains.png, hills.png) sliding
+    at 0.8 and 0.5. Photo: DevPhotos/2026-09-29 2d-parallax-backdrops.png. Tests: ParallaxChecks.
+    Next for 2D: editing a PolygonCollider's points in the viewport.
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
     Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /

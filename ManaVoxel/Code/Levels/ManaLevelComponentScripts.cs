@@ -64,6 +64,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = "Parallax",
+                    ComponentType = typeof(Mana.Code.Components.ManaParallaxComponent),
+                    Create = node => new Mana.Code.Components.ManaParallaxComponent(node)
+                },
+                new()
+                {
                     Type = "Platformer2D",
                     ComponentType = typeof(Mana.Code.Components.ManaPlatformer2DComponent),
                     Create = node => new Mana.Code.Components.ManaPlatformer2DComponent(node)
@@ -187,6 +193,7 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaGlowComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPlatformer2DComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaParallaxComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteAnimationComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPolygonColliderComponent))]
