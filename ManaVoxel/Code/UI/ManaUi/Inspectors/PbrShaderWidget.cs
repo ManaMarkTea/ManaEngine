@@ -104,6 +104,14 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 .Checked(material.FlatShaded)
                 .OnChanged(value => material.FlatShaded = value));
 
+            // Polled: a Sprite sets its material's Unlit from its own setting, so the box follows that too.
+            var unlit = new CheckBox().Label("Unlit")
+                .Checked(material.Unlit)
+                .OnChanged(value => material.Unlit = value)
+                .WithTooltip("Show the colour as drawn, ignoring every light -- flat art like 2D sprites.");
+            unlit.BindPolled(box => box.IsChecked, () => material.Unlit);
+            rows.Children.Add(unlit);
+
             return new Expander().Header("PBR Channels").Content(rows);
         }
 
