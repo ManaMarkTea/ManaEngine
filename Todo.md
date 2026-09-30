@@ -40,7 +40,13 @@
     Parallax done: a Parallax script (factor x/y: 0 moves with the level, 1 stays with the camera) on backdrop
     sprites; the 2D Sample has far mountains and nearer hills (Content/Sprites/mountains.png, hills.png) sliding
     at 0.8 and 0.5. Photo: DevPhotos/2026-09-29 2d-parallax-backdrops.png. Tests: ParallaxChecks.
-    Next for 2D: editing a PolygonCollider's points in the viewport.
+    Polygon editing done: select a node with a PolygonCollider and its points get handles in the viewport -- drag
+    one to move it (the editor's move snap applies when on), Ctrl+click an edge to add a point there, Alt+click a
+    point to remove it; each is one undo step. Photo: DevPhotos/2026-09-29 2d-polygon-point-handles.png.
+    Tests: PolygonEditChecks. NOTE: I could only check the handles draw -- automation has no mouse drag -- so
+    please give dragging a try.
+    Still open for 2D: the sprite and its collider are separate (moving points does not reshape the picture), and
+    OpenGL does not draw sprite textures (it never reads mesh texture paths).
 
 [x] Road generator - There is a city pack with road pieces, it would be nice to be able to drag out a road and have it auto-generate the correct nodes under it dynamically.
     Claude: done earlier -- Grid Map window, Road preset (auto-tile): drag to paint a road and the right straight /

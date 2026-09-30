@@ -648,6 +648,7 @@ namespace Mana.Code.GameModes
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();
                 _transformGizmo?.Hide();
+                HidePolygonOverlay();
                 return;
             }
 
@@ -656,17 +657,20 @@ namespace Mana.Code.GameModes
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();
                 _viewModel.ClearHoveredVoxel();
+                // A polygon's point handles come before the gizmo: a handle is smaller, so it is the likelier aim.
+                var polygonCaptured = UpdatePolygonEditing(inputCaptured, MouseState);
                 var gizmoCaptured = _transformGizmo?.Update(
                     Context.World.Selection.SelectedNode,
                     _viewModel.TransformGizmoMode,
                     _viewModel.ShowTransformGizmo && ManaEditorGizmos.Visible,
-                    inputCaptured,
+                    inputCaptured || polygonCaptured,
                     MouseState) == true;
-                UpdateSelectionPointerInteraction(inputCaptured || gizmoCaptured, MouseState);
+                UpdateSelectionPointerInteraction(inputCaptured || gizmoCaptured || polygonCaptured, MouseState);
                 return;
             }
 
             _transformGizmo?.Hide();
+            HidePolygonOverlay();
 
             var toolKind = VoxelToolCatalog.GetToolKind(_viewModel.SelectedToolIndex);
             if (toolKind is VoxelToolKind.Paint or VoxelToolKind.FloodFill or VoxelToolKind.Erase)
@@ -965,6 +969,7 @@ namespace Mana.Code.GameModes
             if (_playMode is { IsPlaying: true })
             {
                 _transformGizmo?.Hide();
+                HidePolygonOverlay();
                 ClearSelectionColliderDebug();
                 HideGridMapEditorVisuals();
                 _planetScenery.PumpStreaming(UpdateFrame);
