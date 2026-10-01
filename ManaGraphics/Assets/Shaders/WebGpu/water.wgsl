@@ -242,9 +242,14 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // lamps -- before, the water glowed the same at midnight as at noon.
     let daylight = frame.irradiance_factors.w;
     var light = vec3<f32>(mix(0.07, 0.75, daylight));
+    // Glints: the moon or sun, and each lamp, mirrored in the ripples -- the path of light across a pond.
+    var glint = vec3<f32>(0.0);
     if (frame.sun_direction.w > 0.5) {
-        let sun = max(dot(n, normalize(-frame.sun_direction.xyz)), 0.0);
-        light = light + frame.sun_color.rgb * min(frame.sun_color.a, 4.0) * sun * 0.3;
+        let to_sun = normalize(-frame.sun_direction.xyz);
+        let sun = max(dot(n, to_sun), 0.0);
+        let sun_light = frame.sun_color.rgb * min(frame.sun_color.a, 4.0);
+        light = light + sun_light * sun * 0.3;
+        glint = glint + sun_light * pow(max(dot(n, normalize(to_sun + v)), 0.0), 180.0) * 2.5;
     }
     var lamps = vec3<f32>(0.0);
     for (var i = 0u; i < 16u; i = i + 1u) {
@@ -255,16 +260,20 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let to_light = frame.local_light_positions[i].xyz - input.world_position;
         let distance = length(to_light);
         let ndotl = max(dot(n, to_light / max(distance, 0.001)), 0.0);
-        lamps = lamps + frame.local_light_colors[i].rgb * mana_point_light_attenuation(distance, range) * ndotl;
+        let to_lamp = to_light / max(distance, 0.001);
+        let reach = frame.local_light_colors[i].rgb * mana_point_light_attenuation(distance, range);
+        lamps = lamps + reach * ndotl;
+        glint = glint + reach * pow(max(dot(n, normalize(to_lamp + v)), 0.0), 400.0) * 1.2;
     }
-    light = light + lamps;
+    // Soft: the water's own colour only takes a little of a lamp; the rest shows in the lamp's colour below.
+    light = light + lamps * 0.3;
 
     // Mixed toward a brighter shade of the water's own color (not raw white), and mix() rather than
     // additive keeps overlapping rings from stacking up into a blown-out white patch.
     let ripple_tint = custom.shallowColor * 1.5 + vec3<f32>(0.05, 0.08, 0.08);
     let shaded_color = mix(base_color, ripple_tint, ripple_highlight) * light;
     // The sheen is the sky's reflection, so it fades with the daylight; lamps still catch the ripples.
-    let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight)) + lamps * ripple_highlight * 0.5;
+    let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight)) + lamps * (0.04 + ripple_highlight * 0.3) + glint;
     let alpha = saturate(custom.opacity + fresnel * 0.25 + ripple_highlight * 0.1);
 
     return vec4<f32>(color, alpha);
