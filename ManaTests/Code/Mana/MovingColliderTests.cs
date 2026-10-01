@@ -22,6 +22,23 @@ public static class MovingColliderChecks
         context.World.DefaultScene = new ManaScene(context) { Name = "Default Scene" };
         context.World.Scenes.Add(context.World.DefaultScene);
 
+        var scaled = new ManaSceneNode(context, Matrix4x4.Identity)
+        {
+            Name = "Scaled hull", Scale = new Vector3(2, 3, 4), Position = new Vector3(10, 0, 0)
+        };
+        context.World.DefaultScene.Children.Add(scaled);
+        scaled.UpdateTransform();
+        Vector3[] points = [new(-2, 0, -4), new(2, 0, -4), new(-2, 6, -4), new(2, 6, -4),
+            new(-2, 0, 4), new(2, 0, 4), new(-2, 6, 4), new(2, 6, 4)];
+        var hull = context.Physics.AddConvexHullBody(scaled, points, new Vector3(0, 0.5f, 0));
+        var hullBody = context.Physics.Simulation.Bodies[hull.Body];
+        check("scaled hull center is stored in owner-local coordinates", Vector3.Distance(hull.Position, new Vector3(0, 1.5f, 0)) < 0.001f);
+        check("scaled hull center is scaled only once in physics", Vector3.Distance(hullBody.Pose.Position, new Vector3(10, 4.5f, 0)) < 0.001f);
+        scaled.Position = new Vector3(12, 2, 0);
+        scaled.UpdateTransform();
+        hull.UpdateComponent();
+        check("scaled hull stays aligned after node synchronization", Vector3.Distance(hullBody.Pose.Position, new Vector3(12, 6.5f, 0)) < 0.001f);
+
         var lift = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Lift" };
         context.World.DefaultScene.Children.Add(lift);
         var box = context.Physics.AddBoxBody(lift, new Vector3(2, 1, 2), Vector3.Zero);

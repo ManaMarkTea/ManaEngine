@@ -71,23 +71,30 @@ namespace Mana.Code
             ReadOnlySpan<Vector3> points,
             Vector3 offset)
         {
+            Matrix4x4.Decompose(node.WorldTransform, out var worldScale, out _, out _);
+            var scaledOffset = offset * worldScale;
             var hullPoints = points.ToArray();
             for (var i = 0; i < hullPoints.Length; i++)
             {
-                hullPoints[i] += offset;
+                hullPoints[i] += scaledOffset;
             }
 
             var hullShape = new ConvexHull(hullPoints, BufferPool, out var hullCenter);
+            // Hull points already carry world scale; Position is owner-local and the body pose applies scale.
+            var localCenter = new Vector3(
+                worldScale.X == 0 ? 0 : hullCenter.X / worldScale.X,
+                worldScale.Y == 0 ? 0 : hullCenter.Y / worldScale.Y,
+                worldScale.Z == 0 ? 0 : hullCenter.Z / worldScale.Z);
             var hullIndex = Simulation.Shapes.Add(hullShape);
             var hullBody = BodyDescription.CreateKinematic(
-                ManaCollisionComponent.CreateBodyPose(node, hullCenter),
+                ManaCollisionComponent.CreateBodyPose(node, localCenter),
                 new CollidableDescription(hullIndex),
                 new BodyActivityDescription());
             var handle = Simulation.Bodies.Add(hullBody);
 
             var collisionComponent = new ManaCollisionComponent(node)
             {
-                Position = hullCenter,
+                Position = localCenter,
                 Shape = hullShape,
                 ShapeIndex = hullIndex,
                 Body = handle
