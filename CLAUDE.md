@@ -118,7 +118,8 @@ from the catalog rather than a checkout, and files can be locked by Defender mid
   never regenerate it -- it carries authored audio and tuning that a rebuild would lose. Other levels too: edit by
   node id, keep every id.
 - **Other agents edit this repo at the same time.** Files can change under you: edit by anchor (the surrounding
-  text), not by line number, and stop any running `ManaVoxel.exe` before building it.
+  text), not by line number, and stop any running `ManaVoxel.exe` before building it. Commit only your own files
+  (`git add <paths>`, never `git add -A`) -- the working tree can hold someone else's unfinished change.
 - **Code comments:** one or two lines, saying why, not what; no essays.
 - **Commit and push** working steps as they land, with a message saying what changed and why.
 
