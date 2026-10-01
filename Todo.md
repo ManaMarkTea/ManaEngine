@@ -16,10 +16,16 @@
 
 
 
+[] - Can the moon match up to the real phase of the moon (New moon, half moon, full moon)
 
 
+[] - Can the mana command runner be in a higher up in the project dependencies? with more commands registered by the project that supports it. - like things only mana voxel can do etc.
 
+[] - It can be hard to tell when something is html, or mana ui.  Is there a way to mark html as such
 
+[] - Do we support nested prefabs, and is it possible?
+
+[] - Dynamic normal maps on sprites?
 
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
