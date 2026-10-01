@@ -33,9 +33,19 @@
 
 [] - There is a blue ball and yellow donut in every scene for some reason - i forgot why, remove them.
 
-[] - Finish the Little Pond Level - Add tents and picnic stuff
+[x] - Finish the Little Pond Level - Add tents and picnic stuff
+    Added Kenney Mini Forest tents and woodland, a fire circle, picnic table, blanket and supplies.
+    Reusable camping prefabs and refreshed level preview; verified loading and player grounding.
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
+
+[] - JSON files seem to be adding lots of new lines again, i thought it was fixed.
+
+[] - Some kind of particle system. - Points, trails, ribbons, etc.
+
+[] - Is there some kind of couch co-op 4 - 8 player game we could make using this stuff
+
+[] - UI Editor is not working and not used, needs updating - low priority
 
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on

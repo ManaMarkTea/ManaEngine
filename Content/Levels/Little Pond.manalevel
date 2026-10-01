@@ -893,7 +893,7 @@
                 1.71,
                 1.71
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
             },
             {
               "id": "b2aa53a990134e5cad713e256e83056a",
@@ -914,7 +914,7 @@
                 1.99,
                 1.99
               ],
-              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "16e9d5821aed492696e60a7fb39dbe3c",
@@ -935,7 +935,7 @@
                 1.83,
                 1.83
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "5058c931e61648488e8d6909c6bdf25a",
@@ -956,16 +956,16 @@
                 2.04,
                 2.04
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
             },
             {
               "id": "0a11c5de2c3945198b8fc1df94a8d634",
               "name": "Tree 5",
               "kind": "Mesh",
               "position": [
-                -0.11,
+                1.8,
                 1.5,
-                12.52
+                14
               ],
               "rotation": [
                 0,
@@ -977,16 +977,16 @@
                 2.06,
                 2.06
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "ce74687f0c2a4d9499a88eacacc32100",
               "name": "Tree 6",
               "kind": "Mesh",
               "position": [
-                -4.5,
+                -8.7,
                 1.5,
-                10.38
+                14
               ],
               "rotation": [
                 0,
@@ -998,7 +998,7 @@
                 1.56,
                 1.56
               ],
-              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "01ce3e71254942b3bbe54fd6af9e4319",
@@ -1019,7 +1019,7 @@
                 1.51,
                 1.51
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
             },
             {
               "id": "134bad175f234801978d554ac5a54b05",
@@ -1040,7 +1040,7 @@
                 2.25,
                 2.25
               ],
-              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "e6ed1c41d339410380bfff411cc6efbf",
@@ -1061,7 +1061,7 @@
                 1.73,
                 1.73
               ],
-              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "15b1d817245c483b8c9e9f3637d2211f",
@@ -1082,16 +1082,16 @@
                 1.71,
                 1.71
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
             },
             {
               "id": "3afc3a25f1b84d1f95930f07e85603c7",
               "name": "Tree 11",
               "kind": "Mesh",
               "position": [
-                -6.21,
+                -11.8,
                 1.5,
-                -10.0
+                -13.1
               ],
               "rotation": [
                 0,
@@ -1103,16 +1103,16 @@
                 2.4,
                 2.4
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "943a6daf8f874fb5a23d0da6825c2aeb",
               "name": "Tree 12",
               "kind": "Mesh",
               "position": [
-                -2.27,
+                -13,
                 1.5,
-                -11.8
+                -9.7
               ],
               "rotation": [
                 0,
@@ -1124,16 +1124,16 @@
                 1.92,
                 1.92
               ],
-              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "ff7a9580766f425fa9e0002bdc280983",
               "name": "Tree 13",
               "kind": "Mesh",
               "position": [
-                0.39,
+                4.9,
                 1.5,
-                -11.41
+                -14
               ],
               "rotation": [
                 0,
@@ -1145,7 +1145,7 @@
                 2.25,
                 2.25
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
             },
             {
               "id": "1bdbaa26e0d94c57875753ec50c7a0e5",
@@ -1166,7 +1166,7 @@
                 1.93,
                 1.93
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "75ee3098ff7d4ff282f558a2bf2c63db",
@@ -1187,7 +1187,7 @@
                 2.08,
                 2.08
               ],
-              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
             },
             {
               "id": "f727bb225b234c2b8fa9f3fba1dd5abc",
@@ -1208,7 +1208,7 @@
                 1.64,
                 1.64
               ],
-              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
             }
           ]
         },
@@ -1247,11 +1247,11 @@
                 0
               ],
               "scale": [
-                1.4908005604539656,
-                1.4908005604539656,
-                1.4908005604539656
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "dd4d1e369f98406fb72542dbb191cdfb",
@@ -1268,11 +1268,11 @@
                 0
               ],
               "scale": [
-                1.104032191339406,
-                1.104032191339406,
-                1.104032191339406
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "b750ab0d5df04441a51aefd1f41bff41",
@@ -1289,11 +1289,11 @@
                 0
               ],
               "scale": [
-                1.2400701648798507,
-                1.2400701648798507,
-                1.2400701648798507
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "dd3844c0264546759d53073198fffa26",
@@ -1302,7 +1302,7 @@
               "position": [
                 7.57,
                 1.5,
-                10.02
+                9.8
               ],
               "rotation": [
                 0,
@@ -1310,11 +1310,11 @@
                 0
               ],
               "scale": [
-                1.2682423577852586,
-                1.2682423577852586,
-                1.2682423577852586
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "688fd353a7b7469f93f717c6a132e78f",
@@ -1323,7 +1323,7 @@
               "position": [
                 4.48,
                 1.5,
-                10.18
+                9.8
               ],
               "rotation": [
                 0,
@@ -1331,11 +1331,11 @@
                 0
               ],
               "scale": [
-                1.2684413926730873,
-                1.2684413926730873,
-                1.2684413926730873
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "70c0de2deb5c4ab088a5f7dc1b29e7ae",
@@ -1344,7 +1344,7 @@
               "position": [
                 0.61,
                 1.5,
-                12.59
+                9.8
               ],
               "rotation": [
                 0,
@@ -1352,11 +1352,11 @@
                 0
               ],
               "scale": [
-                1.4732808143528828,
-                1.4732808143528828,
-                1.4732808143528828
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "f2b418104e40494aa301d089eba8443e",
@@ -1365,7 +1365,7 @@
               "position": [
                 -3.5,
                 1.5,
-                12.04
+                9.8
               ],
               "rotation": [
                 0,
@@ -1373,11 +1373,11 @@
                 0
               ],
               "scale": [
-                0.9692121096652907,
-                0.9692121096652907,
-                0.9692121096652907
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "1b9f8d620ae44470bb5dcf03f4f7a061",
@@ -1386,7 +1386,7 @@
               "position": [
                 -5.16,
                 1.5,
-                10.0
+                9.8
               ],
               "rotation": [
                 0,
@@ -1394,11 +1394,11 @@
                 0
               ],
               "scale": [
-                1.1795936754959602,
-                1.1795936754959602,
-                1.1795936754959602
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "7a980fb47762459dba929031a406e700",
@@ -1407,7 +1407,7 @@
               "position": [
                 -9.8,
                 1.5,
-                10.0
+                9.8
               ],
               "rotation": [
                 0,
@@ -1415,11 +1415,11 @@
                 0
               ],
               "scale": [
-                0.9864704941310924,
-                0.9864704941310924,
-                0.9864704941310924
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "e4e6bd2a0ac74b7fb7c44c8f15085db3",
@@ -1436,11 +1436,11 @@
                 0
               ],
               "scale": [
-                1.1871731661059948,
-                1.1871731661059948,
-                1.1871731661059948
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "3b52896a725d438ca70bf3af79a61cc6",
@@ -1457,11 +1457,11 @@
                 0
               ],
               "scale": [
-                1.0231290040209244,
-                1.0231290040209244,
-                1.0231290040209244
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "d6c8629033e64cc4b53042e6d7ec21c1",
@@ -1478,11 +1478,11 @@
                 0
               ],
               "scale": [
-                1.2259034555292687,
-                1.2259034555292687,
-                1.2259034555292687
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "1cb39af84253464eb94855463a33b667",
@@ -1499,11 +1499,11 @@
                 0
               ],
               "scale": [
-                1.078853814207768,
-                1.078853814207768,
-                1.078853814207768
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "2fda9855f764493483dc05c127cd01b7",
@@ -1520,11 +1520,11 @@
                 0
               ],
               "scale": [
-                1.0566691183376171,
-                1.0566691183376171,
-                1.0566691183376171
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "5aebc8a54d0549a5b57f305c5845d709",
@@ -1533,7 +1533,7 @@
               "position": [
                 -7.61,
                 1.5,
-                -10.0
+                -9.6
               ],
               "rotation": [
                 0,
@@ -1541,11 +1541,11 @@
                 0
               ],
               "scale": [
-                1.1134177018937672,
-                1.1134177018937672,
-                1.1134177018937672
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "26203f99ea7248f2aabc95ecd00b11dd",
@@ -1554,7 +1554,7 @@
               "position": [
                 -3.13,
                 1.5,
-                -11.53
+                -9.6
               ],
               "rotation": [
                 0,
@@ -1562,11 +1562,11 @@
                 0
               ],
               "scale": [
-                1.3674329348029062,
-                1.3674329348029062,
-                1.3674329348029062
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "3e21bd57bc2d4c4f96661f4fcefc6962",
@@ -1575,7 +1575,7 @@
               "position": [
                 -0.64,
                 1.5,
-                -11.68
+                -9.6
               ],
               "rotation": [
                 0,
@@ -1583,11 +1583,11 @@
                 0
               ],
               "scale": [
-                1.2679369336881245,
-                1.2679369336881245,
-                1.2679369336881245
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "2a1d6e45bef5484ab68197d3be1f10be",
@@ -1596,7 +1596,7 @@
               "position": [
                 2.65,
                 1.5,
-                -10.0
+                -9.6
               ],
               "rotation": [
                 0,
@@ -1604,11 +1604,11 @@
                 0
               ],
               "scale": [
-                1.390999765995224,
-                1.390999765995224,
-                1.390999765995224
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "8c4f6a3ea93d470ab1f50fb02f51478b",
@@ -1617,7 +1617,7 @@
               "position": [
                 6.74,
                 1.5,
-                -10.23
+                -9.6
               ],
               "rotation": [
                 0,
@@ -1625,11 +1625,11 @@
                 0
               ],
               "scale": [
-                1.1956691057483668,
-                1.1956691057483668,
-                1.1956691057483668
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             },
             {
               "id": "5555aedc922f4ad3b3e9f9c9aaaf0f4c",
@@ -1646,11 +1646,11 @@
                 0
               ],
               "scale": [
-                1.3740684819791549,
-                1.3740684819791549,
-                1.3740684819791549
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "a1c90b7e3ecb454e975300c04803fb50",
@@ -1667,11 +1667,11 @@
                 0
               ],
               "scale": [
-                1.315513165020074,
-                1.315513165020074,
-                1.315513165020074
+                1.6,
+                1.6,
+                1.6
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/plant.glb"
             },
             {
               "id": "1822bed17a1142aaa46a4ffbb80a2d0a",
@@ -1688,11 +1688,11 @@
                 0
               ],
               "scale": [
-                1.4622127207657454,
-                1.4622127207657454,
-                1.4622127207657454
+                1.3,
+                1,
+                1.3
               ],
-              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-grass.glb"
             }
           ]
         },
@@ -3402,6 +3402,1271 @@
                   }
                 }
               ]
+            }
+          ]
+        },
+        {
+          "id": "72f83f671b7d4035bb007847e2d0728c",
+          "name": "North Bank Campsite",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "children": [
+            {
+              "id": "d63050ca157045da868ae110d7c84978",
+              "name": "Forest tent west",
+              "kind": "Prefab",
+              "position": [
+                -7,
+                1.5,
+                -12.4
+              ],
+              "rotation": [
+                0,
+                -0.1,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "prefab": {
+                "assetId": "4728e82c53e64ddf9d849a0efbda6aef",
+                "assetPath": "Prefabs/Camping/Forest Tent.manaprefab",
+                "overrides": []
+              }
+            },
+            {
+              "id": "9ceda64f10c54398aa4a75046df87ceb",
+              "name": "Forest tent east",
+              "kind": "Prefab",
+              "position": [
+                -2.5,
+                1.5,
+                -12.6
+              ],
+              "rotation": [
+                0,
+                0.12,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "prefab": {
+                "assetId": "4728e82c53e64ddf9d849a0efbda6aef",
+                "assetPath": "Prefabs/Camping/Forest Tent.manaprefab",
+                "overrides": []
+              }
+            },
+            {
+              "id": "247eeea049ca4361a056b28588b32f0b",
+              "name": "Stone fire circle",
+              "kind": "Group",
+              "position": [
+                2,
+                1.5,
+                -11.5
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "children": [
+                {
+                  "id": "7f1e0dbac4744970916bf7b1d5f7ec64",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    0.64,
+                    0.13,
+                    0.0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "0ce360274f8c4918a099d613b930761e",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    0.5177708763999663,
+                    0.13,
+                    0.3761825614671828
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "493169b34c324584b42c9adc5c53a58f",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    0.19777087639996638,
+                    0.13,
+                    0.6086761704288983
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "0b9ce9efe2c146709b8905c7bc28b28a",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    -0.1977708763999663,
+                    0.13,
+                    0.6086761704288983
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "571fa58acef34646858e3364d4c71824",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    -0.5177708763999663,
+                    0.13,
+                    0.3761825614671829
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "59475e2fe21c48b7a8be60d9516b4e51",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    -0.64,
+                    0.13,
+                    7.83773951454306e-17
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "48e82e8737f54a2abd2aa3679b2a783b",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    -0.5177708763999663,
+                    0.13,
+                    -0.37618256146718276
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "0cca5b8ec88449059e9ebbc249a370c6",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    -0.19777087639996643,
+                    0.13,
+                    -0.6086761704288983
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "357a84b31fa147c0a48134dd7107b34a",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    0.19777087639996624,
+                    0.13,
+                    -0.6086761704288983
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "c0fa6d5fb9164324b384cb24eaaacb10",
+                  "name": "Fire ring stone",
+                  "kind": "Shape",
+                  "position": [
+                    0.5177708763999663,
+                    0.13,
+                    -0.376182561467183
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.32,
+                    0.26,
+                    0.28
+                  ],
+                  "shape": "Icosphere",
+                  "color": [
+                    0.33,
+                    0.35,
+                    0.32,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "c80a63e8939c47739614aff29f47c1ba",
+                  "name": "Firewood",
+                  "kind": "Shape",
+                  "position": [
+                    0,
+                    0.18,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    -0.55,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.15,
+                    0.15,
+                    1.05
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "41b5068736c54af4aa9983e03774657f",
+                  "name": "Firewood",
+                  "kind": "Shape",
+                  "position": [
+                    0,
+                    0.18,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0.55,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.15,
+                    0.15,
+                    1.05
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "a49d3bdfe6ef49cfabc4d622b2b10dfe",
+                  "name": "Campfire flame",
+                  "kind": "Shape",
+                  "position": [
+                    0,
+                    0.52,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    0.58,
+                    0.7,
+                    0.58
+                  ],
+                  "shape": "Pyramid",
+                  "color": [
+                    1,
+                    0.36,
+                    0.06,
+                    1
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "scripts": [
+                    {
+                      "id": "e8a824682c7a4f988f552fbccbc87a3c",
+                      "type": "Glow",
+                      "properties": {
+                        "color": [
+                          1,
+                          0.45,
+                          0.12,
+                          1
+                        ],
+                        "strength": 1.5,
+                        "lightRange": 5,
+                        "lightIntensity": 0.7,
+                        "lightOffset": [
+                          0,
+                          0.1,
+                          0
+                        ],
+                        "pulseSpeed": 0.35,
+                        "enabled": true
+                      }
+                    }
+                  ],
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "84b428de19014c5ab9cd73bb54b00730",
+                  "name": "Camp bench",
+                  "kind": "Shape",
+                  "position": [
+                    -1.65,
+                    0.4,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.44,
+                    0.22,
+                    1.7
+                  ],
+                  "collision": {
+                    "useVisualBounds": true
+                  },
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "7ae6f823e8fb482a8c13bcba33d12d00",
+                  "name": "Bench stump",
+                  "kind": "Shape",
+                  "position": [
+                    -1.65,
+                    0.16,
+                    -0.55
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.32,
+                    0.32,
+                    0.32
+                  ],
+                  "collision": {
+                    "useVisualBounds": true
+                  },
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "7323e6f416ca41a6a4f053f901d49701",
+                  "name": "Bench stump",
+                  "kind": "Shape",
+                  "position": [
+                    -1.65,
+                    0.16,
+                    0.55
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.32,
+                    0.32,
+                    0.32
+                  ],
+                  "collision": {
+                    "useVisualBounds": true
+                  },
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "d00b24c57f3540ea9ad98a8b7cdcc91f",
+                  "name": "Camp bench",
+                  "kind": "Shape",
+                  "position": [
+                    1.65,
+                    0.4,
+                    0
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.44,
+                    0.22,
+                    1.7
+                  ],
+                  "collision": {
+                    "useVisualBounds": true
+                  },
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "d4d2dd2883c04e9c96a4bd228f222a0b",
+                  "name": "Bench stump",
+                  "kind": "Shape",
+                  "position": [
+                    1.65,
+                    0.16,
+                    -0.55
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.32,
+                    0.32,
+                    0.32
+                  ],
+                  "collision": {
+                    "useVisualBounds": true
+                  },
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                },
+                {
+                  "id": "5643235c9f804f598b3540589ef6a8f3",
+                  "name": "Bench stump",
+                  "kind": "Shape",
+                  "position": [
+                    1.65,
+                    0.16,
+                    0.55
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "shape": "Cube",
+                  "color": [
+                    0.31,
+                    0.16,
+                    0.075,
+                    1
+                  ],
+                  "size": [
+                    0.32,
+                    0.32,
+                    0.32
+                  ],
+                  "collision": {
+                    "useVisualBounds": true
+                  },
+                  "material": {
+                    "metallic": 0,
+                    "roughness": 0.85
+                  }
+                }
+              ]
+            },
+            {
+              "id": "8ec23ebfb7424939974d532d63972979",
+              "name": "Lakeside picnic table",
+              "kind": "Prefab",
+              "position": [
+                10.8,
+                1.5,
+                -12.0
+              ],
+              "rotation": [
+                0,
+                0.15,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "prefab": {
+                "assetId": "312dd03ecdef48269418a93c604c39c7",
+                "assetPath": "Prefabs/Camping/Pond Picnic Table.manaprefab",
+                "overrides": []
+              }
+            },
+            {
+              "id": "93af78f82623488097a926e82fd05f98",
+              "name": "Worn campsite clearing",
+              "kind": "Mesh",
+              "position": [
+                -7,
+                1.48,
+                -12
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                3.8,
+                0.45,
+                3.6
+              ],
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-dirt.glb"
+            },
+            {
+              "id": "0ff9b5e603b94948a43f7cbcbc05afb1",
+              "name": "Worn campsite clearing",
+              "kind": "Mesh",
+              "position": [
+                -2.5,
+                1.48,
+                -12
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                3.8,
+                0.45,
+                3.6
+              ],
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-dirt.glb"
+            },
+            {
+              "id": "498ad3fd8989458d83405a620c28c27b",
+              "name": "Worn campsite clearing",
+              "kind": "Mesh",
+              "position": [
+                2,
+                1.48,
+                -12
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                3.8,
+                0.45,
+                3.6
+              ],
+              "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/patch-dirt.glb"
+            }
+          ]
+        },
+        {
+          "id": "6bd3fd53866145e5a2e2b2640bd0457e",
+          "name": "South Bank Picnic",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "children": [
+            {
+              "id": "6174184bc2b04947a66ed4e8b6ed0349",
+              "name": "Checkered picnic blanket",
+              "kind": "Prefab",
+              "position": [
+                -5.8,
+                1.5,
+                12.3
+              ],
+              "rotation": [
+                0,
+                -0.15,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "prefab": {
+                "assetId": "dd302ab3e99047d7b17e2dd89d40b2be",
+                "assetPath": "Prefabs/Camping/Pond Picnic Blanket.manaprefab",
+                "overrides": []
+              }
+            }
+          ]
+        },
+        {
+          "id": "a73ca430871e4320bd0e65fb71ce01d8",
+          "name": "Campsite footpath",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "children": [
+            {
+              "id": "862b94d2656846518cf8e45025a7bbb4",
+              "name": "Camp trail stone 1",
+              "kind": "Shape",
+              "position": [
+                -8.4,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "dfc2c9756c3042a88b869e7b8e649bb6",
+              "name": "Camp trail stone 2",
+              "kind": "Shape",
+              "position": [
+                -5.75,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "ecc62da044184b998c50125b8b1d175d",
+              "name": "Camp trail stone 3",
+              "kind": "Shape",
+              "position": [
+                -3.1000000000000005,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "6bc4d80baca3463aab992ff6b1ee5a1b",
+              "name": "Camp trail stone 4",
+              "kind": "Shape",
+              "position": [
+                -0.45000000000000107,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "83086ff2c3e648bda8761c0e228a4df2",
+              "name": "Camp trail stone 5",
+              "kind": "Shape",
+              "position": [
+                2.1999999999999993,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "d077c844349640299515372595059c6f",
+              "name": "Camp trail stone 6",
+              "kind": "Shape",
+              "position": [
+                4.85,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "39165bfd4ec04ed99390cbdf3dd4c151",
+              "name": "Camp trail stone 7",
+              "kind": "Shape",
+              "position": [
+                7.499999999999998,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
+            },
+            {
+              "id": "ee5eb0fd4aaf481aabfb81afc61ab83b",
+              "name": "Camp trail stone 8",
+              "kind": "Shape",
+              "position": [
+                10.15,
+                1.535,
+                -9.85
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                0.6,
+                0.07,
+                0.42
+              ],
+              "shape": "Icosphere",
+              "color": [
+                0.51,
+                0.49,
+                0.39,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ],
+              "material": {
+                "metallic": 0,
+                "roughness": 0.85
+              }
             }
           ]
         }

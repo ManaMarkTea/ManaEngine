@@ -1,0 +1,118 @@
+[
+  {
+    "type": "open_level",
+    "path": "Content/Levels/Little Pond.manalevel"
+  },
+  {
+    "type": "sky",
+    "name": "DayNightCycle",
+    "timeOfDay": 0.2
+  },
+  {
+    "type": "gizmos",
+    "visible": false
+  },
+  {
+    "type": "wait",
+    "frames": 100
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      55,
+      25,
+      60
+    ],
+    "target": [
+      32,
+      1.5,
+      32
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 25
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@/little-pond-overview.png",
+    "clean": true
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      34,
+      9,
+      29
+    ],
+    "target": [
+      30,
+      2,
+      19.8
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 25
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@/little-pond-camp.png",
+    "clean": true
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      32,
+      7,
+      51
+    ],
+    "target": [
+      26.5,
+      1.5,
+      44
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 25
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@/little-pond-picnic.png",
+    "clean": true
+  },
+  {
+    "type": "play"
+  },
+  {
+    "type": "wait",
+    "frames": 100
+  },
+  {
+    "type": "log_player",
+    "name": "pond spawn"
+  },
+  {
+    "type": "teleport_player",
+    "position": [
+      25,
+      1.7,
+      21
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 60
+  },
+  {
+    "type": "log_player",
+    "name": "camp path"
+  },
+  {
+    "type": "stop_play"
+  },
+  {
+    "type": "quit"
+  }
+]

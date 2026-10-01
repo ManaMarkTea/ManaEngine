@@ -1,0 +1,2264 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "dd302ab3e99047d7b17e2dd89d40b2be",
+  "name": "Pond Picnic Blanket",
+  "root": {
+    "id": "0d3bbdc723c04271af4cc564c18a0a52",
+    "name": "Pond Picnic Blanket",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "a592c35ed45f4b348f6ed697add16039",
+        "name": "Blanket hem",
+        "kind": "Shape",
+        "position": [
+          0,
+          0.015,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.92,
+          0.82,
+          0.65,
+          1
+        ],
+        "size": [
+          2.85,
+          0.03,
+          2.1
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "272686e247fd43d1a6c19bd6b1f38003",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -1.19,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "31622f1357ce4fb4a7bf85bcdd1e8012",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -1.19,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "41c0648566cf4cd4b4cef4835e92e21e",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -1.19,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "ee16e23cfb5748c59a6de1a69c4eeed1",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -1.19,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "ae0643c4ff694c7096729e66edd62088",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -1.19,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "421728e52b4d46db98c27a5be2c967c9",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -1.19,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "2f4d4b1e9bf841258cad4500a5228dcd",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.8499999999999999,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "24177f3a27964a00854d3f20519d026d",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.8499999999999999,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "ebd631b863294b608a4bf9c2625c8172",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.8499999999999999,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "02919ad39d6b46688659be57a8c61cee",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.8499999999999999,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "a9be3d2968484347a27027dc052bba27",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.8499999999999999,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "7039c6fd1ab3465cbfdd4693826857ae",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.8499999999999999,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "f3144541a04a44c8b43516c0e71da724",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.5099999999999999,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "0dc2034389294b1fa4b1d25c0e252f2e",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.5099999999999999,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "e4882283286b4144b97ac3ebe16e2927",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.5099999999999999,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "4de1cc17efb946718bf9d7b01e474ea4",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.5099999999999999,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "68bb5f79840c4816b945b475507e2222",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.5099999999999999,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "ea3a0f26053d4f2dadf953f146ff9f77",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.5099999999999999,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "01b49d16e0994dfa8708a66d9b5b6bfb",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.16999999999999993,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "56105785f186409bacb4b0b9cfe09b97",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.16999999999999993,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "9b4a6f7a52234ab9b669d840983f6604",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.16999999999999993,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "0b02b50d939c4394ac5b47ea39f3fa94",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.16999999999999993,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "80243b339c2b4398987065d9fd3a018c",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.16999999999999993,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "39b26c4d330e42edbfeea8508d40010a",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          -0.16999999999999993,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "8ffd92377dc34d049deb2535527846bd",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.17000000000000015,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "0eb98a84c4184d319eeac38ff32cc7a2",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.17000000000000015,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "d89e8dd03bdf409da945b0e1fab84561",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.17000000000000015,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "1111e2b8c6894eadaa5e460657acdf8a",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.17000000000000015,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "0ee3aa7c44274ba0a6f3218de7020df7",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.17000000000000015,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "b6a2d9d4f3a44174a03224647d5f58a7",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.17000000000000015,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "9bc4a2dc714a4db79f3c75afe268cce0",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.5100000000000002,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "4dd29c92c04c4b65af5cdb693c638d33",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.5100000000000002,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "b72b2c9939bd46b4988a06111c2da808",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.5100000000000002,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "4c41d295f6154ec79ff2ad5c77a1e0e8",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.5100000000000002,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "bab427ccae2245b48bf95dfd1f5211b7",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.5100000000000002,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "4a5dd609903d45758d60ce0a48ec635d",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.5100000000000002,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "009fa1819ee3403db01a9615f89e0f62",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.8500000000000001,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "67e3d9104fb049ca8286eacd8f994a83",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.8500000000000001,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "685e3236ef4847bea0ffced61639ca9a",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.8500000000000001,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "92270f79985543b7a634148f314c011c",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.8500000000000001,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "fc5f39b25b364788ade467bb401af715",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.8500000000000001,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "405ea24633d145f7a4384efb73009cca",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          0.8500000000000001,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "57abffc6b267468ebba2a6df85ae32a3",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          1.1900000000000004,
+          0.04,
+          -0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "2db29358ef6e44039d53ca68da58b1ad",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          1.1900000000000004,
+          0.04,
+          -0.48000000000000004
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "d431bfb19a93424095137aa8b27a589c",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          1.1900000000000004,
+          0.04,
+          -0.16000000000000003
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "26533cb9af924e1899f03cae91946e58",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          1.1900000000000004,
+          0.04,
+          0.15999999999999992
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "d45b09af7b1e4f79a5a0289ae6ba06b8",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          1.1900000000000004,
+          0.04,
+          0.48
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.69,
+          0.19,
+          0.14,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "378f3caa522744d5a0a42d19c57f7f51",
+        "name": "Blanket check",
+        "kind": "Shape",
+        "position": [
+          1.1900000000000004,
+          0.04,
+          0.8
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.94,
+          0.84,
+          0.66,
+          1
+        ],
+        "size": [
+          0.34,
+          0.016,
+          0.32
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "0d3b16b27daa409593ee8c68b6011284",
+        "name": "Basket",
+        "kind": "Shape",
+        "position": [
+          1.02,
+          0.24,
+          -0.56
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.52,
+          0.3,
+          0.12,
+          1
+        ],
+        "size": [
+          0.65,
+          0.4,
+          0.43
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "66753f41bed744dd8ab406d5bc122418",
+        "name": "Basket lid",
+        "kind": "Shape",
+        "position": [
+          1.02,
+          0.46,
+          -0.56
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.88,
+          0.77,
+          0.49,
+          1
+        ],
+        "size": [
+          0.69,
+          0.045,
+          0.47
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "92b6c0fe90e0472ba60c936d7aa57202",
+        "name": "Basket handle",
+        "kind": "Shape",
+        "position": [
+          1.02,
+          0.65,
+          -0.56
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.35,
+          0.42,
+          0.06
+        ],
+        "shape": "Torus",
+        "color": [
+          0.31,
+          0.16,
+          0.075,
+          1
+        ],
+        "size": [
+          1,
+          1,
+          1
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "f7c1eee2533f40fc964d892f1210cdb1",
+        "name": "Cooler",
+        "kind": "Shape",
+        "position": [
+          1.9,
+          0.3,
+          0.15
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.16,
+          0.43,
+          0.48,
+          1
+        ],
+        "size": [
+          0.66,
+          0.6,
+          0.48
+        ],
+        "collision": {
+          "useVisualBounds": true
+        },
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "b38248f166224ab7b96fe9b0916cd34b",
+        "name": "Cooler lid",
+        "kind": "Shape",
+        "position": [
+          1.9,
+          0.62,
+          0.15
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.9,
+          0.88,
+          0.77,
+          1
+        ],
+        "size": [
+          0.7,
+          0.065,
+          0.52
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "a330308e9ee64e0b805ae493ada4edf2",
+        "name": "Serving board",
+        "kind": "Shape",
+        "position": [
+          0.2,
+          0.08,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.88,
+          0.77,
+          0.49,
+          1
+        ],
+        "size": [
+          0.68,
+          0.05,
+          0.5
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "a567bda5ef164017b8eb4099ac23a94a",
+        "name": "Picnic fruit",
+        "kind": "Shape",
+        "position": [
+          0.02,
+          0.2,
+          -0.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.16,
+          0.18,
+          0.16
+        ],
+        "shape": "Sphere",
+        "color": [
+          0.85,
+          0.1,
+          0.08,
+          1
+        ],
+        "size": [
+          1,
+          1,
+          1
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "b39d91e1760246c1adfa34dfe20e9969",
+        "name": "Picnic fruit",
+        "kind": "Shape",
+        "position": [
+          0.23,
+          0.2,
+          0.07
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.16,
+          0.18,
+          0.16
+        ],
+        "shape": "Sphere",
+        "color": [
+          0.75,
+          0.65,
+          0.1,
+          1
+        ],
+        "size": [
+          1,
+          1,
+          1
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "a101e3d4999e4c33af1336e270e2679f",
+        "name": "Picnic fruit",
+        "kind": "Shape",
+        "position": [
+          0.4,
+          0.2,
+          -0.08
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.16,
+          0.18,
+          0.16
+        ],
+        "shape": "Sphere",
+        "color": [
+          0.16,
+          0.48,
+          0.14,
+          1
+        ],
+        "size": [
+          1,
+          1,
+          1
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "231b46b902c64fa3aee2c40561ebe7c0",
+        "name": "Seat cushion",
+        "kind": "Shape",
+        "position": [
+          -0.85,
+          0.12,
+          0.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.22,
+          0.4,
+          0.39,
+          1
+        ],
+        "size": [
+          0.65,
+          0.19,
+          0.48
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "00805ab0fb454c9dafc41e1b9355d68e",
+        "name": "Seat cushion",
+        "kind": "Shape",
+        "position": [
+          -0.75,
+          0.12,
+          -0.55
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.22,
+          0.4,
+          0.39,
+          1
+        ],
+        "size": [
+          0.65,
+          0.19,
+          0.48
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "c124d77d27264765b82f3bd8e4ef7355",
+        "name": "Thermos",
+        "kind": "Shape",
+        "position": [
+          0.65,
+          0.22,
+          0.6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.19,
+          0.27,
+          0.31,
+          1
+        ],
+        "size": [
+          0.17,
+          0.35,
+          0.17
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      },
+      {
+        "id": "a97b14f1a51845919908fcccc6a190dc",
+        "name": "Thermos lid",
+        "kind": "Shape",
+        "position": [
+          0.65,
+          0.41,
+          0.6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.88,
+          0.77,
+          0.49,
+          1
+        ],
+        "size": [
+          0.18,
+          0.05,
+          0.18
+        ],
+        "material": {
+          "metallic": 0,
+          "roughness": 0.85
+        }
+      }
+    ]
+  },
+  "properties": []
+}

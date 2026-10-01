@@ -25,6 +25,8 @@ public static class ContentAssetChecks
                 var world = new ManaWorld();
                 var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
                 world.Context = context;
+                // Authored prefabs can contain colliders (tables, tents, platforms).
+                context.Physics = new ManaPhysics(context);
                 world.DefaultScene = new ManaScene(context) { Name = "Default Scene" };
                 world.Scenes.Add(world.DefaultScene);
 

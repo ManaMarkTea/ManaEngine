@@ -1,0 +1,243 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "4728e82c53e64ddf9d849a0efbda6aef",
+  "name": "Forest Tent",
+  "root": {
+    "id": "f98b62592424414caa9832b2d22bf8d6",
+    "name": "Forest Tent",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "ee636079f3f34025a2a229fe2fdac03f",
+        "name": "Kenney forest canvas",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.3,
+          2.3,
+          2.3
+        ],
+        "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tent.glb",
+        "collision": {
+          "useVisualHull": true
+        }
+      },
+      {
+        "id": "2fd352d2e5604dc7afd76e72969501eb",
+        "name": "Warm camp lantern",
+        "kind": "Group",
+        "position": [
+          1.7,
+          0,
+          1.7
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "13ce774aea1c4b46bdf1b5314adcb56a",
+            "name": "Lantern foot",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.035,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.16,
+              0.19,
+              0.2,
+              1
+            ],
+            "size": [
+              0.23,
+              0.07,
+              0.23
+            ],
+            "material": {
+              "metallic": 0,
+              "roughness": 0.85
+            }
+          },
+          {
+            "id": "6699f9e13add44e2a53e2274b7f5589e",
+            "name": "Amber glass",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.22,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1,
+              0.68,
+              0.25,
+              1
+            ],
+            "size": [
+              0.16,
+              0.28,
+              0.16
+            ],
+            "scripts": [
+              {
+                "id": "7b2fd0f765084288ab510565ba6f339e",
+                "type": "Glow",
+                "properties": {
+                  "color": [
+                    1,
+                    0.66,
+                    0.28,
+                    1
+                  ],
+                  "strength": 1.5,
+                  "lightRange": 3,
+                  "lightIntensity": 0.25,
+                  "lightOffset": [
+                    0,
+                    0.1,
+                    0
+                  ],
+                  "pulseSpeed": 0.35,
+                  "enabled": true
+                }
+              }
+            ],
+            "material": {
+              "metallic": 0,
+              "roughness": 0.85
+            }
+          },
+          {
+            "id": "b148f6affcf0486db54920ce8436da08",
+            "name": "Lantern cap",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.4,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              0.26,
+              0.13,
+              0.26
+            ],
+            "shape": "Pyramid",
+            "color": [
+              0.16,
+              0.19,
+              0.2,
+              1
+            ],
+            "size": [
+              1,
+              1,
+              1
+            ],
+            "material": {
+              "metallic": 0,
+              "roughness": 0.85
+            }
+          },
+          {
+            "id": "e01ef24e7e5e48ed8ff9ca6edfa7ca4e",
+            "name": "Handle",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.5,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              0.14,
+              0.14,
+              0.04
+            ],
+            "shape": "Torus",
+            "color": [
+              0.16,
+              0.19,
+              0.2,
+              1
+            ],
+            "size": [
+              1,
+              1,
+              1
+            ],
+            "material": {
+              "metallic": 0,
+              "roughness": 0.85
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "properties": []
+}
