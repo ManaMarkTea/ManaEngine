@@ -31,6 +31,9 @@ struct VertexOutput {
 
 const PI : f32 = 3.14159265359;
 
+// How much sky and fill light is left in the sun's shadow; the floor keeps 0.35 of its light there (grid.wgsl).
+const ShadowedAmbient : f32 = 0.45;
+
 @vertex
 fn vs_main(
     @location(0) position : vec3<f32>,
@@ -206,7 +209,19 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let exposure = frame.irradiance_factors.x;
     let ibl_intensity = frame.irradiance_factors.y;
 
-    var direct = vec3<f32>(0.0);
+    // The sun's shadow, worked out once: it also dims the sky and the fill lights below, as the floor's does
+    // (grid.wgsl), or an object in shadow keeps most of its light and reads as unshadowed on a dark floor.
+    // Only where something else blocks the sun: a face turned away keeps its sky light, faded in over the
+    // terminator so round things get no hard line there.
+    var sun_shadow = 1.0;
+    var shade = 1.0;
+    if (frame.sun_direction.w > 0.5) {
+        let sun_ndotl = dot(n, normalize(-frame.sun_direction.xyz));
+        sun_shadow = mana_sun_shadow_factor(input.world_position, n, max(sun_ndotl, 0.0001));
+        shade = mix(1.0, mix(ShadowedAmbient, 1.0, sun_shadow), smoothstep(0.0, 0.25, sun_ndotl));
+    }
+
+    var fill = vec3<f32>(0.0);
     for (var i = 0u; i < 4u; i = i + 1u) {
         let light_pos = frame.light_positions[i].xyz;
         let light_color = frame.light_colors[i].xyz;
@@ -225,8 +240,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
 
         let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
-        direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl;
+        fill = fill + (kd * vertex_albedo / PI + specular) * radiance * ndotl;
     }
+
+    var direct = fill * shade;
 
     // Placed point lights -- lamps, torches. Inverse square, windowed to reach zero at the light's range so a
     // lamp lights its surroundings and not the whole level.
@@ -270,8 +287,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
 
         let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
-        let shadow = mana_sun_shadow_factor(input.world_position, n, ndotl);
-        direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl * shadow;
+        direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl * sun_shadow;
     }
 
     let irradiance = mana_irradiance(n);
@@ -286,7 +302,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // f0, not F: the LUT already integrates Fresnel (Karis split-sum is F0 * A + B). Using F here
     // applies it twice and blows out grazing angles.
     let specular_ibl = reflection_radiance * (f0 * brdf.x + brdf.y) * ibl_intensity;
-    let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao;
+    let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao * shade;
     // With an emission map, it says what glows (glTF's rule). Without one, emission shows the surface's own
     // colour -- texture and all -- as if in full daylight, tinted by the emission colour: a glowing coin still
     // looks like the coin, where a white stand-in map painted it over in one flat colour.
