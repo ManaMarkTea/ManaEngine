@@ -29,9 +29,10 @@ formats, and additional test-running instructions.
 
 ## License and third-party notices
 
-The root [`LICENSE`](LICENSE) covers ManaRenderer's original source code, not every file in the repository. Bundled
-assets, fonts, shaders, and dependencies may have separate terms; keep their accompanying license and attribution
-notices with them. Do not infer permission to reuse a third-party asset from the repository's source-code license.
+The root [`LICENSE`](LICENSE) covers ManaRenderer's original source code, not every file in the repository. Project
+assets are either original work by the author or CC0, except for the separately licensed third-party material noted
+below. Fonts, shaders, and dependencies may have their own terms; retain their accompanying license and attribution
+notices. Do not infer permission to reuse a third-party asset from the repository's source-code license.
 
 Notable bundled material with recorded terms:
 
@@ -44,6 +45,5 @@ Notable bundled material with recorded terms:
 - Third-party libraries retain the licenses of their respective packages; see each package's distribution for its
   applicable terms.
 
-Some assets have intentionally been removed where the repository did not establish redistribution permission.
-For any other asset without a clear accompanying notice, verify its terms with the original creator before reusing
-or redistributing it.
+Assets without an individual notice are original work by the author or CC0. The Duck and Sci-Fi Helmet samples were
+removed because their redistribution terms were not established.
