@@ -31,6 +31,8 @@
 [] - Auto-Normal looks really bad.
 
 
+[] - Can we organize the panels menu? Some things are more important than others, some things are for debugging, etc.  Also a search bar that finds a given menu (like unreal) would be cool
+
 [] - Can we also support exporting video in addition to the PNG snapshots we take now. Prolly using FFMPEG to compress pngs or something.
 
 [x] - The search location panel is gone, i think it moved somewhere but i can't find it anymore. where is it?
