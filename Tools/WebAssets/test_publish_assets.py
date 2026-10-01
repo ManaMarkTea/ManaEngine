@@ -50,17 +50,17 @@ class PublishAssetsTests(unittest.TestCase):
     def test_compressed_variant_stages_supported_sibling(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            model = root / 'Assets/Models/Duck'
+            model = root / 'Assets/Models/Example'
             (model / 'glTF').mkdir(parents=True)
             (model / 'glTF-Draco').mkdir()
-            (model / 'glTF/Duck.gltf').write_text('{"buffers":[{"uri":"Duck.bin"}]}')
-            (model / 'glTF/Duck.bin').write_bytes(b'plain mesh')
-            (model / 'glTF-Draco/Duck.gltf').write_text(json.dumps({
+            (model / 'glTF/Example.gltf').write_text('{"buffers":[{"uri":"Example.bin"}]}')
+            (model / 'glTF/Example.bin').write_bytes(b'plain mesh')
+            (model / 'glTF-Draco/Example.gltf').write_text(json.dumps({
                 'extensionsRequired': ['KHR_draco_mesh_compression'],
-                'buffers': [{'uri': 'Duck.bin'}]}))
+                'buffers': [{'uri': 'Example.bin'}]}))
             catalog = publish(root, root / 'output')
             compressed = next(item for item in catalog['files'] if 'glTF-Draco' in item['path'])
-            self.assertEqual(compressed['dependencies'], ['Assets/Models/Duck/glTF/Duck.gltf'])
+            self.assertEqual(compressed['dependencies'], ['Assets/Models/Example/glTF/Example.gltf'])
 
 
 if __name__ == '__main__':

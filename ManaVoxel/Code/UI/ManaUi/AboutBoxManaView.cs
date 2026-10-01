@@ -134,11 +134,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                     "(Roads), Cube Pets, Cursor Pack, Factory Kit, Furniture Kit, Mini Arena, Mini Characters, Mini " +
                     "Dungeon, Modular Dungeon Kit, New Platformer Pack, Pirate Kit, Space Station Kit, Toy Car Kit, " +
                     "Train Kit, Watercraft Pack"),
-                ("glTF samples", "Duck, Flight Helmet, Lantern, Sci-Fi Helmet, Water Bottle, Animated Cube -- the Khronos " +
-                    "Group glTF Sample Assets, each under its own licence"),
+                ("glTF samples", "Flight Helmet, Lantern and Water Bottle -- Khronos Group glTF Sample Assets; Microsoft CC0 notices " +
+                    "are kept beside each model"),
                 ("Sky photos", "Kloofendal 48d Partly Cloudy, Wasteland Clouds -- Poly Haven, CC0"),
                 ("Moon", "CGI Moon Kit, from Lunar Reconnaissance Orbiter data -- NASA's Scientific Visualization Studio, public domain"),
-                ("Atmosphere", "after Sebastian Lague's Solar System -- MIT License")
+                ("Atmosphere", "after Sebastian Lague's Solar System -- MIT License"),
+                ("Liquid shader", "Mirza Beig -- reuse permission and attribution in LiquidFill.frag")
             }),
             ("Libraries", new[]
             {

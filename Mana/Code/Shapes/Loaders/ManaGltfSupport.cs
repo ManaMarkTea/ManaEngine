@@ -19,7 +19,7 @@ namespace Mana.Code.Shapes.Loaders
         /// <summary>
         /// A loadable sibling of an unsupported file, when the asset pack ships one.
         /// <para>
-        /// Khronos's own sample sets (this Duck included) publish the same model several times over --
+        /// Khronos's own sample sets publish the same model several times over --
         /// glTF, glTF-Binary, glTF-Draco, glTF-Embedded -- in sibling folders that share the file's own
         /// name. Only tried when the path itself already sits in one of those "glTF*" folders, so this
         /// never goes looking through an unrelated directory structure for a same-named file that just

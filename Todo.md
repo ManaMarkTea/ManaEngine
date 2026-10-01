@@ -87,8 +87,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     "fit the model" were captured by guessing, and the guess flipped once the model finished loading (or the
     moving platform's ghost joined its bounds). Colliders now remember whether they follow the model, refit when
     the model grows, and ignore editor-only children; all 8 levels now open clean. See ColliderIntentChecks.
-    Still to do: the planet code hard-codes C:\Users\night\...\GeoData paths (will break on the Mac) -- fixing that
-    in the VoxelEditorGameMode split below.
+    Still to do: the planet code had machine-specific GeoData paths -- fixed in the VoxelEditorGameMode split below.
 
 [x] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
     Claude (overnight), milestone 1 done:
@@ -160,7 +159,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     - Planet, true-scale regions, KML airspace, streaming and planet stats -> EditorPlanetScenery (its own class;
       the game mode owns one and only reads its Planet to pick/up-res patches).
     - Dead code deleted: the editor's own water mask and country/state border loaders (unused since planets load
-      through ManaLevelLoader), taking every hard-coded C:\Users\night\...\GeoData path with them. The optional
+      through ManaLevelLoader), taking the old machine-specific GeoData paths with them. The optional
       KML file is now MANA_KML_AIRSPACE or ../ManaAirSpace/AirSpaceModels/UnitedStates.xml.
     - The rest split into partial files by job: .Room (the grid room), .Placement (placing from the Import panel),
       .ColliderDebug (selection collider wireframes), .Selection (picking + F / End / Escape).

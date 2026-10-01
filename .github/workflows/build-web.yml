@@ -123,7 +123,8 @@ jobs:
         uses: actions/deploy-pages@v5
 
       - name: Upload web editor to itch.io
-        uses: KikimoraGames/itch-publish@v0.0.3
+        # Pin the action source to the reviewed v0.0.3 commit; this step receives the Butler secret.
+        uses: KikimoraGames/itch-publish@ea06fdc7e36b34a6c4f88b379a73f3362537b998 # v0.0.3
         with:
           butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
           gameData: Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle

@@ -333,8 +333,6 @@ namespace Mana.Code.GameModes
                 0.95f + environmentLoading.Fraction * 0.05f));
         }
 
-        private const string PlanetDetailCacheFolder = @"C:\Users\night\Code\ManaAirSpace\Textures\HeightMaps\ETOPO2022";
-
         // A planet/region inspector hook and a background terrain-cache-size reader used to sit here,
         // both feeding the ImGui SceneInspectorPanelView. ManaUI's TerrainCacheWidget and PlanetWidget are
         // independent replacements that read the same nodes directly, so all of it went with ImGui.

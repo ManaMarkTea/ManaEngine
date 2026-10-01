@@ -9,12 +9,11 @@ namespace Mana.Code
         {
             CacheShader("Assets/Shaders/LearnSpecularTextured/pbr.vert");
             CacheShader("Assets/ShaderToys/LiquidFill.frag");
-            CacheShader("Assets/ShaderToys/LightningFill.frag");
         }
 
         public ManaLiquidShader(ManaContext context) : base(context)
         {
-            LoadShaderSource(ShaderSources["pbr.vert"], ShaderSources["LightningFill.frag"]);
+            LoadShaderSource(ShaderSources["pbr.vert"], ShaderSources["LiquidFill.frag"]);
             BindShader();
             UnbindShader();
         }

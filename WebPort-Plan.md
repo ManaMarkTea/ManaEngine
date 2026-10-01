@@ -161,7 +161,7 @@ one pre-existing, unrelated font/emoji failure) after the fix.
 
 **Verified, not assumed**: full `ManaTests` suite (1784/1785, same baseline as every other change
 this session), a live desktop editor launch (loads a level, generates thumbnails, no new errors —
-the one error present, `Duck.gltf` failing on Draco mesh compression, is a pre-existing limitation
+the one error present, a Draco-compressed glTF failing to load, is a pre-existing limitation
 neither loader ever handled, confirmed by comparing against this session's own earlier
 pre-swap console capture of the identical failure), and both browser projects (`ManaVoxel.Web`,
 `ManaVoxel.Editor.Web`) still build clean — they already used the SharpGLTF path, so this was a
