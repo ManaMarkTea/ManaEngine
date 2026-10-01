@@ -164,6 +164,10 @@ namespace ManaVoxel.Code.Levels
                     entry.Color = ToArray(source.Color);
                     entry.Size = ToArray(source.Size);
                     entry.Collision = CaptureCollision(node);
+                    if (node.Components.OfType<MeshRendererComponent>().FirstOrDefault() is { } shapeRenderer)
+                    {
+                        entry.Material = ManaLevelMaterial.Capture(shapeRenderer.Material, node.Context, source.Color);
+                    }
                     break;
 
                 case ManaLevelSourceKind.Mesh:

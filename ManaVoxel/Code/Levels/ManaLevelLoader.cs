@@ -465,6 +465,11 @@ namespace ManaVoxel.Code.Levels
 
             node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             ApplyTransform(node, entry);
+            if (entry.Material != null && node.Components.OfType<MeshRendererComponent>().FirstOrDefault() is { } renderer)
+            {
+                entry.Material.ApplyTo(renderer.Material);
+            }
+
             return node;
         }
 
@@ -686,12 +691,12 @@ namespace ManaVoxel.Code.Levels
         private static readonly System.Text.RegularExpressions.Regex SpriteAssetPath = new(@"""assetPath""\s*:\s*""([^""]+\.mana(?:sheet|slice))""", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         /// <summary>The asset packs a script's sprites draw from: named in its own fields, or in the sheets and slices it points at.</summary>
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         private static IEnumerable<string> SpritePacks(ManaLevelScript script)
         {
             var text = System.Text.Json.JsonSerializer.Serialize(script.Properties);
             var packs = new HashSet<string>(PackReference.Matches(text).Select(match => match.Groups[1].Value), StringComparer.OrdinalIgnoreCase);
             foreach (System.Text.RegularExpressions.Match asset in SpriteAssetPath.Matches(text))
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
             {
                 var file = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, asset.Groups[1].Value);
                 if (File.Exists(file))

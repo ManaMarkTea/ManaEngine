@@ -76,6 +76,7 @@
          path ever needs much more of ManaVoxel than this, the better answer is extracting a
          shared ManaLevels library rather than growing this list indefinitely. -->
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevel.cs" Link="Levels\ManaLevel.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMaterial.cs" Link="Levels\ManaLevelMaterial.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelLoader.cs" Link="Levels\ManaLevelLoader.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMeshColliders.cs" Link="Levels\ManaLevelMeshColliders.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />

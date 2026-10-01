@@ -401,6 +401,48 @@ public static class LevelSerializationChecks
             && capturedWedge.Size!.SequenceEqual(new[] { 6.0f, 2.0f, 4.0f })
             && capturedWedge.Collision?.UseVisualHull == true);
 
+        // ---------------------------------------------------------------- shape materials
+        // Saved as only what differs from the material a shape is built with, so an untouched one writes nothing.
+        Check("an untouched shape saves no material",
+            ManaLevelCapture.CaptureScene(wedgeWorld, wedgeScene, "Wedge Scene").Nodes.Single().Material == null);
+
+        var wedgeMaterial = wedgeNode!.Components.OfType<MeshRendererComponent>().Single().Material;
+        wedgeMaterial.Metallic.Value = 1.0f;
+        wedgeMaterial.Roughness.Value = 0.05f;
+        wedgeMaterial.Unlit = true;
+        var materialJson = ManaLevelCapture.CaptureScene(wedgeWorld, wedgeScene, "Wedge Scene").ToJson();
+        var savedMaterial = ManaLevel.FromJson(materialJson).Nodes.Single().Material;
+        Check("an edited shape saves just what changed",
+            savedMaterial is { Metallic: 1.0f, Unlit: true, Albedo: null, Opacity: null }
+            && MathF.Abs((savedMaterial.Roughness ?? 0.0f) - 0.05f) < 0.001f,
+            $"metallic {savedMaterial?.Metallic}, roughness {savedMaterial?.Roughness}, unlit {savedMaterial?.Unlit}, albedo {savedMaterial?.Albedo}");
+
+        var materialScene = new ManaScene(wedgeContext) { Name = "Material Scene" };
+        wedgeWorld.Scenes.Add(materialScene);
+        ManaLevelLoader.Load(ManaLevel.FromJson(materialJson), wedgeContext, materialScene, replaceAuthoredNodes: false);
+        var reloadedMaterial = materialScene.Children.Single().Components.OfType<MeshRendererComponent>().Single().Material;
+        Check("and loads it back",
+            reloadedMaterial.Metallic.Value == 1.0f && MathF.Abs(reloadedMaterial.Roughness.Value - 0.05f) < 0.001f
+            && reloadedMaterial.Unlit,
+            $"metallic {reloadedMaterial.Metallic.Value}, roughness {reloadedMaterial.Roughness.Value}, unlit {reloadedMaterial.Unlit}");
+        wedgeWorld.Scenes.Remove(materialScene);
+
+        // On a prefab instance a material is an override like any other field, found and re-applied by the same diff.
+        var prefabShape = new ManaLevelNode { Id = "a1", Name = "Slab", Kind = ManaLevelSourceKind.Shape, Shape = "Cube" };
+        var editedShape = new ManaLevelNode
+        {
+            Id = "a1", Name = "Slab", Kind = ManaLevelSourceKind.Shape, Shape = "Cube",
+            Material = new ManaLevelMaterial { Metallic = 1.0f, Roughness = 0.0f }
+        };
+        var materialOverrides = ManaVoxel.Code.Assets.ManaPrefabOverrides.Diff(
+            ManaVoxel.Code.Assets.ManaPrefabOverrides.Flatten(prefabShape),
+            ManaVoxel.Code.Assets.ManaPrefabOverrides.Flatten(editedShape));
+        var resolvedShape = ManaVoxel.Code.Assets.ManaPrefabOverrides.Resolve(prefabShape, materialOverrides);
+        Check("a prefab instance's material edit is an override that resolves back",
+            materialOverrides.Count == 1 && materialOverrides[0].Path.Contains("material")
+            && resolvedShape.Material is { Metallic: 1.0f, Roughness: 0.0f },
+            string.Join(" | ", materialOverrides.Select(o => string.Join("/", o.Path))));
+
         var disk = new ManaDisk(wedgeContext, Vector4.One, new Vector3(4.0f, 0.1f, 2.0f));
         var diskData = disk.GetOrCreateCpuData();
         Check("a disk is flat, elliptical, and occupies its full authored bounds",

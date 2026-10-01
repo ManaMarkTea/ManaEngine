@@ -4,8 +4,8 @@
   "name": "Reflections",
   "camera": { "position": [62, 4, 52], "rotation": [-0.4, 0, 0] },
   "nodes": [
-    { "name": "Mirror Slab", "kind": "Shape", "position": [56, 0, 46], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [1, 1, 1, 1], "size": [6, 1, 6] },
-    { "name": "Mirror Ball", "kind": "Shape", "position": [52, 1, 50], "rotation": [0, 0, 0], "scale": [2, 2, 2], "shape": "Sphere", "color": [1, 1, 1, 1], "size": [1, 1, 1] },
+    { "name": "Mirror Slab", "kind": "Shape", "position": [56, 0, 46], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [1, 1, 1, 1], "size": [6, 1, 6], "material": { "metallic": 1, "roughness": 0 } },
+    { "name": "Mirror Ball", "kind": "Shape", "position": [52, 1, 50], "rotation": [0, 0, 0], "scale": [2, 2, 2], "shape": "Sphere", "color": [1, 1, 1, 1], "size": [1, 1, 1], "material": { "metallic": 1, "roughness": 0 } },
     { "name": "Marker Cube", "kind": "Shape", "position": [48, 0, 44], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.2, 0.5, 0.9, 1], "size": [1, 1, 1] }
   ]
 }

@@ -175,12 +175,13 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             var shapeChanged = !string.Equals(previousShape, nextShape, StringComparison.Ordinal);
 
             node.LevelSource = ManaLevelSource.ForShape(nextShape, nextColor, nextSize);
-            ApplyShapeVisual(node, nextShape, nextColor, nextSize, shapeChanged);
+            ApplyShapeVisual(node, nextShape, source.Color, nextColor, nextSize, shapeChanged);
         }
 
         private static void ApplyShapeVisual(
             ManaSceneNode node,
             string shape,
+            Vector4 previousColor,
             Vector4 color,
             Vector3 size,
             bool shapeChanged)
@@ -195,6 +196,12 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 var material = renderer.Material;
                 renderer.Mesh = CreateShapeMesh(node.Context, shape, color, size);
                 renderer.Material = material;
+
+                // The material starts out the shape's colour; it follows a new one unless it was given its own.
+                if (Vector4.DistanceSquared(material.Albedo.Value, previousColor) < 1e-6f)
+                {
+                    material.Albedo.Value = color;
+                }
             }
 
             if (!bakesSize)
