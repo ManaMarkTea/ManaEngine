@@ -1,0 +1,747 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Sprite Normals",
+  "camera": {
+    "position": [
+      45,
+      4,
+      56
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "id": "23674eb2cbfe4eea8ad4707246a823d2",
+      "name": "Made Normals",
+      "kind": "Group",
+      "position": [
+        40.0,
+        2.0,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [],
+      "children": [
+        {
+          "id": "ed193b12d7ef4f6e9545dbc719e3cc9f",
+          "name": "Ground",
+          "kind": "Group",
+          "position": [
+            0,
+            -2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "91841b8a5e0e429f9d82fe7573739a58",
+              "type": "Sprite9Slice",
+              "properties": {
+                "slice": {
+                  "assetId": "34d0a82f815f48c3a72bf11a30d53eed",
+                  "assetPath": "Sprites/Terrain/Grass Block.manaslice"
+                },
+                "size": [
+                  7,
+                  2
+                ],
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": true,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "226a8324203f47a78da65f7e54643769",
+          "name": "Alien",
+          "kind": "Group",
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "e917238d3d2c4f139b3f84499e91f47e",
+              "type": "SpriteSheet",
+              "properties": {
+                "sheet": {
+                  "assetId": "5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c",
+                  "assetPath": "Sprites/Characters/Green Alien.manasheet"
+                },
+                "animation": "idle",
+                "playing": true,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": true,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "58c8803a06df45efa008c9ae7c502ffa",
+          "name": "Alien Flipped",
+          "kind": "Group",
+          "position": [
+            -0.6,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "7b8b892565714f5b8ae79d95187bd0f2",
+              "type": "SpriteSheet",
+              "properties": {
+                "sheet": {
+                  "assetId": "5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c",
+                  "assetPath": "Sprites/Characters/Green Alien.manasheet"
+                },
+                "animation": "idle",
+                "playing": true,
+                "frame": 0,
+                "flipX": true,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": true,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "ea83bd4ac3074ddc8f0ed88653ad545d",
+          "name": "Slime",
+          "kind": "Group",
+          "position": [
+            1.2,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "8020eacf3cbe49c1ac73baed71aab750",
+              "type": "SpriteSheet",
+              "properties": {
+                "sheet": {
+                  "assetId": "0f8cb6ad2efb42a9bb8472dcc4970b3f",
+                  "assetPath": "Sprites/Enemies/Slime.manasheet"
+                },
+                "animation": "walk",
+                "playing": true,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": true,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "2408a31c4c3b4751a0ccde1eef09b0ef",
+          "name": "Coin",
+          "kind": "Group",
+          "position": [
+            2.6,
+            1.2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "78187862245d4fecaa784032d757687c",
+              "type": "Sprite",
+              "properties": {
+                "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_gold.png",
+                "normalMap": "",
+                "pixelsPerUnit": 64,
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "repeatSize": [
+                  0,
+                  0
+                ],
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": true,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "a4747a69dbc34eb79ce7574c71c677f4",
+          "name": "Block",
+          "kind": "Group",
+          "position": [
+            0.3,
+            2.2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "8a625a80c9904a70b170684237089a3d",
+              "type": "Sprite9Slice",
+              "properties": {
+                "slice": {
+                  "assetId": "a80d1f731c1045869100be2dc1b70d4a",
+                  "assetPath": "Sprites/Terrain/Stone Platform.manaslice"
+                },
+                "size": [
+                  3,
+                  1
+                ],
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": true,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "24fe7fe99d71417293a0d307edc32197",
+          "name": "Lamp",
+          "kind": "Group",
+          "position": [
+            -3.2,
+            2.0,
+            0.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "ebfb9f427d974335ae6f4d9010938e1e",
+              "type": "Light",
+              "properties": {
+                "intensity": 6,
+                "color": [
+                  1,
+                  0.8,
+                  0.55,
+                  1
+                ],
+                "direction": [
+                  0,
+                  -1,
+                  0
+                ],
+                "enabled": true,
+                "lightType": "Point",
+                "castsShadows": false,
+                "range": 8
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "fafe0ae3e4014a128cc8ffaf51487203",
+      "name": "Flat",
+      "kind": "Group",
+      "position": [
+        50.0,
+        2.0,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [],
+      "children": [
+        {
+          "id": "650adc6bb9aa49f3a2d780f977eb4044",
+          "name": "Ground",
+          "kind": "Group",
+          "position": [
+            0,
+            -2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "5f4219cc04414c81b3dd840ce91b8478",
+              "type": "Sprite9Slice",
+              "properties": {
+                "slice": {
+                  "assetId": "34d0a82f815f48c3a72bf11a30d53eed",
+                  "assetPath": "Sprites/Terrain/Grass Block.manaslice"
+                },
+                "size": [
+                  7,
+                  2
+                ],
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": false,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "0d3c119a6e47456884b0127eba8f6cbe",
+          "name": "Alien",
+          "kind": "Group",
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "3105c435f013415fa81fd4001847a7bc",
+              "type": "SpriteSheet",
+              "properties": {
+                "sheet": {
+                  "assetId": "5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c",
+                  "assetPath": "Sprites/Characters/Green Alien.manasheet"
+                },
+                "animation": "idle",
+                "playing": true,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": false,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "d1df3e4edffb485099d6c1531b4c4b7e",
+          "name": "Alien Flipped",
+          "kind": "Group",
+          "position": [
+            -0.6,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "684cbd069f1b47f2860d95af9bddf1fd",
+              "type": "SpriteSheet",
+              "properties": {
+                "sheet": {
+                  "assetId": "5c2e8f0d3b7a4e6f9d1c2b3a4f5e6d7c",
+                  "assetPath": "Sprites/Characters/Green Alien.manasheet"
+                },
+                "animation": "idle",
+                "playing": true,
+                "frame": 0,
+                "flipX": true,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": false,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "845db5ddb2554615a6f071f35fcffc19",
+          "name": "Slime",
+          "kind": "Group",
+          "position": [
+            1.2,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "1ccf507bbda144f59a90f17c6d0e8292",
+              "type": "SpriteSheet",
+              "properties": {
+                "sheet": {
+                  "assetId": "0f8cb6ad2efb42a9bb8472dcc4970b3f",
+                  "assetPath": "Sprites/Enemies/Slime.manasheet"
+                },
+                "animation": "walk",
+                "playing": true,
+                "frame": 0,
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": false,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "e703191c1b5a4e929383836e91a5ca3e",
+          "name": "Coin",
+          "kind": "Group",
+          "position": [
+            2.6,
+            1.2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "a9b43133495042aab54fa0e901345949",
+              "type": "Sprite",
+              "properties": {
+                "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/coin_gold.png",
+                "normalMap": "",
+                "pixelsPerUnit": 64,
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "repeatSize": [
+                  0,
+                  0
+                ],
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": false,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "684644e344314a288ca22a7925bc4162",
+          "name": "Block",
+          "kind": "Group",
+          "position": [
+            0.3,
+            2.2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "22dd96c5634e43ffa001773c25cf9f38",
+              "type": "Sprite9Slice",
+              "properties": {
+                "slice": {
+                  "assetId": "a80d1f731c1045869100be2dc1b70d4a",
+                  "assetPath": "Sprites/Terrain/Stone Platform.manaslice"
+                },
+                "size": [
+                  3,
+                  1
+                ],
+                "pivot": [
+                  0.5,
+                  0
+                ],
+                "flipX": false,
+                "tint": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "pixelArt": false,
+                "unlit": false,
+                "autoNormalMap": false,
+                "bevelPixels": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "4397057f9eff4bb5bb34f82dfd355c14",
+          "name": "Lamp",
+          "kind": "Group",
+          "position": [
+            -3.2,
+            2.0,
+            0.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "8f1862ec432347a5ad5c1b91224836c2",
+              "type": "Light",
+              "properties": {
+                "intensity": 6,
+                "color": [
+                  1,
+                  0.8,
+                  0.55,
+                  1
+                ],
+                "direction": [
+                  0,
+                  -1,
+                  0
+                ],
+                "enabled": true,
+                "lightType": "Point",
+                "castsShadows": false,
+                "range": 8
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    }
+  ]
+}

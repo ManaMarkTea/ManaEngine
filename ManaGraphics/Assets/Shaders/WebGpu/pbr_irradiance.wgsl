@@ -83,7 +83,9 @@ fn mana_perturb_normal(n : vec3<f32>, world_position : vec3<f32>, uv : vec2<f32>
         return n;
     }
 
-    let bitangent = normalize(cross(n, tangent));
+    // Mirrored UVs (a sprite flipped left to right) turn the basis inside out. Screen y runs down while v runs
+    // up, so an unmirrored mesh has a negative determinant; a positive one means green must point the other way.
+    let bitangent = normalize(cross(n, tangent)) * select(1.0, -1.0, determinant > 0.0);
 
     // A neutral map is (0.5, 0.5, 1), so this decodes to straight up and the mix below is a no-op.
     let tangent_normal = normalize(sampled * 2.0 - vec3<f32>(1.0));

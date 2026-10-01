@@ -1,0 +1,8 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Sprite Normals.manalevel"}, {"type":"wait","frames":300},
+  {"type":"sky","name":"Space"}, {"type":"move_camera","position":[45,4,55],"target":[45,3.6,40]}, {"type":"wait","frames":60},
+  {"type":"screenshot","path":"@@OUT@@.night.png"},
+  {"type":"sky","name":"DayNightCycle","timeOfDay":0.47}, {"type":"wait","frames":60},
+  {"type":"screenshot","path":"@@OUT@@.dusk.png"},
+  {"type":"quit"}
+]

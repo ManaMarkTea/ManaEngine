@@ -67,6 +67,60 @@ public static class SpriteChecks
             $"{listed.Count} pictures");
         check("and costs nothing to look up once copied out", ManaSpritePictures.TryGetResolved(Pack + "Tiles/Default/coin_gold.png") == packed);
 
+        // ---- Made normal maps --------------------------------------------------------------------------------------
+        // A 20-pixel square in a transparent 32: each edge must lean outwards, green up the picture (row 0 is the top).
+        using (var square = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(32, 32))
+        {
+            for (var y = 6; y < 26; y++)
+            {
+                for (var x = 6; x < 26; x++)
+                {
+                    square[x, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32(200, 60, 60, 255);
+                }
+            }
+            using var made = ManaSpriteNormals.Build(square, 4.0f);
+            check("a made normal map leans out at the left edge", made[6, 16].R < 100, $"{made[6, 16]}");
+            check("and at the right", made[25, 16].R > 155, $"{made[25, 16]}");
+            check("and up at the top edge (green up the picture)", made[16, 6].G > 155, $"{made[16, 6]}");
+            check("and down at the bottom", made[16, 25].G < 100, $"{made[16, 25]}");
+            check("level in the middle, past the bevel", made[16, 16] is { R: 128, G: 128, B: 255 }, $"{made[16, 16]}");
+            check("and flat where it is transparent", made[1, 1] is { R: 128, G: 128, B: 255 }, $"{made[1, 1]}");
+        }
+        using (var parted = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(32, 32, new SixLabors.ImageSharp.PixelFormats.Rgba32(90, 200, 120, 255)))
+        {
+            // An outline drawn down the middle of a solid picture: a crease, each side rounding down into it.
+            for (var y = 0; y < 32; y++)
+            {
+                parted[15, y] = parted[16, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32(30, 30, 40, 255);
+            }
+            using var made = ManaSpriteNormals.Build(parted, 4.0f, 1.0f);
+            check("an inner outline creases the picture: left of it faces right, into the crease", made[13, 16].R > 155, $"{made[13, 16]}");
+            check("and right of it faces left", made[18, 16].R < 100, $"{made[18, 16]}");
+            using var outlineOnly = ManaSpriteNormals.Build(parted, 4.0f, 0.0f);
+            check("with inner edges off, only transparency shapes it", outlineOnly[13, 16] is { R: 128, G: 128, B: 255 }, $"{outlineOnly[13, 16]}");
+        }
+        using (var tile = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(16, 16,new SixLabors.ImageSharp.PixelFormats.Rgba32(90, 160, 60, 255)))
+        {
+            using var made = ManaSpriteNormals.Build(tile, 4.0f);
+            check("a solid tile stays flat to its sides, so a run of them shows no seams",
+                made[0, 0] is { R: 128, G: 128, B: 255 } && made[15, 8] is { R: 128, G: 128, B: 255 }, $"{made[0, 0]} {made[15, 8]}");
+        }
+        if (packed != null)
+        {
+            var coinNode = Node("Lit Coin");
+            var lit = new ManaSpriteComponent(coinNode) { Texture = Pack + "Tiles/Default/coin_gold.png", Unlit = false };
+            coinNode.Components.Add(lit);
+            lit.Refresh();
+            var litNormal = (coinNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath;
+            check("a lit sprite with no normal map is given one", litNormal != null && File.Exists(litNormal), litNormal ?? "none");
+            check("and draws with it at full strength (the selector's default ignores it)",
+                coinNode.GetComponent<MeshRendererComponent>()?.Material.NormalSelector == 0.0);
+            lit.Unlit = true;
+            lit.Refresh();
+            check("an unlit one is not -- it would ignore it",
+                (coinNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath == null);
+        }
+
         // ---- Sprite Sheet: a grid cut from one picture ------------------------------------------------------------
         var blob = new ManaAssetRef("b1c9e27a0f3d4c5e8a6b7d9e0f1a2b3c", "Sprites/Blob.manasheet");
         check("a sheet asset is found by its path", ManaContentAssets.Load<ManaSpriteSheet>(blob, ManaSpriteSheet.Extension)?.Name == "Blob");

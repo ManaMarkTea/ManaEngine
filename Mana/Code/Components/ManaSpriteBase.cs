@@ -30,6 +30,18 @@ namespace Mana.Code.Components
         [Category("Look")]
         public bool Unlit { get; set; } = true;
 
+        /// <summary>While lit, give a picture with no normal map one made from its outline, so it shades round rather than flat.</summary>
+        [Category("Look")]
+        public bool AutoNormalMap { get; set; } = true;
+
+        /// <summary>How far in from the picture's edge the made normal map rounds over, in the picture's pixels.</summary>
+        [Category("Look")]
+        public float BevelPixels { get; set; } = 6.0f;
+
+        /// <summary>How deep the made normal map creases where colours meet inside the picture -- 0 shapes only the outline.</summary>
+        [Category("Look")]
+        public float InnerEdges { get; set; } = 0.35f;
+
         /// <summary>A picture laid out for drawing: its file, how many frames across and down, its size in metres, and repeats.</summary>
         protected readonly record struct SpriteLayout(string Picture, string? NormalMap, int Columns, int Rows, Vector2 Size, Vector2 Pivot, Vector2 Repeats);
 
@@ -65,7 +77,7 @@ namespace Mana.Code.Components
         /// <summary>Builds or rebuilds the quad when the picture or its size changed, and shows the current frame.</summary>
         public void Refresh()
         {
-            var key = $"{LayoutKey()}|{Tint}|{PixelArt}|{Unlit}";
+            var key = $"{LayoutKey()}|{Tint}|{PixelArt}|{Unlit}|{AutoNormalMap}|{BevelPixels}|{InnerEdges}";
             if ((key != _builtKey || _renderer == null) && (key != _missingKey || Environment.TickCount64 >= _retryAt))
             {
                 if (BuildLayout() is not { } layout)
@@ -118,6 +130,11 @@ namespace Mana.Code.Components
         {
             _pixels = PngSize(layout.Picture) ?? Vector2.One;
             var normal = layout.NormalMap != null && File.Exists(layout.NormalMap) ? layout.NormalMap : null;
+            // Unlit art ignores normals, so nothing is made for it.
+            if (normal == null && AutoNormalMap && !Unlit)
+            {
+                normal = ManaSpriteNormals.For(layout.Picture, BevelPixels, InnerEdges);
+            }
             var mesh = new ManaSpriteMesh(Owner.Context, layout.Picture, normal, layout.Size, layout.Pivot, Tint, PixelArt);
             mesh.Materials[0].Unlit = Unlit;
             lock (Owner.Context.World.SceneLock)

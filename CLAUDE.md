@@ -92,7 +92,8 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 Reference scenes for rendering checks live in `Content/Levels/Tests/` (not in the web selector), with the scripts that
 drive them in `Tools/Automation/Checks/` -- `./Tools/Automation/run-commands.ps1 -Name shadows -File Tools/Automation/Checks/shadows.json`.
 `Shadow Contact` (shadows meeting their casters, objects in shadow, low sun) and `Reflections` (a mirror slab and ball --
-their material is in the level; compare each shot with the matching `-sky` one). Add a scene and a
+their material is in the level; compare each shot with the matching `-sky` one), `Sprite Normals` (lit Kenney sprites
+under a raking lamp: made normal maps on the left, flat on the right; `sprite-normals.json`). Add a scene and a
 script there whenever a rendering bug is fixed.
 
 Patterns that work:

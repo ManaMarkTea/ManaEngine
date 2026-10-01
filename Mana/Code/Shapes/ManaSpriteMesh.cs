@@ -52,6 +52,8 @@ namespace Mana.Code.Shapes
             material.Albedo.Value = tint;
             material.Roughness.Value = 1.0f;
             material.Metallic.Value = 0.0f;
+            // The selector defaults to the vertex normal (strength 0); a sprite given a normal map means to use it.
+            material.NormalSelector = normalMapPath != null ? 0.0 : 1.0;
             Materials = [material];
         }
     }
