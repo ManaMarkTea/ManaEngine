@@ -1,35 +1,88 @@
 {
   "format": "mana-level",
-  "version": 1,
+  "version": 2,
   "name": "Little Pond",
   "camera": {
-    "position": [32, 15, 62],
-    "rotation": [-0.4, 0, 0]
+    "position": [
+      32,
+      15,
+      62
+    ],
+    "rotation": [
+      -0.4,
+      0,
+      0
+    ]
   },
   "nodes": [
     {
       "name": "Pond",
       "kind": "Group",
-      "position": [32, 0, 32],
-      "rotation": [0, 0, 0],
-      "scale": [1, 1, 1],
+      "position": [
+        32,
+        0,
+        32
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
       "children": [
         {
           "name": "Raised Meadow",
           "kind": "Group",
-          "position": [0, 0, 0],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "children": [
             {
               "name": "North Meadow",
               "kind": "Shape",
-              "position": [0, 0.5, -12.25],
-              "rotation": [0, 0, 0],
-              "scale": [1, 1, 1],
+              "position": [
+                0,
+                0.5,
+                -12.25
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.32, 0.58, 0.25, 1],
-              "size": [30, 2, 5.5],
+              "color": [
+                0.176,
+                0.36,
+                0.217,
+                1
+              ],
+              "size": [
+                30,
+                2,
+                5.5
+              ],
               "collision": {
                 "useVisualBounds": true
               }
@@ -37,12 +90,33 @@
             {
               "name": "South Meadow",
               "kind": "Shape",
-              "position": [0, 0.5, 12.25],
-              "rotation": [0, 0, 0],
-              "scale": [1, 1, 1],
+              "position": [
+                0,
+                0.5,
+                12.25
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.3, 0.55, 0.23, 1],
-              "size": [30, 2, 5.5],
+              "color": [
+                0.165,
+                0.341,
+                0.203,
+                1
+              ],
+              "size": [
+                30,
+                2,
+                5.5
+              ],
               "collision": {
                 "useVisualBounds": true
               }
@@ -50,12 +124,33 @@
             {
               "name": "West Meadow",
               "kind": "Shape",
-              "position": [-12.25, 0.5, 0],
-              "rotation": [0, 0, 0],
-              "scale": [1, 1, 1],
+              "position": [
+                -12.25,
+                0.5,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.3, 0.56, 0.24, 1],
-              "size": [5.5, 2, 19],
+              "color": [
+                0.165,
+                0.347,
+                0.21,
+                1
+              ],
+              "size": [
+                5.5,
+                2,
+                19
+              ],
               "collision": {
                 "useVisualBounds": true
               }
@@ -63,12 +158,33 @@
             {
               "name": "East Meadow",
               "kind": "Shape",
-              "position": [12.25, 0.5, 0],
-              "rotation": [0, 0, 0],
-              "scale": [1, 1, 1],
+              "position": [
+                12.25,
+                0.5,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.34, 0.6, 0.25, 1],
-              "size": [5.5, 2, 19],
+              "color": [
+                0.187,
+                0.372,
+                0.217,
+                1
+              ],
+              "size": [
+                5.5,
+                2,
+                19
+              ],
               "collision": {
                 "useVisualBounds": true
               }
@@ -78,12 +194,33 @@
         {
           "name": "Pond Bed",
           "kind": "Shape",
-          "position": [0, 0.1, 0],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            0,
+            0.1,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Cube",
-          "color": [0.14, 0.2, 0.12, 1],
-          "size": [16, 0.4, 16],
+          "color": [
+            0.14,
+            0.2,
+            0.12,
+            1
+          ],
+          "size": [
+            16,
+            0.4,
+            16
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -91,23 +228,59 @@
         {
           "name": "Pond Water",
           "kind": "Water",
-          "position": [0, 1.12, 0],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            0,
+            1.12,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "water": {
-            "size": [18.5, 18.5],
+            "size": [
+              18.5,
+              18.5
+            ],
             "resolution": 112
           }
         },
         {
           "name": "North Shore Slope",
           "kind": "Shape",
-          "position": [0, 0.9, -8],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            0,
+            0.9,
+            -8
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Wedge",
-          "color": [0.43, 0.52, 0.22, 1],
-          "size": [19, 1.2, 3],
+          "color": [
+            0.43,
+            0.52,
+            0.22,
+            1
+          ],
+          "size": [
+            19,
+            1.2,
+            3
+          ],
           "collision": {
             "useVisualHull": true
           }
@@ -115,12 +288,33 @@
         {
           "name": "South Shore Slope",
           "kind": "Shape",
-          "position": [0, 0.9, 8],
-          "rotation": [0, 3.1415927, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            0,
+            0.9,
+            8
+          ],
+          "rotation": [
+            0,
+            3.1415927,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Wedge",
-          "color": [0.39, 0.49, 0.2, 1],
-          "size": [19, 1.2, 3],
+          "color": [
+            0.39,
+            0.49,
+            0.2,
+            1
+          ],
+          "size": [
+            19,
+            1.2,
+            3
+          ],
           "collision": {
             "useVisualHull": true
           }
@@ -128,12 +322,33 @@
         {
           "name": "West Shore Slope",
           "kind": "Shape",
-          "position": [-8, 0.9, 0],
-          "rotation": [0, 1.5707964, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            -8,
+            0.9,
+            0
+          ],
+          "rotation": [
+            0,
+            1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Wedge",
-          "color": [0.36, 0.5, 0.2, 1],
-          "size": [19, 1.2, 3],
+          "color": [
+            0.36,
+            0.5,
+            0.2,
+            1
+          ],
+          "size": [
+            19,
+            1.2,
+            3
+          ],
           "collision": {
             "useVisualHull": true
           }
@@ -141,12 +356,33 @@
         {
           "name": "East Shore Slope",
           "kind": "Shape",
-          "position": [8, 0.9, 0],
-          "rotation": [0, -1.5707964, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            8,
+            0.9,
+            0
+          ],
+          "rotation": [
+            0,
+            -1.5707964,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Wedge",
-          "color": [0.4, 0.54, 0.22, 1],
-          "size": [19, 1.2, 3],
+          "color": [
+            0.4,
+            0.54,
+            0.22,
+            1
+          ],
+          "size": [
+            19,
+            1.2,
+            3
+          ],
           "collision": {
             "useVisualHull": true
           }
@@ -154,12 +390,33 @@
         {
           "name": "Northwest Bank Mound",
           "kind": "Shape",
-          "position": [-8.1, 1.04, -8.1],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            -8.1,
+            1.04,
+            -8.1
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.38, 0.53, 0.2, 1],
-          "size": [3.2, 0.7, 3.2],
+          "color": [
+            0.38,
+            0.53,
+            0.2,
+            1
+          ],
+          "size": [
+            3.2,
+            0.7,
+            3.2
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -167,12 +424,33 @@
         {
           "name": "Northeast Bank Mound",
           "kind": "Shape",
-          "position": [8.1, 1.04, -8.1],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            8.1,
+            1.04,
+            -8.1
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.45, 0.56, 0.22, 1],
-          "size": [3.2, 0.7, 3.2],
+          "color": [
+            0.45,
+            0.56,
+            0.22,
+            1
+          ],
+          "size": [
+            3.2,
+            0.7,
+            3.2
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -180,12 +458,33 @@
         {
           "name": "Southwest Bank Mound",
           "kind": "Shape",
-          "position": [-8.1, 1.04, 8.1],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            -8.1,
+            1.04,
+            8.1
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.42, 0.55, 0.24, 1],
-          "size": [3.2, 0.7, 3.2],
+          "color": [
+            0.42,
+            0.55,
+            0.24,
+            1
+          ],
+          "size": [
+            3.2,
+            0.7,
+            3.2
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -193,12 +492,33 @@
         {
           "name": "Southeast Bank Mound",
           "kind": "Shape",
-          "position": [8.1, 1.04, 8.1],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            8.1,
+            1.04,
+            8.1
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.35, 0.5, 0.18, 1],
-          "size": [3.2, 0.7, 3.2],
+          "color": [
+            0.35,
+            0.5,
+            0.18,
+            1
+          ],
+          "size": [
+            3.2,
+            0.7,
+            3.2
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -206,12 +526,33 @@
         {
           "name": "Stepping Stone 1",
           "kind": "Shape",
-          "position": [-5.2, 1.38, 1.4],
-          "rotation": [0, 0.2, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            -5.2,
+            1.38,
+            1.4
+          ],
+          "rotation": [
+            0,
+            0.2,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.34, 0.36, 0.37, 1],
-          "size": [1.8, 0.5, 1.4],
+          "color": [
+            0.34,
+            0.36,
+            0.37,
+            1
+          ],
+          "size": [
+            1.8,
+            0.5,
+            1.4
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -219,12 +560,33 @@
         {
           "name": "Stepping Stone 2",
           "kind": "Shape",
-          "position": [-1.8, 1.42, 0.3],
-          "rotation": [0, -0.15, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            -1.8,
+            1.42,
+            0.3
+          ],
+          "rotation": [
+            0,
+            -0.15,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.4, 0.41, 0.4, 1],
-          "size": [2, 0.55, 1.5],
+          "color": [
+            0.4,
+            0.41,
+            0.4,
+            1
+          ],
+          "size": [
+            2,
+            0.55,
+            1.5
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -232,12 +594,33 @@
         {
           "name": "Stepping Stone 3",
           "kind": "Shape",
-          "position": [1.8, 1.36, -0.8],
-          "rotation": [0, 0.3, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            1.8,
+            1.36,
+            -0.8
+          ],
+          "rotation": [
+            0,
+            0.3,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.3, 0.33, 0.34, 1],
-          "size": [1.7, 0.45, 1.3],
+          "color": [
+            0.3,
+            0.33,
+            0.34,
+            1
+          ],
+          "size": [
+            1.7,
+            0.45,
+            1.3
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -245,12 +628,33 @@
         {
           "name": "Stepping Stone 4",
           "kind": "Shape",
-          "position": [5.1, 1.4, -1.8],
-          "rotation": [0, -0.25, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            5.1,
+            1.4,
+            -1.8
+          ],
+          "rotation": [
+            0,
+            -0.25,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Sphere",
-          "color": [0.38, 0.4, 0.39, 1],
-          "size": [1.9, 0.5, 1.4],
+          "color": [
+            0.38,
+            0.4,
+            0.39,
+            1
+          ],
+          "size": [
+            1.9,
+            0.5,
+            1.4
+          ],
           "collision": {
             "useVisualBounds": true
           }
@@ -258,68 +662,2748 @@
         {
           "name": "Lily Pad 1",
           "kind": "Shape",
-          "position": [-3.8, 1.14, -3.3],
-          "rotation": [0, 0.3, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            -3.8,
+            1.14,
+            -3.3
+          ],
+          "rotation": [
+            0,
+            0.3,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Disk",
-          "color": [0.18, 0.48, 0.16, 1],
-          "size": [1.5, 0.08, 1.2]
+          "color": [
+            0.18,
+            0.48,
+            0.16,
+            1
+          ],
+          "size": [
+            1.5,
+            0.08,
+            1.2
+          ]
         },
         {
           "name": "Lily Pad 2",
           "kind": "Shape",
-          "position": [4.2, 1.14, 3.2],
-          "rotation": [0, -0.2, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            4.2,
+            1.14,
+            3.2
+          ],
+          "rotation": [
+            0,
+            -0.2,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "shape": "Disk",
-          "color": [0.23, 0.56, 0.18, 1],
-          "size": [1.25, 0.08, 1.05]
+          "color": [
+            0.23,
+            0.56,
+            0.18,
+            1
+          ],
+          "size": [
+            1.25,
+            0.08,
+            1.05
+          ]
         },
         {
           "name": "Reeds",
           "kind": "Group",
-          "position": [0, 1, 0],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
+          "position": [
+            0,
+            1,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
           "children": [
             {
               "name": "Reed 1",
               "kind": "Shape",
-              "position": [-7.2, 0.8, 5.8],
-              "rotation": [0, 0, 0.08],
-              "scale": [1, 1, 1],
+              "position": [
+                -7.2,
+                0.8,
+                5.8
+              ],
+              "rotation": [
+                0,
+                0,
+                0.08
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.24, 0.55, 0.16, 1],
-              "size": [0.16, 1.6, 0.16]
+              "color": [
+                0.24,
+                0.55,
+                0.16,
+                1
+              ],
+              "size": [
+                0.16,
+                1.6,
+                0.16
+              ]
             },
             {
               "name": "Reed 2",
               "kind": "Shape",
-              "position": [-6.7, 1.05, 6.1],
-              "rotation": [0, 0, -0.06],
-              "scale": [1, 1, 1],
+              "position": [
+                -6.7,
+                1.05,
+                6.1
+              ],
+              "rotation": [
+                0,
+                0,
+                -0.06
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.32, 0.64, 0.18, 1],
-              "size": [0.18, 2.1, 0.18]
+              "color": [
+                0.32,
+                0.64,
+                0.18,
+                1
+              ],
+              "size": [
+                0.18,
+                2.1,
+                0.18
+              ]
             },
             {
               "name": "Reed 3",
               "kind": "Shape",
-              "position": [7.1, 0.9, -5.7],
-              "rotation": [0, 0, 0.05],
-              "scale": [1, 1, 1],
+              "position": [
+                7.1,
+                0.9,
+                -5.7
+              ],
+              "rotation": [
+                0,
+                0,
+                0.05
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
               "shape": "Cube",
-              "color": [0.2, 0.5, 0.14, 1],
-              "size": [0.16, 1.8, 0.16]
+              "color": [
+                0.2,
+                0.5,
+                0.14,
+                1
+              ],
+              "size": [
+                0.16,
+                1.8,
+                0.16
+              ]
             }
           ]
         },
         {
           "name": "Player Start",
           "kind": "PlayerStart",
-          "position": [0, 1.55, 13],
-          "rotation": [0, 3.1415927, 0],
-          "scale": [1, 1, 1]
+          "position": [
+            0,
+            1.55,
+            13
+          ],
+          "rotation": [
+            0,
+            3.1415927,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "id": "32cb0ab4306e4e6ebc2394ddc92f4da8",
+          "name": "Woods",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "children": [
+            {
+              "id": "d0a17f9dce4b48f997b42c664b70d417",
+              "name": "Tree 1",
+              "kind": "Mesh",
+              "position": [
+                11.49,
+                1.5,
+                0.88
+              ],
+              "rotation": [
+                0,
+                3.544232880877668,
+                0
+              ],
+              "scale": [
+                1.71,
+                1.71,
+                1.71
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+            },
+            {
+              "id": "b2aa53a990134e5cad713e256e83056a",
+              "name": "Tree 2",
+              "kind": "Mesh",
+              "position": [
+                10.0,
+                1.5,
+                6.08
+              ],
+              "rotation": [
+                0,
+                4.272911831581616,
+                0
+              ],
+              "scale": [
+                1.99,
+                1.99,
+                1.99
+              ],
+              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "16e9d5821aed492696e60a7fb39dbe3c",
+              "name": "Tree 3",
+              "kind": "Mesh",
+              "position": [
+                7.75,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                2.923979717473153,
+                0
+              ],
+              "scale": [
+                1.83,
+                1.83,
+                1.83
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "5058c931e61648488e8d6909c6bdf25a",
+              "name": "Tree 4",
+              "kind": "Mesh",
+              "position": [
+                4.73,
+                1.5,
+                11.87
+              ],
+              "rotation": [
+                0,
+                1.8825367403039253,
+                0
+              ],
+              "scale": [
+                2.04,
+                2.04,
+                2.04
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "0a11c5de2c3945198b8fc1df94a8d634",
+              "name": "Tree 5",
+              "kind": "Mesh",
+              "position": [
+                -0.11,
+                1.5,
+                12.52
+              ],
+              "rotation": [
+                0,
+                0.5140494677974347,
+                0
+              ],
+              "scale": [
+                2.06,
+                2.06,
+                2.06
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+            },
+            {
+              "id": "ce74687f0c2a4d9499a88eacacc32100",
+              "name": "Tree 6",
+              "kind": "Mesh",
+              "position": [
+                -4.5,
+                1.5,
+                10.38
+              ],
+              "rotation": [
+                0,
+                5.495863472201134,
+                0
+              ],
+              "scale": [
+                1.56,
+                1.56,
+                1.56
+              ],
+              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "01ce3e71254942b3bbe54fd6af9e4319",
+              "name": "Tree 7",
+              "kind": "Mesh",
+              "position": [
+                -10.76,
+                1.5,
+                8.79
+              ],
+              "rotation": [
+                0,
+                3.8242626395486146,
+                0
+              ],
+              "scale": [
+                1.51,
+                1.51,
+                1.51
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "134bad175f234801978d554ac5a54b05",
+              "name": "Tree 8",
+              "kind": "Mesh",
+              "position": [
+                -11.01,
+                1.5,
+                4.19
+              ],
+              "rotation": [
+                0,
+                1.0359620108816399,
+                0
+              ],
+              "scale": [
+                2.25,
+                2.25,
+                2.25
+              ],
+              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "e6ed1c41d339410380bfff411cc6efbf",
+              "name": "Tree 9",
+              "kind": "Mesh",
+              "position": [
+                -14.16,
+                1.5,
+                -2.11
+              ],
+              "rotation": [
+                0,
+                2.6482656661139545,
+                0
+              ],
+              "scale": [
+                1.73,
+                1.73,
+                1.73
+              ],
+              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "15b1d817245c483b8c9e9f3637d2211f",
+              "name": "Tree 10",
+              "kind": "Mesh",
+              "position": [
+                -10.7,
+                1.5,
+                -6.25
+              ],
+              "rotation": [
+                0,
+                4.801505039816466,
+                0
+              ],
+              "scale": [
+                1.71,
+                1.71,
+                1.71
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+            },
+            {
+              "id": "3afc3a25f1b84d1f95930f07e85603c7",
+              "name": "Tree 11",
+              "kind": "Mesh",
+              "position": [
+                -6.21,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                2.135968434560708,
+                0
+              ],
+              "scale": [
+                2.4,
+                2.4,
+                2.4
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "943a6daf8f874fb5a23d0da6825c2aeb",
+              "name": "Tree 12",
+              "kind": "Mesh",
+              "position": [
+                -2.27,
+                1.5,
+                -11.8
+              ],
+              "rotation": [
+                0,
+                3.6417418828940513,
+                0
+              ],
+              "scale": [
+                1.92,
+                1.92,
+                1.92
+              ],
+              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "ff7a9580766f425fa9e0002bdc280983",
+              "name": "Tree 13",
+              "kind": "Mesh",
+              "position": [
+                0.39,
+                1.5,
+                -11.41
+              ],
+              "rotation": [
+                0,
+                5.932597277277847,
+                0
+              ],
+              "scale": [
+                2.25,
+                2.25,
+                2.25
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+            },
+            {
+              "id": "1bdbaa26e0d94c57875753ec50c7a0e5",
+              "name": "Tree 14",
+              "kind": "Mesh",
+              "position": [
+                6.22,
+                1.5,
+                -12.38
+              ],
+              "rotation": [
+                0,
+                0.38100400531053985,
+                0
+              ],
+              "scale": [
+                1.93,
+                1.93,
+                1.93
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree-pine.glb"
+            },
+            {
+              "id": "75ee3098ff7d4ff282f558a2bf2c63db",
+              "name": "Tree 15",
+              "kind": "Mesh",
+              "position": [
+                10.0,
+                1.5,
+                -9.18
+              ],
+              "rotation": [
+                0,
+                1.7872599415512571,
+                0
+              ],
+              "scale": [
+                2.08,
+                2.08,
+                2.08
+              ],
+              "asset": "zip:kenney_mini-arena.zip/Models/GLB format/tree.glb"
+            },
+            {
+              "id": "f727bb225b234c2b8fa9f3fba1dd5abc",
+              "name": "Tree 16",
+              "kind": "Mesh",
+              "position": [
+                11.94,
+                1.5,
+                -2.95
+              ],
+              "rotation": [
+                0,
+                0.14169518818909624,
+                0
+              ],
+              "scale": [
+                1.64,
+                1.64,
+                1.64
+              ],
+              "asset": "zip:kenney_toy-car-kit.zip/Models/GLB format/tree.glb"
+            }
+          ]
+        },
+        {
+          "id": "e4c43379b58a4470bbaa3bf0a9f7f9e7",
+          "name": "Foliage",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "children": [
+            {
+              "id": "88a1cdd6f1c54707b61d0d81116914c5",
+              "name": "Foliage 1",
+              "kind": "Mesh",
+              "position": [
+                10.0,
+                1.5,
+                0.29
+              ],
+              "rotation": [
+                0,
+                1.1970278959195535,
+                0
+              ],
+              "scale": [
+                1.4908005604539656,
+                1.4908005604539656,
+                1.4908005604539656
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "dd4d1e369f98406fb72542dbb191cdfb",
+              "name": "Foliage 2",
+              "kind": "Mesh",
+              "position": [
+                11.68,
+                1.5,
+                3.56
+              ],
+              "rotation": [
+                0,
+                1.0192640192087716,
+                0
+              ],
+              "scale": [
+                1.104032191339406,
+                1.104032191339406,
+                1.104032191339406
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+            },
+            {
+              "id": "b750ab0d5df04441a51aefd1f41bff41",
+              "name": "Foliage 3",
+              "kind": "Mesh",
+              "position": [
+                10.0,
+                1.5,
+                6.74
+              ],
+              "rotation": [
+                0,
+                0.6429438737143948,
+                0
+              ],
+              "scale": [
+                1.2400701648798507,
+                1.2400701648798507,
+                1.2400701648798507
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "dd3844c0264546759d53073198fffa26",
+              "name": "Foliage 4",
+              "kind": "Mesh",
+              "position": [
+                7.57,
+                1.5,
+                10.02
+              ],
+              "rotation": [
+                0,
+                5.959398203816043,
+                0
+              ],
+              "scale": [
+                1.2682423577852586,
+                1.2682423577852586,
+                1.2682423577852586
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "688fd353a7b7469f93f717c6a132e78f",
+              "name": "Foliage 5",
+              "kind": "Mesh",
+              "position": [
+                4.48,
+                1.5,
+                10.18
+              ],
+              "rotation": [
+                0,
+                5.490807329907588,
+                0
+              ],
+              "scale": [
+                1.2684413926730873,
+                1.2684413926730873,
+                1.2684413926730873
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "70c0de2deb5c4ab088a5f7dc1b29e7ae",
+              "name": "Foliage 6",
+              "kind": "Mesh",
+              "position": [
+                0.61,
+                1.5,
+                12.59
+              ],
+              "rotation": [
+                0,
+                3.984092153192898,
+                0
+              ],
+              "scale": [
+                1.4732808143528828,
+                1.4732808143528828,
+                1.4732808143528828
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+            },
+            {
+              "id": "f2b418104e40494aa301d089eba8443e",
+              "name": "Foliage 7",
+              "kind": "Mesh",
+              "position": [
+                -3.5,
+                1.5,
+                12.04
+              ],
+              "rotation": [
+                0,
+                2.9776711890954464,
+                0
+              ],
+              "scale": [
+                0.9692121096652907,
+                0.9692121096652907,
+                0.9692121096652907
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+            },
+            {
+              "id": "1b9f8d620ae44470bb5dcf03f4f7a061",
+              "name": "Foliage 8",
+              "kind": "Mesh",
+              "position": [
+                -5.16,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                6.236685092305604,
+                0
+              ],
+              "scale": [
+                1.1795936754959602,
+                1.1795936754959602,
+                1.1795936754959602
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+            },
+            {
+              "id": "7a980fb47762459dba929031a406e700",
+              "name": "Foliage 9",
+              "kind": "Mesh",
+              "position": [
+                -9.8,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                1.958432533289162,
+                0
+              ],
+              "scale": [
+                0.9864704941310924,
+                0.9864704941310924,
+                0.9864704941310924
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+            },
+            {
+              "id": "e4e6bd2a0ac74b7fb7c44c8f15085db3",
+              "name": "Foliage 10",
+              "kind": "Mesh",
+              "position": [
+                -10.0,
+                1.5,
+                4.31
+              ],
+              "rotation": [
+                0,
+                4.6494056894084315,
+                0
+              ],
+              "scale": [
+                1.1871731661059948,
+                1.1871731661059948,
+                1.1871731661059948
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+            },
+            {
+              "id": "3b52896a725d438ca70bf3af79a61cc6",
+              "name": "Foliage 11",
+              "kind": "Mesh",
+              "position": [
+                -10.05,
+                1.5,
+                2.62
+              ],
+              "rotation": [
+                0,
+                3.2425807790833794,
+                0
+              ],
+              "scale": [
+                1.0231290040209244,
+                1.0231290040209244,
+                1.0231290040209244
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+            },
+            {
+              "id": "d6c8629033e64cc4b53042e6d7ec21c1",
+              "name": "Foliage 12",
+              "kind": "Mesh",
+              "position": [
+                -11.24,
+                1.5,
+                -0.45
+              ],
+              "rotation": [
+                0,
+                0.9206639442862896,
+                0
+              ],
+              "scale": [
+                1.2259034555292687,
+                1.2259034555292687,
+                1.2259034555292687
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+            },
+            {
+              "id": "1cb39af84253464eb94855463a33b667",
+              "name": "Foliage 13",
+              "kind": "Mesh",
+              "position": [
+                -10.0,
+                1.5,
+                -4.07
+              ],
+              "rotation": [
+                0,
+                4.761137785885686,
+                0
+              ],
+              "scale": [
+                1.078853814207768,
+                1.078853814207768,
+                1.078853814207768
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "2fda9855f764493483dc05c127cd01b7",
+              "name": "Foliage 14",
+              "kind": "Mesh",
+              "position": [
+                -10.0,
+                1.5,
+                -6.44
+              ],
+              "rotation": [
+                0,
+                4.372115815500996,
+                0
+              ],
+              "scale": [
+                1.0566691183376171,
+                1.0566691183376171,
+                1.0566691183376171
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "5aebc8a54d0549a5b57f305c5845d709",
+              "name": "Foliage 15",
+              "kind": "Mesh",
+              "position": [
+                -7.61,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                5.703863654203892,
+                0
+              ],
+              "scale": [
+                1.1134177018937672,
+                1.1134177018937672,
+                1.1134177018937672
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+            },
+            {
+              "id": "26203f99ea7248f2aabc95ecd00b11dd",
+              "name": "Foliage 16",
+              "kind": "Mesh",
+              "position": [
+                -3.13,
+                1.5,
+                -11.53
+              ],
+              "rotation": [
+                0,
+                3.3446802562552804,
+                0
+              ],
+              "scale": [
+                1.3674329348029062,
+                1.3674329348029062,
+                1.3674329348029062
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+            },
+            {
+              "id": "3e21bd57bc2d4c4f96661f4fcefc6962",
+              "name": "Foliage 17",
+              "kind": "Mesh",
+              "position": [
+                -0.64,
+                1.5,
+                -11.68
+              ],
+              "rotation": [
+                0,
+                3.996855291133387,
+                0
+              ],
+              "scale": [
+                1.2679369336881245,
+                1.2679369336881245,
+                1.2679369336881245
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+            },
+            {
+              "id": "2a1d6e45bef5484ab68197d3be1f10be",
+              "name": "Foliage 18",
+              "kind": "Mesh",
+              "position": [
+                2.65,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                5.062173512453993,
+                0
+              ],
+              "scale": [
+                1.390999765995224,
+                1.390999765995224,
+                1.390999765995224
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+            },
+            {
+              "id": "8c4f6a3ea93d470ab1f50fb02f51478b",
+              "name": "Foliage 19",
+              "kind": "Mesh",
+              "position": [
+                6.74,
+                1.5,
+                -10.23
+              ],
+              "rotation": [
+                0,
+                1.2554849357215399,
+                0
+              ],
+              "scale": [
+                1.1956691057483668,
+                1.1956691057483668,
+                1.1956691057483668
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-plant.glb"
+            },
+            {
+              "id": "5555aedc922f4ad3b3e9f9c9aaaf0f4c",
+              "name": "Foliage 20",
+              "kind": "Mesh",
+              "position": [
+                10.0,
+                1.5,
+                -8.54
+              ],
+              "rotation": [
+                0,
+                6.21471052449528,
+                0
+              ],
+              "scale": [
+                1.3740684819791549,
+                1.3740684819791549,
+                1.3740684819791549
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass-patch.glb"
+            },
+            {
+              "id": "a1c90b7e3ecb454e975300c04803fb50",
+              "name": "Foliage 21",
+              "kind": "Mesh",
+              "position": [
+                10.0,
+                1.5,
+                -5.51
+              ],
+              "rotation": [
+                0,
+                1.6276150013215112,
+                0
+              ],
+              "scale": [
+                1.315513165020074,
+                1.315513165020074,
+                1.315513165020074
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/grass.glb"
+            },
+            {
+              "id": "1822bed17a1142aaa46a4ffbb80a2d0a",
+              "name": "Foliage 22",
+              "kind": "Mesh",
+              "position": [
+                11.34,
+                1.5,
+                -3.11
+              ],
+              "rotation": [
+                0,
+                2.8085898163750236,
+                0
+              ],
+              "scale": [
+                1.4622127207657454,
+                1.4622127207657454,
+                1.4622127207657454
+              ],
+              "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/patch-grass-foliage.glb"
+            }
+          ]
+        },
+        {
+          "id": "7e5f199ddc994f8b9a8287acfc830440",
+          "name": "Lamps",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "children": [
+            {
+              "id": "d5e53a105d5a489aa2d4228d8ea175aa",
+              "name": "Lamp West",
+              "kind": "Prefab",
+              "position": [
+                -10.2,
+                1.5,
+                6.5
+              ],
+              "rotation": [
+                0,
+                1.57,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "prefab": {
+                "assetId": "499f5cf016e442acb2b5827176ee718c",
+                "assetPath": "Prefabs/Lamp.manaprefab",
+                "overrides": []
+              }
+            },
+            {
+              "id": "df5fbefd0c654cf8a53e3c345327a068",
+              "name": "Lamp East",
+              "kind": "Prefab",
+              "position": [
+                10.2,
+                1.5,
+                -6.5
+              ],
+              "rotation": [
+                0,
+                -1.57,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "prefab": {
+                "assetId": "499f5cf016e442acb2b5827176ee718c",
+                "assetPath": "Prefabs/Lamp.manaprefab",
+                "overrides": []
+              }
+            }
+          ]
+        },
+        {
+          "id": "9b875efb07e948a3842e6eea62e66273",
+          "name": "Fireflies",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "children": [
+            {
+              "id": "3c99e4ffc19f4ec186059ddd0a81131c",
+              "name": "Firefly 1",
+              "kind": "Shape",
+              "position": [
+                6.75,
+                2.24,
+                -0.53
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "0c14dfcfdb004d538b0be757e9a4cc9b",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 0.7763698583969899
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "0a5c7b73a0cb4a5b8992c90b369faa56",
+              "name": "Firefly 2",
+              "kind": "Shape",
+              "position": [
+                0.43,
+                2.05,
+                2.95
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "c30cf59a5d6e49b68cf66f6b28344f85",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.0992531179502545
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "76dc16d3b45d4d2583f21ef9c1924f07",
+              "name": "Firefly 3",
+              "kind": "Shape",
+              "position": [
+                5.01,
+                2.38,
+                -3.65
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "d665c67d047a49e78b0f1673aa6bf88e",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.122382434272807
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "0a31936285594504bc603bb4a31a09b2",
+              "name": "Firefly 4",
+              "kind": "Shape",
+              "position": [
+                0.74,
+                2.59,
+                -2.31
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "d6c008ac9e50431f87a687a811109e24",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.3278217100413783
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "ed74b952ec7d4b96a97d4a5b093e0b3b",
+              "name": "Firefly 5",
+              "kind": "Shape",
+              "position": [
+                1.15,
+                2.37,
+                -5.64
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "7896c25824814afb8586ffe9ca9daac6",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 0.7428173746700588
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "1d6903d86ace43a0a0e19c03cdb9b5ee",
+              "name": "Firefly 6",
+              "kind": "Shape",
+              "position": [
+                0.88,
+                2.76,
+                -3.55
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "36cf000b72d740c6abca09333e7d6e1e",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.3773258311857266
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "12d377e95130406fa981cea99f691e1e",
+              "name": "Firefly 7",
+              "kind": "Shape",
+              "position": [
+                -3.18,
+                2.94,
+                2.44
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "d5216b9207bf40a0aa0410a902547213",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.1798389325073722
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "dfc778e7d67c4808810426bb7b3aa462",
+              "name": "Firefly 8",
+              "kind": "Shape",
+              "position": [
+                1.27,
+                1.98,
+                2.31
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "8309f774c4ed49749c08e09e2d5963a4",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.3238816765865913
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "id": "75c12c288e684a99a2d7c75ebd6cfa34",
+              "name": "Firefly 9",
+              "kind": "Shape",
+              "position": [
+                0.94,
+                2.79,
+                -2.56
+              ],
+              "rotation": [
+                0,
+                0.0,
+                0
+              ],
+              "scale": [
+                0.08,
+                0.08,
+                0.08
+              ],
+              "scripts": [
+                {
+                  "id": "3e09a759bbb54f80b965bfba1471a58c",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.85,
+                      0.4,
+                      1
+                    ],
+                    "strength": 3.0,
+                    "lightRange": 2.0,
+                    "lightIntensity": 0.6,
+                    "lightOffset": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "pulseSpeed": 1.3842447547576242
+                  }
+                }
+              ],
+              "shape": "Sphere",
+              "color": [
+                1.0,
+                0.9,
+                0.45,
+                1
+              ],
+              "size": [
+                1,
+                1,
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ce93e3f30c0949308a2f8382302debad",
+          "name": "Little Sprites",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "children": [
+            {
+              "id": "543fef2861f3458196c812320bbe2921",
+              "name": "Little Bush 1",
+              "kind": "Group",
+              "position": [
+                10.0,
+                1.5,
+                1.39
+              ],
+              "rotation": [
+                0,
+                -0.4555960665064249,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "10713cf37e004470b269d648f9c87cfa",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/bush.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 192,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "fbe432964bee42efb688ef661bb58a99",
+              "name": "Little Mushroom Red 2",
+              "kind": "Group",
+              "position": [
+                10.0,
+                1.5,
+                5.0
+              ],
+              "rotation": [
+                0,
+                0.022018455243644208,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "dda1f91e6f794dd19b29ee8ccd844636",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/mushroom_red.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 160,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "6d4cfb023cce408bba10a1a6bebfb1b0",
+              "name": "Little Mushroom Brown 3",
+              "kind": "Group",
+              "position": [
+                10.0,
+                1.5,
+                8.44
+              ],
+              "rotation": [
+                0,
+                0.331788120622421,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "e6997d384277428b931bfbce383495da",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/mushroom_brown.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "7e8d9e2c38a049d29f031d21a6510730",
+              "name": "Little Grass 4",
+              "kind": "Group",
+              "position": [
+                4.08,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                -0.3704326426066422,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "213283ac7fa34812a3f64642ed07bf7d",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/grass.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "2b49a9753f904d66b6823d1dbdabef94",
+              "name": "Little Rock 5",
+              "kind": "Group",
+              "position": [
+                -0.21,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                0.009256790150784733,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "58f84145462b46d8a7fde774bd2c8dd0",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/rock.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 160,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1fd3737b7a304e7b884e80be6e9b6f97",
+              "name": "Little Grass Purple 6",
+              "kind": "Group",
+              "position": [
+                -3.73,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                0.4728144935889961,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "4d44af44d48c47a39b8e46d9f319ed65",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/grass_purple.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "7e595e8d41e54a94a8ef437f5e7fbfab",
+              "name": "Little Bush 7",
+              "kind": "Group",
+              "position": [
+                -6.38,
+                1.5,
+                10.0
+              ],
+              "rotation": [
+                0,
+                0.13503346121335247,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "48eaeb2b78484ac1be67bde1de12356a",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/bush.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 160,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "4210ee086c3f4d28a438372a60f58e1d",
+              "name": "Little Mushroom Red 8",
+              "kind": "Group",
+              "position": [
+                -10.0,
+                1.5,
+                7.4
+              ],
+              "rotation": [
+                0,
+                -0.3607161489778966,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "dc0a14c7df4e416189cab18dc7e9b1b2",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/mushroom_red.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "d14535edb21248eda082fbfa26d11d2b",
+              "name": "Little Mushroom Brown 9",
+              "kind": "Group",
+              "position": [
+                -10.0,
+                1.5,
+                2.3
+              ],
+              "rotation": [
+                0,
+                0.039942525095005066,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "d664edfda2d0489c883630e541b982b5",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/mushroom_brown.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 192,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "01b168439838431cb9bc5d39555ca44d",
+              "name": "Little Grass 10",
+              "kind": "Group",
+              "position": [
+                -10.0,
+                1.5,
+                -0.88
+              ],
+              "rotation": [
+                0,
+                -0.3028130409191441,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "5a71706c9a674a98ab432a5050911b82",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/grass.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 192,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "b0b96dc153ee4b9bb5442490ba4001a8",
+              "name": "Little Rock 11",
+              "kind": "Group",
+              "position": [
+                -10.0,
+                1.5,
+                -5.99
+              ],
+              "rotation": [
+                0,
+                0.5306167059642907,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "133564430c2d43bbb6656ecf7c43c8bd",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/rock.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "df3a53f0d1aa48feb058bbb4c7e3636e",
+              "name": "Little Grass Purple 12",
+              "kind": "Group",
+              "position": [
+                -9.83,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                0.4713059301072392,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "feff72a22e3b4dd29083eac201d2edc3",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/grass_purple.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 192,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ccdfd1e1b5c847a999f87e4fe3571e89",
+              "name": "Little Bush 13",
+              "kind": "Group",
+              "position": [
+                -3.47,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                -0.43543867692377825,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "c9d4f714633c4526b2f0ae9de24899f2",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/bush.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 160,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "75011327ef1f4a3b8d88db8b22ad7bd7",
+              "name": "Little Mushroom Red 14",
+              "kind": "Group",
+              "position": [
+                0.18,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                -0.22082424695003544,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "2f43e31848684a3fba0be45b4dbcad6c",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/mushroom_red.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 160,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "303ed264f3b5472c86c6dbccbbceef3f",
+              "name": "Little Mushroom Brown 15",
+              "kind": "Group",
+              "position": [
+                2.94,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                -0.5122550796327908,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "b41121133edb468eae511bc2d42a3d55",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/mushroom_brown.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "3c42bda8b30145228fe12e5bbf548241",
+              "name": "Little Grass 16",
+              "kind": "Group",
+              "position": [
+                5.83,
+                1.5,
+                -10.0
+              ],
+              "rotation": [
+                0,
+                -0.4531801352170728,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "6c44e33f5e0649aaa8c17edf0be0201f",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/grass.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "c84af8a6b8e046499205c5423f0ffd7f",
+              "name": "Little Rock 17",
+              "kind": "Group",
+              "position": [
+                10.0,
+                1.5,
+                -7.76
+              ],
+              "rotation": [
+                0,
+                0.17214959854116896,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "a5a6040eb66046b3a3703662135bf7e7",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/rock.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 160,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "93eec7d0970c4592a467014bd5098d5e",
+              "name": "Little Grass Purple 18",
+              "kind": "Group",
+              "position": [
+                10.0,
+                1.5,
+                -1.84
+              ],
+              "rotation": [
+                0,
+                0.4593994003884906,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "8e8a621aaf4842d4be913a071d14421f",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/grass_purple.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 192,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": true,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "37ea9f7f394845ad89eae9213299e070",
+              "name": "Torch West",
+              "kind": "Group",
+              "position": [
+                -9.6,
+                1.5,
+                -3
+              ],
+              "rotation": [
+                0,
+                0.5610537391996607,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "f5640db15a5c475b9e10d21bfcf9227a",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_on_a.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 128,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                },
+                {
+                  "id": "9682706181484dff91561aa2ef659c2e",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.55,
+                      0.2,
+                      1
+                    ],
+                    "strength": 1.6,
+                    "lightRange": 3.5,
+                    "lightIntensity": 1.2,
+                    "lightOffset": [
+                      0,
+                      0.25,
+                      0
+                    ],
+                    "pulseSpeed": 1.8
+                  }
+                }
+              ]
+            },
+            {
+              "id": "5476a332859f44ce9f2a6e20322029e8",
+              "name": "Torch East",
+              "kind": "Group",
+              "position": [
+                9.6,
+                1.5,
+                3
+              ],
+              "rotation": [
+                0,
+                -0.33649460303769635,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "1ec591d4a2ff4fa3b0215edee3e14ae5",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_on_a.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 128,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                },
+                {
+                  "id": "f98a2a3ac3ea47c69b392c3d588587d8",
+                  "type": "Glow",
+                  "properties": {
+                    "color": [
+                      1,
+                      0.55,
+                      0.2,
+                      1
+                    ],
+                    "strength": 1.6,
+                    "lightRange": 3.5,
+                    "lightIntensity": 1.2,
+                    "lightOffset": [
+                      0,
+                      0.25,
+                      0
+                    ],
+                    "pulseSpeed": 1.8
+                  }
+                }
+              ]
+            },
+            {
+              "id": "34f42fab6cf84066a0ac97c62885a2f0",
+              "name": "Bee",
+              "kind": "Group",
+              "position": [
+                -4,
+                2.6,
+                -6.5
+              ],
+              "rotation": [
+                0,
+                0.5430049547027834,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "82e09d49713148a1a6a2a64adc613912",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/bee_a.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "37a4470b3a2f41a8ab4a423b4cf30977",
+              "name": "Fish",
+              "kind": "Group",
+              "position": [
+                3.5,
+                1.15,
+                4.2
+              ],
+              "rotation": [
+                0,
+                -0.12209175033927372,
+                0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "scripts": [
+                {
+                  "id": "093adb9f86fb4a989d1361e3708b430a",
+                  "type": "Sprite",
+                  "properties": {
+                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fish_blue_rest.png",
+                    "normalMap": "",
+                    "pixelsPerUnit": 256,
+                    "pivot": [
+                      0.5,
+                      0
+                    ],
+                    "repeatSize": [
+                      0,
+                      0
+                    ],
+                    "flipX": false,
+                    "tint": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "pixelArt": false,
+                    "unlit": false
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

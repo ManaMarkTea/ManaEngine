@@ -27,6 +27,16 @@
 
 [] - Dynamic normal maps on sprites?
 
+[] - Can we also support exporting video in addition to the PNG snapshots we take now. Prolly using FFMPEG to compress pngs or something.
+
+[] - The search location panel is gone, i think it moved somewhere but i can't find it anymore. where is it?
+
+[] - There is a blue ball and yellow donut in every scene for some reason - i forgot why, remove them.
+
+[] - Finish the Little Pond Level - Add tents and picnic stuff
+
+[] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
+
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
 the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.
