@@ -3184,26 +3184,22 @@
                 0
               ],
               "scale": [
-                1.0,
-                1.0,
-                1.0
+                0.5,
+                0.5,
+                0.5
               ],
               "scripts": [
                 {
                   "id": "f5640db15a5c475b9e10d21bfcf9227a",
-                  "type": "Sprite",
+                  "type": "SpriteSheet",
                   "properties": {
-                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_on_a.png",
-                    "normalMap": "",
-                    "pixelsPerUnit": 128,
-                    "pivot": [
-                      0.5,
-                      0
-                    ],
-                    "repeatSize": [
-                      0,
-                      0
-                    ],
+                    "sheet": {
+                      "assetId": "f8890ff4bd054eee99999ba1ca3e8bee",
+                      "assetPath": "Sprites/Items/Torch.manasheet"
+                    },
+                    "animation": "burn",
+                    "playing": true,
+                    "frame": 0,
                     "flipX": false,
                     "tint": [
                       1,
@@ -3253,26 +3249,22 @@
                 0
               ],
               "scale": [
-                1.0,
-                1.0,
-                1.0
+                0.5,
+                0.5,
+                0.5
               ],
               "scripts": [
                 {
                   "id": "1ec591d4a2ff4fa3b0215edee3e14ae5",
-                  "type": "Sprite",
+                  "type": "SpriteSheet",
                   "properties": {
-                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Tiles/Default/torch_on_a.png",
-                    "normalMap": "",
-                    "pixelsPerUnit": 128,
-                    "pivot": [
-                      0.5,
-                      0
-                    ],
-                    "repeatSize": [
-                      0,
-                      0
-                    ],
+                    "sheet": {
+                      "assetId": "f8890ff4bd054eee99999ba1ca3e8bee",
+                      "assetPath": "Sprites/Items/Torch.manasheet"
+                    },
+                    "animation": "burn",
+                    "playing": true,
+                    "frame": 0,
                     "flipX": false,
                     "tint": [
                       1,
@@ -3322,26 +3314,22 @@
                 0
               ],
               "scale": [
-                1.0,
-                1.0,
-                1.0
+                0.25,
+                0.25,
+                0.25
               ],
               "scripts": [
                 {
                   "id": "82e09d49713148a1a6a2a64adc613912",
-                  "type": "Sprite",
+                  "type": "SpriteSheet",
                   "properties": {
-                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/bee_a.png",
-                    "normalMap": "",
-                    "pixelsPerUnit": 256,
-                    "pivot": [
-                      0.5,
-                      0
-                    ],
-                    "repeatSize": [
-                      0,
-                      0
-                    ],
+                    "sheet": {
+                      "assetId": "339efba057ea48389f1d93a0985aeeea",
+                      "assetPath": "Sprites/Enemies/Bee.manasheet"
+                    },
+                    "animation": "move",
+                    "playing": true,
+                    "frame": 0,
                     "flipX": false,
                     "tint": [
                       1,
@@ -3370,26 +3358,22 @@
                 0
               ],
               "scale": [
-                1.0,
-                1.0,
-                1.0
+                0.25,
+                0.25,
+                0.25
               ],
               "scripts": [
                 {
                   "id": "093adb9f86fb4a989d1361e3708b430a",
-                  "type": "Sprite",
+                  "type": "SpriteSheet",
                   "properties": {
-                    "texture": "zip:kenney_new-platformer-pack-1.1.zip/Sprites/Enemies/Default/fish_blue_rest.png",
-                    "normalMap": "",
-                    "pixelsPerUnit": 256,
-                    "pivot": [
-                      0.5,
-                      0
-                    ],
-                    "repeatSize": [
-                      0,
-                      0
-                    ],
+                    "sheet": {
+                      "assetId": "89b763bb1ce14b049258ce2d47d84c15",
+                      "assetPath": "Sprites/Enemies/Blue Fish.manasheet"
+                    },
+                    "animation": "swim",
+                    "playing": true,
+                    "frame": 0,
                     "flipX": false,
                     "tint": [
                       1,
