@@ -40,6 +40,46 @@ struct SkyboxUniform {
 @group(0) @binding(0) var<uniform> sky : SkyboxUniform;
 @group(0) @binding(1) var sky_sampler : sampler;
 @group(0) @binding(2) var sky_texture : texture_cube<f32>;
+// The moon's map, equirectangular with the near side at the centre: NASA's CGI Moon Kit (LRO colour, public domain).
+@group(0) @binding(3) var moon_texture : texture_2d<f32>;
+
+// The moon's angular radius, as the cosine of it -- about 1.5 degrees, larger than life so it reads on screen.
+const MoonCosRadius : f32 = 0.99965;
+
+/// The moon's colour in this direction, or nothing off its disc. The disc is a sphere facing the viewer: each
+/// point is mapped to the latitude and longitude it shows, so the maria sit where they should.
+fn moon_disc(direction : vec3<f32>, toward_moon : vec3<f32>) -> vec4<f32> {
+    let cos_angle = dot(direction, toward_moon);
+    if (cos_angle < MoonCosRadius - 0.0002) {
+        return vec4<f32>(0.0);
+    }
+
+    // A frame on the disc with its north kept up, then the point's place on the unit circle across it.
+    var north = vec3<f32>(0.0, 1.0, 0.0);
+    if (abs(toward_moon.y) > 0.99) {
+        north = vec3<f32>(0.0, 0.0, 1.0);
+    }
+    let right = normalize(cross(north, toward_moon));
+    let up = cross(toward_moon, right);
+    let sin_radius = sqrt(1.0 - MoonCosRadius * MoonCosRadius);
+    let p = vec2<f32>(dot(direction, right), dot(direction, up)) / sin_radius;
+    let r2 = dot(p, p);
+    if (r2 >= 1.0) {
+        return vec4<f32>(0.0);
+    }
+
+    // The visible hemisphere's point: x across, y up, z towards the viewer.
+    let n = vec3<f32>(p.x, p.y, sqrt(1.0 - r2));
+    let longitude = atan2(n.x, n.z);
+    let latitude = asin(clamp(n.y, -1.0, 1.0));
+    let uv = vec2<f32>(0.5 + longitude / 6.2831853, 0.5 - latitude / 3.14159265);
+    let albedo = textureSampleLevel(moon_texture, sky_sampler, uv, 0.0).rgb;
+
+    // A full moon is nearly flat-lit; a touch of darkening at the limb, and a soft edge.
+    let limb = mix(0.8, 1.0, pow(n.z, 0.4));
+    let edge = 1.0 - smoothstep(0.96, 1.0, sqrt(r2));
+    return vec4<f32>(albedo * limb, edge);
+}
 
 struct VertexOutput {
     @builtin(position) clip_position : vec4<f32>,
@@ -274,7 +314,9 @@ fn day_sky(direction : vec3<f32>, jitter : f32) -> vec3<f32> {
         colour = colour + stars(direction, 0.012, sky.parameters.x) * night * smoothstep(0.0, 0.2, up);
         let toward_moon = -toward_sun;
         let moon_dot = max(dot(direction, toward_moon), 0.0);
-        colour = colour + vec3<f32>(0.8, 0.85, 1.0) * night * (smoothstep(0.99955, 0.99975, moon_dot) * 1.6 + pow(moon_dot, 200.0) * 0.08);
+        let moon = moon_disc(direction, toward_moon);
+        colour = mix(colour, moon.rgb * vec3<f32>(1.0, 1.0, 1.05) * 1.8, moon.a * night);
+        colour = colour + vec3<f32>(0.8, 0.85, 1.0) * night * pow(moon_dot, 200.0) * 0.08;
     }
 
     // Clouds on a flat layer overhead, drifting slowly, thinning towards the horizon where they would crowd

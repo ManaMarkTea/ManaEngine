@@ -137,6 +137,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ("glTF samples", "Duck, Flight Helmet, Lantern, Sci-Fi Helmet, Water Bottle, Animated Cube -- the Khronos " +
                     "Group glTF Sample Assets, each under its own licence"),
                 ("Sky photos", "Kloofendal 48d Partly Cloudy, Wasteland Clouds -- Poly Haven, CC0"),
+                ("Moon", "CGI Moon Kit, from Lunar Reconnaissance Orbiter data -- NASA's Scientific Visualization Studio, public domain"),
                 ("Atmosphere", "after Sebastian Lague's Solar System -- MIT License")
             }),
             ("Libraries", new[]

@@ -386,7 +386,8 @@ namespace ManaGraphics.Code.Graphics
                 _device,
                 _queue,
                 _depthFormat,
-                ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl")));
+                ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl")),
+                moonPath: MoonTexturePath);
 
             _skybox.Draw(
                 renderPass,
@@ -399,6 +400,8 @@ namespace ManaGraphics.Code.Graphics
                 _activeRenderScene.Sky,
                 ManaSky.Seconds);
         }
+
+        private static string? MoonTexturePath => TryResolveAssetPath(Path.Combine("Assets", "Textures", "Sky", "moon_lroc_1k.jpg"));
 
         // A still sky's sun sits where the scene's own sun is, if it has one (its direction is the way the light
         // travels); a day-night cycle moves its own.

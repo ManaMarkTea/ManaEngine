@@ -24,7 +24,12 @@ namespace ManaGraphics.Code.Graphics
         private readonly Queue* _queue;
         private readonly TextureFormat? _depthFormat;
         private readonly string _shaderPath;
+        private readonly string? _moonPath;
         private readonly int _slots;
+
+        // The moon's map (NASA's CGI Moon Kit), sampled across its disc as a sphere.
+        private Texture* _moonTexture;
+        private TextureView* _moonView;
 
         private BindGroupLayout* _bindGroupLayout;
         private PipelineLayout* _pipelineLayout;
@@ -57,8 +62,9 @@ namespace ManaGraphics.Code.Graphics
 
         /// <param name="depthFormat">The pass's depth format, or null for a pass with no depth (a cube face).</param>
         /// <param name="slots">Draws a frame can hold with different cameras -- six for the faces of a cube.</param>
-        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat? depthFormat, string shaderPath, int slots = 1)
+        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat? depthFormat, string shaderPath, int slots = 1, string? moonPath = null)
         {
+            _moonPath = moonPath;
             _api = api;
             _device = device;
             _queue = queue;
@@ -159,7 +165,7 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var entries = stackalloc BindGroupLayoutEntry[3];
+            var entries = stackalloc BindGroupLayoutEntry[4];
             entries[0] = new BindGroupLayoutEntry
             {
                 Binding = 0,
@@ -187,8 +193,19 @@ namespace ManaGraphics.Code.Graphics
                     Multisampled = false
                 }
             };
+            entries[3] = new BindGroupLayoutEntry
+            {
+                Binding = 3,
+                Visibility = ShaderStage.Fragment,
+                Texture = new TextureBindingLayout
+                {
+                    SampleType = TextureSampleType.Float,
+                    ViewDimension = TextureViewDimension.Dimension2D,
+                    Multisampled = false
+                }
+            };
 
-            var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 3, Entries = entries };
+            var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 4, Entries = entries };
             _bindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
             if (_bindGroupLayout == null)
             {
@@ -209,6 +226,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _shaderModule = CreateShaderModule(_shaderPath);
+            CreateMoonTexture();
 
             var uniformDescriptor = new BufferDescriptor
             {
@@ -327,7 +345,7 @@ namespace ManaGraphics.Code.Graphics
                 _bindGroups[slot] = 0;
             }
 
-            var entries = stackalloc BindGroupEntry[3];
+            var entries = stackalloc BindGroupEntry[4];
             entries[0] = new BindGroupEntry
             {
                 Binding = 0,
@@ -337,11 +355,12 @@ namespace ManaGraphics.Code.Graphics
             };
             entries[1] = new BindGroupEntry { Binding = 1, Sampler = clampSampler };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = environmentView };
+            entries[3] = new BindGroupEntry { Binding = 3, TextureView = _moonView };
 
             var descriptor = new BindGroupDescriptor
             {
                 Layout = _bindGroupLayout,
-                EntryCount = 3,
+                EntryCount = 4,
                 Entries = entries
             };
 
@@ -353,6 +372,59 @@ namespace ManaGraphics.Code.Graphics
 
             _bindGroups[slot] = (nint)bindGroup;
             _boundTextureViews[slot] = (nint)environmentView;
+        }
+
+        /// <summary>The moon's map, or a grey pixel when the file is missing -- the moon then draws as a plain disc.</summary>
+        private void CreateMoonTexture()
+        {
+            byte[] pixels = { 200, 200, 200, 255 };
+            uint width = 1;
+            uint height = 1;
+            if (_moonPath != null && File.Exists(_moonPath))
+            {
+                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(_moonPath);
+                pixels = new byte[image.Width * image.Height * 4];
+                image.CopyPixelDataTo(pixels);
+                width = (uint)image.Width;
+                height = (uint)image.Height;
+            }
+
+            var textureDescriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
+                Format = TextureFormat.Rgba8UnormSrgb,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+            _moonTexture = _api.DeviceCreateTexture(_device, &textureDescriptor);
+            if (_moonTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create the WebGPU moon texture.");
+            }
+
+            fixed (byte* pixelPointer = pixels)
+            {
+                var destination = new ImageCopyTexture { Texture = _moonTexture, MipLevel = 0, Origin = new Origin3D(), Aspect = TextureAspect.All };
+                var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = width * 4, RowsPerImage = height };
+                var writeSize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
+                _api.QueueWriteTexture(_queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
+            }
+
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = TextureFormat.Rgba8UnormSrgb,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+            _moonView = _api.TextureCreateView(_moonTexture, &viewDescriptor);
+            if (_moonView == null)
+            {
+                throw new InvalidOperationException("Failed to create the WebGPU moon texture view.");
+            }
         }
 
         private ShaderModule* CreateShaderModule(string shaderPath)
@@ -413,6 +485,18 @@ namespace ManaGraphics.Code.Graphics
             {
                 _api.RenderPipelineRelease(_pipeline);
                 _pipeline = null;
+            }
+
+            if (_moonView != null)
+            {
+                _api.TextureViewRelease(_moonView);
+                _moonView = null;
+            }
+
+            if (_moonTexture != null)
+            {
+                _api.TextureRelease(_moonTexture);
+                _moonTexture = null;
             }
 
             if (_pipelineLayout != null)

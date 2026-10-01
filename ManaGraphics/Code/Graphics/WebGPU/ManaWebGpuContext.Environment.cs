@@ -104,7 +104,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _environmentSkybox ??= new ManaWebGpuSkybox(
-                _api, _device, _queue, null, ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl")), 6);
+                _api, _device, _queue, null, ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl")), 6, MoonTexturePath);
 
             for (var face = 0; face < 6; face++)
             {

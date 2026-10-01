@@ -11,6 +11,10 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Textures/DebugTexture_Grid.png">
       <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
     </WasmFilesToIncludeInFileSystem>
+    <!-- The moon's map: small, and the sky shader wants it on its first frame. -->
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Textures/Sky/moon_lroc_1k.jpg">
+      <TargetPath>Assets/Textures/Sky/moon_lroc_1k.jpg</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
     <!-- No environment photo (5 MB): the sky is drawn into the reflections, and the Photo sky fetches it from the catalog. -->
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Regular.ttf;$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Medium.ttf">
       <TargetPath>Assets/Fonts/Roboto/%(Filename)%(Extension)</TargetPath>
