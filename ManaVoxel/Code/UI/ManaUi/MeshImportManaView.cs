@@ -416,13 +416,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                     () => library.FilteredEntries,
                     entries =>
                     {
-                        var wrap = new WrapPanel { Spacing = theme.Spacing };
-                        foreach (var entry in entries)
+                        // Only the rows on screen are built: a pack of pictures lists thousands of tiles.
+                        return new VirtualWrapPanel
                         {
-                            wrap.Children.Add(Tile(theme, library, thumbnails, entry));
-                        }
-
-                        return wrap;
+                            Spacing = theme.Spacing,
+                            Items = entries.Cast<object>().ToList(),
+                            CreateItem = index => Tile(theme, library, thumbnails, entries[index]),
+                            ItemSize = () => new Vector2(TileWidth, TileHeight)
+                        };
                     })
                 .Empty(new TextBlock()
                     .Text("Nothing matches.")

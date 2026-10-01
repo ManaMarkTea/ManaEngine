@@ -31,7 +31,7 @@ public static class MeshImportChecks
     /// Asset names from a grid of tiles, taken from each tile's tooltip -- the tooltip is the asset's full
     /// path, while the visible caption is a display name that ellipsises at tile width.
     /// </summary>
-    private static List<string> TileNames(WrapPanel? grid)
+    private static List<string> TileNames(Panel? grid)
     {
         var names = new List<string>();
         if (grid == null)
@@ -271,7 +271,7 @@ public static class MeshImportChecks
         // The asset list is a grid of preview tiles now, not a second tree. A tree spent the panel's whole
         // width on one filename per row; tiles spend it on assets. Only the folder sidebar is still a tree,
         // which is why this looks for tiles and asserts the sidebar is unaffected further down.
-        var tileGrid = FindAll<WrapPanel>(root.Content!)
+        var tileGrid = FindAll<Panel>(root.Content!)
             .FirstOrDefault(panel => panel.Children.Any(child => child is MeshAssetRow));
         Check("the panel found the asset grid", tileGrid != null,
             $"{tileGrid?.Children.Count ?? 0} tiles");
@@ -341,7 +341,7 @@ public static class MeshImportChecks
         root.UpdateLayout(defaultSize);
         root.Render();
 
-        var afterFilter = TileNames(FindAll<WrapPanel>(root.Content!)
+        var afterFilter = TileNames(FindAll<Panel>(root.Content!)
             .FirstOrDefault(panel => panel.Children.Any(child => child is MeshAssetRow)));
 
         Check("filtering the library updates the grid",

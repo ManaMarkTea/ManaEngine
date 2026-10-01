@@ -68,6 +68,7 @@ public static class TestRunner
         ("ManaUI", "popups and combo boxes", PopupChecks.Run),
         ("ManaUI", "menus", MenuChecks.Run),
         ("ManaUI", "tree view", TreeChecks.Run),
+        ("ManaUI", "virtual wrap", VirtualWrapChecks.Run),
         ("ManaUI", "numeric, vector and expander editors", EditorChecks.Run),
         ("ManaUI", "colour conversion and picking", ColorChecks.Run),
         ("ManaUI", "debug overlay", DebugOverlayChecks.Run),
