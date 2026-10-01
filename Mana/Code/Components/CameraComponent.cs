@@ -92,21 +92,70 @@ namespace Mana
             UpdateProjection();
         }
 
+        /// <summary>
+        /// Centre the picture on the editor's viewport -- the space the docked panels leave -- rather than the whole
+        /// window. The scene still renders across the window (panels show it through their backdrop); the projection
+        /// is built for the viewport's shape and then shifted and scaled onto it, a lens shift.
+        /// </summary>
+        public bool LensShiftToViewport { get; set; } = true;
+
+        private (float Width, float Height, float X, float Y) _projectedViewport = (1.0f, 1.0f, 0.0f, 0.0f);
+        private Vector2D<int> _projectedWindow;
+
+        // The viewport as a share of the window and its centre's offset in NDC; the whole window when there is none.
+        private (float Width, float Height, float X, float Y) ShiftedViewport()
+        {
+            var viewport = Mana.Code.UI.ManaEditorGizmos.Viewport;
+            if (!LensShiftToViewport || Mana.Code.UI.ManaEditorGizmos.FullWindowView || viewport.IsEmpty)
+            {
+                return (1.0f, 1.0f, 0.0f, 0.0f);
+            }
+            var windowSize = Context.Window.Size;
+            var (width, height) = GetVisibleViewportFraction(viewport, windowSize);
+            if (width < 0.05f || height < 0.05f)
+            {
+                return (1.0f, 1.0f, 0.0f, 0.0f);
+            }
+            var (x, y) = GetViewportCenterNdcOffset(viewport, windowSize);
+            return (width, height, x, y);
+        }
+
+        private bool IsLensShifted => _projectedViewport != (1.0f, 1.0f, 0.0f, 0.0f);
+
+        // Docking, resizing a column or a clean screenshot moves the viewport; the projection follows.
+        private void UpdateProjectionIfViewportMoved()
+        {
+            var viewport = ShiftedViewport();
+            if (viewport != _projectedViewport || Context.Window.Size != _projectedWindow)
+            {
+                UpdateProjection();
+            }
+        }
+
         public void UpdateProjection()
         {
             var viewportSize = GetProjectionViewportSize();
+            _projectedViewport = ShiftedViewport();
+            _projectedWindow = Context.Window.Size;
+            var (shareX, shareY, centreX, centreY) = _projectedViewport;
+            // Clip space scaled into the viewport's share of the window and moved onto its centre.
+            var lensShift = new Matrix4x4(
+                shareX, 0, 0, 0,
+                0, shareY, 0, 0,
+                0, 0, 1, 0,
+                centreX, centreY, 0, 1);
 
-            AspectRatio = (float)viewportSize.X / (float)viewportSize.Y;
+            AspectRatio = (float)viewportSize.X * shareX / ((float)viewportSize.Y * shareY);
             if (OrthoGraphic)
             {
                 OrthographicHeight = MathF.Max(1.0f, OrthographicHeight);
-                _ProjectionMatrix = Matrix4x4.CreateOrthographic(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane, FarClipPlane);
+                _ProjectionMatrix = Matrix4x4.CreateOrthographic(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane, FarClipPlane) * lensShift;
                 ViewParams = new Vector3(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane);
                 return;
             }
             else
             {
-                _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(EffectiveFieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane);
+                _ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(EffectiveFieldOfViewDegrees.ToRadians(), AspectRatio, NearClipPlane, FarClipPlane) * lensShift;
             }
 
             float planeHeight = NearClipPlane * MathF.Tan(EffectiveFieldOfViewDegrees.ToRadians() * 0.5f) * 2.0f;
@@ -307,7 +356,8 @@ namespace Mana
         private void FrameWorldBounds(Vector3 worldCenter, float worldRadius)
         {
             var radius = MathF.Max(worldRadius, 0.05f);
-            var viewport = Mana.Code.UI.ManaEditorGizmos.Viewport;
+            // Under a lens shift the projection already centres on the viewport and is sized to it.
+            var viewport = IsLensShifted ? UiRect.Empty : Mana.Code.UI.ManaEditorGizmos.Viewport;
             var windowSize = Context.Window.Size;
 
             var verticalHalfFovRad = EffectiveFieldOfViewDegrees.ToRadians() * 0.5f;
@@ -618,6 +668,7 @@ namespace Mana
 
         public override void UpdateComponent()
         {
+            UpdateProjectionIfViewportMoved();
             base.UpdateComponent();
 
             if (_isFramingTransitionActive)
@@ -820,7 +871,7 @@ namespace Mana
 
         private float GetPanUnitsPerPixel()
         {
-            float viewportHeight = MathF.Max(1.0f, Context.Window.Size.Y);
+            float viewportHeight = MathF.Max(1.0f, Context.Window.Size.Y * _projectedViewport.Height);
             if (OrthoGraphic)
             {
                 return MathF.Max(1.0f, OrthographicHeight) / viewportHeight;
@@ -849,12 +900,14 @@ namespace Mana
 
         private Vector3 GetOrthographicWorldPoint(Vector2 screenPosition, float orthographicHeight, Vector3 cameraPosition)
         {
-            float viewportWidth = MathF.Max(1.0f, Context.Window.Size.X);
-            float viewportHeight = MathF.Max(1.0f, Context.Window.Size.Y);
-            float aspectRatio = viewportWidth / viewportHeight;
+            float windowWidth = MathF.Max(1.0f, Context.Window.Size.X);
+            float windowHeight = MathF.Max(1.0f, Context.Window.Size.Y);
+            var (shareX, shareY, centreX, centreY) = _projectedViewport;
+            float aspectRatio = windowWidth * shareX / (windowHeight * shareY);
 
-            float normalizedX = (screenPosition.X / viewportWidth) * 2.0f - 1.0f;
-            float normalizedY = 1.0f - (screenPosition.Y / viewportHeight) * 2.0f;
+            // Window NDC, then undone through the lens shift into the viewport's own -1..1.
+            float normalizedX = ((screenPosition.X / windowWidth) * 2.0f - 1.0f - centreX) / shareX;
+            float normalizedY = (1.0f - (screenPosition.Y / windowHeight) * 2.0f - centreY) / shareY;
 
             float orthographicWidth = orthographicHeight * aspectRatio;
             Vector3 cameraRight = Owner.Right.Normalized();

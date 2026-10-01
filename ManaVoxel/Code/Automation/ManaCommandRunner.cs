@@ -79,6 +79,7 @@ namespace ManaVoxel.Code.Automation
                 }
 
                 _pendingScreenshot = null;
+                Mana.Code.UI.ManaEditorGizmos.FullWindowView = false;
                 _index++;
             }
 
@@ -271,6 +272,13 @@ namespace ManaVoxel.Code.Automation
                             break;
                         }
 
+                        // A clean shot fills the window, so it is centred on the window, not the viewport the panels
+                        // leave: switched over, then a frame for the camera to re-project before the capture.
+                        if (command.Clean && !Mana.Code.UI.ManaEditorGizmos.FullWindowView)
+                        {
+                            Mana.Code.UI.ManaEditorGizmos.FullWindowView = true;
+                            return;
+                        }
                         _pendingScreenshot = _webGpuContext.CaptureFrameAsync(RequirePath(command), command.Clean);
                         return;
 

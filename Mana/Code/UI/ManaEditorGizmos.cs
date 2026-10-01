@@ -18,6 +18,9 @@ namespace Mana.Code.UI
         /// </summary>
         public static UiRect Viewport { get; set; } = UiRect.Empty;
 
+        /// <summary>Centre the camera on the whole window rather than the viewport -- a clean full-window screenshot.</summary>
+        public static bool FullWindowView { get; set; }
+
         /// <summary>
         /// Keeps the editor room's walls and ceiling up. Off, they show only while drawing voxels, where they
         /// are the planes drawn against; the rest of the time the floor is enough.
