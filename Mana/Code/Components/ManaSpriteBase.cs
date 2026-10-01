@@ -30,9 +30,12 @@ namespace Mana.Code.Components
         [Category("Look")]
         public bool Unlit { get; set; } = true;
 
-        /// <summary>While lit, give a picture with no normal map one made from its outline, so it shades round rather than flat.</summary>
+        /// <summary>
+        /// While lit, give a picture with no normal map one made from its outline, so it shades round rather than flat.
+        /// Off by default: the made maps don't look good enough yet (Todo.md).
+        /// </summary>
         [Category("Look")]
-        public bool AutoNormalMap { get; set; } = true;
+        public bool AutoNormalMap { get; set; }
 
         /// <summary>How far in from the picture's edge the made normal map rounds over, in the picture's pixels.</summary>
         [Category("Look")]

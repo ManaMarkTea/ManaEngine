@@ -108,7 +108,7 @@ public static class SpriteChecks
         if (packed != null)
         {
             var coinNode = Node("Lit Coin");
-            var lit = new ManaSpriteComponent(coinNode) { Texture = Pack + "Tiles/Default/coin_gold.png", Unlit = false };
+            var lit = new ManaSpriteComponent(coinNode) { Texture = Pack + "Tiles/Default/coin_gold.png", Unlit = false, AutoNormalMap = true };
             coinNode.Components.Add(lit);
             lit.Refresh();
             var litNormal = (coinNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath;
