@@ -58,8 +58,7 @@ namespace ManaGraphics.Code.Graphics
         // opaque Adapter*/Device* handle Silk.NET's other (still-working) calls expect. Split into
         // a separate non-unsafe partial file (ManaWebGpuContext.BrowserAsync.cs) because this
         // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
-        // at all, regardless of whether the awaiting method itself touches a pointer. See
-        // WebPort-Plan.md's "M2 CLOSED" section for the full writeup.
+        // at all, regardless of whether the awaiting method itself touches a pointer.
         private System.Threading.Tasks.TaskCompletionSource<bool>? _adapterRequestTcs;
         private System.Threading.Tasks.TaskCompletionSource<bool>? _deviceRequestTcs;
 

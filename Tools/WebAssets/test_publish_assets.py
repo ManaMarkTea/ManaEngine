@@ -19,7 +19,12 @@ class PublishAssetsTests(unittest.TestCase):
             excluded = root / 'Mana' / EXCLUDED
             excluded.parent.mkdir(parents=True)
             excluded.write_bytes(b'oversized')
-            (root / 'Assets').mkdir()
+            assets = root / 'Assets'
+            assets.mkdir()
+            geodata = assets / 'GeoData'
+            geodata.mkdir()
+            with zipfile.ZipFile(geodata / 'ne_10m_lakes.zip', 'w') as archive:
+                archive.writestr('ne_10m_lakes.shp', b'water')
             with zipfile.ZipFile(root / 'Assets/pack.zip', 'w') as archive:
                 archive.writestr('Models/ship.glb', b'model')
             output = root / 'output'
@@ -27,6 +32,7 @@ class PublishAssetsTests(unittest.TestCase):
             self.assertEqual(len(catalog['models']), 2)
             files = {item['path']: item for item in catalog['files']}
             self.assertNotIn(EXCLUDED, files)
+            self.assertNotIn('Assets/GeoData/ne_10m_lakes.zip', files)
             self.assertEqual(files['Assets/Models/test.gltf']['dependencies'],
                              ['Assets/Models/paint red.png', 'Assets/Models/test.bin'])
             for item in files.values():

@@ -7,7 +7,7 @@ using Silk.NET.Windowing;
 namespace ManaGraphics.Code.Graphics.Browser
 {
     // Minimal custom IWindow for browser-wasm (M1). Silk.NET has no shipped browser windowing
-    // backend, so Window.Create(...) can't be used at all here -- see WebPort-Plan.md M1.
+    // backend, so Window.Create(...) can't be used at all here.
     //
     // Scope is deliberately narrow: ManaWebGpuContext.cs only ever reads window.FramebufferSize
     // (confirmed by grepping every _window. call site in that file before writing this), so that's

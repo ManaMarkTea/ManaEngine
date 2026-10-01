@@ -7,8 +7,7 @@ namespace ManaGraphics.Code.Graphics
     // Bridges wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice around a confirmed Emscripten
     // runtime bug in their normal callback-delivery path (RuntimeError: getWasmTableEntry(...)
     // is not a function; see mana_webgpu.c's mana_request_adapter/mana_request_device for the
-    // full writeup and WebPort-Plan.md M2). Called directly via [LibraryImport] (like the M0
-    // spike's plain functions), not resolved through ManaBrowserWebGpuNativeContext -- these
+    // details). Called directly via [LibraryImport], not resolved through ManaBrowserWebGpuNativeContext -- these
     // aren't part of Silk.NET.WebGPU's API surface at all, just a private detour around it.
     //
     // [JSExport] methods must be static, so this routes results to whichever ManaWebGpuContext

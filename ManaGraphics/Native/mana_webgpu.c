@@ -8,7 +8,7 @@
 // invocation of the C# callback function pointer) hits a confirmed Emscripten runtime bug
 // (RuntimeError: getWasmTableEntry(...) is not a function) when combined with .NET's wasm
 // bundling -- reproducible, not fixed by AOT compilation, not fixed by explicitly forcing
-// getWasmTableEntry past tree-shaking. See WebPort-Plan.md M2.
+// getWasmTableEntry past tree-shaking. See the browser build notes in CLAUDE.md.
 //
 // The actual browser-vendor async operations (navigator.gpu.requestAdapter()/
 // adapter.requestDevice(), both real Promises) still have to happen somehow, so these use
@@ -156,17 +156,14 @@ void mana_debug_readback_buffer(int deviceId, int sourceBufferId, int byteSize) 
 // path was checked field-for-field against Silk.NET.WebGPU.dll decompiled via ilspycmd: same
 // order, same shape, no insertions/removals), but many enums were renumbered between the two
 // webgpu.h revisions -- discovered by mechanically diffing every Silk.NET.WebGPU enum's
-// declared ordinals against this exact installed header (see WebPort-Plan.md's "M2 CLOSED"
-// section, findings #3, for the two found and fixed earlier this same way: TextureDimension,
-// TextureAspect, inline in their own shim functions instead of here since only one field each).
+// declared ordinals against this exact installed header. TextureDimension and TextureAspect
+// are remapped in their individual shim functions because each has only one affected field.
 // Most of the rest are a uniform "add 1" (native inserted an Undefined=0 member Silk.NET's
 // enum doesn't have, shifting everything after it by exactly one -- confirmed uniform across
 // every member, not just the ones that happened to collide). Three
 // (AddressMode/CompareFunction/VertexStepMode) are genuinely reordered, not just shifted, and
-// need an explicit table. NOT yet live-verified: no live browser session was available to
-// confirm the render pipeline actually creates successfully with these in place -- see
-// WebPort-Plan.md's M3 prep note for why the demo pipeline itself is still deliberately
-// disabled.
+// need an explicit table. The mappings are exercised by the browser WebGPU render path; compare
+// them against the bundled header whenever the Emscripten or Silk.NET version changes.
 static WGPUPrimitiveTopology mana_remap_primitive_topology(WGPUPrimitiveTopology v) { return (WGPUPrimitiveTopology)((int)v + 1); }
 static WGPUFrontFace mana_remap_front_face(WGPUFrontFace v) { return (WGPUFrontFace)((int)v + 1); }
 static WGPUCullMode mana_remap_cull_mode(WGPUCullMode v) { return (WGPUCullMode)((int)v + 1); }
@@ -493,8 +490,7 @@ WGPUSampler mana_wgpuDeviceCreateSampler(WGPUDevice device, WGPUSamplerDescripto
     // remap it AGAIN, silently producing a different, wrong enum value. Confirmed live: this
     // exact bug, for mana_wgpuTextureCreateView's old in-place version, turned a legitimate
     // TextureAspect.All view into TextureAspect.StencilOnly on the second use of a copied
-    // descriptor. See WebPort-Plan.md's M2 CLOSED / enum-audit sections for the remap tables
-    // themselves.
+    // descriptor. Keep the per-enum mappings above aligned with the installed header.
     if (descriptor == NULL) {
         return wgpuDeviceCreateSampler(device, descriptor);
     }
@@ -635,7 +631,7 @@ void mana_wgpuShaderModuleRelease(WGPUShaderModule shaderModule) {
     wgpuShaderModuleRelease(shaderModule);
 }
 
-// Emscripten's bundled webgpu.h (the old -sUSE_WEBGPU=1 API; see WebPort-Plan.md M0/M2) predates
+// Emscripten's bundled webgpu.h (the old -sUSE_WEBGPU=1 API) predates
 // the WebGPU spec's Surface-configure API (SurfaceConfigure/GetCurrentTexture/Present/Unconfigure,
 // WGPUSurfaceConfiguration, WGPUSurfaceTexture) that Silk.NET.WebGPU (and ManaWebGpuContext.cs) is
 // generated against; it only has the older explicit-swapchain shape (wgpuDeviceCreateSwapChain /
@@ -644,8 +640,8 @@ void mana_wgpuShaderModuleRelease(WGPUShaderModule shaderModule) {
 // adapt the modern Surface shape ManaWebGpuContext.cs already calls onto the legacy SwapChain
 // underneath, so nothing on the C# side needs to change. The struct layouts below are hand-copied
 // from Silk.NET.WebGPU's SurfaceConfiguration/SurfaceTexture field order (reflection-verified) --
-// Emscripten's header has no such types to include, so there's nothing to check them against
-// beyond that reflection dump; not yet confirmed correct against a real running browser.
+// Emscripten's header has no such types to include. This adapter is exercised by the browser
+// renderer.
 typedef struct {
     void const* nextInChain;
     WGPUDevice device;

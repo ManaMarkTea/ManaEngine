@@ -6,12 +6,9 @@ using System.Numerics;
 
 namespace Mana
 {
-    // Pure-managed (SharpGLTF) glTF/GLB import, used on every platform. Originally the
-    // browser-wasm-only counterpart to an Assimp-backed desktop path (see WebPort-Plan.md M4);
-    // that path also read OBJ/FBX/DAE/STL/PLY, but nothing in this codebase's actual content
-    // uses those formats, and carrying a native Assimp dependency for that on desktop only,
-    // with browser using a completely different loader for the same asset type, wasn't worth
-    // it once confirmed. Assimp is no longer referenced anywhere.
+    // Pure-managed (SharpGLTF) glTF/GLB import, used on every platform. The old Assimp path
+    // also read OBJ/FBX/DAE/STL/PLY, but no shipped content uses those formats and carrying a
+    // native dependency for them was not worthwhile. Assimp is no longer referenced anywhere.
     public partial class ManaWorld
     {
         /// <param name="sceneFile">Path to the glTF or GLB model to load.</param>

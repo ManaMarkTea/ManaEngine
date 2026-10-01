@@ -260,7 +260,7 @@ namespace ManaGraphics.Code.Graphics
             // `await` to appear within at all (regardless of whether the specific method touches a
             // pointer). See ManaWebGpuContext.BrowserAsync.cs's CompleteBrowserInitializationAsync,
             // a separate non-unsafe partial declaration of this same class, which callers must
-            // await before this context is usable; not yet confirmed working against a real browser.
+            // await before this context is usable.
         }
 
         private void FinishInitialization(string? requestedBackend, IWindow window)

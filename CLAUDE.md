@@ -120,6 +120,15 @@ logs the score (`[BrowserPlay] Coins x/y`) for scripts; the HUD itself is ManaUI
 strips reflection metadata (types made by JSON need `DynamicDependency` and parameterless constructors), assets come
 from the catalog rather than a checkout, and files can be locked by Defender mid-build (just build again).
 
+`ManaVoxel.Web` is the play-mode host; `ManaVoxel.Editor.Web` runs the full editor. Both target browser-wasm and use WebGPU. Publish the editor with `dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release`, serve it with `python ManaVoxel.Editor.Web/serve.py 8123`, and use the same Chrome driver. A successful build alone is not enough: Chrome's WebGPU validation catches shader and pipeline issues that the desktop backend can miss.
+
+Browser-specific lessons and limits:
+- The WebGPU C shim (`ManaGraphics/Native/mana_webgpu.c`) targets the Emscripten SDK's bundled `webgpu.h`; Silk.NET.WebGPU enum values can differ from that header. Recheck mappings when either version changes, and remap local descriptor copies, never caller-owned memory, because descriptors may be reused.
+- Adapter/device requests use the JS Promise and `[JSExport]` bridge in `ManaBrowserWebGpuCallbackBridge`; routing those callbacks through the legacy Emscripten WebGPU callback path fails in this .NET wasm setup. Await `ManaBrowserInterop.InitializeAsync()` before constructing browser graphics.
+- WGSL fragment operations requiring uniform derivatives (`textureSample`, `fwidth`) must run before fragment-varying branches. Naga's uniformity analysis can also reject derivative-dependent code textually after a divergent branch, even when it is hoisted out of the branch body.
+- RID-specific web hosts need referenced projects to declare `RuntimeIdentifiers=browser-wasm`, and their `ProjectReference`s need `SetTargetFramework` for that RID. Do not rely on `-r` propagation to select the browser target.
+- Mesh import is glTF/GLB only through SharpGLTF on every platform. The Planet Showcase level is intentionally excluded from the browser selector; the rigged glTF skinning/animation path still lacks a validated browser fixture.
+
 ## Working conventions
 
 - **DevPhotos:** when something visual works for the first time, save a screenshot of it to

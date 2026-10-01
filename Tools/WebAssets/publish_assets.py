@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
+EXCLUDED_PREFIXES = ("Assets/GeoData/",)
 ROOTS = ("Assets", "Mana/Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaVoxel/Assets")
 SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength",
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
@@ -48,7 +49,7 @@ def publish(root, output):
             if not source.is_file():
                 continue
             path = "Assets/" + source.relative_to(root / directory).as_posix()
-            if path == EXCLUDED:
+            if path == EXCLUDED or path.startswith(EXCLUDED_PREFIXES):
                 continue
             if path in sources:
                 raise ValueError(f"Duplicate asset path: {path}")

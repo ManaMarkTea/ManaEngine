@@ -286,7 +286,7 @@ namespace Mana
             }
 
 #if MANA_BROWSER
-            // No OpenGL on the browser target (WebGPU-only; see WebPort-Plan.md) -- this
+            // No OpenGL on the browser target (WebGPU-only) -- this
             // legacy per-texture-unit Bind(int) path is OpenGL-only; WebGPU binds
             // textures through its own bind groups instead, never through here.
             throw new PlatformNotSupportedException(

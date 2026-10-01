@@ -75,7 +75,7 @@ namespace ManaGraphics.Code.Graphics
         }
 
 #if MANA_BROWSER
-        // Not yet confirmed working end to end against a real browser -- see WebPort-Plan.md M1/M2.
+        // Browser entry point, exercised by both web hosts in a real WebGPU browser.
         private async void RunBrowser()
         {
             try

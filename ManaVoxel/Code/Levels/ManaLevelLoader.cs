@@ -875,8 +875,8 @@ namespace ManaVoxel.Code.Levels
 
                 _waterMaskLoadAttempted = true;
                 var mask = new GeoWaterMask();
-                var lakesPath = ResolveAssetPath(Path.Combine("GeoData", "ne_10m_lakes.zip"));
-                var oceanPath = ResolveAssetPath(Path.Combine("GeoData", "ne_10m_ocean.zip"));
+                var lakesPath = ResolveAssetPath(Path.Combine("Assets", "GeoData", "ne_10m_lakes.zip"));
+                var oceanPath = ResolveAssetPath(Path.Combine("Assets", "GeoData", "ne_10m_ocean.zip"));
                 mask.AddLakes(GeoPolygonSet.TryLoadFromZip(lakesPath, "ne_10m_lakes.shp"));
                 mask.Add(GeoPolygonSet.TryLoadFromZip(oceanPath, "ne_10m_ocean.shp"));
                 GeoWaterMask.Shared = mask;

@@ -1,14 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Browser-wasm executable for the EDITOR (see WebPort-Plan.md's M9). Sibling of
-       ManaVoxel.Web (play mode only): that project deliberately keeps ManaVoxel.csproj out of its
-       reference graph (see its own comment on this), because at the time it was written
-       ManaVoxel.csproj had no browser-wasm build to reference at all. M9 changed that; see
-       ManaVoxel.csproj's own RuntimeIdentifiers/SetTargetFramework wiring; so this project
-       exists to reference the real thing (VoxelEditorGameMode and everything under it) rather
-       than re-linking a hand-picked subset of its files by source the way ManaVoxel.Web has to
-       for play mode's handful of Content/Levels/Services types. Same "always browser-wasm, permanently
-       fixed RuntimeIdentifier, never invoked two ways" reasoning as ManaVoxel.Web.csproj: nothing
+    <!-- Browser-wasm executable for the full editor. Unlike ManaVoxel.Web (play mode only),
+      this host references ManaVoxel.csproj directly to include VoxelEditorGameMode and its
+      editor dependencies. It has a permanently fixed browser-wasm RuntimeIdentifier, like
+      ManaVoxel.Web.csproj: nothing
        else references THIS project, so there is no RID-conditioned-restore poisoning risk here
        either. -->
   <PropertyGroup>

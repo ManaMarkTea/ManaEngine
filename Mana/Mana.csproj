@@ -373,9 +373,8 @@
 
   <!-- SceneViewerMode.cs is Mana's own desktop test harness (GLFW-windowed scene viewer; its Main()
        lives in the separate ManaSceneViewer project now), not part of what a browser host needs.
-       Every other file this group used to exclude was ImGui-era editor UI, and those are deleted
-       rather than excluded now. See WebPort-Plan.md for the still-unresolved rest of Mana.csproj's
-       browser-wasm compile scope. -->
+      Every other file this group used to exclude was ImGui-era editor UI, and those are deleted
+      rather than excluded now. The browser editor and play hosts use their own entry points. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
     <Compile Remove="Code\GameModes\SceneViewerMode.cs" />
   </ItemGroup>

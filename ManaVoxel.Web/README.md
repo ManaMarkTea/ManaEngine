@@ -3,9 +3,6 @@
 Play mode running in a browser: WebGPU rendering, real keyboard/mouse input, BepuPhysics, a
 bundled level, and a controllable character. No editor.
 
-See `WebPort-Plan.md` at the repo root for the porting history and the reasoning behind the
-browser-specific workarounds.
-
 ## Levels and the menu
 
 The page opens on a level selector: every level in `Content/Levels`, with a picture from

@@ -17,7 +17,7 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>
         /// Must be awaited once, right after constructing a browser ManaWebGpuContext, before it's
         /// usable for anything else -- the constructor itself only does the synchronous part
-        /// (instance + surface creation). Not yet confirmed working against a real browser.
+        /// (instance + surface creation).
         /// </summary>
         public async Task CompleteBrowserInitializationAsync()
         {

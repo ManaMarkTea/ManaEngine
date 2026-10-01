@@ -9,9 +9,8 @@ namespace ManaGraphics.Code.Graphics
     // Desktop's WebGPUSurface.CreateWebGPUSurface (Silk.NET.WebGPU.Extensions.WGPU) pulls a
     // native platform window handle (HWND/NSWindow/X11) that doesn't exist for a browser canvas.
     // This is the browser equivalent -- a WGPUSurfaceDescriptorFromCanvasHtmlSelector chained
-    // struct passed to wgpuInstanceCreateSurface -- proven working end to end in the M0 spike
-    // (see WebPort-Plan.md). Not yet confirmed working through this exact real-package path
-    // (M0 used a hand-written throwaway C program, not Silk.NET.WebGPU's own struct/SType).
+    // struct passed to wgpuInstanceCreateSurface -- exercised through Silk.NET.WebGPU in the
+    // live browser renderer.
     public static unsafe class ManaBrowserWebGpuSurface
     {
         public static Surface* CreateFromCanvas(IWindow window, WebGPU api, Instance* instance)

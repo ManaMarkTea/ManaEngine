@@ -2,10 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- Lets restore compute a browser-wasm graph too, needed for ManaVoxel.Web's
-         ProjectReferences (SetTargetFramework="...;RuntimeIdentifier=browser-wasm") to
-         resolve at all; see WebPort-Plan.md M8. Doesn't change anything about how this
-         project builds normally. -->
+        <!-- Lets restore compute a browser-wasm graph for RID-specific web-host ProjectReferences
+          using SetTargetFramework. Doesn't change normal desktop builds. -->
     <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
