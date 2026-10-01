@@ -106,19 +106,27 @@ namespace Mana
         private (float Width, float Height, float X, float Y) ShiftedViewport()
         {
             var viewport = Mana.Code.UI.ManaEditorGizmos.Viewport;
-            if (!LensShiftToViewport || Mana.Code.UI.ManaEditorGizmos.FullWindowView || viewport.IsEmpty)
+            if (!LensShiftToViewport || Mana.Code.UI.ManaEditorGizmos.FullWindowView)
             {
                 return (1.0f, 1.0f, 0.0f, 0.0f);
+            }
+            // A settings change (theme, backdrop blur) rebuilds the UI, and its first frame has no laid-out
+            // viewport yet; keeping the last one stops the picture jumping to the full window for a frame.
+            if (viewport.IsEmpty)
+            {
+                return _lastViewport;
             }
             var windowSize = Context.Window.Size;
             var (width, height) = GetVisibleViewportFraction(viewport, windowSize);
             if (width < 0.05f || height < 0.05f)
             {
-                return (1.0f, 1.0f, 0.0f, 0.0f);
+                return _lastViewport;
             }
             var (x, y) = GetViewportCenterNdcOffset(viewport, windowSize);
-            return (width, height, x, y);
+            return _lastViewport = (width, height, x, y);
         }
+
+        private (float Width, float Height, float X, float Y) _lastViewport = (1.0f, 1.0f, 0.0f, 0.0f);
 
         private bool IsLensShifted => _projectedViewport != (1.0f, 1.0f, 0.0f, 0.0f);
 
