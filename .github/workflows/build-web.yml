@@ -5,6 +5,11 @@ on:
   push:
     branches: [master]
 
+# One deploy at a time, the newest winning: two pushes close together otherwise race to Pages.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pages: write
@@ -92,13 +97,20 @@ jobs:
             --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
 
       - name: Assemble GitHub Pages site
-        # editor/ and play/ are each self-contained (relative asset paths only), so hosting them
-        # under a subfolder needs no rewriting beyond the asset-catalog split above. The landing
-        # page at the site root is the selector between them.
+        # Each app's build goes in <app>/v/<build>/, named by <app>/version.json, which index.html reads
+        # uncached. Pages caches every file for 10 minutes and the file names carry no hash, so a deploy
+        # over the same paths let a browser pair new boot files with old cached ones -- integrity
+        # failures, reported as "Failed to fetch". A versioned folder's files never change, so any cached
+        # copy is right. The landing page at the site root is the selector between the apps.
         run: |
-          mkdir -p pages-site/editor pages-site/play
-          cp -r Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle/. pages-site/editor/
-          cp -r Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle/. pages-site/play/
+          build="${GITHUB_SHA::12}"
+          for pair in "editor:ManaVoxel.Editor.Web" "play:ManaVoxel.Web"; do
+            app="${pair%%:*}"; project="${pair##*:}"
+            mkdir -p "pages-site/$app/v/$build"
+            cp -r "Artifacts/Bin/$project/Release/net10.0/browser-wasm/AppBundle/." "pages-site/$app/v/$build/"
+            cp "pages-site/$app/v/$build/index.html" "pages-site/$app/index.html"
+            echo "{\"build\":\"$build\"}" > "pages-site/$app/version.json"
+          done
           cp Tools/WebAssets/pages-index.html pages-site/index.html
 
       - name: Upload Pages artifact

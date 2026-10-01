@@ -1,3 +1,18 @@
+[x] - Web Level play:  ManaUi is not showing up at all. the player also moves much slower than the regular player.
+    Claude: the browser play mode had ManaUI switched off; it now shows desktop play's HUD, results and death screens
+    (Back to levels returns to the selector). The slowness was the character: it spawned the first one found at the
+    default 1 m height, and speeds and jump scale with height; it now spawns the Player Start's character, as desktop.
+    Also: Pages deploys go to <app>/v/<build>/, named by version.json, so a cached old file can no longer break a new
+    deploy (the editor's 'Failed to fetch ManaAudio.wasm'). The first deploy after this can still trip a browser holding
+    the old index.html for up to 10 minutes; a reload after that fixes it for good.
+
+
+
+
+
+
+
+
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
 the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.

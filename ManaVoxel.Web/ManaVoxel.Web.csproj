@@ -81,6 +81,10 @@
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
     <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />
     <Compile Include="..\ManaVoxel\Code\Services\CharacterSpawnService.cs" Link="Services\CharacterSpawnService.cs" />
+    <!-- The play HUD, results and death screens: ManaUI only, the same ones desktop play shows. -->
+    <Compile Include="..\ManaVoxel\Code\UI\ManaUi\ManaUiPlayOverlay.cs" Link="UI\ManaUiPlayOverlay.cs" />
+    <Compile Include="..\ManaVoxel\Code\UI\ManaUi\ManaUiPlayResults.cs" Link="UI\ManaUiPlayResults.cs" />
+    <Compile Include="..\ManaVoxel\Code\UI\ManaUi\ManaUiDeathScreen.cs" Link="UI\ManaUiDeathScreen.cs" />
     <Compile Include="..\ManaVoxel\Code\Loaders\MagicaVoxLoader.cs" Link="Levels\MagicaVoxLoader.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelComponentScripts.cs" Link="Levels\ManaLevelComponentScripts.cs" />
     <!-- The shared level script registry now references the course components too. -->

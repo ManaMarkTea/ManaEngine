@@ -395,6 +395,23 @@
     })();
   </script>
 
-  <script type="module" src="./main.js"></script>
+  <!-- A deploy puts each build in v/<build>/ and names it in version.json, read uncached: the build's own files
+       never change, so the browser may cache them freely without ever pairing one deploy's loader with another's
+       files (Pages caches for 10 minutes, and a mix fails its integrity checks as "Failed to fetch"). A local
+       build has no version.json and loads from here. -->
+  <script type="module">
+    try {
+        const response = await fetch('version.json', { cache: 'no-store' });
+        if (response.ok) {
+            const { build } = await response.json();
+            const base = document.createElement('base');
+            base.href = `v/${build}/`;
+            document.head.appendChild(base);
+        }
+    } catch (error) {
+        // No version file: a local build.
+    }
+    await import(new URL('main.js', document.baseURI).href);
+  </script>
 </body>
 </html>

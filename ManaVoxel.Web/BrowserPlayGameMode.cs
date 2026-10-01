@@ -1,5 +1,7 @@
 using Mana;
 using Mana.Code.Nodes;
+using Mana.Code.UI.ManaUi;
+using ManaVoxel.Code.UI.ManaUi;
 using ManaCore.Loading;
 using ManaGraphics.Code.Graphics;
 using ManaGraphics.Code.Graphics.Browser;
@@ -59,12 +61,9 @@ namespace ManaVoxel.Web
             _levelPath = levelPath;
             Current = this;
 
-            // Desktop shows the loading screen through ManaUI, which does not exist here: EnableManaUi
-            // is off below. The browser's screen is the HTML overlay in index.html
-            // instead, which has the decisive advantage of already being on screen during the wasm
-            // download -- the longest part of the wait, and one no in-engine screen can ever cover
-            // because no C# is running yet. This forwards the same ManaLoadingViewModel the
-            // in-engine screens bind to, so all three show the same progress from the same source.
+            // The loading screen is the HTML overlay in index.html, already on screen during the wasm
+            // download -- the longest part of the wait, and one no in-engine screen can cover because no
+            // C# is running yet. This forwards the same ManaLoadingViewModel the in-engine screens bind to.
             Loading.PropertyChanged += OnLoadingProgressChanged;
         }
 
@@ -83,7 +82,24 @@ namespace ManaVoxel.Web
 
         public override bool DeferGpuUploadsOnStartup => true;
 
-        protected override bool EnableManaUi => false;
+        // The HUD, results and death screens are ManaUI, as on desktop.
+        protected override bool EnableManaUi => true;
+
+        private string _hudText = "Loading...";
+
+        protected override void BuildManaUi(ManaUiHost host)
+        {
+            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hudText, () => Context.World.GameState.FormatHud(),
+                ManaUiPlayResults.Build(host.Root.Theme, Context.World.GameState, Restart, BackToLevels, "Back to levels"),
+                ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
+        }
+
+        // The page's level selector is the same page without ?level=.
+        private static void BackToLevels()
+        {
+            using var location = System.Runtime.InteropServices.JavaScript.JSHost.GlobalThis.GetPropertyAsJSObject("location");
+            location?.SetProperty("search", "");
+        }
 
         public void RunWebGpu()
         {
@@ -108,7 +124,7 @@ namespace ManaVoxel.Web
                         webGpuGraphicsDevice.Context = webGpuContext;
                     }
 
-                    webGpuContext.UiRoot = null;
+                    webGpuContext.UiRoot = ManaUi?.Root;
                 }
             ).Run();
         }
@@ -231,7 +247,9 @@ namespace ManaVoxel.Web
 
             lock (Context.World.SceneLock)
             {
-                _player = _characterSpawn.SpawnNextCharacter(Context.World, spawnPosition, _pawnController);
+                // The character the start asks for, at its height: speeds and jump scale with height, so the first
+                // character found at the default height walked noticeably slower than desktop play.
+                _player = _characterSpawn.SpawnFor(start, Context.World, spawnPosition, _pawnController);
             }
 
             if (_player == null || _pawnController == null)
@@ -260,6 +278,7 @@ namespace ManaVoxel.Web
             Context.World.BeginPlay();
 
             Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
+            _hudText = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to double jump), C camera, R restart, Esc menu";
 
         }
 
@@ -294,7 +313,7 @@ namespace ManaVoxel.Web
             var state = Context.World.GameState;
             state.Tick((float)deltaTime);
 
-            // There is no HUD in the browser yet, so the score goes to the console as it changes.
+            // Also to the console as it changes, for scripted checks (webdrive.mjs reads the page log).
             if (state.Coins != _loggedCoins || state.Deaths != _loggedDeaths)
             {
                 _loggedCoins = state.Coins;
