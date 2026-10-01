@@ -48,15 +48,22 @@ namespace Mana.Code.Components
             base.UpdateComponent();
 
             var body = Context.Physics.Simulation.Bodies[Body];
-            ref var pose = ref body.Pose;
 
             if (SyncNodeToPhysics)
             {
                 var ownerPose = CreateBodyPose(Owner, Position);
-                pose.Position = ownerPose.Position;
-                pose.Orientation = ownerPose.Orientation;
+                if (body.Pose.Position != ownerPose.Position || body.Pose.Orientation != ownerPose.Orientation)
+                {
+                    // A sleeping body's bounds are never refreshed: moved while asleep (a lift), it would stay
+                    // solid where it dozed off while it is drawn somewhere else, and players fall through it.
+                    body.Awake = true;
+                    body.Pose.Position = ownerPose.Position;
+                    body.Pose.Orientation = ownerPose.Orientation;
+                }
                 return;
             }
+
+            ref var pose = ref body.Pose;
 
             var parentWorldPosition = Owner.Parent?.WorldTransform.Translation ?? Vector3.Zero;
             var localPosition = pose.Position - parentWorldPosition - Position;

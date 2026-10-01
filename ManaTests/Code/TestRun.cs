@@ -83,6 +83,7 @@ public static class TestRunner
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("Mana", "sprites", SpriteChecks.Run),
+        ("Mana", "moving colliders", MovingColliderChecks.Run),
         ("Mana", "platformer 2D", Platformer2DChecks.Run),
         ("Mana", "pawn jump", PawnJumpChecks.Run),
         ("Mana", "parallax", Platformer2DChecks.RunParallax),
