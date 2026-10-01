@@ -51,19 +51,6 @@
           }
         },
         {
-          "name": "Sci-Fi Helmet Plinth",
-          "kind": "Shape",
-          "position": [13.2, 0.6, 12],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
-          "shape": "Cube",
-          "color": [0.36, 0.48, 0.58, 1],
-          "size": [3.5, 1.2, 3.5],
-          "collision": {
-            "useVisualBounds": true
-          }
-        },
-        {
           "name": "Lantern Plinth",
           "kind": "Shape",
           "position": [20.8, 0.6, 12],
@@ -105,14 +92,6 @@
           "rotation": [0, 0.5, 0],
           "scale": [5, 5, 5],
           "asset": "Mana/Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf"
-        },
-        {
-          "name": "Sci-Fi Helmet - Painted Metal",
-          "kind": "Mesh",
-          "position": [13.2, 3.55, 12],
-          "rotation": [0, -0.45, 0],
-          "scale": [1.2, 1.2, 1.2],
-          "asset": "Mana/Assets/Models/SciFiHelmet/glTF/SciFiHelmet.gltf"
         },
         {
           "name": "Lantern - Emissive Detail",
