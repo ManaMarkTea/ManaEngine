@@ -141,6 +141,20 @@ public static class SpriteChecks
             && groundRenderer?.Mesh is ManaSpriteMesh { } groundMesh && Near(groundMesh.Size, new Vector2(6, 2)),
             $"{(groundPicture == null ? "none" : ManaSpriteBase.PngSize(groundPicture))}");
 
+        groundNode.Scale = new Vector3(2.0f, 1.4f, 1.0f);
+        ground.Size = new Vector2(6.0f, 2.2f);
+        ground.Refresh();
+        groundRenderer = groundNode.GetComponent<MeshRendererComponent>();
+        groundPicture = (groundRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
+        // 12 x 3 tiles in the world; the quad is divided back by the scale so none of them stretch.
+        check("scaling a 9-slice adds whole tiles instead of stretching them",
+            groundPicture != null && ManaSpriteBase.PngSize(groundPicture) == new Vector2(12 * 64, 3 * 64)
+            && groundRenderer?.Mesh is ManaSpriteMesh { } scaledMesh && Near(scaledMesh.Size, new Vector2(12.0f / 2.0f, 3.0f / 1.4f)),
+            $"{(groundPicture == null ? "none" : ManaSpriteBase.PngSize(groundPicture))}, {(groundRenderer?.Mesh as ManaSpriteMesh)?.Size}");
+        groundNode.Scale = Vector3.One;
+        ground.Size = new Vector2(6, 2);
+        ground.Refresh();
+
         // ---- Polygon collider -------------------------------------------------------------------------------------
         // An L: concave, six corners -- four triangles, and a solid of both faces plus the sides.
         var l = new[] { new Vector2(0, 0), new Vector2(2, 0), new Vector2(2, 1), new Vector2(1, 1), new Vector2(1, 2), new Vector2(0, 2) };

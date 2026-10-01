@@ -15,7 +15,8 @@ namespace Mana.Code.Components
         [AssetKind(ManaSpriteSlice.Extension), Category("Slice")]
         public ManaAssetRef Slice { get; set; } = ManaAssetRef.None;
 
-        /// <summary>The block's size in metres, rounded to whole tiles as it is built.</summary>
+        /// <summary>The block's size in metres, rounded to whole tiles as it is built. The node's scale multiplies it: scaling
+        /// a 9-slice adds tiles rather than stretching them.</summary>
         [Category("Slice")]
         public Vector2 Size { get; set; } = new(3.0f, 1.0f);
 
@@ -31,7 +32,7 @@ namespace Mana.Code.Components
         public ManaSpriteSlice? Asset => ManaContentAssets.Load<ManaSpriteSlice>(Slice, ManaSpriteSlice.Extension);
 
         protected override string LayoutKey() =>
-            $"{Slice.AssetId}|{Slice.AssetPath}|{(Asset is { } asset ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(asset) : 0)}|{Size}|{Pivot}";
+            $"{Slice.AssetId}|{Slice.AssetPath}|{(Asset is { } asset ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(asset) : 0)}|{Size}|{Pivot}|{Owner.Scale.X}|{Owner.Scale.Y}";
 
         protected override SpriteLayout? BuildLayout()
         {
@@ -41,10 +42,14 @@ namespace Mana.Code.Components
             }
 
             var tile = FrameSize(sample, 1, 1, slice.PixelsPerUnit);
-            var columns = Math.Max(1, (int)MathF.Round(Size.X / MathF.Max(tile.X, 1e-4f)));
-            var rows = Math.Max(1, (int)MathF.Round(Size.Y / MathF.Max(tile.Y, 1e-4f)));
+            // The quad is divided back by the node's scale, so the tiles keep their own size and the block only
+            // grows or shrinks a whole tile at a time.
+            var scale = new Vector2(MathF.Max(MathF.Abs(Owner.Scale.X), 1e-4f), MathF.Max(MathF.Abs(Owner.Scale.Y), 1e-4f));
+            var columns = Math.Max(1, (int)MathF.Round(Size.X * scale.X / MathF.Max(tile.X, 1e-4f)));
+            var rows = Math.Max(1, (int)MathF.Round(Size.Y * scale.Y / MathF.Max(tile.Y, 1e-4f)));
             var picture = ManaSpritePictures.JoinGrid(slice.Layout(columns, rows));
-            return picture == null ? null : new SpriteLayout(picture, null, 1, 1, Size, Pivot, Vector2.One);
+            var size = new Vector2(columns * tile.X / scale.X, rows * tile.Y / scale.Y);
+            return picture == null ? null : new SpriteLayout(picture, null, 1, 1, size, Pivot, Vector2.One);
         }
     }
 }
