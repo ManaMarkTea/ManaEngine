@@ -96,6 +96,24 @@ public static class InspectorChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        var searchContext = new InspectorContext(UiTheme.Dark(), null);
+        var positionRow = InspectorControls.Row(searchContext, "Position", new TextBox());
+        var rotationRow = InspectorControls.Row(searchContext, "Rotation", new TextBox());
+        var transformSection = new Expander { Header = "Transform", IsExpanded = false,
+            Content = new StackPanel().Children(positionRow, rotationRow) };
+        var propertySearch = new InspectorPropertySearch(transformSection);
+        propertySearch.Apply("position");
+        Check("property search opens a collapsed matching section", transformSection.IsExpanded);
+        Check("property search hides unrelated rows", positionRow.Visibility == Visibility.Visible && rotationRow.Visibility == Visibility.Collapsed);
+        propertySearch.Apply("TRANSFORM");
+        Check("section search shows all its properties", positionRow.Visibility == Visibility.Visible && rotationRow.Visibility == Visibility.Visible);
+        propertySearch.Apply("no such property");
+        Check("sections without matching properties are hidden", transformSection.Visibility == Visibility.Collapsed);
+        propertySearch.Apply("");
+        Check("clearing search restores expansion and row visibility", !transformSection.IsExpanded
+            && transformSection.Visibility == Visibility.Visible && rotationRow.Visibility == Visibility.Visible);
+
+
         var source = ComponentSource.Find(typeof(SampleComponent));
         Check("component source resolves when the filename differs from the type",
             source != null && Path.GetFileName(source.Path) == "InspectorTests.cs" && source.Line > 0);
@@ -164,7 +182,7 @@ public static class InspectorChecks
         root.UpdateLayout(new Vector2(420, 700));
 
         var sceneText = string.Join(" | ", FindAll<TextBlock>(view).Select(t => t.Text));
-        var sceneNameBox = FindAll<TextBox>(view).FirstOrDefault(box => box is not NumericBox);
+        var sceneNameBox = FindAll<TextBox>(view).FirstOrDefault(box => box is not NumericBox && box.Placeholder != "Search properties or sections");
         Check("selecting a scene builds scene metadata",
             sceneNameBox?.Text == "Default Scene" && sceneText.Contains("C:/levels/default.manalevel"),
             $"{sceneNameBox?.Text ?? "null"} | {sceneText}");
@@ -182,7 +200,7 @@ public static class InspectorChecks
         Check("selecting a node builds the transform editors", vectors.Count == 3,
             $"{vectors.Count} vector rows (position, rotation, scale)");
 
-        var nameBox = FindAll<TextBox>(view).FirstOrDefault(box => box is not NumericBox);
+        var nameBox = FindAll<TextBox>(view).FirstOrDefault(box => box is not NumericBox && box.Placeholder != "Search properties or sections");
         Check("the name field shows the node's name", nameBox?.Text == "First", nameBox?.Text ?? "null");
 
         // ---------------------------------------------------------------- writes reach the node
@@ -1238,7 +1256,7 @@ public static class InspectorChecks
         {
             var barLeft = viewer.Bounds.Right - root.Theme.ScrollBarThickness;
 
-            var touching = FindAll<UiElement>(view)
+            var touching = FindAll<UiElement>(viewer)
                 .Where(e => e is NumericBox or TextBox or ColorField or SliderBox)
                 .Where(e => !e.Bounds.IsEmpty)
                 .ToList();

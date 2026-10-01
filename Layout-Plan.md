@@ -11,7 +11,7 @@ Reference: the supplied Stride/Xenko editor screenshot. Preserve Mana's themes a
 
 ## Follow-up passes
 
-- Inspector: property search, consistent label/value columns, clearer component headings.
+- Inspector: property/section search implemented; further label/value and component-heading refinement remains.
 - Optional collapsible asset preview beneath the Inspector for models, materials and sprites.
 - Move transform, snap, camera and gizmo controls into a viewport-local toolbar; retain global save/play actions.
 - Review diagnostics placement and narrow-window behavior.
@@ -27,3 +27,7 @@ Completed: all 2,922 headless checks pass, including folder-width tracking, tile
 ## Viewport toolbar
 
 Implemented Camera, Display and Focus menus above the viewport. Camera offers a draggable/editable logarithmic movement-speed slider, six view directions and orthographic projection. Display shares wireframe, normals, gizmo and room-wall settings with existing controls. Focus Selection calls the same framing operation as F and is disabled without a selection. The corner gizmo moves below the toolbar. Transform and snap controls remain follow-ups.
+
+## Inspector search
+
+Added a fixed search field above the scrolling properties. Matching is case-insensitive by property label or section heading. Matching sections open while filtering; clearing restores the prior expansion state. Editors remain retained. All 2,931 checks pass, including filtering and restoration coverage. Capture: `DevPhotos/2026-10-01 inspector-search.png`.
