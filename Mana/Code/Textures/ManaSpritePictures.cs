@@ -65,6 +65,7 @@ namespace Mana
         /// The pictures joined left to right into one, each in a cell the size of the largest and standing on its
         /// floor, centred across -- so frames of slightly different sizes still keep a character's feet still.
         /// </summary>
+        /// <param name="references">The pictures, left to right.</param>
         /// <param name="rows">How many times the joined row repeats downwards.</param>
         public static string? Join(IReadOnlyList<string> references, int rows = 1)
         {

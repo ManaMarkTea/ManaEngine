@@ -37,9 +37,90 @@ dotnet run --project ManaTests -- ManaUI
 dotnet run --project ManaTests -- -gui
 ```
 
-Add coverage by dropping a suite in `ManaTests/Code/<System>/` and registering it in the `suites` array
-in `ManaTests/Code/Program.cs`. Suite files end in `Tests.cs`, and live under the system they exercise --
+Add coverage by dropping a suite in `ManaTests/Code/<System>/` and registering it in the suite list in
+`ManaTests/Code/TestRun.cs`. Suite files end in `Tests.cs`, and live under the system they exercise --
 asset and model logic under its own project, not under ManaUI because a panel happens to call it.
+
+- **Suites run in parallel.** Never change process-wide state in one (`ManaContentAssets.Root`, the working directory,
+  a static setting) -- it leaks into whatever else is running. Build a fresh `ManaWorld`/`ManaContext` per suite.
+- **When the normal output is locked** (a debugger holding `Artifacts/Bin/ManaVoxel`), build the tests elsewhere and
+  run the dll: `dotnet build ManaTests -o Artifacts/testcheck` then `dotnet Artifacts/testcheck/ManaTests.dll`.
+- **Content checks are strict:** `ContentAssetChecks` loads every prefab and every bundled level and fails on any load
+  warning; bundled level roots must sit at x and z >= 32 (the scene offset) with cameras clear of the zero-axis walls;
+  every picture a `.manasheet`/`.manaslice` names must exist in its pack.
+
+## Testing levels with scripts
+
+The editor can be driven by a JSON script instead of a person: `ManaVoxel --command-file <script.json>` runs the
+steps one per frame (`ManaVoxel/Code/Automation/ManaCommandRunner.cs`, format in `ManaCommandFile.cs`) and is how
+anything visual or interactive gets checked -- in-app screenshots, not desktop captures (those can show the user's
+other windows). `Tools/Automation/run-commands.ps1` does the plumbing: writes the script, runs the editor from the
+repo root, waits for it to quit and prints what it reported. `@@OUT@@` in a path becomes `Artifacts/Automation/<Name>.png`.
+
+```powershell
+dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a running editor or debugger is no problem
+./Tools/Automation/run-commands.ps1 -Name course -Commands '[
+  {"type":"open_level","path":"Content/Levels/2D Sample.manalevel"}, {"type":"wait","frames":240},
+  {"type":"play"}, {"type":"wait","frames":90},
+  {"type":"teleport_player","position":[100,1.3,40]}, {"type":"wait","frames":45},
+  {"type":"log_player","name":"desert"}, {"type":"screenshot","path":"@@OUT@@"},
+  {"type":"quit"}]'
+```
+
+| Command | Fields | Does |
+|---|---|---|
+| `open_level` | `path` | Opens a level in the editor, as File > Open does |
+| `wait` | `frames` | Holds that many rendered frames (loading, physics settling, an animation) |
+| `move_camera` | `position`, `target` | Puts the editor camera somewhere, facing a point |
+| `select_node` | `name` | Selects a node by name (brings up its Inspector and gizmo) |
+| `screenshot` | `path` | Writes the next frame to a PNG (WebGPU only) |
+| `play` / `stop_play` | | Enters and leaves play mode (F5) |
+| `teleport_player` | `position` | While playing, moves the character -- to look at a stretch of a level without walking there |
+| `log_player` | `name` | While playing, logs `Command file: player <name> at <feet>, grounded <bool>` |
+| `sky` | `name`, `timeOfDay` | Sky mode by name (`Day`, `DayNightCycle`, `Space`, `Photo`); a time of day holds the cycle still |
+| `dirty_report` | `path` | Writes each open level's saved snapshot and a fresh capture (`<path>.saved.json`, `.now.json`) -- identical means it opens unchanged |
+| `open_prefab` / `open_asset` / `review_changes` | `path` / `path` / `name` | Edit Prefab; a sheet or slice in the Sprite Asset window (or rules in the Generator); Review Changes on an instance |
+| `open_panel` / `open_tools` | `name` / | Brings up a panel by id; opens the viewport tools drawer |
+| `emission` | `name`, `position` (rgb), `frames` (strength x100) | Sets emission on every mesh under a node |
+| `drop_to_floor` | | Drops the selection onto whatever is below it (the End key) |
+| `grid_autotile` / `grid_generate` | see `ManaCommandFile` | Paints a road preset through cells; runs the WFC generator |
+| `profile_reset` / `profile_dump` | `path` | Frame profiler: start fresh; write the per-scope report |
+| `quit` | | Closes the editor (always end with it, or the runner times out) |
+
+Patterns that work:
+- **Does a level open clean?** `open_level`, `wait`, `dirty_report`, then compare the two files -- the same means
+  nothing about it changes just by being opened (a level that reads as modified on open is a bug).
+- **Is the footing right?** In play, `teleport_player` above each platform, `wait`, `log_player`; a respawn back at
+  the start or `grounded False` is a fall-through. Restart play (`stop_play`, `play`) before each moving platform --
+  they keep moving along their path.
+- **A picture of play:** `play`, `wait` ~120 frames, `screenshot`. Editor screenshots include the panels: crop to
+  the viewport, whose rectangle depends on the layout (open the PNG once and read it off).
+- Scripts and their outputs belong in `Artifacts/` or the session scratchpad, never in the repo.
+
+## Testing the web build
+
+Publish (`dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release`, AOT, a few minutes), serve it
+(`python ManaVoxel.Web/serve.py 8123`), then drive headless Chrome with `node Tools/WebAssets/webdrive.mjs <out dir>
+'<steps>'` -- `go`, `wait`, `waitFor` (console text), `shot`, `press`/`down`/`up` (key codes), `eval` (page
+JavaScript). The page console is the game's log: `[BrowserPlay] Spawned` means a level is up, and the browser
+logs the score (`[BrowserPlay] Coins x/y`) since it has no HUD yet. Things that only break there: the trimmed build
+strips reflection metadata (types made by JSON need `DynamicDependency` and parameterless constructors), assets come
+from the catalog rather than a checkout, and files can be locked by Defender mid-build (just build again).
+
+## Working conventions
+
+- **DevPhotos:** when something visual works for the first time, save a screenshot of it to
+  `DevPhotos/<yyyy-mm-dd> <what-it-is>.png` (e.g. `2026-09-30 2d-biome-castle.png`) -- an in-app capture, cropped
+  to the viewport, of the feature at its best. It is the project's visual record; one per milestone, not per tweak.
+- **Todo.md** is the user's list. Mark items done (`[x]`) with a short note of what was built and where, and add any
+  open follow-ups under the item, so the state of things can be read there between sessions.
+- **The Sample Course is the source of truth:** patch `Content/Levels/Sample Course.manalevel` by hand or by script,
+  never regenerate it -- it carries authored audio and tuning that a rebuild would lose. Other levels too: edit by
+  node id, keep every id.
+- **Other agents edit this repo at the same time.** Files can change under you: edit by anchor (the surrounding
+  text), not by line number, and stop any running `ManaVoxel.exe` before building it.
+- **Code comments:** one or two lines, saying why, not what; no essays.
+- **Commit and push** working steps as they land, with a message saying what changed and why.
 
 ## Architecture
 
@@ -58,7 +139,7 @@ asset and model logic under its own project, not under ManaUI because a panel ha
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). `ManaContentAssets` (`Mana/Code/Content/`) finds, reads (cached until the file changes) and saves them; a `[AssetKind(".ext")]` `ManaAssetRef` property gets an asset picker in the Inspector. Every kind is one entry in `ManaContentKinds` (`ManaVoxel/Code/Assets/`): the Project panel lists, filters, badges and offers New for them from it. Kinds today: prefabs (own instance/override code), sprite sheets, 9-slices, grid map presets, generator rules. Sheets and slices open in the Sprite Asset window (`SpriteAssetManaView`, state in `SpriteAssetEditing`; each change saves at once so the scene updates live), and drag into the scene like prefabs.
 - **Sprites in the Import panel:** PNGs are a format there (`MeshAssetFormats.Png`) -- a pack's pictures when it has no models (not its previews, `Spritesheets/` or Kenney's `Double/` copies), loose ones in a `Sprites` folder. Dragging one in makes a Sprite; right-click a selection for Make Sprite Sheet (frames in order) or Make 9-Slice (pieces placed by their names, `SpriteAssetFactory`).
 - **2D:** three sprite scripts on a shared base (`ManaSpriteBase`, Look: flip, tint, pixel art, unlit): `Sprite` (one picture, optional `repeatSize`), `SpriteSheet` (a `.manasheet` asset -- frames as separate pictures or a grid, pixels per unit, pivot, named animations -- played by `animation` name) and `Sprite9Slice` (a `.manaslice` asset of nine pieces, laid out across `size` in whole tiles), plus `PolygonCollider`. A sprite is a quad facing +Z drawn by a mesh renderer on its own node, lit (and normal-mapped) by the PBR pass. A `Platformer2D` script (on the Player Start) makes play side-on: the pawn is held to its plane (`ManaPawnNode.PlaneZ`), drawn by a sprite sheet instead of its model, with the boom fixed looking down -Z. Sprite pictures can live in a pack (`zip:kenney_new-platformer-pack-1.1.zip/Sprites/...`, copied out once by `ManaSpritePictures`). `unlit` shows flat art as drawn (the PBR shader inverts the tone map). A `[PicturePath]` string or string[] property gets the Inspector's picture picker (`PicturePicker`: Content, pack pictures, material textures). Sample: `Content/Levels/2D Sample.manalevel`, a five-biome run (grass, desert, snow, mushroom, stone castle) built from Kenney's New Platformer Pack. The pack's pieces are assets in `Content/Sprites/` -- `Characters/` (five aliens, every pose), `Enemies/` (18), `Items/` (coins, flags, torch, spring), `Terrain/` (block, platform and cloud slices for six grounds, water, lava) -- and the things placed again and again are 2D prefabs (`Coin 2D`, `Gem 2D`, `Spring 2D`, `Spikes 2D`, `Checkpoint Flag 2D`).
-- **Web build:** `ManaVoxel.Web` opens on a level selector (`levels.json`, written by `Tools/WebAssets/publish_assets.py` with pictures from `Content/Levels/Pictures/`) and plays the chosen level; Escape is a pause menu. Assets come from the web asset catalog on demand (`ManaAssetCatalog`; `ResolveAssetPath` and sprite packs look there first). Test it headless: publish, `python ManaVoxel.Web/serve.py`, then drive Chrome over the DevTools protocol.
+- **Web build:** `ManaVoxel.Web` opens on a level selector (`levels.json`, written by `Tools/WebAssets/publish_assets.py` with pictures from `Content/Levels/Pictures/`) and plays the chosen level; Escape is a pause menu. Assets come from the web asset catalog on demand (`ManaAssetCatalog`; `ResolveAssetPath` and sprite packs look there first). Testing it: see "Testing the web build" below.
 - **Shaders:** WGSL shaders at `ManaGraphics/Assets/Shaders/WebGpu/*.wgsl`, copied to output on build.
 - **Physics:** BepuPhysics v2.
 

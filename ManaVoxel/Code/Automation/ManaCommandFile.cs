@@ -10,10 +10,10 @@ namespace ManaVoxel.Code.Automation
     public sealed class ManaCommand
     {
         /// <summary>
-        /// One of: open_level, wait, move_camera, select_node, screenshot, quit, play, stop_play, profile_reset,
-        /// profile_dump (writes the frame profiler's per-scope report and average frame rate to <see cref="Path"/>),
-        /// grid_autotile (adds a preset set to a grid map and drags it through <see cref="Cells"/>),
-        /// open_panel (brings up the panel whose id is <see cref="Name"/>), grid_generate (opens the Generator on the grid map named by <see cref="Name"/> and generates with the dungeon preset).
+        /// The command; CLAUDE.md ("Testing levels with scripts") says what each does. Levels and assets: open_level,
+        /// open_prefab, open_asset, open_panel, open_tools, select_node, review_changes. View: move_camera, sky,
+        /// emission, screenshot. Play: play, stop_play, teleport_player, log_player. Checks: dirty_report, profile_reset,
+        /// profile_dump. Editing: drop_to_floor, grid_autotile, grid_generate. Flow: wait, quit.
         /// </summary>
         public string Type { get; set; } = "";
 

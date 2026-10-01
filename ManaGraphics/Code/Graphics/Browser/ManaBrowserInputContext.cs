@@ -37,7 +37,8 @@ namespace ManaGraphics.Code.Graphics.Browser
         public IReadOnlyList<IMouse> Mice { get; }
         public IReadOnlyList<IInputDevice> OtherDevices { get; } = Array.Empty<IInputDevice>();
 
-        public event Action<IInputDevice, bool>? ConnectionChanged;
+        // Required by IInputContext; the browser's one keyboard and mouse never connect or disconnect.
+        public event Action<IInputDevice, bool>? ConnectionChanged { add { } remove { } }
 
         /// <summary>
         /// Called once per frame after the frame's update has run. Scroll is a per-frame delta in
@@ -159,14 +160,14 @@ namespace ManaGraphics.Code.Graphics.Browser
 
         public IReadOnlyList<ScrollWheel> ScrollWheels => _scrollWheels;
         public Vector2 Position { get; set; }
-        public ICursor? Cursor { get; } = null;
+        public ICursor Cursor { get; } = new ManaBrowserCursor();
         public int DoubleClickTime { get; set; } = 500;
         public int DoubleClickRange { get; set; } = 4;
 
         public event Action<IMouse, MouseButton>? MouseDown;
         public event Action<IMouse, MouseButton>? MouseUp;
         public event Action<IMouse, MouseButton, Vector2>? Click;
-        public event Action<IMouse, MouseButton, Vector2>? DoubleClick;
+        public event Action<IMouse, MouseButton, Vector2>? DoubleClick { add { } remove { } }
         public event Action<IMouse, Vector2>? MouseMove;
         public event Action<IMouse, ScrollWheel>? Scroll;
 
@@ -261,6 +262,21 @@ namespace ManaGraphics.Code.Graphics.Browser
             4 => MouseButton.Button5,
             _ => MouseButton.Unknown
         };
+    }
+
+    // The page owns the cursor, so this supports nothing; callers check IsSupported first and leave it be.
+    internal sealed class ManaBrowserCursor : ICursor
+    {
+        public CursorType Type { get; set; }
+        public StandardCursor StandardCursor { get; set; }
+        public CursorMode CursorMode { get; set; }
+        public bool IsConfined { get; set; }
+        public int HotspotX { get; set; }
+        public int HotspotY { get; set; }
+        public Silk.NET.Core.RawImage Image { get; set; }
+
+        public bool IsSupported(CursorMode mode) => false;
+        public bool IsSupported(StandardCursor standardCursor) => false;
     }
 }
 #endif

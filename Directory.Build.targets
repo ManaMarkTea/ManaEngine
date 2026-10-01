@@ -1,4 +1,12 @@
 <Project>
+  <!-- A browser-wasm build only ever runs in a browser; saying so lets the platform analyzer accept the
+       [SupportedOSPlatform("browser")] interop calls and flag desktop-only APIs (Process.Start) instead. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>browser</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <PropertyGroup>
     <ManaWebGpuNativePackageVersion>2.23.0</ManaWebGpuNativePackageVersion>
     <ManaWebGpuNativePackageRoot>$(NuGetPackageRoot)silk.net.webgpu.native.wgpu/$(ManaWebGpuNativePackageVersion)/</ManaWebGpuNativePackageRoot>

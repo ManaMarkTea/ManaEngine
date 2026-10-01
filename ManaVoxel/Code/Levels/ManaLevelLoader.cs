@@ -56,8 +56,10 @@ namespace ManaVoxel.Code.Levels
     /// </summary>
     public static class ManaLevelLoader
     {
+#if !MANA_BROWSER
         private static readonly object WaterMaskLock = new();
         private static bool _waterMaskLoadAttempted;
+#endif
 
         /// <summary>
         /// Loads <paramref name="level"/> into <paramref name="scene"/>. By default this replaces the world's

@@ -27,6 +27,9 @@
     <!-- See ManaVoxel.Web.csproj: ManaLevel.Load and ManaUiWorkspaceLayout's docking-layout JSON
          both go through System.Text.Json's reflection-based path. -->
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- The trimmer can't follow that reflection (nor the Inspector's or UiMarkup's), so it warns on every
+         call; the assemblies it reaches into are rooted below instead, which keeps what it needs. -->
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <!-- See ManaVoxel.Web.csproj's identical property for the full explanation. -->
     <EmccExtraLDFlags>$(EmccExtraLDFlags) -sUSE_WEBGPU=1 -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$getWasmTableEntry</EmccExtraLDFlags>
   </PropertyGroup>
@@ -51,6 +54,8 @@
     <!-- Preserve components discovered and constructed through reflection by the editor. -->
     <TrimmerRootAssembly Include="Mana" />
     <TrimmerRootAssembly Include="ManaVoxel" />
+    <!-- UiMarkup finds its element types by scanning this assembly. -->
+    <TrimmerRootAssembly Include="ManaUI" />
   </ItemGroup>
 
   <ItemGroup>

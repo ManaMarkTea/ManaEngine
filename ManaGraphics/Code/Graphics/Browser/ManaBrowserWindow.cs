@@ -104,7 +104,7 @@ namespace ManaGraphics.Code.Graphics.Browser
         public event Action<Vector2D<int>>? Resize;
         public event Action<Vector2D<int>>? FramebufferResize;
         public event Action? Closing;
-        public event Action<bool>? FocusChanged;
+        public event Action<bool>? FocusChanged { add { } remove { } }
         public event Action? Load;
         public event Action<double>? Update;
         public event Action<double>? Render;
@@ -148,7 +148,7 @@ namespace ManaGraphics.Code.Graphics.Browser
         public Vector2D<int> PointToScreen(Vector2D<int> point) => point;
         public Vector2D<int> PointToFramebuffer(Vector2D<int> point) => point;
 
-        public object? Invoke(Delegate d, params object[] args) => d.DynamicInvoke(args);
+        public object Invoke(Delegate d, params object[] args) => d.DynamicInvoke(args)!;
 
         public void Run(Action onFrame)
         {
@@ -188,9 +188,10 @@ namespace ManaGraphics.Code.Graphics.Browser
         public IMonitor? Monitor { get; set; }
         public Rectangle<int> BorderSize => new(0, 0, 0, 0);
 
-        public event Action<Vector2D<int>>? Move;
-        public event Action<WindowState>? StateChanged;
-        public event Action<string[]>? FileDrop;
+        // A canvas never moves, changes state or takes dropped files the way a desktop window does.
+        public event Action<Vector2D<int>>? Move { add { } remove { } }
+        public event Action<WindowState>? StateChanged { add { } remove { } }
+        public event Action<string[]>? FileDrop { add { } remove { } }
 
         public void SetWindowIcon(ReadOnlySpan<Silk.NET.Core.RawImage> icons)
         {

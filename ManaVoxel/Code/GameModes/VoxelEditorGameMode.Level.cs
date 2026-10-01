@@ -513,6 +513,12 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            if (OperatingSystem.IsBrowser())
+            {
+                _viewModel.Levels.SetStatus("A browser tab can't open a second play window; press F5 to play here.");
+                return;
+            }
+
             try
             {
                 var scratchPath = Path.Combine(Path.GetTempPath(), "ManaVoxel", "playtest" + ManaLevel.FileExtension);

@@ -181,6 +181,10 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             try
             {
                 Directory.CreateDirectory(path);
+                if (OperatingSystem.IsBrowser())
+                {
+                    return;
+                }
 
                 var startInfo = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
                     ? new ProcessStartInfo("open", $"\"{path}\"") { UseShellExecute = true }

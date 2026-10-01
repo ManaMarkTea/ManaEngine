@@ -35,7 +35,9 @@ namespace Mana.Code.GameModes
         private ManaPawnController? _pawnController;
         private ManaPawnNode? _player;
         private ManaWebGpuContext? _webGpuContext;
+#if !MANA_BROWSER
         private PlanetNode? _planet;
+#endif
 
         public VoxelPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
             : base(graphicsBackend)
@@ -248,11 +250,13 @@ namespace Mana.Code.GameModes
         {
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             Context.World.GameState.Tick((float)deltaTime);
+#if !MANA_BROWSER
             _planet?.UpdateAutoLod(Context.World.MainCamera);
             _planet?.UpdateNearOcean(Context.World.MainCamera);
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();
             _planet?.ProcessPendingMerges();
+#endif
 
             // Escape quits rather than releasing the character: there is no editor to hand control back to.
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();
