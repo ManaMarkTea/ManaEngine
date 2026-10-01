@@ -16,7 +16,16 @@
 
 
 
-[] - Can the moon match up to the real phase of the moon (New moon, half moon, full moon)
+[x] - Can the moon match up to the real phase of the moon (New moon, half moon, full moon)
+    `ManaLunarPhase` calculates the phase and illumination; the simulated date/time now drives the moon, its
+    light, and reflections.
+
+[x] - Add date/time picking and sidereal day steps to the sky clock.
+    The clock accepts a local date/time and can use either a solar day or an 86,164-second sidereal day; negative
+    speeds advance the calendar backwards too.
+
+[x] - Run the day-night cycle backwards.
+    Sky Clock speed presets include reverse rates, and clouds drift backwards with the cycle.
 
 
 [] - Can the mana command runner be in a higher up in the project dependencies? with more commands registered by the project that supports it. - like things only mana voxel can do etc.

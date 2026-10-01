@@ -128,9 +128,12 @@ namespace ManaGraphics.Code.Graphics
 
         private static bool SkyMoved(ManaSky.State drawn, ManaSky.State sky)
         {
+            var moonPhaseDelta = MathF.Abs(drawn.MoonPhase - sky.MoonPhase);
+            moonPhaseDelta = MathF.Min(moonPhaseDelta, 1.0f - moonPhaseDelta);
             return drawn.Mode != sky.Mode ||
                 Vector3.Dot(drawn.TowardSun, sky.TowardSun) < 0.99985f ||
-                MathF.Abs(drawn.Daylight - sky.Daylight) > 0.01f;
+                MathF.Abs(drawn.Daylight - sky.Daylight) > 0.01f ||
+                moonPhaseDelta > 0.001f;
         }
 
         private void DrawSkyFace(CommandEncoder* commandEncoder, TextureView* faceView, ManaCameraData camera, ManaSky.State sky, TextureView* unusedView, int face)

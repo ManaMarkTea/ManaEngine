@@ -240,6 +240,7 @@ namespace Mana.Code.GameModes
                     Loading.Report(new ManaLoadingProgress("Checking for KML placemarks", 0.9f));
                     _planetScenery.ProbeKmlAirspace();
 
+                    Loading.Report(new ManaLoadingProgress("Starting graphics renderer", 0.9f));
                     LoadingCoordinator.CompleteBackgroundWork();
                 }
                 catch (Exception ex)

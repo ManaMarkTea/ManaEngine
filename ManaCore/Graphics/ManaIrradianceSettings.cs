@@ -2,6 +2,12 @@ using System.Numerics;
 
 namespace ManaCore.Graphics
 {
+    public enum ManaSkyDaySystem
+    {
+        Solar,
+        Sidereal
+    }
+
     public sealed class ManaIrradianceSettings
     {
         public float Exposure { get; set; } = 0.92f;
@@ -28,12 +34,18 @@ namespace ManaCore.Graphics
         /// </summary>
         public ManaSkyMode Sky { get; set; } = ManaSkyMode.Day;
 
+        /// <summary>The simulated local date and wall-clock time; lunar phase is evaluated in UTC.</summary>
+        public DateTimeOffset SkyDateTime { get; set; } = InitialSkyDateTime();
+
+        /// <summary>Whether one sky rotation follows a solar day or a sidereal day.</summary>
+        public ManaSkyDaySystem DaySystem { get; set; } = ManaSkyDaySystem.Solar;
+
         /// <summary>Where in the day the cycle is, 0..1: 0 is sunrise (6 am), 0.25 noon, 0.5 sunset, 0.75 midnight.</summary>
         public float TimeOfDay { get; set; } = 0.12f;
 
         /// <summary>
-        /// How fast the cycle runs, in sky seconds per real second: 60 is a minute a second, 3600 an hour a
-        /// second (a day in 24 s). 0 holds it still.
+        /// How fast the cycle runs, in simulated seconds per real second: 60 is a minute a second, 3600 an hour a
+        /// second. Negative runs backwards; 0 holds it still.
         /// </summary>
         public float TimeSpeed { get; set; } = 300.0f;
 
@@ -45,6 +57,12 @@ namespace ManaCore.Graphics
 
         // How far the clouds have drifted, in seconds of wind -- see ManaSky.Tick.
         internal double CloudSeconds;
+
+        private static DateTimeOffset InitialSkyDateTime()
+        {
+            var now = DateTimeOffset.Now;
+            return new DateTimeOffset(now.Year, now.Month, now.Day, 8, 52, 48, now.Offset);
+        }
 
         public ManaIrradianceSettings Clone()
         {
@@ -66,6 +84,8 @@ namespace ManaCore.Graphics
                 VertexNormalsEnabled = VertexNormalsEnabled,
                 VertexNormalLength = VertexNormalLength,
                 Sky = Sky,
+                SkyDateTime = SkyDateTime,
+                DaySystem = DaySystem,
                 TimeOfDay = TimeOfDay,
                 TimeSpeed = TimeSpeed,
                 RealTime = RealTime
