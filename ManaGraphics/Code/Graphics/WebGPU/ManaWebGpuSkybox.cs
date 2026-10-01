@@ -22,16 +22,19 @@ namespace ManaGraphics.Code.Graphics
         private readonly WebGPU _api;
         private readonly Device* _device;
         private readonly Queue* _queue;
-        private readonly TextureFormat _depthFormat;
+        private readonly TextureFormat? _depthFormat;
         private readonly string _shaderPath;
+        private readonly int _slots;
 
         private BindGroupLayout* _bindGroupLayout;
         private PipelineLayout* _pipelineLayout;
         private RenderPipeline* _pipeline;
         private ShaderModule* _shaderModule;
-        private WebGpuBuffer* _uniformBuffer;
-        private BindGroup* _bindGroup;
-        private TextureView* _boundTextureView;
+        // One uniform per slot: a queue write lands before the whole command buffer runs, so six cube faces
+        // drawn in one frame from one buffer would all see the last face's camera.
+        private readonly nint[] _uniformBuffers;
+        private readonly nint[] _bindGroups;
+        private readonly nint[] _boundTextureViews;
 
         /// <summary>
         /// True once the skybox has failed to build. Latched rather than retried every frame, the same as
@@ -52,13 +55,19 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 Parameters;
         }
 
-        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat depthFormat, string shaderPath)
+        /// <param name="depthFormat">The pass's depth format, or null for a pass with no depth (a cube face).</param>
+        /// <param name="slots">Draws a frame can hold with different cameras -- six for the faces of a cube.</param>
+        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat? depthFormat, string shaderPath, int slots = 1)
         {
             _api = api;
             _device = device;
             _queue = queue;
             _depthFormat = depthFormat;
             _shaderPath = shaderPath;
+            _slots = Math.Max(1, slots);
+            _uniformBuffers = new nint[_slots];
+            _bindGroups = new nint[_slots];
+            _boundTextureViews = new nint[_slots];
         }
 
         /// <summary>
@@ -75,9 +84,10 @@ namespace ManaGraphics.Code.Graphics
             Matrix4x4 aspectCorrectedProjection,
             Vector3 towardSun,
             ManaSky.State sky,
-            float seconds)
+            float seconds,
+            int slot = 0)
         {
-            if (_failed || clampSampler == null || environmentView == null)
+            if (_failed || clampSampler == null || environmentView == null || slot < 0 || slot >= _slots)
             {
                 return;
             }
@@ -85,8 +95,8 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 EnsurePipeline(colorFormat);
-                EnsureBindGroup(clampSampler, environmentView);
-                UpdateUniform(camera, aspectCorrectedProjection, towardSun, sky, seconds);
+                EnsureBindGroup(slot, clampSampler, environmentView);
+                UpdateUniform(slot, camera, aspectCorrectedProjection, towardSun, sky, seconds);
             }
             catch (Exception ex)
             {
@@ -95,17 +105,18 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            if (_pipeline == null || _bindGroup == null)
+            var bindGroup = (BindGroup*)_bindGroups[slot];
+            if (_pipeline == null || bindGroup == null)
             {
                 return;
             }
 
             _api.RenderPassEncoderSetPipeline(renderPass, _pipeline);
-            _api.RenderPassEncoderSetBindGroup(renderPass, 0, _bindGroup, 0, null);
+            _api.RenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, null);
             _api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
         }
 
-        private void UpdateUniform(ManaCameraData camera, Matrix4x4 aspectCorrectedProjection, Vector3 towardSun, ManaSky.State sky, float seconds)
+        private void UpdateUniform(int slot, ManaCameraData camera, Matrix4x4 aspectCorrectedProjection, Vector3 towardSun, ManaSky.State sky, float seconds)
         {
             // Same trick ManaIrradianceRenderer.RenderEnvironmentBackground uses on OpenGL: the view's
             // translation is zeroed before combining with the projection, so unprojecting a screen position
@@ -138,7 +149,7 @@ namespace ManaGraphics.Code.Graphics
                 Sun = new Vector4(sun, sky.Mode switch { ManaSkyMode.Photo => 0.0f, ManaSkyMode.Space => 2.0f, _ => 1.0f }),
                 Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, 0.0f)
             };
-            _api.QueueWriteBuffer(_queue, _uniformBuffer, 0, &uniform, (nuint)sizeof(SkyboxUniform));
+            _api.QueueWriteBuffer(_queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }
 
         private void EnsurePipeline(TextureFormat colorFormat)
@@ -205,10 +216,15 @@ namespace ManaGraphics.Code.Graphics
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst
             };
 
-            _uniformBuffer = _api.DeviceCreateBuffer(_device, &uniformDescriptor);
-            if (_uniformBuffer == null)
+            for (var slot = 0; slot < _slots; slot++)
             {
-                throw new InvalidOperationException("Failed to create the WebGPU skybox uniform buffer.");
+                var buffer = _api.DeviceCreateBuffer(_device, &uniformDescriptor);
+                if (buffer == null)
+                {
+                    throw new InvalidOperationException("Failed to create the WebGPU skybox uniform buffer.");
+                }
+
+                _uniformBuffers[slot] = (nint)buffer;
             }
 
             var vertexEntryPoint = (byte*)Marshal.StringToCoTaskMemUTF8("vs_main");
@@ -236,7 +252,7 @@ namespace ManaGraphics.Code.Graphics
                 // whole point of drawing it first rather than sorting it against real geometry.
                 var depthStencilState = new DepthStencilState
                 {
-                    Format = _depthFormat,
+                    Format = _depthFormat ?? TextureFormat.Depth24Plus,
                     DepthWriteEnabled = false,
                     DepthCompare = CompareFunction.Always,
                     StencilFront = new StencilFaceState
@@ -274,7 +290,7 @@ namespace ManaGraphics.Code.Graphics
                         CullMode = CullMode.None
                     },
                     Multisample = new MultisampleState { Count = 1, Mask = uint.MaxValue },
-                    DepthStencil = &depthStencilState,
+                    DepthStencil = _depthFormat == null ? null : &depthStencilState,
                     Fragment = &fragmentState
                 };
 
@@ -298,24 +314,24 @@ namespace ManaGraphics.Code.Graphics
         /// case, when the real environment map swaps in for the startup placeholder, since scene capture is
         /// off on this backend and nothing else replaces it afterwards.
         /// </summary>
-        private void EnsureBindGroup(Sampler* clampSampler, TextureView* environmentView)
+        private void EnsureBindGroup(int slot, Sampler* clampSampler, TextureView* environmentView)
         {
-            if (_bindGroup != null && _boundTextureView == environmentView)
+            if (_bindGroups[slot] != 0 && _boundTextureViews[slot] == (nint)environmentView)
             {
                 return;
             }
 
-            if (_bindGroup != null)
+            if (_bindGroups[slot] != 0)
             {
-                _api.BindGroupRelease(_bindGroup);
-                _bindGroup = null;
+                _api.BindGroupRelease((BindGroup*)_bindGroups[slot]);
+                _bindGroups[slot] = 0;
             }
 
             var entries = stackalloc BindGroupEntry[3];
             entries[0] = new BindGroupEntry
             {
                 Binding = 0,
-                Buffer = _uniformBuffer,
+                Buffer = (WebGpuBuffer*)_uniformBuffers[slot],
                 Offset = 0,
                 Size = (ulong)sizeof(SkyboxUniform)
             };
@@ -329,13 +345,14 @@ namespace ManaGraphics.Code.Graphics
                 Entries = entries
             };
 
-            _bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
-            if (_bindGroup == null)
+            var bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            if (bindGroup == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox bind group.");
             }
 
-            _boundTextureView = environmentView;
+            _bindGroups[slot] = (nint)bindGroup;
+            _boundTextureViews[slot] = (nint)environmentView;
         }
 
         private ShaderModule* CreateShaderModule(string shaderPath)
@@ -375,18 +392,21 @@ namespace ManaGraphics.Code.Graphics
 
         public void Dispose()
         {
-            if (_bindGroup != null)
+            for (var slot = 0; slot < _slots; slot++)
             {
-                _api.BindGroupRelease(_bindGroup);
-                _bindGroup = null;
-            }
+                if (_bindGroups[slot] != 0)
+                {
+                    _api.BindGroupRelease((BindGroup*)_bindGroups[slot]);
+                    _bindGroups[slot] = 0;
+                }
 
-            _boundTextureView = null;
+                _boundTextureViews[slot] = 0;
 
-            if (_uniformBuffer != null)
-            {
-                _api.BufferRelease(_uniformBuffer);
-                _uniformBuffer = null;
+                if (_uniformBuffers[slot] != 0)
+                {
+                    _api.BufferRelease((WebGpuBuffer*)_uniformBuffers[slot]);
+                    _uniformBuffers[slot] = 0;
+                }
             }
 
             if (_pipeline != null)

@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using SixLabors.ImageSharp.Processing;
 using StbTrueTypeSharp;
 
 namespace ManaUI
@@ -47,7 +46,7 @@ namespace ManaUI
         /// A separate colour emoji font to fall back on. Distinct from <see cref="Fallbacks"/>, which holds
         /// ManaFonts -- an emoji font cannot be one, having no outlines for stb to initialise from.
         /// </summary>
-        public ManaColorBitmapTable? ColorEmoji { get; set; }
+        public IManaColorGlyphSource? ColorEmoji { get; set; }
 
         /// <summary>True when this font can supply colour glyphs, from its own tables or the emoji font.</summary>
         public bool HasColorGlyphs => ColorBitmaps != null || ColorEmoji != null;
@@ -394,13 +393,8 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Decodes the glyph's embedded PNG, scales it to this font's size and packs it into the colour
-        /// atlas.
-        /// <para>
-        /// Scaled on the way in rather than at draw time. The strike is authored at 109 pixels and a UI
-        /// asks for fifteen, so storing them native would fit about forty emoji in a 1024 atlas and waste
-        /// most of what it did fit.
-        /// </para>
+        /// Draws a colour glyph -- from this font's own tables first, then the shared emoji source -- and packs
+        /// it into the colour atlas.
         /// </summary>
         private bool TryRasterizeColor(int codepoint, out ManaGlyph glyph)
         {
@@ -412,57 +406,15 @@ namespace ManaUI
                 return false;
             }
 
-            // This font's own tables first -- a font that has both outlines and bitmaps should use its
-            // own -- then the shared emoji font.
-            var table = ColorBitmaps;
-            ManaColorBitmapEntry entry = default;
-            var found = false;
-
-            if (table != null
-                && table.TryGetGlyphIndex(codepoint, out var ownIndex)
-                && table.TryGetEntry(ownIndex, out entry))
-            {
-                found = true;
-            }
-            else if (ColorEmoji != null
-                && ColorEmoji.TryGetGlyphIndex(codepoint, out var emojiIndex)
-                && ColorEmoji.TryGetEntry(emojiIndex, out entry))
-            {
-                table = ColorEmoji;
-                found = true;
-            }
-
-            if (!found || table == null)
-            {
-                return false;
-            }
-
-            // Sized against the em, not the bitmap: emoji are designed to sit on the same line as text, so
-            // the target height comes from the font's own size rather than the strike's.
+            // Sized against the em, not the bitmap: emoji sit on the same line as the text around them.
             var target = PixelSize * RenderScale;
-            var scale = target / MathF.Max(1.0f, table.PixelsPerEm);
-            var width = Math.Max(1, (int)MathF.Round(entry.Width * scale));
-            var height = Math.Max(1, (int)MathF.Round(entry.Height * scale));
-
-            Vector4? uv;
-
-            try
+            var image = ColorBitmaps?.Draw(codepoint, target) ?? ColorEmoji?.Draw(codepoint, target);
+            if (image == null)
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(
-                    table.GetPng(entry));
-
-                image.Mutate(context => context.Resize(width, height));
-
-                var pixels = new byte[width * height * 4];
-                image.CopyPixelDataTo(pixels);
-                uv = imageAtlas.Add(pixels, width, height);
-            }
-            catch (Exception)
-            {
-                // A PNG this decoder cannot read is one emoji missing, not a broken font.
                 return false;
             }
 
+            var uv = imageAtlas.Add(image.Pixels, image.Width, image.Height);
             if (uv == null)
             {
                 return false;
@@ -471,9 +423,9 @@ namespace ManaUI
             // BearingY is measured up from the baseline; the UI's Y grows downward, hence the negation.
             glyph = new ManaGlyph(
                 uv.Value,
-                new Vector2(entry.BearingX * scale / RenderScale, -entry.BearingY * scale / RenderScale),
-                new Vector2(width / RenderScale, height / RenderScale),
-                entry.Advance * scale / RenderScale,
+                new Vector2(image.BearingX / RenderScale, -image.BearingY / RenderScale),
+                new Vector2(image.Width / RenderScale, image.Height / RenderScale),
+                image.Advance / RenderScale,
                 hasPixels: true,
                 isMissing: false,
                 isColor: true);

@@ -45,7 +45,8 @@ namespace ManaGraphics.Code.Graphics
                 CameraPosition = new Vector4(camera.Position, 1.0f),
                 IrradianceFactors = new Vector4(
                     Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
-                    Math.Clamp(irradianceSettings.IblIntensity * _activeRenderScene.Sky.Daylight, 0.0f, 8.0f),
+                    // A computed sky is drawn into the reflection cubes already darkened; only the photo needs dimming.
+                    Math.Clamp(irradianceSettings.IblIntensity * (_activeRenderScene.Sky.Mode == ManaSkyMode.Photo ? _activeRenderScene.Sky.Daylight : 1.0f), 0.0f, 8.0f),
                     Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
                     // w = daylight, 0..1 (ManaSky): the unlit editor grid dims with it at night.
                     _activeRenderScene.Sky.Daylight),

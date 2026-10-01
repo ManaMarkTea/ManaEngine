@@ -15,6 +15,8 @@ using ManaGraphics.Code.Graphics.Browser;
 Console.WriteLine("ManaVoxel.Editor.Web booting (browser-wasm)...");
 
 await ManaBrowserInterop.InitializeAsync();
+// Emoji come from the browser's own font rather than a 10 MB download.
+ManaBrowserEmoji.Install();
 
 // F5 is Play in the editor. Left alone the browser would also refresh the page, throwing the level away, so the
 // page is told not to; the engine still receives the key.
@@ -28,6 +30,14 @@ Console.WriteLine("Browser interop module loaded.");
 ManaUiDensity.RestorePreset();
 
 ManaBrowserInterop.ReportLoadingProgress("Starting engine", 0.0f);
+
+// The emoji the editor's panels use, drawn while the loading screen is up (it shows each one as it is made), so
+// the first frame of the UI finds them ready. Fire and forget: it yields between emoji and the load carries on.
+_ = ManaBrowserEmoji.WarmAsync(new[]
+{
+    0x1F30A, 0x1F480, 0x1F680, 0x1F3A8, 0x1F5D1, 0x1F6E2, 0x1F50C, 0x1F479, 0x1F4A8, 0x1F4A5, 0x1F600, 0x1F4E6, 0x1F527,
+    0x1F9EA, 0x1F30D, 0x1F30B, 0x1F332, 0x1F525, 0x1F4A7, 0x1F528, 0x1F4DD, 0x1F195, 0x1F496, 0x1F5A4, 0x1F53D
+}, 15.0f);
 
 try
 {

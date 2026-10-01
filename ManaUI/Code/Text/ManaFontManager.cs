@@ -126,6 +126,15 @@ namespace ManaUI
         }
 
         /// <summary>
+        /// Emoji drawn by the platform, used when no emoji font is found -- the browser build sets the
+        /// page's own emoji font here instead of downloading Noto.
+        /// </summary>
+        public static IManaColorGlyphSource? PlatformColorEmoji { get; set; }
+
+        /// <summary>Where fonts get their colour emoji: an emoji font if there is one, else the platform's.</summary>
+        public IManaColorGlyphSource? ColorEmojiSource => (IManaColorGlyphSource?)ColorEmoji ?? PlatformColorEmoji;
+
+        /// <summary>
         /// Family names that resolve to a real file, for a font picker to offer.
         /// <para>
         /// Filtered to families that actually load: the search path includes the system font folder, which
@@ -221,7 +230,7 @@ namespace ManaUI
                 quantisedScale / 4.0f)
             {
                 ImageAtlas = Images,
-                ColorEmoji = ColorEmoji
+                ColorEmoji = ColorEmojiSource
             };
 
             // Cached before the chain is built, because a fallback is itself a font from this manager and

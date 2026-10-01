@@ -90,6 +90,18 @@
 
     .mana-percent { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
+    /* The emoji the browser has drawn for the UI so far, each popping in as it is made. */
+    .mana-emoji {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 2px;
+      min-height: 0; max-width: 100%; margin: 0;
+      font-size: 20px; line-height: 1.2;
+    }
+    .mana-emoji span { animation: mana-emoji-pop 360ms cubic-bezier(.3, 1.6, .5, 1) both; }
+    @keyframes mana-emoji-pop {
+      from { transform: scale(0) rotate(-30deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
     .mana-track {
       position: relative;
       height: 8px;              /* ProgressBar.Thickness */
@@ -255,6 +267,7 @@
         <div class="mana-sweep"></div>
       </div>
       <p class="mana-percent" id="manaLoadingPercent">0%</p>
+      <p class="mana-emoji" id="manaLoadingEmoji" aria-hidden="true"></p>
     </div>
   </div>
 
@@ -364,6 +377,17 @@
                 // After the opacity transition, not with it: removing the node mid-fade snaps it
                 // away. 400ms covers the 320ms transition with room for a slow frame.
                 setTimeout(function () { root.remove(); }, 400);
+            },
+
+            /// Each emoji the browser draws for the UI (mana_interop.js drawEmoji), shown as it is made.
+            emoji: function (text) {
+                var tray = document.getElementById('manaLoadingEmoji');
+                if (hidden || !tray || tray.childElementCount >= 48) {
+                    return;
+                }
+                var item = document.createElement('span');
+                item.textContent = text;
+                tray.appendChild(item);
             },
 
             isFailed: function () { return failed; }

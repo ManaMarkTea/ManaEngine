@@ -24,6 +24,8 @@ Console.WriteLine($"ManaGraphicsBackendKind values: {string.Join(", ", Enum.GetN
 // a throwaway spike. NOT yet confirmed working end to end against a real browser; the whole
 // point of shipping this now is to find out from an actual browser console what breaks first.
 await ManaBrowserInterop.InitializeAsync();
+// Emoji come from the browser's own font rather than a 10 MB download.
+ManaBrowserEmoji.Install();
 await ManaAudio.ManaAudioFactory.InitializeBrowserAsync();
 Console.WriteLine("Browser interop module loaded.");
 

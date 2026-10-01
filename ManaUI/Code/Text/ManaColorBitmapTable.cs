@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using SixLabors.ImageSharp.Processing;
 
 namespace ManaUI
 {
@@ -45,7 +46,7 @@ namespace ManaUI
     /// problem entirely: a paint graph with gradients and transforms, not a bitmap to copy.
     /// </para>
     /// </summary>
-    public sealed class ManaColorBitmapTable
+    public sealed class ManaColorBitmapTable : IManaColorGlyphSource
     {
         private readonly byte[] _data;
         private readonly int _cbdtOffset;
@@ -427,6 +428,36 @@ namespace ManaUI
         public bool TryGetEntry(int glyphIndex, out ManaColorBitmapEntry entry)
         {
             return _entries.TryGetValue(glyphIndex, out entry);
+        }
+
+        /// <summary>
+        /// Decodes the glyph's PNG and scales it to <paramref name="pixelsPerEm"/>. Scaled on the way in: the
+        /// strike is 109 pixels and a UI asks for fifteen, so stored native most of the atlas would be wasted.
+        /// </summary>
+        public ManaColorGlyphImage? Draw(int codepoint, float pixelsPerEm)
+        {
+            if (!TryGetGlyphIndex(codepoint, out var index) || !TryGetEntry(index, out var entry))
+            {
+                return null;
+            }
+
+            var scale = pixelsPerEm / MathF.Max(1.0f, PixelsPerEm);
+            var width = Math.Max(1, (int)MathF.Round(entry.Width * scale));
+            var height = Math.Max(1, (int)MathF.Round(entry.Height * scale));
+
+            try
+            {
+                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(GetPng(entry));
+                image.Mutate(context => context.Resize(width, height));
+                var pixels = new byte[width * height * 4];
+                image.CopyPixelDataTo(pixels);
+                return new ManaColorGlyphImage(pixels, width, height, entry.BearingX * scale, entry.BearingY * scale, entry.Advance * scale);
+            }
+            catch (Exception)
+            {
+                // A PNG this decoder cannot read is one emoji missing, not a broken font.
+                return null;
+            }
         }
 
         /// <summary>The raw PNG bytes for a glyph, as a view into the font data rather than a copy.</summary>

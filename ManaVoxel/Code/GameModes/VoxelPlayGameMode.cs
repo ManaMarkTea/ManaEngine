@@ -117,10 +117,15 @@ namespace Mana.Code.GameModes
                     Context.DeferGpuUploads = true;
 
                     Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.1f));
-                    var envPath = world.EnvironmentReflectionSource.SourcePath;
-                    var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
-                    envTexture.OriginalFilename = envPath;
-                    envTexture.Load();
+                    // Only OpenGL reads the photo through the texture cache; WebGPU draws the sky into its reflections and
+                    // decodes the photo itself, only for the Photo sky.
+                    if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
+                    {
+                        var envPath = world.EnvironmentReflectionSource.SourcePath;
+                        var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
+                        envTexture.OriginalFilename = envPath;
+                        envTexture.Load();
+                    }
 
                     Loading.Report(new ManaLoadingProgress("Building ground", 0.35f));
                     ManaSceneNode ground;

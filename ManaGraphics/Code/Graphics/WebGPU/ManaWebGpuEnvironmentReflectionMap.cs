@@ -30,6 +30,18 @@ namespace ManaGraphics.Code.Graphics
 
         public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.WebGpu;
         public ManaEnvironmentReflectionSource Source { get; }
+
+        /// <summary>
+        /// True while the cubes hold the environment photo. A computed sky draws over them on the GPU instead
+        /// (<see cref="DrawnSky"/>), so the 4K photo is decoded only for the Photo sky.
+        /// </summary>
+        public bool HasPhoto { get; set; }
+
+        /// <summary>The sky last drawn into the cubes, or null when they have not been drawn yet.</summary>
+        public ManaSky.State? DrawnSky { get; set; }
+
+        /// <summary>Frames since the sky was drawn, so a moving day is redrawn now and then, not every frame.</summary>
+        public int FramesSinceSkyDrawn { get; set; }
         public IManaGpuTexture? EnvironmentMap => EnvironmentMapResource;
         public IManaGpuTexture? IrradianceMap => IrradianceMapResource;
         public IManaGpuTexture? PrefilteredReflectionMap => PrefilteredReflectionMapResource;
@@ -67,7 +79,7 @@ namespace ManaGraphics.Code.Graphics
             Device* device,
             Queue* queue,
             ManaEnvironmentReflectionSource source,
-            string sourcePath,
+            string? sourcePath,
             IProgress<ManaLoadingProgress>? progress = null)
         {
             progress?.Report(new ManaLoadingProgress("Allocating WebGPU environment textures", 0.02f));
@@ -89,6 +101,40 @@ namespace ManaGraphics.Code.Graphics
                 TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding,
                 true);
 
+            // No photo: the context draws the computed sky into the cubes each time it changes.
+            if (sourcePath != null)
+            {
+                WritePhoto(api, queue, environmentMap, irradianceMap, sourcePath, progress);
+            }
+
+            var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float);
+            WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize, progress, 0.50f, 0.45f);
+
+            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut)
+            {
+                HasPhoto = sourcePath != null
+            };
+        }
+
+        /// <summary>
+        /// Decodes the photo into this map's own cubes, for a Photo sky chosen after the map was made -- in place,
+        /// so nothing bound to the cubes has to be rebuilt. The caller prefilters afterwards.
+        /// </summary>
+        public void WritePhoto(WebGPU api, Queue* queue, string sourcePath)
+        {
+            WritePhoto(api, queue, EnvironmentMapResource, IrradianceMapResource, sourcePath, null);
+            HasPhoto = true;
+            DrawnSky = null;
+        }
+
+        private static void WritePhoto(
+            WebGPU api,
+            Queue* queue,
+            ManaWebGpuTextureResource environmentMap,
+            ManaWebGpuTextureResource irradianceMap,
+            string sourcePath,
+            IProgress<ManaLoadingProgress>? progress)
+        {
             progress?.Report(new ManaLoadingProgress("Reading environment image", 0.07f));
             using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
             var sourcePixels = new Rgba32[image.Width * image.Height];
@@ -96,16 +142,11 @@ namespace ManaGraphics.Code.Graphics
             var equirect = new EquirectImage(sourcePixels, image.Width, image.Height);
 
             WriteCubeTexture(
-                api, queue, environmentMap.Texture, equirect, environmentSize, 0, 0.0f, false,
+                api, queue, environmentMap.Texture, equirect, (int)environmentMap.Width, 0, 0.0f, false,
                 progress, 0.10f, 0.25f, "Converting environment cube map");
             WriteCubeTexture(
-                api, queue, irradianceMap.Texture, equirect, irradianceSize, 0, 0.85f, true,
+                api, queue, irradianceMap.Texture, equirect, (int)irradianceMap.Width, 0, 0.85f, true,
                 progress, 0.35f, 0.15f, "Generating irradiance cube map");
-
-            var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float);
-            WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize, progress, 0.50f, 0.45f);
-
-            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut);
         }
 
         public void Dispose()

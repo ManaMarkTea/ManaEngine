@@ -2,6 +2,12 @@ Claude, overnight summary (2026-09-29): every item below is done and pushed; the
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
 the long ledge, parallax mountains and hills, orthographic view. Photos for each step are in DevPhotos/.
 One question for you (in the Glow item): how material edits should be saved.
+2026-09-30 (night): the web build no longer downloads the 10 MB emoji font or the 5 MB sky photo (play startup 57 -> 41 MB).
+Emoji come from the browser's own font, drawn on a canvas (ManaBrowserEmoji); the web loading screen pops each one in
+as it is drawn (DevPhotos/2026-09-30 web-loading-emoji.png). On WebGPU the shader sky is drawn into the reflection
+cubes, so reflections match the sky on screen (sunsets, night, space); the photo is decoded only for the Photo sky,
+fetched from the catalog on the web. Follow-up: Space scenes are darker now (a dark sky lights them less) -- say if
+you want an ambient floor there.
 2026-09-30 (evening): the whole pack built into assets (5 characters, 18 enemies, items, terrain slices for six grounds)
 and the 2D Sample grown into a five-biome run: grass -> desert (cacti, a spike pit crossed on a moving platform, snails)
 -> snow (clouds over a gap, a spring up to a coin cache) -> mushroom (bees, flies, ladybugs) -> stone castle (torches,

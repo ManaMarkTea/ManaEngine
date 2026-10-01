@@ -114,6 +114,7 @@ namespace ManaGraphics.Code.Graphics
 #endif
         private ManaWebGpuUiRenderer? _uiRenderer;
         private ManaWebGpuSkybox? _skybox;
+        private ManaWebGpuSkybox? _environmentSkybox;
 
         /// <summary>
         /// The ManaUI tree to draw over the scene, or null when the host has not built one.
@@ -394,13 +395,16 @@ namespace ManaGraphics.Code.Graphics
                 environment.EnvironmentMapResource.TextureView,
                 _activeRenderScene.Camera,
                 GetAspectCorrectedProjection(_activeRenderScene.Camera),
-                // A still sky's sun sits where the scene's own sun is, if it has one (its direction is the way the
-                // light travels); a day-night cycle moves its own.
-                _activeRenderScene.HasSun && _activeRenderScene.Sky.Mode != ManaSkyMode.DayNightCycle
-                    ? -_activeRenderScene.SunDirection
-                    : _activeRenderScene.Sky.TowardSun,
+                SkyTowardSun(_activeRenderScene),
                 _activeRenderScene.Sky,
                 ManaSky.Seconds);
+        }
+
+        // A still sky's sun sits where the scene's own sun is, if it has one (its direction is the way the light
+        // travels); a day-night cycle moves its own.
+        private static Vector3 SkyTowardSun(ManaRenderScene scene)
+        {
+            return scene.HasSun && scene.Sky.Mode != ManaSkyMode.DayNightCycle ? -scene.SunDirection : scene.Sky.TowardSun;
         }
 
         private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
@@ -769,6 +773,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 using (ManaFrameProfiler.Measure("GPU: Environment Capture"))
                 {
+                    DrawSkyIntoEnvironmentIfNeeded(commandEncoder);
                     CaptureSceneEnvironmentIfNeeded(commandEncoder);
                 }
 
@@ -934,6 +939,8 @@ namespace ManaGraphics.Code.Graphics
             ReleaseDemoResources();
             _skybox?.Dispose();
             _skybox = null;
+            _environmentSkybox?.Dispose();
+            _environmentSkybox = null;
 
             if (_surface != null && _configured)
             {

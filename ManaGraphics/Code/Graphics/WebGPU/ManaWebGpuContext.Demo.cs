@@ -135,6 +135,13 @@ namespace ManaGraphics.Code.Graphics
 
         private static string ResolveAssetPath(string relativePath)
         {
+            return TryResolveAssetPath(relativePath)
+                ?? throw new FileNotFoundException($"Could not locate asset file '{relativePath}'.");
+        }
+
+        /// <summary>The file, or null -- for one that may legitimately be absent, like the web build's environment photo.</summary>
+        private static string? TryResolveAssetPath(string relativePath)
+        {
             string[] candidates =
             {
                 Path.Combine(Environment.CurrentDirectory, relativePath),
@@ -154,7 +161,7 @@ namespace ManaGraphics.Code.Graphics
                 }
             }
 
-            throw new FileNotFoundException($"Could not locate asset file '{relativePath}'.");
+            return null;
         }
 
         private void DrawDemoMesh(RenderPassEncoder* renderPass)

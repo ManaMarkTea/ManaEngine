@@ -74,6 +74,116 @@ namespace ManaGraphics.Code.Graphics
             _framesSinceEnvironmentCapture = 0;
         }
 
+        /// <summary>
+        /// Draws the computed sky (Day, Day and Night, Space) into the reflection and irradiance cubes and
+        /// prefilters it, so reflections show the sky on screen rather than the photo. Redrawn when the sky has
+        /// moved, at most every <see cref="SkyRedrawFrames"/> frames.
+        /// </summary>
+        private void DrawSkyIntoEnvironmentIfNeeded(CommandEncoder* commandEncoder)
+        {
+            var scene = _activeRenderScene;
+            var map = _environmentReflectionMap;
+            if (scene == null || map == null || _clampSampler == null || scene.Sky.Mode == ManaSkyMode.Photo)
+            {
+                return;
+            }
+
+            var sky = scene.Sky with { TowardSun = SkyTowardSun(scene) };
+            map.FramesSinceSkyDrawn++;
+            if (map.DrawnSky is { } drawn && (!SkyMoved(drawn, sky) || map.FramesSinceSkyDrawn < SkyRedrawFrames))
+            {
+                return;
+            }
+
+            var environmentMap = map.EnvironmentMapResource;
+            var irradianceMap = map.IrradianceMapResource;
+            var prefilteredMap = map.PrefilteredReflectionMapResource;
+            if (environmentMap.RenderTargetViews.Count < 6 || prefilteredMap.TextureView == null)
+            {
+                return;
+            }
+
+            _environmentSkybox ??= new ManaWebGpuSkybox(
+                _api, _device, _queue, null, ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "skybox.wgsl")), 6);
+
+            for (var face = 0; face < 6; face++)
+            {
+                var camera = CreateCubeFaceCamera(face);
+                // Bound only to fill the layout -- a computed sky never samples it -- and not a cube drawn into here.
+                var unusedView = (TextureView*)prefilteredMap.TextureView;
+                DrawSkyFace(commandEncoder, (TextureView*)environmentMap.RenderTargetViews[face], camera, sky, unusedView, face);
+                if (irradianceMap.RenderTargetViews.Count >= 6)
+                {
+                    DrawSkyFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], camera, sky, unusedView, face);
+                }
+            }
+
+            DispatchEnvironmentPrefilter(commandEncoder, environmentMap, prefilteredMap);
+            map.DrawnSky = sky;
+            map.HasPhoto = false;
+            map.FramesSinceSkyDrawn = 0;
+        }
+
+        private const int SkyRedrawFrames = 20;
+
+        private static bool SkyMoved(ManaSky.State drawn, ManaSky.State sky)
+        {
+            return drawn.Mode != sky.Mode ||
+                Vector3.Dot(drawn.TowardSun, sky.TowardSun) < 0.99985f ||
+                MathF.Abs(drawn.Daylight - sky.Daylight) > 0.01f;
+        }
+
+        private void DrawSkyFace(CommandEncoder* commandEncoder, TextureView* faceView, ManaCameraData camera, ManaSky.State sky, TextureView* unusedView, int face)
+        {
+            var colorAttachment = new RenderPassColorAttachment
+            {
+                View = faceView,
+                LoadOp = LoadOp.Clear,
+                StoreOp = StoreOp.Store,
+                ClearValue = new Color(0.0, 0.0, 0.0, 1.0)
+            };
+
+            var renderPassDescriptor = new RenderPassDescriptor
+            {
+                ColorAttachmentCount = 1,
+                ColorAttachments = &colorAttachment
+            };
+
+            var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+            _environmentSkybox!.Draw(
+                renderPass, TextureFormat.Rgba8UnormSrgb, _clampSampler, unusedView, camera, camera.Projection,
+                sky.TowardSun, sky, ManaSky.Seconds, face);
+            _api.RenderPassEncoderEnd(renderPass);
+            _api.RenderPassEncoderRelease(renderPass);
+        }
+
+        /// <summary>
+        /// A camera looking out of one cube face, oriented as WebGPU samples a cube: face order +X -X +Y -Y +Z -Z,
+        /// with each face's screen right and up taken from the cube sampling rules (as GetCubeDirection writes them).
+        /// </summary>
+        private static ManaCameraData CreateCubeFaceCamera(int face)
+        {
+            var (forward, right, up) = face switch
+            {
+                0 => (Vector3.UnitX, -Vector3.UnitZ, Vector3.UnitY),
+                1 => (-Vector3.UnitX, Vector3.UnitZ, Vector3.UnitY),
+                2 => (Vector3.UnitY, Vector3.UnitX, -Vector3.UnitZ),
+                3 => (-Vector3.UnitY, Vector3.UnitX, Vector3.UnitZ),
+                4 => (Vector3.UnitZ, Vector3.UnitX, Vector3.UnitY),
+                _ => (-Vector3.UnitZ, -Vector3.UnitX, Vector3.UnitY)
+            };
+
+            // View space looks down -Z: rows of the basis, written as System.Numerics' row-vector matrix.
+            var back = -forward;
+            var view = new Matrix4x4(
+                right.X, up.X, back.X, 0.0f,
+                right.Y, up.Y, back.Y, 0.0f,
+                right.Z, up.Z, back.Z, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f);
+            var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI * 0.5f, 1.0f, 0.1f, 100.0f);
+            return new ManaCameraData(view, projection, Vector3.Zero, 0.1f, 100.0f);
+        }
+
         private void RenderSceneCaptureFace(
             CommandEncoder* commandEncoder,
             TextureView* faceView,
@@ -164,6 +274,8 @@ namespace ManaGraphics.Code.Graphics
 
         private volatile ManaWebGpuEnvironmentReflectionMap? _pendingEnvironmentMap;
         private volatile bool _isEnvironmentLoading;
+        // Set while a photo loads, and left set if it failed, so it is not retried every frame.
+        private volatile bool _environmentPhotoStarted;
 
         public ManaLoadingViewModel EnvironmentLoading { get; } = new();
 
@@ -191,7 +303,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 ReleaseEnvironmentReflectionMap();
                 _environmentReflectionMap = _pendingEnvironmentMap;
-                var environmentPath = ResolveAssetPath(_environmentReflectionMap.Source.SourcePath);
+                var environmentPath = TryResolveAssetPath(_environmentReflectionMap.Source.SourcePath) ?? _environmentReflectionMap.Source.SourcePath;
                 _pendingEnvironmentMap = null;
                 _isEnvironmentLoading = false;
                 EnvironmentLoading.Complete("WebGPU environment maps ready");
@@ -219,7 +331,7 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuEnvironmentReflectionMap GetOrCreateEnvironmentReflectionMap()
         {
             var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene?.EnvironmentReflectionSource);
-            var environmentPath = ResolveAssetPath(source.SourcePath);
+            var environmentPath = TryResolveAssetPath(source.SourcePath) ?? source.SourcePath;
 
             // The pending-map swap + ReleaseSceneMeshes() used to be duplicated here as well as in
             // CheckPendingEnvironmentMap() (called once per frame, before RefreshRenderScene(), in
@@ -235,9 +347,15 @@ namespace ManaGraphics.Code.Graphics
             // ever perform this swap now, so it can only happen once per frame, before reconciliation
             // starts, never reentrantly mid-loop.
 
+            var wantsPhoto = _activeRenderScene?.Sky.Mode == ManaSkyMode.Photo;
             if (_environmentReflectionMap != null &&
                 HasSameEnvironmentSource(_environmentReflectionMap.Source, source))
             {
+                if (wantsPhoto && !_environmentReflectionMap.HasPhoto && !_isEnvironmentLoading)
+                {
+                    StartEnvironmentPhotoLoad(_environmentReflectionMap, source.SourcePath, environmentPath);
+                }
+
                 return _environmentReflectionMap;
             }
 
@@ -247,7 +365,11 @@ namespace ManaGraphics.Code.Graphics
                 EnvironmentLoading.Start("Preparing WebGPU environment maps", 0.0f);
                 _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.CreateDummy(_api, _device, _queue, source);
 
-                Task.Run(() =>
+                // The photo first (downloaded, on the web), then the cubes; a continuation because this class is unsafe and cannot await.
+                var photo = wantsPhoto
+                    ? ManaEnvironmentPhoto.FindAsync(source.SourcePath, environmentPath)
+                    : Task.FromResult<string?>(null);
+                photo.ContinueWith(found =>
                 {
                     if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
                     {
@@ -256,8 +378,9 @@ namespace ManaGraphics.Code.Graphics
 
                     try
                     {
+                        var photoPath = found.Result;
                         var map = ManaWebGpuEnvironmentReflectionMap.Create(
-                            _api, _device, _queue, source, environmentPath, EnvironmentLoading);
+                            _api, _device, _queue, source, photoPath, EnvironmentLoading);
                         EnvironmentLoading.Report(new ManaLoadingProgress("Dispatching environment prefilter compute shader", 0.97f));
                         DispatchEnvironmentPrefilterNow(map);
                         _pendingEnvironmentMap = map;
@@ -269,10 +392,40 @@ namespace ManaGraphics.Code.Graphics
                         _isEnvironmentLoading = false;
                         EnvironmentLoading.Fail($"WebGPU environment initialization failed: {ex.Message}");
                     }
-                });
+                }, TaskScheduler.Default);
             }
 
             return _environmentReflectionMap!;
+        }
+
+        /// <summary>
+        /// The Photo sky, chosen once the map exists: the photo (downloaded, on the web) is decoded into the map's
+        /// cubes in the background. Tried once; a missing photo leaves the sky's own reflections up.
+        /// </summary>
+        private void StartEnvironmentPhotoLoad(ManaWebGpuEnvironmentReflectionMap map, string reference, string resolvedPath)
+        {
+            if (_environmentPhotoStarted)
+            {
+                return;
+            }
+
+            _environmentPhotoStarted = true;
+            ManaEnvironmentPhoto.FindAsync(reference, resolvedPath).ContinueWith(found =>
+            {
+                try
+                {
+                    map.WritePhoto(_api, _queue, found.Result ?? resolvedPath);
+                    DispatchEnvironmentPrefilterNow(map);
+                }
+                catch (Exception ex)
+                {
+                    ManaConsole.WriteDiagnostic($"Environment photo unavailable: {ex.Message}");
+                }
+                finally
+                {
+                    _environmentPhotoStarted = !map.HasPhoto;
+                }
+            }, TaskScheduler.Default);
         }
 
         private static ManaEnvironmentReflectionSource GetEffectiveEnvironmentReflectionSource(ManaEnvironmentReflectionSource? source)
@@ -374,5 +527,21 @@ namespace ManaGraphics.Code.Graphics
             return camera.Projection;
         }
 
+    }
+
+    /// <summary>The environment photo on disk -- on the web, fetched from the asset library the first time it is asked for.</summary>
+    internal static class ManaEnvironmentPhoto
+    {
+        public static async Task<string?> FindAsync(string reference, string resolvedPath)
+        {
+            if (File.Exists(resolvedPath) || ManaCore.Assets.ManaAssetCatalog.Current is not { } catalog ||
+                catalog.LocalFileOf(reference) is not { } catalogPath)
+            {
+                return resolvedPath;
+            }
+
+            await catalog.EnsureAsync(reference);
+            return catalogPath;
+        }
     }
 }

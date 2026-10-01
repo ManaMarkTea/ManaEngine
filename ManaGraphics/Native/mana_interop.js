@@ -303,6 +303,46 @@ export function hideLoadingOverlay() {
     }
 }
 
+// --- Emoji -------------------------------------------------------------------
+// Backs ManaBrowserEmoji: the page's own colour emoji font drawn onto a canvas and copied into the span
+// C# hands over, so the web build needs no emoji font of its own. Returns the advance, or 0 when the
+// browser has no colour glyph for it (what came out is grey -- a text fallback or a tofu box).
+let emojiCanvas = null;
+
+export function drawEmoji(codepoint, size, width, height, baseline, pixels) {
+    if (!emojiCanvas) {
+        emojiCanvas = typeof OffscreenCanvas !== 'undefined'
+            ? new OffscreenCanvas(width, height)
+            : document.createElement('canvas');
+    }
+    emojiCanvas.width = width;
+    emojiCanvas.height = height;
+    const context = emojiCanvas.getContext('2d', { willReadFrequently: true });
+    context.clearRect(0, 0, width, height);
+    context.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif`;
+    context.textBaseline = 'alphabetic';
+    // VS16 asks for the emoji form of a character that also has a text one (U+2764, a heart).
+    const text = String.fromCodePoint(codepoint) + '️';
+    context.fillText(text, Math.ceil(size / 4), baseline);
+    const data = context.getImageData(0, 0, width, height).data;
+
+    let coloured = false;
+    for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] > 32 && (Math.abs(data[i] - data[i + 1]) > 24 || Math.abs(data[i + 1] - data[i + 2]) > 24)) {
+            coloured = true;
+            break;
+        }
+    }
+    if (!coloured) {
+        return 0;
+    }
+
+    // A Uint8Array view: the span only takes the typed array matching its element type, not a clamped one.
+    pixels.set(new Uint8Array(data.buffer, data.byteOffset, data.length));
+    manaLoading()?.emoji?.(text);
+    return context.measureText(text).width;
+}
+
 // --- Settings storage --------------------------------------------------------
 // Backs ManaCore.Browser.ManaBrowserSettingsBridge: a plain localStorage key/value store for the
 // handful of desktop settings files (docking layout, UI density) that would otherwise write to

@@ -11,15 +11,11 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Textures/DebugTexture_Grid.png">
       <TargetPath>Assets/Textures/DebugTexture_Grid.png</TargetPath>
     </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png">
-      <TargetPath>Assets/Textures/Environments/kloofendal_48d_partly_cloudy_puresky_4k.png</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
+    <!-- No environment photo (5 MB): the sky is drawn into the reflections, and the Photo sky fetches it from the catalog. -->
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Regular.ttf;$(MSBuildThisFileDirectory)Mana/Assets/Fonts/Roboto/Roboto-Medium.ttf">
       <TargetPath>Assets/Fonts/Roboto/%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)ManaUI/Assets/Fonts/NotoColorEmoji.ttf">
-      <TargetPath>Assets/Fonts/NotoColorEmoji.ttf</TargetPath>
-    </WasmFilesToIncludeInFileSystem>
+    <!-- No NotoColorEmoji.ttf (10 MB): the browser draws colour emoji with its own font (ManaBrowserEmoji). -->
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-characters.zip">
       <TargetPath>Assets/kenney_mini-characters.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>

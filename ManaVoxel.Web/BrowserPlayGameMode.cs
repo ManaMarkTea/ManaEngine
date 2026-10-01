@@ -139,13 +139,6 @@ namespace ManaVoxel.Web
                 };
                 world.MainCamera.ShouldCaptureKeyboardInput = () => _pawnController?.IsCapturingMovementKeys == true;
 
-                Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.15f));
-
-                var envPath = world.EnvironmentReflectionSource.SourcePath;
-                var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
-                envTexture.OriginalFilename = envPath;
-                envTexture.Load();
-
                 ManaSceneNode ground;
                 lock (world.SceneLock)
                 {
