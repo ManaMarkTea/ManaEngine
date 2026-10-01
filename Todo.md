@@ -26,6 +26,8 @@
 [] - Do we support nested prefabs, and is it possible?
 
 [] - Dynamic normal maps on sprites?
+[] - Auto-Normal looks really bad.
+
 
 [] - Can we also support exporting video in addition to the PNG snapshots we take now. Prolly using FFMPEG to compress pngs or something.
 
@@ -46,6 +48,8 @@
 [] - Is there some kind of couch co-op 4 - 8 player game we could make using this stuff
 
 [] - UI Editor is not working and not used, needs updating - low priority
+
+[] - Perf: Split up the world perf ManaUI by panel to help know which panel is slow
 
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
