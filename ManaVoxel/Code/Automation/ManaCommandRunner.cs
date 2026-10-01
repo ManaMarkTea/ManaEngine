@@ -29,6 +29,11 @@ namespace ManaVoxel.Code.Automation
         private int _waitFramesRemaining;
         private Task? _pendingScreenshot;
 
+        // Glides under way (move_camera or sky with frames): each steps once a frame with an eased 0..1, and the
+        // script holds until the blocking ones finish; background ones run on alongside what follows.
+        private readonly List<(Action<float> Apply, int Frames, bool Blocking)> _glides = new();
+        private readonly List<int> _glideSteps = new();
+
         /// <summary>The editor's End key, for the command file's drop_to_floor.</summary>
         public Action? DropToFloor { get; init; }
 
@@ -48,6 +53,11 @@ namespace ManaVoxel.Code.Automation
 
         public void Tick()
         {
+            if (StepGlides())
+            {
+                return;
+            }
+
             if (_waitFramesRemaining > 0)
             {
                 _waitFramesRemaining--;
@@ -88,8 +98,17 @@ namespace ManaVoxel.Code.Automation
                         return;
 
                     case "move_camera":
-                        ApplyMoveCamera(command);
                         _index++;
+                        if (command.Frames > 0 && command.Position is { Length: 3 } && command.Target is { Length: 3 })
+                        {
+                            StartCameraGlide(command);
+                            if (!command.Background)
+                            {
+                                return;
+                            }
+                            break;
+                        }
+                        ApplyMoveCamera(command);
                         break;
 
                     case "select_node":
@@ -142,9 +161,24 @@ namespace ManaVoxel.Code.Automation
                         }
                         if (command.TimeOfDay is { } timeOfDay)
                         {
-                            _context.World.IrradianceSettings.TimeOfDay = timeOfDay;
-                            _context.World.IrradianceSettings.TimeSpeed = 0.0f;
-                            _context.World.IrradianceSettings.RealTime = false;
+                            var sky = _context.World.IrradianceSettings;
+                            sky.TimeSpeed = 0.0f;
+                            sky.RealTime = false;
+                            if (command.Frames > 0)
+                            {
+                                // Always forward, as the day goes -- sunset to night, or on through dawn.
+                                var from = sky.TimeOfDay;
+                                var ahead = ((timeOfDay - from) % 1.0f + 1.0f) % 1.0f;
+                                _glides.Add((eased => sky.TimeOfDay = (from + ahead * eased) % 1.0f, command.Frames, !command.Background));
+                                _glideSteps.Add(0);
+                                _index++;
+                                if (!command.Background)
+                                {
+                                    return;
+                                }
+                                break;
+                            }
+                            sky.TimeOfDay = timeOfDay;
                         }
                         _index++;
                         break;
@@ -237,8 +271,13 @@ namespace ManaVoxel.Code.Automation
                             break;
                         }
 
-                        _pendingScreenshot = _webGpuContext.CaptureFrameAsync(RequirePath(command));
+                        _pendingScreenshot = _webGpuContext.CaptureFrameAsync(RequirePath(command), command.Clean);
                         return;
+
+                    case "gizmos":
+                        Mana.Code.UI.ManaEditorGizmos.Visible = command.Visible ?? !Mana.Code.UI.ManaEditorGizmos.Visible;
+                        _index++;
+                        break;
 
                     case "play":
                     case "stop_play":
@@ -421,6 +460,48 @@ namespace ManaVoxel.Code.Automation
             return null;
         }
 
+        private void StartCameraGlide(ManaCommand command)
+        {
+            var owner = _context.World.MainCamera.Owner;
+            var toPosition = ToVector3(command.Position!);
+            var toTarget = ToVector3(command.Target!);
+            // The start's look point sits as far ahead as the end's, so the aim swings evenly rather than lurching.
+            var reach = MathF.Max(Vector3.Distance(toPosition, toTarget), 0.01f);
+            var fromPosition = owner.Position;
+            var fromTarget = owner.Position + owner.Forward * reach;
+            _glides.Add((eased =>
+            {
+                owner.Position = Vector3.Lerp(fromPosition, toPosition, eased);
+                LookAt(owner, Vector3.Lerp(fromTarget, toTarget, eased));
+            }, command.Frames, !command.Background));
+            _glideSteps.Add(0);
+        }
+
+        /// <summary>Moves every glide on a frame; true while a blocking one is still going.</summary>
+        private bool StepGlides()
+        {
+            var blocking = false;
+            for (var i = _glides.Count - 1; i >= 0; i--)
+            {
+                var (apply, frames, blocks) = _glides[i];
+                var step = ++_glideSteps[i];
+                var t = Math.Clamp((float)step / frames, 0.0f, 1.0f);
+                apply(t * t * (3.0f - 2.0f * t));
+                if (step >= frames)
+                {
+                    _glides.RemoveAt(i);
+                    _glideSteps.RemoveAt(i);
+                }
+                else
+                {
+                    blocking |= blocks;
+                }
+            }
+            return blocking;
+        }
+
+        private static Vector3 ToVector3(float[] values) => new(values[0], values[1], values[2]);
+
         private void ApplyMoveCamera(ManaCommand command)
         {
             var owner = _context.World.MainCamera.Owner;
@@ -432,21 +513,26 @@ namespace ManaVoxel.Code.Automation
 
             if (command.Target is { Length: 3 } target)
             {
-                var direction = new Vector3(target[0], target[1], target[2]) - owner.Position;
-                if (direction.LengthSquared() < 1e-8f)
-                {
-                    return;
-                }
-
-                var forward = Vector3.Normalize(direction);
-
-                // Inverse of ManaSceneNode.Forward's own mapping (CreateFromYawPitchRoll(yaw=Rotation.Y,
-                // pitch=Rotation.X, roll=0) applied to local -Z): forward = (-cos(pitch)*sin(yaw),
-                // sin(pitch), -cos(pitch)*cos(yaw)).
-                var pitch = MathF.Asin(Math.Clamp(forward.Y, -1f, 1f));
-                var yaw = MathF.Atan2(-forward.X, -forward.Z);
-                owner.Rotation = new Vector3(pitch, yaw, 0.0f);
+                LookAt(owner, ToVector3(target));
             }
+        }
+
+        private static void LookAt(ManaSceneNode owner, Vector3 target)
+        {
+            var direction = target - owner.Position;
+            if (direction.LengthSquared() < 1e-8f)
+            {
+                return;
+            }
+
+            var forward = Vector3.Normalize(direction);
+
+            // Inverse of ManaSceneNode.Forward's own mapping (CreateFromYawPitchRoll(yaw=Rotation.Y,
+            // pitch=Rotation.X, roll=0) applied to local -Z): forward = (-cos(pitch)*sin(yaw),
+            // sin(pitch), -cos(pitch)*cos(yaw)).
+            var pitch = MathF.Asin(Math.Clamp(forward.Y, -1f, 1f));
+            var yaw = MathF.Atan2(-forward.X, -forward.Z);
+            owner.Rotation = new Vector3(pitch, yaw, 0.0f);
         }
     }
 }

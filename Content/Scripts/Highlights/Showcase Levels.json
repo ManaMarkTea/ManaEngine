@@ -1,0 +1,419 @@
+[
+ {
+  "type": "gizmos",
+  "visible": false
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Flight Helmet.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   42,
+   7,
+   48
+  ],
+  "target": [
+   32,
+   2.9,
+   32
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.48,
+  "frames": 240,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   36.2,
+   3.9,
+   38
+  ],
+  "target": [
+   32,
+   2.9,
+   32
+  ],
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ flight-helmet-sunset.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/PBR Gallery.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.16
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   30,
+   7,
+   70
+  ],
+  "target": [
+   49,
+   2.4,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   49,
+   4.4,
+   63
+  ],
+  "target": [
+   49,
+   2.4,
+   44
+  ],
+  "frames": 180
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ pbr-gallery.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Little Pond.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   32,
+   16,
+   64
+  ],
+  "target": [
+   32,
+   1,
+   32
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.43,
+  "frames": 200,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   45,
+   5,
+   48
+  ],
+  "target": [
+   32,
+   1,
+   32
+  ],
+  "frames": 200
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ little-pond-evening.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Planet Showcase.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 900
+ },
+ {
+  "type": "sky",
+  "name": "Space"
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   32,
+   60,
+   230
+  ],
+  "target": [
+   32,
+   40,
+   32
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 60
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   78,
+   50,
+   120
+  ],
+  "target": [
+   32,
+   40,
+   32
+  ],
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ planet-in-space.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Prefab Lamps.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.45
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   30,
+   6,
+   60
+  ],
+  "target": [
+   40,
+   0.8,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.97,
+  "frames": 240,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   40,
+   2.6,
+   53
+  ],
+  "target": [
+   40,
+   0.8,
+   44
+  ],
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ prefab-lamps-night.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Voxel Showcase.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.22
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   20,
+   40,
+   180
+  ],
+  "target": [
+   44,
+   16,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   66,
+   30,
+   150
+  ],
+  "target": [
+   44,
+   16,
+   40
+  ],
+  "frames": 180
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ voxel-captain.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Little Train Yard.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   30,
+   30,
+   120
+  ],
+  "target": [
+   64,
+   0,
+   62
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   64,
+   16,
+   104
+  ],
+  "target": [
+   64,
+   0,
+   62
+  ],
+  "frames": 180
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ train-yard.png",
+  "clean": true
+ },
+ {
+  "type": "play"
+ },
+ {
+  "type": "wait",
+  "frames": 420
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ train-yard-in-motion.png",
+  "clean": true
+ },
+ {
+  "type": "stop_play"
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "quit"
+ }
+]

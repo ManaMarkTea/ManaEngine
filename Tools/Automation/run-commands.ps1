@@ -9,6 +9,12 @@
     Writes Artifacts/Automation/sample.png (the screenshot), sample.json (the script) and sample.log (the editor's
     console). @@OUT@@ in the script becomes Artifacts/Automation/<Name>.png; add a suffix for several shots
     ("@@OUT@@.left.png").
+
+.EXAMPLE
+    ./Tools/Automation/run-commands.ps1 -Name highlights -File Content/Scripts/Highlights/Levels.json
+
+    @@PHOTO@@ becomes DevPhotos/<today's date>, so "@@PHOTO@@ flight-helmet.png" is a DevPhotos entry. Pass
+    -PhotoDir to send them elsewhere for a look first (-PhotoDir Artifacts/Automation/photos).
 #>
 param(
     [Parameter(Mandatory)] [string] $Name,
@@ -19,6 +25,7 @@ param(
     #   dotnet build ManaVoxel -o Artifacts/AutomationBin
     [string] $Exe,
     [string] $Out,
+    [string] $PhotoDir,
     [int] $TimeoutSeconds = 300
 )
 
@@ -36,6 +43,10 @@ if (-not $script) { throw "Pass -Commands (JSON) or -File." }
 $outPath = (Join-Path $Out $Name) -replace '\\', '/'
 # Case-sensitive: "screenshot" must not be mistaken for a placeholder.
 $script = $script.Replace('@@OUT@@', "$outPath.png")
+if (-not $PhotoDir) { $PhotoDir = Join-Path $repo "DevPhotos" }
+New-Item -ItemType Directory -Force $PhotoDir | Out-Null
+$photoPrefix = (Join-Path (Resolve-Path $PhotoDir) (Get-Date -Format "yyyy-MM-dd")) -replace '\\', '/'
+$script = $script.Replace('@@PHOTO@@', $photoPrefix)
 $scriptPath = Join-Path $Out "$Name.json"
 $logPath = Join-Path $Out "$Name.log"
 Set-Content -Path $scriptPath -Value $script
@@ -51,3 +62,7 @@ if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
 # What the script reported (log_player, open_prefab...), and anything that went wrong.
 Select-String -Path $logPath -Pattern "Command file|xception|warning\(s\)" | ForEach-Object { $_.Line }
 Get-ChildItem -Path $Out -Filter "$Name*.png" | ForEach-Object { "shot: $($_.FullName)" }
+if ($script.Contains($photoPrefix)) {
+    Get-ChildItem -Path $PhotoDir -Filter "*.png" | Where-Object { $_.LastWriteTime -gt $process.StartTime } |
+        ForEach-Object { "photo: $($_.FullName)" }
+}

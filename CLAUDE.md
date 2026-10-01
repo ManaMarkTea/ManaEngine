@@ -55,7 +55,8 @@ The editor can be driven by a JSON script instead of a person: `ManaVoxel --comm
 steps one per frame (`ManaVoxel/Code/Automation/ManaCommandRunner.cs`, format in `ManaCommandFile.cs`) and is how
 anything visual or interactive gets checked -- in-app screenshots, not desktop captures (those can show the user's
 other windows). `Tools/Automation/run-commands.ps1` does the plumbing: writes the script, runs the editor from the
-repo root, waits for it to quit and prints what it reported. `@@OUT@@` in a path becomes `Artifacts/Automation/<Name>.png`.
+repo root, waits for it to quit and prints what it reported. `@@OUT@@` in a path becomes `Artifacts/Automation/<Name>.png`;
+`@@PHOTO@@` becomes `DevPhotos/<today>` (`-PhotoDir` sends those somewhere else for a look first).
 
 ```powershell
 dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a running editor or debugger is no problem
@@ -71,13 +72,14 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 |---|---|---|
 | `open_level` | `path` | Opens a level in the editor, as File > Open does |
 | `wait` | `frames` | Holds that many rendered frames (loading, physics settling, an animation) |
-| `move_camera` | `position`, `target` | Puts the editor camera somewhere, facing a point |
+| `move_camera` | `position`, `target`, `frames`, `background` | Puts the editor camera somewhere, facing a point; with `frames`, glides there eased (`background` lets the script go on meanwhile) |
 | `select_node` | `name` | Selects a node by name (brings up its Inspector and gizmo) |
-| `screenshot` | `path` | Writes the next frame to a PNG (WebGPU only) |
+| `screenshot` | `path`, `clean` | Writes the next frame to a PNG (WebGPU only); `clean` leaves out every panel and the HUD -- the scene across the whole window |
+| `gizmos` | `visible` | Editor helpers (axes, markers) on or off -- off for pictures |
 | `play` / `stop_play` | | Enters and leaves play mode (F5) |
 | `teleport_player` | `position` | While playing, moves the character -- to look at a stretch of a level without walking there |
 | `log_player` | `name` | While playing, logs `Command file: player <name> at <feet>, grounded <bool>` |
-| `sky` | `name`, `timeOfDay` | Sky mode by name (`Day`, `DayNightCycle`, `Space`, `Photo`); a time of day holds the cycle still |
+| `sky` | `name`, `timeOfDay`, `frames`, `background` | Sky mode by name (`Day`, `DayNightCycle`, `Space`, `Photo`); a time of day holds the cycle still, and with `frames` the day runs forward to it |
 | `dirty_report` | `path` | Writes each open level's saved snapshot and a fresh capture (`<path>.saved.json`, `.now.json`) -- identical means it opens unchanged |
 | `open_prefab` / `open_asset` / `review_changes` | `path` / `path` / `name` | Edit Prefab; a sheet or slice in the Sprite Asset window (or rules in the Generator); Review Changes on an instance |
 | `open_panel` / `open_tools` | `name` / | Brings up a panel by id; opens the viewport tools drawer |
@@ -104,7 +106,9 @@ Patterns that work:
   they keep moving along their path.
 - **A picture of play:** `play`, `wait` ~120 frames, `screenshot`. Editor screenshots include the panels: crop to
   the viewport, whose rectangle depends on the layout (open the PNG once and read it off).
-- Scripts and their outputs belong in `Artifacts/` or the session scratchpad, never in the repo.
+- Scripts worth keeping -- tours, highlight reels, demos -- live in `Content/Scripts/` (`Highlights/Showcase Levels.json`,
+  `Highlights/Sample Course Tour.json` shoot DevPhotos with `@@PHOTO@@`); one-off scripts and every output belong in
+  `Artifacts/` or the session scratchpad.
 
 ## Testing the web build
 

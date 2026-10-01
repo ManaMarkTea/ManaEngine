@@ -422,7 +422,8 @@ namespace ManaGraphics.Code.Graphics
         private void DrawManaUi(RenderPassEncoder* renderPass)
         {
             var root = UiRoot;
-            if (root == null)
+            // The scene draws across the whole window under the panels, so leaving them out is a clean picture.
+            if (root == null || _pendingScreenshot is { WithoutUi: true })
             {
                 return;
             }

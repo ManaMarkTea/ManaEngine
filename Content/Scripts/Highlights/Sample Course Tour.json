@@ -1,0 +1,202 @@
+[
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Sample Course.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "gizmos",
+  "visible": false
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.2
+ },
+ {
+  "type": "play"
+ },
+ {
+  "type": "wait",
+  "frames": 120
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   47,
+   1.3,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "log_player",
+  "name": "course-road-boost"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-road-boost.png",
+  "clean": true
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   90,
+   1.3,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "log_player",
+  "name": "course-container-yard"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-container-yard.png",
+  "clean": true
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   118,
+   1.8,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "log_player",
+  "name": "course-harbor-islands"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-harbor-islands.png",
+  "clean": true
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   111.5,
+   3.2,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 100
+ },
+ {
+  "type": "log_player",
+  "name": "course-ferry-ride"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-ferry-ride.png",
+  "clean": true
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   139.5,
+   4.0,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "log_player",
+  "name": "course-rail-yard"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-rail-yard.png",
+  "clean": true
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   168,
+   4.6,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 220
+ },
+ {
+  "type": "log_player",
+  "name": "course-cargo-lift"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-cargo-lift.png",
+  "clean": true
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   175,
+   4.6,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "log_player",
+  "name": "course-finish"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-finish.png",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.48,
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 60
+ },
+ {
+  "type": "log_player",
+  "name": "course-finish-sunset"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@PHOTO@@ course-finish-sunset.png",
+  "clean": true
+ },
+ {
+  "type": "stop_play"
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "quit"
+ }
+]

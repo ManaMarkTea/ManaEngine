@@ -19,7 +19,7 @@ namespace ManaGraphics.Code.Graphics
         // nint rather than WebGpuBuffer* -- see ThumbnailDrawResources's own nint fields in
         // ManaWebGpuContext.Thumbnail.cs for why: a pointer type can't be a generic type argument, and
         // both of these travel through a Nullable<T>.
-        private readonly record struct PendingScreenshotRequest(string Path, TaskCompletionSource Completion);
+        private readonly record struct PendingScreenshotRequest(string Path, TaskCompletionSource Completion, bool WithoutUi = false);
 
         private readonly record struct EncodedScreenshotCopy(
             nint OutputBuffer, ulong ByteCount, uint PaddedRowBytes, uint Width, uint Height, PendingScreenshotRequest Request);
@@ -30,7 +30,8 @@ namespace ManaGraphics.Code.Graphics
         /// Saves the next frame this context renders to <paramref name="path"/> as a PNG. Render-thread
         /// only (ManaCommandRunner's own caller already is), and only one capture in flight at a time.
         /// </summary>
-        public Task CaptureFrameAsync(string path)
+        /// <param name="withoutUi">Leave ManaUI out of that frame: the scene alone, across the whole window.</param>
+        public Task CaptureFrameAsync(string path, bool withoutUi = false)
         {
             if (_pendingScreenshot != null)
             {
@@ -38,7 +39,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            _pendingScreenshot = new PendingScreenshotRequest(path, completion);
+            _pendingScreenshot = new PendingScreenshotRequest(path, completion, withoutUi);
             return completion.Task;
         }
 
