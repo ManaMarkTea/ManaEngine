@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using Mana;
 using Mana.Code;
@@ -295,6 +296,7 @@ namespace ManaVoxel.Code.Levels
             }
         }
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         private static ManaSceneNode? LoadNode(ManaLevelNode entry, LoadState state, ManaSceneNode? parent)
         {
             switch (entry.Kind)
@@ -689,6 +691,7 @@ namespace ManaVoxel.Code.Levels
             var text = System.Text.Json.JsonSerializer.Serialize(script.Properties);
             var packs = new HashSet<string>(PackReference.Matches(text).Select(match => match.Groups[1].Value), StringComparer.OrdinalIgnoreCase);
             foreach (System.Text.RegularExpressions.Match asset in SpriteAssetPath.Matches(text))
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
             {
                 var file = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, asset.Groups[1].Value);
                 if (File.Exists(file))

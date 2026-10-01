@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET 10 SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
           cache: true
@@ -45,12 +45,12 @@ jobs:
         run: echo "version=$(dotnet --version)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Cache wasm-tools workload packs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.dotnet/packs
@@ -114,13 +114,13 @@ jobs:
           cp Tools/WebAssets/pages-index.html pages-site/index.html
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: pages-site
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: Upload web editor to itch.io
         uses: KikimoraGames/itch-publish@v0.0.3

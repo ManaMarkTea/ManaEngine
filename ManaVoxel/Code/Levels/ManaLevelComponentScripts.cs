@@ -15,6 +15,8 @@ namespace ManaVoxel.Code.Levels
     {
         public required string Type { get; init; }
 
+        // Kept by the trimmer: their public properties are what a level saves.
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)]
         public required Type ComponentType { get; init; }
 
         public required Func<ManaSceneNode, ManaComponent> Create { get; init; }
@@ -256,7 +258,10 @@ namespace ManaVoxel.Code.Levels
 
     internal static class ManaLevelComponentPropertyBag
     {
-        public static Dictionary<string, JsonElement> Capture(ManaComponent component, Type componentType)
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Property types are kept by the annotation on componentType; the web build turns reflection JSON on.")]
+        public static Dictionary<string, JsonElement> Capture(
+            ManaComponent component,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] Type componentType)
         {
             var properties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
 
@@ -285,9 +290,10 @@ namespace ManaVoxel.Code.Levels
             return properties;
         }
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Property types are kept by the annotation on componentType; the web build turns reflection JSON on.")]
         public static void Apply(
             ManaComponent component,
-            Type componentType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] Type componentType,
             IReadOnlyDictionary<string, JsonElement> properties)
         {
             foreach (var property in SerializableProperties(componentType))
@@ -327,7 +333,8 @@ namespace ManaVoxel.Code.Levels
             return false;
         }
 
-        private static IEnumerable<PropertyInfo> SerializableProperties(Type componentType)
+        private static IEnumerable<PropertyInfo> SerializableProperties(
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] Type componentType)
         {
             return componentType
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)

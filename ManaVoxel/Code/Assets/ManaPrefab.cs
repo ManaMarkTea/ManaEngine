@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mana.Code.Levels;
@@ -42,6 +43,7 @@ namespace ManaVoxel.Code.Assets
 
         private const int MaxVariantDepth = 8;
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public static ManaPrefab Load(string path)
         {
             var json = File.ReadAllText(path);
@@ -81,6 +83,7 @@ namespace ManaVoxel.Code.Assets
         /// A new variant of a prefab: its tree to start from, its exposed properties, and no changes yet.
         /// <paramref name="basePath"/> is the base's file, so the variant can find it again.
         /// </summary>
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public static ManaPrefab CreateVariant(ManaPrefab source, string basePath, string name)
         {
             var root = JsonSerializer.Deserialize<ManaLevelNode>(JsonSerializer.Serialize(source.Root, ManaLevel.SerializerOptions), ManaLevel.SerializerOptions)!;
@@ -171,6 +174,7 @@ namespace ManaVoxel.Code.Assets
             }
         }
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public void Save(string path)
         {
             Validate();
@@ -239,6 +243,7 @@ namespace ManaVoxel.Code.Assets
     /// <summary>Diffs a tree by persistent IDs, never names or sibling indices.</summary>
     public static class ManaPrefabOverrides
     {
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public static JsonObject Flatten(ManaLevelNode root)
         {
             var nodes = new JsonObject();
@@ -304,6 +309,7 @@ namespace ManaVoxel.Code.Assets
             return result;
         }
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public static ManaLevelNode Resolve(ManaLevelNode source, IEnumerable<ManaPrefabOverride> overrides, IList<string>? warnings = null)
         {
             var nodes = Flatten(source);

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Mana;
@@ -122,6 +123,7 @@ namespace ManaVoxel.Code.Gameplay.Course
         /// that way still load: the level loader hands those two values to the piece, which passes them on to the
         /// node's trigger. Newer levels carry a Trigger script of their own instead.
         /// </summary>
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Vector3 is read by the options' own converter, not by reflection.")]
         internal void ApplyLegacyVolume(IReadOnlyDictionary<string, JsonElement> properties, JsonSerializerOptions options)
         {
             if (properties.TryGetValue("size", out var size))

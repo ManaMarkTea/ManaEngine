@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Mana.Code.Levels;
@@ -60,6 +61,9 @@ namespace ManaVoxel.Code.Levels
 
         // ---- File I/O ---------------------------------------------------------------------------------
 
+        // Why level JSON may use reflection in a trimmed build: ManaVoxel.Web roots these DTOs and turns it back on.
+        internal const string ReflectionJson = "Level and prefab DTOs are rooted by the web build (TrimmerRootAssembly), which enables reflection JSON.";
+
         internal static readonly JsonSerializerOptions SerializerOptions = new()
         {
             WriteIndented = true,
@@ -69,8 +73,10 @@ namespace ManaVoxel.Code.Levels
             Converters = { new JsonStringEnumConverter(), new ManaLevelVector2Converter(), new ManaLevelVector3Converter(), new ManaLevelVector4Converter(), new ManaComponentReferenceConverter() }
         };
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public string ToJson() => ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(this, SerializerOptions));
 
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
         public static ManaLevel FromJson(string json)
         {
             var level = JsonSerializer.Deserialize<ManaLevel>(json, SerializerOptions)
