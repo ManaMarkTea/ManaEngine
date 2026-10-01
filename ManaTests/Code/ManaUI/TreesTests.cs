@@ -236,6 +236,25 @@ public static class TreeChecks
             $"{visibleRows} of {bigView.RealizedRowCount} realised rows intersect the viewport");
         Check("scrolled content still renders", root.Render().InstanceCount > 5);
 
+        // The tree shrinking under a scrolled viewport (the Outliner as play starts) left the offset past the
+        // last row, and measuring threw before the scroller could clamp it.
+        bigView.Collapse(deep);
+        string? shrunk = null;
+        try
+        {
+            root.UpdateLayout(new Vector2(400, 500));
+        }
+        catch (ArgumentException exception)
+        {
+            shrunk = exception.Message;
+        }
+        Check("shrinking while scrolled measures", shrunk == null, shrunk ?? "");
+        Check("shrinking while scrolled still shows the rows", bigView.RealizedRowCount == bigView.VisibleItems.Count,
+            $"{bigView.RealizedRowCount} of {bigView.VisibleItems.Count}");
+        bigView.Expand(deep);
+        bigScroller.Offset = new Vector2(0.0f, 1000.0f);
+        root.UpdateLayout(new Vector2(400, 500));
+
         // Rebuilding every frame -- what a live scene graph forces -- must stay cheap.
         var rebuildCounter = 0;
         bigView.StructureSignature = () => rebuildCounter;

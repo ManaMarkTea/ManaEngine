@@ -431,8 +431,9 @@ namespace ManaUI
                 return (0, total);
             }
 
-            var first = Math.Max(0, (int)(scroller.Offset.Y / rowHeight) - Overscan);
             var visible = (int)MathF.Ceiling(viewportHeight / rowHeight) + Overscan * 2;
+            // The offset can still be the old one after the tree shrinks; keep the window on the last rows.
+            var first = Math.Clamp((int)(scroller.Offset.Y / rowHeight) - Overscan, 0, Math.Max(0, total - visible));
 
             return (first, Math.Clamp(visible, 0, total - first));
         }
