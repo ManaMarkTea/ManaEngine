@@ -32,7 +32,8 @@ fn mana_sun_shadow_factor(world_position : vec3<f32>, normal : vec3<f32>, ndotl 
     // tall casters, so a depth-fraction bias came to metres at a low sun and lifted shadows off their casters.
     // The ortho matrix's own scales give this cascade's texel size and depth range.
     let m = light_view_projection;
-    let texel_metres = 2.0 / (length(vec3<f32>(m[0].x, m[1].x, m[2].x)) * f32(2048));
+    let map_size = vec2<f32>(textureDimensions(shadow_map));
+    let texel_metres = 2.0 / (length(vec3<f32>(m[0].x, m[1].x, m[2].x)) * map_size.x);
     let depth_per_metre = length(vec3<f32>(m[0].z, m[1].z, m[2].z));
     let sin_light = sqrt(max(1.0 - ndotl * ndotl, 0.0));
     let offset_position = world_position + normalize(normal) * texel_metres * (0.5 + 1.5 * sin_light);
@@ -55,18 +56,21 @@ fn mana_sun_shadow_factor(world_position : vec3<f32>, normal : vec3<f32>, ndotl 
     // The normal offset above keeps a surface from shadowing itself; this covers what is left of a texel's depth.
     let shadow_depth = light_ndc.z - texel_metres * 0.5 * depth_per_metre;
 
-    // 3x3 manual PCF: the comparison sampler itself is Nearest (see CreateShadowMapResources), so the
-    // softening comes entirely from this multi-tap average rather than hardware-filtered comparison,
-    // which wgpu backends support inconsistently.
-    let texel_size = 1.0 / f32(2048);
-    var occluded_sum = 0.0;
-    for (var ox = -1; ox <= 1; ox = ox + 1) {
-        for (var oy = -1; oy <= 1; oy = oy + 1) {
-            let offset = vec2<f32>(f32(ox), f32(oy)) * texel_size;
-            occluded_sum = occluded_sum + textureSampleCompareLevel(
-                shadow_map, shadow_sampler, shadow_uv + offset, i32(cascade), shadow_depth);
+    // A 3x3 tent of bilinear comparisons, done by hand over the 4x4 texels it touches: the comparison sampler is
+    // Nearest (see CreateShadowMapResources), and plain nearest taps drew every edge as a staircase of texels.
+    // Each texel's weight is how much of the tent covers it -- 1 inside, the fractional position at the rim.
+    let texel = shadow_uv * map_size - vec2<f32>(0.5);
+    let base = floor(texel);
+    let f = texel - base;
+    var wx = array<f32, 4>(1.0 - f.x, 1.0, 1.0, f.x);
+    var wy = array<f32, 4>(1.0 - f.y, 1.0, 1.0, f.y);
+    var lit = 0.0;
+    for (var ix = 0; ix < 4; ix = ix + 1) {
+        for (var iy = 0; iy < 4; iy = iy + 1) {
+            let uv = (base + vec2<f32>(f32(ix - 1), f32(iy - 1)) + vec2<f32>(0.5)) / map_size;
+            lit = lit + wx[ix] * wy[iy] * textureSampleCompareLevel(shadow_map, shadow_sampler, uv, i32(cascade), shadow_depth);
         }
     }
 
-    return occluded_sum / 9.0;
+    return lit / 9.0;
 }

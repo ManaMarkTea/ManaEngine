@@ -20,7 +20,12 @@ namespace ManaGraphics.Code.Graphics
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
         private const int CascadeCount = 3;
+        // Per cascade. 4096 on desktop (three Depth32 layers, about 200 MB); the browser keeps 2048, where memory is tighter.
+#if MANA_BROWSER
         private const int ShadowMapResolution = 2048;
+#else
+        private const int ShadowMapResolution = 4096;
+#endif
         // Shadows reach this far from the camera. Three cascades over 300 units left each texel too coarse
         // for anything the size of a lamp post to cast a shadow worth the name.
         private const float MaxShadowDistance = 150.0f;
@@ -348,8 +353,8 @@ namespace ManaGraphics.Code.Graphics
 
             Span<float> splits = stackalloc float[CascadeCount];
             // Mostly logarithmic, so the nearest cascade is a few metres deep and its texels a few millimetres
-            // across; at 0.6 it reached 20 m and a shadow at your feet was drawn in blocks.
-            const float splitLambda = 0.9f;
+            // across; at 0.6 it reached 20 m and a shadow at your feet was drawn in blocks, at 0.9 still 5.7 m.
+            const float splitLambda = 0.95f;
             for (var i = 0; i < CascadeCount; i++)
             {
                 var p = (i + 1) / (float)CascadeCount;
