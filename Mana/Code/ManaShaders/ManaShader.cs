@@ -5,6 +5,7 @@ using Mana.Code.Nodes;
 using Silk.NET.OpenGL;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace Mana
@@ -146,7 +147,8 @@ namespace Mana
         }
 
 
-        public static Dictionary<string, FileSystemWatcher> WatchedSources = new Dictionary<string, FileSystemWatcher>();
+        // Watchers by folder, held so they keep running; IDisposable because the browser has no FileSystemWatcher.
+        public static Dictionary<string, IDisposable> WatchedSources = new Dictionary<string, IDisposable>();
         public static Dictionary<string, ShaderSource> ShaderSources = new Dictionary<string, ShaderSource>();
 
         private static string ResolveShaderPath(string shaderFile)
@@ -197,7 +199,7 @@ namespace Mana
             Encoding encoding = Encoding.UTF8;
 
             var watchPath = Path.GetDirectoryName(resolvedPath);
-            if (!string.IsNullOrEmpty(watchPath) && Directory.Exists(watchPath) && !WatchedSources.ContainsKey(watchPath))
+            if (!OperatingSystem.IsBrowser() && !string.IsNullOrEmpty(watchPath) && Directory.Exists(watchPath) && !WatchedSources.ContainsKey(watchPath))
             {
                 FileSystemWatcher watcher = new FileSystemWatcher(watchPath);
                 watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime;
@@ -217,7 +219,7 @@ namespace Mana
             var fullDevPath = Path.Combine(devAssetFolder, shaderFile);
             var watchDevPath = Path.GetDirectoryName(fullDevPath);
 
-            if (Directory.Exists(watchDevPath) && !WatchedSources.ContainsKey(watchDevPath))
+            if (!OperatingSystem.IsBrowser() && Directory.Exists(watchDevPath) && !WatchedSources.ContainsKey(watchDevPath))
             {
                 FileSystemWatcher watcher = new FileSystemWatcher(watchDevPath);
                 watcher.EnableRaisingEvents = true;
@@ -238,6 +240,7 @@ skipDevWatch:
             return output;
         }
 
+        [UnsupportedOSPlatform("browser")]
         private static void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
             foreach (var fileNotification in ShaderSources)

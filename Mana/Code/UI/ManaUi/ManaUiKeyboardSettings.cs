@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace Mana.Code.UI.ManaUi
 {
@@ -94,6 +95,7 @@ namespace Mana.Code.UI.ManaUi
         /// macOS stores both values in global preferences, counted in 1/60s ticks. Read through `defaults`
         /// rather than a native API so this stays free of an AppKit dependency; it runs once at startup.
         /// </summary>
+        [SupportedOSPlatform("macos")]
         private static (double, double) ReadMacOs()
         {
             var initial = ReadMacOsDefault("InitialKeyRepeat");
@@ -116,6 +118,7 @@ namespace Mana.Code.UI.ManaUi
             return ticks / 60.0;
         }
 
+        [SupportedOSPlatform("macos")]
         private static double? ReadMacOsDefault(string key)
         {
             using var process = Process.Start(new ProcessStartInfo("defaults", $"read -g {key}")
