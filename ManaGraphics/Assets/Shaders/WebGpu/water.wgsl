@@ -10,6 +10,7 @@ struct VertexOutput {
 };
 
 #include "include/uniforms.wgsl"
+#include "include/point_lights.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
@@ -237,11 +238,33 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     let base_color = mix(custom.deepColor, custom.shallowColor, diffuse) * input.color.rgb;
 
+    // Lit like everything else: ambient that falls with ManaSky's daylight, the sun (or moon), and placed
+    // lamps -- before, the water glowed the same at midnight as at noon.
+    let daylight = frame.irradiance_factors.w;
+    var light = vec3<f32>(mix(0.07, 0.75, daylight));
+    if (frame.sun_direction.w > 0.5) {
+        let sun = max(dot(n, normalize(-frame.sun_direction.xyz)), 0.0);
+        light = light + frame.sun_color.rgb * min(frame.sun_color.a, 4.0) * sun * 0.3;
+    }
+    var lamps = vec3<f32>(0.0);
+    for (var i = 0u; i < 16u; i = i + 1u) {
+        let range = frame.local_light_positions[i].w;
+        if (range <= 0.0) {
+            continue;
+        }
+        let to_light = frame.local_light_positions[i].xyz - input.world_position;
+        let distance = length(to_light);
+        let ndotl = max(dot(n, to_light / max(distance, 0.001)), 0.0);
+        lamps = lamps + frame.local_light_colors[i].rgb * mana_point_light_attenuation(distance, range) * ndotl;
+    }
+    light = light + lamps;
+
     // Mixed toward a brighter shade of the water's own color (not raw white), and mix() rather than
     // additive keeps overlapping rings from stacking up into a blown-out white patch.
     let ripple_tint = custom.shallowColor * 1.5 + vec3<f32>(0.05, 0.08, 0.08);
-    let shaded_color = mix(base_color, ripple_tint, ripple_highlight);
-    let color = shaded_color + vec3<f32>(fresnel * 0.3);
+    let shaded_color = mix(base_color, ripple_tint, ripple_highlight) * light;
+    // The sheen is the sky's reflection, so it fades with the daylight; lamps still catch the ripples.
+    let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight)) + lamps * ripple_highlight * 0.5;
     let alpha = saturate(custom.opacity + fresnel * 0.25 + ripple_highlight * 0.1);
 
     return vec4<f32>(color, alpha);
