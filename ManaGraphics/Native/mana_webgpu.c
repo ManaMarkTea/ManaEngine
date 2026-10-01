@@ -230,7 +230,7 @@ static WGPUVertexStepMode mana_remap_vertex_step_mode(WGPUVertexStepMode v) {
 // Doing it here rather than encoding in each shader also keeps blending correct: with a real sRGB
 // view the GPU decodes, blends in linear, and re-encodes, exactly as desktop does. Hand-encoding
 // in the shaders would blend already-encoded values and quietly change every UI alpha result.
-EM_JS(void, mana_configure_surface_impl, (int surfaceId, int deviceId, int formatInt), {
+EM_JS(void, mana_configure_surface_impl, (int surfaceId, int deviceId, int formatInt, int usage), {
     var context = WebGPU.mgrSurface.get(surfaceId);
     var device = WebGPU.mgrDevice.get(deviceId);
     var format = WebGPU.TextureFormat[formatInt];
@@ -245,6 +245,8 @@ EM_JS(void, mana_configure_surface_impl, (int surfaceId, int deviceId, int forma
         device: device,
         format: base,
         viewFormats: viewFormats,
+        // The canvas defaults to RenderAttachment only; the UI blur copies the frame out (CopySrc).
+        usage: usage,
         alphaMode: 'opaque'
     });
 });
@@ -664,7 +666,7 @@ typedef struct {
 } ManaSurfaceTexture;
 
 void mana_wgpuSurfaceConfigure(WGPUSurface surface, ManaSurfaceConfiguration const* config) {
-    mana_configure_surface_impl((int)(intptr_t)surface, (int)(intptr_t)config->device, (int)config->format);
+    mana_configure_surface_impl((int)(intptr_t)surface, (int)(intptr_t)config->device, (int)config->format, (int)config->usage);
 }
 
 void mana_wgpuSurfaceGetCurrentTexture(WGPUSurface surface, ManaSurfaceTexture* surfaceTexture) {
