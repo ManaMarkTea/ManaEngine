@@ -232,7 +232,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     var shadow = 1.0;
     if (frame.sun_direction.w > 0.5) {
         let sun_ndotl = max(dot(normalize(input.world_normal), normalize(-frame.sun_direction.xyz)), 0.0);
-        shadow = mana_sun_shadow_factor(input.world_position, sun_ndotl);
+        shadow = mana_sun_shadow_factor(input.world_position, input.world_normal, sun_ndotl);
     }
     colorVal = vec4<f32>(colorVal.rgb * mix(0.35, 1.0, shadow), colorVal.a);
 

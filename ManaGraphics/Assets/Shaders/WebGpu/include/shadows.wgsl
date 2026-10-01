@@ -11,7 +11,7 @@
 // Cascade picked by Euclidean distance from the camera rather than strict view-space Z (the frame uniform
 // does not carry a separate View matrix, only the combined view_projection) -- close enough at the FOVs
 // this engine uses, and simpler than threading another matrix through just for this.
-fn mana_sun_shadow_factor(world_position : vec3<f32>, ndotl : f32) -> f32 {
+fn mana_sun_shadow_factor(world_position : vec3<f32>, normal : vec3<f32>, ndotl : f32) -> f32 {
     if (ndotl <= 0.0) {
         return 0.0;
     }
@@ -28,7 +28,16 @@ fn mana_sun_shadow_factor(world_position : vec3<f32>, ndotl : f32) -> f32 {
         light_view_projection = frame.cascade_view_projections[1];
     }
 
-    let light_clip = light_view_projection * vec4<f32>(world_position, 1.0);
+    // Biased in metres, a shadow texel or so, not as a share of the light box's depth: that box runs 200 m back for
+    // tall casters, so a depth-fraction bias came to metres at a low sun and lifted shadows off their casters.
+    // The ortho matrix's own scales give this cascade's texel size and depth range.
+    let m = light_view_projection;
+    let texel_metres = 2.0 / (length(vec3<f32>(m[0].x, m[1].x, m[2].x)) * f32(2048));
+    let depth_per_metre = length(vec3<f32>(m[0].z, m[1].z, m[2].z));
+    let sin_light = sqrt(max(1.0 - ndotl * ndotl, 0.0));
+    let offset_position = world_position + normalize(normal) * texel_metres * (0.5 + 1.5 * sin_light);
+
+    let light_clip = light_view_projection * vec4<f32>(offset_position, 1.0);
     if (light_clip.w <= 0.0) {
         return 1.0;
     }
@@ -43,12 +52,8 @@ fn mana_sun_shadow_factor(world_position : vec3<f32>, ndotl : f32) -> f32 {
 
     let shadow_uv = light_ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5, 0.5);
 
-    // Pulled towards the light, more so on surfaces the light grazes, so a surface never shadows itself
-    // with the stair-step pattern of its own depth texels. Scaled per cascade: farther ones cover more
-    // ground per texel.
-    let slope = sqrt(max(1.0 - ndotl * ndotl, 0.0)) / max(ndotl, 0.1);
-    let bias = (0.00025 + 0.0006 * min(slope, 8.0)) * f32(cascade + 1u);
-    let shadow_depth = light_ndc.z - bias;
+    // The normal offset above keeps a surface from shadowing itself; this covers what is left of a texel's depth.
+    let shadow_depth = light_ndc.z - texel_metres * 0.5 * depth_per_metre;
 
     // 3x3 manual PCF: the comparison sampler itself is Nearest (see CreateShadowMapResources), so the
     // softening comes entirely from this multi-tap average rather than hardware-filtered comparison,

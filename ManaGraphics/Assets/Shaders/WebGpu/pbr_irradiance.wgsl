@@ -270,7 +270,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
 
         let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
-        let shadow = mana_sun_shadow_factor(input.world_position, ndotl);
+        let shadow = mana_sun_shadow_factor(input.world_position, n, ndotl);
         direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl * shadow;
     }
 
