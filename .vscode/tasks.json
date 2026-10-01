@@ -1,14 +1,146 @@
 {
   "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "presentation": {
+    "reveal": "always",
+    "panel": "dedicated",
+    "clear": true
+  },
   "tasks": [
     {
-      "label": "run ManaTests",
+      "label": "Build: choose project...",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/${input:project}",
+        "--configuration",
+        "${input:configuration}",
+        "--nologo"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "Select a project or desktop solution and Debug/Release."
+    },
+    {
+      "label": "Clean: choose project...",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "clean",
+        "${workspaceFolder}/${input:project}",
+        "--configuration",
+        "${input:configuration}",
+        "--nologo"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "Select a project or desktop solution and Debug/Release."
+    },
+    {
+      "label": "Clean build: choose project...",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/${input:project}",
+        "--configuration",
+        "${input:configuration}",
+        "--nologo",
+        "-t:Rebuild"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "detail": "Select a project or desktop solution and Debug/Release. Cleans and rebuilds its dependencies."
+    },
+    {
+      "label": "Build: ManaVoxel (Debug)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
+        "-c",
+        "Debug",
+        "--nologo"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Build: ManaSceneViewer (Debug)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/ManaSceneViewer/ManaSceneViewer.csproj",
+        "-c",
+        "Debug",
+        "--nologo"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "Build: ManaTests (Debug)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/ManaTests/ManaTests.csproj",
+        "-c",
+        "Debug",
+        "--nologo"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "Run: ManaVoxel",
       "type": "process",
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/ManaTests/ManaTests.csproj"
+        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
+        "-c",
+        "${input:configuration}",
+        "--",
+        "--graphics",
+        "${input:backend}"
+      ],
+      "problemMatcher": "$msCompile",
+      "detail": "Builds and runs the desktop app. Choose WebGPU or OpenGL."
+    },
+    {
+      "label": "Run: ManaSceneViewer",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ManaSceneViewer/ManaSceneViewer.csproj",
+        "-c",
+        "${input:configuration}"
+      ],
+      "problemMatcher": "$msCompile",
+      "detail": "Builds and runs the standalone OpenGL scene viewer."
+    },
+    {
+      "label": "Run: ManaTests",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ManaTests/ManaTests.csproj",
+        "-c",
+        "${input:configuration}"
       ],
       "problemMatcher": "$msCompile",
       "group": {
@@ -17,13 +149,15 @@
       }
     },
     {
-      "label": "run ManaTests GUI",
+      "label": "Run: ManaTests GUI",
       "type": "process",
       "command": "dotnet",
       "args": [
         "run",
         "--project",
         "${workspaceFolder}/ManaTests/ManaTests.csproj",
+        "-c",
+        "${input:configuration}",
         "--",
         "-gui"
       ],
@@ -31,200 +165,241 @@
       "group": "test"
     },
     {
-      "label": "stop active Mana debug session",
-      "type": "process",
-      "command": "sh",
-      "args": [
-        "-c",
-        "exit 0"
-      ],
-      "windows": {
-        "command": "powershell",
-        "args": [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          "${workspaceFolder}/.vscode/stop-active-debug.ps1"
-        ]
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "never",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "build Mana",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "${workspaceFolder}/Mana/Mana.csproj"
-      ],
-      "problemMatcher": "$msCompile",
-      "group": "build"
-    },
-    {
-      "label": "build Mana (debug launch)",
-      "type": "process",
-      "command": "dotnet",
-      "dependsOn": "stop active Mana debug session",
-      "args": [
-        "build",
-        "${workspaceFolder}/Mana/Mana.csproj"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "run Mana WebGPU",
-      "type": "process",
-      "command": "dotnet",
-      "dependsOn": "build ManaVoxel",
-      "args": [
-        "run",
-        "--project",
-        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
-        "--",
-        "--webgpu"
-      ],
-      "options": {
-        "env": {
-          "MANA_WEBGPU_DEMO_MESH": "1"
-        }
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "build ManaGraphics",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "${workspaceFolder}/ManaGraphics/ManaGraphics.csproj"
-      ],
-      "problemMatcher": "$msCompile",
-      "group": "build"
-    },
-    {
-      "label": "build ManaGraphics (debug launch)",
-      "type": "process",
-      "command": "dotnet",
-      "dependsOn": "stop active Mana debug session",
-      "args": [
-        "build",
-        "${workspaceFolder}/ManaGraphics/ManaGraphics.csproj"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build ManaVoxel",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj"
-      ],
-      "problemMatcher": "$msCompile",
-      "group": "build"
-    },
-    {
-      "label": "build ManaVoxel (debug launch)",
-      "type": "process",
-      "command": "dotnet",
-      "dependsOn": "stop active Mana debug session",
-      "args": [
-        "build",
-        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj"
-      ],
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "run ManaVoxel WebGPU",
-      "type": "process",
-      "command": "dotnet",
-      "dependsOn": "build ManaVoxel",
-      "args": [
-        "run",
-        "--project",
-        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
-        "--",
-        "--webgpu"
-      ],
-      "options": {
-        "env": {
-          "MANA_WEBGPU_DEMO_MESH": "1"
-        }
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "publish ManaVoxel.Web (browser-wasm)",
+      "label": "Publish: ManaVoxel.Web (Release)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "publish",
         "${workspaceFolder}/ManaVoxel.Web/ManaVoxel.Web.csproj",
         "-c",
-        "Release"
+        "Release",
+        "--nologo"
       ],
       "problemMatcher": "$msCompile",
       "group": "build"
     },
     {
-      "label": "serve ManaVoxel.Web (browser play, :8000)",
+      "label": "Serve: ManaVoxel.Web (existing publish)",
       "type": "process",
       "command": "python3",
+      "windows": {
+        "command": "python"
+      },
       "args": [
-        "${workspaceFolder}/ManaVoxel.Web/serve.py"
+        "-u",
+        "${workspaceFolder}/ManaVoxel.Web/serve.py",
+        "8000"
       ],
-      "isBackground": true,
       "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
+      "detail": "Serve existing output at http://localhost:8000; terminate the task to stop."
     },
     {
-      "label": "publish ManaVoxel.Editor.Web (browser-wasm)",
+      "label": "Run: ManaVoxel.Web",
+      "type": "process",
+      "command": "python3",
+      "windows": {
+        "command": "python"
+      },
+      "args": [
+        "-u",
+        "${workspaceFolder}/ManaVoxel.Web/serve.py",
+        "8000"
+      ],
+      "problemMatcher": [],
+      "detail": "Publish Release, then serve at http://localhost:8000. Open the URL in your browser.",
+      "dependsOn": "Publish: ManaVoxel.Web (Release)",
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Publish: ManaVoxel.Editor.Web (Release)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "publish",
         "${workspaceFolder}/ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj",
         "-c",
-        "Release"
+        "Release",
+        "--nologo"
       ],
       "problemMatcher": "$msCompile",
       "group": "build"
     },
     {
-      "label": "serve ManaVoxel.Editor.Web (browser editor, :8002)",
+      "label": "Serve: ManaVoxel.Editor.Web (existing publish)",
       "type": "process",
       "command": "python3",
+      "windows": {
+        "command": "python"
+      },
       "args": [
-        "${workspaceFolder}/ManaVoxel.Editor.Web/serve.py"
+        "-u",
+        "${workspaceFolder}/ManaVoxel.Editor.Web/serve.py",
+        "8002"
       ],
-      "isBackground": true,
       "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
+      "detail": "Serve existing output at http://localhost:8002; terminate the task to stop."
     },
     {
-      "label": "build Mana solution",
+      "label": "Run: ManaVoxel.Editor.Web",
+      "type": "process",
+      "command": "python3",
+      "windows": {
+        "command": "python"
+      },
+      "args": [
+        "-u",
+        "${workspaceFolder}/ManaVoxel.Editor.Web/serve.py",
+        "8002"
+      ],
+      "problemMatcher": [],
+      "detail": "Publish Release, then serve at http://localhost:8002. Open the URL in your browser.",
+      "dependsOn": "Publish: ManaVoxel.Editor.Web (Release)",
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Build: AudioSmoke.Web (Debug)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/Mana/Mana.sln"
+        "${workspaceFolder}/Tools/AudioSmoke.Web/AudioSmoke.Web.csproj",
+        "-c",
+        "Debug",
+        "--nologo"
       ],
       "problemMatcher": "$msCompile",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
+      "hide": true
+    },
+    {
+      "label": "Run: AudioSmoke.Web",
+      "type": "process",
+      "command": "python3",
+      "windows": {
+        "command": "python"
+      },
+      "args": [
+        "-u",
+        "-m",
+        "http.server",
+        "8766",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "${workspaceFolder}/Artifacts/Bin/AudioSmoke.Web/Debug/net10.0/browser-wasm/AppBundle"
+      ],
+      "dependsOn": "Build: AudioSmoke.Web (Debug)",
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "detail": "Build and serve the browser audio harness at http://localhost:8766."
+    },
+    {
+      "label": "Run: ThumbnailBaker",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/Tools/ThumbnailBaker/ThumbnailBaker.csproj",
+        "-c",
+        "${input:configuration}",
+        "--",
+        "--app-bundle",
+        "${input:appBundle}"
+      ],
+      "problemMatcher": "$msCompile",
+      "detail": "Bake thumbnails into an existing published AppBundle."
+    }
+  ],
+  "inputs": [
+    {
+      "id": "project",
+      "type": "pickString",
+      "description": "Project or solution",
+      "options": [
+        {
+          "label": "Desktop solution",
+          "value": "Mana/Mana.sln"
+        },
+        {
+          "label": "ManaVoxel",
+          "value": "ManaVoxel/ManaVoxel.csproj"
+        },
+        {
+          "label": "ManaSceneViewer",
+          "value": "ManaSceneViewer/ManaSceneViewer.csproj"
+        },
+        {
+          "label": "ManaTests",
+          "value": "ManaTests/ManaTests.csproj"
+        },
+        {
+          "label": "Mana",
+          "value": "Mana/Mana.csproj"
+        },
+        {
+          "label": "ManaCore",
+          "value": "ManaCore/ManaCore.csproj"
+        },
+        {
+          "label": "ManaGraphics",
+          "value": "ManaGraphics/ManaGraphics.csproj"
+        },
+        {
+          "label": "ManaUI",
+          "value": "ManaUI/ManaUI.csproj"
+        },
+        {
+          "label": "ManaAudio",
+          "value": "ManaAudio/ManaAudio.csproj"
+        },
+        {
+          "label": "ManaGeoTools",
+          "value": "ManaGeoTools/ManaGeoTools.csproj"
+        },
+        {
+          "label": "ManaVoxel.Web",
+          "value": "ManaVoxel.Web/ManaVoxel.Web.csproj"
+        },
+        {
+          "label": "ManaVoxel.Editor.Web",
+          "value": "ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj"
+        },
+        {
+          "label": "Tools/AudioSmoke.Web",
+          "value": "Tools/AudioSmoke.Web/AudioSmoke.Web.csproj"
+        },
+        {
+          "label": "Tools/ThumbnailBaker",
+          "value": "Tools/ThumbnailBaker/ThumbnailBaker.csproj"
+        }
+      ],
+      "default": "ManaVoxel/ManaVoxel.csproj"
+    },
+    {
+      "id": "configuration",
+      "type": "pickString",
+      "description": "Build configuration",
+      "options": [
+        "Debug",
+        "Release"
+      ],
+      "default": "Debug"
+    },
+    {
+      "id": "backend",
+      "type": "pickString",
+      "description": "Graphics backend",
+      "options": [
+        "webgpu",
+        "opengl"
+      ],
+      "default": "webgpu"
+    },
+    {
+      "id": "appBundle",
+      "type": "promptString",
+      "description": "Path to an existing published AppBundle",
+      "default": "Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle"
     }
   ]
 }

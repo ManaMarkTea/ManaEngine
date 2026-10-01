@@ -46,6 +46,22 @@ public static class SpriteAssetChecks
             MeshAssetLibrary.SpritePicture(MeshAssetLibrary.EncodeReadableZip("kenney_new-platformer-pack-1.1.zip", "Sprites/Tiles/Default/coin_gold.png"))
                 == Tiles + "coin_gold.png");
 
+        // A sheet or slice naming a picture that is not there draws nothing at all, so every one in Content is checked.
+        var known = Mana.ManaSpritePictures.PackPictures().Select(p => p.Reference).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var broken = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(ManaContentLibrary.Root, "*.mana*", SearchOption.AllDirectories)
+                     .Where(f => f.EndsWith(".manasheet", StringComparison.Ordinal) || f.EndsWith(".manaslice", StringComparison.Ordinal)))
+        {
+            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(file), "\"(zip:[^\"]+)\""))
+            {
+                if (!known.Contains(match.Groups[1].Value))
+                {
+                    broken.Add($"{Path.GetFileName(file)}: {Path.GetFileName(match.Groups[1].Value)}");
+                }
+            }
+        }
+        check("every picture a sprite asset in Content names is in its pack", broken.Count == 0, string.Join("; ", broken.Take(5)));
+
         var listed = ManaContentLibrary.List();
         check("the Project panel lists every kind: prefabs, sprite sheets, 9-slices and generators",
             listed.Any(e => e.Kind == "Prefab") && listed.Any(e => e.Kind == "Sprite Sheet" && e.Name == "Green Alien")

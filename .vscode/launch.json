@@ -2,59 +2,146 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Mana",
+      "name": "Editor: WebGPU",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build Mana (debug launch)",
-      "program": "${workspaceFolder}/Artifacts/Bin/Mana/Debug/net10.0/Mana.dll",
-      "args": [
-        "--webgpu"
-      ],
-      "cwd": "${workspaceFolder}/Mana",
-      "console": "integratedTerminal",
-      "stopAtEntry": false
-    },
-    {
-      "name": "Launch Mana OpenGL",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build Mana (debug launch)",
-      "program": "${workspaceFolder}/Artifacts/Bin/Mana/Debug/net10.0/Mana.dll",
-      "args": [
-        "--graphics", "opengl"
-      ],
-      "cwd": "${workspaceFolder}/Mana",
-      "console": "integratedTerminal",
-      "stopAtEntry": false
-    },
-    {
-      "name": "Launch ManaVoxel",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build ManaVoxel (debug launch)",
+      "preLaunchTask": "Build: ManaVoxel (Debug)",
       "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
       "args": [
-        "--webgpu"
+        "--graphics",
+        "webgpu"
       ],
-      "env": {
-        "MANA_WEBGPU_DEMO_MESH": "1"
-      },
-      "cwd": "${workspaceFolder}/ManaVoxel",
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "stopAtEntry": false
+      "justMyCode": true,
+      "presentation": {
+        "group": "1. Editor",
+        "order": 1
+      }
     },
     {
-      "name": "Launch ManaVoxel OpenGL",
+      "name": "Editor: OpenGL",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build ManaVoxel (debug launch)",
+      "preLaunchTask": "Build: ManaVoxel (Debug)",
       "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
       "args": [
-        "--graphics", "opengl"
+        "--graphics",
+        "opengl"
       ],
-      "cwd": "${workspaceFolder}/ManaVoxel",
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "stopAtEntry": false
+      "justMyCode": true,
+      "presentation": {
+        "group": "1. Editor",
+        "order": 2
+      }
+    },
+    {
+      "name": "Editor: open level...",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaVoxel (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
+      "args": [
+        "--graphics",
+        "webgpu",
+        "--level",
+        "${input:levelPath}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "1. Editor",
+        "order": 3
+      }
+    },
+    {
+      "name": "Game: play level...",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaVoxel (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
+      "args": [
+        "--graphics",
+        "webgpu",
+        "--play",
+        "${input:levelPath}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "2. Game",
+        "order": 1
+      }
+    },
+    {
+      "name": "Scene viewer: OpenGL",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaSceneViewer (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaSceneViewer/Debug/net10.0/ManaSceneViewer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "3. Tools",
+        "order": 1
+      }
+    },
+    {
+      "name": "Tests: all (headless)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaTests (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaTests/Debug/net10.0/ManaTests.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "4. Tests",
+        "order": 1
+      }
+    },
+    {
+      "name": "Tests: results window",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaTests (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaTests/Debug/net10.0/ManaTests.dll",
+      "args": [
+        "-gui"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "4. Tests",
+        "order": 2
+      }
+    },
+    {
+      "name": "Attach: .NET process...",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "justMyCode": true,
+      "presentation": {
+        "group": "5. Attach",
+        "order": 1
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "levelPath",
+      "type": "promptString",
+      "description": "Level path (absolute or relative to the repository root)",
+      "default": "Content/Levels/Sample Course.manalevel"
     }
   ]
 }

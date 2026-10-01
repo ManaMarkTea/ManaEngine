@@ -222,21 +222,31 @@ namespace ManaGraphics.Code.Graphics
             _shaderModules["ShadowDepth"] = (nint)shaderModule;
 
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
+            nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
             try
             {
-                var vertexAttribute = new VertexAttribute
-                {
-                    Format = VertexFormat.Float32x3,
-                    Offset = 0,
-                    ShaderLocation = 0
-                };
+                // Position, then the colour and texture coordinate a cutout's alpha test needs (the mesh vertex is
+                // position 3, normal 3, colour 4, uv 2 floats).
+                var vertexAttributes = stackalloc VertexAttribute[3];
+                vertexAttributes[0] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 0, ShaderLocation = 0 };
+                vertexAttributes[1] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = (ulong)(sizeof(float) * (3 + 3)), ShaderLocation = 1 };
+                vertexAttributes[2] = new VertexAttribute { Format = VertexFormat.Float32x2, Offset = (ulong)(sizeof(float) * (3 + 3 + 4)), ShaderLocation = 2 };
 
                 var vertexBufferLayout = new VertexBufferLayout
                 {
                     ArrayStride = ManaWebGpuMesh.VertexStride,
                     StepMode = VertexStepMode.Vertex,
-                    AttributeCount = 1,
-                    Attributes = &vertexAttribute
+                    AttributeCount = 3,
+                    Attributes = vertexAttributes
+                };
+
+                // No colour targets: the fragment stage is there only to discard a cutout's see-through texels.
+                var fragmentState = new FragmentState
+                {
+                    Module = shaderModule,
+                    EntryPoint = (byte*)fragmentEntryPoint,
+                    TargetCount = 0,
+                    Targets = null
                 };
 
                 var vertexState = new VertexState
@@ -292,7 +302,7 @@ namespace ManaGraphics.Code.Graphics
                         Mask = uint.MaxValue
                     },
                     DepthStencil = &depthStencilState,
-                    Fragment = null
+                    Fragment = &fragmentState
                 };
 
                 var pipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDescriptor);
@@ -306,6 +316,7 @@ namespace ManaGraphics.Code.Graphics
             finally
             {
                 Marshal.FreeCoTaskMem(vertexEntryPoint);
+                Marshal.FreeCoTaskMem(fragmentEntryPoint);
             }
         }
 
