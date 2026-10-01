@@ -82,10 +82,18 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `open_prefab` / `open_asset` / `review_changes` | `path` / `path` / `name` | Edit Prefab; a sheet or slice in the Sprite Asset window (or rules in the Generator); Review Changes on an instance |
 | `open_panel` / `open_tools` | `name` / | Brings up a panel by id; opens the viewport tools drawer |
 | `emission` | `name`, `position` (rgb), `frames` (strength x100) | Sets emission on every mesh under a node |
+| `dump_environment` | `path` | Saves the reflection cube's six faces as `<path>.face0..5.png` (+X -X +Y -Y +Z -Z) |
+| `material` | `name`, `position` (metallic, roughness) | Sets metallic and roughness on every mesh under a node -- `[1, 0]` is a mirror |
 | `drop_to_floor` | | Drops the selection onto whatever is below it (the End key) |
 | `grid_autotile` / `grid_generate` | see `ManaCommandFile` | Paints a road preset through cells; runs the WFC generator |
 | `profile_reset` / `profile_dump` | `path` | Frame profiler: start fresh; write the per-scope report |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
+
+Reference scenes for rendering checks live in `Content/Levels/Tests/` (not in the web selector), with the scripts that
+drive them in `Tools/Automation/Checks/` -- `./Tools/Automation/run-commands.ps1 -Name shadows -File Tools/Automation/Checks/shadows.json`.
+`Shadow Contact` (shadows meeting their casters, objects in shadow, low sun) and `Reflections` (a mirror slab and ball,
+made mirrors by the script's `material` command; compare each shot with the matching `-sky` one). Add a scene and a
+script there whenever a rendering bug is fixed.
 
 Patterns that work:
 - **Does a level open clean?** `open_level`, `wait`, `dirty_report`, then compare the two files -- the same means

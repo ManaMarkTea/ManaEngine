@@ -141,7 +141,8 @@ def publish_levels(root, output):
     for source in sorted((root / "Content" / "Levels").rglob("*.manalevel")):
         document = json.loads(source.read_text(encoding="utf-8-sig"))
         name = document.get("name") or source.stem
-        if name in UNPLAYABLE_LEVELS:
+        # Content/Levels/Tests holds reference scenes for checking rendering, not levels to play.
+        if name in UNPLAYABLE_LEVELS or source.relative_to(root / "Content" / "Levels").parts[0] == "Tests":
             continue
         def count(nodes):
             return sum(1 + count(node.get("children") or []) for node in nodes or [])

@@ -1187,9 +1187,19 @@ public static class InspectorChecks
             cubeSize != null,
             string.Join(", ", FindAll<VectorBox>(view).Select(box => box.Value.ToString())));
 
+        var cubeRenderer = cubeNode.GetComponents<MeshRendererComponent>().First();
+        var cubeMaterial = cubeRenderer.Material.Clone() as ManaMaterial ?? cubeRenderer.Material;
+        cubeMaterial.Metallic.Value = 1.0f;
+        cubeMaterial.Roughness.Value = 0.0f;
+        cubeRenderer.Material = cubeMaterial;
+
         if (cubeSize != null)
         {
             cubeSize.Value = new Vector3(8.0f, 1.0f, 4.0f);
+            Check("resizing a level shape keeps its material",
+                ReferenceEquals(cubeRenderer.Material, cubeMaterial) && cubeRenderer.Material.Metallic.Value == 1.0f
+                && cubeRenderer.Material.Roughness.Value == 0.0f,
+                $"metallic {cubeRenderer.Material.Metallic.Value}, roughness {cubeRenderer.Material.Roughness.Value}");
             var resizedCollision = cubeNode.GetComponents<ManaCollisionComponent>()
                 .FirstOrDefault(component => component.Shape is Box);
             Box? resizedBox = resizedCollision?.Shape is Box box ? box : null;

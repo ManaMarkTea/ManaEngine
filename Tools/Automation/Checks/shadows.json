@@ -1,0 +1,9 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Shadow Contact.manalevel"}, {"type":"wait","frames":300},
+  {"type":"sky","name":"Day"}, {"type":"wait","frames":30},
+  {"type":"move_camera","position":[50,5,58],"target":[50,0.5,40]}, {"type":"wait","frames":30}, {"type":"screenshot","path":"@@OUT@@.noon.png"},
+  {"type":"sky","name":"DayNightCycle","timeOfDay":0.40}, {"type":"wait","frames":40}, {"type":"screenshot","path":"@@OUT@@.evening.png"},
+  {"type":"sky","name":"DayNightCycle","timeOfDay":0.47}, {"type":"wait","frames":40}, {"type":"screenshot","path":"@@OUT@@.sunset.png"},
+  {"type":"move_camera","position":[45,2,56],"target":[42,0,52]}, {"type":"wait","frames":30}, {"type":"screenshot","path":"@@OUT@@.plate.png"},
+  {"type":"quit"}
+]

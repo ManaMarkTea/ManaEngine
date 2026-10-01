@@ -1,0 +1,12 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Reflections.manalevel"}, {"type":"wait","frames":300},
+  {"type":"material","name":"Mirror Slab","position":[1,0,0]}, {"type":"material","name":"Mirror Ball","position":[1,0,0]},
+  {"type":"sky","name":"DayNightCycle","timeOfDay":0.48}, {"type":"move_camera","position":[66,4,49],"target":[59,0,49]}, {"type":"wait","frames":60},
+  {"type":"screenshot","path":"@@OUT@@.sunset.png"},
+  {"type":"move_camera","position":[66,4,49],"target":[59,8,49]}, {"type":"wait","frames":30}, {"type":"screenshot","path":"@@OUT@@.sunset-sky.png"},
+  {"type":"sky","name":"DayNightCycle","timeOfDay":0.95}, {"type":"move_camera","position":[66,4,49],"target":[59,0,49]}, {"type":"wait","frames":60},
+  {"type":"screenshot","path":"@@OUT@@.night.png"},
+  {"type":"move_camera","position":[66,4,49],"target":[59,8,49]}, {"type":"wait","frames":30}, {"type":"screenshot","path":"@@OUT@@.night-sky.png"},
+  {"type":"dump_environment","path":"@@OUT@@.cube"}, {"type":"wait","frames":30},
+  {"type":"quit"}
+]

@@ -189,10 +189,12 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
+                // The material stays: it holds the node's metallic, roughness and the rest, and the colour is the
+                // mesh's own. Swapping in the new mesh's default threw those edits away, and left the Material
+                // inspector showing the discarded one until the node was reselected.
+                var material = renderer.Material;
                 renderer.Mesh = CreateShapeMesh(node.Context, shape, color, size);
-                renderer.Material = renderer.Mesh.Materials.Length > 0
-                    ? renderer.Mesh.Materials[0]
-                    : ManaMaterial.GetDefaultMaterial(node.Context);
+                renderer.Material = material;
             }
 
             if (!bakesSize)

@@ -164,7 +164,7 @@ namespace ManaGraphics.Code.Graphics
             int size,
             int mipCount,
             TextureFormat format = TextureFormat.Rgba8UnormSrgb,
-            TextureUsage usage = TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment,
+            TextureUsage usage = TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.CopySrc | TextureUsage.RenderAttachment,
             bool createStorageViews = false)
         {
             var descriptor = new TextureDescriptor

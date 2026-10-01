@@ -865,6 +865,7 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderEnd(toneMapRenderPass);
 
             var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _window.FramebufferSize);
+            var pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
 
             var commandBufferDescriptor = new CommandBufferDescriptor();
             var submitStopwatch = Stopwatch.StartNew();
@@ -875,6 +876,11 @@ namespace ManaGraphics.Code.Graphics
             if (pendingScreenshotCopy is { } encodedScreenshotCopy)
             {
                 FinishPendingScreenshotReadback(encodedScreenshotCopy);
+            }
+
+            if (pendingEnvironmentDump is { } environmentDump)
+            {
+                FinishEnvironmentDump(environmentDump);
             }
 
             if (!_loggedFirstPresent)

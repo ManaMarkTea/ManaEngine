@@ -565,7 +565,7 @@ public static class LevelSerializationChecks
                 && node.Shape == "Disk") == 2);
 
         var allBundledLevels = Directory
-            .EnumerateFiles(Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!, "*.manalevel")
+            .EnumerateFiles(Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!, "*.manalevel", SearchOption.AllDirectories)
             .Select(ManaLevel.Load)
             .ToList();
         Check("bundled level cameras stay clear of the zero-axis grid walls",

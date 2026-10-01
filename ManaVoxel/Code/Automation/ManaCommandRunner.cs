@@ -172,6 +172,26 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "dump_environment":
+                        // The reflection cube's six faces as <path>.face0..5.png, after the next frame.
+                        _webGpuContext?.DumpEnvironmentFaces(RequirePath(command));
+                        _index++;
+                        break;
+
+                    case "material":
+                        // Metallic and roughness (position x, y) on every mesh under the named node -- a mirror is [1, 0].
+                        if (_context.World.Scenes.Select(scene => FindNode(scene.Children, command.Name ?? "")).FirstOrDefault(found => found != null) is { } surfaced
+                            && command.Position is { Length: >= 2 } surface)
+                        {
+                            foreach (var renderer in ManaVoxel.Code.Assets.ManaPrefabRuntime.Walk(surfaced).SelectMany(n => n.Components).OfType<global::Mana.MeshRendererComponent>())
+                            {
+                                renderer.Material.Metallic.Value = surface[0];
+                                renderer.Material.Roughness.Value = surface[1];
+                            }
+                        }
+                        _index++;
+                        break;
+
                     case "dirty_report":
                         // Each opened level's saved snapshot beside a fresh capture, to diff what makes it read as changed.
                         foreach (var scene in _context.World.Scenes.Where(scene => !string.IsNullOrWhiteSpace(scene.SavedLevelContentJson)))

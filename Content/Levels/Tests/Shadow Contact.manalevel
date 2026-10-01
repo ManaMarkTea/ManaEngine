@@ -1,0 +1,14 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Shadow Contact",
+  "camera": { "position": [50, 6, 62], "rotation": [-0.35, 0, 0] },
+  "nodes": [
+    { "name": "Canopy", "kind": "Shape", "position": [44, 3, 34], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.6, 0.6, 0.65, 1], "size": [12, 0.3, 12] },
+    { "name": "Shaded Cube", "kind": "Shape", "position": [47, 0, 36], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.9, 0.45, 0.1, 1], "size": [2, 1, 2] },
+    { "name": "Sunlit Cube", "kind": "Shape", "position": [60, 0, 48], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.9, 0.45, 0.1, 1], "size": [2, 1, 2] },
+    { "name": "Wall", "kind": "Shape", "position": [40, 0, 50], "rotation": [0, 0.6, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.75, 0.2, 0.15, 1], "size": [4, 2.5, 0.4] },
+    { "name": "Plate", "kind": "Shape", "position": [42, 0.02, 52], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Disk", "color": [0.85, 0.5, 0.2, 1], "size": [0.8, 0.04, 0.8] },
+    { "name": "Pillar", "kind": "Shape", "position": [56, 0, 40], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.85, 0.85, 0.85, 1], "size": [0.5, 6, 0.5] }
+  ]
+}

@@ -201,7 +201,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let metallic = saturate(object.material_factors.x * textureSample(metallic_texture, color_sampler, uv).b);
     // Floor from Filament/Bevy (perceptualRoughnessToRoughness): below ~0.089 GGX loses precision and
     // the surface becomes a mirror that aliases badly.
-    let roughness = clamp(object.material_factors.y * textureSample(roughness_texture, color_sampler, uv).g, 0.089, 1.0);
+    // The floor is for the lights' highlights only: reflections read the material's own roughness, or a pure
+    // mirror would sample a blurred level of the reflection map.
+    let raw_roughness = saturate(object.material_factors.y * textureSample(roughness_texture, color_sampler, uv).g);
+    let roughness = max(raw_roughness, 0.089);
     let specular_roughness = roughness;
     let ao = saturate(object.material_factors.z * textureSample(occlusion_texture, color_sampler, uv).r);
 
@@ -221,6 +224,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         shade = mix(1.0, mix(ShadowedAmbient, 1.0, sun_shadow), smoothstep(0.0, 0.25, sun_ndotl));
     }
 
+    // The four far fill lights stand in for general fill, so they light diffusely and draw no highlight: on a
+    // shiny surface theirs were blobs in places the sky has nothing.
     var fill = vec3<f32>(0.0);
     for (var i = 0u; i < 4u; i = i + 1u) {
         let light_pos = frame.light_positions[i].xyz;
@@ -233,14 +238,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         let radiance = light_color * attenuation;
 
         let ndotl = max(dot(n, l), 0.0);
-
-        let ndf = distribution_ggx(n, h, specular_roughness);
-        let g = geometry_smith(n, v, l, specular_roughness);
         let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
-        let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
-
         let kd = (vec3<f32>(1.0) - f) * (1.0 - metallic);
-        fill = fill + (kd * vertex_albedo / PI + specular) * radiance * ndotl;
+        fill = fill + kd * vertex_albedo / PI * radiance * ndotl;
     }
 
     var direct = fill * shade;
@@ -281,8 +281,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         let ndotl = max(dot(n, l), 0.0);
 
-        let ndf = distribution_ggx(n, h, specular_roughness);
-        let g = geometry_smith(n, v, l, specular_roughness);
+        // Half the usual floor: the glint stands for a sun or moon disc the reflection also shows.
+        let sun_roughness = max(raw_roughness, 0.045);
+        let ndf = distribution_ggx(n, h, sun_roughness);
+        let g = geometry_smith(n, v, l, sun_roughness);
         let f = fresnel_schlick(max(dot(h, v), 0.0), f0);
         let specular = (ndf * g * f) / max(4.0 * max(dot(n, v), 0.0) * ndotl, 0.0001);
 
@@ -296,7 +298,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let diffuse_ibl = irradiance * vertex_albedo * ibl_intensity;
 
     let reflection = reflect(-v, n);
-    let reflection_radiance = mana_environment_reflection(mana_radiance_direction(n, reflection, roughness), roughness);
+    let reflection_radiance = mana_environment_reflection(mana_radiance_direction(n, reflection, raw_roughness), raw_roughness);
     let ndotv = max(dot(n, v), 0.0);
     let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(ndotv, roughness)).rg;
     // f0, not F: the LUT already integrates Fresnel (Karis split-sum is F0 * A + B). Using F here
