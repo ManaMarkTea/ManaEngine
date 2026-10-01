@@ -794,7 +794,10 @@ namespace ManaUI
             }
 
             var local = screen - MainOrigin;
-            foreach (var host in _hosts)
+
+            // An emptied column's zone sits over its neighbours' edges; it is the only way back in, so it wins.
+            foreach (var host in _hosts.Where(host => host.RootNode == null && host.EmptyDropZone != null)
+                         .Concat(_hosts.Where(host => host.RootNode != null || host.EmptyDropZone == null)))
             {
                 var candidate = DockDropResolver.Resolve(host, local);
                 if (candidate.IsValid)

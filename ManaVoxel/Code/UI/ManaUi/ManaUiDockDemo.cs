@@ -55,7 +55,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             [PrefabChangesManaView.PanelId] = "Review Changes",
             [UiDesignerManaView.PanelId] = "UI Designer",
             ["showcase"] = "ManaUI",
-            ["about"] = "About",
+            ["about"] = "Graphics Diagnostics",
             ["worldperf"] = "World Perf",
             ["debug"] = "Debug",
             ["preferences"] = "Preferences"
@@ -246,7 +246,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 },
 
                 // Null until the backend has reported its start-up snapshot; the panel says so rather than showing an empty frame.
-                "about" => new DockItem("About", new DynamicContent()
+                "about" => new DockItem("Graphics Diagnostics", new DynamicContent()
                     .Showing<ManaGraphicsDiagnosticsSnapshot>(
                         () => ManaUiDiagnostics.Snapshot,
                         captured => AboutManaView.Build(theme, captured, ManaUiDiagnostics.BackendName))
@@ -482,6 +482,23 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             SyncColumnVisibility();
 
+            // A column emptied by dragging its last panel out hides, so it gets a band along its window edge to
+            // drop back into, previewed at the size it will open at.
+            const float EmptyZoneBand = 40.0f;
+            float TopEdge() => menuBarHeight + (top.RootNode == null ? 0.0f : topPanel.Size);
+            float BottomEdge() => root.Size.Y - StatusBarHeight;
+            float BottomStripTop() => BottomEdge() - (bottom.RootNode == null ? 0.0f : bottomPanel.Size);
+            float RightEdge() => root.Size.X - (right.RootNode == null ? 0.0f : rightPanel.Size);
+
+            left.EmptyDropZone = () => new UiRect(0.0f, TopEdge(), EmptyZoneBand, BottomStripTop() - TopEdge());
+            left.EmptyDropPreview = () => new UiRect(0.0f, TopEdge(), leftPanel.Size, BottomStripTop() - TopEdge());
+            right.EmptyDropZone = () => new UiRect(root.Size.X - EmptyZoneBand, TopEdge(), EmptyZoneBand, BottomEdge() - TopEdge());
+            right.EmptyDropPreview = () => new UiRect(root.Size.X - rightPanel.Size, TopEdge(), rightPanel.Size, BottomEdge() - TopEdge());
+            bottom.EmptyDropZone = () => new UiRect(0.0f, BottomEdge() - EmptyZoneBand, RightEdge(), EmptyZoneBand);
+            bottom.EmptyDropPreview = () => new UiRect(0.0f, BottomEdge() - bottomPanel.Size, RightEdge(), bottomPanel.Size);
+            top.EmptyDropZone = () => new UiRect(0.0f, menuBarHeight, root.Size.X, EmptyZoneBand * 0.6f);
+            top.EmptyDropPreview = () => new UiRect(0.0f, menuBarHeight, root.Size.X, EmptyZoneBand);
+
             void ChooseTheme(UiThemeKind kind)
             {
                 if (root.Theme.Kind == kind)
@@ -710,6 +727,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 while (PanelRequests.TryDequeue(out var requested))
                 {
+                    // The About box is a dialog, not a panel; scripts reach it by this id.
+                    if (requested == "about-box")
+                    {
+                        AboutBoxManaView.Show(root, () => OpenPanel("about"));
+                        continue;
+                    }
+
                     OpenPanel(requested);
                 }
 
@@ -792,11 +816,23 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Outline(theme.Border, 1.0f)
                     .Height(StatusBarHeight)
                     .PaddingOf(8.0f, 2.0f)
-                    .Content(new Grid().Columns("*, Auto, Auto", theme.Spacing * 2.0f).Rows("Auto").Children(
-                        BuildStatusMessage(theme, editor).GridColumn(0),
-                        BuildSelectionSummary(theme, world).GridColumn(1),
-                        ManaUiPerformanceStrip.Build(theme).GridColumn(2).CenterV()))
+                    .Content(new Grid().Columns("Auto, *, Auto, Auto", theme.Spacing * 2.0f).Rows("Auto").Children(
+                        BuildVersion(theme, root).GridColumn(0),
+                        BuildStatusMessage(theme, editor).GridColumn(1),
+                        BuildSelectionSummary(theme, world).GridColumn(2),
+                        ManaUiPerformanceStrip.Build(theme).GridColumn(3).CenterV()))
                     .Anchor(left: 0.0f, right: 0.0f, bottom: 0.0f));
+        }
+
+        /// <summary>The build, bottom left; the About box has the rest.</summary>
+        private static UiElement BuildVersion(UiTheme theme, UiRoot root)
+        {
+            return new TextBlock()
+                .Text(ManaCore.Diagnostics.ManaVersion.Display)
+                .FontSize(theme.FontSizeSmall)
+                .Foreground(theme.TextMuted)
+                .CenterV()
+                .WithTooltip("This build. View > About for more.");
         }
 
         /// <summary>
@@ -1285,7 +1321,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Editor menus first, so the bar reads the way the ImGui one did. Owned by the editor, not this chrome.
             if (editor != null)
             {
-                foreach (var menu in VoxelEditorMainMenuManaView.BuildMenus(editor, null, () => openPanel("preferences"), () => PlaceSearchManaView.Show(root, editor, PlaceSearch)))
+                foreach (var menu in VoxelEditorMainMenuManaView.BuildMenus(editor, null, () => openPanel("preferences"), () => PlaceSearchManaView.Show(root, editor, PlaceSearch),
+                    () => AboutBoxManaView.Show(root, () => openPanel("about"))))
                 {
                     bar.Add(menu);
                 }

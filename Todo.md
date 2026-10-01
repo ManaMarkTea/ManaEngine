@@ -1,3 +1,11 @@
+[x] - Version number in the app (bottom left, and in the About box); View > About did nothing; an emptied side column
+    could only be got back by resetting the panels.
+    Claude: the version is <Version> in Directory.Build.props (0.1.0; bump it for a release) plus the git commit, read by
+    ManaCore's ManaVersion. View > About opens an About box (AboutBoxManaView) with build details and credits -- fonts,
+    the emoji font in use, Kenney's packs, the sky photos, the libraries; sources not on record (the lighthouse, the zoo
+    animals, the course audio) are left off until we know them. The old diagnostics panel is now Graphics Diagnostics.
+    An emptied column keeps a 40 px band along its window edge to drop a panel into (DockHost.EmptyDropZone).
+
 [x] - Web Level play:  ManaUi is not showing up at all. the player also moves much slower than the regular player.
     Claude: the browser play mode had ManaUI switched off; it now shows desktop play's HUD, results and death screens
     (Back to levels returns to the selector). The slowness was the character: it spawned the first one found at the

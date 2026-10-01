@@ -27,6 +27,16 @@ namespace ManaUI
         /// <summary>Raised after any structural change, for hosts that persist the layout.</summary>
         public event EventHandler? LayoutChanged;
 
+        /// <summary>
+        /// Where a drag can drop into this host while it is empty, in root coordinates. An empty host that hides
+        /// itself (a side column with nothing in it) takes no space, so without this its last panel, once moved
+        /// out, could never be docked back. Null when an empty host keeps its own bounds.
+        /// </summary>
+        public Func<UiRect>? EmptyDropZone { get; set; }
+
+        /// <summary>The area an empty host would take once something docks into it, for the drop preview.</summary>
+        public Func<UiRect>? EmptyDropPreview { get; set; }
+
         /// <summary>The tree root, or null when the layout is empty.</summary>
         public DockNode? RootNode
         {

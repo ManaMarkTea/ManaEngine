@@ -138,7 +138,6 @@ namespace ManaVoxel.Code.UI
         public Vector3 DebugRayOrigin;
         public Vector3 DebugRayDirection;
 
-        public bool ShowAboutWindow;
         public bool ShowSearchWindow;
         public bool UseLightTheme = true;
         public bool ShowLightningBall = true;

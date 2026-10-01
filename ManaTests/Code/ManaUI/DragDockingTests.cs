@@ -288,5 +288,43 @@ public static class DragDockingChecks
         Check("and it can be dragged back",
             left.AllItems().Any(i => i.Title == "Stats"),
             string.Join(", ", left.AllItems().Select(i => i.Title)));
+
+        // ---------------------------------------------------------------- an emptied column
+        // A column that hides once empty takes no space, so only its zone along the window edge can take a drop.
+        var mainRoot = new UiRoot(fonts);
+        var main = new DockHost();
+        var side = new DockHost { Visibility = Visibility.Collapsed };
+        var zone = new UiRect(1160.0f, 0.0f, 40.0f, 700.0f);
+        side.EmptyDropZone = () => zone;
+        side.EmptyDropPreview = () => new UiRect(900.0f, 0.0f, 300.0f, 700.0f);
+        var details = Item("Details");
+        main.Dock(Item("Scene"), DockSide.Center);
+        main.Dock(details, DockSide.Center, DockHost.FindFirstGroup(main.RootNode)!);
+        mainRoot.Content = new Grid().Columns("*, Auto").Rows("*").Children(main.GridColumn(0), side.GridColumn(1));
+        mainRoot.UpdateLayout(new Vector2(1200, 700));
+        var mainController = new DockDragController(mainRoot, new[] { main, side });
+
+        var inZone = new Vector2(1180.0f, 350.0f);
+        var zoneDrop = DockDropResolver.Resolve(side, inZone);
+        Check("an empty hidden column takes a drop in its zone", zoneDrop.IsValid && zoneDrop.Side == DockSide.Center,
+            zoneDrop.Preview.ToString());
+        Check("previewed at the size it will open at", zoneDrop.Preview == new UiRect(900.0f, 0.0f, 300.0f, 700.0f),
+            zoneDrop.Preview.ToString());
+        Check("but not outside it", !DockDropResolver.Resolve(side, new Vector2(1100.0f, 350.0f)).IsValid);
+
+        var mainGroup = DockHost.FindFirstGroup(main.RootNode)!;
+        var detailsTab = mainGroup.TabRect(mainGroup.Items.ToList().IndexOf(details));
+        mainRoot.Input.InjectPointerMoved(detailsTab.Center);
+        mainRoot.Input.InjectPointerPressed(detailsTab.Center, PointerButton.Left, 2.0);
+        mainRoot.Input.InjectPointerMoved(detailsTab.Center + new Vector2(0.0f, 140.0f));
+        mainRoot.UpdateLayout(new Vector2(1200, 700));
+        mainRoot.Input.InjectPointerMoved(inZone);
+        mainRoot.UpdateLayout(new Vector2(1200, 700));
+        mainRoot.Input.InjectPointerReleased(inZone, PointerButton.Left);
+        mainRoot.UpdateLayout(new Vector2(1200, 700));
+
+        Check("a panel dropped in the zone docks into the empty column",
+            side.AllItems().Any(i => i.Title == "Details"),
+            $"side: {string.Join(", ", side.AllItems().Select(i => i.Title))}; dragging {mainController.IsDragging}");
     }
 }

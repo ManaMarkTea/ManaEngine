@@ -230,9 +230,10 @@ namespace ManaUI
                     RescanPolledBindings();
                 }
 
-                foreach (var element in _polledBindingElements)
+                // By index: a binding may open a popup, adding elements mid-walk; the rescan next pass settles them.
+                for (var i = 0; i < _polledBindingElements.Count; i++)
                 {
-                    element.RefreshPolledBindings();
+                    _polledBindingElements[i].RefreshPolledBindings();
                 }
 
                 // Nothing new appeared, so the tree has settled.

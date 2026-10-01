@@ -6,4 +6,13 @@
     <!-- Ignore old local outputs until they have been cleaned up. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
   </PropertyGroup>
+  <PropertyGroup>
+    <!-- The app's version, shown in the status bar and the About box (ManaVersion). Bump by hand for a release;
+         the SDK appends the git commit to the informational version on its own. -->
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Date only, so the generated assembly info changes once a day rather than defeating every incremental build. -->
+    <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))" />
+  </ItemGroup>
 </Project>

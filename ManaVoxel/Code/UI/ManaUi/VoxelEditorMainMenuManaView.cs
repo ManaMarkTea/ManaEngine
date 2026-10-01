@@ -21,16 +21,16 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Builds the bar. <paramref name="host"/> is nullable so the menu can be built and driven without
         /// a game mode: every row here answers to the view model alone.
         /// </summary>
-        public static MenuBar Build(VoxelEditorViewModel viewModel, BaseGameMode? host = null, Action? openPreferences = null, Action? openSearch = null)
+        public static MenuBar Build(VoxelEditorViewModel viewModel, BaseGameMode? host = null, Action? openPreferences = null, Action? openSearch = null, Action? openAbout = null)
         {
-            return new MenuBar().AddRange(BuildMenus(viewModel, host, openPreferences, openSearch));
+            return new MenuBar().AddRange(BuildMenus(viewModel, host, openPreferences, openSearch, openAbout));
         }
 
         /// <summary>
         /// The menus alone, for a bar that carries other things too -- the workspace's own chrome sits
         /// beside these rather than in a second bar.
         /// </summary>
-        public static MenuItem[] BuildMenus(VoxelEditorViewModel viewModel, BaseGameMode? host = null, Action? openPreferences = null, Action? openSearch = null)
+        public static MenuItem[] BuildMenus(VoxelEditorViewModel viewModel, BaseGameMode? host = null, Action? openPreferences = null, Action? openSearch = null, Action? openAbout = null)
         {
             return new[]
             {
@@ -38,7 +38,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Edit(viewModel, openPreferences),
                 Play(viewModel, host),
                 Character(viewModel),
-                View(viewModel, host, openSearch)
+                View(viewModel, host, openSearch, openAbout)
             };
         }
 
@@ -278,7 +278,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             return $"Controlling: {controller.PossessedPawn.Name} (WASD, Shift run, Space jump)";
         }
 
-        private static MenuItem View(VoxelEditorViewModel viewModel, BaseGameMode? host, Action? openSearch)
+        private static MenuItem View(VoxelEditorViewModel viewModel, BaseGameMode? host, Action? openSearch, Action? openAbout)
         {
             // Logarithmic: useful lengths span a voxel-scale scene and a kilometre-scale region.
             var normalLength = new SliderBox
@@ -345,8 +345,8 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 MenuItem.Separator(),
 
-                new MenuItem("About", () => viewModel.ShowAboutWindow = !viewModel.ShowAboutWindow)
-                    .Checkable(() => viewModel.ShowAboutWindow));
+                // Flipped an ImGui-era flag nothing read any more, which is why it did nothing.
+                new MenuItem("About", () => openAbout?.Invoke()).EnabledWhen(() => openAbout != null));
         }
 
         /// <summary>A checkable row that flips the thing it reports. Most of this menu is these.</summary>

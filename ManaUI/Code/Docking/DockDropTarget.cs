@@ -66,6 +66,19 @@ namespace ManaUI
 
         public static DockDropTarget Resolve(DockHost host, Vector2 point)
         {
+            // An empty host that has hidden itself is reached through its zone instead, and fills its preview.
+            if (host.RootNode == null && host.EmptyDropZone != null)
+            {
+                var zone = host.EmptyDropZone();
+                if (zone.IsEmpty || !zone.Contains(point))
+                {
+                    return default;
+                }
+
+                var emptyPreview = host.EmptyDropPreview?.Invoke() ?? zone;
+                return new DockDropTarget(null, DockSide.Center, emptyPreview, isRootEdge: true, UiRect.Empty, UiRect.Empty);
+            }
+
             var bounds = host.Bounds;
             if (bounds.IsEmpty || !bounds.Contains(point))
             {
