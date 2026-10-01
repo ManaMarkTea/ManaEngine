@@ -39,7 +39,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             overlay.Background = new Vector4(0, 0, 0, 0.55f);
             popup.Child = overlay;
 
-            // Modal, as Search Area is: nothing behind it takes input while it is up.
+            // Modal, as Search Location is: nothing behind it takes input while it is up.
             var contentEnabled = root.ContentLayer.IsEnabled;
             var floatingEnabled = root.FloatingLayer.IsEnabled;
             root.ContentLayer.IsEnabled = false;

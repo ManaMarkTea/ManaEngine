@@ -80,6 +80,7 @@ public static class PrefabChecks
         var previousDirectory = Environment.CurrentDirectory;
         var scratch = Path.Combine(Path.GetTempPath(), "mana-prefab-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(scratch, "Content"));
+        scratch = ManaProjectFolder.CanonicalPath(scratch);
         try
         {
             Environment.CurrentDirectory = scratch;
@@ -172,6 +173,23 @@ public static class PrefabChecks
             var moved = Path.Combine(scratch, "Content", "Moved", "Renamed.manaprefab");
             Directory.CreateDirectory(Path.GetDirectoryName(moved)!);
             File.Move(path, moved);
+            if (!OperatingSystem.IsWindows())
+            {
+                var alias = Path.Combine(scratch, "ContentAlias");
+                Directory.CreateSymbolicLink(alias, Path.Combine(scratch, "Content"));
+                try
+                {
+                    var aliasPath = Path.Combine(alias, "Moved", "Renamed.manaprefab");
+                    Check("directory aliases produce the same content reference",
+                        ManaContentLibrary.Reference(aliasPath) == "Moved/Renamed.manaprefab");
+                    Check("prefabs resolve through an aliased content root",
+                        ManaContentLibrary.ResolvePrefab(saved.Id, "Moved/Renamed.manaprefab", alias) == moved);
+                }
+                finally
+                {
+                    Directory.Delete(alias);
+                }
+            }
             model.RefreshSelected();
             instance = world.DefaultScene.Children.Single();
             Check("asset identity survives file and folder renames", instance.PrefabLink!.AssetPath == "Moved/Renamed.manaprefab", model.Status);
@@ -205,12 +223,25 @@ public static class PrefabChecks
             Check("revert can recover an accidentally deleted instance content root", world.DefaultScene.Children.Single(n => n.PrefabLink != null && n.Position.X == 25).Children.Count == 1, model.Status);
 
             model.Refresh();
-            var rootUi = new UiRoot(fonts) { Content = ProjectManaView.Build(UiTheme.Create(UiThemeKind.Dark), world, editor) };
+            var folderWidth = 210f;
+            var rootUi = new UiRoot(fonts) { Content = ProjectManaView.Build(UiTheme.Create(UiThemeKind.Dark), world, editor, () => folderWidth) };
             rootUi.UpdateLayout(new Vector2(1100, 300));
             Check("project panel builds and lays out headlessly", rootUi.Render().Instances.Length > 0);
 
             Check("project browser has a folder tree and thumbnail tiles", Elements(rootUi).OfType<TreeView>().Any()
                 && Elements(rootUi).OfType<UiImage>().Any() && Elements(rootUi).OfType<MeshAssetRow>().Any());
+            var firstTile = Elements(rootUi).OfType<MeshAssetRow>().First();
+            var originalX = firstTile.Bounds.X;
+            folderWidth = 260f;
+            rootUi.UpdateLayout(new Vector2(1100, 300));
+            Check("project folder width follows the dock column", Math.Abs(firstTile.Bounds.X - originalX - 50f) < 1f);
+            var tileSize = Elements(rootUi).OfType<ComboBox>().Single(combo => combo.Items.Contains("Comfortable"));
+            model.SelectedAsset = moved;
+            tileSize.SelectedIndex = 1;
+            rootUi.UpdateLayout(new Vector2(1100, 300));
+            Check("comfortable tiles grow without losing selection", Elements(rootUi).OfType<MeshAssetRow>().First().Width == 138f && model.SelectedAsset == moved);
+            tileSize.SelectedIndex = 0;
+            rootUi.UpdateLayout(new Vector2(1100, 300));
             var tile = Elements(rootUi).OfType<MeshAssetRow>().First();
             rootUi.UpdateLayout(new Vector2(1100, 300));
             Check("browser retains tile identity between frames", Elements(rootUi).OfType<MeshAssetRow>().Contains(tile));

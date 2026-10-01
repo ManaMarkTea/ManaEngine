@@ -25,6 +25,20 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
+    /* Keep the renderer label inside its HTML surface so it leaves with that surface. */
+    .mana-html-badge {
+      display: block;
+      width: fit-content;
+      margin: 0 auto 8px;
+      padding: 3px 7px;
+      border: 1px solid #59616e;
+      border-radius: 4px;
+      color: #b9c5d8;
+      font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+
     #manaCanvas { display: block; width: 100%; height: 100%; }
 
     /* pointer-events: none throughout -- nothing here is interactive, and it means an overlay
@@ -260,6 +274,7 @@
 
   <div id="manaLoading">
     <div class="mana-card">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
       <h1 class="mana-title">MANA RENDERER</h1>
       <p class="mana-status" id="manaLoadingStatus">Starting...</p>
       <div class="mana-track">
@@ -273,6 +288,7 @@
 
   <div id="manaSelect">
     <div class="mana-select-inner">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
       <h1 class="mana-title">MANA RENDERER</h1>
       <p class="mana-select-subtitle">Choose a level to play</p>
       <div class="mana-levels" id="manaLevels"></div>
@@ -282,6 +298,7 @@
 
   <div id="manaMenu" role="dialog" aria-modal="true" aria-label="Paused">
     <div class="mana-card">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
       <h1 class="mana-title">PAUSED</h1>
       <button class="mana-button mana-primary" id="manaResume">Resume</button>
       <button class="mana-button" id="manaRestart">Restart level</button>
@@ -290,7 +307,7 @@
     </div>
   </div>
 
-  <div id="manaHint">Esc &mdash; menu</div>
+  <div id="manaHint"><span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>Esc &mdash; menu</div>
 
   <script>
     // Deliberately an inline classic script, not part of main.js: main.js is a module, so it does

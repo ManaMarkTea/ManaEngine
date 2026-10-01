@@ -12,7 +12,7 @@ namespace ManaUI
     public sealed class UiRoot : Panel
     {
         private readonly ManaUiDrawList _drawList = new();
-        private readonly List<UiElement> _polledBindingElements = new();
+        private readonly List<(UiElement Element, string? Profile)> _polledBindingElements = new();
         private Vector2 _size;
         private bool _layoutDirty = true;
         private bool _polledBindingsDirty = true;
@@ -233,7 +233,9 @@ namespace ManaUI
                 // By index: a binding may open a popup, adding elements mid-walk; the rescan next pass settles them.
                 for (var i = 0; i < _polledBindingElements.Count; i++)
                 {
-                    _polledBindingElements[i].RefreshPolledBindings();
+                    var (element, name) = _polledBindingElements[i];
+                    using var profile = name == null ? default : ManaCore.Diagnostics.ManaFrameProfiler.Measure(name);
+                    element.RefreshPolledBindings();
                 }
 
                 // Nothing new appeared, so the tree has settled.
@@ -335,13 +337,14 @@ namespace ManaUI
         {
             _polledBindingsDirty = false;
             _polledBindingElements.Clear();
-            Collect(this);
+            Collect(this, null);
 
-            void Collect(UiElement element)
+            void Collect(UiElement element, string? profile)
             {
+                profile = element.BindingProfile ?? profile;
                 if (element.HasPolledBindings)
                 {
-                    _polledBindingElements.Add(element);
+                    _polledBindingElements.Add((element, profile));
                 }
 
                 // A collapsed element's own bindings still run -- that is how it notices it should become
@@ -360,7 +363,7 @@ namespace ManaUI
                 var count = element.VisualChildCount;
                 for (var i = 0; i < count; i++)
                 {
-                    Collect(element.GetVisualChild(i));
+                    Collect(element.GetVisualChild(i), profile);
                 }
             }
         }

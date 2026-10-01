@@ -321,7 +321,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .EnabledWhen(() => viewModel.KmlAirspaceAvailable)
                     .ShortcutFrom(() => viewModel.KmlAirspaceLoading ? "Loading..." : string.Empty),
 
-                new MenuItem("Search Area...", openSearch ?? (() => viewModel.ShowSearchWindow = true)),
+                new MenuItem("Search Location...", openSearch ?? (() => viewModel.ShowSearchWindow = true)),
 
                 MenuItem.Separator(),
 

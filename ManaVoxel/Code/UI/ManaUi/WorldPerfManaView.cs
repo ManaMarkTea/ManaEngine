@@ -29,11 +29,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                 + $"in {ManaFrameProfiler.FrameCount} frames, worst {ManaFrameProfiler.WorstFrameMs:0.0}ms");
 
             return new StackPanel().Vertical(theme.Spacing).Padding(8.0f).Children(
-                // Peak first, and open by default: this is the section that actually answers "why did it
-                // stutter", since a hitch is over by the time anyone reads a this-frame number.
-                new Expander().Header("Frame timings (peak over last 2s)").Expanded().Section(theme.Spacing,
-                    hitchSummary,
-                    ProfilerRows(theme)),
+                hitchSummary,
+                new Expander().Header("ManaUI panels · CPU").Expanded().Section(theme.Spacing,
+                    new TextBlock().Text("Bindings / Measure / Arrange / Record").FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted),
+                    new TextBlock().Text("Inclusive timings overlap; do not add to frame totals.").FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted),
+                    ProfilerRows(theme, panels: true)),
+
+                new Expander().Header("Frame timings (last 120 frames)").Expanded().Section(theme.Spacing,
+                    ProfilerRows(theme, panels: false)),
 
                 new Expander().Header("Live (this frame)").Section(theme.Spacing,
                     meshCount,
@@ -71,7 +74,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// identity, so a list that reorders is a list that rebuilds every frame. The peak column carries
         /// the ranking instead.
         /// </summary>
-        private static UiElement ProfilerRows(UiTheme theme)
+        private static UiElement ProfilerRows(UiTheme theme, bool panels)
         {
             return new DynamicContent()
                 .Showing<IReadOnlyList<string>>(
@@ -80,7 +83,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     {
                         var stack = new StackPanel().Vertical(theme.Spacing * 0.5f);
                         stack.Children.Add(ProfilerHeaderRow(theme));
-                        foreach (var name in names)
+                        foreach (var name in names.Where(name => name.StartsWith("ManaUI panel: ", StringComparison.Ordinal) == panels))
                         {
                             stack.Children.Add(ProfilerRow(theme, name));
                         }
@@ -99,14 +102,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Align(TextAlignment.Right)
                 .Width(width);
 
-            return new Grid().Columns($"{MsColumnWidth}, {MsColumnWidth}, {MsColumnWidth}, {KbColumnWidth}, *", 6.0f)
+            return new Grid().Columns($"{MsColumnWidth}, {MsColumnWidth}, {MsColumnWidth}, {KbColumnWidth}", 6.0f)
                 .Rows("Auto")
                 .Children(
-                    Label("Peak", MsColumnWidth).GridColumn(0),
-                    Label("Now", MsColumnWidth).GridColumn(1),
-                    Label("Avg", MsColumnWidth).GridColumn(2),
-                    Label("KB", KbColumnWidth).GridColumn(3),
-                    new TextBlock().Text("Scope").FontSize(theme.FontSizeSmall).Foreground(theme.TextDisabled).GridColumn(4));
+                    Label("Peak ms", MsColumnWidth).GridColumn(0),
+                    Label("Now ms", MsColumnWidth).GridColumn(1),
+                    Label("Avg ms", MsColumnWidth).GridColumn(2),
+                    Label("Peak KB", KbColumnWidth).GridColumn(3));
         }
 
         // Peak leads because it is the number that catches a hitch. One binding (Peak) drives the sample
@@ -127,21 +129,22 @@ namespace ManaVoxel.Code.UI.ManaUi
             var nowText = string.Empty;
             var avgText = string.Empty;
             var kbText = string.Empty;
-            var labelText = name;
+            var displayName = name.StartsWith("ManaUI panel: ", StringComparison.Ordinal) ? name[14..] : name;
+            var labelText = displayName;
 
             peak.BindTextPolled(() =>
             {
                 if (!ManaFrameProfiler.TryGetSample(name, out var sample))
                 {
                     nowText = avgText = kbText = string.Empty;
-                    labelText = name;
+                    labelText = displayName;
                     return string.Empty;
                 }
 
                 nowText = $"{sample.LastMs:F2}";
                 avgText = $"{sample.AverageMs:F2}";
                 kbText = $"{sample.PeakKb:F0}";
-                labelText = sample.LastCalls > 1 ? $"{name} x{sample.LastCalls}" : name;
+                labelText = sample.LastCalls > 1 ? $"{displayName} x{sample.LastCalls}" : displayName;
                 return $"{sample.PeakMs:F2}";
             });
 
@@ -150,14 +153,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             kb.BindTextPolled(() => kbText);
             label.BindTextPolled(() => labelText);
 
-            return new Grid().Columns($"{MsColumnWidth}, {MsColumnWidth}, {MsColumnWidth}, {KbColumnWidth}, *", 6.0f)
-                .Rows("Auto")
-                .Children(
-                    peak.GridColumn(0),
-                    now.GridColumn(1),
-                    avg.GridColumn(2),
-                    kb.GridColumn(3),
-                    label.GridColumn(4));
+            return new StackPanel().Vertical(2.0f).Children(
+                label,
+                new Grid().Columns($"{MsColumnWidth}, {MsColumnWidth}, {MsColumnWidth}, {KbColumnWidth}", 6.0f)
+                    .Rows("Auto").Children(
+                        peak.GridColumn(0), now.GridColumn(1), avg.GridColumn(2), kb.GridColumn(3)));
         }
 
         private static UiElement LoadTimeRows(UiTheme theme, ManaWorld world)
@@ -170,7 +170,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 stack.Children.Add(new Grid().Columns($"{MsColumnWidth}, *", 6.0f).Rows("Auto").Children(
                     new TextBlock()
-                        .Text($"{perf.Duration.Milliseconds}")
+                        .Text($"{perf.Duration.TotalMilliseconds:F2}")
                         .FontFamily(theme.FontFamilyMono)
                         .Foreground(theme.TextMuted)
                         .Align(TextAlignment.Right)

@@ -16,6 +16,27 @@ namespace ManaUI
     /// </summary>
     public abstract partial class UiElement
     {
+        private string? _profileName;
+        private string? _measureProfile;
+        private string? _arrangeProfile;
+        private string? _renderProfile;
+        internal string? BindingProfile { get; private set; }
+
+        /// <summary>Optional panel name for inclusive CPU timings of this subtree.</summary>
+        public string? ProfileName
+        {
+            get => _profileName;
+            set
+            {
+                _profileName = value;
+                _measureProfile = value == null ? null : $"ManaUI panel: {value} / Measure";
+                _arrangeProfile = value == null ? null : $"ManaUI panel: {value} / Arrange";
+                _renderProfile = value == null ? null : $"ManaUI panel: {value} / Record";
+                BindingProfile = value == null ? null : $"ManaUI panel: {value} / Bindings";
+                Root?.NotifyPolledBindingsChanged();
+            }
+        }
+
         private Thickness _margin;
         private HorizontalAlignment _horizontalAlignment = HorizontalAlignment.Stretch;
         private VerticalAlignment _verticalAlignment = VerticalAlignment.Stretch;
@@ -452,6 +473,7 @@ namespace ManaUI
                 return;
             }
 
+            using var profile = _measureProfile == null ? default : ManaCore.Diagnostics.ManaFrameProfiler.Measure(_measureProfile);
             _lastMeasureConstraint = availableSize;
 
             var constraint = LayoutHelper.Deflate(availableSize, _margin);
@@ -502,6 +524,7 @@ namespace ManaUI
                 return;
             }
 
+            using var profile = _arrangeProfile == null ? default : ManaCore.Diagnostics.ManaFrameProfiler.Measure(_arrangeProfile);
             _lastArrangeRect = finalRect;
 
             if (!IsMeasureValid)
@@ -580,6 +603,7 @@ namespace ManaUI
                 return;
             }
 
+            using var profile = _renderProfile == null ? default : ManaCore.Diagnostics.ManaFrameProfiler.Measure(_renderProfile);
             var pushedOpacity = Opacity < 1.0f;
             if (pushedOpacity)
             {

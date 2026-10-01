@@ -370,3 +370,6 @@ FodyWeavers.xsd
 # regenerable, never authored content. See ManaVoxel.Code.Assets.ManaProjectFolder.
 /Library/
 /Tools/WebAssets/__pycache__/
+
+# Legacy ImGui window layout, if an older build recreates it.
+/imgui.ini

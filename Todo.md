@@ -21,7 +21,9 @@
 
 [] - Can the mana command runner be in a higher up in the project dependencies? with more commands registered by the project that supports it. - like things only mana voxel can do etc.
 
-[] - It can be hard to tell when something is html, or mana ui.  Is there a way to mark html as such
+[x] - It can be hard to tell when something is html, or mana ui.  Is there a way to mark html as such
+    Browser loading screens, level selector, pause menu and Escape hint now carry an HTML badge.
+    Labels live inside each HTML surface and disappear with it; checked the page layouts in headless Chrome.
 
 [] - Do we support nested prefabs, and is it possible?
 
@@ -31,9 +33,11 @@
 
 [] - Can we also support exporting video in addition to the PNG snapshots we take now. Prolly using FFMPEG to compress pngs or something.
 
-[] - The search location panel is gone, i think it moved somewhere but i can't find it anymore. where is it?
+[x] - The search location panel is gone, i think it moved somewhere but i can't find it anymore. where is it?
+    Location search is a dialog under View > Search Location... (formerly Search Area...), renamed for discoverability.
 
-[] - There is a blue ball and yellow donut in every scene for some reason - i forgot why, remove them.
+[x] - There is a blue ball and yellow donut in every scene for some reason - i forgot why, remove them.
+    Removed the startup cursor sphere and demo pickup donut from VoxelEditorGameMode; voxel hover feedback remains.
 
 [x] - Finish the Little Pond Level - Add tents and picnic stuff
     Added Kenney Mini Forest tents and woodland, a fire circle, picnic table, blanket and supplies.
@@ -41,7 +45,9 @@
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
 
-[] - JSON files seem to be adding lots of new lines again, i thought it was fixed.
+[x] - JSON files seem to be adding lots of new lines again, i thought it was fixed.
+    Sprite assets were bypassing ManaJsonFormat. Their shared save path now uses it too, keeping short arrays
+    like pivots on one line. Checked value preservation and stable load/save formatting; existing files update when saved.
 
 [] - Some kind of particle system. - Points, trails, ribbons, etc.
 
@@ -49,7 +55,10 @@
 
 [] - UI Editor is not working and not used, needs updating - low priority
 
-[] - Perf: Split up the world perf ManaUI by panel to help know which panel is slow
+[x] - Perf: Split up the world perf ManaUI by panel to help know which panel is slow
+    World Perf now separates panel CPU timings into Bindings, Measure, Arrange and Record, including floated panels.
+    Scope names sit above aligned Peak/Now/Avg milliseconds and peak allocation columns; frame totals stay separate.
+    Timings also appear in profile_dump. Verified in-app (DevPhotos/2026-10-01 panel-timings.png); all 2,920 checks pass.
 
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on

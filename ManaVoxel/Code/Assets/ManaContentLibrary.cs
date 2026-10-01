@@ -39,12 +39,13 @@ namespace ManaVoxel.Code.Assets
             return path;
         }
 
-        public static string Reference(string path) => Path.GetRelativePath(Root, path).Replace('\\', '/');
+        public static string Reference(string path) => Path.GetRelativePath(
+            ManaProjectFolder.CanonicalPath(Root), ManaProjectFolder.CanonicalPath(path)).Replace('\\', '/');
 
         public static string ResolvePrefab(string id, string relativePath, string? root = null)
         {
-            root = Path.GetFullPath(root ?? Root);
-            var candidate = Path.GetFullPath(Path.Combine(root, relativePath));
+            root = ManaProjectFolder.CanonicalPath(root ?? Root);
+            var candidate = ManaProjectFolder.CanonicalPath(Path.Combine(root, relativePath));
             if (!candidate.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("Prefab reference must stay inside Content.");

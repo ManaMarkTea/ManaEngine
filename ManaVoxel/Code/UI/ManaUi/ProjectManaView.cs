@@ -12,7 +12,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 {
     public static class ProjectManaView
     {
-        public static UiElement Build(UiTheme theme, ManaWorld world, VoxelEditorViewModel editor)
+        public static UiElement Build(UiTheme theme, ManaWorld world, VoxelEditorViewModel editor, Func<float>? folderWidth = null)
         {
             var model = ProjectAssetViewModel.For(world, editor);
             var search = new TextBox { Placeholder = "Search project assets", Text = model.Search };
@@ -25,12 +25,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             name.TextChanged += (_, _) => model.AssetName = name.Text;
             var status = new TextBlock().BindTextPolled(() => model.Status).Wrap().Foreground(theme.TextMuted);
             var folders = new DynamicContent().Showing<object>(() => model.Entries, _ => BuildFolders(theme, model));
+            folders.Width = 210;
+            if (folderWidth != null)
+            {
+                folders.BindPolled(f => f.Width, folderWidth);
+            }
+            var tileWidth = 106f;
+            var sizes = new ComboBox().Options(new[] { "Compact", "Comfortable" });
+            sizes.SelectedIndex = 0;
+            sizes.SelectionChanged += (_, index) => tileWidth = index == 1 ? 138f : 106f;
             object? previousEntries = null;
             string? previousFilter = null;
             var listRevision = new object();
             object ListRevision()
             {
-                var filter = $"{model.Search}|{model.Folder}|{model.Kind}";
+                var filter = $"{model.Search}|{model.Folder}|{model.Kind}|{tileWidth}";
                 if (!ReferenceEquals(previousEntries, model.Entries) || previousFilter != filter)
                 {
                     previousEntries = model.Entries;
@@ -39,13 +48,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
                 return listRevision;
             }
-            var list = new DynamicContent().Showing<object>(ListRevision, _ => BuildList(theme, model));
+            var list = new DynamicContent().Showing<object>(ListRevision, _ => BuildList(theme, model, tileWidth));
             var edit = new DynamicContent().Showing<object>(() => model.Token, _ => BuildEditing(theme, model));
-            return new Grid().Columns("210, *", theme.Spacing).Rows("*, Auto", theme.Spacing).Padding(8).Children(
+            return new Grid().Columns("Auto, *", theme.Spacing).Rows("*, Auto", theme.Spacing).Padding(8).Children(
                 folders.GridColumn(0),
                 new Grid().Rows("Auto, *, Auto", theme.Spacing).Columns("*").GridColumn(1).Children(
                     new StackPanel().Horizontal(theme.Spacing).Children(search.Width(200), type.Width(130),
-                        NewMenu(theme, model),
+                        sizes.Width(110), NewMenu(theme, model),
                         new Button().Label("Refresh").OnClick(model.Refresh)),
                     list.Scrollable().GridRow(1),
                     new StackPanel().Vertical(4).GridRow(2).Children(edit,
@@ -96,7 +105,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 tree.Scrollable().GridRow(1));
         }
 
-        private static UiElement BuildList(UiTheme theme, ProjectAssetViewModel model)
+        private static UiElement BuildList(UiTheme theme, ProjectAssetViewModel model, float tileWidth)
         {
             var entries = model.Entries.Where(e => (model.Kind == "All" || e.Kind == model.Kind)
                 && (model.Folder.Length == 0 || e.RelativePath.StartsWith(model.Folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -110,19 +119,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 var preview = new UiImage
                 {
-                    Fit = UiImageFit.Contain, Width = 86, Height = 86,
+                    Fit = UiImageFit.Contain, Width = tileWidth - 24, Height = tileWidth - 24,
                     SourceSize = new Vector2(MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize)
                 };
                 var kind = ManaContentKinds.Named(entry.Kind);
                 var badge = new TextBlock().Text(kind?.Badge ?? "ASSET").Foreground(theme.Accent).Center();
-                var frame = new Border().Rounded(3).Content(new Grid().Rows("*, Auto", 2).Columns("*").Children(
+                var frame = new Border().Rounded(3).Content(new Grid().Rows("*, Auto, Auto", 2).Padding(5).Columns("*").Children(
                     new Grid().Rows("*").Columns("*").Children(preview.Center(), badge),
-                    new TextBlock().Text(entry.Name).Ellipsis().CenterH().GridRow(1)));
-                frame.BindPolled(b => b.BorderColor, () => model.SelectedAsset == entry.Path ? theme.Accent : UiColor.Transparent);
-                frame.BindPolled(b => b.BorderThickness, () => model.SelectedAsset == entry.Path ? 2f : 0f);
+                    new TextBlock().Text(entry.Name).Ellipsis().CenterH().GridRow(1),
+                    new TextBlock().Text(entry.Kind).FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).CenterH().GridRow(2)));
+                frame.BindPolled(b => b.BorderColor, () => model.SelectedAsset == entry.Path ? theme.Accent : theme.Border);
+                frame.BorderThickness = 1f;
+                frame.BindPolled(b => b.Background, () => model.SelectedAsset == entry.Path ? theme.Selected : theme.Surface);
                 var row = new MeshAssetRow(new MeshAssetEntry(entry.Path, entry.Name, [entry.Path]))
                 {
-                    Child = frame, Width = 106, Height = 120,
+                    Child = frame, Width = tileWidth, Height = tileWidth + 30,
                     CanDrag = () => ProjectAssetViewModel.CanPlace(entry) && model.CanEdit && !model.IsEditing,
                     ContextMenuItems = () => AssetMenu(model, entry)
                 };
@@ -328,7 +339,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         private static UiElement OverrideRow(UiTheme theme, string label, UiElement editor, bool overridden, Action revert)
         {
-            var bar = new Border().Fill(overridden ? theme.Accent : UiColor.Transparent).Width(2.0f).GridColumn(0);
+            var bar = new Border().Fill(overridden ? theme.Accent : theme.Border).Width(2.0f).GridColumn(0);
             var name = new TextBlock().Text(label).Ellipsis().Width(110.0f).CenterV().GridColumn(1)
                 .Foreground(overridden ? theme.Text : theme.TextMuted);
             var row = new Grid().Columns("Auto, Auto, *, Auto", 4.0f).Rows("Auto").Children(bar, name, editor.GridColumn(2));

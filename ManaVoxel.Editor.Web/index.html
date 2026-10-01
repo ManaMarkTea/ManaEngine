@@ -25,6 +25,20 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
+    /* Keep the renderer label inside its HTML surface so it leaves with that surface. */
+    .mana-html-badge {
+      display: block;
+      width: fit-content;
+      margin: 0 auto 8px;
+      padding: 3px 7px;
+      border: 1px solid #59616e;
+      border-radius: 4px;
+      color: #b9c5d8;
+      font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+
     #manaCanvas { display: block; width: 100%; height: 100%; }
 
     /* pointer-events: none throughout -- nothing here is interactive, and it means an overlay
@@ -168,6 +182,7 @@
 
   <div id="manaLoading">
     <div class="mana-card">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
       <h1 class="mana-title">MANA EDITOR</h1>
       <p class="mana-status" id="manaLoadingStatus">Starting...</p>
       <div class="mana-track">

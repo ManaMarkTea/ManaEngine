@@ -117,7 +117,7 @@ namespace Mana.Code.Content
         {
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
             var partial = file + ".part";
-            File.WriteAllText(partial, JsonSerializer.Serialize(asset, Json));
+            File.WriteAllText(partial, ManaCore.Serialization.ManaJsonFormat.Indent(JsonSerializer.Serialize(asset, Json)));
             File.Move(partial, file, overwrite: true);
             Loaded.TryRemove(file, out _);
         }
