@@ -89,6 +89,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `drop_to_floor` | | Drops the selection onto whatever is below it (the End key) |
 | `grid_autotile` / `grid_generate` | see `ManaCommandFile` | Paints a road preset through cells; runs the WFC generator |
 | `bow` | `name` (`hold`, `hold_up`, `release`) | Holds or lets go of the Bow's fire key while playing, so a script can shoot |
+| `import_filter` | `name` | Types into the Import panel's filter (e.g. a pack name) to bring its models into view |
 | `profile_reset` / `profile_dump` | `path` | Frame profiler: start fresh; write the per-scope report |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
 

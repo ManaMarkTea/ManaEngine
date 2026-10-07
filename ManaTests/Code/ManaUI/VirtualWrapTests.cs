@@ -36,5 +36,18 @@ public static class VirtualWrapChecks
         var before = made;
         root.UpdateLayout(new Vector2(500, 400));
         check("an unchanged frame builds nothing", made == before, $"{made - before} built");
+
+        // A dock sizing its columns measures its content at several widths a frame before the real one.
+        before = made;
+        for (var frame = 0; frame < 5; frame++)
+        {
+            panel.Measure(new Vector2(14, float.PositiveInfinity));
+            panel.Measure(new Vector2(200, float.PositiveInfinity));
+            root.InvalidateMeasure();
+            root.UpdateLayout(new Vector2(500, 400));
+        }
+        check("probing narrower widths rebuilds no tiles", made == before, $"{made - before} built");
+        onScreen = panel.Children.Count(child => child.Bounds.IntersectsWith(scroller.Bounds));
+        check("and the tiles in view still sit in view", onScreen > 6, $"{onScreen} on screen");
     }
 }

@@ -12,7 +12,7 @@ namespace ManaVoxel.Code.Automation
         /// <summary>
         /// The command; CLAUDE.md ("Testing levels with scripts") says what each does. Levels and assets: open_level,
         /// open_prefab, open_asset, open_panel, open_tools, select_node, review_changes. View: move_camera, sky,
-        /// emission, screenshot. Play: play, stop_play, teleport_player, log_player, bow (hold / hold_up / release the bow's fire key). Checks: dirty_report, profile_reset,
+        /// emission, screenshot. Play: play, stop_play, teleport_player, log_player, bow (hold / hold_up / release the bow's fire key). UI: import_filter (the Import panel's filter text). Checks: dirty_report, profile_reset,
         /// profile_dump. Pictures: gizmos. Editing: drop_to_floor, grid_autotile, grid_generate. Flow: wait, quit.
         /// </summary>
         public string Type { get; set; } = "";

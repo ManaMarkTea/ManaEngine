@@ -60,7 +60,9 @@ namespace ManaVoxel.Code.Assets
         // WebGPU, so cached sideways fallback renders regenerate.
         // 9: imported node rotations now preserve their authored axis when glTF quaternions are decomposed
         // into Mana's X=pitch, Y=yaw, Z=roll Euler convention.
-        public const int CacheFormatVersion = 9;
+        // 10: a preview mixing materials (a prefab of shapes and textured models) bakes each part's colour
+        // instead of sampling the first part's texture everywhere.
+        public const int CacheFormatVersion = 10;
 
         private readonly ManaContext _context;
         private readonly ManaWebGpuContext? _webGpuContext;
@@ -704,6 +706,17 @@ namespace ManaVoxel.Code.Assets
             byte[]? albedoTextureBytes = null;
             Vector4? albedoFactor = null;
 
+            // Parts with different materials (a prefab of plain shapes and textured models) cannot share one
+            // texture: a shape would sample the model's palette at its own UVs and come out as noise. Each
+            // part's texture and factor are baked into its vertex colours instead.
+            var first = placements[0].Mesh.CpuData ?? placements[0].Mesh.GetOrCreateCpuData();
+            var mixedMaterials = placements.Any(placement =>
+            {
+                var other = placement.Mesh.CpuData ?? placement.Mesh.GetOrCreateCpuData();
+                return !ReferenceEquals(other.AlbedoTextureBytes, first.AlbedoTextureBytes) || other.AlbedoFactor != first.AlbedoFactor;
+            });
+            var bakedTextures = new Dictionary<byte[], ManaImage?>(ReferenceEqualityComparer.Instance);
+
             foreach (var (mesh, transform) in placements)
             {
                 var part = mesh.CpuData ?? mesh.GetOrCreateCpuData();
@@ -727,6 +740,10 @@ namespace ManaVoxel.Code.Assets
                         ? Vector3.TransformNormal(part.Normals[i], normalTransform).Normalized()
                         : Vector3.UnitY;
                     colors[vertexOffset + i] = i < part.Colors.Length ? part.Colors[i] : Vector4.One;
+                    if (mixedMaterials)
+                    {
+                        colors[vertexOffset + i] = BakedColor(part, i, bakedTextures);
+                    }
                     uv0[vertexOffset + i] = i < part.TextureCoordinates0.Length ? part.TextureCoordinates0[i] : Vector2.Zero;
                     uv1[vertexOffset + i] = i < part.TextureCoordinates1.Length ? part.TextureCoordinates1[i] : Vector2.Zero;
                 }
@@ -741,7 +758,7 @@ namespace ManaVoxel.Code.Assets
                 // The first part's material stands in for the whole preview, same trade the Assimp path
                 // makes: ManaMeshCpuData carries one albedo, and a multi-part character has no single
                 // correct answer for which of its several materials that should be.
-                if (albedoTextureBytes == null && albedoFactor == null)
+                if (!mixedMaterials && albedoTextureBytes == null && albedoFactor == null)
                 {
                     albedoTextureBytes = part.AlbedoTextureBytes;
                     albedoFactor = part.AlbedoFactor;
@@ -760,6 +777,44 @@ namespace ManaVoxel.Code.Assets
                 AlbedoTextureBytes = albedoTextureBytes,
                 AlbedoFactor = albedoFactor
             };
+        }
+
+        /// <summary>One vertex's colour with its part's albedo texture and factor folded in, for a preview mixing materials.</summary>
+        private static Vector4 BakedColor(ManaMeshCpuData part, int vertex, Dictionary<byte[], ManaImage?> decoded)
+        {
+            var color = vertex < part.Colors.Length ? part.Colors[vertex] : Vector4.One;
+            if (part.AlbedoFactor is { } factor)
+            {
+                color *= factor;
+            }
+
+            if (part.AlbedoTextureBytes is { Length: > 0 } bytes && vertex < part.TextureCoordinates0.Length)
+            {
+                if (!decoded.TryGetValue(bytes, out var image))
+                {
+                    try
+                    {
+                        // Flipped like the rasterizer's own decode: the loaders store V already flipped.
+                        image = ManaImageCodec.Load(bytes).FlipVertical();
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        image = null;
+                    }
+                    decoded[bytes] = image;
+                }
+
+                if (image != null)
+                {
+                    var uv = part.TextureCoordinates0[vertex];
+                    var x = Math.Clamp((int)((uv.X - MathF.Floor(uv.X)) * image.Width), 0, image.Width - 1);
+                    var y = Math.Clamp((int)((uv.Y - MathF.Floor(uv.Y)) * image.Height), 0, image.Height - 1);
+                    var offset = ((y * image.Width) + x) * 4;
+                    color *= new Vector4(image.Pixels[offset] / 255.0f, image.Pixels[offset + 1] / 255.0f, image.Pixels[offset + 2] / 255.0f, image.Pixels[offset + 3] / 255.0f);
+                }
+            }
+
+            return color;
         }
 
         private static void CollectMeshPlacements(

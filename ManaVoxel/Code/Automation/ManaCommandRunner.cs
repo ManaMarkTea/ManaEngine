@@ -146,6 +146,12 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "import_filter":
+                        // Types into the Import panel's filter box, to bring one pack's models into view.
+                        ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.MeshAssets.Filter = command.Name ?? string.Empty;
+                        _index++;
+                        break;
+
                     case "log_player":
                         // Where the player is and whether it stands, for a scripted check of a level's footing.
                         if (_context.World.GameState.Player is { } logged)
