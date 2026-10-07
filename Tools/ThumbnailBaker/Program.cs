@@ -1,5 +1,5 @@
 // Pre-renders a preview image for every model in a published asset-catalog.json into a committed cache
-// (Content/Thumbnails), using the same headless CPU rasterizer MeshThumbnailCache falls back to at runtime
+// (Assets/Generated/Thumbnails), using the same headless CPU rasterizer MeshThumbnailCache falls back to at runtime
 // (MeshThumbnailCache.GenerateViaCpuStandalone), so a pre-built preview and an on-demand one render alike.
 // index.json maps each model to the content hash it was rendered from; only models whose file changed are
 // rendered again, and previews of models that are gone are dropped. publish_assets.py attaches the cached
@@ -7,7 +7,7 @@
 //
 // Run offline, through Tools/WebAssets/bake_thumbnails.py, which publishes the catalog it reads first.
 //
-//   dotnet run --project Tools/ThumbnailBaker -- --app-bundle <published output> --cache Content/Thumbnails
+//   dotnet run --project Tools/ThumbnailBaker -- --app-bundle <published output> --cache Assets/Generated/Thumbnails
 
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -20,7 +20,7 @@ using SixLabors.ImageSharp.PixelFormats;
 
 if (args.Length != 4 || args[0] != "--app-bundle" || args[2] != "--cache")
 {
-    Console.Error.WriteLine("Usage: dotnet run --project Tools/ThumbnailBaker -- --app-bundle <published output> --cache <Content/Thumbnails>");
+    Console.Error.WriteLine("Usage: dotnet run --project Tools/ThumbnailBaker -- --app-bundle <published output> --cache <Assets/Generated/Thumbnails>");
     return 1;
 }
 

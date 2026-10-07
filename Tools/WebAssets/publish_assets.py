@@ -10,7 +10,8 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
-EXCLUDED_PREFIXES = ("Assets/GeoData/",)
+# Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
+EXCLUDED_PREFIXES = ("Assets/GeoData/", "Assets/Generated/")
 ROOTS = ("Assets", "Mana/Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaVoxel/Assets")
 SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength",
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
@@ -114,9 +115,9 @@ def publish(root, output):
 
 
 def attach_thumbnails(root, library, files, models):
-    """Points each model at its pre-built preview in Content/Thumbnails (bake_thumbnails.py makes them), when
+    """Points each model at its pre-built preview in Assets/Generated/Thumbnails (bake_thumbnails.py makes them), when
     it was rendered from the model file as it is now; any other model is drawn on demand in the browser."""
-    cache = root / "Content" / "Thumbnails"
+    cache = root / "Assets" / "Generated" / "Thumbnails"
     index_file = cache / "index.json"
     if not index_file.exists():
         return

@@ -844,7 +844,9 @@ namespace ManaVoxel.Code.Assets
         /// Cache file name. Includes the asset's size and write time, so an edited model regenerates rather
         /// than showing a preview of what it used to look like -- a hash of the path alone would not notice.
         /// </summary>
-        private string CacheFileFor(string assetPath)
+        private string CacheFileFor(string assetPath) => CacheFileFor(_cacheDirectory, assetPath);
+
+        private static string CacheFileFor(string cacheDirectory, string assetPath)
         {
             var stamp = string.Empty;
             try
@@ -862,7 +864,7 @@ namespace ManaVoxel.Code.Assets
 
             var key = $"{CacheFormatVersion}|{ThumbnailSize}|{assetPath}|{stamp}";
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
-            return Path.Combine(_cacheDirectory, $"{hash[..32]}.thumb");
+            return Path.Combine(cacheDirectory, $"{hash[..32]}.thumb");
         }
 
         /// <summary>
@@ -900,12 +902,14 @@ namespace ManaVoxel.Code.Assets
             }
         }
 
-        private void SaveToDisk(string assetPath, byte[] pixels)
+        private void SaveToDisk(string assetPath, byte[] pixels) => WriteCacheFile(_cacheDirectory, assetPath, pixels);
+
+        private static void WriteCacheFile(string cacheDirectory, string assetPath, byte[] pixels)
         {
             try
             {
-                Directory.CreateDirectory(_cacheDirectory);
-                var file = CacheFileFor(assetPath);
+                Directory.CreateDirectory(cacheDirectory);
+                var file = CacheFileFor(cacheDirectory, assetPath);
 
                 // Written beside the target and moved into place, so a crash mid-write cannot leave a
                 // half-file that later reads as a valid cache entry.
@@ -918,6 +922,109 @@ namespace ManaVoxel.Code.Assets
             {
                 ManaLog.WriteDiagnostic($"[Thumbnails] could not cache '{Path.GetFileName(assetPath)}': {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Fills the disk cache for everything the Import and Project panels show, so a fresh checkout (or a new
+        /// pack) opens with every thumbnail ready instead of rendering them one at a time as tiles scroll into view.
+        /// Headless and on every core, so these are the CPU renders the web previews are baked with.
+        /// </summary>
+        public static (int Made, int Cached, int Failed) PrecacheLibrary(Action<string> report)
+        {
+            var library = new MeshAssetLibrary();
+            library.RequestScan(force: true);
+            while (library.IsScanning)
+            {
+                Thread.Sleep(20);
+            }
+            library.PollScan();
+
+            var assets = library.FilteredEntries.Select(entry => entry.PrimaryPath)
+                .Concat(ManaContentLibrary.List().Select(entry => entry.Path).Where(IsContentAsset))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var cacheDirectory = DefaultCacheDirectory();
+            report($"Thumbnails: {assets.Count} assets, cache {cacheDirectory}");
+
+            int made = 0, cached = 0, failed = 0, done = 0;
+            var retry = new ConcurrentBag<string>();
+            var lastReport = Environment.TickCount64;
+            Parallel.ForEach(
+                assets,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                // One throwaway context per worker: a loader shares state through its context.
+                () =>
+                {
+                    var world = new ManaWorld();
+                    var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+                    world.Context = context;
+                    return context;
+                },
+                (path, _, context) =>
+                {
+                    if (File.Exists(CacheFileFor(cacheDirectory, path)))
+                    {
+                        Interlocked.Increment(ref cached);
+                    }
+                    else
+                    {
+                        if (TryMake(context, path, cacheDirectory))
+                        {
+                            Interlocked.Increment(ref made);
+                        }
+                        else
+                        {
+                            retry.Add(path);
+                        }
+                    }
+
+                    var count = Interlocked.Increment(ref done);
+                    var now = Environment.TickCount64;
+                    if (now - Interlocked.Read(ref lastReport) > 2000)
+                    {
+                        Interlocked.Exchange(ref lastReport, now);
+                        report($"  {count}/{assets.Count}");
+                    }
+                    return context;
+                },
+                _ => { });
+
+            // A few loaders share static state and collide when run side by side; alone they are fine.
+            var soloWorld = new ManaWorld();
+            var soloContext = new ManaContext(null!, null!, soloWorld) { DeferGpuUploads = true };
+            soloWorld.Context = soloContext;
+            foreach (var path in retry)
+            {
+                if (TryMake(soloContext, path, cacheDirectory, report))
+                {
+                    made++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+
+            report($"Thumbnails: {made} made, {cached} already cached, {failed} without a preview.");
+            return (made, cached, failed);
+        }
+
+        private static bool TryMake(ManaContext context, string path, string cacheDirectory, Action<string>? reportFailure = null)
+        {
+            try
+            {
+                if (GenerateViaCpuStandalone(context, path) is { } pixels)
+                {
+                    WriteCacheFile(cacheDirectory, path, pixels);
+                    return true;
+                }
+            }
+            catch (Exception exception)
+            {
+                reportFailure?.Invoke($"  failed {MeshAssetLibrary.DisplayName(path)}: {exception.Message}");
+            }
+
+            return false;
         }
 
         public void Dispose()

@@ -26,6 +26,14 @@ namespace Mana
                 var launchOptions = ManaLaunchOptions.Parse(args);
                 var backendKind = launchOptions.GraphicsBackend;
 
+#if !MANA_BROWSER
+                if (launchOptions.PrecacheThumbnails)
+                {
+                    ManaVoxel.Code.Assets.MeshThumbnailCache.PrecacheLibrary(Console.WriteLine);
+                    return;
+                }
+#endif
+
                 // --play skips the editor entirely: same executable, but the game rather than the tool.
                 if (launchOptions.PlayLevelPath is { } playLevelPath)
                 {

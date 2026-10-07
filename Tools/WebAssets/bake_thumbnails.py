@@ -1,4 +1,4 @@
-"""Renders model previews into Content/Thumbnails for the web catalog: only models whose file changed since the
+"""Renders model previews into Assets/Generated/Thumbnails for the web catalog: only models whose file changed since the
 last bake, dropping those of models that are gone. Commit what it changes; the web publish picks them up.
 
     python Tools/WebAssets/bake_thumbnails.py
@@ -15,4 +15,4 @@ root = Path(__file__).resolve().parents[2]
 staging = root / "Artifacts" / "ThumbnailBake"
 publish_assets.publish(root, staging)
 sys.exit(subprocess.call(["dotnet", "run", "--project", str(root / "Tools" / "ThumbnailBaker"), "-c", "Release", "--",
-                          "--app-bundle", str(staging), "--cache", str(root / "Content" / "Thumbnails")]))
+                          "--app-bundle", str(staging), "--cache", str(root / "Assets" / "Generated" / "Thumbnails")]))
