@@ -14,7 +14,7 @@
     deploy (the editor's 'Failed to fetch ManaAudio.wasm'). The first deploy after this can still trip a browser holding
     the old index.html for up to 10 minutes; a reload after that fixes it for good.
 
-
+[] - Can the stars be real constalations?
 
 [x] - Can the moon match up to the real phase of the moon (New moon, half moon, full moon)
     `ManaLunarPhase` calculates the phase and illumination; the simulated date/time now drives the moon, its
