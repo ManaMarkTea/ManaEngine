@@ -218,9 +218,23 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     return output;
 }
 
+// Fine ripples in the lighting only: far too small for the vertex grid, but they break the moon's and the
+// lamps' reflections into a path of glints. Like the swell, they still out toward the banks.
+fn detail_normal(xz : vec2<f32>, calm : f32) -> vec3<f32> {
+    let t = frame.time * custom.waveSpeed;
+    let e = 0.04;
+    let p = xz * 2.3;
+    let h = wave_noise(p, t * 1.6) + wave_noise(p * 2.7 + vec2<f32>(5.2, 1.3), -t * 2.1) * 0.5;
+    let hx = wave_noise(p + vec2<f32>(e, 0.0), t * 1.6) + wave_noise((p + vec2<f32>(e, 0.0)) * 2.7 + vec2<f32>(5.2, 1.3), -t * 2.1) * 0.5;
+    let hz = wave_noise(p + vec2<f32>(0.0, e), t * 1.6) + wave_noise((p + vec2<f32>(0.0, e)) * 2.7 + vec2<f32>(5.2, 1.3), -t * 2.1) * 0.5;
+    let slope = vec2<f32>(hx - h, hz - h) / e * 0.06 * calm;
+    return vec3<f32>(-slope.x, 0.0, -slope.y);
+}
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-    let n = normalize(input.world_normal);
+    let detail = (object.normal_matrix * vec4<f32>(detail_normal(input.local_xz, shore_calm(input.uv0)), 0.0)).xyz;
+    let n = normalize(normalize(input.world_normal) + detail);
     let v = normalize(frame.camera_position.xyz - input.world_position);
     let ndotv = saturate(dot(n, v));
 
