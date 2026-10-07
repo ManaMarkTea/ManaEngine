@@ -56,6 +56,9 @@ namespace ManaGraphics.Code.Graphics
             // xyz = direction towards the sun; w = 0 the environment image, 1 a day sky, 2 space.
             public Vector4 Sun;
 
+            // xyz = direction towards the moon; w = 1 when the dated sky clock has a moon.
+            public Vector4 Moon;
+
             // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = cloud drift; w = lunar phase, 0..1.
             public Vector4 Parameters;
         }
@@ -153,6 +156,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 InverseDirectionViewProjection = inverse,
                 Sun = new Vector4(sun, sky.Mode switch { ManaSkyMode.Photo => 0.0f, ManaSkyMode.Space => 2.0f, _ => 1.0f }),
+                Moon = new Vector4(sky.TowardMoon, sky.Mode == ManaSkyMode.DayNightCycle ? 1.0f : 0.0f),
                 Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase)
             };
             _api.QueueWriteBuffer(_queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));

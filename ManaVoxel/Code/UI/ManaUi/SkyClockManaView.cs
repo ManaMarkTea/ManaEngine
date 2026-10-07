@@ -173,6 +173,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             };
             dateTime.ValueChanged += (_, value) =>
             {
+                if (dateTime.IsApplyingBinding)
+                {
+                    return;
+                }
+
                 HoldForDateChange();
                 sky.SkyDateTime = value;
                 sky.DaySystem = pickedDaySystem;

@@ -102,10 +102,20 @@ public static class SkyClockChecks
         check("real time follows the wall clock", MathF.Abs(real.TimeOfDay - expected) < 0.01f || MathF.Abs(real.TimeOfDay - expected) > 0.99f,
             $"{ManaSky.HoursAt(real.TimeOfDay):0.00} h against {ManaSky.HoursAt(expected):0.00} h");
 
-        var noon = ManaSky.Evaluate(new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, TimeOfDay = 0.25f });
-        var midnight = ManaSky.Evaluate(new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, TimeOfDay = 0.75f });
+        var summerNoon = new DateTimeOffset(2026, 6, 21, 13, 0, 0, TimeSpan.FromHours(-7));
+        var noon = ManaSky.Evaluate(new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, SkyDateTime = summerNoon });
+        var midnight = ManaSky.Evaluate(new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, SkyDateTime = summerNoon.AddHours(12.0) });
         check("noon is full daylight and midnight is dark", noon.Daylight > 0.95f && midnight.Daylight < 0.15f && noon.TowardSun.Y > 0.9f,
             $"noon {noon.Daylight:0.00}, midnight {midnight.Daylight:0.00}");
+
+        var daytimeQuarterMoon = ManaSky.Evaluate(new ManaIrradianceSettings
+        {
+            Sky = ManaSkyMode.DayNightCycle,
+            SkyDateTime = new DateTimeOffset(2023, 7, 25, 15, 0, 0, TimeSpan.FromHours(-7))
+        });
+        check("a first-quarter moon can be above Seattle in daylight",
+            daytimeQuarterMoon.Daylight > 0.9f && daytimeQuarterMoon.TowardMoon.Y > 0.1f,
+            $"sun {daytimeQuarterMoon.TowardSun}, moon {daytimeQuarterMoon.TowardMoon}");
     }
 
     private static bool Near(float a, float b) => MathF.Abs(a - b) < 1e-3f;

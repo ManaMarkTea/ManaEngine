@@ -79,7 +79,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `play` / `stop_play` | | Enters and leaves play mode (F5) |
 | `teleport_player` | `position` | While playing, moves the character -- to look at a stretch of a level without walking there |
 | `log_player` | `name` | While playing, logs `Command file: player <name> at <feet>, grounded <bool>` |
-| `sky` | `name`, `timeOfDay`, `frames`, `background` | Sky mode by name (`Day`, `DayNightCycle`, `Space`, `Photo`); a time of day holds the cycle still, and with `frames` the day runs forward to it |
+| `sky` | `name`, `skyDateTime`, `timeOfDay`, `frames`, `background` | Sky mode by name (`Day`, `DayNightCycle`, `Space`, `Photo`); `skyDateTime` is an ISO-8601 instant, `timeOfDay` holds a selected hour on that date, and with `frames` the day runs forward to it |
 | `dirty_report` | `path` | Writes each open level's saved snapshot and a fresh capture (`<path>.saved.json`, `.now.json`) -- identical means it opens unchanged |
 | `open_prefab` / `open_asset` / `review_changes` | `path` / `path` / `name` | Edit Prefab; a sheet or slice in the Sprite Asset window (or rules in the Generator); Review Changes on an instance |
 | `open_panel` / `open_tools` | `name` / | Brings up a panel by id; opens the viewport tools drawer |

@@ -156,21 +156,37 @@ namespace ManaVoxel.Code.Automation
 
                     case "sky":
                         // The sky mode by name; a time of day holds the cycle still there, for a screenshot.
+                        var sky = _context.World.IrradianceSettings;
                         if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(command.Name, true, out var skyMode))
                         {
-                            _context.World.IrradianceSettings.Sky = skyMode;
+                            sky.Sky = skyMode;
+                        }
+                        if (command.SkyDateTime is { } skyDateTime)
+                        {
+                            sky.SkyDateTime = skyDateTime;
+                            sky.TimeSpeed = 0.0f;
+                            sky.RealTime = false;
+                            sky.TimeOfDay = sky.DaySystem == ManaCore.Graphics.ManaSkyDaySystem.Sidereal
+                                ? ManaCore.Graphics.ManaSky.SiderealPhaseAt(skyDateTime)
+                                : ManaCore.Graphics.ManaSky.PhaseAt(skyDateTime.TimeOfDay.TotalHours);
                         }
                         if (command.TimeOfDay is { } timeOfDay)
                         {
-                            var sky = _context.World.IrradianceSettings;
                             sky.TimeSpeed = 0.0f;
                             sky.RealTime = false;
+                            void SetTime(float phase)
+                            {
+                                sky.TimeOfDay = phase;
+                                var hours = ManaCore.Graphics.ManaSky.HoursAt(phase);
+                                sky.SkyDateTime = new DateTimeOffset(sky.SkyDateTime.Date.AddHours(hours), sky.SkyDateTime.Offset);
+                            }
+
                             if (command.Frames > 0)
                             {
                                 // Always forward, as the day goes -- sunset to night, or on through dawn.
                                 var from = sky.TimeOfDay;
                                 var ahead = ((timeOfDay - from) % 1.0f + 1.0f) % 1.0f;
-                                _glides.Add((eased => sky.TimeOfDay = (from + ahead * eased) % 1.0f, command.Frames, !command.Background));
+                                _glides.Add((eased => SetTime((from + ahead * eased) % 1.0f), command.Frames, !command.Background));
                                 _glideSteps.Add(0);
                                 _index++;
                                 if (!command.Background)
@@ -179,7 +195,7 @@ namespace ManaVoxel.Code.Automation
                                 }
                                 break;
                             }
-                            sky.TimeOfDay = timeOfDay;
+                            SetTime(timeOfDay);
                         }
                         _index++;
                         break;

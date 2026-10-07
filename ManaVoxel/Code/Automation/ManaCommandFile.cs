@@ -55,6 +55,9 @@ namespace ManaVoxel.Code.Automation
         /// <summary>gizmos: whether editor helpers (axes, selection, markers) show -- off for a picture.</summary>
         public bool? Visible { get; set; }
 
+        /// <summary>sky: exact simulated local date/time, in ISO 8601 form.</summary>
+        public DateTimeOffset? SkyDateTime { get; set; }
+
         /// <summary>sky: where in the day to hold a day-night cycle, 0..1 (0 sunrise, 0.25 noon, 0.5 sunset).</summary>
         public float? TimeOfDay { get; set; }
     }
