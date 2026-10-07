@@ -62,9 +62,6 @@ namespace ManaVoxel.Code.Assets
         // into Mana's X=pitch, Y=yaw, Z=roll Euler convention.
         public const int CacheFormatVersion = 9;
 
-        private const int BytesPerPixel = 4;
-        private static readonly int ExpectedByteCount = ThumbnailSize * ThumbnailSize * BytesPerPixel;
-
         private readonly ManaContext _context;
         private readonly ManaWebGpuContext? _webGpuContext;
         private readonly string _cacheDirectory;
