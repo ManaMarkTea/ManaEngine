@@ -152,28 +152,7 @@ namespace Mana.Code.Components
         }
 
         /// <summary>A PNG's pixel size, read from its header, or null when it is not one.</summary>
-        public static Vector2? PngSize(string path)
-        {
-            try
-            {
-                using var stream = File.OpenRead(path);
-                Span<byte> header = stackalloc byte[24];
-                if (stream.Read(header) < 24 || header[0] != 0x89 || header[1] != (byte)'P')
-                {
-                    return null;
-                }
-                var width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
-                var height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
-                return new Vector2(width, height);
-            }
-            catch (IOException)
-            {
-                return null;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return null;
-            }
-        }
+        public static Vector2? PngSize(string path) =>
+            ManaCore.Imaging.ManaImageCodec.Size(path) is { } size ? new Vector2(size.Width, size.Height) : null;
     }
 }

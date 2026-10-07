@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using SixLabors.ImageSharp.Processing;
 
 namespace ManaUI
 {
@@ -447,11 +446,8 @@ namespace ManaUI
 
             try
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(GetPng(entry));
-                image.Mutate(context => context.Resize(width, height));
-                var pixels = new byte[width * height * 4];
-                image.CopyPixelDataTo(pixels);
-                return new ManaColorGlyphImage(pixels, width, height, entry.BearingX * scale, entry.BearingY * scale, entry.Advance * scale);
+                var image = ManaCore.Imaging.ManaImageCodec.Load(GetPng(entry)).Resized(width, height);
+                return new ManaColorGlyphImage(image.Pixels, width, height, entry.BearingX * scale, entry.BearingY * scale, entry.Advance * scale);
             }
             catch (Exception)
             {

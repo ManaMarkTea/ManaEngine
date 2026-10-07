@@ -1,7 +1,6 @@
 using Silk.NET.Core;
 using Silk.NET.Windowing;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -82,10 +81,8 @@ namespace ManaGraphics.Code.Graphics
                     continue;
                 }
 
-                using var decoded = Image.Load<Rgba32>(entry);
-                var pixels = new byte[decoded.Width * decoded.Height * 4];
-                decoded.CopyPixelDataTo(pixels);
-                images.Add(new RawImage(decoded.Width, decoded.Height, pixels));
+                var decoded = ManaImageCodec.Load(entry);
+                images.Add(new RawImage(decoded.Width, decoded.Height, decoded.Pixels));
             }
 
             return images.ToArray();

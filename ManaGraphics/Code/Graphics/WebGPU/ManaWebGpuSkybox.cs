@@ -4,6 +4,7 @@ using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -386,9 +387,8 @@ namespace ManaGraphics.Code.Graphics
             uint height = 1;
             if (_moonPath != null && File.Exists(_moonPath))
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(_moonPath);
-                pixels = new byte[image.Width * image.Height * 4];
-                image.CopyPixelDataTo(pixels);
+                var image = ManaImageCodec.Load(_moonPath);
+                pixels = image.Pixels;
                 width = (uint)image.Width;
                 height = (uint)image.Height;
             }

@@ -1,9 +1,7 @@
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
+using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -148,15 +146,12 @@ namespace ManaGraphics.Code.Graphics
                     .CopyTo(new Span<byte>(pixels, (int)(y * rowBytes), (int)rowBytes));
             }
 
-            var directory = Path.GetDirectoryName(Path.GetFullPath(path));
-            if (!string.IsNullOrEmpty(directory))
+            // The surface is Bgra8UnormSrgb; the codec wants RGBA.
+            for (var i = 0; i < pixels.Length; i += 4)
             {
-                Directory.CreateDirectory(directory);
+                (pixels[i], pixels[i + 2]) = (pixels[i + 2], pixels[i]);
             }
-
-            // Bgra32, matching the surface's own Bgra8UnormSrgb format -- no channel swizzle needed.
-            using var image = ImageSharpImage.LoadPixelData<Bgra32>(pixels, (int)width, (int)height);
-            image.SaveAsPng(path);
+            ManaImageCodec.SavePng(new ManaImage((int)width, (int)height, pixels), path);
         }
     }
 }

@@ -2,9 +2,8 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using ManaCore.Loading;
 using ManaCore.Graphics;
-using SixLabors.ImageSharp.PixelFormats;
 using Silk.NET.WebGPU;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
+using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -136,10 +135,8 @@ namespace ManaGraphics.Code.Graphics
             IProgress<ManaLoadingProgress>? progress)
         {
             progress?.Report(new ManaLoadingProgress("Reading environment image", 0.07f));
-            using var image = ImageSharpImage.Load<Rgba32>(sourcePath);
-            var sourcePixels = new Rgba32[image.Width * image.Height];
-            image.CopyPixelDataTo(sourcePixels);
-            var equirect = new EquirectImage(sourcePixels, image.Width, image.Height);
+            var image = ManaImageCodec.Load(sourcePath);
+            var equirect = new EquirectImage(image.Pixels, image.Width, image.Height);
 
             WriteCubeTexture(
                 api, queue, environmentMap.Texture, equirect, (int)environmentMap.Width, 0, 0.0f, false,
@@ -751,9 +748,9 @@ namespace ManaGraphics.Code.Graphics
 
         private readonly struct EquirectImage
         {
-            private readonly Rgba32[] _pixels;
+            private readonly byte[] _pixels;
 
-            public EquirectImage(Rgba32[] pixels, int width, int height)
+            public EquirectImage(byte[] pixels, int width, int height)
             {
                 _pixels = pixels;
                 Width = width;
@@ -781,16 +778,17 @@ namespace ManaGraphics.Code.Graphics
                 var tx = x - x0;
                 var ty = y - y0;
 
-                var c00 = ToVector(_pixels[y0 * Width + x0]);
-                var c10 = ToVector(_pixels[y0 * Width + x1]);
-                var c01 = ToVector(_pixels[y1 * Width + x0]);
-                var c11 = ToVector(_pixels[y1 * Width + x1]);
+                var c00 = ToVector(y0 * Width + x0);
+                var c10 = ToVector(y0 * Width + x1);
+                var c01 = ToVector(y1 * Width + x0);
+                var c11 = ToVector(y1 * Width + x1);
                 return Vector4.Lerp(Vector4.Lerp(c00, c10, tx), Vector4.Lerp(c01, c11, tx), ty);
             }
 
-            private static Vector4 ToVector(Rgba32 pixel)
+            private Vector4 ToVector(int pixel)
             {
-                return new Vector4(pixel.R / 255.0f, pixel.G / 255.0f, pixel.B / 255.0f, pixel.A / 255.0f);
+                var i = pixel * 4;
+                return new Vector4(_pixels[i] / 255.0f, _pixels[i + 1] / 255.0f, _pixels[i + 2] / 255.0f, _pixels[i + 3] / 255.0f);
             }
         }
     }

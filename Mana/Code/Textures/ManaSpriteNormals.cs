@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ManaCore.Imaging;
 
 namespace Mana
 {
@@ -30,7 +29,17 @@ namespace Mana
             var bevel = Math.Clamp(bevelPixels, 1.0f, 256.0f);
             var inner = Math.Clamp(innerEdges, 0.0f, 1.0f);
             var key = $"{picture}|{File.GetLastWriteTimeUtc(picture).Ticks}|{bevel:F2}|{inner:F2}";
-            return Made.GetOrAdd(key, _ => Make(picture, bevel, inner, key));
+            if (Made.TryGetValue(key, out var made))
+            {
+                return made;
+            }
+            // Only a success is remembered: in the browser a picture can fail just because it is still being decoded.
+            var output = Make(picture, bevel, inner, key);
+            if (output != null)
+            {
+                Made[key] = output;
+            }
+            return output;
         }
 
         private static string? Make(string picture, float bevel, float inner, string key)
@@ -42,18 +51,16 @@ namespace Mana
             }
             try
             {
-                using var image = Image.Load<Rgba32>(picture);
-                using var normals = Build(image, bevel, inner);
+                var normals = Build(ManaImageCodec.Load(picture), bevel, inner);
                 lock (WriteLock)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(output)!);
                     var partial = output + ".part";
-                    normals.SaveAsPng(partial);
+                    ManaImageCodec.SavePng(normals, partial);
                     File.Move(partial, output, overwrite: true);
                 }
                 return output;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ImageFormatException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Sprite normal map for '{picture}' could not be made: {exception.Message}");
                 return null;
@@ -61,24 +68,16 @@ namespace Mana
         }
 
         /// <summary>The normal map itself: tangent space, green up the picture, flat (0.5, 0.5, 1) where it is transparent.</summary>
-        public static Image<Rgba32> Build(Image<Rgba32> picture, float bevelPixels, float innerEdges = 0.35f)
+        public static ManaImage Build(ManaImage picture, float bevelPixels, float innerEdges = 0.35f)
         {
             var width = picture.Width;
             var height = picture.Height;
             var inside = new bool[width * height];
-            var colours = new Rgba32[width * height];
-            picture.ProcessPixelRows(rows =>
+            var colours = picture.Pixels;
+            for (var i = 0; i < inside.Length; i++)
             {
-                for (var y = 0; y < height; y++)
-                {
-                    var row = rows.GetRowSpan(y);
-                    for (var x = 0; x < width; x++)
-                    {
-                        inside[y * width + x] = row[x].A >= 128;
-                        colours[y * width + x] = row[x];
-                    }
-                }
-            });
+                inside[i] = colours[i * 4 + 3] >= 128;
+            }
 
             // Inner edges: where the colour jumps between neighbours -- an outline drawn round an arm, an eye, a
             // helmet's glass. Soft shading changes a little a pixel and never counts.
@@ -99,9 +98,9 @@ namespace Mana
                 {
                     return false;
                 }
-                var p = colours[a];
-                var q = colours[b];
-                return Math.Abs(p.R - q.R) + Math.Abs(p.G - q.G) + Math.Abs(p.B - q.B) > ColourJump;
+                var p = a * 4;
+                var q = b * 4;
+                return Math.Abs(colours[p] - colours[q]) + Math.Abs(colours[p + 1] - colours[q + 1]) + Math.Abs(colours[p + 2] - colours[q + 2]) > ColourJump;
             }
 
             // Only transparency makes an outer edge, not the picture's border: a ground tile is solid to its sides
@@ -117,28 +116,32 @@ namespace Mana
                 bump[i] = Shoulder(outer[i] / bevelPixels) * crease * bevelPixels;
             }
 
-            var result = new Image<Rgba32>(width, height);
-            result.ProcessPixelRows(rows =>
+            var result = new ManaImage(width, height);
+            var output = result.Pixels;
+            for (var y = 0; y < height; y++)
             {
-                for (var y = 0; y < height; y++)
+                for (var x = 0; x < width; x++)
                 {
-                    var row = rows.GetRowSpan(y);
-                    for (var x = 0; x < width; x++)
+                    var o = (y * width + x) * 4;
+                    if (!inside[y * width + x])
                     {
-                        if (!inside[y * width + x])
-                        {
-                            row[x] = new Rgba32(128, 128, 255, 255);
-                            continue;
-                        }
-                        // Sobel slopes; rows run down the picture and green points up it, hence dy's sign.
-                        float At(int dx, int dy) => bump[Math.Clamp(y + dy, 0, height - 1) * width + Math.Clamp(x + dx, 0, width - 1)];
-                        var gx = (At(1, -1) + 2 * At(1, 0) + At(1, 1) - At(-1, -1) - 2 * At(-1, 0) - At(-1, 1)) / 8.0f;
-                        var gy = (At(-1, -1) + 2 * At(0, -1) + At(1, -1) - At(-1, 1) - 2 * At(0, 1) - At(1, 1)) / 8.0f;
-                        var normal = Vector3.Normalize(new Vector3(-gx, -gy, 1.0f));
-                        row[x] = new Rgba32(Encode(normal.X), Encode(normal.Y), Encode(normal.Z), 255);
+                        output[o] = 128;
+                        output[o + 1] = 128;
+                        output[o + 2] = 255;
+                        output[o + 3] = 255;
+                        continue;
                     }
+                    // Sobel slopes; rows run down the picture and green points up it, hence dy's sign.
+                    float At(int dx, int dy) => bump[Math.Clamp(y + dy, 0, height - 1) * width + Math.Clamp(x + dx, 0, width - 1)];
+                    var gx = (At(1, -1) + 2 * At(1, 0) + At(1, 1) - At(-1, -1) - 2 * At(-1, 0) - At(-1, 1)) / 8.0f;
+                    var gy = (At(-1, -1) + 2 * At(0, -1) + At(1, -1) - At(-1, 1) - 2 * At(0, 1) - At(1, 1)) / 8.0f;
+                    var normal = Vector3.Normalize(new Vector3(-gx, -gy, 1.0f));
+                    output[o] = Encode(normal.X);
+                    output[o + 1] = Encode(normal.Y);
+                    output[o + 2] = Encode(normal.Z);
+                    output[o + 3] = 255;
                 }
-            });
+            }
             return result;
         }
 

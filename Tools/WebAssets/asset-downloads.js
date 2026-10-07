@@ -87,3 +87,20 @@ export async function downloadAsset(url, hash, size) {
 }
 
 export function readBytes(result) { return result.bytes; }
+
+// Decodes a picture with the browser's own decoder for ManaImageCodec, as straight RGBA rows top to bottom.
+// Colour management off, so data maps (normals, roughness, elevation) keep their values exactly.
+let decodeCanvas;
+export async function decodeImage(bytes) {
+    const bitmap = await createImageBitmap(new Blob([bytes]), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+    try {
+        decodeCanvas ??= new OffscreenCanvas(1, 1);
+        decodeCanvas.width = bitmap.width;
+        decodeCanvas.height = bitmap.height;
+        const context = decodeCanvas.getContext('2d', { willReadFrequently: true });
+        context.clearRect(0, 0, bitmap.width, bitmap.height);
+        context.drawImage(bitmap, 0, 0);
+        const data = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+        return { width: bitmap.width, height: bitmap.height, pixels: new Uint8Array(data.buffer, data.byteOffset, data.length) };
+    } finally { bitmap.close(); }
+}

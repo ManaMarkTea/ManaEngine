@@ -2,9 +2,7 @@ using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using ManaCore.Imaging;
 
 namespace Mana
 {
@@ -99,40 +97,28 @@ namespace Mana
                 return output;
             }
 
-            var images = new Dictionary<string, Image<Rgba32>>(StringComparer.Ordinal);
             try
             {
-                foreach (var (reference, file) in files)
-                {
-                    images[reference] = Image.Load<Rgba32>(file!);
-                }
+                var images = files.ToDictionary(pair => pair.Key, pair => ManaImageCodec.Load(pair.Value!), StringComparer.Ordinal);
                 var cellWidth = images.Values.Max(image => image.Width);
                 var cellHeight = images.Values.Max(image => image.Height);
                 var columns = grid.Max(row => row.Count);
-                using var joined = new Image<Rgba32>(cellWidth * columns, cellHeight * grid.Count);
+                var joined = new ManaImage(cellWidth * columns, cellHeight * grid.Count);
                 for (var row = 0; row < grid.Count; row++)
                 {
                     for (var column = 0; column < grid[row].Count; column++)
                     {
                         var image = images[grid[row][column]];
-                        var at = new Point(column * cellWidth + (cellWidth - image.Width) / 2, (row + 1) * cellHeight - image.Height);
-                        joined.Mutate(context => context.DrawImage(image, at, 1.0f));
+                        joined.Draw(image, column * cellWidth + (cellWidth - image.Width) / 2, (row + 1) * cellHeight - image.Height);
                     }
                 }
                 Save(joined, output);
                 return output;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ImageFormatException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Sprite pictures could not be joined: {exception.Message}");
                 return null;
-            }
-            finally
-            {
-                foreach (var image in images.Values)
-                {
-                    image.Dispose();
-                }
             }
         }
 
@@ -277,13 +263,12 @@ namespace Mana
             return _packPictures = found;
         }
 
-        private static void Save(Image<Rgba32> image, string output)
+        private static void Save(ManaImage image, string output)
         {
             lock (WriteLock)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(output)!);
                 var partial = output + ".part";
-                image.SaveAsPng(partial);
+                ManaImageCodec.SavePng(image, partial);
                 File.Move(partial, output, overwrite: true);
             }
         }

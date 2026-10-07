@@ -9,11 +9,9 @@ using Mana.Code.Shapes;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Diagnostics;
 using ManaCore.Graphics;
+using ManaCore.Imaging;
 using ManaGraphics.Code.Graphics;
 using ManaVoxel.Code.Services;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -572,25 +570,22 @@ namespace ManaVoxel.Code.Assets
         {
             try
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(file);
+                var image = ManaImageCodec.Load(file);
                 columns = Math.Max(1, columns);
                 rows = Math.Max(1, rows);
                 var width = Math.Max(1, image.Width / columns);
                 var height = Math.Max(1, image.Height / rows);
                 var cell = Math.Clamp(frame, 0, columns * rows - 1);
-                image.Mutate(context => context.Crop(new SixLabors.ImageSharp.Rectangle(cell % columns * width, cell / columns * height, width, height)));
+                image = image.Cropped(cell % columns * width, cell / columns * height, width, height);
                 var fit = (int)(ThumbnailSize * 0.84f);
                 var scale = MathF.Min((float)fit / image.Width, (float)fit / image.Height);
-                image.Mutate(context => context.Resize(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale))));
+                image = image.Resized(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale)));
 
-                using var canvas = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(ThumbnailSize, ThumbnailSize);
-                var at = new SixLabors.ImageSharp.Point((ThumbnailSize - image.Width) / 2, (ThumbnailSize - image.Height) / 2);
-                canvas.Mutate(context => context.DrawImage(image, at, 1.0f));
-                var pixels = new byte[ThumbnailSize * ThumbnailSize * 4];
-                canvas.CopyPixelDataTo(pixels);
-                return pixels;
+                var canvas = new ManaImage(ThumbnailSize, ThumbnailSize);
+                canvas.Draw(image, (ThumbnailSize - image.Width) / 2, (ThumbnailSize - image.Height) / 2);
+                return canvas.Pixels;
             }
-            catch (Exception exception) when (exception is IOException or SixLabors.ImageSharp.ImageFormatException)
+            catch (Exception exception) when (exception is IOException or InvalidDataException)
             {
                 return null;
             }
@@ -835,7 +830,7 @@ namespace ManaVoxel.Code.Assets
         {
             try
             {
-                using var image = Image.Load<Rgba32>(file);
+                var image = ManaImageCodec.Load(file);
 
                 // A size mismatch is a half-written or otherwise unusable file; regenerating (or, for a
                 // pre-built preview, falling back to Generate) is the fix, and handing a wrongly-sized
@@ -845,11 +840,9 @@ namespace ManaVoxel.Code.Assets
                     return null;
                 }
 
-                var pixels = new byte[ExpectedByteCount];
-                image.CopyPixelDataTo(pixels);
-                return pixels;
+                return image.Pixels;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ImageFormatException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 return null;
             }
@@ -865,10 +858,7 @@ namespace ManaVoxel.Code.Assets
                 // Written beside the target and moved into place, so a crash mid-write cannot leave a
                 // half-file that later reads as a valid cache entry.
                 var temporary = file + ".tmp";
-                using (var image = Image.LoadPixelData<Rgba32>(pixels, ThumbnailSize, ThumbnailSize))
-                {
-                    image.SaveAsPng(temporary);
-                }
+                ManaImageCodec.SavePng(new ManaImage(ThumbnailSize, ThumbnailSize, pixels), temporary);
 
                 File.Move(temporary, file, overwrite: true);
             }
