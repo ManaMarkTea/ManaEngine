@@ -22,7 +22,7 @@ struct VertexOutput {
 // ManaWaterNode.SpawnRipple; they are plain vec4 fields (not a WGSL array) because the schema
 // parser doesn't understand array<...> field types.
 struct CustomMaterialUniform {
-    //PROPERTY(default=0.4, min=0.0, max=1.0)
+    //PROPERTY(default=0.12, min=0.0, max=1.0)
     waveStrength : f32,
 
     //PROPERTY(default=1.0, min=0.0, max=4.0)
@@ -181,8 +181,14 @@ fn ripple_height(x : f32, z : f32) -> f32 {
 // strength ripple doesn't spike into a steep ridge that facets on the triangle grid; the fragment
 // shader's per-pixel highlight (see fs_main) uses the undamped ripple_height for a crisp, visible
 // ring so the effect still reads clearly even though the geometry itself barely bulges.
-fn water_height(x : f32, z : f32) -> f32 {
-    return ambient_wave(x, z) + ripple_height(x, z) * 0.25;
+fn water_height(x : f32, z : f32, calm : f32) -> f32 {
+    return (ambient_wave(x, z) + ripple_height(x, z) * 0.25) * calm;
+}
+
+// Flat at the plane's rim, so where the water meets a bank it lies still instead of slicing a moving line through it.
+fn shore_calm(uv : vec2<f32>) -> f32 {
+    let edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+    return smoothstep(0.0, 0.12, edge);
 }
 
 @vertex
@@ -190,9 +196,10 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     var output : VertexOutput;
 
     let epsilon = 0.05;
-    let height = water_height(position.x, position.z);
-    let height_x = water_height(position.x + epsilon, position.z);
-    let height_z = water_height(position.x, position.z + epsilon);
+    let calm = shore_calm(uv0);
+    let height = water_height(position.x, position.z, calm);
+    let height_x = water_height(position.x + epsilon, position.z, calm);
+    let height_z = water_height(position.x, position.z + epsilon, calm);
 
     var displaced = position;
     displaced.y = displaced.y + height;
