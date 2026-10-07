@@ -167,6 +167,24 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "wind":
+                        // position: [speed m/s, direction in degrees clockwise from -Z, gustiness 0..1]; any can be left off.
+                        var windSettings = _context.World.IrradianceSettings;
+                        if (command.Position is { Length: > 0 } windValues)
+                        {
+                            windSettings.WindSpeed = windValues[0];
+                            if (windValues.Length > 1)
+                            {
+                                windSettings.WindDirection = windValues[1];
+                            }
+                            if (windValues.Length > 2)
+                            {
+                                windSettings.Gustiness = windValues[2];
+                            }
+                        }
+                        _index++;
+                        break;
+
                     case "sky":
                         // The sky mode by name; a time of day holds the cycle still there, for a screenshot.
                         var sky = _context.World.IrradianceSettings;

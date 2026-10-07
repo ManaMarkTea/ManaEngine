@@ -90,6 +90,7 @@ public static class TestRunner
         ("Mana", "parallax", Platformer2DChecks.RunParallax),
         ("ManaCore", "frame profiler", FrameProfilerChecks.Run),
         ("ManaCore", "sky clock", SkyClockChecks.Run),
+        ("ManaCore", "wind", WindChecks.Run),
         ("ManaCore", "json formatting", JsonFormatChecks.Run),
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),
         ("Mana", "glTF support and camera framing", GltfSupportChecks.Run),

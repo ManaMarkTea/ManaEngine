@@ -496,6 +496,7 @@ namespace Mana
             return new ManaRenderScene
             {
                 Sky = sky,
+                Wind = ManaWind.Tick(IrradianceSettings),
                 Camera = new ManaCameraData(
                     MainCamera._ViewMatrix,
                     MainCamera._ProjectionMatrix,

@@ -69,6 +69,17 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "IBL intensity", Scalar(
                     () => settings.IblIntensity, v => settings.IblIntensity = v, 0.0f, 4.0f)),
 
+                Section(theme, "Wind"),
+
+                Row(theme, "Speed (m/s)", Scalar(
+                    () => settings.WindSpeed, v => settings.WindSpeed = v, 0.0f, ManaWind.MaximumSpeed)),
+
+                Row(theme, "Direction", Scalar(
+                    () => settings.WindDirection, v => settings.WindDirection = v, 0.0f, 360.0f)),
+
+                Row(theme, "Gustiness", Scalar(
+                    () => settings.Gustiness, v => settings.Gustiness = v, 0.0f, 1.0f)),
+
                 Section(theme, "Debug world"),
 
                 new CheckBox().Label("Draw debug world")
@@ -120,6 +131,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             settings.IblIntensity = defaults.IblIntensity;
             settings.DebugSceneScale = defaults.DebugSceneScale;
             settings.WebGpuDebugMode = defaults.WebGpuDebugMode;
+            settings.WindSpeed = defaults.WindSpeed;
+            settings.WindDirection = defaults.WindDirection;
+            settings.Gustiness = defaults.Gustiness;
         }
 
         private static UiElement Row(UiTheme theme, string label, UiElement editor)

@@ -52,8 +52,22 @@ namespace ManaCore.Graphics
         /// <summary>Follows the wall clock instead: the sky is as it is outside right now.</summary>
         public bool RealTime { get; set; }
 
+        /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
+        public float WindSpeed { get; set; } = ManaWind.ReferenceSpeed;
+
+        /// <summary>Where the wind blows toward, in degrees clockwise from -Z (north, seen from above).</summary>
+        public float WindDirection { get; set; } = 60.0f;
+
+        /// <summary>0 holds the breeze steady; 1 lulls and gusts to about twice it.</summary>
+        public float Gustiness { get; set; } = 0.5f;
+
         // When ManaSky.Tick last moved the clock on, so each frame advances it by the time since.
         internal double LastTickSeconds = -1.0;
+
+        // ManaWind.Tick's own clock and how far the air has carried things -- kept here so speed changes never jump them.
+        internal double LastWindTickSeconds = -1.0;
+        internal Vector2 WindDrift;
+        internal float WindDistance;
 
         // How far the clouds have drifted, in seconds of wind -- see ManaSky.Tick.
         internal double CloudSeconds;
@@ -88,7 +102,10 @@ namespace ManaCore.Graphics
                 DaySystem = DaySystem,
                 TimeOfDay = TimeOfDay,
                 TimeSpeed = TimeSpeed,
-                RealTime = RealTime
+                RealTime = RealTime,
+                WindSpeed = WindSpeed,
+                WindDirection = WindDirection,
+                Gustiness = Gustiness
             };
         }
     }

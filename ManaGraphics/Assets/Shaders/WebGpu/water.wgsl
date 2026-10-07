@@ -113,9 +113,9 @@ fn value_noise(p : vec2<f32>) -> f32 {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
 }
 
-// 4-octave fractal Brownian motion, drifting slowly over time so the noise itself isn't static.
-fn wave_noise(p : vec2<f32>, t : f32) -> f32 {
-    let drift = p + vec2<f32>(t * 0.17, -t * 0.11);
+// 4-octave fractal Brownian motion; callers move it (with the wind, mostly) by offsetting p.
+fn wave_noise(p : vec2<f32>) -> f32 {
+    let drift = p;
     var value = 0.0;
     var amplitude = 0.5;
     var freq = 1.0;
@@ -127,16 +127,37 @@ fn wave_noise(p : vec2<f32>, t : f32) -> f32 {
     return value;
 }
 
-// Two large directional swells (rather than purely axis-aligned sin(x)/sin(z)/sin(x+z), which line
-// up into an obvious repeating diamond lattice) for overall directional motion, plus layered FBM
-// noise on top to break up the periodicity that pure stacked sines always show at a glance.
-fn ambient_wave(x : f32, z : f32) -> f32 {
-    let t = frame.time * custom.waveSpeed;
-    let p = vec2<f32>(x, z);
-    var h = sin(dot(p, vec2<f32>(0.80, 0.60)) * custom.waveFrequency + t) * 0.4;
-    h = h + sin(dot(p, vec2<f32>(-0.53, 0.85)) * custom.waveFrequency * 0.58 - t * 1.15) * 0.26;
-    h = h + wave_noise(p * custom.waveFrequency * 0.55, t) * 0.5;
-    return h * custom.waveStrength;
+// The world wind (ManaWind) against the breeze waveStrength is tuned for, ManaWind.ReferenceSpeed (4 m/s).
+fn wind_factor() -> f32 {
+    return min(frame.wind.z / 4.0, 3.0);
+}
+
+fn wind_direction() -> vec2<f32> {
+    let d = frame.wind.xy;
+    if (dot(d, d) < 1e-6) {
+        return vec2<f32>(0.0, -1.0);
+    }
+    return normalize(d);
+}
+
+// Where a gust is touching the water now: patches carried downwind that roughen and darken it -- cat's paws.
+fn gust_field(p : vec2<f32>) -> f32 {
+    let carried = (p - frame.wind_motion.xy) * 0.07 + vec2<f32>(0.0, frame.time * 0.02);
+    let patches = smoothstep(0.0, 0.45, wave_noise(carried));
+    return patches * frame.wind.w * (0.35 + frame.wind_motion.w);
+}
+
+// Two large swells (rather than purely axis-aligned sines, which line up into an obvious diamond lattice)
+// running downwind, plus layered FBM noise on top to break up the periodicity stacked sines always show.
+// Phases follow the distance the wind has travelled, not the clock, so a gust speeds them without a jump.
+fn ambient_wave(p : vec2<f32>) -> f32 {
+    let dir = wind_direction();
+    let across = normalize(dir * 0.82 + vec2<f32>(-dir.y, dir.x) * 0.57);
+    let travel = frame.wind_motion.z * 0.25 * custom.waveSpeed;
+    var h = sin(dot(p, dir) * custom.waveFrequency - travel) * 0.4;
+    h = h + sin(dot(p, across) * custom.waveFrequency * 0.58 - travel * 1.15) * 0.26;
+    h = h + wave_noise((p - frame.wind_motion.xy * 0.3) * custom.waveFrequency * 0.55) * 0.5;
+    return h * custom.waveStrength * wind_factor() * (1.0 + gust_field(p) * 0.6);
 }
 
 // ripple : (originX, originZ, startTime, strength). strength <= 0 means the slot is inactive.
@@ -181,8 +202,10 @@ fn ripple_height(x : f32, z : f32) -> f32 {
 // strength ripple doesn't spike into a steep ridge that facets on the triangle grid; the fragment
 // shader's per-pixel highlight (see fs_main) uses the undamped ripple_height for a crisp, visible
 // ring so the effect still reads clearly even though the geometry itself barely bulges.
-fn water_height(x : f32, z : f32, calm : f32) -> f32 {
-    return (ambient_wave(x, z) + ripple_height(x, z) * 0.25) * calm;
+// The wind is in world space, so the swell is evaluated there; ripples stay in the node's own XZ.
+fn water_height(local : vec3<f32>, calm : f32) -> f32 {
+    let p = (object.model * vec4<f32>(local.x, 0.0, local.z, 1.0)).xz;
+    return (ambient_wave(p) + ripple_height(local.x, local.z) * 0.25) * calm;
 }
 
 // Flat at the plane's rim, so where the water meets a bank it lies still instead of slicing a moving line through it.
@@ -197,9 +220,9 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 
     let epsilon = 0.05;
     let calm = shore_calm(uv0);
-    let height = water_height(position.x, position.z, calm);
-    let height_x = water_height(position.x + epsilon, position.z, calm);
-    let height_z = water_height(position.x, position.z + epsilon, calm);
+    let height = water_height(position, calm);
+    let height_x = water_height(position + vec3<f32>(epsilon, 0.0, 0.0), calm);
+    let height_z = water_height(position + vec3<f32>(0.0, 0.0, epsilon), calm);
 
     var displaced = position;
     displaced.y = displaced.y + height;
@@ -218,23 +241,31 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     return output;
 }
 
-// Fine ripples in the lighting only: far too small for the vertex grid, but they break the moon's and the
-// lamps' reflections into a path of glints. Like the swell, they still out toward the banks.
-fn detail_normal(xz : vec2<f32>, calm : f32) -> vec3<f32> {
+// Wind ripples in the lighting only: far too small for the vertex grid, but they break the moon's and the
+// lamps' reflections into a path of glints. One layer runs downwind, a finer one shimmers against it; they
+// pick up where a gust is blowing, and still out toward the banks like the swell.
+fn ripple_detail(p : vec2<f32>, downwind : vec2<f32>, shimmer : vec2<f32>) -> f32 {
+    return wave_noise(p * 2.3 - downwind) + wave_noise(p * 6.2 + shimmer) * 0.5;
+}
+
+fn detail_normal(xz : vec2<f32>, calm : f32, gust : f32) -> vec3<f32> {
     let t = frame.time * custom.waveSpeed;
-    let e = 0.04;
-    let p = xz * 2.3;
-    let h = wave_noise(p, t * 1.6) + wave_noise(p * 2.7 + vec2<f32>(5.2, 1.3), -t * 2.1) * 0.5;
-    let hx = wave_noise(p + vec2<f32>(e, 0.0), t * 1.6) + wave_noise((p + vec2<f32>(e, 0.0)) * 2.7 + vec2<f32>(5.2, 1.3), -t * 2.1) * 0.5;
-    let hz = wave_noise(p + vec2<f32>(0.0, e), t * 1.6) + wave_noise((p + vec2<f32>(0.0, e)) * 2.7 + vec2<f32>(5.2, 1.3), -t * 2.1) * 0.5;
-    let slope = vec2<f32>(hx - h, hz - h) / e * 0.06 * calm;
+    let downwind = frame.wind_motion.xy * 1.4;
+    let shimmer = vec2<f32>(5.2 + t * 0.9, 1.3 - t * 1.3);
+    let e = 0.02;
+    let h = ripple_detail(xz, downwind, shimmer);
+    let hx = ripple_detail(xz + vec2<f32>(e, 0.0), downwind, shimmer);
+    let hz = ripple_detail(xz + vec2<f32>(0.0, e), downwind, shimmer);
+    let strength = 0.014 * calm * wind_factor() * (0.6 + gust * 1.6);
+    let slope = vec2<f32>(hx - h, hz - h) / e * strength;
     return vec3<f32>(-slope.x, 0.0, -slope.y);
 }
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-    let detail = (object.normal_matrix * vec4<f32>(detail_normal(input.local_xz, shore_calm(input.uv0)), 0.0)).xyz;
-    let n = normalize(normalize(input.world_normal) + detail);
+    let calm = shore_calm(input.uv0);
+    let paw = gust_field(input.world_position.xz) * calm;
+    let n = normalize(normalize(input.world_normal) + detail_normal(input.world_position.xz, calm, paw));
     let v = normalize(frame.camera_position.xyz - input.world_position);
     let ndotv = saturate(dot(n, v));
 
@@ -292,9 +323,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // Mixed toward a brighter shade of the water's own color (not raw white), and mix() rather than
     // additive keeps overlapping rings from stacking up into a blown-out white patch.
     let ripple_tint = custom.shallowColor * 1.5 + vec3<f32>(0.05, 0.08, 0.08);
-    let shaded_color = mix(base_color, ripple_tint, ripple_highlight) * light;
+    // A gust's roughened patch reflects less sky, so it reads darker as it runs across.
+    let shaded_color = mix(base_color, ripple_tint, ripple_highlight) * light * (1.0 - paw * 0.2);
     // The sheen is the sky's reflection, so it fades with the daylight; lamps still catch the ripples.
-    let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight)) + lamps * (0.04 + ripple_highlight * 0.3) + glint;
+    let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight) * (1.0 - paw * 0.5)) + lamps * (0.04 + ripple_highlight * 0.3) + glint;
     let alpha = saturate(custom.opacity + fresnel * 0.25 + ripple_highlight * 0.1);
 
     return vec4<f32>(color, alpha);

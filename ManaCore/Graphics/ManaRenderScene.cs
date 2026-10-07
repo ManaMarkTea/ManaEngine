@@ -27,5 +27,8 @@ namespace ManaCore.Graphics
 
         /// <summary>The sky this frame -- see <see cref="ManaSky.Evaluate"/>.</summary>
         public ManaSky.State Sky { get; init; } = new(ManaSkyMode.Day, Vector3.UnitY, 1.0f, Vector3.One);
+
+        /// <summary>The wind this frame -- see <see cref="ManaWind.Tick"/>.</summary>
+        public ManaWind.State Wind { get; init; } = ManaWind.State.Still;
     }
 }
