@@ -71,6 +71,9 @@
          SIMD generics; interpreting just this one assembly sidesteps it. -->
     <_AOT_InternalForceInterpretAssemblies Include="BepuPhysics" />
     <_AOT_InternalForceInterpretAssemblies Include="BepuUtilities" />
+    <!-- Only KML import reads XML here; interpreting it saves its AOT compile on every publish. -->
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml" />
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml.Linq" />
   </ItemGroup>
 
   <Import Project="..\WebAssets.props" />
