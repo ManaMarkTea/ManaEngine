@@ -97,6 +97,7 @@ def publish(root, output):
                     if Path(entry).suffix.lower() in (".glb", ".gltf"):
                         models.append(dict(path=path, entry=entry))
 
+    attach_thumbnails(root, library, files, models)
     publish_levels(root, output)
     catalog = dict(version=1, files=files, models=models)
     temporary = output / "asset-catalog.json.tmp"
@@ -110,6 +111,36 @@ def publish(root, output):
     print(f"External library: {len(files)} files, {len(models)} models, "
           f"{sum(item['size'] for item in files) / 1024**2:.1f} MiB; not part of startup download.")
     return catalog
+
+
+def attach_thumbnails(root, library, files, models):
+    """Points each model at its pre-built preview in Content/Thumbnails (bake_thumbnails.py makes them), when
+    it was rendered from the model file as it is now; any other model is drawn on demand in the browser."""
+    cache = root / "Content" / "Thumbnails"
+    index_file = cache / "index.json"
+    if not index_file.exists():
+        return
+    thumbnails = json.loads(index_file.read_text(encoding="utf-8"))["thumbnails"]
+    digests = {item["path"]: item["sha256"] for item in files}
+    attached = stale = 0
+    for model in models:
+        label = model["path"] + ("!" + model["entry"] if "entry" in model else "")
+        cached = thumbnails.get(label)
+        source = cache / cached["png"] if cached else None
+        if not cached or cached["source"] != digests[model["path"]] or not source.exists():
+            stale += 1
+            continue
+        # "!" separates a zip from the entry inside it, so a preview path never collides with a real asset.
+        path = label + ".thumb.png"
+        digest = Path(cached["png"]).stem
+        destination = library / cached["png"]
+        if not destination.exists():
+            shutil.copyfile(source, destination)
+        files.append(dict(path=path, url="AssetLibrary/" + cached["png"], sha256=digest,
+                          size=source.stat().st_size, dependencies=[]))
+        model["thumbnail"] = path
+        attached += 1
+    print(f"Thumbnails: {attached} pre-built, {stale} without one (run Tools/WebAssets/bake_thumbnails.py).")
 
 
 # Levels the browser cannot play yet, and why -- left off the selector rather than shown and failing.

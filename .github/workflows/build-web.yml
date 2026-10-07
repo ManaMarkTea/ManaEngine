@@ -79,11 +79,6 @@ jobs:
         # serialized so GenerateDepsFile does not race on the shared output (e.g. ManaCore.deps.json).
         run: dotnet publish ${{ matrix.project }}/${{ matrix.project }}.csproj -c Release -m:1
 
-      - name: Pre-build asset preview images
-        # Before the split: it needs the real model bytes still sitting in AppBundle/AssetLibrary.
-        if: matrix.app == 'editor'
-        run: dotnet run --project Tools/ThumbnailBaker -- --app-bundle "$APP_BUNDLE"
-
       - name: Move the external asset library off to the shared GitHub Pages folder
         # itch.io caps a browser build's extracted size at 500MB and the asset library alone is past
         # that, so it is served from GitHub Pages and the app's catalog points there. Both apps split

@@ -179,6 +179,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 foreach (var file in Directory.EnumerateFiles(content, "*.png", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase))
                 {
                     var relative = "Content/" + Path.GetRelativePath(content, file).Replace('\\', '/');
+                    // Model previews baked for the web catalog, not pictures to draw.
+                    if (relative.StartsWith("Content/Thumbnails/", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
                     found.Add(new Candidate(relative, Path.GetFileName(file), Path.GetFileName(Path.GetDirectoryName(file) ?? "")));
                 }
             }

@@ -62,7 +62,7 @@ namespace ManaVoxel.Code.Assets
         // WebGPU, so cached sideways fallback renders regenerate.
         // 9: imported node rotations now preserve their authored axis when glTF quaternions are decomposed
         // into Mana's X=pitch, Y=yaw, Z=roll Euler convention.
-        private const int CacheFormatVersion = 9;
+        public const int CacheFormatVersion = 9;
 
         private const int BytesPerPixel = 4;
         private static readonly int ExpectedByteCount = ThumbnailSize * ThumbnailSize * BytesPerPixel;

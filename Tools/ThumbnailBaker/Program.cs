@@ -1,17 +1,16 @@
-// Pre-renders a preview image for every model in a published asset-catalog.json, using the same headless
-// CPU rasterizer MeshThumbnailCache falls back to at runtime (MeshThumbnailCache.GenerateViaCpuStandalone),
-// so a pre-built preview and an on-demand one render identically. Staged into the same AssetLibrary/ the
-// catalog already ships beside, and referenced from each model entry by a "thumbnail" catalog path -- an
-// ordinary file as far as the rest of the pipeline (ManaAssetCatalog, Tools/WebAssets/split_for_itch.py) is
-// concerned, verified and served exactly like a model's own blob.
+// Pre-renders a preview image for every model in a published asset-catalog.json into a committed cache
+// (Content/Thumbnails), using the same headless CPU rasterizer MeshThumbnailCache falls back to at runtime
+// (MeshThumbnailCache.GenerateViaCpuStandalone), so a pre-built preview and an on-demand one render alike.
+// index.json maps each model to the content hash it was rendered from; only models whose file changed are
+// rendered again, and previews of models that are gone are dropped. publish_assets.py attaches the cached
+// previews to the catalog at publish time, so CI never renders any.
 //
-// Run after `dotnet publish` (which populates AppBundle/AssetLibrary) and before split_for_itch.py (which
-// moves AssetLibrary out to GitHub Pages) -- this needs the real model bytes on disk to render from, and
-// whatever it adds to AssetLibrary/ rides along with everything else once split_for_itch.py runs.
+// Run offline, through Tools/WebAssets/bake_thumbnails.py, which publishes the catalog it reads first.
 //
-//   dotnet run --project Tools/ThumbnailBaker -- --app-bundle <path to AppBundle>
+//   dotnet run --project Tools/ThumbnailBaker -- --app-bundle <published output> --cache Content/Thumbnails
 
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mana;
 using Mana.Code;
@@ -19,29 +18,46 @@ using ManaVoxel.Code.Assets;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
-if (args.Length != 2 || args[0] != "--app-bundle")
+if (args.Length != 4 || args[0] != "--app-bundle" || args[2] != "--cache")
 {
-    Console.Error.WriteLine("Usage: dotnet run --project Tools/ThumbnailBaker -- --app-bundle <AppBundle directory>");
+    Console.Error.WriteLine("Usage: dotnet run --project Tools/ThumbnailBaker -- --app-bundle <published output> --cache <Content/Thumbnails>");
     return 1;
 }
 
 var appBundle = Path.GetFullPath(args[1]);
-var catalogFile = Path.Combine(appBundle, "asset-catalog.json");
-var catalog = JsonNode.Parse(File.ReadAllText(catalogFile))!.AsObject();
-var files = catalog["files"]!.AsArray();
+var cacheDirectory = Path.GetFullPath(args[3]);
+var catalog = JsonNode.Parse(File.ReadAllText(Path.Combine(appBundle, "asset-catalog.json")))!.AsObject();
 
 var filesByPath = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-foreach (var file in files)
+foreach (var file in catalog["files"]!.AsArray())
 {
     filesByPath[file!["path"]!.GetValue<string>()] = file.AsObject();
+}
+
+// A renderer change (version bump) or a new size invalidates every cached preview.
+var indexFile = Path.Combine(cacheDirectory, "index.json");
+var oldEntries = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+if (File.Exists(indexFile))
+{
+    var oldIndex = JsonNode.Parse(File.ReadAllText(indexFile))!.AsObject();
+    if (oldIndex["version"]?.GetValue<int>() == MeshThumbnailCache.CacheFormatVersion
+        && oldIndex["size"]?.GetValue<int>() == MeshThumbnailCache.ThumbnailSize)
+    {
+        foreach (var (label, entryNode) in oldIndex["thumbnails"]!.AsObject())
+        {
+            oldEntries[label] = entryNode!.AsObject();
+        }
+    }
 }
 
 // A throwaway world for a throwaway context -- the same minimal recipe MeshThumbnailTests.cs uses to
 // exercise the CPU rasterizer headlessly, with no window, GPU or Initialize() call needed for it.
 var context = new ManaContext(null!, null!, new ManaWorld()) { DeferGpuUploads = true };
 
-var libraryDirectory = Path.Combine(appBundle, "AssetLibrary");
+Directory.CreateDirectory(cacheDirectory);
+var entries = new SortedDictionary<string, JsonObject>(StringComparer.Ordinal);
 var baked = 0;
+var reused = 0;
 var skipped = 0;
 
 foreach (var modelNode in catalog["models"]!.AsArray())
@@ -49,12 +65,21 @@ foreach (var modelNode in catalog["models"]!.AsArray())
     var model = modelNode!.AsObject();
     var path = model["path"]!.GetValue<string>();
     var entry = model.TryGetPropertyValue("entry", out var entryNode) ? entryNode!.GetValue<string>() : null;
-    var label = entry == null ? path : $"{path}!{entry}";
+    var label = entry == null ? path : $"{path}!{entry.Replace('\\', '/')}";
 
     if (!filesByPath.TryGetValue(path, out var fileEntry))
     {
         Console.WriteLine($"[ThumbnailBaker] '{label}': not found in the catalog's own file list, skipped.");
         skipped++;
+        continue;
+    }
+
+    var source = fileEntry["sha256"]!.GetValue<string>();
+    if (oldEntries.TryGetValue(label, out var old) && old["source"]?.GetValue<string>() == source
+        && File.Exists(Path.Combine(cacheDirectory, old["png"]!.GetValue<string>())))
+    {
+        entries[label] = new JsonObject { ["source"] = source, ["png"] = old["png"]!.GetValue<string>() };
+        reused++;
         continue;
     }
 
@@ -87,39 +112,38 @@ foreach (var modelNode in catalog["models"]!.AsArray())
     using var pngStream = new MemoryStream();
     image.SaveAsPng(pngStream);
     var pngBytes = pngStream.ToArray();
-    var hash = Convert.ToHexString(SHA256.HashData(pngBytes)).ToLowerInvariant();
+    var png = Convert.ToHexString(SHA256.HashData(pngBytes)).ToLowerInvariant() + ".png";
 
-    Directory.CreateDirectory(libraryDirectory);
-    var destination = Path.Combine(libraryDirectory, $"{hash}.png");
+    var destination = Path.Combine(cacheDirectory, png);
     if (!File.Exists(destination))
     {
         File.WriteAllBytes(destination, pngBytes);
     }
 
-    // "!" separates a zip's own path from the entry inside it -- never produced by publish_assets.py for a
-    // real asset path, so this can't collide with one. Same file reused (not re-added) if two catalog runs
-    // land on the same content, matching publish_assets.py's own hash-named dedup.
-    var thumbnailPath = entry == null ? $"{path}.thumb.png" : $"{path}!{entry.Replace('\\', '/')}.thumb.png";
-    if (!filesByPath.ContainsKey(thumbnailPath))
-    {
-        var thumbnailEntry = new JsonObject
-        {
-            ["path"] = thumbnailPath,
-            ["url"] = $"AssetLibrary/{hash}.png",
-            ["sha256"] = hash,
-            ["size"] = pngBytes.LongLength,
-            ["dependencies"] = new JsonArray()
-        };
-        files.Add(thumbnailEntry);
-        filesByPath[thumbnailPath] = thumbnailEntry;
-    }
-
-    model["thumbnail"] = thumbnailPath;
+    entries[label] = new JsonObject { ["source"] = source, ["png"] = png };
     baked++;
 }
 
-File.WriteAllText(catalogFile, catalog.ToJsonString());
-Console.WriteLine($"[ThumbnailBaker] {baked} pre-built preview(s), {skipped} skipped.");
+// Previews no model points at any more.
+var referenced = entries.Values.Select(e => e["png"]!.GetValue<string>()).ToHashSet(StringComparer.Ordinal);
+var removed = 0;
+foreach (var file in Directory.EnumerateFiles(cacheDirectory, "*.png"))
+{
+    if (!referenced.Contains(Path.GetFileName(file)))
+    {
+        File.Delete(file);
+        removed++;
+    }
+}
+
+var index = new JsonObject
+{
+    ["version"] = MeshThumbnailCache.CacheFormatVersion,
+    ["size"] = MeshThumbnailCache.ThumbnailSize,
+    ["thumbnails"] = new JsonObject(entries.Select(e => KeyValuePair.Create(e.Key, (JsonNode?)e.Value)))
+};
+File.WriteAllText(indexFile, index.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+Console.WriteLine($"[ThumbnailBaker] {baked} rendered, {reused} unchanged, {removed} removed, {skipped} skipped.");
 return 0;
 
 // A loose model's sibling buffers/textures live in AssetLibrary/ renamed to their content hash and
