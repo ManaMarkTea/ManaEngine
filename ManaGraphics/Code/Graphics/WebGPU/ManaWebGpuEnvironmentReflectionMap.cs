@@ -89,7 +89,17 @@ namespace ManaGraphics.Code.Graphics
             var prefilterMipCount = CalculateMipCount(prefilterSize);
 
             var environmentMap = CreateCubeResource(api, device, "EnvironmentMap", environmentSize, 1);
-            var irradianceMap = CreateCubeResource(api, device, "IrradianceMap", irradianceSize, 1);
+            // Filled on the GPU from the prefiltered cube (ManaWebGpuEnvironmentPrefilterCompute.DispatchIrradiance) for
+            // every source -- photo, computed sky, scene capture -- so linear and writable like that cube.
+            var irradianceMap = CreateCubeResource(
+                api,
+                device,
+                "IrradianceMap",
+                irradianceSize,
+                1,
+                TextureFormat.Rgba8Unorm,
+                TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.StorageBinding,
+                true);
             var prefilteredReflectionMap = CreateCubeResource(
                 api,
                 device,
@@ -103,7 +113,7 @@ namespace ManaGraphics.Code.Graphics
             // No photo: the context draws the computed sky into the cubes each time it changes.
             if (sourcePath != null)
             {
-                WritePhoto(api, queue, environmentMap, irradianceMap, sourcePath, progress);
+                WritePhoto(api, queue, environmentMap, sourcePath, progress);
             }
 
             var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float);
@@ -121,7 +131,7 @@ namespace ManaGraphics.Code.Graphics
         /// </summary>
         public void WritePhoto(WebGPU api, Queue* queue, string sourcePath)
         {
-            WritePhoto(api, queue, EnvironmentMapResource, IrradianceMapResource, sourcePath, null);
+            WritePhoto(api, queue, EnvironmentMapResource, sourcePath, null);
             HasPhoto = true;
             DrawnSky = null;
         }
@@ -130,7 +140,6 @@ namespace ManaGraphics.Code.Graphics
             WebGPU api,
             Queue* queue,
             ManaWebGpuTextureResource environmentMap,
-            ManaWebGpuTextureResource irradianceMap,
             string sourcePath,
             IProgress<ManaLoadingProgress>? progress)
         {
@@ -139,11 +148,8 @@ namespace ManaGraphics.Code.Graphics
             var equirect = new EquirectImage(image.Pixels, image.Width, image.Height);
 
             WriteCubeTexture(
-                api, queue, environmentMap.Texture, equirect, (int)environmentMap.Width, 0, 0.0f, false,
-                progress, 0.10f, 0.25f, "Converting environment cube map");
-            WriteCubeTexture(
-                api, queue, irradianceMap.Texture, equirect, (int)irradianceMap.Width, 0, 0.85f, true,
-                progress, 0.35f, 0.15f, "Generating irradiance cube map");
+                api, queue, environmentMap.Texture, equirect, (int)environmentMap.Width, 0, 0.0f,
+                progress, 0.10f, 0.40f, "Converting environment cube map");
         }
 
         public void Dispose()
@@ -341,7 +347,6 @@ namespace ManaGraphics.Code.Graphics
             int size,
             int mip,
             float roughness,
-            bool irradiance,
             IProgress<ManaLoadingProgress>? progress,
             float progressStart,
             float progressLength,
@@ -355,7 +360,7 @@ namespace ManaGraphics.Code.Graphics
 
             for (var face = 0; face < 6; face++)
             {
-                var pixels = GenerateCubeFace(source, face, size, roughness, irradiance);
+                var pixels = GenerateCubeFace(source, face, size, roughness);
                 var combinedOffset = (int)(face * paddedFaceSize);
                 if (sourceRowBytes == paddedRowBytes)
                 {
@@ -574,7 +579,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        private static byte[] GenerateCubeFace(EquirectImage source, int face, int size, float roughness, bool irradiance)
+        private static byte[] GenerateCubeFace(EquirectImage source, int face, int size, float roughness)
         {
             var pixels = new byte[size * size * 4];
             Parallel.For(0, size, y =>
@@ -584,7 +589,7 @@ namespace ManaGraphics.Code.Graphics
                     var u = 2.0f * ((x + 0.5f) / size) - 1.0f;
                     var v = 2.0f * ((y + 0.5f) / size) - 1.0f;
                     var direction = GetCubeDirection(face, u, v);
-                    var color = SampleReflection(source, direction, roughness, irradiance);
+                    var color = SamplePrefilteredReflection(source, Vector3.Normalize(direction), roughness);
                     var offset = (y * size + x) * 4;
                     pixels[offset + 0] = ToByte(color.X);
                     pixels[offset + 1] = ToByte(color.Y);
@@ -594,39 +599,6 @@ namespace ManaGraphics.Code.Graphics
             });
 
             return pixels;
-        }
-
-        private static Vector4 SampleReflection(EquirectImage source, Vector3 direction, float roughness, bool irradiance)
-        {
-            var d = Vector3.Normalize(direction);
-            if (!irradiance)
-            {
-                return SamplePrefilteredReflection(source, d, roughness);
-            }
-
-            var radius = irradiance ? 0.85f : roughness * roughness * 0.5f;
-            if (radius <= 0.0001f)
-            {
-                return source.Sample(d);
-            }
-
-            CreateBasis(d, out var tangent, out var bitangent);
-            var color = source.Sample(d) * 2.0f;
-            color += source.Sample(Vector3.Normalize(d + tangent * radius));
-            color += source.Sample(Vector3.Normalize(d - tangent * radius));
-            color += source.Sample(Vector3.Normalize(d + bitangent * radius));
-            color += source.Sample(Vector3.Normalize(d - bitangent * radius));
-
-            if (irradiance)
-            {
-                color += source.Sample(Vector3.Normalize(d + (tangent + bitangent) * radius * 0.7f));
-                color += source.Sample(Vector3.Normalize(d + (tangent - bitangent) * radius * 0.7f));
-                color += source.Sample(Vector3.Normalize(d + (-tangent + bitangent) * radius * 0.7f));
-                color += source.Sample(Vector3.Normalize(d - (tangent + bitangent) * radius * 0.7f));
-                return color / 10.0f;
-            }
-
-            return color / 6.0f;
         }
 
         private static Vector4 SamplePrefilteredReflection(EquirectImage source, Vector3 direction, float roughness)
@@ -691,13 +663,6 @@ namespace ManaGraphics.Code.Graphics
                 4 => new Vector3(u, -v, 1.0f),
                 _ => new Vector3(-u, -v, -1.0f)
             });
-        }
-
-        private static void CreateBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent)
-        {
-            var up = MathF.Abs(normal.Y) > 0.96f ? Vector3.UnitX : Vector3.UnitY;
-            tangent = Vector3.Normalize(Vector3.Cross(up, normal));
-            bitangent = Vector3.Normalize(Vector3.Cross(normal, tangent));
         }
 
         private static int CalculateMipCount(int size)

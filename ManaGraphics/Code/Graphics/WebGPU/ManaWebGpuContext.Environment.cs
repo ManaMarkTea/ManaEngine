@@ -49,8 +49,6 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var prefilteredMap = environmentReflectionMap.PrefilteredReflectionMapResource;
-            var irradianceMap = environmentReflectionMap.IrradianceMapResource;
             var pipeline = GetOrCreateSceneCapturePipeline();
             ManaConsole.WriteDiagnostic($"WebGPU scene environment capture: position={source.SceneCapturePosition}, meshes={_sceneMeshes.Count(mesh => mesh.Instance.IncludeInEnvironmentCapture)}.");
 
@@ -60,14 +58,9 @@ namespace ManaGraphics.Code.Graphics
                 EnsureSceneCaptureDepthResources(environmentMap.Width);
                 RenderSceneCaptureFace(commandEncoder, (TextureView*)environmentMap.RenderTargetViews[face], pipeline, captureCamera, face);
 
-                if (irradianceMap.RenderTargetViews.Count >= 6)
-                {
-                    EnsureSceneCaptureDepthResources(irradianceMap.Width);
-                    RenderSceneCaptureFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], pipeline, captureCamera, face);
-                }
             }
 
-            DispatchEnvironmentPrefilter(commandEncoder, environmentMap, prefilteredMap);
+            DispatchEnvironmentPrefilter(commandEncoder, environmentReflectionMap);
             _framesSinceEnvironmentCapture = 0;
         }
 
@@ -93,7 +86,6 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var environmentMap = map.EnvironmentMapResource;
-            var irradianceMap = map.IrradianceMapResource;
             var prefilteredMap = map.PrefilteredReflectionMapResource;
             if (environmentMap.RenderTargetViews.Count < 6 || prefilteredMap.TextureView == null)
             {
@@ -109,13 +101,9 @@ namespace ManaGraphics.Code.Graphics
                 // Bound only to fill the layout -- a computed sky never samples it -- and not a cube drawn into here.
                 var unusedView = (TextureView*)prefilteredMap.TextureView;
                 DrawSkyFace(commandEncoder, (TextureView*)environmentMap.RenderTargetViews[face], camera, sky, unusedView, face);
-                if (irradianceMap.RenderTargetViews.Count >= 6)
-                {
-                    DrawSkyFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], camera, sky, unusedView, face);
-                }
             }
 
-            DispatchEnvironmentPrefilter(commandEncoder, environmentMap, prefilteredMap);
+            DispatchEnvironmentPrefilter(commandEncoder, map);
             map.DrawnSky = sky;
             map.HasPhoto = false;
             map.FramesSinceSkyDrawn = 0;
@@ -246,19 +234,19 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderRelease(renderPass);
         }
 
-        private void DispatchEnvironmentPrefilter(
-            CommandEncoder* commandEncoder,
-            ManaWebGpuTextureResource sourceMap,
-            ManaWebGpuTextureResource destinationMap)
+        private void DispatchEnvironmentPrefilter(CommandEncoder* commandEncoder, ManaWebGpuEnvironmentReflectionMap map)
         {
-            GetOrCreateEnvironmentPrefilterCompute().Dispatch(commandEncoder, sourceMap, destinationMap);
+            var compute = GetOrCreateEnvironmentPrefilterCompute();
+            compute.Dispatch(commandEncoder, map.EnvironmentMapResource, map.PrefilteredReflectionMapResource);
+            compute.DispatchIrradiance(commandEncoder, map.PrefilteredReflectionMapResource, map.IrradianceMapResource);
         }
 
         private void DispatchEnvironmentPrefilterNow(ManaWebGpuEnvironmentReflectionMap environmentReflectionMap)
         {
             GetOrCreateEnvironmentPrefilterCompute().DispatchNow(
                 environmentReflectionMap.EnvironmentMapResource,
-                environmentReflectionMap.PrefilteredReflectionMapResource);
+                environmentReflectionMap.PrefilteredReflectionMapResource,
+                environmentReflectionMap.IrradianceMapResource);
         }
 
         private ManaWebGpuEnvironmentPrefilterCompute GetOrCreateEnvironmentPrefilterCompute()

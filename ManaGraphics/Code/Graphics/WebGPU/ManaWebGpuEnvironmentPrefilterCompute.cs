@@ -33,7 +33,10 @@ namespace ManaGraphics.Code.Graphics
             _pipeline = CreatePipeline();
         }
 
-        public void DispatchNow(ManaWebGpuTextureResource sourceMap, ManaWebGpuTextureResource destinationMap)
+        public void DispatchNow(
+            ManaWebGpuTextureResource sourceMap,
+            ManaWebGpuTextureResource destinationMap,
+            ManaWebGpuTextureResource irradianceMap)
         {
             var commandEncoderDescriptor = new CommandEncoderDescriptor();
             var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
@@ -43,6 +46,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             Dispatch(commandEncoder, sourceMap, destinationMap);
+            DispatchIrradiance(commandEncoder, destinationMap, irradianceMap);
 
             var commandBufferDescriptor = new CommandBufferDescriptor();
             var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
@@ -73,6 +77,47 @@ namespace ManaGraphics.Code.Graphics
 
                 DispatchMip(commandEncoder, sourceMap, destinationMap, destinationView, mip);
             }
+        }
+
+        /// <summary>
+        /// Convolves the prefiltered reflection cube into the diffuse irradiance cube. Run after <see cref="Dispatch"/>,
+        /// which it reads: irradiance taken from the sharp sky shows its clouds on every curved surface.
+        /// </summary>
+        public void DispatchIrradiance(
+            CommandEncoder* commandEncoder,
+            ManaWebGpuTextureResource prefilteredMap,
+            ManaWebGpuTextureResource irradianceMap)
+        {
+            if (commandEncoder == null ||
+                prefilteredMap.TextureView == null ||
+                irradianceMap.StorageViews.Count == 0 ||
+                irradianceMap.StorageViews[0] == 0)
+            {
+                return;
+            }
+
+            var size = irradianceMap.Width;
+            var parameterBuffer = CreateParameterBuffer(prefilteredMap.Width, 1.0f, IrradianceSampleCount, IrradianceMode);
+            var bindGroup = CreateBindGroup(prefilteredMap.TextureView, (TextureView*)irradianceMap.StorageViews[0], parameterBuffer);
+            Run(commandEncoder, bindGroup, size);
+            _api.BindGroupRelease(bindGroup);
+            _api.BufferRelease(parameterBuffer);
+        }
+
+        private const uint PrefilterMode = 0u;
+        private const uint IrradianceMode = 1u;
+        private const uint IrradianceSampleCount = 512u;
+
+        private void Run(CommandEncoder* commandEncoder, BindGroup* bindGroup, uint size)
+        {
+            var computePassDescriptor = new ComputePassDescriptor();
+            var computePass = _api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
+            _api.ComputePassEncoderSetPipeline(computePass, _pipeline);
+            _api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
+            var dispatchSize = new ManaComputeDispatchSize((size + 7u) / 8u, (size + 7u) / 8u, 6u);
+            _api.ComputePassEncoderDispatchWorkgroups(computePass, dispatchSize.X, dispatchSize.Y, dispatchSize.Z);
+            _api.ComputePassEncoderEnd(computePass);
+            _api.ComputePassEncoderRelease(computePass);
         }
 
         public override void Dispose()
@@ -115,30 +160,22 @@ namespace ManaGraphics.Code.Graphics
                 ? 0.0f
                 : mip / (float)(destinationMap.StorageViews.Count - 1);
             var sampleCount = GetPrefilterSampleCount(mip, roughness);
-            var parameterBuffer = CreateParameterBuffer(sourceMap.Width, roughness, sampleCount);
+            var parameterBuffer = CreateParameterBuffer(sourceMap.Width, roughness, sampleCount, PrefilterMode);
             var bindGroup = CreateBindGroup(sourceMap.TextureView, destinationView, parameterBuffer);
-
-            var computePassDescriptor = new ComputePassDescriptor();
-            var computePass = _api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
-            _api.ComputePassEncoderSetPipeline(computePass, _pipeline);
-            _api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
-            var dispatchSize = new ManaComputeDispatchSize((mipSize + 7u) / 8u, (mipSize + 7u) / 8u, 6u);
-            _api.ComputePassEncoderDispatchWorkgroups(computePass, dispatchSize.X, dispatchSize.Y, dispatchSize.Z);
-            _api.ComputePassEncoderEnd(computePass);
-            _api.ComputePassEncoderRelease(computePass);
+            Run(commandEncoder, bindGroup, mipSize);
 
             _api.BindGroupRelease(bindGroup);
             _api.BufferRelease(parameterBuffer);
         }
 
-        private WebGpuBuffer* CreateParameterBuffer(uint sourceResolution, float roughness, uint sampleCount)
+        private WebGpuBuffer* CreateParameterBuffer(uint sourceResolution, float roughness, uint sampleCount, uint mode)
         {
             var parameters = new ManaWebGpuEnvironmentPrefilterUniform
             {
                 Roughness = roughness,
                 SourceResolution = Math.Max(1.0f, sourceResolution),
                 SampleCount = sampleCount,
-                Padding0 = 0
+                Mode = mode
             };
 
             var bufferDescriptor = new BufferDescriptor
@@ -388,7 +425,7 @@ namespace ManaGraphics.Code.Graphics
             public float Roughness;
             public float SourceResolution;
             public uint SampleCount;
-            public uint Padding0;
+            public uint Mode;
         }
     }
 }
