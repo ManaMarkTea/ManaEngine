@@ -46,6 +46,13 @@ struct CustomMaterialUniform {
     //PROPERTY(default=0.8, min=0.0, max=8.0)
     rippleDecay : f32,
 
+    //PROPERTY(default=3.0, min=0.0, max=20.0)
+    shoreWidth : f32,
+
+    // Width and depth of the plane in metres; ManaWaterNode writes it, so the shore is measured in metres.
+    //PROPERTY(default=[0.0,0.0,0.0,0.0], min=[0.0,0.0,0.0,0.0], max=[10000.0,10000.0,0.0,0.0])
+    planeSize : vec4<f32>,
+
     //PROPERTY(default=[0.01,0.08,0.14], min=[0.0,0.0,0.0], max=[2.0,2.0,2.0])
     deepColor : vec3<f32>,
 
@@ -208,10 +215,21 @@ fn water_height(local : vec3<f32>, calm : f32) -> f32 {
     return (ambient_wave(p) + ripple_height(local.x, local.z) * 0.25) * calm;
 }
 
-// Flat at the plane's rim, so where the water meets a bank it lies still instead of slicing a moving line through it.
-fn shore_calm(uv : vec2<f32>) -> f32 {
+// Metres from the plane's rim. Where the plane's size is unknown, falls back to a share of its width.
+fn shore_distance(uv : vec2<f32>) -> f32 {
     let edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-    return smoothstep(0.0, 0.12, edge);
+    let size = min(custom.planeSize.x, custom.planeSize.y);
+    if (size <= 0.0) {
+        return edge * 24.0;
+    }
+    return edge * size;
+}
+
+// 0 at the rim, 1 from shoreWidth out. The rim hides under the bank, so the waterline is some way in: the swell
+// has to be nearly gone by there, and eases in like a lake lapping a shelf, not a switch.
+fn shore_calm(uv : vec2<f32>) -> f32 {
+    let x = saturate(shore_distance(uv) / max(custom.shoreWidth, 0.01));
+    return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
 }
 
 @vertex
@@ -288,7 +306,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let ripple = ripple_height(input.local_xz.x, input.local_xz.y);
     let ripple_highlight = smoothstep(0.0, 1.0, ripple) * 0.5;
 
-    let base_color = mix(custom.deepColor, custom.shallowColor, diffuse) * input.color.rgb;
+    // Shallows: lighter and clearer toward the bank, as a shelf is.
+    let shallows = 1.0 - saturate(shore_distance(input.uv0) / max(custom.shoreWidth * 1.6, 0.01));
+    let base_color = mix(custom.deepColor, custom.shallowColor, saturate(diffuse + shallows * 0.5)) * input.color.rgb;
 
     // Lit like everything else: ambient that falls with ManaSky's daylight, the sun (or moon), and placed
     // lamps -- before, the water glowed the same at midnight as at noon.
@@ -327,7 +347,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let shaded_color = mix(base_color, ripple_tint, ripple_highlight) * light * (1.0 - paw * 0.2);
     // The sheen is the sky's reflection, so it fades with the daylight; lamps still catch the ripples.
     let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight) * (1.0 - paw * 0.5)) + lamps * (0.04 + ripple_highlight * 0.3) + glint;
-    let alpha = saturate(custom.opacity + fresnel * 0.25 + ripple_highlight * 0.1);
+    let alpha = saturate(custom.opacity - shallows * 0.15 + fresnel * 0.25 + ripple_highlight * 0.1);
 
     return vec4<f32>(color, alpha);
 }

@@ -23,6 +23,13 @@ namespace Mana.Code.Nodes
             Mesh = new ManaWaterPlane(context, Colors.White, size, resolution);
             MeshRenderer = new MeshRendererComponent(this, Mesh);
             Components.Add(MeshRenderer);
+            PublishPlaneSize(size);
+        }
+
+        // The shader measures its shore in metres from the rim, so it needs the plane's size.
+        private void PublishPlaneSize(Vector2 size)
+        {
+            MeshRenderer.DynamicMaterial.SetShaderUniform("planeSize", new Vector4(size.X, size.Y, 0.0f, 0.0f));
         }
 
         public const int MinimumResolution = 4;
@@ -45,6 +52,7 @@ namespace Mana.Code.Nodes
 
             Mesh = new ManaWaterPlane(Context, Colors.White, size, resolution);
             MeshRenderer.Mesh = Mesh;
+            PublishPlaneSize(size);
             LevelSource = ManaLevelSource.ForWater(size, resolution);
         }
 
