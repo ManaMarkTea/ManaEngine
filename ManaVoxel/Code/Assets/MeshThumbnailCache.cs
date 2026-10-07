@@ -62,7 +62,8 @@ namespace ManaVoxel.Code.Assets
         // into Mana's X=pitch, Y=yaw, Z=roll Euler convention.
         // 10: a preview mixing materials (a prefab of shapes and textured models) bakes each part's colour
         // instead of sampling the first part's texture everywhere.
-        public const int CacheFormatVersion = 10;
+        // 11: CPU previews light in linear space like the GPU ones, so they are no longer darker than them.
+        public const int CacheFormatVersion = 11;
 
         private readonly ManaContext _context;
         private readonly ManaWebGpuContext? _webGpuContext;

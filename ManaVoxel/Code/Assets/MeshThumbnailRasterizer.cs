@@ -234,7 +234,11 @@ namespace ManaVoxel.Code.Assets
             }
 
             var lambert = Vector3.Dot(normal, LightDirection);
-            return AmbientLight + ((1.0f - AmbientLight) * Math.Clamp(lambert, 0.0f, 1.0f));
+            var linear = AmbientLight + ((1.0f - AmbientLight) * Math.Clamp(lambert, 0.0f, 1.0f));
+
+            // The GPU thumbnail lights in linear space and writes to an sRGB target, so the light multiplies the
+            // colour as shade^(1/2.2) on the stored values. Applied straight, the same shade came out far darker.
+            return MathF.Pow(linear, 1.0f / 2.2f);
         }
 
         private static (Vector3 Centre, float Radius) BoundingSphere(Vector3[] positions)
