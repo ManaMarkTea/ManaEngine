@@ -13,6 +13,13 @@ namespace ManaVoxel.Code.Assets
         public static string Root => ManaProjectFolder.Resolve("Content");
 #endif
 
+#if MANA_BROWSER
+        // The browser's in-memory file system has no links to resolve.
+        private static string Canonical(string path) => Path.GetFullPath(path);
+#else
+        private static string Canonical(string path) => ManaProjectFolder.CanonicalPath(path);
+#endif
+
         public static IReadOnlyList<ManaContentEntry> List(string? root = null)
         {
             root ??= Root;
@@ -40,12 +47,12 @@ namespace ManaVoxel.Code.Assets
         }
 
         public static string Reference(string path) => Path.GetRelativePath(
-            ManaProjectFolder.CanonicalPath(Root), ManaProjectFolder.CanonicalPath(path)).Replace('\\', '/');
+            Canonical(Root), Canonical(path)).Replace('\\', '/');
 
         public static string ResolvePrefab(string id, string relativePath, string? root = null)
         {
-            root = ManaProjectFolder.CanonicalPath(root ?? Root);
-            var candidate = ManaProjectFolder.CanonicalPath(Path.Combine(root, relativePath));
+            root = Canonical(root ?? Root);
+            var candidate = Canonical(Path.Combine(root, relativePath));
             if (!candidate.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("Prefab reference must stay inside Content.");
