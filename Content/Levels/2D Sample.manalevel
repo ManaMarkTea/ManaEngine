@@ -36,6 +36,11 @@
       ],
       "scripts": [
         {
+          "id": "b0a7c0de5a1f4d2e9c3b6e8f1a2d4c70",
+          "type": "Bow",
+          "properties": {}
+        },
+        {
           "id": "539f9dddf6ec494cbdb4d27690de9701",
           "type": "Platformer2D",
           "properties": {
@@ -7038,6 +7043,11 @@
       1
     ],
     "scripts": [
+      {
+        "id": "b0a7c0de5a1f4d2e9c3b6e8f1a2d4c70",
+        "type": "Bow",
+        "properties": {}
+      },
       {
         "id": "539f9dddf6ec494cbdb4d27690de9701",
         "type": "Platformer2D",

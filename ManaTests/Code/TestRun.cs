@@ -97,6 +97,7 @@ public static class TestRunner
         ("Mana", "pawn camera controls", PawnCameraControlChecks.Run),
         ("ManaVoxel", "flying mount", FlyingMountChecks.Run),
         ("ManaVoxel", "course pieces", CoursePieceChecks.Run),
+        ("ManaVoxel", "bow", BowChecks.Run),
         ("ManaVoxel", "readable asset references", ReadableAssetReferenceChecks.Run),
         ("ManaVoxel", "mesh asset library", MeshAssetLibraryChecks.Run),
         ("ManaVoxel", "scene click-selection drill-down", SceneSelectionDrillDownChecks.Run),

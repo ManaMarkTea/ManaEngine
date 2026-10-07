@@ -1,5 +1,6 @@
 using Mana.Code.GameModes;
 using Mana.Code.Nodes;
+using ManaVoxel.Code.Gameplay.Course;
 using ManaVoxel.Code.GridMaps;
 using ManaVoxel.Code.UI;
 
@@ -136,6 +137,12 @@ namespace ManaVoxel.Code.Automation
                         {
                             player.TeleportTo(new Vector3(spot[0], spot[1], spot[2]));
                         }
+                        _index++;
+                        break;
+
+                    case "bow":
+                        // Holds the bow's fire key (name "hold", "hold_up" for a high shot) or lets go ("release").
+                        BowComponent.SetHoldFire(_context.World, command.Name is "hold" or "hold_up", command.Name == "hold_up");
                         _index++;
                         break;
 
