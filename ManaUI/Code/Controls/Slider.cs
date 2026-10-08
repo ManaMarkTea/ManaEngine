@@ -122,10 +122,23 @@ namespace ManaUI
             var track = TrackRect();
             var corners = new CornerRadius(TrackThickness * 0.5f);
 
-            drawList.FillRect(track, theme.SurfaceAlt, corners);
+            var skin = theme.Skin;
+            var skinnedTrack = skin != null && skin.TryGet("track", out var trackSlice) ? trackSlice : (UiSkinSlice?)null;
+            if (skinnedTrack is { } slice)
+            {
+                drawList.DrawNineSlice(track, slice, Vector4.One, track.Height / slice.Size.Y);
+            }
+            else
+            {
+                drawList.FillRect(track, theme.SurfaceAlt, corners);
+            }
 
             var fillWidth = track.Width * NormalizedValue;
-            if (fillWidth > 0.0f)
+            if (fillWidth > 0.0f && enabled && skin != null && skin.TryGet("fill", out var fillSlice))
+            {
+                drawList.DrawNineSlice(new UiRect(track.X, track.Y, fillWidth, track.Height), fillSlice, Vector4.One, track.Height / fillSlice.Size.Y);
+            }
+            else if (fillWidth > 0.0f)
             {
                 drawList.FillRect(
                     new UiRect(track.X, track.Y, fillWidth, track.Height),

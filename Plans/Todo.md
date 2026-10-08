@@ -3,14 +3,6 @@
     it reads fine at night there, so I can't tell which sprite looks wrong. Tell me one (a level and a sprite) and I'll
     tune ManaSpriteNormals against it. Auto Normal Map is still off by default.
 
-[] - can the background stars move with the dynamic stars
-[] - Can we connect the constalation lines when the camera looks at them?
-[] - Can I get a star preview level
-[] - Can i get sample level for particles
-
-[] - Dark mode -> it feels a little too dark and constrasty in the view port grid, can it be closer in color to the light mode grid (but a little darker) Also the contrast between alternating squares isn't visible
-[] - Theme Support -> I added some ui from kenney, can we make it possible to use that theme onto the ui as well?
-
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
     Plan: Plans/Terrain.md. Claude (2026-10-07, not started -- a design choice for you): I'd build it in two layers. (1) A heightfield terrain node:
     a grid of heights drawn as one mesh, with sculpt brushes (raise, lower, smooth, flatten), a splat map for grass / dirt /

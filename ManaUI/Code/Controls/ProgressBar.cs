@@ -55,7 +55,15 @@ namespace ManaUI
 
             var corners = new CornerRadius(Bounds.Height * 0.5f);
 
-            drawList.FillRect(Bounds, theme.SurfaceAlt, corners);
+            var skin = theme.Skin;
+            if (skin != null && skin.TryGet("track", out var track))
+            {
+                drawList.DrawNineSlice(Bounds, track, Vector4.One, Bounds.Height / track.Size.Y);
+            }
+            else
+            {
+                drawList.FillRect(Bounds, theme.SurfaceAlt, corners);
+            }
 
             if (IsIndeterminate)
             {
@@ -75,6 +83,12 @@ namespace ManaUI
             // radius by how little is left keeps a thin sliver reading as a rounded bar rather than a
             // clipped one.
             var fillCorners = new CornerRadius(MathF.Min(corners.TopLeft, filled.Width * 0.5f));
+
+            if (skin != null && skin.TryGet("fill", out var fill))
+            {
+                drawList.DrawNineSlice(filled, fill, Vector4.One, Bounds.Height / fill.Size.Y);
+                return;
+            }
 
             drawList.FillRect(
                 filled,

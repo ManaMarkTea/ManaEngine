@@ -217,3 +217,33 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     JPEG), a Release build of ManaCore has no license error, and the 2D Sample opens with its textures.
     Not yet checked: the web publish itself (it never compiled ImageSharp, so it should be unchanged) -- worth one run.
     Baked thumbnails keep their names (they are named by a hash of the PNG, and existing ones are reused).
+
+[x] - can the background stars move with the dynamic stars
+    Claude (2026-10-08): yes -- the fill stars now turn with the catalogue's real ones (same frame), so the whole night sky wheels together.
+
+[x] - Can we connect the constalation lines when the camera looks at them? (and: show all at once while holding Alt)
+    Claude: with Constellation lines on (Appearance > Sky), each figure's lines fade up as the middle of the view turns toward
+    it (full within ~20 degrees, gone past ~45) and hold Alt in the editor to show every figure at once
+    (ManaIrradianceSettings.ShowAllConstellations, set from the keyboard in VoxelEditorGameMode.Update).
+
+[x] - Can I get a star preview level
+    Claude: Content/Levels/Night Sky.manalevel -- a pine ring under a December night, lines on, the sky turning at 120x
+    (a degree every two seconds). Levels can now carry an optional "sky" block (mode, dateTime, timeSpeed,
+    constellationLines; ManaLevelSky) that is applied on open and written back on save, so a level can ask for its sky.
+
+[x] - Can i get sample level for particles
+    Claude: Content/Levels/Particle Garden.manalevel -- a campfire (flames, sparks, smoke and a light), a fountain, rain
+    and fireflies at dusk. The small test scene stays in Levels/Tests.
+
+[x] - Dark mode -> the viewport grid felt too dark and contrasty; the alternating squares weren't visible
+    Claude: Dark's grid floor is now a mid grey a step under Light's (#9A9AA2, lines #70727C) and the checker squares are
+    12% apart (UiTheme.GridCheckerRatio, carried to grid.wgsl in the quad's metallic slot; Light and LCARS keep 3.5%).
+    OpenGL's grid.frag still uses its fixed ratio.
+
+[x] - Theme Support -> I added some ui from kenney, can we make it possible to use that theme onto the ui as well?
+    Claude: a new Kenney theme (Appearance > Theme > Kenney): navy with the pack's sky blue, and a UiSkin of its pictures
+    -- buttons (blue pill for primary), window frames and title bars, tab content panels, slider and progress tracks --
+    drawn as nine-slices from kenney_ui-pack-space-expansion.zip (KenneyUiSkin; ManaUiDrawList.DrawNineSlice). A theme with
+    no skin, or a pack that is missing, stays flat. Any theme can now carry a Skin.
+    Still open: the pack's Kenney Future font, skinned text boxes, checkboxes, combo boxes and menus, and the web (the pack is
+    not in the web asset catalog yet, so the web editor gets the colours but not the pictures).

@@ -124,6 +124,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (saved != null && root.Theme.Kind != saved.Theme)
             {
                 root.Theme = UiTheme.Create(saved.Theme);
+                KenneyUiSkin.Apply(root.Theme, root.Images);
             }
 
             ManaUiDensity.Apply(root.Theme);
@@ -151,6 +152,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             _densityChanged = (_, _) =>
             {
                 root.Theme = UiTheme.Create(root.Theme.Kind);
+                KenneyUiSkin.Apply(root.Theme, root.Images);
                 root.InvalidateAll();
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             };
@@ -524,6 +526,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 state.Theme = kind;
                 root.Theme = UiTheme.Create(kind);
+                KenneyUiSkin.Apply(root.Theme, root.Images);
                 ManaUiDensity.Apply(root.Theme);
                 ApplyGridTheme(world, root.Theme);
 
@@ -1374,7 +1377,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                         new MenuItem("Light", () => chooseTheme(UiThemeKind.Light))
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Light),
                         new MenuItem("LCARS", () => chooseTheme(UiThemeKind.Lcars))
-                            .Checkable(() => root.Theme.Kind == UiThemeKind.Lcars)),
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Lcars),
+                        new MenuItem("Kenney", () => chooseTheme(UiThemeKind.Kenney))
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Kenney)),
 
                     new MenuItem("Backdrop blur").WithItems(
                         BlurChoices.Select(blur => new MenuItem(BlurLabel(blur), () => chooseBlur(blur))

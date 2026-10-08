@@ -528,6 +528,11 @@ namespace ManaUI
                 drawList.FillBackdrop(strip, theme.Frosted(theme.SurfaceAlt), theme.BackdropBlur, default);
                 drawList.FillBackdrop(content, theme.Frosted(theme.Surface), theme.BackdropBlur, default);
             }
+            else if (theme.Skin is { } skin && skin.TryGet("panel", out var panel))
+            {
+                drawList.FillRect(strip, theme.SurfaceAlt);
+                drawList.DrawNineSlice(content, panel, theme.Surface * 1.12f, 0.35f);
+            }
             else
             {
                 drawList.FillRect(strip, theme.SurfaceAlt);

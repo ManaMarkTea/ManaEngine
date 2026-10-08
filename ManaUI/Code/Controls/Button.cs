@@ -132,7 +132,11 @@ namespace ManaUI
             // nothing, and a subtle button should not acquire an edge just by existing.
             var shaded = ApplyStateOverlay(fill);
 
-            if (shaded.W > 0.0f && theme.AccentGradient > 0.0f)
+            if (shaded.W > 0.0f && theme.Skin is { } skin && DrawSkinned(drawList, skin, shaded))
+            {
+                // Dressed in the theme's picture instead of flat colour.
+            }
+            else if (shaded.W > 0.0f && theme.AccentGradient > 0.0f)
             {
                 var strength = _variant is ButtonVariant.Primary or ButtonVariant.Danger
                     ? theme.AccentGradient
@@ -156,6 +160,33 @@ namespace ManaUI
             {
                 _label.Foreground = ResolveForeground(theme, enabled);
             }
+        }
+
+        // The skin's button art is pale grey, so the state colour tints it to the theme's own; primary and danger
+        // buttons wear the blue pill (tinted red for danger). False when the skin has no such picture.
+        private bool DrawSkinned(ManaUiDrawList drawList, UiSkin skin, Vector4 fill)
+        {
+            var accent = _variant is ButtonVariant.Primary or ButtonVariant.Danger;
+            if (!skin.TryGet(accent ? "primary" : "button", out var slice))
+            {
+                return false;
+            }
+
+            Vector4 tint;
+            if (accent)
+            {
+                tint = _variant == ButtonVariant.Danger ? new Vector4(1.0f, 0.45f, 0.4f, 1.0f) : Vector4.One;
+                tint = IsEffectivelyEnabled ? (IsPressed ? tint * 0.82f : IsPointerOver ? tint * 1.12f : tint) : new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
+                tint.W = 1.0f;
+            }
+            else
+            {
+                // Pale art times a dark tint would go muddy; lift the tint so the result lands on the fill.
+                tint = new Vector4(MathF.Min(fill.X * 1.18f, 1.0f), MathF.Min(fill.Y * 1.18f, 1.0f), MathF.Min(fill.Z * 1.18f, 1.0f), 1.0f);
+            }
+
+            drawList.DrawNineSlice(Bounds, slice, tint, MathF.Min(1.0f, Bounds.Height / slice.Size.Y));
+            return true;
         }
 
         private (Vector4 Fill, Vector4 Border, float Thickness) ResolveColors(UiTheme theme, bool enabled)

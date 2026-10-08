@@ -231,17 +231,33 @@ namespace ManaUI
             var corners = theme.CornerRadiusLarge;
 
             drawList.DrawShadow(Bounds, new Vector4(0.0f, 0.0f, 0.0f, 0.4f), 20.0f, corners);
-            drawList.DrawBox(Bounds, theme.Surface, theme.BorderStrong, 1.0f, corners);
+            var skin = theme.Skin;
+            if (skin != null && skin.TryGet("panel", out var panel))
+            {
+                drawList.DrawNineSlice(Bounds, panel, theme.Surface * 1.12f, 0.5f);
+            }
+            else
+            {
+                drawList.DrawBox(Bounds, theme.Surface, theme.BorderStrong, 1.0f, corners);
+            }
 
             RenderFlash(drawList, theme, corners);
 
             var titleBar = TitleBarRect();
 
-            // Only the top corners are rounded, so the bar meets the window's sides flush.
-            drawList.FillRect(
-                titleBar,
-                IsFocusedWindow ? theme.SurfaceRaised : theme.SurfaceAlt,
-                CornerRadius.Top(corners.TopLeft));
+            if (skin != null && skin.TryGet("titleBar", out var bar))
+            {
+                drawList.DrawNineSlice(titleBar, bar, IsFocusedWindow ? Vector4.One : new Vector4(0.6f, 0.65f, 0.8f, 1.0f),
+                    MathF.Min(1.0f, titleBar.Height / bar.Size.Y));
+            }
+            else
+            {
+                // Only the top corners are rounded, so the bar meets the window's sides flush.
+                drawList.FillRect(
+                    titleBar,
+                    IsFocusedWindow ? theme.SurfaceRaised : theme.SurfaceAlt,
+                    CornerRadius.Top(corners.TopLeft));
+            }
 
             drawList.FillRect(
                 new UiRect(titleBar.X, titleBar.Bottom - 1.0f, titleBar.Width, 1.0f),

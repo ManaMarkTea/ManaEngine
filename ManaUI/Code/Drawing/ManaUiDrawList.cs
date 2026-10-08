@@ -272,6 +272,50 @@ namespace ManaUI
         }
 
         /// <summary>
+        /// A picture stretched as a nine-slice, tinted. <paramref name="scale"/> shrinks the corners (a 64 px
+        /// picture under a 24 px control wants about 0.4); they are never wider than half the rectangle.
+        /// </summary>
+        public void DrawNineSlice(UiRect rect, UiSkinSlice slice, Vector4 tint, float scale = 1.0f)
+        {
+            if (tint.W <= 0.0f || rect.Width <= 0.0f || rect.Height <= 0.0f)
+            {
+                return;
+            }
+
+            var insets = slice.Insets;
+            var left = MathF.Min(insets.Left * scale, rect.Width * 0.5f);
+            var right = MathF.Min(insets.Right * scale, rect.Width * 0.5f);
+            var top = MathF.Min(insets.Top * scale, rect.Height * 0.5f);
+            var bottom = MathF.Min(insets.Bottom * scale, rect.Height * 0.5f);
+
+            // Source pixel edges of the three columns and rows, as fractions of the picture.
+            float[] u = { 0.0f, insets.Left / slice.Size.X, 1.0f - insets.Right / slice.Size.X, 1.0f };
+            float[] v = { 0.0f, insets.Top / slice.Size.Y, 1.0f - insets.Bottom / slice.Size.Y, 1.0f };
+            float[] x = { rect.X, rect.X + left, rect.Right - right, rect.Right };
+            float[] y = { rect.Y, rect.Y + top, rect.Bottom - bottom, rect.Bottom };
+
+            for (var row = 0; row < 3; row++)
+            {
+                for (var column = 0; column < 3; column++)
+                {
+                    var width = x[column + 1] - x[column];
+                    var height = y[row + 1] - y[row];
+                    if (width <= 0.0f || height <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    var uv = new Vector4(
+                        slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column],
+                        slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row],
+                        slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column + 1],
+                        slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row + 1]);
+                    DrawImage(new UiRect(x[column], y[row], width, height), uv, tint, CornerRadius.Zero);
+                }
+            }
+        }
+
+        /// <summary>
         /// A line at any angle, drawn as one rotated box. Rounded ends by default, which is what makes short
         /// thick segments read as strokes rather than as bricks.
         /// </summary>
