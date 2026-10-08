@@ -146,7 +146,7 @@ are baked from; the live editor draws new ones with the GPU instead.
 - **DevPhotos:** when something visual works for the first time, save a screenshot of it to
   `DevPhotos/<yyyy-mm-dd> <what-it-is>.png` (e.g. `2026-09-30 2d-biome-castle.png`) -- an in-app capture, cropped
   to the viewport, of the feature at its best. It is the project's visual record; one per milestone, not per tweak.
-- **Todo.md** is the user's list. Mark items done (`[x]`) with a short note of what was built and where, and add any
+- **Plans/Todo.md** is the user's list (finished items go to Plans/Todo-Finished.md). Mark items done (`[x]`) with a short note of what was built and where, and add any
   open follow-ups under the item, so the state of things can be read there between sessions.
 - **The Sample Course is the source of truth:** patch `Content/Levels/Sample Course.manalevel` by hand or by script,
   never regenerate it -- it carries authored audio and tuning that a rebuild would lose. Other levels too: edit by
