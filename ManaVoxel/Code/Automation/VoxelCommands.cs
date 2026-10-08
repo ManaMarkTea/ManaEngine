@@ -21,6 +21,24 @@ namespace ManaVoxel.Code.Automation
 
             runner.Register("open_level", command => openLevel(ManaCommandRunner.RequirePath(command)));
 
+            runner.Register("transform_node", command =>
+            {
+                var node = runner.FindNode(command.Name ?? "")
+                    ?? throw new InvalidDataException("transform_node: node not found.");
+                if (command.Position is { Length: 3 } p) node.Position = new(p[0], p[1], p[2]);
+                if (command.Rotation is { Length: 3 } r) node.Rotation = new(r[0], r[1], r[2]);
+            });
+
+            runner.Register("gpu_particles", command =>
+            {
+                var node = runner.FindNode(command.Name ?? "GPU Fountain")
+                    ?? throw new InvalidDataException("gpu_particles: emitter node not found.");
+                var emitter = node.Components.OfType<Mana.Code.Components.ManaGpuParticleEmitterComponent>().FirstOrDefault()
+                    ?? throw new InvalidDataException("gpu_particles: node has no GPU emitter.");
+                emitter.Count = Math.Clamp(command.Count, 0, Mana.Code.Components.ManaGpuParticleEmitterComponent.MaximumCount);
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: GPU particles count={emitter.Count}.");
+            });
+
             runner.Register("play", _ => setPlay?.Invoke(true));
             runner.Register("stop_play", _ => setPlay?.Invoke(false));
             runner.Register("drop_to_floor", _ => dropToFloor?.Invoke());

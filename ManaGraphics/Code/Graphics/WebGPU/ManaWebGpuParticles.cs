@@ -1,0 +1,173 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
+using ManaCore.Graphics;
+using Silk.NET.WebGPU;
+using GpuBuffer = Silk.NET.WebGPU.Buffer;
+
+namespace ManaGraphics.Code.Graphics;
+
+/// <summary>Six procedural vertices per instance; one uniform and draw per emitter.</summary>
+internal unsafe sealed class ManaWebGpuParticles : IDisposable
+{
+    private readonly WebGPU _api;
+    private readonly Device* _device;
+    private readonly Queue* _queue;
+    private BindGroupLayout* _layout;
+    private PipelineLayout* _pipelineLayout;
+    private RenderPipeline* _pipeline;
+    private sealed class Slot
+    {
+        public nint Buffer, Group, History;
+        public ReadOnlyMemory<Matrix4x4> SpawnTransforms;
+        public uint SpawnRevision;
+    }
+    private readonly List<Slot> _slots = [];
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Uniform
+    {
+        public Matrix4x4 ViewProjection, Model;
+        public Vector4 Right, Up, Motion, GravityDrag, Sizes, StartColor, EndColor;
+        public uint Count, Seed, HardEdge, SpawnHead;
+        public Vector4 History, BouncePlane1, BouncePlane2, BounceSettings, Wind;
+    }
+
+    public ManaWebGpuParticles(WebGPU api, Device* device, Queue* queue,
+        TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath)
+    {
+        _api = api; _device = device; _queue = queue;
+        try { CreatePipeline(colorFormat, depthFormat, shaderPath); }
+        catch { Dispose(); throw; }
+    }
+
+    public long Draw(RenderPassEncoder* pass, IReadOnlyList<ManaGpuParticleEmitter> emitters,
+        ManaCameraData camera, Matrix4x4 projection, ManaWind.State wind, double density = 1.0)
+    {
+        long drawn = 0;
+        Matrix4x4.Invert(camera.View, out var inverseView);
+        _api.RenderPassEncoderSetPipeline(pass, _pipeline);
+        for (var i = 0; i < emitters.Count; i++)
+        {
+            var emitter = emitters[i];
+            var count = (int)Math.Floor(Math.Max(0, emitter.Count) * Math.Clamp(density, 0.0, 1.0));
+            if (count <= 0) continue;
+            EnsureSlot(i);
+            var uniform = new Uniform
+            {
+                ViewProjection = camera.View * projection, Model = emitter.Transform,
+                Right = new(inverseView.M11, inverseView.M12, inverseView.M13, 0),
+                Up = new(inverseView.M21, inverseView.M22, inverseView.M23, 0),
+                Motion = new(emitter.Seconds, emitter.Lifetime, emitter.Speed, MathF.Cos(emitter.SpreadDegrees*MathF.PI/180)),
+                GravityDrag = new(emitter.Gravity, emitter.Drag),
+                Wind = new(wind.Direction.X * wind.Speed, 0, wind.Direction.Y * wind.Speed, emitter.WindInfluence),
+                Sizes = new(emitter.StartSize, emitter.EndSize, emitter.Radius, emitter.Brightness),
+                StartColor = emitter.StartColor, EndColor = emitter.EndColor,
+                // Phase uses the rendered count, keeping the reduced stream spread across its lifetime.
+                Count = (uint)count, Seed = unchecked((uint)emitter.Seed), HardEdge = emitter.HardEdge ? 1u : 0u,
+                BouncePlane1 = emitter.BouncePlane1, BouncePlane2 = emitter.BouncePlane2, BounceSettings = emitter.BounceSettings,
+                SpawnHead = emitter.SpawnHead, History = new(emitter.SpawnTickWithinLifetime, emitter.SpawnInterval, 0, 0)
+            };
+            var slot = _slots[i];
+            if (!slot.SpawnTransforms.Equals(emitter.SpawnTransforms) || slot.SpawnRevision != emitter.SpawnRevision)
+            {
+                fixed (Matrix4x4* history = emitter.SpawnTransforms.Span)
+                    _api.QueueWriteBuffer(_queue, (GpuBuffer*)slot.History, 0, history,
+                        (nuint)(emitter.SpawnTransforms.Length * sizeof(Matrix4x4)));
+                slot.SpawnTransforms = emitter.SpawnTransforms;
+                slot.SpawnRevision = emitter.SpawnRevision;
+            }
+            _api.QueueWriteBuffer(_queue, (GpuBuffer*)slot.Buffer, 0, &uniform, (nuint)sizeof(Uniform));
+            _api.RenderPassEncoderSetBindGroup(pass, 0, (BindGroup*)slot.Group, 0, null);
+            _api.RenderPassEncoderDraw(pass, 6, (uint)count, 0, 0);
+            drawn += count;
+        }
+        return drawn;
+    }
+
+    private void EnsureSlot(int index)
+    {
+        var entries = stackalloc BindGroupEntry[2];
+        while (_slots.Count <= index)
+        {
+            var descriptor = new BufferDescriptor { Size = (ulong)sizeof(Uniform), Usage = BufferUsage.Uniform | BufferUsage.CopyDst };
+            var buffer = _api.DeviceCreateBuffer(_device, &descriptor);
+            if (buffer == null) throw new InvalidOperationException("Cannot create GPU particle uniform.");
+            var historyDescriptor = new BufferDescriptor { Size = 256 * (ulong)sizeof(Matrix4x4), Usage = BufferUsage.Storage | BufferUsage.CopyDst };
+            var history = _api.DeviceCreateBuffer(_device, &historyDescriptor);
+            if (history == null) { _api.BufferRelease(buffer); throw new InvalidOperationException("Cannot create GPU particle spawn history."); }
+            entries[0] = new BindGroupEntry { Binding = 0, Buffer = buffer, Size = (ulong)sizeof(Uniform) };
+            entries[1] = new BindGroupEntry { Binding = 1, Buffer = history, Size = historyDescriptor.Size };
+            var groupDescriptor = new BindGroupDescriptor { Layout = _layout, EntryCount = 2, Entries = entries };
+            var group = _api.DeviceCreateBindGroup(_device, &groupDescriptor);
+            if (group == null) { _api.BufferRelease(history); _api.BufferRelease(buffer); throw new InvalidOperationException("Cannot create GPU particle bind group."); }
+            _slots.Add(new Slot { Buffer = (nint)buffer, Group = (nint)group, History = (nint)history });
+        }
+    }
+
+    private void CreatePipeline(TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath)
+    {
+        var entry = new BindGroupLayoutEntry
+        {
+            Binding = 0, Visibility = ShaderStage.Vertex | ShaderStage.Fragment,
+            Buffer = new BufferBindingLayout { Type = BufferBindingType.Uniform, MinBindingSize = (ulong)sizeof(Uniform) }
+        };
+        var entries = stackalloc BindGroupLayoutEntry[2];
+        entries[0] = entry;
+        entries[1] = new BindGroupLayoutEntry
+        {
+            Binding = 1, Visibility = ShaderStage.Vertex,
+            Buffer = new BufferBindingLayout { Type = BufferBindingType.ReadOnlyStorage, MinBindingSize = 256 * (ulong)sizeof(Matrix4x4) }
+        };
+        var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 2, Entries = entries };
+        _layout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
+        if (_layout == null) throw new InvalidOperationException("Cannot create GPU particle layout.");
+        var layout = _layout;
+        var pipelineLayoutDescriptor = new PipelineLayoutDescriptor { BindGroupLayoutCount = 1, BindGroupLayouts = &layout };
+        _pipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
+        if (_pipelineLayout == null) throw new InvalidOperationException("Cannot create GPU particle pipeline layout.");
+        var source = Marshal.StringToCoTaskMemUTF8(File.ReadAllText(shaderPath));
+        var vertexEntry = Marshal.StringToCoTaskMemUTF8("vs_main");
+        var fragmentEntry = Marshal.StringToCoTaskMemUTF8("fs_main");
+        ShaderModule* shader = null;
+        try
+        {
+            var wgsl = new ShaderModuleWGSLDescriptor { Chain = new ChainedStruct { SType = SType.ShaderModuleWgslDescriptor }, Code = (byte*)source };
+            var shaderDescriptor = new ShaderModuleDescriptor { NextInChain = &wgsl.Chain };
+            shader = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+            if (shader == null) throw new InvalidOperationException("Cannot create GPU particle shader.");
+            var blend = new BlendState
+            {
+                Color = new BlendComponent { SrcFactor = BlendFactor.SrcAlpha, DstFactor = BlendFactor.One, Operation = BlendOperation.Add },
+                Alpha = new BlendComponent { SrcFactor = BlendFactor.Zero, DstFactor = BlendFactor.One, Operation = BlendOperation.Add }
+            };
+            var target = new ColorTargetState { Format = colorFormat, Blend = &blend, WriteMask = ColorWriteMask.All };
+            var fragment = new FragmentState { Module = shader, EntryPoint = (byte*)fragmentEntry, TargetCount = 1, Targets = &target };
+            var stencil = new StencilFaceState { Compare = CompareFunction.Always, FailOp = StencilOperation.Keep, DepthFailOp = StencilOperation.Keep, PassOp = StencilOperation.Keep };
+            var depth = new DepthStencilState { Format = depthFormat, DepthWriteEnabled = false, DepthCompare = CompareFunction.LessEqual, StencilFront = stencil, StencilBack = stencil };
+            var descriptor = new RenderPipelineDescriptor
+            {
+                Layout = _pipelineLayout,
+                Vertex = new VertexState { Module = shader, EntryPoint = (byte*)vertexEntry },
+                Fragment = &fragment, DepthStencil = &depth,
+                Primitive = new PrimitiveState { Topology = PrimitiveTopology.TriangleList, FrontFace = FrontFace.Ccw, CullMode = CullMode.None },
+                Multisample = new MultisampleState { Count = 1, Mask = uint.MaxValue }
+            };
+            _pipeline = _api.DeviceCreateRenderPipeline(_device, &descriptor);
+            if (_pipeline == null) throw new InvalidOperationException("Cannot create GPU particle pipeline.");
+        }
+        finally
+        {
+            if (shader != null) _api.ShaderModuleRelease(shader);
+            Marshal.FreeCoTaskMem(source); Marshal.FreeCoTaskMem(vertexEntry); Marshal.FreeCoTaskMem(fragmentEntry);
+        }
+    }
+
+    public void Dispose()
+    {
+        foreach (var slot in _slots) { _api.BindGroupRelease((BindGroup*)slot.Group); _api.BufferRelease((GpuBuffer*)slot.Buffer); _api.BufferRelease((GpuBuffer*)slot.History); }
+        _slots.Clear();
+        if (_pipeline != null) { _api.RenderPipelineRelease(_pipeline); _pipeline = null; }
+        if (_pipelineLayout != null) { _api.PipelineLayoutRelease(_pipelineLayout); _pipelineLayout = null; }
+        if (_layout != null) { _api.BindGroupLayoutRelease(_layout); _layout = null; }
+    }
+}

@@ -50,6 +50,12 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("getDevicePixelRatio", ModuleName)]
         internal static partial double GetDevicePixelRatio();
 
+        [JSImport("isMobileRendering", ModuleName)]
+        internal static partial bool IsMobileRendering();
+
+        [JSImport("getGpuParticleBudget", ModuleName)]
+        internal static partial int GetGpuParticleBudget();
+
         [JSImport("getTimeMs", ModuleName)]
         internal static partial double GetTimeMs();
 

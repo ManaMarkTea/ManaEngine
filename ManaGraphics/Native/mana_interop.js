@@ -5,6 +5,47 @@ let canvas = null;
 let resizeObserver = null;
 const startTime = performance.now();
 
+// A touch laptop keeps desktop quality; phones and tablets start with a bounded GPU workload.
+// The query override also lets desktop browser tests exercise the mobile path.
+const renderingOverride = new URLSearchParams(globalThis.location?.search || '').get('rendering');
+const mobileRendering = renderingOverride === 'mobile' || (renderingOverride !== 'desktop' &&
+    (globalThis.navigator?.userAgentData?.mobile === true ||
+        ((globalThis.navigator?.maxTouchPoints || 0) > 0 && window.matchMedia?.('(pointer: coarse)').matches)));
+let particleBudget = 20000;
+let sampleMs = 0;
+let sampleFrames = 0;
+let fastWindows = 0;
+let warmupMs = 0;
+
+export function isMobileRendering() { return Boolean(mobileRendering); }
+export function getGpuParticleBudget() { return mobileRendering ? particleBudget : -1; }
+
+// RAF measures delivered frames, including GPU backpressure. CPU encode time alone misses that.
+// Ignore pauses/background tabs; require sustained headroom before increasing density.
+function updateParticleBudget(milliseconds) {
+    if (!mobileRendering || document.hidden || globalThis.ManaMenuOpen || milliseconds <= 0 || milliseconds > 5000) {
+        sampleMs = sampleFrames = fastWindows = 0;
+        return;
+    }
+    if (warmupMs < 2000) { warmupMs += milliseconds; return; }
+    sampleMs += milliseconds;
+    sampleFrames++;
+    if (sampleMs < 1000 || sampleFrames < 3) return;
+    const average = sampleMs / sampleFrames;
+    if (average > 38) {
+        particleBudget = Math.max(1000, Math.floor(particleBudget * 0.65));
+        fastWindows = 0;
+    } else if (average < 25) {
+        if (++fastWindows >= 5) {
+            particleBudget = Math.min(100000, Math.ceil(particleBudget * 1.1));
+            fastWindows = 0;
+        }
+    } else {
+        fastWindows = 0;
+    }
+    sampleMs = sampleFrames = 0;
+}
+
 export function selectCanvas(selector) {
     canvas = document.querySelector(selector);
     return canvas != null;
@@ -23,7 +64,7 @@ export function getTimeMs() {
 }
 
 export function getDevicePixelRatio() {
-    return window.devicePixelRatio || 1;
+    return mobileRendering ? Math.min(1, window.devicePixelRatio || 1) : window.devicePixelRatio || 1;
 }
 
 // Reports both sizes, the way GLFW does on macOS: CSS pixels are the window size the UI lays out
@@ -34,6 +75,7 @@ function applyCanvasSize(cssWidth, cssHeight, deviceWidth, deviceHeight) {
     const logicalHeight = Math.max(1, Math.round(cssHeight));
     const width = Math.max(1, deviceWidth);
     const height = Math.max(1, deviceHeight);
+    if (canvas.width === width && canvas.height === height) return;
     canvas.width = width;
     canvas.height = height;
     if (globalThis.ManaExports) {
@@ -56,7 +98,7 @@ function watchDevicePixelRatio() {
 function onDevicePixelRatioChanged() {
     watchDevicePixelRatio();
     if (canvas) {
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = getDevicePixelRatio();
         applyCanvasSize(canvas.clientWidth, canvas.clientHeight,
             Math.round(canvas.clientWidth * dpr), Math.round(canvas.clientHeight * dpr));
     }
@@ -71,12 +113,12 @@ export function observeResize() {
     }
     resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = getDevicePixelRatio();
             const cssWidth = entry.contentRect.width;
             const cssHeight = entry.contentRect.height;
             // Exact device pixels where the browser offers them (not Safari); rounding css * dpr
             // can land a pixel off and blur the whole frame by resampling.
-            const deviceBox = entry.devicePixelContentBoxSize && entry.devicePixelContentBoxSize[0];
+            const deviceBox = !mobileRendering && entry.devicePixelContentBoxSize && entry.devicePixelContentBoxSize[0];
             const width = deviceBox ? deviceBox.inlineSize : Math.round(cssWidth * dpr);
             const height = deviceBox ? deviceBox.blockSize : Math.round(cssHeight * dpr);
             applyCanvasSize(cssWidth, cssHeight, width, height);
@@ -262,6 +304,7 @@ export function startRenderLoop() {
     function frame(now) {
         const dt = (now - last) / 1000.0;
         last = now;
+        updateParticleBudget(dt * 1000);
         if (globalThis.ManaExports) {
             globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop.OnFrame(dt);
         }

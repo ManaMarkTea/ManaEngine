@@ -1,0 +1,76 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "GPU Particle Bounce",
+  "camera": {
+    "position": [42.49184, 6.5039, 21.764336],
+    "rotation": [-0.2991997, -2.7328167, 0]
+  },
+  "sky": {
+    "mode": "Space"
+  },
+  "nodes": [
+    {
+      "id": "gpu-particle-floor",
+      "name": "Floor",
+      "kind": "Shape",
+      "position": [50, 0.05, 40],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "shape": "Cube",
+      "color": [0.08, 0.1, 0.15, 1],
+      "size": [24, 0.2, 24]
+    },
+    {
+      "id": "gpu-particle-fountain",
+      "name": "GPU Fountain",
+      "kind": "Group",
+      "position": [50, 1, 40],
+      "rotation": [-0.4164325, 0, -0.84313637],
+      "scale": [1, 1, 1],
+      "scripts": [
+        {
+          "id": "gpu-fountain-emitter",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "count": 100000,
+            "seed": 17,
+            "spreadDegrees": 0,
+            "radius": 0.975,
+            "lifetime": 4.65,
+            "speed": 20,
+            "gravity": [0, -60, 0],
+            "drag": 0.055,
+            "windInfluence": 0.21,
+            "bouncePlane1Enabled": true,
+            "bouncePlane1Position": [0, 0.15, 0],
+            "bouncePlane1Normal": [0, 1, 0],
+            "bouncePlane2Enabled": true,
+            "bouncePlane2Position": [55, 0, 0],
+            "bouncePlane2Normal": [-1, 0, 0],
+            "bounciness": 0.7,
+            "startSize": 0.25,
+            "endSize": 0.01,
+            "startColor": [1, 0.20545447, 0.050000012, 0.65],
+            "endColor": [0.48235294, 0.039215706, 0, 0.5176471],
+            "brightness": 1,
+            "hardEdge": false
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": "bounce-wall",
+      "name": "Bounce Wall",
+      "kind": "Shape",
+      "position": [55.1, 3, 40],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "shape": "Cube",
+      "color": [0.1, 0.15, 0.2, 1],
+      "size": [0.2, 6, 24]
+    }
+  ]
+}

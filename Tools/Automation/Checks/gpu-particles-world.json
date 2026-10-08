@@ -1,0 +1,11 @@
+[
+  {"type":"open_level","path":"Content/Levels/GPU Particles.manalevel"},
+  {"type":"wait","frames":180},
+  {"type":"move_camera","position":[53,7,59],"target":[53,3,40]},
+  {"type":"wait","frames":90},
+  {"type":"screenshot","path":"@@OUT@@.before.png","clean":true},
+  {"type":"transform_node","name":"GPU Fountain","position":[58,1,40],"rotation":[0,0,-1.5707963]},
+  {"type":"wait","frames":90},
+  {"type":"screenshot","path":"@@OUT@@.after.png","clean":true},
+  {"type":"quit"}
+]

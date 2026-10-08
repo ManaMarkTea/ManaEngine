@@ -394,7 +394,7 @@ namespace ManaGraphics.Code.Graphics
                 _activeRenderScene.Camera,
                 GetAspectCorrectedProjection(_activeRenderScene.Camera),
                 SkyTowardSun(_activeRenderScene),
-                _activeRenderScene.Sky,
+                UseMobileRendering ? _activeRenderScene.Sky with { Mode = ManaSkyMode.Photo } : _activeRenderScene.Sky,
                 ManaSky.Seconds);
         }
 
@@ -793,6 +793,7 @@ namespace ManaGraphics.Code.Graphics
                 // something meshes need to sort against.
                 DrawSkybox(sceneRenderPass);
                 DrawDemoMesh(sceneRenderPass);
+                DrawGpuParticles(sceneRenderPass);
                 DrawOverlays(sceneRenderPass);
             }
 
@@ -945,6 +946,7 @@ namespace ManaGraphics.Code.Graphics
 
             ReleaseDemoResources();
             _skybox?.Dispose();
+            _particles?.Dispose();
             _skybox = null;
             _environmentSkybox?.Dispose();
             _environmentSkybox = null;

@@ -461,10 +461,14 @@ namespace Mana.Code.Automation
         {
             var seconds = _profileClock.Elapsed.TotalSeconds;
             var frames = ManaFrameProfiler.FrameCount;
+            var particles = new List<ManaCore.Graphics.ManaGpuParticleEmitter>();
+            foreach (var scene in Context.World.Scenes)
+                foreach (var node in scene.Children) node.CollectGpuParticles(particles);
             var lines = new List<string>
             {
                 $"seconds={seconds:0.00} frames={frames} fps={(seconds > 0.0 ? frames / seconds : 0.0):0.0} worstFrameMs={ManaFrameProfiler.WorstFrameMs:0.0} hitches={ManaFrameProfiler.HitchCount}",
                 $"nodes={CountNodes(Context.World.DefaultScene.Children)} meshes={Context.World.LastMeshCount} playing={Context.World.IsPlaying}",
+                $"gpuParticles={particles.Sum(p => (long)p.Count)} gpuEmitters={particles.Count}",
                 "scope | avgMs | peakMs | calls"
             };
 

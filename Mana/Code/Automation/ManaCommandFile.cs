@@ -26,8 +26,14 @@ namespace Mana.Code.Automation
         /// <summary>wait: number of rendered frames to hold before the next command. move_camera, sky: glide there over this many frames.</summary>
         public int Frames { get; set; }
 
+        /// <summary>gpu_particles: desired live count on the named GPU emitter.</summary>
+        public int Count { get; set; }
+
         /// <summary>move_camera: world-space camera position.</summary>
         public float[]? Position { get; set; }
+
+        /// <summary>transform_node: optional local Euler rotation in radians.</summary>
+        public float[]? Rotation { get; set; }
 
         /// <summary>move_camera: optional world-space point to face; omit to leave rotation untouched.</summary>
         public float[]? Target { get; set; }

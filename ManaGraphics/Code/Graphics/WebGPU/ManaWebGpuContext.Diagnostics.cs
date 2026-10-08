@@ -96,6 +96,11 @@ namespace ManaGraphics.Code.Graphics
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateEnvironment(
                     environmentSource,
                     _environmentReflectionMap != null));
+                sections.Add(CreateSection("Rendering Quality",
+                    ("Profile", UseMobileRendering ? "Mobile (adaptive particles)" : "Desktop"),
+                    ("Sky background", UseMobileRendering ? "Cached environment cube" : "Per-pixel sky"),
+                    ("GPU particles requested", RequestedGpuParticleCount.ToString("N0")),
+                    ("GPU particles drawn", LastGpuParticleCount.ToString("N0"))));
 
                 var totalWebGpuPolygons = (_sceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
                 var totalWebGpuVertices = _sceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");

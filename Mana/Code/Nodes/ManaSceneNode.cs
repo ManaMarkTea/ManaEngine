@@ -277,6 +277,14 @@ namespace Mana.Code.Nodes
             }
         }
 
+        public void CollectGpuParticles(List<ManaGpuParticleEmitter> output)
+        {
+            foreach (var component in Components)
+                if (component is Components.ManaGpuParticleEmitterComponent { Enabled: true } emitter)
+                    output.Add(emitter.Describe());
+            foreach (var child in Children) child.CollectGpuParticles(output);
+        }
+
         public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
         {
             CollectRenderMeshInstances(output, IncludeInEnvironmentCapture, null);

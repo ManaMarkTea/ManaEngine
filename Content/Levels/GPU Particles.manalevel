@@ -1,0 +1,65 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "GPU Particles",
+  "camera": {
+    "position": [46.96527, 6.482023, 56.29299],
+    "rotation": [-0.20639987, -0.2848003, 0]
+  },
+  "sky": {
+    "mode": "Space"
+  },
+  "nodes": [
+    {
+      "id": "gpu-particle-floor",
+      "name": "Floor",
+      "kind": "Shape",
+      "position": [50, 0.05, 40],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "shape": "Cube",
+      "color": [0.08, 0.1, 0.15, 1],
+      "size": [24, 0.2, 24]
+    },
+    {
+      "id": "gpu-particle-fountain",
+      "name": "GPU Fountain",
+      "kind": "Group",
+      "position": [50, 0, 40],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "scripts": [
+        {
+          "id": "gpu-fountain-emitter",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "count": 100000,
+            "seed": 17,
+            "spreadDegrees": 35,
+            "radius": 4,
+            "lifetime": 4,
+            "speed": 7,
+            "gravity": [0, -3, 0],
+            "drag": 0,
+            "windInfluence": 1,
+            "bouncePlane1Enabled": false,
+            "bouncePlane1Position": [0, 0, 0],
+            "bouncePlane1Normal": [0, 1, 0],
+            "bouncePlane2Enabled": false,
+            "bouncePlane2Position": [0, 0, 0],
+            "bouncePlane2Normal": [1, 0, 0],
+            "bounciness": 0.6,
+            "startSize": 0.25,
+            "endSize": 0.05,
+            "startColor": [0.05, 0.45, 1, 0.65],
+            "endColor": [0.6, 0.1, 1, 0],
+            "brightness": 1,
+            "hardEdge": false
+          }
+        }
+      ],
+      "children": []
+    }
+  ]
+}

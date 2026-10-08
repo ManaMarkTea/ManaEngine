@@ -70,5 +70,74 @@ public static class ParticleChecks
             fountain.Step(0.25f);
         }
         check("with emission off, they all die of old age", fountain.AliveCount == 0, $"{fountain.AliveCount}");
+
+        check("the GPU demo appears in the level picker", ManaLevelLibrary.List().Any(path => ManaLevelLibrary.DisplayName(path) == "GPU Particles"), "");
+        var gpuLevel = ManaLevelLoader.Load(ManaLevel.Load(Path.Combine(ManaContentLibrary.Root, "Levels", "GPU Particles.manalevel")),
+            context, context.World.DefaultScene, replaceAuthoredNodes: false);
+        check("the GPU stress level loads without warnings", gpuLevel.Warnings.Count == 0, string.Join("; ", gpuLevel.Warnings));
+        var gpuNode = gpuLevel.Nodes.First(n => n.Name == "GPU Fountain");
+        var gpu = gpuNode.Components.OfType<ManaGpuParticleEmitterComponent>().Single();
+        gpu.Count = 1_000_000;
+        var packets = new List<ManaCore.Graphics.ManaGpuParticleEmitter>();
+        gpuNode.CollectGpuParticles(packets);
+        var gpuMeshes = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
+        gpuNode.CollectRenderMeshInstances(gpuMeshes);
+        check("a million GPU particles collect as one emitter and no CPU meshes", packets.Count == 1 && packets[0].Count == 1_000_000 && gpuMeshes.Count == 0, "");
+        gpu.Step(0.5f);
+        check("GPU phase advances without particle arrays", Math.Abs(gpu.Describe().Seconds - 0.5f) < 0.001f, "");
+        gpu.Enabled = false;
+        gpu.Step(0.5f);
+        packets.Clear(); gpuNode.CollectGpuParticles(packets);
+        check("disabled GPU emitters disappear and pause their phase", packets.Count == 0 && Math.Abs(gpu.Describe().Seconds - 0.5f) < 0.001f, "");
+        gpu.Enabled = true;
+        gpu.Count = int.MaxValue;
+        gpu.Lifetime = float.NaN;
+        gpu.Step(float.NaN);
+        check("GPU settings bound unsafe counts and lifetime", gpu.Describe().Count == ManaGpuParticleEmitterComponent.MaximumCount && float.IsFinite(gpu.Describe().Seconds), "");
+        check("GPU bounce is optional by default", gpu.Describe().BounceSettings.X == 0 && gpu.Describe().BounceSettings.Y == 0, "");
+        gpu.BouncePlane1Enabled = true; gpu.BouncePlane1Position = new(0, 2, 0);
+        gpu.BouncePlane1Normal = new(0, 4, 0); gpu.Bounciness = 2;
+        check("GPU planes normalize world normals and clamp restitution", gpu.Describe().BouncePlane1 == new Vector4(0, 1, 0, -2)
+            && gpu.Describe().BounceSettings.Z == 1, "");
+        gpu.Count = 250_000; gpu.Lifetime = 4; gpu.WindInfluence = 0.25f;
+        var capturedGpu = ManaLevelCapture.Capture(context.World, "GPU Roundtrip");
+        var savedGpu = capturedGpu.Nodes.First(n => n.Name == "GPU Fountain").Scripts!.Single(s => s.Type == "GpuParticleEmitter");
+        check("GPU emitter settings survive level capture", savedGpu.Properties["count"].GetInt32() == 250_000 && !savedGpu.Properties.ContainsKey("seconds"), "");
+        var reloadedGpu = ManaLevelLoader.Load(capturedGpu, context, context.World.DefaultScene, replaceAuthoredNodes: false)
+            .Nodes.First(n => n.Name == "GPU Fountain").Components.OfType<ManaGpuParticleEmitterComponent>().Single();
+        check("GPU settings reload with their count, lifetime and colors", reloadedGpu.Count == 250_000 && reloadedGpu.Lifetime == 4
+            && reloadedGpu.StartColor == gpu.StartColor && reloadedGpu.Describe().Seconds == 0, "");
+
+        check("GPU bounce settings survive level save and reload", reloadedGpu.BouncePlane1Enabled
+            && reloadedGpu.BouncePlane1Position == new Vector3(0, 2, 0) && reloadedGpu.Bounciness == 2, "");
+        var bounceLevel = ManaLevelLoader.Load(ManaLevel.Load(Path.Combine(ManaContentLibrary.Root, "Levels", "GPU Particle Bounce.manalevel")),
+            context, context.World.DefaultScene, replaceAuthoredNodes: false);
+        check("the two-plane GPU bounce demo loads without warnings", bounceLevel.Warnings.Count == 0, string.Join("; ", bounceLevel.Warnings));
+
+        check("GPU wind influence survives save and reload", reloadedGpu.WindInfluence == 0.25f && reloadedGpu.Describe().WindInfluence == 0.25f, "");
+        reloadedGpu.WindInfluence = float.NaN;
+        check("GPU wind influence sanitizes invalid settings", reloadedGpu.Describe().WindInfluence == 1, "");
+
+        var movingNode = new Mana.Code.Nodes.ManaSceneNode(context, Matrix4x4.Identity);
+        var movingGpu = new ManaGpuParticleEmitterComponent(movingNode) { Lifetime = 1, Count = 100 };
+        movingGpu.Step(0.5f);
+        var beforeMove = movingGpu.Describe();
+        var originalBirth = beforeMove.SpawnTransforms.Span[0];
+        var movedPose = Matrix4x4.CreateRotationZ(MathF.PI / 2) * Matrix4x4.CreateTranslation(10, 2, 3);
+        movingNode.WorldTransform = movedPose;
+        movingGpu.Step(0.15f);
+        var afterMove = movingGpu.Describe();
+        check("moving and rotating an emitter preserves old birth poses", afterMove.SpawnTransforms.Span[0] == originalBirth, "");
+        check("new birth poses track emitter movement", afterMove.SpawnTransforms.Span[(int)afterMove.SpawnHead].Translation.X > 9, "");
+        check("rotating the emitter does not rotate gravity", afterMove.Gravity == new Vector3(0, -3, 0), "");
+        movingGpu.Step(0.45f);
+        var wrapped = movingGpu.Describe();
+        var newBirthIndex = (int)((wrapped.SpawnHead + 256 - wrapped.SpawnTickWithinLifetime) % 256);
+        check("new lifetimes use the moved pose across ring wrap", wrapped.SpawnTransforms.Span[newBirthIndex] == movedPose, "");
+        movingGpu.Step(2);
+        var stationaryRevision = movingGpu.Describe().SpawnRevision;
+        movingGpu.Step(0.1f);
+        check("stationary emitters stop uploading history once old poses expire", movingGpu.Describe().SpawnRevision == stationaryRevision, "");
+        check("spawn history size is independent of particle count", movingGpu.Describe().SpawnTransforms.Length == ManaGpuParticleEmitterComponent.SpawnHistoryLength, "");
     }
 }

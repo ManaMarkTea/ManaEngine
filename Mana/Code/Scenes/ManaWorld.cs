@@ -404,6 +404,7 @@ namespace Mana
         public ManaRenderScene CreateRenderScene()
         {
             var meshes = new List<ManaRenderMeshInstance>();
+            var gpuParticles = new List<ManaGpuParticleEmitter>();
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
             var localLights = new List<(Vector4 Position, Vector4 Color)>();
             (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun = default;
@@ -423,6 +424,7 @@ namespace Mana
                     foreach (var scene in Scenes)
                     {
                         scene.CollectRenderMeshInstances(meshes);
+                        foreach (var node in scene.Children) node.CollectGpuParticles(gpuParticles);
                     }
                 }
 
@@ -504,6 +506,7 @@ namespace Mana
                     MainCamera.NearClipPlane,
                     MainCamera.FarClipPlane),
                 Meshes = meshes,
+                GpuParticles = gpuParticles,
                 IrradianceSettings = IrradianceSettings.Clone(),
                 EnvironmentReflectionSource = EnvironmentReflectionSource.Clone(),
                 LightPositions = lightPositions,

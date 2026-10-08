@@ -109,6 +109,17 @@ picked up automatically; no per-level packaging allowlist needs updating.
 
 ## Things that differ from desktop, and why
 
+- **Phones and tablets use mobile rendering automatically** (touch input with a coarse primary pointer).
+  Their canvas is capped at one render pixel per CSS pixel, and the background samples the sky cube
+  already generated for lighting instead of running atmospheric scattering at screen resolution.
+  Environment/reflection cubes are capped at 128 px and irradiance at 16 px. Desktop quality is unchanged.
+  GPU particles share a 20,000-particle starting budget across all emitters, proportional to their requested
+  counts. Sustained frames slower than 38 ms lower it; five seconds of frames faster than 25 ms raise it
+  gradually, within 1,000–100,000 particles. Paused/background frames are ignored. Saved emitter counts
+  stay unchanged, and reduced streams still cover the full lifetime. Renderer diagnostics report requested
+  and drawn counts. `?rendering=mobile` or `?rendering=desktop` overrides detection for testing (combine
+  with `&level=...`); `node Tools/WebAssets/mobile-rendering.test.mjs` checks the policy.
+
 - **BepuPhysics is interpreted, not AOT'd.** It crashes Mono's LLVM AOT compiler outright
   (internal assertion in `mini-llvm.c` on its SIMD generics). `_AOT_InternalForceInterpretAssemblies`
   scopes that to Bepu; everything else is still AOT.

@@ -1,0 +1,110 @@
+[
+  {
+    "type": "open_level",
+    "path": "Content/Levels/GPU Particle Bounce.manalevel"
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      50,
+      7,
+      57
+    ],
+    "target": [
+      50,
+      2,
+      40
+    ]
+  },
+  {
+    "type": "gpu_particles",
+    "name": "GPU Fountain",
+    "count": 0
+  },
+  {
+    "type": "wait",
+    "frames": 90
+  },
+  {
+    "type": "profile_reset"
+  },
+  {
+    "type": "wait",
+    "frames": 300
+  },
+  {
+    "type": "profile_dump",
+    "path": "@@OUT@@.0.txt"
+  },
+  {
+    "type": "gpu_particles",
+    "name": "GPU Fountain",
+    "count": 100000
+  },
+  {
+    "type": "wait",
+    "frames": 90
+  },
+  {
+    "type": "profile_reset"
+  },
+  {
+    "type": "wait",
+    "frames": 300
+  },
+  {
+    "type": "profile_dump",
+    "path": "@@OUT@@.100000.txt"
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@",
+    "clean": true
+  },
+  {
+    "type": "gpu_particles",
+    "name": "GPU Fountain",
+    "count": 1000000
+  },
+  {
+    "type": "wait",
+    "frames": 90
+  },
+  {
+    "type": "profile_reset"
+  },
+  {
+    "type": "wait",
+    "frames": 300
+  },
+  {
+    "type": "profile_dump",
+    "path": "@@OUT@@.1000000.txt"
+  },
+  {
+    "type": "transform_node",
+    "name": "GPU Fountain",
+    "position": [
+      52,
+      2,
+      40
+    ],
+    "rotation": [
+      0,
+      0,
+      -1
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 90
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@.moved.png",
+    "clean": true
+  },
+  {
+    "type": "quit"
+  }
+]
