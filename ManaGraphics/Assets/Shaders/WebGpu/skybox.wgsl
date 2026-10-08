@@ -292,11 +292,19 @@ fn stars(direction : vec3<f32>, density : f32, seconds : f32) -> vec3<f32> {
 
 // The catalogue's real stars, and the lines joining them when asked, for a direction in the sky's own frame
 // (east, up, north). Turned into the equatorial frame the catalogue is written in, so they rise and set with the date.
+fn to_equatorial(direction : vec3<f32>) -> vec3<f32> {
+    return sky.celestial_east.xyz * direction.x + sky.celestial_up.xyz * direction.y + sky.celestial_north.xyz * direction.z;
+}
+
+fn has_celestial_frame() -> bool {
+    return dot(sky.celestial_up.xyz, sky.celestial_up.xyz) > 0.5;
+}
+
 fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
-    if (dot(sky.celestial_up.xyz, sky.celestial_up.xyz) < 0.5) {
+    if (!has_celestial_frame()) {
         return vec3<f32>(0.0);
     }
-    let equatorial = sky.celestial_east.xyz * direction.x + sky.celestial_up.xyz * direction.y + sky.celestial_north.xyz * direction.z;
+    let equatorial = to_equatorial(direction);
 
     var total = vec3<f32>(0.0);
     for (var i = 0u; i < STAR_COUNT; i = i + 1u) {
@@ -316,9 +324,18 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
 
     let lines = sky.celestial_east.w;
     if (lines > 0.0) {
+        // Each figure's lines come up as the view turns toward it: the centre of the view, in the stars' frame.
+        let view_ray = sky.inverse_direction_view_projection * vec4<f32>(0.0, 0.0, 1.0, 1.0);
+        let view_centre = to_equatorial(normalize(view_ray.xyz / view_ray.w));
         var line = 0.0;
         for (var i = 0u; i < SEGMENT_COUNT; i = i + 1u) {
             let pair = SEGMENTS[i];
+            let gaze = dot(view_centre, FIGURE_CENTRES[pair.z].xyz);
+            // Full within about 20 degrees of the figure's middle, gone past about 45.
+            let shown = select(smoothstep(0.707, 0.94, gaze), 1.0, lines > 1.5);
+            if (shown <= 0.0) {
+                continue;
+            }
             let a = STAR_DIRECTIONS[pair.x].xyz;
             let b = STAR_DIRECTIONS[pair.y].xyz;
             let normal = normalize(cross(a, b));
@@ -326,10 +343,10 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
             let side_a = dot(cross(a, equatorial), normal);
             let side_b = dot(cross(equatorial, b), normal);
             if (side_a > 0.0 && side_b > 0.0) {
-                line = max(line, 1.0 - smoothstep(0.0, 0.0011, abs(dot(equatorial, normal))));
+                line = max(line, shown * (1.0 - smoothstep(0.0, 0.0011, abs(dot(equatorial, normal)))));
             }
         }
-        total = total + vec3<f32>(0.35, 0.5, 0.8) * line * 0.22 * lines;
+        total = total + vec3<f32>(0.35, 0.5, 0.8) * line * 0.22 * min(lines, 1.0);
     }
     return total;
 }
@@ -370,7 +387,9 @@ fn day_sky(direction : vec3<f32>, jitter : f32) -> vec3<f32> {
     let night = 1.0 - smoothstep(0.08, 0.5, daylight);
     colour = colour + vec3<f32>(0.004, 0.008, 0.02) * night;
     if (up > 0.0) {
-        colour = colour + stars(direction, 0.012, sky.parameters.x) * night * smoothstep(0.0, 0.2, up);
+        // The fill stars turn with the catalogue's, so the whole sky wheels together.
+        let fill_direction = select(direction, to_equatorial(direction), has_celestial_frame());
+        colour = colour + stars(fill_direction, 0.012, sky.parameters.x) * night * smoothstep(0.0, 0.2, up);
         if (night > 0.0) {
             colour = colour + catalogue_stars(direction) * night * smoothstep(0.0, 0.15, up);
         }

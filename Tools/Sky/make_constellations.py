@@ -104,10 +104,11 @@ FIGURES = {
 names = list(STARS)
 index = {name: i for i, name in enumerate(names)}
 segments = []
-for figure, paths in FIGURES.items():
+figure_names = list(FIGURES)
+for figure_index, (figure, paths) in enumerate(FIGURES.items()):
     for path in paths:
         for a, b in zip(path, path[1:]):
-            segments.append((index[a], index[b]))
+            segments.append((index[a], index[b], figure_index))
 
 
 def direction(star):
@@ -116,6 +117,16 @@ def direction(star):
     sign = -1.0 if dec_d < 0 or (dec_d == 0 and dec_m < 0) else 1.0
     dec = math.radians(sign * (abs(dec_d) + abs(dec_m) / 60.0))
     return (math.cos(dec) * math.cos(ra), math.cos(dec) * math.sin(ra), math.sin(dec))
+
+
+def centre(figure):
+    total = [0.0, 0.0, 0.0]
+    for path in FIGURES[figure]:
+        for name in path:
+            d = direction(STARS[name])
+            total = [total[i] + d[i] for i in range(3)]
+    length = math.sqrt(sum(v * v for v in total))
+    return tuple(v / length for v in total)
 
 
 out = [
@@ -130,8 +141,12 @@ out = [
     f"var<private> STAR_WARMTH : array<f32, {len(names)}> = array<f32, {len(names)}>(",
     ", ".join("%.2f" % STARS[n][5] for n in names),
     ");",
-    f"var<private> SEGMENTS : array<vec2<u32>, {len(segments)}> = array<vec2<u32>, {len(segments)}>(",
-    ",\n".join(f"    vec2<u32>({a}u, {b}u)" for a, b in segments),
+    f"var<private> SEGMENTS : array<vec3<u32>, {len(segments)}> = array<vec3<u32>, {len(segments)}>(",
+    ",\n".join(f"    vec3<u32>({a}u, {b}u, {f}u)" for a, b, f in segments),
+    ");",
+    "// Where each figure sits in the sky, so its lines can come up as the view turns toward it.",
+    f"var<private> FIGURE_CENTRES : array<vec4<f32>, {len(figure_names)}> = array<vec4<f32>, {len(figure_names)}>(",
+    ",\n".join("    vec4<f32>(%.5f, %.5f, %.5f, 0.0)" % centre(f) for f in figure_names),
     ");",
 ]
 target = Path(__file__).resolve().parents[2] / "ManaGraphics/Assets/Shaders/WebGpu/include/constellations.wgsl"

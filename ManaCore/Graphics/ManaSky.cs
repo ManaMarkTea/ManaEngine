@@ -118,7 +118,7 @@ namespace ManaCore.Graphics
             // sky's east, up and north, so the star catalogue turns with the date and hour.
             var (east, up, north) = CelestialFrame(settings.SkyDateTime);
             return new State(ManaSkyMode.DayNightCycle, towardSun, daylight, tint, (float)settings.CloudSeconds, moonPhase, towardMoon,
-                east, up, north, settings.ConstellationLines ? 1.0f : 0.0f);
+                east, up, north, settings.ConstellationLines ? (settings.ShowAllConstellations ? 2.0f : 1.0f) : 0.0f);
         }
 
         /// <summary>Local sidereal time in degrees at the observer for <paramref name="time"/>.</summary>

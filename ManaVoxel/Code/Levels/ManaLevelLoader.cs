@@ -121,6 +121,12 @@ namespace ManaVoxel.Code.Levels
             }
 #endif
 
+            if (level.Sky != null)
+            {
+                level.Sky.ApplyTo(world.IrradianceSettings);
+                scene.AuthoredSky = level.Sky;
+            }
+
             if (level.Camera != null && world.CameraNode != null)
             {
                 world.CameraNode.Position = ToVector3(level.Camera.Position);

@@ -1532,6 +1532,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                             renderer.Material.Albedo.Value = theme.GridFloor;
                             renderer.Material.Emission.Value = theme.GridLine;
                             renderer.Material.EmissionStrength = theme.GridLineThickness;
+                            renderer.Material.Metallic.Value = theme.GridCheckerRatio;
                         }
                     }
                 }

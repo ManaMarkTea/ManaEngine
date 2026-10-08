@@ -21,6 +21,9 @@ namespace Mana
         /// </summary>
         public string? SavedLevelContentJson { get; set; }
 
+        /// <summary>The sky block the level file was opened with (a ManaLevelSky), kept so saving writes it back.</summary>
+        public object? AuthoredSky { get; set; }
+
 
         public ManaScene(ManaContext context) : base(context)
         {

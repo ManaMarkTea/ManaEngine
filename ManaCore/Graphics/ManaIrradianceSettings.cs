@@ -55,6 +55,10 @@ namespace ManaCore.Graphics
         /// <summary>Draws the constellation figures over the night sky's real stars (Day and Night only).</summary>
         public bool ConstellationLines { get; set; }
 
+        /// <summary>While true (the editor holds it with Alt), every constellation's lines show, not only those in view. Never saved.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool ShowAllConstellations { get; set; }
+
         /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
         public float WindSpeed { get; set; } = ManaWind.ReferenceSpeed;
 

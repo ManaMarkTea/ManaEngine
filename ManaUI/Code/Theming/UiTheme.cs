@@ -149,13 +149,18 @@ namespace ManaUI
         // sub-grid's fixed 15% line-tint blend (see grid.wgsl/grid.frag) are both small relative
         // differences, and 8-bit sRGB crushes small differences into invisibility down near 0 -- the same
         // percentage lands as a visible step once the floor isn't sitting at the very bottom of the range.
-        public Vector4 GridFloor { get; set; } = UiColor.FromHex("#1C1F26");
+        // Dark's grid is a mid grey a step under Light's, not near-black: against dark panels the viewport reads as
+        // a lit floor, and the alternating squares only separate (GridCheckerRatio) once the floor has room to fall.
+        public Vector4 GridFloor { get; set; } = UiColor.FromHex("#9A9AA2");
 
         /// <summary>Tint of the grid lines drawn over <see cref="GridFloor"/>.</summary>
         // Brighter and cooler than the old #3A3D43: the 0.1-unit sub-grid only ever blends in 15% of this
         // colour (a dim tint, by design -- see grid.wgsl's minorLineColor comment), so it has to be
         // noticeably bright on its own for that diluted result to still read against GridFloor.
-        public Vector4 GridLine { get; set; } = UiColor.FromHex("#6C7686");
+        public Vector4 GridLine { get; set; } = UiColor.FromHex("#70727C");
+
+        /// <summary>How much darker the alternating checkerboard squares are than <see cref="GridFloor"/>: 1 is none, 0.88 plain to see.</summary>
+        public float GridCheckerRatio { get; set; } = 0.88f;
 
         /// <summary>
         /// Multiplier on grid line width. 1 leaves the base thickness alone; a theme whose lines are meant
@@ -302,7 +307,8 @@ namespace ManaUI
                 // original line, which is what made every line look too dark even at close range,
                 // regardless of anything the distance fade was doing.
                 GridFloor = UiColor.FromHex("#C6C4C7"),
-                GridLine = UiColor.FromHex("#A2A0A3")
+                GridLine = UiColor.FromHex("#A2A0A3"),
+                GridCheckerRatio = 0.9645f
             };
         }
 
@@ -416,7 +422,8 @@ namespace ManaUI
                 // thicker constant made the grid clog up densely at a distance where the 1x default still
                 // read cleanly. See grid.wgsl/grid.frag for the derivative-based line math this scales.
                 GridFloor = UiColor.FromHex("#0A0805"),
-                GridLine = UiColor.FromHex("#FFCC66")
+                GridLine = UiColor.FromHex("#FFCC66"),
+                GridCheckerRatio = 0.9645f
             };
         }
     }

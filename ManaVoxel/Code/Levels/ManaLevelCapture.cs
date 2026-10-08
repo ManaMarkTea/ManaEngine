@@ -37,6 +37,7 @@ namespace ManaVoxel.Code.Levels
                 foreach (var scene in world.Scenes)
                 {
                     CaptureSceneNodes(scene, level.Nodes);
+                    level.Sky ??= scene.AuthoredSky as ManaLevelSky;
                 }
 
                 CaptureCamera(world, level, cameraPose);
@@ -57,6 +58,7 @@ namespace ManaVoxel.Code.Levels
             lock (world.SceneLock)
             {
                 CaptureSceneNodes(scene, level.Nodes);
+                level.Sky = scene.AuthoredSky as ManaLevelSky;
                 if (includeCamera)
                 {
                     CaptureCamera(world, level, cameraPose);

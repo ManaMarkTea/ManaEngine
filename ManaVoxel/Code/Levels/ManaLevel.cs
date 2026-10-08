@@ -32,6 +32,9 @@ namespace ManaVoxel.Code.Levels
         /// <summary>Where the editor camera was. Restored on load so a level opens looking at itself.</summary>
         public ManaLevelCamera? Camera { get; set; }
 
+        /// <summary>Optional: the sky the level wants -- a night with the stars out, say. Absent leaves the editor's own sky alone.</summary>
+        public ManaLevelSky? Sky { get; set; }
+
         public List<ManaLevelNode> Nodes { get; set; } = new();
 
         public ManaLevelNode? PlayerStart =>
@@ -113,6 +116,46 @@ namespace ManaVoxel.Code.Levels
         }
 
         public static ManaLevel Load(string path) => FromJson(File.ReadAllText(path));
+    }
+
+    /// <summary>The sky a level asks for when it opens; any field left out keeps the current setting.</summary>
+    public sealed class ManaLevelSky
+    {
+        /// <summary>Day, DayNightCycle, Space or Photo.</summary>
+        public string? Mode { get; set; }
+
+        /// <summary>The simulated local date and time, ISO 8601 (it fixes the stars and the moon).</summary>
+        public DateTimeOffset? DateTime { get; set; }
+
+        /// <summary>Simulated seconds per real second; 0 holds the sky still, 600 turns it visibly.</summary>
+        public float? TimeSpeed { get; set; }
+
+        public bool? ConstellationLines { get; set; }
+
+        public void ApplyTo(ManaCore.Graphics.ManaIrradianceSettings sky)
+        {
+            if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(Mode, true, out var mode))
+            {
+                sky.Sky = mode;
+            }
+            if (DateTime is { } time)
+            {
+                sky.SkyDateTime = time;
+                sky.RealTime = false;
+                sky.TimeOfDay = sky.DaySystem == ManaCore.Graphics.ManaSkyDaySystem.Sidereal
+                    ? ManaCore.Graphics.ManaSky.SiderealPhaseAt(time)
+                    : ManaCore.Graphics.ManaSky.PhaseAt(time.TimeOfDay.TotalHours);
+                sky.TimeSpeed = TimeSpeed ?? 0.0f;
+            }
+            else if (TimeSpeed is { } speed)
+            {
+                sky.TimeSpeed = speed;
+            }
+            if (ConstellationLines is { } lines)
+            {
+                sky.ConstellationLines = lines;
+            }
+        }
     }
 
     public sealed class ManaLevelCamera

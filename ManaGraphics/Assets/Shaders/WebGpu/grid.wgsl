@@ -115,7 +115,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // fillOdd was its own constant rather than computed from fillEven. 0.92 was a guess made when this
     // became theme-driven, and it darkened the checkerboard's alternating squares distinctly more than
     // the original ever did.
-    let fillOdd = vec4<f32>(object.material_albedo.rgb * 0.9645, 1.0);
+    // The theme's own ratio rides in the metallic slot (grid materials have no use for it); 0 means unset.
+    let oddRatio = select(0.9645, object.material_factors.x, object.material_factors.x > 0.0);
+    let fillOdd = vec4<f32>(object.material_albedo.rgb * oddRatio, 1.0);
 
     // Exponential rather than smoothstep: smoothstep(a,b,x) has ZERO slope at both ends of its range but
     // its STEEPEST slope right in the middle, which is exactly what read as the fade hitting hardest at

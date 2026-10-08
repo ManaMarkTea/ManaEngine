@@ -69,8 +69,9 @@ namespace Mana
             // dedicated field so the existing per-object material-colour upload carries them for free.
             // Mirrors UiTheme's Dark default; ManaUiDockDemo overwrites both once the active theme is
             // known, so this only matters until the first frame the UI has a theme to push.
-            material.Albedo.Value = new Vector4(0.0784f, 0.0824f, 0.0941f, 1.0f);
-            material.Emission.Value = new Vector4(0.2275f, 0.2392f, 0.2627f, 1.0f);
+            material.Albedo.Value = new Vector4(0.604f, 0.604f, 0.635f, 1.0f);
+            material.Emission.Value = new Vector4(0.439f, 0.447f, 0.486f, 1.0f);
+            material.Metallic.Value = 0.88f;
             material.EmissionStrength = 1.0;
 
             return material;

@@ -506,6 +506,11 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            // Hold Alt to see every constellation's lines at once, not just those the view is turned toward.
+            var altKeyboard = Context.Input.Keyboards.FirstOrDefault();
+            Context.World.IrradianceSettings.ShowAllConstellations = altKeyboard != null
+                && (altKeyboard.IsKeyPressed(Key.AltLeft) || altKeyboard.IsKeyPressed(Key.AltRight));
+
             if (IsPlaying)
             {
                 Context.World.GameState.Tick((float)deltaTime);
