@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace ManaVoxel.Code.Automation
+namespace Mana.Code.Automation
 {
     /// <summary>
     /// One step of a <c>--command-file</c> script (see <see cref="ManaCommandRunner"/>). A single class

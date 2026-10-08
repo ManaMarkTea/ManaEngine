@@ -1,7 +1,5 @@
 [] - Can the stars be real constalations?
 
-[] - Can the mana command runner be in a higher up in the project dependencies? with more commands registered by the project that supports it. - like things only mana voxel can do etc.
-
 [] - Auto-Normal looks really bad.
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?

@@ -52,7 +52,7 @@ asset and model logic under its own project, not under ManaUI because a panel ha
 ## Testing levels with scripts
 
 The editor can be driven by a JSON script instead of a person: `ManaVoxel --command-file <script.json>` runs the
-steps one per frame (`ManaVoxel/Code/Automation/ManaCommandRunner.cs`, format in `ManaCommandFile.cs`) and is how
+steps one per frame (`Mana/Code/Automation/ManaCommandRunner.cs` holds the commands every app has and a `Register(type, handler)` hook, format in `ManaCommandFile.cs`; the editor-only ones -- open_level, prefabs, panels, grid maps, bow -- are registered by `ManaVoxel/Code/Automation/VoxelCommands.cs`) and is how
 anything visual or interactive gets checked -- in-app screenshots, not desktop captures (those can show the user's
 other windows). `Tools/Automation/run-commands.ps1` does the plumbing: writes the script, runs the editor from the
 repo root, waits for it to quit and prints what it reported. `@@OUT@@` in a path becomes `Artifacts/Automation/<Name>.png`;

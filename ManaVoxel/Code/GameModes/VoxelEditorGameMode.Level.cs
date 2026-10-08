@@ -1,5 +1,6 @@
 using Mana.Code.Nodes;
 using ManaCore.Graphics;
+using Mana.Code.Automation;
 using ManaVoxel.Code.Automation;
 using ManaVoxel.Code.Levels;
 using ManaVoxel.Code.UI;
@@ -706,7 +707,10 @@ namespace Mana.Code.GameModes
                 _commandRunner = new ManaCommandRunner(
                     CommandFilePath,
                     Context,
-                    _webGpuContext,
+                    _webGpuContext == null ? null : _webGpuContext.CaptureFrameAsync,
+                    _webGpuContext == null ? null : _webGpuContext.DumpEnvironmentFaces);
+                VoxelCommands.Register(
+                    _commandRunner,
                     OpenLevel,
                     on =>
                     {
@@ -714,10 +718,8 @@ namespace Mana.Code.GameModes
                         {
                             TogglePlay();
                         }
-                    })
-                {
-                    DropToFloor = DropSelectedToFloor
-                };
+                    },
+                    DropSelectedToFloor);
             }
 
             _commandRunner.Tick();

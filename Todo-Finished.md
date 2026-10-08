@@ -178,3 +178,11 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
 [x] - Can we also support exporting video in addition to the PNG snapshots we take now.
     Claude: already there for scripts -- the `record` command saves frames at a fixed step and Tools/Automation/sizzle.py
     joins them into an MP4 with ffmpeg. No in-editor button yet.
+
+[x] - Can the mana command runner be in a higher up in the project dependencies? with more commands registered by the project that supports it. - like things only mana voxel can do etc.
+    Claude: ManaCommandRunner, ManaCommand and ManaCommandFile now live in Mana (Mana/Code/Automation). The runner keeps a
+    table of commands by type: the shared ones (wait, move_camera, sky, wind, emission, material, screenshot, record,
+    profile_*, gizmos, teleport/log_player, quit) are built in, and an app adds its own with Register(). Graphics reach it
+    as two delegates (capture a frame, dump the environment) so Mana needs no ManaGraphics reference. The editor's
+    (open_level, prefabs, panels, selection, grid maps, bow, play) are registered by ManaVoxel's VoxelCommands.
+    Checked with a script (open, sky, screenshot, unknown command, profile, quit) and all tests pass.
