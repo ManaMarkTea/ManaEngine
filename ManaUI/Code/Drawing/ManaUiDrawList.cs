@@ -289,8 +289,12 @@ namespace ManaUI
             var bottom = MathF.Min(insets.Bottom * scale, rect.Height * 0.5f);
 
             // Source pixel edges of the three columns and rows, as fractions of the picture.
-            float[] u = { 0.0f, insets.Left / slice.Size.X, 1.0f - insets.Right / slice.Size.X, 1.0f };
-            float[] v = { 0.0f, insets.Top / slice.Size.Y, 1.0f - insets.Bottom / slice.Size.Y, 1.0f };
+            // Half a texel in from the picture's outer edge: bilinear sampling there would blend in whatever the atlas
+            // holds next to the picture, which showed as a faint line along the right and bottom.
+            var halfU = 0.5f / slice.Size.X;
+            var halfV = 0.5f / slice.Size.Y;
+            float[] u = { halfU, insets.Left / slice.Size.X, 1.0f - insets.Right / slice.Size.X, 1.0f - halfU };
+            float[] v = { halfV, insets.Top / slice.Size.Y, 1.0f - insets.Bottom / slice.Size.Y, 1.0f - halfV };
             float[] x = { rect.X, rect.X + left, rect.Right - right, rect.Right };
             float[] y = { rect.Y, rect.Y + top, rect.Bottom - bottom, rect.Bottom };
 

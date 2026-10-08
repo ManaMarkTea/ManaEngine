@@ -278,3 +278,11 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     selected tabs are blue with white type; sliders get a thicker track and a round knob, and the inspector's drag strips are
     sliders too; check boxes, combo and tree arrows and text fields now use the plain UI pack (Assets/kenney_ui-pack.zip) as well.
     Still unused from that pack: its font (Kenney Future), dividers, stars, and the coloured (green/red/yellow) fills.
+
+    Claude (2026-10-08, fourth pass): nine-slice and icon pictures are sampled half a texel in from their edge, so bilinear
+    filtering no longer reads the atlas beside them (the faint right-hand line). The ManaUI panel (Panels > ManaUI) is now the
+    all-controls page: button variants, tooltip and a menu; set, coloured, segmented, vertical and indeterminate progress bars;
+    disabled controls; slider box; colour field; tabs; tree; indicator lights, octagon slots and a glass panel; sparkline and
+    a card. New controls to match Kenney's sample: ProgressBar Tone/Vertical/Segments, StatusLight, red close dot on windows,
+    a red Danger button.
+    Not matched yet: the folder-tab panel shape, the translucent title-less "Energy" tray, crosshair cursors.

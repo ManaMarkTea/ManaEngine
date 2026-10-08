@@ -17,7 +17,10 @@ namespace ManaUI
                 return false;
             }
 
-            drawList.DrawImage(rect, slice.Uv, tint, CornerRadius.Zero);
+            // Half a texel in from the edge, so bilinear sampling never reads the atlas beside the picture.
+            var halfU = 0.5f * (slice.Uv.Z - slice.Uv.X) / slice.Size.X;
+            var halfV = 0.5f * (slice.Uv.W - slice.Uv.Y) / slice.Size.Y;
+            drawList.DrawImage(rect, new Vector4(slice.Uv.X + halfU, slice.Uv.Y + halfV, slice.Uv.Z - halfU, slice.Uv.W - halfV), tint, CornerRadius.Zero);
             return true;
         }
 

@@ -343,6 +343,14 @@ namespace ManaUI
             var button = CloseButtonRect();
             var hovered = button.Contains(Root?.Input.PointerPosition ?? new Vector2(-1.0f));
 
+            if (theme.Skin != null)
+            {
+                // The pack's windows close with a small red dot.
+                var dot = new UiRect(button.Center.X - 6.0f, button.Center.Y - 6.0f, 12.0f, 12.0f);
+                drawList.DrawBox(dot, hovered ? new Vector4(1.0f, 0.4f, 0.45f, 1.0f) : theme.Danger, new Vector4(1.0f, 1.0f, 1.0f, 0.8f), 1.5f, new CornerRadius(6.0f));
+                return;
+            }
+
             if (hovered)
             {
                 drawList.FillRect(button, theme.Danger, new CornerRadius(4.0f));

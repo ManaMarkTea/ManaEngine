@@ -83,6 +83,46 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                     Divider(theme),
 
+                    Caption("Buttons: variants, tooltip, a menu", theme),
+                    ButtonSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Progress: set, indeterminate", theme),
+                    ProgressSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Disabled: check box, drop-down, text box, slider, number", theme),
+                    DisabledSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Slider box and colour field", theme),
+                    SliderBoxSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Tabs", theme),
+                    TabSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Tree", theme),
+                    TreeSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Indicator lights, slots and a glass panel", theme),
+                    IndicatorSample(theme),
+
+                    Divider(theme),
+
+                    Caption("Sparkline and a card", theme),
+                    SparklineSample(theme),
+
+                    Divider(theme),
+
                     Caption("Polled binding (engine state, no INotifyPropertyChanged)", theme),
                     new TextBlock()
                         .Configure(text =>
@@ -242,6 +282,141 @@ namespace ManaVoxel.Code.UI.ManaUi
                         .BindText(layer, l => l.VoxelCount, n => $"{n:N0}")
                         .Foreground(theme.TextMuted)
                         .GridColumn(1)));
+        }
+
+        private static UiElement ButtonSample(UiTheme theme)
+        {
+            Button? menuButton = null;
+            menuButton = new Button().Label("Menu").OnClick(() =>
+            {
+                if (menuButton?.Root is { } root)
+                {
+                    MenuFlyout.ShowBelow(root, menuButton, new[]
+                    {
+                        new MenuItem("Open"),
+                        new MenuItem("Save") { Shortcut = "Ctrl+S" },
+                        MenuItem.Separator(),
+                        new MenuItem("Autosave") { IsCheckable = true, IsChecked = true },
+                        new MenuItem("Recent").WithItems(new MenuItem("One"), new MenuItem("Two"))
+                    });
+                }
+            });
+
+            var hinted = new Button().Label("Hover me").Variant(ButtonVariant.Primary);
+            hinted.Tooltip = "A tooltip: the reason behind a control, which its label has no room for.";
+
+            return new StackPanel().Horizontal(theme.Spacing).Children(
+                hinted,
+                new Button().Label("Danger").Variant(ButtonVariant.Danger),
+                menuButton);
+        }
+
+        private static UiElement ProgressSample(UiTheme theme)
+        {
+            var sweeping = new ProgressBar { IsIndeterminate = true }.Width(320.0f);
+            sweeping.BindPolled(bar => bar.ElapsedSeconds, () => (float)(Environment.TickCount64 / 1000.0));
+
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new ProgressBar { Fraction = 0.65f }.Width(320.0f),
+                new ProgressBar { Fraction = 0.45f, Tone = UiTone.Danger }.Width(320.0f),
+                new ProgressBar { Fraction = 0.7f, Tone = UiTone.Warning }.Width(320.0f),
+                new ProgressBar { Fraction = 0.9f, Tone = UiTone.Success }.Width(320.0f),
+                new ProgressBar { Fraction = 0.6f, Segments = 6, Thickness = 16.0f }.Width(320.0f),
+                new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(
+                    new ProgressBar { Fraction = 0.8f, Vertical = true, Thickness = 14.0f, Tone = UiTone.Success },
+                    new ProgressBar { Fraction = 0.35f, Vertical = true, Thickness = 14.0f, Tone = UiTone.Danger },
+                    new ProgressBar { Fraction = 0.6f, Vertical = true, Thickness = 14.0f }),
+                sweeping);
+        }
+
+        private static UiElement DisabledSample(UiTheme theme)
+        {
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new CheckBox().Label("Cannot be changed").Enabled(false),
+                new ComboBox().Options(new[] { "Locked" }).Width(320.0f).Enabled(false),
+                new TextBox().Hint("Read only").Width(320.0f).Enabled(false),
+                new Slider().Range(0.0f, 1.0f, 0.1f).Width(320.0f).Enabled(false),
+                new NumericBox().Range(0.0f, 10.0f).Places(1).Width(160.0f).Enabled(false));
+        }
+
+        private static UiElement SliderBoxSample(UiTheme theme)
+        {
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new SliderBox { Minimum = 0.0f, Maximum = 100.0f, DecimalPlaces = 0, Value = 40.0f }.Width(320.0f),
+                new ColorField { Color = new Vector4(0.12f, 0.63f, 0.86f, 1.0f) }.Width(160.0f));
+        }
+
+        private static UiElement TabSample(UiTheme theme)
+        {
+            return new TabView()
+                .Add("Scene", new TextBlock().Text("Tab one: the scene's nodes.").Foreground(theme.TextMuted).Margin(8.0f))
+                .Add("Assets", new TextBlock().Text("Tab two: packs and prefabs.").Foreground(theme.TextMuted).Margin(8.0f))
+                .Add("Debug", new TextBlock().Text("Tab three: profiler scopes.").Foreground(theme.TextMuted).Margin(8.0f))
+                .Size(320.0f, 90.0f);
+        }
+
+        private sealed record TreeSampleNode(string Name, TreeSampleNode[] Children);
+
+        private static UiElement TreeSample(UiTheme theme)
+        {
+            var roots = new[]
+            {
+                new TreeSampleNode("World", new[]
+                {
+                    new TreeSampleNode("Terrain", Array.Empty<TreeSampleNode>()),
+                    new TreeSampleNode("Props", new[]
+                    {
+                        new TreeSampleNode("Lantern", Array.Empty<TreeSampleNode>()),
+                        new TreeSampleNode("Pine", Array.Empty<TreeSampleNode>())
+                    })
+                }),
+                new TreeSampleNode("Camera", Array.Empty<TreeSampleNode>())
+            };
+
+            return new TreeView()
+                .Tree(roots, node => node.Children, node => new TextBlock().Text(node.Name))
+                .Scrollable()
+                .Size(320.0f, 110.0f);
+        }
+
+        private static UiElement IndicatorSample(UiTheme theme)
+        {
+            UiElement Gate(string name, bool on, UiTone tone) => new StackPanel().Horizontal(theme.Spacing).Children(
+                new StatusLight { IsOn = on, Tone = tone }.CenterV(),
+                new TextBlock().Text(name));
+
+            UiElement Slot(string letter) => new Border { SkinName = "octagon" }
+                .Fill(theme.Surface)
+                .Size(54.0f, 54.0f)
+                .Content(new TextBlock().Text(letter).Foreground(theme.TextMuted).Center());
+
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(
+                    Gate("Gate A", true, UiTone.Danger),
+                    Gate("Gate B", true, UiTone.Danger),
+                    Gate("Gate C", false, UiTone.Success)),
+                new StackPanel().Horizontal(theme.Spacing).Children(Slot("A"), Slot("B"), Slot("C")),
+                new Border { SkinName = "glass" }
+                    .Fill(theme.Surface.WithAlpha(0.8f))
+                    .PaddingOf(10.0f)
+                    .Width(320.0f)
+                    .Content(new TextBlock().Text("A glass panel: translucent, for readouts over the scene.").Wrap()));
+        }
+
+        private static UiElement SparklineSample(UiTheme theme)
+        {
+            var samples = Enumerable.Range(0, 40).Select(i => 0.5f + 0.4f * MathF.Sin(i * 0.45f) * MathF.Cos(i * 0.11f)).ToArray();
+            var card = new Border { SkinName = "panel" }
+                .Fill(theme.Surface)
+                .Outline(theme.Border, theme.BorderThickness)
+                .Rounded(theme.CornerRadius)
+                .PaddingOf(10.0f)
+                .Width(320.0f)
+                .Content(new TextBlock().Text("A card: a bordered panel that wears the skin's panel picture.").Wrap());
+
+            return new StackPanel().Vertical(theme.Spacing).Children(
+                new Sparkline { Samples = samples, Minimum = 0.0f, Maximum = 1.0f }.Size(320.0f, 36.0f),
+                card);
         }
 
         private static UiElement Swatches(UiTheme theme)

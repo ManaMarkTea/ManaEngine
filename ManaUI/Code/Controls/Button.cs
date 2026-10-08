@@ -167,7 +167,8 @@ namespace ManaUI
         private bool DrawSkinned(ManaUiDrawList drawList, UiSkin skin, Vector4 fill)
         {
             var accent = _variant is ButtonVariant.Primary or ButtonVariant.Danger;
-            if (!skin.TryGet(accent ? "primary" : "button", out var slice))
+            var sliceName = _variant == ButtonVariant.Danger && skin.TryGet("primaryDanger", out _) ? "primaryDanger" : accent ? "primary" : "button";
+            if (!skin.TryGet(sliceName, out var slice))
             {
                 return false;
             }
@@ -175,7 +176,7 @@ namespace ManaUI
             Vector4 tint;
             if (accent)
             {
-                tint = _variant == ButtonVariant.Danger ? new Vector4(1.0f, 0.45f, 0.4f, 1.0f) : Vector4.One;
+                tint = _variant == ButtonVariant.Danger && sliceName != "primaryDanger" ? new Vector4(1.0f, 0.45f, 0.4f, 1.0f) : Vector4.One;
                 tint = IsEffectivelyEnabled ? (IsPressed ? tint * 0.82f : IsPointerOver ? tint * 1.12f : tint) : new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
                 tint.W = 1.0f;
             }
