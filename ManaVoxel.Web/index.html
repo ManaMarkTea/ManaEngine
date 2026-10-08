@@ -217,6 +217,14 @@
     .mana-level-name { font-size: 15px; font-weight: 600; }
     .mana-level-description { font-size: 12.5px; color: var(--mana-text-muted); line-height: 1.4; }
     .mana-select-footer { margin-top: 28px; text-align: center; font-size: 12px; color: var(--mana-text-muted); }
+    #manaEngineVersion {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(12px, env(safe-area-inset-bottom));
+      color: var(--mana-text-muted);
+      font-size: 12px;
+      pointer-events: none;
+    }
 
     /* ---- Pause menu: Escape while playing ------------------------------------------------------------ */
     #manaMenu {
@@ -294,6 +302,7 @@
       <div class="mana-levels" id="manaLevels"></div>
       <p class="mana-select-footer">WASD to move, Shift to run, Space to jump (again in the air to double jump), Esc for the menu</p>
     </div>
+    <small id="manaEngineVersion" title="Engine version and build date (UTC)" hidden></small>
   </div>
 
   <div id="manaMenu" role="dialog" aria-modal="true" aria-label="Paused">
@@ -428,6 +437,16 @@
     } catch (error) {
         // No version file: a local build.
     }
+    fetch(new URL('engine-version.json', document.baseURI))
+      .then(response => response.ok ? response.json() : null)
+      .then(engine => {
+        if (!engine) return;
+        const label = document.getElementById('manaEngineVersion');
+        const commit = engine.commit ? `+${engine.commit.slice(0, 7)}` : '';
+        label.textContent = `ManaRenderer v${engine.version}${commit} · ${engine.buildDate}`;
+        label.hidden = false;
+      })
+      .catch(() => {});
     await import(new URL('main.js', document.baseURI).href);
   </script>
 </body>
