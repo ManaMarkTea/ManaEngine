@@ -219,7 +219,9 @@ namespace ManaUI
                 ?? throw new FileNotFoundException(
                     $"No font file for '{family}' or fallback '{DefaultFamily}' in: {string.Join("; ", _searchDirectories)}");
 
-            var key = (path, rounded, quantisedScale);
+            // A small-capitals sibling is cached apart: its size can equal another request's (15 px small caps are 12 px),
+            // and sharing the entry handed that request a font with no small capitals of its own.
+            var key = (allowSmallCaps ? path : path + "|small", rounded, quantisedScale);
             if (_fonts.TryGetValue(key, out var existing))
             {
                 return existing;

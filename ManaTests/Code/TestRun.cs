@@ -144,6 +144,7 @@ public static class TestRunner
         ("ManaUI", "ported main menu", PortedMainMenuChecks.Run),
         ("ManaUI", "panel search", PanelSearchChecks.Run),
         ("ManaUI", "skins", SkinChecks.Run),
+        ("ManaUI", "small caps", SmallCapsChecks.Run),
         ("ManaUI", "ported scene inspector", InspectorChecks.Run),
         ("ManaUI", "authored box colliders", BoxColliderChecks.Run),
         ("ManaUI", "world perf and debug panels", WorldPerfAndDebugChecks.Run),
