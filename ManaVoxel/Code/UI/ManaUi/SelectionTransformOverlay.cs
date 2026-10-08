@@ -30,7 +30,8 @@ public sealed class SelectionTransformOverlay : UiElement
         if (selection.SelectedNode is not { IsEditorTransient: false } node)
             return;
 
-        var window = camera.Context.Window.Size;
+        // Projected onto the UI's own logical size, which is the window over the display scale.
+        var window = Root.Size;
         var viewProjection = camera._ViewMatrix * camera._ProjectionMatrix;
         bool Project(Vector3 point, out Vector2 screen) =>
             VoxelPlacementDepthOverlay.TryProject(viewProjection, new Vector2(window.X, window.Y),

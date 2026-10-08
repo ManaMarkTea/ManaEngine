@@ -89,7 +89,7 @@ namespace Mana.Code.UI.ManaUi
         /// refreshed hover yet. Game code polls mouse state, so this closes the click-through gap between
         /// the platform button event and the next UI hover update.
         /// </summary>
-        public bool IsPointerOverInteractiveUi => _mouse != null && _root.HitTest(_mouse.Position) != null;
+        public bool IsPointerOverInteractiveUi => _mouse != null && _root.HitTest(ToLogical(_mouse.Position)) != null;
 
         /// <summary>True when a focused control wants raw keystrokes, so editor shortcuts should stand down.</summary>
         public bool IsKeyboardCaptured => _root.Input.IsKeyboardCaptured;
@@ -148,9 +148,12 @@ namespace Mana.Code.UI.ManaUi
             }
         }
 
+        // Silk reports window pixels; the layout is in logical ones, the display scale smaller.
+        private System.Numerics.Vector2 ToLogical(System.Numerics.Vector2 position) => position / MathF.Max(_root.ScreenScale, 0.1f);
+
         private void OnMouseMove(IMouse mouse, System.Numerics.Vector2 position)
         {
-            _root.Input.InjectPointerMoved(position, CurrentModifiers());
+            _root.Input.InjectPointerMoved(ToLogical(position), CurrentModifiers());
         }
 
         private void OnMouseDown(IMouse mouse, MouseButton button)
@@ -158,7 +161,7 @@ namespace Mana.Code.UI.ManaUi
             if (TryMapButton(button, out var pointerButton))
             {
                 _root.Input.InjectPointerPressed(
-                    mouse.Position,
+                    ToLogical(mouse.Position),
                     pointerButton,
                     _clock.Elapsed.TotalSeconds,
                     CurrentModifiers());
@@ -169,7 +172,7 @@ namespace Mana.Code.UI.ManaUi
         {
             if (TryMapButton(button, out var pointerButton))
             {
-                _root.Input.InjectPointerReleased(mouse.Position, pointerButton, CurrentModifiers());
+                _root.Input.InjectPointerReleased(ToLogical(mouse.Position), pointerButton, CurrentModifiers());
             }
         }
 

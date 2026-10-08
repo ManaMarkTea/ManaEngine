@@ -570,7 +570,7 @@ namespace ManaUI
 
             // The host is resolved again on drop rather than remembered: the pointer can leave one column
             // and enter another between the last move and the release.
-            var resolved = ResolveAtScreen(MainOrigin + pointer, null);
+            var resolved = ResolveAtScreen(MainOrigin + pointer * _root.ScreenScale, null);
             ShowTarget(resolved.Root, resolved.Target);
         }
 
@@ -581,7 +581,7 @@ namespace ManaUI
                 return;
             }
 
-            var (host, target, _) = ResolveAtScreen(MainOrigin + pointer, null);
+            var (host, target, _) = ResolveAtScreen(MainOrigin + pointer * _root.ScreenScale, null);
             ClearActiveDrag();
 
             if (!target.IsValid)
@@ -616,7 +616,7 @@ namespace ManaUI
                 return false;
             }
 
-            var origin = MainOrigin + floating.Position;
+            var origin = MainOrigin + floating.Position * _root.ScreenScale;
             var size = floating.Bounds.Size;
 
             try
@@ -793,7 +793,7 @@ namespace ManaUI
                 return candidate.IsValid ? (window.Frame.Dock, candidate, window.Root) : (null, default, null);
             }
 
-            var local = screen - MainOrigin;
+            var local = (screen - MainOrigin) / MathF.Max(_root.ScreenScale, 0.1f);
 
             // An emptied column's zone sits over its neighbours' edges; it is the only way back in, so it wins.
             foreach (var host in _hosts.Where(host => host.RootNode == null && host.EmptyDropZone != null)

@@ -16,10 +16,8 @@ namespace Mana
         /// The scale the UI must apply itself, i.e. content scale minus what the framebuffer/window
         /// ratio already covers. 1.5 on a 150% Windows monitor, 1.0 on macOS Retina.
         /// <para>
-        /// Nothing consumes this at the moment: ImGui used to, and ManaUiHost still scales purely off the
-        /// framebuffer ratio -- which is 1.0 on a scaled Windows display, so ManaUI does not yet grow with
-        /// the OS setting. Kept because this is the only code that knows how to ask GLFW for the monitor's
-        /// content scale, which is what wiring that up will need.
+        /// ManaUiHost divides its layout by this (UiRoot.ScreenScale), so ManaUI grows with the OS setting and
+        /// follows the window onto another monitor.
         /// </para>
         /// </summary>
         public static float QueryUiScale(IWindow? window)

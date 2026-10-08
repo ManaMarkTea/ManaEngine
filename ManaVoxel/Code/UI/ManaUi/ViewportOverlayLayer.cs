@@ -124,7 +124,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // frame selected" (see VoxelEditorGameMode.UpdateFrameSelectedShortcut) inside what is
                 // actually visible, rather than the whole window some of which sits under this layer's own
                 // docked columns.
-                Mana.Code.UI.ManaEditorGizmos.Viewport = value;
+                // Published in window pixels, which is what the camera measures the window in.
+                var scale = Root?.ScreenScale ?? 1.0f;
+                Mana.Code.UI.ManaEditorGizmos.Viewport = new UiRect(value.X * scale, value.Y * scale, value.Width * scale, value.Height * scale);
 
                 if (_arrangedAgainst.Equals(value))
                 {

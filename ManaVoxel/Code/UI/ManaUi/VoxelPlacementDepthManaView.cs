@@ -257,7 +257,8 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private bool TryProject(CameraComponent camera, Vector3 world, out Vector2 screen, out float depth)
         {
-            var size = camera.Context.Window.Size;
+            // The UI's logical size, not the window's pixels: the two differ by the display scale.
+            var size = Root?.Size ?? new Vector2(camera.Context.Window.Size.X, camera.Context.Window.Size.Y);
 
             return TryProject(
                 camera._ViewMatrix * camera._ProjectionMatrix,

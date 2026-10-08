@@ -31,6 +31,7 @@ namespace Mana.Code.UI.ManaUi
             }
 
             Root = new UiRoot(Fonts, theme ?? UiTheme.Dark());
+            UpdateScreenScale();
             Root.SetScale(GetFramebufferScale());
             Root.ScreenOrigin = () => new Vector2(_window.Position.X, _window.Position.Y);
 
@@ -84,7 +85,45 @@ namespace Mana.Code.UI.ManaUi
         public bool IsEnabled { get; set; } = true;
 
         /// <summary>Logical UI size, which tracks the window's logical (not framebuffer) size.</summary>
-        public Vector2 LogicalSize => new Vector2(_window.Size.X, _window.Size.Y);
+        public Vector2 LogicalSize => new Vector2(_window.Size.X, _window.Size.Y) / MathF.Max(Root.ScreenScale, 0.1f);
+
+        /// <summary>A multiplier on top of the display's own scale, for a UI wanted bigger or smaller than the OS says.</summary>
+        public static float UserScale { get; set; } = ReadScaleOverride();
+
+        // MANA_UI_SCALE=1.5 multiplies the display's scale -- to try a scaled layout on an unscaled screen.
+        private static float ReadScaleOverride() =>
+            float.TryParse(Environment.GetEnvironmentVariable("MANA_UI_SCALE"), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var scale) && scale > 0.0f ? scale : 1.0f;
+
+        private double _scaleCheckedAt = double.NegativeInfinity;
+
+        // The display's scale (150% on Windows -> 1.5; Retina is already covered by the framebuffer ratio), asked
+        // of GLFW a few times a second rather than every frame, so dragging to another monitor follows it.
+        private void UpdateScreenScale()
+        {
+            var now = Environment.TickCount64 / 1000.0;
+            if (now - _scaleCheckedAt < 0.25)
+            {
+                return;
+            }
+
+            _scaleCheckedAt = now;
+            var scale = Math.Clamp(QueryDisplayScale() * UserScale, 0.5f, 4.0f);
+            if (MathF.Abs(scale - Root.ScreenScale) > 0.01f)
+            {
+                Root.ScreenScale = scale;
+                Root.InvalidateAll();
+            }
+        }
+
+        private float QueryDisplayScale()
+        {
+#if MANA_BROWSER
+            return 1.0f;
+#else
+            return ManaDpiScale.QueryUiScale(_window);
+#endif
+        }
 
         /// <summary>
         /// Lays out and records the frame. Call during the render phase, before the backend submits.
@@ -105,6 +144,7 @@ namespace Mana.Code.UI.ManaUi
             Root.Input.TickKeyRepeat(deltaSeconds);
             Root.Popups.Tick(deltaSeconds);
 
+            UpdateScreenScale();
             Root.SetScale(GetFramebufferScale());
 
             // Measure/arrange and draw-list recording separately: the first scales with how much of the tree
@@ -135,7 +175,8 @@ namespace Mana.Code.UI.ManaUi
                 return Root?.Scale ?? 1.0f;
             }
 
-            return (float)_window.FramebufferSize.X / _window.Size.X;
+            // Device pixels per logical one: the framebuffer ratio (Retina) times the display scale the layout was divided by.
+            return (float)_window.FramebufferSize.X / _window.Size.X * MathF.Max(Root?.ScreenScale ?? 1.0f, 0.1f);
         }
 
         /// <summary>

@@ -49,6 +49,13 @@ namespace ManaUI
         /// Null reads as the origin, which is right for anything that is not a real window.
         /// </summary>
         public Func<Vector2>? ScreenOrigin { get; set; }
+
+        /// <summary>
+        /// Window (screen) pixels per logical pixel: the OS display scale on Windows -- 1.5 at 150% -- which the
+        /// layout is divided by, so everything is drawn that much bigger. Pointer positions arrive in window pixels
+        /// and are divided by it on the way in; anything mapping UI positions back to the screen multiplies.
+        /// </summary>
+        public float ScreenScale { get; set; } = 1.0f;
         public ManaGlyphAtlas Atlas => Fonts.Atlas;
 
         /// <summary>
