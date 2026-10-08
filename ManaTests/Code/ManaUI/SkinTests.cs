@@ -19,7 +19,7 @@ public static class SkinChecks
         {
             area += (instance.Rect.Z - instance.Rect.X) * (instance.Rect.W - instance.Rect.Y);
         }
-        check("and they cover the rectangle, overlapping neighbours by half a pixel so no seam shows", area >= 200 * 100 && area < 200 * 100 + 400, $"{area}");
+        check("and they cover the rectangle, overlapping neighbours by a pixel so no seam shows", area >= 200 * 100 && area < 200 * 100 + 800, $"{area}");
 
         var tiny = new ManaUiDrawList();
         tiny.Reset();
@@ -30,7 +30,7 @@ public static class SkinChecks
         {
             tinyArea += (instance.Rect.Z - instance.Rect.X) * (instance.Rect.W - instance.Rect.Y);
         }
-        check("a rectangle smaller than the corners is still covered", tinyArea >= 80 && tinyArea < 80 + 60, $"{tinyArea}");
+        check("a rectangle smaller than the corners is still covered", tinyArea >= 80 && tinyArea < 80 + 120, $"{tinyArea}");
 
         var theme = UiTheme.Create(UiThemeKind.Kenney);
         check("the Kenney theme is its own kind, with no skin until a host gives it one", theme.Kind == UiThemeKind.Kenney && theme.Skin == null, "");

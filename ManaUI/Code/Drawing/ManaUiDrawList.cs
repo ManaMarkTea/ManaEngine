@@ -294,6 +294,14 @@ namespace ManaUI
             float[] x = { rect.X, rect.X + left, rect.Right - right, rect.Right };
             float[] y = { rect.Y, rect.Y + top, rect.Bottom - bottom, rect.Bottom };
 
+            // The seams between pieces sit on whole pixels: a seam at x.5 antialiases both neighbours to half
+            // coverage and lets a hairline of the background through, worst at the rounded corners.
+            for (var i = 1; i <= 2; i++)
+            {
+                x[i] = MathF.Round(x[i]);
+                y[i] = MathF.Round(y[i]);
+            }
+
             for (var row = 0; row < 3; row++)
             {
                 for (var column = 0; column < 3; column++)
@@ -306,8 +314,8 @@ namespace ManaUI
                     }
 
                     // Edges that land between device pixels would leave a hairline of background between quads;
-                    // reaching half a pixel into the neighbour closes it, and the picture is opaque there.
-                    var cell = new UiRect(x[column], y[row], width + (column < 2 ? 0.5f : 0.0f), height + (row < 2 ? 0.5f : 0.0f));
+                    // reaching a pixel into the neighbour closes it, and the picture is opaque there.
+                    var cell = new UiRect(x[column], y[row], width + (column < 2 ? 1.0f : 0.0f), height + (row < 2 ? 1.0f : 0.0f));
 
                     var uv = new Vector4(
                         slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column],
