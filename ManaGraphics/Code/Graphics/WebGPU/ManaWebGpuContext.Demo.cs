@@ -212,8 +212,9 @@ namespace ManaGraphics.Code.Graphics
                 // Only real alpha-blended materials (glTF glass etc) self-cull -- not the intrinsically
                 // transparent shaders (water/liquid/lightning), which stay OpacityMode.Auto/Opaque at the
                 // material level and want both faces for their own volumetric/surface effects.
-                cullBackFaces: sceneMesh.Instance.OpacityMode == ManaOpacityMode.Blend,
-                alwaysOnTop: sceneMesh.Instance.AlwaysOnTop);
+                cullBackFaces: sceneMesh.Instance.OpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
+                alwaysOnTop: sceneMesh.Instance.AlwaysOnTop,
+                additiveBlend: sceneMesh.Instance.OpacityMode == ManaOpacityMode.Additive);
             if (pipeline != null)
             {
                 _api.RenderPassEncoderSetPipeline(renderPass, pipeline);

@@ -279,6 +279,9 @@ namespace ManaVoxel.Code.Assets
             return nodes;
         }
 
+        private static bool IsZeroLike(JsonNode? value) =>
+            value is JsonValue json && (json.TryGetValue<bool>(out var flag) ? !flag : json.TryGetValue<double>(out var number) && number == 0.0);
+
         public static List<ManaPrefabOverride> Diff(JsonObject baseline, JsonObject current)
         {
             var result = new List<ManaPrefabOverride>();
@@ -293,6 +296,13 @@ namespace ManaVoxel.Code.Assets
                     }
                     else if (!before.ContainsKey(key))
                     {
+                        // A script property added to the engine since the base was saved reads as zero or off in
+                        // it: that is the old behaviour, not a change somebody made.
+                        if (next.Length >= 2 && next[^2] == "properties" && IsZeroLike(after[key]))
+                        {
+                            continue;
+                        }
+
                         result.Add(new() { Path = next, Value = after[key]?.DeepClone(), Add = true });
                     }
                     else if (before[key] is JsonObject oldObject && after[key] is JsonObject newObject)

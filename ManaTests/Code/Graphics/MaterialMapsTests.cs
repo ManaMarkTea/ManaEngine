@@ -404,7 +404,7 @@ public static class MaterialMapChecks
             "derivatives after a discard are undefined");
 
         Check("blend keeps its alpha and the other modes do not",
-            pbr.Contains("select(1.0, alpha, opacity_mode == 3u)", StringComparison.Ordinal),
+            pbr.Contains("select(1.0, alpha, opacity_mode == 3u || opacity_mode == 4u)", StringComparison.Ordinal),
             "opaque forces solid");
     }
 }

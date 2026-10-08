@@ -67,6 +67,9 @@ namespace ManaUI
 
         public Vector4 ShadowColor { get; set; } = new Vector4(0.0f, 0.0f, 0.0f, 0.35f);
 
+        /// <summary>When set, and the theme's skin has a slice of this name, the background is drawn as that picture tinted by the fill.</summary>
+        public string? SkinName { get; set; }
+
         protected override Thickness ContentInset => Padding + new Thickness(_borderThickness);
 
         protected override void OnRender(ManaUiDrawList drawList)
@@ -74,6 +77,11 @@ namespace ManaUI
             if (ShadowBlur > 0.0f)
             {
                 drawList.DrawShadow(Bounds, ShadowColor, ShadowBlur, _cornerRadius);
+            }
+
+            if (SkinName != null && _backdropBlur <= 0.0f && Root?.Theme is { } skinTheme && drawList.DrawSkin(skinTheme, SkinName, Bounds, _background))
+            {
+                return;
             }
 
             // Two overloads rather than passing the background as its own gradient end: that would set the

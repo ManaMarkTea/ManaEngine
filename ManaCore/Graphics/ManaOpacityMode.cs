@@ -30,6 +30,12 @@ namespace ManaCore.Graphics
         /// Real alpha blending. Needs back-to-front ordering to be correct, so it is worth choosing
         /// deliberately rather than falling into: glass, smoke, a fading object.
         /// </summary>
-        Blend
+        Blend,
+
+        /// <summary>
+        /// Light added on top of what is behind, scaled by alpha: fire, sparks, glows. Order does not matter, and
+        /// overlapping particles brighten rather than cover each other. Drawn without depth writes, like Blend.
+        /// </summary>
+        Additive
     }
 }

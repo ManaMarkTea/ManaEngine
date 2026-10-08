@@ -211,7 +211,11 @@ namespace ManaUI
                 _label.Foreground = _owner.HeaderForeground ?? theme.Text;
                 _label.FontFamily = theme.FontFamilyMedium;
 
-                drawList.FillRect(Bounds, ApplyStateOverlay(_owner.HeaderBackground ?? theme.Surface), theme.CornerRadius);
+                var headerFill = ApplyStateOverlay(_owner.HeaderBackground ?? theme.Surface);
+                if (!drawList.DrawSkin(theme, "button", Bounds, headerFill))
+                {
+                    drawList.FillRect(Bounds, headerFill, theme.CornerRadius);
+                }
                 RenderFocusRing(drawList, Bounds, theme.CornerRadius);
             }
 

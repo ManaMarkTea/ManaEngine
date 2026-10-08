@@ -572,7 +572,10 @@ namespace ManaUI
 
                 if (selected)
                 {
-                    drawList.FillRect(tab, theme.Surface, tabRadius);
+                    if (!drawList.DrawSkin(theme, "button", tab, theme.SurfaceRaised))
+                    {
+                        drawList.FillRect(tab, theme.Surface, tabRadius);
+                    }
 
                     // A short accent bar along the top reads as "this one" more clearly than fill alone.
                     drawList.FillRect(new UiRect(tab.X, tab.Y, tab.Width, 2.0f), theme.Accent, accentRadius);

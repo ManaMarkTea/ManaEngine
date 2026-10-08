@@ -165,8 +165,8 @@ namespace ManaUI
         // noticeably bright on its own for that diluted result to still read against GridFloor.
         public Vector4 GridLine { get; set; } = UiColor.FromHex("#70727C");
 
-        /// <summary>How much darker the alternating checkerboard squares are than <see cref="GridFloor"/>: 1 is none, 0.88 plain to see.</summary>
-        public float GridCheckerRatio { get; set; } = 0.88f;
+        /// <summary>How much darker the alternating checkerboard squares are than <see cref="GridFloor"/>: 1 is none, 0.95 is a gentle step.</summary>
+        public float GridCheckerRatio { get; set; } = 0.95f;
 
         /// <summary>
         /// Multiplier on grid line width. 1 leaves the base thickness alone; a theme whose lines are meant

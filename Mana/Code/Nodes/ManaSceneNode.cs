@@ -330,9 +330,9 @@ namespace Mana.Code.Nodes
                         // Blending is a material decision as much as a shader one: a PBR shader is opaque
                         // by nature, but a PBR material wearing an opacity map is not.
                         IsTransparent = (renderer.Material.Shader?.IsTransparent ?? false)
-                            || renderer.Material.EffectiveOpacityMode == ManaOpacityMode.Blend,
+                            || renderer.Material.EffectiveOpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
                         DisableDepthWrite = (renderer.Material.Shader?.DisableDepthWrite ?? false)
-                            || renderer.Material.EffectiveOpacityMode == ManaOpacityMode.Blend,
+                            || renderer.Material.EffectiveOpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
                         OpacityMode = renderer.Material.EffectiveOpacityMode,
                         Opacity = (float)renderer.Material.Opacity.Value,
                         AlphaCutoff = (float)renderer.Material.AlphaCutoff,

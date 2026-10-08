@@ -137,12 +137,22 @@ namespace ManaUI
             // that never reacted to the pointer at all, resting or over it looked identical.
             var fill = ApplyStateOverlay(enabled ? theme.SurfaceAlt : theme.Surface);
 
-            drawList.DrawBox(
-                Bounds,
-                fill,
-                IsFocused ? theme.Accent : theme.Border,
-                theme.BorderThickness,
-                corners);
+            if (drawList.DrawSkin(theme, "input", Bounds, enabled ? UiColor.White : new Vector4(1.0f, 1.0f, 1.0f, 0.5f), lift: false))
+            {
+                if (IsFocused)
+                {
+                    drawList.DrawBorder(Bounds, theme.Accent, 1.5f, corners);
+                }
+            }
+            else
+            {
+                drawList.DrawBox(
+                    Bounds,
+                    fill,
+                    IsFocused ? theme.Accent : theme.Border,
+                    theme.BorderThickness,
+                    corners);
+            }
 
             if (font == null)
             {

@@ -116,12 +116,23 @@ namespace ManaUI
             var enabled = IsEffectivelyEnabled;
             var corners = theme.CornerRadius;
 
-            drawList.DrawBox(
-                Bounds,
-                ApplyStateOverlay(enabled ? theme.SurfaceRaised : theme.SurfaceAlt),
-                IsDropDownOpen ? theme.Accent : theme.Border,
-                theme.BorderThickness,
-                corners);
+            var comboFill = ApplyStateOverlay(enabled ? theme.SurfaceRaised : theme.SurfaceAlt);
+            if (drawList.DrawSkin(theme, "button", Bounds, comboFill))
+            {
+                if (IsDropDownOpen)
+                {
+                    drawList.DrawBorder(Bounds, theme.Accent, 1.5f, corners);
+                }
+            }
+            else
+            {
+                drawList.DrawBox(
+                    Bounds,
+                    comboFill,
+                    IsDropDownOpen ? theme.Accent : theme.Border,
+                    theme.BorderThickness,
+                    corners);
+            }
 
             RenderFocusRing(drawList, Bounds, corners);
 
@@ -363,7 +374,10 @@ namespace ManaUI
 
             if (IsSelectedOption)
             {
-                drawList.FillRect(Bounds, theme.Accent, new CornerRadius(3.0f));
+                if (!drawList.DrawSkin(theme, "primary", Bounds, UiColor.White, lift: false))
+                {
+                    drawList.FillRect(Bounds, theme.Accent, new CornerRadius(3.0f));
+                }
             }
             else if (IsPointerOver)
             {

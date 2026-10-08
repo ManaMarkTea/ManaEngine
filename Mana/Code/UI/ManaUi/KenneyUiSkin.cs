@@ -46,7 +46,8 @@ namespace Mana.Code.UI.ManaUi
                 ("titleBar", "Blue/Default/bar_square_large.png", 5.0f),
                 ("primary", "Blue/Default/bar_round_large.png", 11.0f),
                 ("track", "Extra/Default/bar_shadow_round_large.png", 11.0f),
-                ("fill", "Blue/Default/bar_round_large.png", 11.0f)
+                ("fill", "Blue/Default/bar_round_large.png", 11.0f),
+                ("input", "Extra/Default/bar_shadow_square_outline_large.png", 6.0f)
             };
 
             var uvs = new Dictionary<string, (Vector4 Uv, Vector2 Size)>();

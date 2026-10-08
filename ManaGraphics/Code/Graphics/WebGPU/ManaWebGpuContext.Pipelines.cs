@@ -30,7 +30,8 @@ namespace ManaGraphics.Code.Graphics
             bool disableDepthWrite = false,
             CompareFunction depthCompare = CompareFunction.Less,
             PrimitiveTopology primitiveTopology = PrimitiveTopology.TriangleList,
-            bool cullBackFaces = false)
+            bool cullBackFaces = false,
+            bool additiveBlend = false)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
@@ -82,14 +83,16 @@ namespace ManaGraphics.Code.Graphics
 
                 // Blending and depth settings are now parameter driven
 
-                var useAdditiveBlend = shaderName == "ManaLightningBallShader";
+                var useAdditiveBlend = shaderName == "ManaLightningBallShader" || additiveBlend;
                 var isGrid = shaderName == "ManaGridShader";
                 var blendState = new BlendState
                 {
                     Color = new BlendComponent
                     {
                         Operation = BlendOperation.Add,
-                        SrcFactor = useAdditiveBlend
+                        SrcFactor = additiveBlend
+                            ? BlendFactor.SrcAlpha
+                            : useAdditiveBlend
                             ? BlendFactor.One
                             : isTransparent
                                 ? BlendFactor.SrcAlpha
@@ -591,12 +594,12 @@ namespace ManaGraphics.Code.Graphics
 
         private RenderPipeline* GetOrCreatePipeline(
             string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false,
-            bool alwaysOnTop = false)
+            bool alwaysOnTop = false, bool additiveBlend = false)
         {
             shaderName ??= "ManaPbrShader";
 
             string pipelineKey =
-                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}_A{(alwaysOnTop ? 1 : 0)}";
+                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}_A{(alwaysOnTop ? 1 : 0)}_B{(additiveBlend ? 1 : 0)}";
             if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
                 return (RenderPipeline*)cachedPipeline;
@@ -627,7 +630,8 @@ namespace ManaGraphics.Code.Graphics
                 shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent,
                 alwaysOnTop ? false : disableDepthWrite,
                 depthCompare: CompareFunction.Less,
-                cullBackFaces: cullBackFaces);
+                cullBackFaces: cullBackFaces,
+                additiveBlend: additiveBlend);
             _pipelines[pipelineKey] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");

@@ -1,0 +1,33 @@
+namespace ManaUI
+{
+    /// <summary>
+    /// How a control dresses itself in the theme's skin when it has one: <c>if (!drawList.DrawSkin(theme, "button", rect, fill))</c>
+    /// then draw the flat version. The skin's art is pale, so the control's own fill colour tints it to the theme.
+    /// </summary>
+    public static class UiSkinDrawing
+    {
+        /// <summary>
+        /// Draws the named slice over <paramref name="rect"/>, tinted by <paramref name="tint"/> (alpha kept). Corners
+        /// are sized to the rectangle: a control shorter than the picture shrinks them to fit, a big panel keeps small ones.
+        /// False when the theme has no skin or no such slice, and nothing was drawn.
+        /// </summary>
+        public static bool DrawSkin(this ManaUiDrawList drawList, UiTheme theme, string name, UiRect rect, Vector4 tint, bool lift = true)
+        {
+            if (theme.Skin is not { } skin || !skin.TryGet(name, out var slice) || tint.W <= 0.0f)
+            {
+                return false;
+            }
+
+            var shortSide = MathF.Min(rect.Width, rect.Height);
+            var scale = shortSide < slice.Size.Y * 1.5f ? MathF.Min(1.0f, shortSide / slice.Size.Y) : 0.4f;
+            if (lift)
+            {
+                // Pale art times a dark tint goes muddy; lift the tint so the result lands on the colour asked for.
+                tint = new Vector4(MathF.Min(tint.X * 1.18f, 1.0f), MathF.Min(tint.Y * 1.18f, 1.0f), MathF.Min(tint.Z * 1.18f, 1.0f), tint.W);
+            }
+
+            drawList.DrawNineSlice(rect, slice, tint, scale);
+            return true;
+        }
+    }
+}

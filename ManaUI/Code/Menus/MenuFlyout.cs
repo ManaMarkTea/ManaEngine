@@ -38,7 +38,7 @@ namespace ManaUI
 
             var popup = new UiPopup
             {
-                Child = new Border()
+                Child = new Border { SkinName = "panel" }
                     .Fill(theme.SurfaceRaised)
                     .Outline(theme.BorderStrong, 1.0f)
                     .Rounded(theme.CornerRadius)
@@ -191,7 +191,10 @@ namespace ManaUI
 
             if (highlighted)
             {
-                drawList.FillRect(Bounds, theme.Accent, new CornerRadius(3.0f));
+                if (!drawList.DrawSkin(theme, "primary", Bounds, UiColor.White, lift: false))
+                {
+                    drawList.FillRect(Bounds, theme.Accent, new CornerRadius(3.0f));
+                }
             }
 
             var foreground = !enabled

@@ -87,17 +87,23 @@ namespace ManaUI
             if (_isChecked)
             {
                 var fill = enabled ? theme.Accent : theme.SurfaceAlt;
-                drawList.DrawBox(box, ApplyStateOverlay(fill), UiColor.Transparent, 0.0f, corners);
+                if (!drawList.DrawSkin(theme, "primary", box, enabled ? (IsPointerOver ? new Vector4(1.15f, 1.15f, 1.15f, 1.0f) : UiColor.White) : new Vector4(0.5f, 0.5f, 0.5f, 1.0f), lift: false))
+                {
+                    drawList.DrawBox(box, ApplyStateOverlay(fill), UiColor.Transparent, 0.0f, corners);
+                }
                 DrawTick(drawList, box, enabled ? theme.TextOnAccent : theme.TextDisabled);
             }
             else
             {
-                drawList.DrawBox(
-                    box,
-                    ApplyStateOverlay(theme.SurfaceAlt),
-                    enabled ? theme.BorderStrong : theme.Border,
-                    theme.BorderThickness,
-                    corners);
+                if (!drawList.DrawSkin(theme, "input", box, enabled ? UiColor.White : new Vector4(1.0f, 1.0f, 1.0f, 0.5f), lift: false))
+                {
+                    drawList.DrawBox(
+                        box,
+                        ApplyStateOverlay(theme.SurfaceAlt),
+                        enabled ? theme.BorderStrong : theme.Border,
+                        theme.BorderThickness,
+                        corners);
+                }
             }
 
             RenderFocusRing(drawList, box, corners);

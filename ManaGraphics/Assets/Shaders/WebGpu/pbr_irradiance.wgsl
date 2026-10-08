@@ -334,7 +334,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
-    var output_alpha = select(1.0, alpha, opacity_mode == 3u);
+    var output_alpha = select(1.0, alpha, opacity_mode == 3u || opacity_mode == 4u);
 
     // object.debug_mode_override < 0 means "no per-object override, use the frame's global mode".
     let effective_debug_mode = select(frame.webgpu_debug_mode, object.debug_mode_override, object.debug_mode_override >= 0.0);

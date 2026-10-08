@@ -4,25 +4,25 @@
   "name": "Particle Garden",
   "camera": {
     "position": [
-      51,
-      2.4,
-      50
+      47,
+      1.8,
+      47
     ],
     "rotation": [
-      -0.12,
+      -0.1,
       0,
       0
     ]
   },
   "sky": {
     "mode": "DayNightCycle",
-    "dateTime": "2026-06-21T20:55:00-07:00",
+    "dateTime": "2026-06-21T21:15:00-07:00",
     "timeSpeed": 0,
     "constellationLines": false
   },
   "nodes": [
     {
-      "id": "a41ea5391c074602aa5e10a335292f23",
+      "id": "546a1913f028456e9c02cfe0ece04866",
       "name": "Lawn",
       "kind": "Shape",
       "position": [
@@ -48,17 +48,17 @@
         1
       ],
       "size": [
-        60,
+        70,
         0.4,
-        60
+        70
       ]
     },
     {
-      "id": "8d334efe801443fc8706c2523dff1b19",
-      "name": "Fire Stone 1",
+      "id": "59b4745b69564a31b9329767e2cef5a2",
+      "name": "Realistic Fire Stone 1",
       "kind": "Shape",
       "position": [
-        44.9,
+        41.9,
         0,
         40.0
       ],
@@ -86,17 +86,17 @@
       ]
     },
     {
-      "id": "fdd9a72f06f448eba00e07c2ae57b5ce",
-      "name": "Fire Stone 2",
+      "id": "c2f490e89c6d47c3a3c98d0fcb5eaf28",
+      "name": "Realistic Fire Stone 2",
       "kind": "Shape",
       "position": [
-        44.63664944225048,
+        41.636396103067895,
         0,
-        40.63614266299483
+        40.636396103067895
       ],
       "rotation": [
         0,
-        0.785,
+        0.7853981633974483,
         0
       ],
       "scale": [
@@ -118,17 +118,17 @@
       ]
     },
     {
-      "id": "a30fb9fa090348eeb470f19fc589b9b8",
-      "name": "Fire Stone 3",
+      "id": "e61442e4b1cd4ad79dccbcd2fddc8c93",
+      "name": "Realistic Fire Stone 3",
       "kind": "Shape",
       "position": [
-        44.00071669403966,
+        41.0,
         0,
-        40.89999971463865
+        40.9
       ],
       "rotation": [
         0,
-        1.57,
+        1.5707963267948966,
         0
       ],
       "scale": [
@@ -150,17 +150,17 @@
       ]
     },
     {
-      "id": "123afa9083b34c739ba4bc6e0290f224",
-      "name": "Fire Stone 4",
+      "id": "bfa78b7eaf2a404d80b800ca7f0eb1a3",
+      "name": "Realistic Fire Stone 4",
       "kind": "Shape",
       "position": [
-        43.364364519662,
+        40.363603896932105,
         0,
-        40.63715581778359
+        40.636396103067895
       ],
       "rotation": [
         0,
-        2.355,
+        2.356194490192345,
         0
       ],
       "scale": [
@@ -182,17 +182,17 @@
       ]
     },
     {
-      "id": "db7f25f141cf4003a0b0b2b2d30b3b2f",
-      "name": "Fire Stone 5",
+      "id": "e75c60e92bb14077b4e21e15521968d6",
+      "name": "Realistic Fire Stone 5",
       "kind": "Shape",
       "position": [
-        43.10000114144521,
+        40.1,
         0,
-        40.001433387624836
+        40.0
       ],
       "rotation": [
         0,
-        3.14,
+        3.141592653589793,
         0
       ],
       "scale": [
@@ -214,17 +214,17 @@
       ]
     },
     {
-      "id": "8c6eb1e205ad4594bb07b014424378fb",
-      "name": "Fire Stone 6",
+      "id": "8499ec1f8e96427aaaa5a1968b03a2a4",
+      "name": "Realistic Fire Stone 6",
       "kind": "Shape",
       "position": [
-        43.36233821072695,
+        40.363603896932105,
         0,
-        39.36487210539837
+        39.363603896932105
       ],
       "rotation": [
         0,
-        3.9250000000000003,
+        3.9269908169872414,
         0
       ],
       "scale": [
@@ -246,17 +246,17 @@
       ]
     },
     {
-      "id": "49c5ed2cf30c4f0299ff36e0e58ee70b",
-      "name": "Fire Stone 7",
+      "id": "84532c7effd84928b2ad8d7a624b45ad",
+      "name": "Realistic Fire Stone 7",
       "kind": "Shape",
       "position": [
-        43.99784991969894,
+        41.0,
         0,
-        39.10000256825106
+        39.1
       ],
       "rotation": [
         0,
-        4.71,
+        4.71238898038469,
         0
       ],
       "scale": [
@@ -278,17 +278,17 @@
       ]
     },
     {
-      "id": "bf9a87e663d246a096eff7f851ec4631",
-      "name": "Fire Stone 8",
+      "id": "827391e127784948a8db58d66c133d99",
+      "name": "Realistic Fire Stone 8",
       "kind": "Shape",
       "position": [
-        44.63461990610758,
+        41.636396103067895,
         0,
-        39.36183264360201
+        39.363603896932105
       ],
       "rotation": [
         0,
-        5.495,
+        5.497787143782138,
         0
       ],
       "scale": [
@@ -310,12 +310,12 @@
       ]
     },
     {
-      "id": "ef71a472b2eb4b49b51279768fea5e8c",
-      "name": "Campfire Flames",
+      "id": "bbc8535de08e456dba938116b2049237",
+      "name": "Realistic Fire Flames",
       "kind": "Group",
       "position": [
-        44,
-        0.3,
+        41,
+        0.25,
         40
       ],
       "rotation": [
@@ -330,39 +330,53 @@
       ],
       "scripts": [
         {
-          "id": "d8beab5cc2f94b1fad9b540e2ed9ca23",
+          "id": "6d7924f335094a45a3d49648a8d906a6",
           "type": "ParticleEmitter",
           "properties": {
-            "rate": 55,
-            "speed": 1.6,
-            "spreadDegrees": 18,
-            "radius": 0.25,
-            "lifetime": 0.9,
+            "blendMode": "Additive",
+            "shape": "Flames",
+            "rate": 95,
+            "speed": 1.3,
+            "spreadDegrees": 13,
+            "radius": 0.22,
+            "lifetime": 0.85,
             "gravity": [
               0,
-              2.2,
+              2.6,
               0
             ],
-            "startSize": 0.28,
-            "endSize": 0.02,
+            "drag": 0.8,
+            "turbulence": 3.0,
+            "turbulenceScale": 1.5,
+            "startSize": 0.34,
+            "endSize": 0.05,
+            "sizeBulge": 1.45,
+            "flameStretch": 2.3,
+            "useMidColor": true,
+            "midPosition": 0.4,
             "startColor": [
               1,
-              0.65,
-              0.15,
+              0.95,
+              0.7,
               0.9
             ],
-            "endColor": [
+            "midColor": [
               1,
-              0.15,
+              0.55,
+              0.12,
+              0.8
+            ],
+            "endColor": [
+              0.6,
+              0.1,
               0.02,
               0
             ],
-            "brightness": 1.1,
-            "maxParticles": 160
+            "maxParticles": 240
           }
         },
         {
-          "id": "3d9a6f0be73845d89cca6b1300b5e5e3",
+          "id": "c19056c304bf4931a6135422e0bf02fd",
           "type": "Light",
           "properties": {
             "color": [
@@ -371,19 +385,21 @@
               0.25,
               1
             ],
-            "intensity": 2.2,
-            "range": 9,
-            "lightType": "Point"
+            "intensity": 2.6,
+            "range": 10,
+            "lightType": "Point",
+            "flickerAmount": 0.4,
+            "flickerSpeed": 9
           }
         }
       ]
     },
     {
-      "id": "1ec1015d0d4a4ca29aae47f078c7847e",
-      "name": "Campfire Sparks",
+      "id": "8ac43d335bfd4cbb84624704410ed196",
+      "name": "Realistic Fire Embers",
       "kind": "Group",
       "position": [
-        44,
+        41,
         0.5,
         40
       ],
@@ -399,45 +415,48 @@
       ],
       "scripts": [
         {
-          "id": "de364ba3a47e4b8389675fe0f006eea7",
+          "id": "a1c6b4b882454708bd41c3815bcff151",
           "type": "ParticleEmitter",
           "properties": {
-            "rate": 18,
-            "speed": 3.2,
-            "spreadDegrees": 30,
-            "lifetime": 2.0,
+            "blendMode": "Additive",
+            "rate": 14,
+            "speed": 2.5,
+            "spreadDegrees": 35,
+            "lifetime": 2.6,
             "gravity": [
               0,
-              -1.2,
+              1.0,
               0
             ],
-            "startSize": 0.07,
-            "endSize": 0.02,
+            "drag": 0.3,
+            "turbulence": 2.5,
+            "startSize": 0.05,
+            "endSize": 0.01,
             "startColor": [
               1,
-              0.8,
-              0.3,
+              0.7,
+              0.2,
               1
             ],
             "endColor": [
               1,
-              0.25,
-              0.05,
+              0.2,
+              0.02,
               0
             ],
             "brightness": 2.0,
-            "maxParticles": 120
+            "maxParticles": 100
           }
         }
       ]
     },
     {
-      "id": "c3c3bcb6bf394e538b93dfb1acf10404",
-      "name": "Campfire Smoke",
+      "id": "2245e7af078e414982a2bd47bd984b3d",
+      "name": "Realistic Fire Smoke",
       "kind": "Group",
       "position": [
-        44,
-        1.0,
+        41,
+        1.3,
         40
       ],
       "rotation": [
@@ -452,40 +471,491 @@
       ],
       "scripts": [
         {
-          "id": "a725c223a46542d48d285d0618e7d712",
+          "id": "f82a666f0a2541bdbaa90110f15bb0d9",
           "type": "ParticleEmitter",
           "properties": {
-            "rate": 10,
-            "speed": 0.7,
+            "rate": 11,
+            "speed": 0.5,
             "spreadDegrees": 14,
-            "lifetime": 5.0,
+            "lifetime": 5.5,
             "gravity": [
-              0.25,
-              0.5,
+              0.2,
+              0.6,
               0
             ],
+            "drag": 0.2,
+            "turbulence": 1.4,
+            "turbulenceScale": 0.8,
             "startSize": 0.5,
-            "endSize": 2.4,
+            "endSize": 2.3,
             "startColor": [
-              0.35,
-              0.35,
-              0.37,
-              0.45
+              0.22,
+              0.22,
+              0.24,
+              0.35
             ],
             "endColor": [
-              0.5,
-              0.5,
-              0.52,
+              0.4,
+              0.4,
+              0.42,
               0
             ],
-            "brightness": 1.0,
-            "maxParticles": 120
+            "maxParticles": 100
           }
         }
       ]
     },
     {
-      "id": "e2f5e195447544f0a3d6cd3fdc23eab8",
+      "id": "530d04845e7e4665b7bfe5a31c2b7dce",
+      "name": "Stylized Fire Stone 1",
+      "kind": "Shape",
+      "position": [
+        46.9,
+        0,
+        40.0
+      ],
+      "rotation": [
+        0,
+        0.0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "1e8eec9ba51843b18a32723bb9fa5f9d",
+      "name": "Stylized Fire Stone 2",
+      "kind": "Shape",
+      "position": [
+        46.636396103067895,
+        0,
+        40.636396103067895
+      ],
+      "rotation": [
+        0,
+        0.7853981633974483,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "9666fdea627e4be9a416ae5e0c863471",
+      "name": "Stylized Fire Stone 3",
+      "kind": "Shape",
+      "position": [
+        46.0,
+        0,
+        40.9
+      ],
+      "rotation": [
+        0,
+        1.5707963267948966,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "e987ac875e60427a94f3552cf1f13bcf",
+      "name": "Stylized Fire Stone 4",
+      "kind": "Shape",
+      "position": [
+        45.363603896932105,
+        0,
+        40.636396103067895
+      ],
+      "rotation": [
+        0,
+        2.356194490192345,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "64859817ad064d24a873b5f39cd74424",
+      "name": "Stylized Fire Stone 5",
+      "kind": "Shape",
+      "position": [
+        45.1,
+        0,
+        40.0
+      ],
+      "rotation": [
+        0,
+        3.141592653589793,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "43c1b502abce4c7c8f70506c04fd9f11",
+      "name": "Stylized Fire Stone 6",
+      "kind": "Shape",
+      "position": [
+        45.363603896932105,
+        0,
+        39.363603896932105
+      ],
+      "rotation": [
+        0,
+        3.9269908169872414,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "41f44005f3e146a2b313ba7c41bbdca7",
+      "name": "Stylized Fire Stone 7",
+      "kind": "Shape",
+      "position": [
+        46.0,
+        0,
+        39.1
+      ],
+      "rotation": [
+        0,
+        4.71238898038469,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "dc855247852c40a38dd1788c0846640e",
+      "name": "Stylized Fire Stone 8",
+      "kind": "Shape",
+      "position": [
+        46.636396103067895,
+        0,
+        39.363603896932105
+      ],
+      "rotation": [
+        0,
+        5.497787143782138,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.35,
+        0.34,
+        0.33,
+        1
+      ],
+      "size": [
+        0.5,
+        0.35,
+        0.5
+      ]
+    },
+    {
+      "id": "548490b4eab64c5480d6d78ff2faa754",
+      "name": "Stylized Fire Flames",
+      "kind": "Group",
+      "position": [
+        46,
+        0.25,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "ee9fced96f7b4b6ba2a47c003604df5d",
+          "type": "ParticleEmitter",
+          "properties": {
+            "shape": "Flames",
+            "hardEdge": true,
+            "colorSteps": 4,
+            "rate": 22,
+            "speed": 1.0,
+            "spreadDegrees": 9,
+            "radius": 0.15,
+            "lifetime": 0.9,
+            "gravity": [
+              0,
+              1.8,
+              0
+            ],
+            "turbulence": 1.0,
+            "turbulenceScale": 0.9,
+            "startSize": 0.5,
+            "endSize": 0.0,
+            "sizeBulge": 1.2,
+            "flameStretch": 2.0,
+            "useMidColor": true,
+            "midPosition": 0.5,
+            "startColor": [
+              1,
+              0.92,
+              0.35,
+              1
+            ],
+            "midColor": [
+              1,
+              0.55,
+              0.1,
+              1
+            ],
+            "endColor": [
+              0.85,
+              0.15,
+              0.1,
+              1
+            ],
+            "maxParticles": 60
+          }
+        },
+        {
+          "id": "1daefe0b67044e28a789e7c7274066e5",
+          "type": "Light",
+          "properties": {
+            "color": [
+              1,
+              0.62,
+              0.3,
+              1
+            ],
+            "intensity": 2.2,
+            "range": 9,
+            "lightType": "Point",
+            "flickerAmount": 0.18,
+            "flickerSpeed": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "29b5190968354dde9d789bfba4d31c65",
+      "name": "Stylized Fire Sparks",
+      "kind": "Group",
+      "position": [
+        46,
+        0.6,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "373b20c4bed44256aa5a3737e1c1346c",
+          "type": "ParticleEmitter",
+          "properties": {
+            "hardEdge": true,
+            "colorSteps": 2,
+            "rate": 7,
+            "speed": 2.4,
+            "spreadDegrees": 28,
+            "lifetime": 1.6,
+            "gravity": [
+              0,
+              -1.5,
+              0
+            ],
+            "startSize": 0.1,
+            "endSize": 0.0,
+            "startColor": [
+              1,
+              0.9,
+              0.4,
+              1
+            ],
+            "endColor": [
+              1,
+              0.45,
+              0.1,
+              1
+            ],
+            "maxParticles": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "ddcae5d767a84898bd78a960694af459",
+      "name": "Stylized Fire Smoke",
+      "kind": "Group",
+      "position": [
+        46,
+        1.2,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "bf02e00dcae946b688000f989e9fa890",
+          "type": "ParticleEmitter",
+          "properties": {
+            "hardEdge": true,
+            "colorSteps": 2,
+            "rate": 3.5,
+            "speed": 0.5,
+            "spreadDegrees": 10,
+            "lifetime": 3.5,
+            "gravity": [
+              0.15,
+              0.5,
+              0
+            ],
+            "startSize": 0.25,
+            "endSize": 0.7,
+            "startColor": [
+              0.3,
+              0.28,
+              0.38,
+              0.8
+            ],
+            "endColor": [
+              0.45,
+              0.43,
+              0.55,
+              0.0
+            ],
+            "maxParticles": 30
+          }
+        }
+      ]
+    },
+    {
+      "id": "839af71c934b4f2083162b2696f19297",
       "name": "Fountain Basin",
       "kind": "Shape",
       "position": [
@@ -517,7 +987,7 @@
       ]
     },
     {
-      "id": "899464aa9d854dce8c6c45b975fc24a6",
+      "id": "ae3f65165a1c422a9e9ba1b52a164152",
       "name": "Fountain Jet",
       "kind": "Group",
       "position": [
@@ -537,7 +1007,7 @@
       ],
       "scripts": [
         {
-          "id": "6073e0ae8c9e43269d9c73ebc2e5ece8",
+          "id": "bb495111987840ab9aefd90aa25c0d59",
           "type": "ParticleEmitter",
           "properties": {
             "rate": 110,
@@ -570,7 +1040,7 @@
       ]
     },
     {
-      "id": "fc0a03e97c784edfa657584f9b564955",
+      "id": "7dfba344937d47e29fca0ff4ce14ff93",
       "name": "Fountain Spray",
       "kind": "Group",
       "position": [
@@ -590,7 +1060,7 @@
       ],
       "scripts": [
         {
-          "id": "894bf2e7045a42b9837ee8953a8b83a7",
+          "id": "c8fabf4d8de746f181617e02801eacdd",
           "type": "ParticleEmitter",
           "properties": {
             "rate": 40,
@@ -622,7 +1092,7 @@
       ]
     },
     {
-      "id": "e6aa0bc2d25d4139af7e581df2b1a30a",
+      "id": "84f561f01cd843899944cd84f57041ec",
       "name": "Rain Cloud",
       "kind": "Group",
       "position": [
@@ -642,7 +1112,7 @@
       ],
       "scripts": [
         {
-          "id": "452f2b24e0cf496dba9cf33e94ba48a9",
+          "id": "f1f0b29725134ed8aab77530172ec756",
           "type": "ParticleEmitter",
           "properties": {
             "rate": 170,
@@ -677,7 +1147,7 @@
       ]
     },
     {
-      "id": "efb39ac0defa4dc39ed780b7f0973365",
+      "id": "9102c0101f8140febfb1d6e923aa3023",
       "name": "Fireflies",
       "kind": "Group",
       "position": [
@@ -697,9 +1167,10 @@
       ],
       "scripts": [
         {
-          "id": "ae8e192b1b5d424089d18fbf80b22e15",
+          "id": "bc5b0b093ba140e497652ee670619624",
           "type": "ParticleEmitter",
           "properties": {
+            "blendMode": "Additive",
             "rate": 8,
             "speed": 0.3,
             "spreadDegrees": 180,
@@ -710,6 +1181,7 @@
               0.05,
               0
             ],
+            "turbulence": 0.5,
             "startSize": 0.09,
             "endSize": 0.09,
             "startColor": [
@@ -724,7 +1196,7 @@
               0.4,
               0
             ],
-            "brightness": 2.5,
+            "brightness": 1.4,
             "maxParticles": 60
           }
         }

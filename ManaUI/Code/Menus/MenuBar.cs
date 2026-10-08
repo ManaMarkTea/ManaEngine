@@ -155,11 +155,17 @@ namespace ManaUI
 
             if (open)
             {
-                drawList.FillRect(Bounds, theme.Accent, CornerRadius.Top(3.0f));
+                if (!drawList.DrawSkin(theme, "primary", Bounds, UiColor.White, lift: false))
+                {
+                    drawList.FillRect(Bounds, theme.Accent, CornerRadius.Top(3.0f));
+                }
             }
             else if (IsPointerOver)
             {
-                drawList.FillRect(Bounds, theme.Hover, CornerRadius.Top(3.0f));
+                if (!drawList.DrawSkin(theme, "button", Bounds, theme.SurfaceRaised))
+                {
+                    drawList.FillRect(Bounds, theme.Hover, CornerRadius.Top(3.0f));
+                }
             }
 
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);

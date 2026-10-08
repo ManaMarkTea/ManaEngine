@@ -13,7 +13,19 @@ namespace Mana.Code.Components
         Points,
 
         /// <summary>Discs pulled out along their travel, longer the faster they go -- rain, embers, shooting stars.</summary>
-        Streaks
+        Streaks,
+
+        /// <summary>Teardrops that stand along their travel with a pointed tip: the tongues of a fire.</summary>
+        Flames
+    }
+
+    public enum ManaParticleBlend
+    {
+        /// <summary>Covers what is behind in proportion to alpha: smoke, dust, rain.</summary>
+        Alpha,
+
+        /// <summary>Adds light to what is behind, so overlaps brighten: fire, sparks, glows.</summary>
+        Additive
     }
 
     /// <summary>
@@ -47,6 +59,18 @@ namespace Mana.Code.Components
         [Category("Motion")]
         public float Lifetime { get; set; } = 1.5f;
 
+        /// <summary>Air resistance: the share of speed lost each second. Smoke and embers slow down; sparks keep going.</summary>
+        [Category("Motion")]
+        public float Drag { get; set; }
+
+        /// <summary>How hard a swirling wind pushes each particle sideways, metres a second squared: the lick of a flame.</summary>
+        [Category("Motion")]
+        public float Turbulence { get; set; }
+
+        /// <summary>How tight the swirls are, in cycles per metre.</summary>
+        [Category("Motion")]
+        public float TurbulenceScale { get; set; } = 1.2f;
+
         /// <summary>Starting speed, metres a second.</summary>
         [Category("Motion")]
         public float Speed { get; set; } = 2.0f;
@@ -68,6 +92,33 @@ namespace Mana.Code.Components
 
         [Category("Look")]
         public float EndSize { get; set; }
+
+        /// <summary>How the particles combine with the picture behind them.</summary>
+        [Category("Look")]
+        public ManaParticleBlend BlendMode { get; set; } = ManaParticleBlend.Alpha;
+
+        /// <summary>A middle colour the gradient passes through at MidPosition: a flame goes white-hot, orange, red.</summary>
+        [Category("Look")]
+        public bool UseMidColor { get; set; }
+
+        [Category("Look")]
+        public Vector4 MidColor { get; set; } = new(1.0f, 0.5f, 0.1f, 1.0f);
+
+        /// <summary>Where in each particle's life the middle colour (and the size bulge) falls, 0..1.</summary>
+        [Category("Look")]
+        public float MidPosition { get; set; } = 0.4f;
+
+        /// <summary>Size at MidPosition relative to the straight line from start to end: above 1 swells then shrinks.</summary>
+        [Category("Look")]
+        public float SizeBulge { get; set; } = 1.0f;
+
+        /// <summary>Steps the colour gradient into this many flat bands for a cel-shaded look; 0 keeps it smooth.</summary>
+        [Category("Look")]
+        public int ColorSteps { get; set; }
+
+        /// <summary>Flames: how much taller than wide each tongue is.</summary>
+        [Category("Look")]
+        public float FlameStretch { get; set; } = 2.0f;
 
         [Category("Look")]
         public Vector4 StartColor { get; set; } = new(1.0f, 0.65f, 0.2f, 1.0f);
@@ -107,6 +158,8 @@ namespace Mana.Code.Components
         private Vector3[] _velocity = [];
         private float[] _age = [];
         private float[] _life = [];
+        private float[] _seed = [];
+        private float _clock;
         private float[] _sortKey = [];
         private int[] _order = [];
 
@@ -141,12 +194,15 @@ namespace Mana.Code.Components
                 _velocity = new Vector3[capacity];
                 _age = new float[capacity];
                 _life = new float[capacity];
+                _seed = new float[capacity];
                 _sortKey = new float[capacity];
                 _order = new int[capacity];
                 AliveCount = 0;
             }
 
+            _clock += seconds;
             var alive = 0;
+            var damping = MathF.Max(0.0f, 1.0f - Drag * seconds);
             for (var i = 0; i < AliveCount; i++)
             {
                 var age = _age[i] + seconds;
@@ -156,10 +212,16 @@ namespace Mana.Code.Components
                 }
 
                 var velocity = _velocity[i] + Gravity * seconds;
+                if (Turbulence > 0.0f)
+                {
+                    velocity += Swirl(_position[i], _seed[i]) * (Turbulence * seconds);
+                }
+                velocity *= damping;
                 _position[alive] = _position[i] + velocity * seconds;
                 _velocity[alive] = velocity;
                 _age[alive] = age;
                 _life[alive] = _life[i];
+                _seed[alive] = _seed[i];
                 alive++;
             }
             AliveCount = alive;
@@ -186,6 +248,17 @@ namespace Mana.Code.Components
             }
         }
 
+        // A cheap smooth wind: sines of position and time, offset per particle so neighbours do not move as one.
+        private Vector3 Swirl(Vector3 at, float seed)
+        {
+            var f = TurbulenceScale * MathF.Tau;
+            var t = _clock * 1.6f + seed;
+            return new Vector3(
+                MathF.Sin(at.Y * f + t) + 0.5f * MathF.Sin(at.Z * f * 1.7f - t * 1.3f),
+                0.35f * MathF.Sin(at.X * f * 1.3f + t * 0.7f),
+                MathF.Sin(at.X * f + t * 1.1f + 2.0f) + 0.5f * MathF.Sin(at.Y * f * 1.9f + t));
+        }
+
         private void Spawn()
         {
             var capacity = _position.Length;
@@ -197,6 +270,7 @@ namespace Mana.Code.Components
                 Array.Copy(_velocity, 1, _velocity, 0, capacity - 1);
                 Array.Copy(_age, 1, _age, 0, capacity - 1);
                 Array.Copy(_life, 1, _life, 0, capacity - 1);
+                Array.Copy(_seed, 1, _seed, 0, capacity - 1);
                 slot = capacity - 1;
             }
 
@@ -227,6 +301,7 @@ namespace Mana.Code.Components
             _velocity[slot] = direction * Speed * Jitter();
             _age[slot] = 0.0f;
             _life[slot] = MathF.Max(0.05f, Lifetime * Jitter());
+            _seed[slot] = (float)_random.NextDouble() * MathF.Tau;
         }
 
         private float Jitter() => 1.0f + ((float)_random.NextDouble() * 2.0f - 1.0f) * Math.Clamp(Variation, 0.0f, 0.95f);
@@ -270,6 +345,7 @@ namespace Mana.Code.Components
             var cameraUp = camera.Up;
             var positions = _mesh.Positions;
             var colors = _mesh.Colors;
+            _mesh.Materials[0].OpacityMode = BlendMode == ManaParticleBlend.Additive ? ManaOpacityMode.Additive : ManaOpacityMode.Blend;
 
             for (var i = 0; i < AliveCount; i++)
             {
@@ -282,8 +358,15 @@ namespace Mana.Code.Components
             {
                 var i = _order[n];
                 var t = _age[i] / _life[i];
-                var size = (StartSize + (EndSize - StartSize) * t) * 0.5f;
-                var color = Vector4.Lerp(StartColor, EndColor, t);
+                var gradientT = ColorSteps > 1 ? MathF.Min(MathF.Floor(t * ColorSteps), ColorSteps - 1) / (ColorSteps - 1) : t;
+                var mid = Math.Clamp(MidPosition, 0.05f, 0.95f);
+                var size = StartSize + (EndSize - StartSize) * t;
+                // A bump centred on the middle of the life, so a bulge swells and settles rather than kinking.
+                size *= 1.0f + (SizeBulge - 1.0f) * MathF.Max(0.0f, 1.0f - MathF.Abs(t - mid) / MathF.Max(mid, 1.0f - mid));
+                size *= 0.5f;
+                var color = UseMidColor
+                    ? (gradientT < mid ? Vector4.Lerp(StartColor, MidColor, gradientT / mid) : Vector4.Lerp(MidColor, EndColor, (gradientT - mid) / (1.0f - mid)))
+                    : Vector4.Lerp(StartColor, EndColor, gradientT);
                 color = new Vector4(color.X * Brightness, color.Y * Brightness, color.Z * Brightness, color.W);
                 var edge = HardEdge ? color : new Vector4(color.X, color.Y, color.Z, 0.0f);
 
@@ -305,13 +388,30 @@ namespace Mana.Code.Components
                     }
                 }
 
+                var tip = 0.0f;
+                if (Shape == ManaParticleShape.Flames)
+                {
+                    // Stands along its travel (mostly up, for a flame), broad at the base and drawn out to a tip.
+                    var along = _velocity[i].LengthSquared() > 1e-6f ? Vector3.Normalize(_velocity[i] + Vector3.UnitY * 0.5f) : Vector3.UnitY;
+                    var view = Vector3.Normalize(cameraPosition - _position[i]);
+                    var across = Vector3.Cross(along, view);
+                    if (across.LengthSquared() > 1e-8f)
+                    {
+                        right = Vector3.Normalize(across) * size;
+                        up = along * size;
+                        tip = FlameStretch - 1.0f;
+                    }
+                }
+
                 var first = n * VerticesPerParticle;
                 positions[first] = Vector3.Transform(_position[i], toLocal);
                 colors[first] = color;
                 for (var k = 0; k < RimPoints; k++)
                 {
                     var angle = k * MathF.Tau / RimPoints;
-                    var world = _position[i] + right * MathF.Cos(angle) + up * MathF.Sin(angle);
+                    // A flame's rim is pulled out along its top (angles round 90 degrees) into the tip.
+                    var pull = tip > 0.0f ? 1.0f + tip * MathF.Pow(MathF.Max(0.0f, MathF.Sin(angle)), 4.0f) : 1.0f;
+                    var world = _position[i] + right * MathF.Cos(angle) + up * (MathF.Sin(angle) * pull);
                     positions[first + 1 + k] = Vector3.Transform(world, toLocal);
                     colors[first + 1 + k] = edge;
                 }

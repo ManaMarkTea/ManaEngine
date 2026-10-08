@@ -247,3 +247,25 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     no skin, or a pack that is missing, stays flat. Any theme can now carry a Skin.
     Still open: the pack's Kenney Future font, skinned text boxes, checkboxes, combo boxes and menus, and the web (the pack is
     not in the web asset catalog yet, so the web editor gets the colours but not the pictures).
+
+[x] - Star level: more pines, lights, fireflies, slower time
+    Claude (2026-10-08): Night Sky now has 110 pines (spheres and pyramids take their size from the node's `scale` in a level --
+    `size` is ignored for them), six glowing lanterns, a flickering camp fire, a moon-blue shadow-casting key light, nine
+    firefly drifts, and the sky turns at 15x (about a degree every 12 seconds). Authored by Tools/Levels/make_sky_and_garden.py.
+
+[x] - Features to make the fire look more realistic or more stylized
+    Claude: Particle emitters gained additive blending (a new ManaOpacityMode.Additive, honoured by the WebGPU pipeline), a
+    three-stop colour gradient (UseMidColor/MidPosition), a size bulge, banded colour (ColorSteps, for cel shading), drag,
+    turbulence (a per-particle swirl), and a Flames shape (teardrops standing along their travel); Light scripts gained
+    FlickerAmount/FlickerSpeed. Particle Garden has both looks side by side: a realistic fire (white-hot to red additive
+    flames, embers, dark smoke, a wavering light) and a stylized one (four flat colour bands, hard edges, chunky puffs).
+    Still open: textured/flipbook flames, soft particles against geometry, heat distortion, and OpenGL (untested).
+
+[x] - Dark theme contrast is too high between cells
+    Claude: the checker step is 5% (0.95), was 12%; Light and LCARS keep 3.5%.
+
+[x] - Finish integrating the kenney theme to actually use his sprites in that mode
+    Claude: the skin now also dresses text boxes and checkboxes (dark inset bar, blue pill when checked), combo boxes,
+    expander headers, tabs (view and dock), the menu bar and menu rows (blue pill highlight), menu popups, and scrollbars,
+    on top of buttons, windows, tab panels and sliders/progress bars. Border has a SkinName for any other panel.
+    Not done: the pack's font, its cursors (the cursor pack is a separate zip) and the web (the pack is not in the asset catalog).

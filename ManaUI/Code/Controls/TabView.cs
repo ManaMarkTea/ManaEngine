@@ -226,7 +226,11 @@ namespace ManaUI
 
             var corners = new CornerRadius(theme.CornerRadius.TopLeft, theme.CornerRadius.TopLeft, 0.0f, 0.0f);
 
-            if (selected && theme.SurfaceGradient > 0.0f)
+            if (selected && drawList.DrawSkin(theme, "button", Bounds, fill))
+            {
+                // Dressed in the skin's raised button instead.
+            }
+            else if (selected && theme.SurfaceGradient > 0.0f)
             {
                 drawList.FillRect(
                     Bounds,

@@ -1,45 +1,6 @@
 [
  {
   "type": "open_level",
-  "path": "Content/Levels/Night Sky.manalevel"
- },
- {
-  "type": "wait",
-  "frames": 240
- },
- {
-  "type": "gizmos",
-  "visible": false
- },
- {
-  "type": "screenshot",
-  "path": "@@OUT@@.night.png",
-  "clean": true
- },
- {
-  "type": "move_camera",
-  "position": [
-   50,
-   1.7,
-   44
-  ],
-  "target": [
-   62,
-   12,
-   30
-  ]
- },
- {
-  "type": "wait",
-  "frames": 30
- },
- {
-  "type": "screenshot",
-  "path": "@@OUT@@.look.png",
-  "clean": true
- },
- {
-  "type": "open_level",
   "path": "Content/Levels/Particle Garden.manalevel"
  },
  {
@@ -51,8 +12,42 @@
   "visible": false
  },
  {
+  "type": "move_camera",
+  "position": [
+   44,
+   1.6,
+   47
+  ],
+  "target": [
+   43.5,
+   1.2,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
   "type": "screenshot",
-  "path": "@@OUT@@.garden.png",
+  "path": "@@OUT@@.fires.png",
+  "clean": true
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Night Sky.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "gizmos",
+  "visible": false
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.night.png",
   "clean": true
  },
  {

@@ -322,7 +322,10 @@ namespace ManaUI
             var track = TrackRect(theme, vertical);
             var corners = new CornerRadius(theme.ScrollBarThickness * 0.5f);
 
-            drawList.FillRect(track, theme.SurfaceAlt.WithAlpha(0.5f), corners);
+            if (!drawList.DrawSkin(theme, "track", track, new Vector4(1.0f, 1.0f, 1.0f, 0.6f), lift: false))
+            {
+                drawList.FillRect(track, theme.SurfaceAlt.WithAlpha(0.5f), corners);
+            }
 
             var thumb = ThumbRect(theme, vertical);
             if (thumb.IsEmpty)
@@ -335,7 +338,11 @@ namespace ManaUI
                 ? theme.Accent
                 : IsPointerOver ? theme.BorderStrong : theme.Border;
 
-            drawList.FillRect(thumb, color, corners);
+            var thumbTint = dragging ? UiColor.White : IsPointerOver ? new Vector4(0.8f, 0.9f, 1.0f, 1.0f) : new Vector4(0.55f, 0.65f, 0.8f, 1.0f);
+            if (!drawList.DrawSkin(theme, "fill", thumb, thumbTint, lift: false))
+            {
+                drawList.FillRect(thumb, color, corners);
+            }
         }
 
         private UiRect TrackRect(UiTheme theme, bool vertical)

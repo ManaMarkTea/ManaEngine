@@ -355,7 +355,7 @@ namespace Mana.Code.Materials
                 return;
             }
 
-            _blendStateApplied = EffectiveOpacityMode == ManaOpacityMode.Blend
+            _blendStateApplied = EffectiveOpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive
                 || (Shader?.IsTransparent ?? false);
 
             if (!_blendStateApplied)
