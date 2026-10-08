@@ -27,6 +27,9 @@ dotnet run --project ManaVoxel -- --play "Content/Levels/Sample Course.manalevel
 # The editor, opened on a level
 dotnet run --project ManaVoxel -- --level "Content/Levels/Sample Course.manalevel"
 
+# Train Yard Wars (couch game prototype; Plans/Couch-Co-op-GameDesignDocuments/TrainYardWars.md)
+dotnet run --project ManaVoxel -- --train-yard-wars --players 4 --seed 42
+
 # Test suite — no GPU or window required; exits non-zero on failure
 dotnet run --project ManaTests
 

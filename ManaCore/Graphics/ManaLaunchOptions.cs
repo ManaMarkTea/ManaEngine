@@ -23,6 +23,14 @@ namespace ManaCore.Graphics
         /// <summary>Set by <c>--precache-thumbnails</c>: make every missing asset thumbnail, headless, and exit.</summary>
         public bool PrecacheThumbnails { get; private init; }
 
+        /// <summary>Set by <c>--train-yard-wars</c>: run that couch game instead of the editor, with <c>--players</c> and <c>--seed</c>.</summary>
+        public bool TrainYardWars { get; private init; }
+
+        public int Players { get; private init; } = 4;
+
+        /// <summary>The map; random when not given.</summary>
+        public int? Seed { get; private init; }
+
         public static ManaLaunchOptions Parse(string[] args)
         {
             var graphicsBackend = ParseGraphicsBackend(Environment.GetEnvironmentVariable("MANA_GRAPHICS_BACKEND"));
@@ -31,6 +39,9 @@ namespace ManaCore.Graphics
             string? editLevelPath = null;
             string? commandFilePath = null;
             var precacheThumbnails = false;
+            var trainYardWars = false;
+            var players = 4;
+            int? seed = null;
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -67,6 +78,24 @@ namespace ManaCore.Graphics
                     continue;
                 }
 
+                if (arg.Equals("--train-yard-wars", StringComparison.OrdinalIgnoreCase))
+                {
+                    trainYardWars = true;
+                    continue;
+                }
+
+                if (TryReadOptionValue(args, ref i, "--players", out var playersValue) && int.TryParse(playersValue, out var playerCount))
+                {
+                    players = playerCount;
+                    continue;
+                }
+
+                if (TryReadOptionValue(args, ref i, "--seed", out var seedValue) && int.TryParse(seedValue, out var seedNumber))
+                {
+                    seed = seedNumber;
+                    continue;
+                }
+
                 if (arg.Equals("--precache-thumbnails", StringComparison.OrdinalIgnoreCase))
                 {
                     precacheThumbnails = true;
@@ -86,7 +115,10 @@ namespace ManaCore.Graphics
                 PlayLevelPath = string.IsNullOrWhiteSpace(playLevelPath) ? null : playLevelPath,
                 EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath,
                 CommandFilePath = string.IsNullOrWhiteSpace(commandFilePath) ? null : commandFilePath,
-                PrecacheThumbnails = precacheThumbnails
+                PrecacheThumbnails = precacheThumbnails,
+                TrainYardWars = trainYardWars,
+                Players = players,
+                Seed = seed
             };
         }
 

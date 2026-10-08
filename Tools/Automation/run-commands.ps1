@@ -26,6 +26,8 @@ param(
     [string] $Exe,
     [string] $Out,
     [string] $PhotoDir,
+    # More arguments for the app, ahead of the script: -ExtraArgs "--train-yard-wars" runs that game, not the editor.
+    [string[]] $ExtraArgs = @(),
     [int] $TimeoutSeconds = 300
 )
 
@@ -52,7 +54,7 @@ $logPath = Join-Path $Out "$Name.log"
 Set-Content -Path $scriptPath -Value $script
 
 # The editor runs from the repo root so level and asset paths in the script resolve as they do in a checkout.
-$process = Start-Process -FilePath $Exe -ArgumentList "--command-file", "`"$scriptPath`"" -WorkingDirectory $repo `
+$process = Start-Process -FilePath $Exe -ArgumentList ($ExtraArgs + @("--command-file", "`"$scriptPath`"")) -WorkingDirectory $repo `
     -RedirectStandardOutput $logPath -PassThru -NoNewWindow
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
     Stop-Process -Id $process.Id -Force

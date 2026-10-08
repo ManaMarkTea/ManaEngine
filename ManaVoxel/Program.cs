@@ -34,6 +34,18 @@ namespace Mana
                 }
 #endif
 
+#if !MANA_BROWSER
+                if (launchOptions.TrainYardWars)
+                {
+                    var trainYard = new TrainYardWarsGameMode(launchOptions.Players, launchOptions.Seed ?? Environment.TickCount & 0xffff, backendKind)
+                    {
+                        CommandFilePath = launchOptions.CommandFilePath
+                    };
+                    trainYard.RunWebGpu(launchOptions.WebGpuBackend);
+                    return;
+                }
+#endif
+
                 // --play skips the editor entirely: same executable, but the game rather than the tool.
                 if (launchOptions.PlayLevelPath is { } playLevelPath)
                 {
