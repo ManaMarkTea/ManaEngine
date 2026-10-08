@@ -20,6 +20,11 @@ namespace ManaUI
             // Half a texel in from the edge, so bilinear sampling never reads the atlas beside the picture.
             var halfU = 0.5f * (slice.Uv.Z - slice.Uv.X) / slice.Size.X;
             var halfV = 0.5f * (slice.Uv.W - slice.Uv.Y) / slice.Size.Y;
+            // On whole device pixels, outwards, like a nine-slice's edges.
+            var pixel = MathF.Max(drawList.PixelScale, 1.0f);
+            var left = MathF.Floor(rect.X * pixel) / pixel;
+            var top = MathF.Floor(rect.Y * pixel) / pixel;
+            rect = new UiRect(left, top, MathF.Ceiling(rect.Right * pixel) / pixel - left, MathF.Ceiling(rect.Bottom * pixel) / pixel - top);
             drawList.DrawImage(rect, new Vector4(slice.Uv.X + halfU, slice.Uv.Y + halfV, slice.Uv.Z - halfU, slice.Uv.W - halfV), tint, CornerRadius.Zero);
             return true;
         }

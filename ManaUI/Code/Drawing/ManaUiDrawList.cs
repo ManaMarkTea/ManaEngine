@@ -266,6 +266,9 @@ namespace ManaUI
             Add(rect, CornerRadius.Zero, color, UiColor.Transparent, 0.0f, uv, ManaUiInstanceFlags.GlyphAtlas);
         }
 
+        /// <summary>Device pixels to a logical one, set by the root each frame; nine-slices snap their seams to it.</summary>
+        public float PixelScale { get; set; } = 1.0f;
+
         public void DrawImage(UiRect rect, Vector4 uv, Vector4 tint, CornerRadius corners)
         {
             Add(rect, corners, tint, UiColor.Transparent, 0.0f, uv, ManaUiInstanceFlags.Texture);
@@ -302,21 +305,24 @@ namespace ManaUI
             // coverage and lets a hairline of the background through, worst at the rounded corners.
             // The outer edges too: a control's far edge is often fractional (its width is), and left alone it
             // antialiased to a faint column on the right and bottom that the left and top never had.
+            // "Whole pixels" means device pixels: on a display scaled to 125% or 200% a whole logical pixel is
+            // still a fraction of a device one, which is where the seams kept coming back.
+            var pixel = MathF.Max(PixelScale, 1.0f);
             for (var i = 1; i <= 2; i++)
             {
-                x[i] = MathF.Round(x[i]);
-                y[i] = MathF.Round(y[i]);
+                x[i] = MathF.Round(x[i] * pixel) / pixel;
+                y[i] = MathF.Round(y[i] * pixel) / pixel;
             }
 
             // Outwards, never in: rounding a far edge down left its last pixel part-covered, which read as a missing
             // outline on the right and bottom only.
-            x[0] = MathF.Floor(x[0]);
-            y[0] = MathF.Floor(y[0]);
-            x[3] = MathF.Ceiling(x[3]);
-            y[3] = MathF.Ceiling(y[3]);
+            x[0] = MathF.Floor(x[0] * pixel) / pixel;
+            y[0] = MathF.Floor(y[0] * pixel) / pixel;
+            x[3] = MathF.Ceiling(x[3] * pixel) / pixel;
+            y[3] = MathF.Ceiling(y[3] * pixel) / pixel;
 
-            x[3] = MathF.Max(x[3], x[0] + 1.0f);
-            y[3] = MathF.Max(y[3], y[0] + 1.0f);
+            x[3] = MathF.Max(x[3], x[0] + 1.0f / pixel);
+            y[3] = MathF.Max(y[3], y[0] + 1.0f / pixel);
             x[1] = MathF.Min(x[1], x[3]);
             x[2] = Math.Clamp(x[2], x[1], x[3]);
             y[1] = MathF.Min(y[1], y[3]);
@@ -335,13 +341,16 @@ namespace ManaUI
 
                     // Edges that land between device pixels would leave a hairline of background between quads;
                     // reaching a pixel into the neighbour closes it, and the picture is opaque there.
-                    var cell = new UiRect(x[column], y[row], width + (column < 2 ? 1.0f : 0.0f), height + (row < 2 ? 1.0f : 0.0f));
+                    var extraX = column < 2 ? 1.0f / pixel : 0.0f;
+                    var extraY = row < 2 ? 1.0f / pixel : 0.0f;
+                    var cell = new UiRect(x[column], y[row], width + extraX, height + extraY);
 
+                    // The overlap shows the next bit of the picture, not a stretched copy of this cell's.
                     var uv = new Vector4(
                         slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column],
                         slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row],
-                        slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column + 1],
-                        slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row + 1]);
+                        slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * (u[column] + (u[column + 1] - u[column]) * (width + extraX) / width),
+                        slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * (v[row] + (v[row + 1] - v[row]) * (height + extraY) / height));
                     DrawImage(cell, uv, tint, CornerRadius.Zero);
                 }
             }

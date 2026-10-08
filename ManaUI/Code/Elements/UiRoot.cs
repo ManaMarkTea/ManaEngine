@@ -272,6 +272,7 @@ namespace ManaUI
         public ManaUiDrawList Render()
         {
             _drawList.Reset();
+            _drawList.PixelScale = Scale;
 
             // No implicit full-screen fill: ManaUI draws over a live 3D viewport, so the root is
             // transparent unless an application deliberately sets Background (a standalone tool window
