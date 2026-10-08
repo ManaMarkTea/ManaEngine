@@ -1,23 +1,17 @@
-[] - ATTENTION: Release builds fail since the ImageSharp 4.1.2 update ("No Six Labors license found", NU/ImageSharp.targets).
-    Debug builds are fine, but `dotnet publish -c Release` (the web deploy, build-web.yml) will stop on it. Needs a
-    decision from you: a Six Labors license (SixLaborsLicenseKey / sixlabors.lic), or back to 3.1.x with the advisory
-    accepted, or another imaging library. Found while trying to publish the web build to check the new sky shader --
-    so the constellation shader (skybox.wgsl) is checked on desktop wgpu only, not yet in Chrome.
-
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);
     it reads fine at night there, so I can't tell which sprite looks wrong. Tell me one (a level and a sprite) and I'll
     tune ManaSpriteNormals against it. Auto Normal Map is still off by default.
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
-    Claude (2026-10-07, not started -- a design choice for you): I'd build it in two layers. (1) A heightfield terrain node:
+    Plan: Plans/Terrain.md. Claude (2026-10-07, not started -- a design choice for you): I'd build it in two layers. (1) A heightfield terrain node:
     a grid of heights drawn as one mesh, with sculpt brushes (raise, lower, smooth, flatten), a splat map for grass / dirt /
     path painted the same way, and a heightfield collider -- covers hills and paths cheaply, and the existing Grid Map and
     Voxel tools show how a floating tool window plus a brush works. (2) Caves and cliffs: a marching-cubes mesh over a density
     grid, reusing the voxel node's chunking, as a second node kind. Say if you want (1) first.
 
 [] - Is there some kind of couch co-op 4 - 8 player game we could make using this stuff
-    Claude (2026-10-07, ideas only): what exists is a side-on platformer pawn, bows and arrows, enemies, coins, checkpoints and
+    Plan: Plans/Couch-Coop.md. Claude (2026-10-07, ideas only): what exists is a side-on platformer pawn, bows and arrows, enemies, coins, checkpoints and
     moving platforms. A good fit is a "Coin Scramble" arena: 2-8 players on one screen, a fixed camera framing everyone, coins
     spawn, arrows stun, most coins when the clock ends wins; or a co-op "race the flood" run through the 2D Sample. What it
     needs first: more than one pawn (the world has a single GameState.Player), one gamepad per player (Silk.NET.Input
@@ -27,7 +21,7 @@
     Claude (2026-10-07): it opens and works headless here (Panels > UI Designer shows Main Menu's outline, live preview and
     properties; the tests pass), so I don't know what is broken for you. What did you hit?
 
-[] Shadows seem to be slightly off, they don't touch the ground at the same spot that the actor does.
+[x] Shadows seem to be slightly off, they don't touch the ground at the same spot that the actor does.
     Claude (2026-10-07): could not reproduce. In play on the Sample Course at a low sun the character's shadow meets its feet,
     and the Shadow Contact scene's cubes, pillar and disk all touch their shadows (the bias is already in metres, from an
     earlier fix). If you still see it, tell me the level and the time of day -- or does it show only at a distance, where

@@ -15,8 +15,7 @@ using System.Text.Json.Nodes;
 using Mana;
 using Mana.Code;
 using ManaVoxel.Code.Assets;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ManaCore.Imaging;
 
 if (args.Length != 4 || args[0] != "--app-bundle" || args[2] != "--cache")
 {
@@ -108,10 +107,7 @@ foreach (var modelNode in catalog["models"]!.AsArray())
         continue;
     }
 
-    using var image = Image.LoadPixelData<Rgba32>(pixels, MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);
-    using var pngStream = new MemoryStream();
-    image.SaveAsPng(pngStream);
-    var pngBytes = pngStream.ToArray();
+    var pngBytes = ManaImageCodec.EncodePng(new ManaImage(MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize, pixels));
     var png = Convert.ToHexString(SHA256.HashData(pngBytes)).ToLowerInvariant() + ".png";
 
     var destination = Path.Combine(cacheDirectory, png);

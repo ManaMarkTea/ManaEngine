@@ -145,7 +145,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 ("Silk.NET", "MIT -- with wgpu (MIT / Apache 2.0), GLFW and OpenAL Soft"),
                 ("BepuPhysics v2", "Apache License 2.0"),
-                ("ImageSharp", "Six Labors Split License"),
+                ("StbImageSharp", "after stb_image -- public domain / MIT"),
                 ("SharpGLTF", "MIT"),
                 ("StbTrueTypeSharp", "after stb_truetype -- public domain / MIT"),
                 ("Also", "CommunityToolkit.Mvvm (MIT), Serilog (Apache 2.0), Stateless (Apache 2.0), GeometRi (MIT)")

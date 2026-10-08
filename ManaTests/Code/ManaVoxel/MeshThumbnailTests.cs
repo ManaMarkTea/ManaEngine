@@ -8,8 +8,7 @@ using ManaCore.Graphics;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.Services;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ManaCore.Imaging;
 
 namespace ManaTests;
 
@@ -542,21 +541,15 @@ public static class MeshThumbnailChecks
         {
             var expectedPixels = new byte[MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4];
             new Random(1).NextBytes(expectedPixels);
-            // Alpha fully opaque throughout, or ImageSharp's own PNG round trip is free to premultiply/drop
+            // Alpha fully opaque throughout, or a PNG round trip is free to premultiply/drop
             // colour on fully transparent pixels, which would break the later byte-for-byte comparison.
             for (var i = 3; i < expectedPixels.Length; i += 4)
             {
                 expectedPixels[i] = 255;
             }
 
-            byte[] previewPngBytes;
-            using (var image = Image.LoadPixelData<Rgba32>(
-                expectedPixels, MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize))
-            using (var stream = new MemoryStream())
-            {
-                image.SaveAsPng(stream);
-                previewPngBytes = stream.ToArray();
-            }
+            var previewPngBytes = ManaImageCodec.EncodePng(new ManaImage(
+                MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize, expectedPixels));
 
             var json = System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -732,19 +725,16 @@ public static class MeshThumbnailChecks
     /// <summary>A single-colour PNG, encoded in memory -- what a decoded albedo texture looks like.</summary>
     private static byte[] SolidColorPng(byte r, byte g, byte b, byte alpha = 255)
     {
-        using var image = new Image<Rgba32>(4, 4);
-        var pixel = new Rgba32(r, g, b, alpha);
-        for (var y = 0; y < image.Height; y++)
+        var image = new ManaImage(4, 4);
+        for (var i = 0; i < 16; i++)
         {
-            for (var x = 0; x < image.Width; x++)
-            {
-                image[x, y] = pixel;
-            }
+            image.Pixels[i * 4] = r;
+            image.Pixels[i * 4 + 1] = g;
+            image.Pixels[i * 4 + 2] = b;
+            image.Pixels[i * 4 + 3] = alpha;
         }
 
-        using var stream = new MemoryStream();
-        image.SaveAsPng(stream);
-        return stream.ToArray();
+        return ManaImageCodec.EncodePng(image);
     }
 
     /// <summary>
@@ -754,20 +744,20 @@ public static class MeshThumbnailChecks
     /// </summary>
     private static byte[] SplitColorPng(byte r, byte g, byte b)
     {
-        using var image = new Image<Rgba32>(8, 4);
-        var opaque = new Rgba32(r, g, b, 255);
-        var transparent = new Rgba32(0, 0, 0, 0);
+        var image = new ManaImage(8, 4);
         for (var y = 0; y < image.Height; y++)
         {
-            for (var x = 0; x < image.Width; x++)
+            for (var x = 0; x < image.Width / 2; x++)
             {
-                image[x, y] = x < image.Width / 2 ? opaque : transparent;
+                var i = (y * image.Width + x) * 4;
+                image.Pixels[i] = r;
+                image.Pixels[i + 1] = g;
+                image.Pixels[i + 2] = b;
+                image.Pixels[i + 3] = 255;
             }
         }
 
-        using var stream = new MemoryStream();
-        image.SaveAsPng(stream);
-        return stream.ToArray();
+        return ManaImageCodec.EncodePng(image);
     }
 
     /// <summary>True when no opaque pixel is (near-)black -- the signature of a transparent sample painted solid.</summary>

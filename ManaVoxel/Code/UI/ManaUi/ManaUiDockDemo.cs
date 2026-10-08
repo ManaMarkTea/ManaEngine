@@ -1418,7 +1418,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                                 }
                             })
                             .Checkable(() => world?.IrradianceSettings.Sky == choice.Item1)
-                            .EnabledWhen(() => world != null)).ToArray()),
+                            .EnabledWhen(() => world != null)).Append(MenuItem.Separator()).Append(
+                            new MenuItem("Constellation lines", () =>
+                                {
+                                    if (world != null)
+                                    {
+                                        world.IrradianceSettings.ConstellationLines = !world.IrradianceSettings.ConstellationLines;
+                                    }
+                                })
+                                .Checkable(() => world?.IrradianceSettings.ConstellationLines == true)
+                                .EnabledWhen(() => world != null)).ToArray()),
                     MenuItem.Separator(),
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)

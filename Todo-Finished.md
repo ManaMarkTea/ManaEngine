@@ -207,3 +207,13 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     frame is now -X east, so the sun crosses left to right as you face south.
     Still open: the constellation positions were typed from memory of the catalogue (good to a few arcminutes, worth a
     check against a star atlas), Space mode keeps its random stars, and the observer is fixed at Seattle.
+
+[x] - Release builds failed with ImageSharp 4.x ("No Six Labors license found"); roll back and remove ImageSharp completely.
+    Claude (2026-10-08): rolled back to 3.1.12, then removed it. Desktop pictures now go through StbImageSharp (decode)
+    and StbImageWriteSharp (PNG, JPEG) -- public domain, no license -- inside ManaImageCodec (ManaCore/Imaging, the only
+    place that touched ImageSharp), with a Catmull-Rom resize of our own that works on alpha-premultiplied colour. New
+    ManaImageCodec.EncodePng gives the tests and the thumbnail baker in-memory PNGs. The README and About box credit
+    Stb now. Checked: all 2,981 checks pass (new ImageCodecChecks: PNG round trip, JPEG, resize, junk refused, the moon
+    JPEG), a Release build of ManaCore has no license error, and the 2D Sample opens with its textures.
+    Not yet checked: the web publish itself (it never compiled ImageSharp, so it should be unchanged) -- worth one run.
+    Baked thumbnails keep their names (they are named by a hash of the PNG, and existing ones are reused).

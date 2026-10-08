@@ -142,7 +142,7 @@ namespace ManaVoxel.Web
                 // The fractions below span 0..0.85, where ManaLoadingCoordinator.Update picks up
                 // with "Initializing graphics renderer". They are weighted by what each step
                 // actually costs in the browser -- the environment map is a 5 MB PNG decoded by
-                // ImageSharp, and the level pulls meshes out of a 5 MB zip, so those two dominate.
+                // the browser, and the level pulls meshes out of a 5 MB zip, so those two dominate.
                 Loading.Report(new ManaLoadingProgress("Preparing scene", 0.05f));
 
                 _pawnController = new ManaPawnController(Context)

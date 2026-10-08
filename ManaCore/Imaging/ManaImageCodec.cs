@@ -1,7 +1,7 @@
 namespace ManaCore.Imaging;
 
 /// <summary>
-/// Reads and writes pictures (PNG, JPEG and the rest). Desktop decodes with ImageSharp
+/// Reads and writes pictures (PNG, JPEG and the rest). Desktop decodes with the Stb ports
 /// (<c>ManaImageCodec.Desktop.cs</c>); the browser with its own decoder (<c>ManaImageCodec.Browser.cs</c>),
 /// which only works asynchronously -- so there, a picture is decoded ahead by <see cref="PrepareAsync(byte[])"/>
 /// (which the asset catalog does for whatever it downloads) and the synchronous <see cref="Load(byte[])"/>

@@ -11,7 +11,7 @@ namespace ManaVoxel.Code.Assets
     /// work than the GPU path's setup would be. More importantly it can run on a background thread, which is
     /// what lets a folder of a thousand assets fill in gradually instead of stalling the frame that opened
     /// it; a render-to-texture path would have to be marshalled onto the render thread and read back, one
-    /// frame at a time. Decoding a texture here is still CPU-only work -- ImageSharp never touches a
+    /// frame at a time. Decoding a texture here is still CPU-only work -- the image codec never touches a
     /// graphics device -- so that constraint holds even now that this reads real material colour.
     /// </para>
     /// <para>

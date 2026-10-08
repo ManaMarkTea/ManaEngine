@@ -44,10 +44,8 @@ Notable bundled material with recorded terms:
 - Poly Haven environment images are CC0; the moon texture is from NASA's public-domain CGI Moon Kit.
 - Third-party libraries retain the licenses of their respective packages; see each package's distribution for its
   applicable terms.
-- SixLabors.ImageSharp (3.x, used by the desktop builds for image decoding and encoding) is under the Six Labors
-  Split License: free for open-source use and for companies under US$1M annual gross revenue, otherwise a
-  commercial license is required. If that ever applies, buy a license or switch to an MIT-licensed library such as
-  SkiaSharp.
+- Desktop image decoding and encoding use StbImageSharp and StbImageWriteSharp (ports of stb_image; public domain /
+  MIT). ImageSharp was removed because its license is not free for every use.
 
 Assets without an individual notice are original work by the author or CC0. The Duck and Sci-Fi Helmet samples were
 removed because their redistribution terms were not established.
