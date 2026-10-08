@@ -17,6 +17,10 @@ namespace ManaUI
         private bool _layoutDirty = true;
         private bool _polledBindingsDirty = true;
         private bool _visualDirty = true;
+        private readonly Dictionary<UiThemeKind, Func<ManaImageAtlas, UiSkin?>> _skinFactories = new()
+        {
+            [UiThemeKind.Lcars] = LcarsUiSkin.For
+        };
 
         public UiRoot(ManaFontManager fonts, UiTheme? theme = null)
         {
@@ -24,6 +28,7 @@ namespace ManaUI
 
             Fonts = fonts;
             _theme = theme ?? UiTheme.Dark();
+            ApplyThemeSkin(_theme);
             FocusManager = new UiFocusManager(this);
             Input = new UiInputRouter(this);
             Popups = new UiPopupManager(this);
@@ -86,6 +91,7 @@ namespace ManaUI
                     return;
                 }
 
+                ApplyThemeSkin(value);
                 _theme = value;
                 InvalidateAll();
                 ThemeChanged?.Invoke(this, value);
@@ -96,6 +102,39 @@ namespace ManaUI
 
         /// <summary>Raised after the theme is swapped, so hosts can rebuild views that captured colours.</summary>
         public event EventHandler<UiTheme>? ThemeChanged;
+
+        /// <summary>Switches this UI's theme and notifies views that need to rebuild captured styles.</summary>
+        public void RequestTheme(UiThemeKind kind)
+        {
+            if (!Enum.IsDefined(kind))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+            if (Theme.Kind != kind)
+            {
+                Theme = UiTheme.Create(kind);
+            }
+        }
+
+        /// <summary>Registers optional artwork supplied by a host, without adding asset dependencies to ManaUI.</summary>
+        public void RegisterSkinFactory(UiThemeKind kind, Func<ManaImageAtlas, UiSkin?> factory)
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            _skinFactories[kind] = factory;
+            if (Theme.Kind == kind)
+            {
+                ApplyThemeSkin(Theme);
+                InvalidateAll();
+            }
+        }
+
+        private void ApplyThemeSkin(UiTheme theme)
+        {
+            if (_skinFactories.TryGetValue(theme.Kind, out var factory))
+            {
+                theme.Skin = factory(Images);
+            }
+        }
 
         /// <summary>Routes platform input into the tree. The host feeds it; widgets never see a windowing API.</summary>
         public UiInputRouter Input { get; }

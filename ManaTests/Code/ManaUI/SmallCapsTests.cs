@@ -7,6 +7,14 @@ public static class SmallCapsChecks
 {
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
+        var theme = UiTheme.Kenney();
+        theme.SetFontFamily("Roboto");
+        check("changing Kenney's font replaces both body and heading faces",
+            theme.FontFamily == "Roboto" && theme.FontFamilyMedium == "Roboto", "");
+        check("neither overridden face retains small capitals",
+            fonts.Get(theme.FontFamily, theme.FontSize).SmallCapsFont == null
+            && fonts.Get(theme.FontFamilyMedium, theme.FontSizeHeading).SmallCapsFont == null, "");
+
         ManaFont big;
         try
         {

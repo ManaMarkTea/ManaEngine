@@ -207,7 +207,12 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let distance = sd_rounded_box(local, half_size, input.corners);
-    let outer = coverage(distance);
+    // Square image quads already have rasterizer coverage and texture alpha. Applying
+    // the box SDF again fades their corner pixels, exposing every nine-slice junction.
+    let box_coverage = coverage(distance);
+    let square_image = (input.flags & FLAG_TEXTURE) != 0u
+        && input.rotation == 0.0 && all(input.corners == vec4<f32>(0.0));
+    let outer = select(box_coverage, 1.0, square_image);
     let inner = coverage(distance + input.border_width);
 
     // Per-instance clipping. Shadows are exempt on their own quad but still respect the clip rect.

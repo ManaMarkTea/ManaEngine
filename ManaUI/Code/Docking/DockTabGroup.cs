@@ -531,7 +531,16 @@ namespace ManaUI
             else if (theme.Skin is { } skin && skin.TryGet("panel", out _))
             {
                 drawList.FillRect(strip, theme.SurfaceAlt);
-                drawList.DrawSkin(theme, "panel", content, theme.Surface);
+                var panel = content;
+                if (SelectedItem?.Content is ScrollViewer viewer)
+                {
+                    // End the panel border before the scrollbar, rather than erasing part of it later.
+                    var bars = viewer.VisibleScrollBarSize;
+                    drawList.FillRect(content, theme.Surface);
+                    panel = new UiRect(content.X, content.Y,
+                        MathF.Max(0.0f, content.Width - bars.X), MathF.Max(0.0f, content.Height - bars.Y));
+                }
+                drawList.DrawSkin(theme, "panel", panel, theme.Surface);
             }
             else
             {

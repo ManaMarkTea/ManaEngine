@@ -51,6 +51,8 @@ namespace Mana.Code.Automation
         private readonly List<(Action<float> Apply, int Frames, bool Blocking)> _glides = new();
         private readonly List<int> _glideSteps = new();
 
+        /// <param name="commandFilePath">Path to the JSON command script to load.</param>
+        /// <param name="context">The application context used to execute commands.</param>
         /// <param name="captureFrame">Saves the next frame to a path (path, without the UI); null where the backend cannot.</param>
         /// <param name="dumpEnvironment">Saves the reflection cube's faces; null where the backend cannot.</param>
         public ManaCommandRunner(
@@ -221,6 +223,17 @@ namespace Mana.Code.Automation
 
         private void RegisterBuiltIns()
         {
+            Register("set_theme", command =>
+            {
+                if (!Enum.TryParse<ManaUI.UiThemeKind>(command.Name, true, out var kind) || !Enum.IsDefined(kind))
+                {
+                    throw new InvalidDataException("Command file: 'set_theme' requires a theme name: Dark, Light, LCARS or Kenney.");
+                }
+                var root = Context.GameMode?.ManaUi?.Root
+                    ?? throw new InvalidOperationException("Command file: 'set_theme' requires an active ManaUI root.");
+                root.RequestTheme(kind);
+            });
+
             Register("wait", (command, _) =>
             {
                 _waitFramesRemaining = Math.Max(0, command.Frames);

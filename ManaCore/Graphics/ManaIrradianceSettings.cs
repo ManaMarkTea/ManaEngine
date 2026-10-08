@@ -53,7 +53,7 @@ namespace ManaCore.Graphics
         public bool RealTime { get; set; }
 
         /// <summary>Draws the constellation figures over the night sky's real stars (Day and Night only).</summary>
-        public bool ConstellationLines { get; set; }
+        public bool ConstellationLines { get; set; } = true;
 
         /// <summary>While true (the editor holds it with Alt), every constellation's lines show, not only those in view. Never saved.</summary>
         [System.Text.Json.Serialization.JsonIgnore]

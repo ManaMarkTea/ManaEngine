@@ -251,6 +251,14 @@ namespace ManaUI
         public string FontFamilyMedium { get; set; } = "Roboto-Medium";
         public string FontFamilyMono { get; set; } = "RobotoMono-Regular";
 
+        /// <summary>Overrides both body and heading faces so a theme's original font does not linger.</summary>
+        public void SetFontFamily(string family)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(family);
+            FontFamily = family;
+            FontFamilyMedium = family;
+        }
+
         /// <summary>
         /// Multiplier on the font's own line height. Fonts like Roboto report a zero line gap, which makes
         /// ascent + descent exactly the em size and leaves consecutive lines touching -- so the comfortable
@@ -378,115 +386,51 @@ namespace ManaUI
             };
         }
 
-        /// <summary>
-        /// Star Trek console styling: solid colour blocks on a black void, capsule controls, oversized type.
-        /// <para>
-        /// Buttons are full capsules -- radius half of <see cref="ControlHeight"/> -- which the SDF
-        /// primitive already supports per-corner, so no shader work was needed for the shape itself. The
-        /// one true LCARS trait this token set cannot express is the elbow panel (an L-bend with unequal
-        /// arm widths sweeping into one rounded corner); that needs a dedicated primitive, not a theme.
-        /// </para>
-        /// <para>
-        /// Structural lines carry real LCARS hues (lilac border, gold emphasis, periwinkle divider) rather
-        /// than the black-on-black "no border" look a first pass used -- a real console reads as colourful
-        /// because its frame lines are colourful, not just its buttons, and a near-invisible border was
-        /// part of why that first pass read as flat and monochrome instead.
-        /// </para>
-        /// </summary>
+        /// <summary>LCARS console colours, with dark working areas and distinct coloured frames and controls.</summary>
         public static UiTheme Lcars()
         {
             return new UiTheme
             {
                 Kind = UiThemeKind.Lcars,
-
-                // Warm dark ambers rather than flat black -- a first pass made Background AND Surface both
-                // pure #000000, which is where "too dark" really came from: a panel sitting on the window
-                // is indistinguishable from the void behind it except for its border line, so the whole UI
-                // read as one undifferentiated black field with orange buttons floating on it. Real LCARS
-                // keeps black only for the empty space *between* its console blocks -- the blocks
-                // themselves are always a definite, visible material. Each step here is a genuinely
-                // brighter/more saturated amber than the last, so a panel now visibly sits apart from the
-                // window, and a popup visibly sits apart from the panel it opened over.
-                Background = UiColor.FromHex("#0D0805"),
-                Surface = UiColor.FromHex("#2E1B0C"),
-                SurfaceAlt = UiColor.FromHex("#1F1207"),
-                SurfaceRaised = UiColor.FromHex("#3D2712"),
-                RowAlternate = UiColor.FromHex("#33200F"),
-
-                // Text sits on the black void in the cool pale blue real consoles use; text on a colour
-                // block is always black, which is what TextOnAccent carries.
-                Text = UiColor.FromHex("#CCCCFF"),
-                TextMuted = UiColor.FromHex("#8888AA"),
-                TextDisabled = UiColor.FromHex("#4A4A5C"),
-                TextOnAccent = UiColor.FromHex("#000000"),
-
-                // The classic LCARS orange block. Buttons are flat colour, not lit from above, so
-                // AccentGradient stays at zero -- but SurfaceGradient (panels, not buttons) gets a little
-                // life back rather than the flat zero a first pass gave both: with Surface now an actual
-                // visible amber instead of black-on-black, a hint of top-lit shading reads as a physical
-                // console panel instead of a flat colour swatch.
-                Accent = UiColor.FromHex("#FF9900"),
-                AccentHover = UiColor.FromHex("#FFB238"),
-                AccentPressed = UiColor.FromHex("#CC7A00"),
-                SurfaceGradient = 0.08f,
+                Background = UiColor.FromHex("#08090D"),
+                Surface = UiColor.FromHex("#101117"),
+                SurfaceAlt = UiColor.FromHex("#191922"),
+                SurfaceRaised = UiColor.FromHex("#302A3C"),
+                RowAlternate = UiColor.FromHex("#1B1925"),
+                Text = UiColor.FromHex("#E6DFF2"),
+                TextMuted = UiColor.FromHex("#B5A7C7"),
+                TextDisabled = UiColor.FromHex("#796D89"),
+                TextOnAccent = UiColor.FromHex("#08090D"),
+                Accent = UiColor.FromHex("#FFAA55"),
+                AccentHover = UiColor.FromHex("#FFCC88"),
+                AccentPressed = UiColor.FromHex("#D98A40"),
+                SurfaceGradient = 0.0f,
                 AccentGradient = 0.0f,
-
-                // Lilac frame, gold emphasis, periwinkle dividers -- the trio of secondary hues a real
-                // console spreads across its line work so the console reads as colourful everywhere, not
-                // just wherever a button happens to sit.
-                Border = UiColor.FromHex("#CC99CC"),
-                BorderStrong = UiColor.FromHex("#FFCC66"),
-                Divider = UiColor.FromHex("#9999CC"),
-                BorderThickness = 2.0f,
-
-                Hover = new Vector4(1.0f, 1.0f, 1.0f, 0.10f),
-                Pressed = new Vector4(0.0f, 0.0f, 0.0f, 0.25f),
-
-                // LCARS "selected" reads as the salmon/red alert block, not a tinted accent.
-                Selected = UiColor.FromHex("#CC6666"),
-                FocusRing = UiColor.FromHex("#66CCFF"),
-
-                Danger = UiColor.FromHex("#FF6666"),
-                Warning = UiColor.FromHex("#FFCC66"),
-                Success = UiColor.FromHex("#66CCCC"),
-
-                // Chunky capsule controls, sized up from the base theme's density -- but only modestly:
-                // a first pass went up to 2-2.5x the working-editor defaults across the board (ControlHeight
-                // 36, Spacing 10, Padding 14/9, ControlPadding 18/7), which reads as "console" in isolation
-                // but as wasted panel space next to a real docked layout stacked several rows deep -- every
-                // one of those oversized gaps is multiplied by however many rows and panels are on screen
-                // at once. Landed closer to 1.2-1.5x instead: still visibly chunkier than Dark/Light, still
-                // reads as deliberately different, but not at the cost of half the panel being padding.
-                ControlHeight = 30.0f,
-                CornerRadius = new CornerRadius(15.0f),
-                CornerRadiusLarge = new CornerRadius(24.0f),
-
-                // A modest, non-circular round for icon toggles and texture-slot chips -- see
-                // CornerRadiusCompact's own doc comment for why this can't just be CornerRadius.
-                CornerRadiusCompact = new CornerRadius(8.0f),
-
+                Border = UiColor.FromHex("#B49BD1"),
+                BorderStrong = UiColor.FromHex("#D0B5EE"),
+                Divider = UiColor.FromHex("#514360"),
+                BorderThickness = 1.0f,
+                Hover = new Vector4(1.0f, 1.0f, 1.0f, 0.08f),
+                Pressed = new Vector4(0.0f, 0.0f, 0.0f, 0.20f),
+                Selected = UiColor.FromHex("#493753"),
+                FocusRing = UiColor.FromHex("#88CCEE"),
+                Danger = UiColor.FromHex("#EE7777"),
+                Warning = UiColor.FromHex("#FFCC88"),
+                Success = UiColor.FromHex("#77CCCC"),
+                ControlHeight = 28.0f,
+                CornerRadius = new CornerRadius(4.0f),
+                CornerRadiusLarge = new CornerRadius(12.0f),
+                CornerRadiusCompact = new CornerRadius(4.0f),
                 Spacing = 6.0f,
-                Padding = new Thickness(8.0f, 6.0f),
+                Padding = new Thickness(10.0f, 8.0f),
                 ControlPadding = new Thickness(10.0f, 4.0f),
-                ScrollBarThickness = 11.0f,
-                ScrollBarGap = 5.0f,
-
-                // Bumped well past the base sizes -- LCARS type is a shouted, oversized display face, not
-                // body copy. Antonio is an ultra-condensed display face in the same family as the
-                // Swiss911/Okuda face real consoles use; Bold is its heaviest static weight.
-                FontFamily = "Antonio-Bold",
-                FontFamilyMedium = "Antonio-SemiBold",
+                ScrollBarThickness = 10.0f,
+                ScrollBarGap = 6.0f,
+                FontFamily = "Antonio-SemiBold",
+                FontFamilyMedium = "Antonio-Bold",
                 FontSize = 17.0f,
                 FontSizeSmall = 15.0f,
-                FontSizeHeading = 26.0f,
-
-                // The holodeck floor: a near-black void carrying a warm cast rather than a neutral one, so
-                // it reads as the same material as the gold grid glowing over it rather than a separate
-                // grey floor with gold lines dropped on top.
-                // Thickness left at the theme default (1) rather than doubled -- a fatter line is a fixed
-                // fraction of the antialiasing derivative, which grows as the camera pulls back, so a
-                // thicker constant made the grid clog up densely at a distance where the 1x default still
-                // read cleanly. See grid.wgsl/grid.frag for the derivative-based line math this scales.
+                FontSizeHeading = 24.0f,
                 GridFloor = UiColor.FromHex("#0A0805"),
                 GridLine = UiColor.FromHex("#FFCC66"),
                 GridCheckerRatio = 0.9645f

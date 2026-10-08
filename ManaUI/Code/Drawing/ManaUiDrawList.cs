@@ -291,13 +291,10 @@ namespace ManaUI
             var top = MathF.Min(insets.Top * scale, rect.Height * 0.5f);
             var bottom = MathF.Min(insets.Bottom * scale, rect.Height * 0.5f);
 
-            // Source pixel edges of the three columns and rows, as fractions of the picture.
-            // Half a texel in from the picture's outer edge: bilinear sampling there would blend in whatever the atlas
-            // holds next to the picture, which showed as a faint line along the right and bottom.
-            var halfU = 0.5f / slice.Size.X;
-            var halfV = 0.5f / slice.Size.Y;
-            float[] u = { halfU, insets.Left / slice.Size.X, 1.0f - insets.Right / slice.Size.X, 1.0f - halfU };
-            float[] v = { halfV, insets.Top / slice.Size.Y, 1.0f - insets.Bottom / slice.Size.Y, 1.0f - halfV };
+            // Use source texel boundaries, including the outer boundary. The skin atlas has
+            // extruded gutters, so filtering is safe without shrinking the source image.
+            float[] u = { 0.0f, insets.Left / slice.Size.X, 1.0f - insets.Right / slice.Size.X, 1.0f };
+            float[] v = { 0.0f, insets.Top / slice.Size.Y, 1.0f - insets.Bottom / slice.Size.Y, 1.0f };
             float[] x = { rect.X, rect.X + left, rect.Right - right, rect.Right };
             float[] y = { rect.Y, rect.Y + top, rect.Bottom - bottom, rect.Bottom };
 
@@ -339,18 +336,14 @@ namespace ManaUI
                         continue;
                     }
 
-                    // Edges that land between device pixels would leave a hairline of background between quads;
-                    // reaching a pixel into the neighbour closes it, and the picture is opaque there.
-                    var extraX = column < 2 ? 1.0f / pixel : 0.0f;
-                    var extraY = row < 2 ? 1.0f / pixel : 0.0f;
-                    var cell = new UiRect(x[column], y[row], width + extraX, height + extraY);
-
-                    // The overlap shows the next bit of the picture, not a stretched copy of this cell's.
+                    // Adjacent pieces share exactly the same edge. Overlapping them would blend
+                    // transparent artwork twice and extrapolate UVs into unrelated source pixels.
+                    var cell = new UiRect(x[column], y[row], width, height);
                     var uv = new Vector4(
                         slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column],
                         slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row],
-                        slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * (u[column] + (u[column + 1] - u[column]) * (width + extraX) / width),
-                        slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * (v[row] + (v[row + 1] - v[row]) * (height + extraY) / height));
+                        slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column + 1],
+                        slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row + 1]);
                     DrawImage(cell, uv, tint, CornerRadius.Zero);
                 }
             }

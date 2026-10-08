@@ -19,7 +19,7 @@ public static class SkinChecks
         {
             area += (instance.Rect.Z - instance.Rect.X) * (instance.Rect.W - instance.Rect.Y);
         }
-        check("and they cover the rectangle, overlapping neighbours by a pixel so no seam shows", area >= 200 * 100 && area < 200 * 100 + 800, $"{area}");
+        check("and they tile the rectangle without blending overlapping artwork", area == 200 * 100, $"{area}");
 
         var tiny = new ManaUiDrawList();
         tiny.Reset();
@@ -30,7 +30,18 @@ public static class SkinChecks
         {
             tinyArea += (instance.Rect.Z - instance.Rect.X) * (instance.Rect.W - instance.Rect.Y);
         }
-        check("a rectangle smaller than the corners is still covered", tinyArea >= 80 && tinyArea < 80 + 120, $"{tinyArea}");
+        check("a rectangle smaller than the corners is still covered", tinyArea == 80, $"{tinyArea}");
+
+        var inSource = true;
+        foreach (var instance in list.Instances)
+        {
+            inSource &= instance.Uv.X >= slice.Uv.X && instance.Uv.Y >= slice.Uv.Y
+                && instance.Uv.Z <= slice.Uv.Z && instance.Uv.W <= slice.Uv.W;
+        }
+        check("slice UVs never extrapolate beyond the source artwork", inSource, "");
+        check("outer texel boundaries are preserved", list.Instances[0].Uv.X == slice.Uv.X
+            && list.Instances[0].Uv.Y == slice.Uv.Y
+            && list.Instances[8].Uv.Z == slice.Uv.Z && list.Instances[8].Uv.W == slice.Uv.W, "");
 
         // On a display scaled 150%, a seam on a whole logical pixel is still half a device pixel off; they must land on device ones.
         var scaled = new ManaUiDrawList { PixelScale = 1.5f };
@@ -60,6 +71,65 @@ public static class SkinChecks
         atlas.Reset();
         var after = skinned.Skin;
         check("a skin is rebuilt once its atlas has been reset, and not before", rebuilt == 1 && after != null && !after.IsStale, $"{rebuilt}");
+
+        var lcarsAtlas = new ManaImageAtlas(256, 256);
+        var lcarsSkin = LcarsUiSkin.For(lcarsAtlas);
+        var frame = default(UiSkinSlice);
+        var capsule = default(UiSkinSlice);
+        var lcarsParts = lcarsSkin != null && lcarsSkin.TryGet("panel", out frame)
+            && lcarsSkin.TryGet("primary", out capsule);
+        check("LCARS builds its frame and capsule artwork into the shared atlas", lcarsParts, "");
+        if (lcarsParts)
+        {
+            byte Channel(UiSkinSlice part, int x, int y, int channel)
+            {
+                var ax = (int)MathF.Round(part.Uv.X * lcarsAtlas.Width) + x;
+                var ay = (int)MathF.Round(part.Uv.Y * lcarsAtlas.Height) + y;
+                return lcarsAtlas.Pixels[(ay * lcarsAtlas.Width + ax) * 4 + channel];
+            }
+            check("LCARS capsules keep transparent corners and an opaque centre",
+                Channel(capsule, 0, 0, 3) == 0 && Channel(capsule, 32, 32, 3) == 255, "");
+            var lcars = UiTheme.Lcars();
+            check("LCARS frame colours remain distinct from its working surface",
+                Channel(frame, 2, 32, 0) == (byte)MathF.Round(lcars.Border.X * 255)
+                && Channel(frame, 32, 32, 0) == (byte)MathF.Round(lcars.Surface.X * 255)
+                && frame.PreserveColors && frame.CornerScale == 0.6f, "");
+            lcars.Skin = lcarsSkin;
+            lcarsAtlas.Reset();
+            check("LCARS artwork repacks after an atlas reset",
+                lcars.Skin is { IsStale: false } refreshed && !ReferenceEquals(refreshed, lcarsSkin), "");
+        }
+
+        var standalone = new UiRoot(new ManaFontManager());
+        var themeEvents = 0;
+        var skinReadyDuringEvent = false;
+        standalone.ThemeChanged += (_, changed) =>
+        {
+            themeEvents++;
+            skinReadyDuringEvent = changed.Skin != null;
+        };
+        standalone.RequestTheme(UiThemeKind.Lcars);
+        check("a standalone ManaUI root switches theme with artwork ready before notification",
+            standalone.Theme.Kind == UiThemeKind.Lcars && skinReadyDuringEvent && themeEvents == 1, "");
+        standalone.RequestTheme(UiThemeKind.Lcars);
+        check("requesting the current theme does not rebuild views", themeEvents == 1, "");
+        var customBuilds = 0;
+        standalone.RegisterSkinFactory(UiThemeKind.Kenney, imageAtlas =>
+        {
+            customBuilds++;
+            return new UiSkin { Atlas = imageAtlas, Generation = imageAtlas.Generation };
+        });
+        standalone.RequestTheme(UiThemeKind.Kenney);
+        check("host artwork participates in ManaUI theme switching",
+            customBuilds == 1 && standalone.Theme.Skin?.Atlas == standalone.Images && themeEvents == 2, "");
+        var otherRoot = new UiRoot(new ManaFontManager(), UiTheme.Lcars());
+        check("new ManaUI roots initialize LCARS artwork without an editor or host",
+            otherRoot.Theme.Skin?.Atlas == otherRoot.Images, "");
+        otherRoot.RequestTheme(UiThemeKind.Kenney);
+        check("host skin registrations are isolated to their UI root",
+            otherRoot.Theme.Skin == null && customBuilds == 1, "");
+        standalone.Theme = UiTheme.Lcars();
+        check("direct theme assignments also initialize artwork", standalone.Theme.Skin != null, "");
 
         var theme = UiTheme.Create(UiThemeKind.Kenney);
         check("the Kenney theme is its own kind, with no skin until a host gives it one", theme.Kind == UiThemeKind.Kenney && theme.Skin == null, "");

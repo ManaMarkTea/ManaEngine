@@ -1,7 +1,14 @@
 namespace ManaUI
 {
     /// <summary>One picture in the colour atlas that a control stretches as a nine-slice: its corners stay put, its edges and middle stretch.</summary>
-    public readonly record struct UiSkinSlice(Vector4 Uv, Vector2 Size, Thickness Insets);
+    public readonly record struct UiSkinSlice(Vector4 Uv, Vector2 Size, Thickness Insets)
+    {
+        /// <summary>Keep authored colours when the caller supplies a theme surface tint.</summary>
+        public bool PreserveColors { get; init; }
+
+        /// <summary>Fixed corner scale for structural frames; null fits corners to the control.</summary>
+        public float? CornerScale { get; init; }
+    }
 
     /// <summary>
     /// Pictures a theme can dress controls in, by name ("button", "panel", "titleBar", "track", "fill", "primary").

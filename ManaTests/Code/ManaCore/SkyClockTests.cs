@@ -9,6 +9,10 @@ public static class SkyClockChecks
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
         check("6 am is sunrise, noon a quarter turn on", Near(ManaSky.PhaseAt(6.0), 0.0f) && Near(ManaSky.PhaseAt(12.0), 0.25f), "");
+        var constellationSettings = new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle };
+        check("constellation figures are enabled by default", ManaSky.Evaluate(constellationSettings).ConstellationLines == 1.0f, "");
+        constellationSettings.ConstellationLines = false;
+        check("constellation figures can still be explicitly disabled", ManaSky.Evaluate(constellationSettings).ConstellationLines == 0.0f, "");
         check("and an hour comes back the hour it was", Near(ManaSky.HoursAt(ManaSky.PhaseAt(17.85)), 17.85f) && Near(ManaSky.HoursAt(ManaSky.PhaseAt(0.0)), 0.0f),
             $"{ManaSky.HoursAt(ManaSky.PhaseAt(17.85))}");
 

@@ -16,6 +16,10 @@
     spawn, arrows stun, most coins when the clock ends wins; or a co-op "race the flood" run through the 2D Sample. What it
     needs first: more than one pawn (the world has a single GameState.Player), one gamepad per player (Silk.NET.Input
     handles several; nothing reads them yet apart from the flying mount), a camera that frames all players, and a join screen.
+    Each game should be its own project to keep things seperate where posssible.  The editor prolly needs to depend on them all though to function?
+
+[] - Add support for GPU particles
+
 
 [] - UI Editor is not working and not used, needs updating - low priority
     Claude (2026-10-07): it opens and works headless here (Panels > UI Designer shows Main Menu's outline, live preview and

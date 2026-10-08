@@ -244,7 +244,12 @@ void main()
     }
 
     float distance = sdRoundedBox(local, halfSize, vCorners);
-    float outer = coverage(distance);
+    // Texture alpha and rasterization cover square image quads; a second SDF mask
+    // fades their corner pixels and exposes nine-slice junctions.
+    float boxCoverage = coverage(distance);
+    bool squareImage = (vFlags & FLAG_TEXTURE) != 0u
+        && vRotation == 0.0 && all(equal(vCorners, vec4(0.0)));
+    float outer = squareImage ? 1.0 : boxCoverage;
     if (outer <= 0.0)
     {
         discard;

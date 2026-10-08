@@ -288,6 +288,30 @@ namespace ManaUI
 
         // ----- rendering ------------------------------------------------------------------------------
 
+        private UiRect ViewportRect => new(ContentBounds.X, ContentBounds.Y, _viewport.X, _viewport.Y);
+
+        protected override void RenderChildren(ManaUiDrawList drawList)
+        {
+            // Clip to the padded viewport, keeping scrolling content out of the panel's inset and gutter.
+            drawList.PushClip(ViewportRect);
+            base.RenderChildren(drawList);
+            drawList.PopClip();
+        }
+
+        public override UiElement? HitTest(Vector2 point)
+        {
+            if (Visibility == Visibility.Visible && Opacity > 0.0f && IsHitTestVisible && Bounds.Contains(point)
+                && !ViewportRect.Contains(point))
+            {
+                return this;
+            }
+            return base.HitTest(point);
+        }
+
+        internal Vector2 VisibleScrollBarSize => new(
+            ShouldShowBar(VerticalScrollBar, ScrollableSize.Y) ? Root?.Theme.ScrollBarThickness ?? 10.0f : 0.0f,
+            ShouldShowBar(HorizontalScrollBar, ScrollableSize.X) ? Root?.Theme.ScrollBarThickness ?? 10.0f : 0.0f);
+
         protected override void OnRenderOverlay(ManaUiDrawList drawList)
         {
             var theme = Root?.Theme;
@@ -322,7 +346,13 @@ namespace ManaUI
             var track = TrackRect(theme, vertical);
             var corners = new CornerRadius(theme.ScrollBarThickness * 0.5f);
 
-            if (!drawList.DrawSkin(theme, "track", track, new Vector4(1.0f, 1.0f, 1.0f, 0.6f), lift: false))
+            var trackSkin = theme.HasSkin("scrollTrack") ? "scrollTrack" : "track";
+            if (theme.HasSkin(trackSkin))
+            {
+                // The skin track is translucent; cover panel decorations beneath its gutter first.
+                drawList.FillRect(track, theme.Surface);
+            }
+            if (!drawList.DrawSkin(theme, trackSkin, track, new Vector4(1.0f, 1.0f, 1.0f, 0.6f), lift: false))
             {
                 drawList.FillRect(track, theme.SurfaceAlt.WithAlpha(0.5f), corners);
             }

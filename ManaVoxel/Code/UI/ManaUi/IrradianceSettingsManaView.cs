@@ -42,6 +42,11 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static UiElement Build(UiTheme theme, ManaIrradianceSettings settings)
         {
             var defaults = new ManaIrradianceSettings();
+            var constellations = new CheckBox().Label("Constellation lines")
+                .Checked(settings.ConstellationLines)
+                .OnChanged(value => settings.ConstellationLines = value);
+            constellations.Tooltip = "At night, show constellation figures when looking toward them. Hold Alt to show all figures.";
+            constellations.BindPolled(box => box.IsChecked, () => settings.ConstellationLines);
 
             var debugMode = new ComboBox().Options(DebugModes);
             debugMode.SelectedIndex = Clamp((int)settings.WebGpuDebugMode);
@@ -82,9 +87,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 Section(theme, "Night sky"),
 
-                new CheckBox().Label("Constellation lines")
-                    .Checked(settings.ConstellationLines)
-                    .OnChanged(value => settings.ConstellationLines = value),
+                constellations,
 
                 Section(theme, "Debug world"),
 

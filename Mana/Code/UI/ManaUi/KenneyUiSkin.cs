@@ -79,6 +79,7 @@ namespace Mana.Code.UI.ManaUi
                 ("titleBar", Space + "Blue/Default/bar_square_large.png", 5.0f),
                 ("primary", Space + "Blue/Default/bar_round_large.png", 11.0f),
                 ("track", Space + "Extra/Default/bar_shadow_round_large.png", 11.0f),
+                ("scrollTrack", Space + "Extra/Default/bar_shadow_square_small.png", 4.0f),
                 ("fill", Space + "Blue/Default/bar_round_large.png", 11.0f),
                 ("fillSuccess", Space + "Green/Default/bar_round_large.png", 11.0f),
                 ("fillWarning", Space + "Yellow/Default/bar_round_large.png", 11.0f),

@@ -46,7 +46,12 @@ namespace ManaUI
 
             var shortSide = MathF.Min(rect.Width, rect.Height);
             var scale = shortSide < slice.Size.Y * 1.5f ? MathF.Min(1.0f, shortSide / slice.Size.Y) : 0.4f;
-            if (lift)
+            scale = slice.CornerScale ?? scale;
+            if (slice.PreserveColors)
+            {
+                tint = new Vector4(1.0f, 1.0f, 1.0f, tint.W);
+            }
+            else if (lift)
             {
                 // Pale art times a dark tint goes muddy; lift the tint so the result lands on the colour asked for.
                 tint = new Vector4(MathF.Min(tint.X * 1.18f, 1.0f), MathF.Min(tint.Y * 1.18f, 1.0f), MathF.Min(tint.Z * 1.18f, 1.0f), tint.W);

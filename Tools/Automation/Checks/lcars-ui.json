@@ -1,0 +1,10 @@
+[
+  { "type": "set_theme", "name": "LCARS" },
+  { "type": "wait", "frames": 90 },
+  { "type": "open_panel", "name": "showcase" },
+  { "type": "wait", "frames": 60 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "set_theme", "name": "Kenney" },
+  { "type": "wait", "frames": 10 },
+  { "type": "quit" }
+]

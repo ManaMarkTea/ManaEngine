@@ -62,6 +62,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         };
 
         private static readonly System.Collections.Concurrent.ConcurrentQueue<string> PanelRequests = new();
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiRoot, EventHandler<UiTheme>> ThemeHandlers = new();
 
         /// <summary>Brings a panel up on the next frame, from code with no hold on the workspace -- a command file.</summary>
         public static void RequestPanel(string id) => PanelRequests.Enqueue(id);
@@ -118,20 +119,24 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             // Overridable so persistence can be exercised against a scratch file rather than the user's real one.
             layoutPath ??= DefaultLayoutPath;
+            if (ThemeHandlers.TryGetValue(root, out var oldThemeHandler))
+            {
+                root.ThemeChanged -= oldThemeHandler;
+                ThemeHandlers.Remove(root);
+            }
 
             // Applied before anything is built: views read theme colours as they construct, not at render time.
             var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
             if (saved != null && root.Theme.Kind != saved.Theme)
             {
                 root.Theme = UiTheme.Create(saved.Theme);
-                KenneyUiSkin.Apply(root.Theme, root.Images);
             }
 
             ManaUiDensity.Apply(root.Theme);
 
             if (saved?.FontFamily is { Length: > 0 } savedFont)
             {
-                root.Theme.FontFamily = savedFont;
+                root.Theme.SetFontFamily(savedFont);
             }
 
             if (saved != null)
@@ -152,9 +157,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             _densityChanged = (_, _) =>
             {
                 root.Theme = UiTheme.Create(root.Theme.Kind);
-                KenneyUiSkin.Apply(root.Theme, root.Images);
-                root.InvalidateAll();
-                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             };
             ManaUiDensity.PresetChanged += _densityChanged;
 
@@ -235,7 +237,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             DockItem? BuildPanel(string id) => id switch
             {
-                "showcase" => new DockItem("ManaUI", ManaUiShowcaseView.BuildContent(theme, vm, liveStat).Scrollable())
+                "showcase" => new DockItem("ManaUI", ManaUiShowcaseView.BuildContent(theme, vm, liveStat).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f)))
                 {
                     Id = "showcase"
                 },
@@ -243,7 +245,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // not a side column, so it scrolls sideways rather than the usual vertical wrap.
                 "level" when editor != null => new DockItem(
                     "Level",
-                    LevelManaView.Build(theme, editor.Levels).Scrollable()) { Id = "level" },
+                    LevelManaView.Build(theme, editor.Levels).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f))) { Id = "level" },
 
                 "tools" when editor != null => new DockItem(
                     "Toolbar",
@@ -254,7 +256,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
                 "project" when editor != null && world != null => new DockItem(
                     "Project", ProjectManaView.Build(theme, world, editor, () => projectFolderWidth())) { Id = "project" },
-                "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable())
+                "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f)))
                 {
                     Id = "blurtest"
                 },
@@ -294,7 +296,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     VoxelToolPaletteManaView.BuildWindow(theme, editor)) { Id = VoxelToolsPanelId },
                 "worldperf" when world != null => new DockItem(
                     "World Perf",
-                    WorldPerfManaView.Build(theme, world).Scrollable()) { Id = "worldperf" },
+                    WorldPerfManaView.Build(theme, world).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f))) { Id = "worldperf" },
                 "debug" when editor != null => new DockItem(
                     "Debug",
                     DebugManaView.Build(theme, editor)) { Id = "debug" },
@@ -517,28 +519,24 @@ namespace ManaVoxel.Code.UI.ManaUi
             top.EmptyDropZone = () => new UiRect(0.0f, menuBarHeight, root.Size.X, EmptyZoneBand * 0.6f);
             top.EmptyDropPreview = () => new UiRect(0.0f, menuBarHeight, root.Size.X, EmptyZoneBand);
 
-            void ChooseTheme(UiThemeKind kind)
+            if (ThemeHandlers.TryGetValue(root, out var previousThemeHandler))
             {
-                if (root.Theme.Kind == kind)
-                {
-                    return;
-                }
-
-                state.Theme = kind;
-                root.Theme = UiTheme.Create(kind);
-                KenneyUiSkin.Apply(root.Theme, root.Images);
-                ManaUiDensity.Apply(root.Theme);
-                ApplyGridTheme(world, root.Theme);
-
-                // Saved after the swap, not before: Save() now compares root.Theme.FontFamily against
-                // the new theme's own default to decide whether a font override is worth persisting, so
-                // it has to see the new theme already in place -- otherwise every theme switch looked
-                // like the old theme's font had been deliberately chosen for the new one.
-                Save();
-
-                // Rebuilt, not repainted: views capture theme colours as they're constructed.
-                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
+                root.ThemeChanged -= previousThemeHandler;
+                ThemeHandlers.Remove(root);
             }
+            EventHandler<UiTheme> themeHandler = (_, changed) =>
+            {
+                state.Theme = changed.Kind;
+                state.BackdropBlur = changed.BackdropBlur;
+                ManaUiDensity.Apply(changed);
+                ApplyGridTheme(world, changed);
+                Save();
+                shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
+            };
+            ThemeHandlers.Add(root, themeHandler);
+            root.ThemeChanged += themeHandler;
+
+            void ChooseTheme(UiThemeKind kind) => root.RequestTheme(kind);
 
             void ChooseBlur(float blur)
             {
@@ -555,12 +553,12 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             void ChooseFont(string family)
             {
-                if (root.Theme.FontFamily == family)
+                if (root.Theme.FontFamily == family && root.Theme.FontFamilyMedium == family)
                 {
                     return;
                 }
 
-                root.Theme.FontFamily = family;
+                root.Theme.SetFontFamily(family);
 
                 // Every measured width in the tree was computed with the old face, so this needs a full relayout.
                 root.InvalidateAll();
