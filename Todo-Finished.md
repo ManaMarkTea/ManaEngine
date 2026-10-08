@@ -162,3 +162,19 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     - The rest split into partial files by job: .Room (the grid room), .Placement (placing from the Import panel),
       .ColliderDebug (selection collider wireframes), .Selection (picking + F / End / Escape).
     Checked: Planet Showcase streams, End still lands on a ledge, all tests pass.
+
+[x] - Can we organize the panels menu? Some things are more important than others, some things are for debugging, etc.  Also a search bar that finds a given menu (like unreal) would be cool
+    Claude: Panels menu is grouped (Editor, Assets, Debugging, Settings; a new panel lands under Other) and starts with
+    Find Panel... -- type part of a name, Enter opens the first match (PanelSearchManaView, tests in PanelSearchChecks).
+
+[x] - Do we support nested prefabs, and is it possible?
+    Claude: not supported on purpose -- a Prefab node inside a prefab is rejected on load. Variants (a prefab based on
+    another, 8 deep) cover most of what nesting would. Possible, but needs override paths that cross prefab boundaries.
+
+[x] - Dynamic normal maps on sprites?
+    Claude: already there -- Sprite > Auto Normal Map makes one from the outline (ManaSpriteNormals; bevel and inner-edge
+    settings). Reference scene: Content/Levels/Tests/Sprite Normals.
+
+[x] - Can we also support exporting video in addition to the PNG snapshots we take now.
+    Claude: already there for scripts -- the `record` command saves frames at a fixed step and Tools/Automation/sizzle.py
+    joins them into an MP4 with ffmpeg. No in-editor button yet.

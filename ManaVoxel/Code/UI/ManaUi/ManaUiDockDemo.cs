@@ -1364,17 +1364,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MenuItem.Separator(),
                     new MenuItem("Reset panels", resetPanels)),
 
-                new MenuItem("Panels").WithItems(
-                    PanelIds
-                        // The tool windows follow the selection; opening them by hand would only show nothing.
-                        .Where(id => id != GridMapToolManaView.PanelId && id != VoxelToolsPanelId && id != GridMapWfcManaView.PanelId
-                            && id != SpriteAssetManaView.PanelId
-                            && id != PrefabChangesManaView.PanelId)
-                        .Select(id => new MenuItem(
-                                PanelTitles.TryGetValue(id, out var title) ? title : id,
-                                () => togglePanel(id))
-                            .Checkable(() => isPanelOpen(id)))
-                        .ToArray()),
+                new MenuItem("Panels").WithItems(BuildPanelsMenu(root, isPanelOpen, togglePanel, openPanel)),
 
                 // "Appearance" rather than "View": the editor's own View menu already sits in this bar.
                 new MenuItem("Appearance").WithItems(
@@ -1433,6 +1423,59 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new MenuItem("Tool").WithItems(
                         vm.Tools.Select((tool, index) => new MenuItem(tool, () => vm.SelectedToolIndex = index)
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
+        }
+
+        /// <summary>Panel ids grouped for the Panels menu: the ones used all day first, debugging last.</summary>
+        private static readonly (string Heading, string[] Ids)[] PanelGroups =
+        {
+            ("Editor", new[] { "level", "outliner", "inspector", "tools" }),
+            ("Assets", new[] { "import", "project", UiDesignerManaView.PanelId }),
+            ("Debugging", new[] { "worldperf", "debug", "about", "showcase", "blurtest" }),
+            ("Settings", new[] { "preferences" })
+        };
+
+        private static MenuItem[] BuildPanelsMenu(UiRoot root, Func<string, bool> isPanelOpen, Action<string> togglePanel, Action<string> openPanel)
+        {
+            // The tool windows follow the selection; opening them by hand would only show nothing.
+            var hidden = new HashSet<string>
+            {
+                GridMapToolManaView.PanelId, VoxelToolsPanelId, GridMapWfcManaView.PanelId,
+                SpriteAssetManaView.PanelId, PrefabChangesManaView.PanelId
+            };
+            var available = PanelIds.Where(id => !hidden.Contains(id)).ToList();
+            string TitleOf(string id) => PanelTitles.TryGetValue(id, out var title) ? title : id;
+
+            var items = new List<MenuItem>
+            {
+                new MenuItem("Find Panel…", () => PanelSearchManaView.Show(root, available.Select(id => (id, TitleOf(id))).ToList(), openPanel))
+            };
+
+            var placed = new HashSet<string>();
+            void AddGroup(string heading, IEnumerable<string> ids)
+            {
+                var members = ids.Where(available.Contains).ToList();
+                if (members.Count == 0)
+                {
+                    return;
+                }
+
+                items.Add(MenuItem.Separator());
+                items.Add(MenuItem.Label(heading));
+                foreach (var id in members)
+                {
+                    placed.Add(id);
+                    items.Add(new MenuItem(TitleOf(id), () => togglePanel(id)).Checkable(() => isPanelOpen(id)));
+                }
+            }
+
+            foreach (var (heading, ids) in PanelGroups)
+            {
+                AddGroup(heading, ids);
+            }
+
+            // A panel added later still shows up, under Other, until someone files it.
+            AddGroup("Other", available.Where(id => !placed.Contains(id)));
+            return items.ToArray();
         }
 
         /// <summary>The room's six faces (and, in LCARS, its four wall-to-wall coves) VoxelEditorGameMode names when it builds the scene.</summary>
