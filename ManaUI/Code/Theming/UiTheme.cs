@@ -283,9 +283,9 @@ namespace ManaUI
                 // whose spacing is looser.
                 FontFamily = "KenneyFuture",
                 FontFamilyMedium = "KenneyFuture",
-                FontSize = 13.0f,
-                FontSizeSmall = 11.0f,
-                FontSizeHeading = 16.0f,
+                FontSize = 14.0f,
+                FontSizeSmall = 12.0f,
+                FontSizeHeading = 17.0f,
                 Background = UiColor.FromHex("#3399DD"),
                 Surface = UiColor.FromHex("#DCDFEA"),
                 SurfaceAlt = UiColor.FromHex("#A5A8B8"),

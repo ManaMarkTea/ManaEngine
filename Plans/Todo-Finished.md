@@ -292,3 +292,9 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     pixels, and the outer edges of a nine-slice snap outwards (floor/ceiling) so the far edge keeps full coverage. Progress
     bars gained Square and Gloss, in four tones, from every bar the pack has. The Kenney theme now sets in Kenney Future Narrow
     (Mana/Assets/Fonts/Kenney, CC0; also in Appearance > Font, with the wide Kenney Future).
+
+    Claude (2026-10-08, sixth pass): Kenney's fonts have capitals only (lower case is the same outline) and no kerning
+    table -- the loose spacing was baked into each glyph's advance. Tools/Fonts/tighten_kenney.py rewrites the two fonts with
+    each advance set to the glyph's own width plus a gap (the files in Mana/Assets/Fonts/Kenney are the tightened ones), and
+    a capitals-only family (ManaFontManager.CapsOnlyFamilies) draws its lower case as small capitals at 80% size
+    (ManaFont.SmallCapsFont). The Kenney theme uses the wide cut at 14 px.

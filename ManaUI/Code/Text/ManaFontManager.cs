@@ -201,7 +201,15 @@ namespace ManaUI
         /// near-identical glyph sets.
         /// </para>
         /// </summary>
-        public ManaFont Get(string family, float pixelSize, float renderScale = 1.0f)
+        public ManaFont Get(string family, float pixelSize, float renderScale = 1.0f) => Get(family, pixelSize, renderScale, allowSmallCaps: true);
+
+        /// <summary>Faces with only capitals, whose lower case is drawn as small capitals (see <see cref="ManaFont.SmallCapsFont"/>).</summary>
+        public HashSet<string> CapsOnlyFamilies { get; } = new(StringComparer.OrdinalIgnoreCase) { "KenneyFuture", "KenneyFutureNarrow" };
+
+        /// <summary>How big a small capital is next to a full one.</summary>
+        public float SmallCapsScale { get; set; } = 0.8f;
+
+        private ManaFont Get(string family, float pixelSize, float renderScale, bool allowSmallCaps)
         {
             var rounded = Math.Max(1, (int)MathF.Round(pixelSize));
             var quantisedScale = Math.Max(1, (int)MathF.Round(MathF.Max(0.1f, renderScale) * 4.0f));
@@ -239,6 +247,11 @@ namespace ManaUI
             // forever; with it, the second visit finds the entry already present.
             _fonts[key] = font;
             AttachFallbacks(font, path, rounded, quantisedScale);
+            if (allowSmallCaps && CapsOnlyFamilies.Contains(font.Name))
+            {
+                font.SmallCapsFont = Get(family, MathF.Max(1.0f, pixelSize * SmallCapsScale), renderScale, allowSmallCaps: false);
+            }
+
             return font;
         }
 

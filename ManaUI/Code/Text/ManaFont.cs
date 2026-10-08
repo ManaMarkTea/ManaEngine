@@ -97,6 +97,12 @@ namespace ManaUI
 
         public string Name { get; }
 
+        /// <summary>
+        /// The same face at a smaller size, for a font that only has capitals: lower-case letters take their
+        /// glyphs from it so a mixed-case string keeps its shape instead of shouting. Null for every other font.
+        /// </summary>
+        public ManaFont? SmallCapsFont { get; internal set; }
+
         /// <summary>Logical size this font was requested at.</summary>
         public float PixelSize { get; }
 
@@ -154,6 +160,12 @@ namespace ManaUI
         /// </summary>
         public ManaGlyph GetGlyph(int codepoint, bool preferColor)
         {
+            // A capitals-only face draws its lower case as smaller capitals of the same outlines.
+            if (SmallCapsFont != null && codepoint < 0x10000 && char.IsLower((char)codepoint))
+            {
+                return SmallCapsFont.GetGlyph(codepoint, preferColor);
+            }
+
             // A reset atlas invalidates every cached UV, so the whole cache goes with it.
             if (_atlasGeneration != _atlas.Generation)
             {
