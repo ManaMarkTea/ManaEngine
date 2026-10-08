@@ -3,9 +3,8 @@
 The real editor — `VoxelEditorGameMode`, not a cut-down stand-in — running through WebGPU in a
 browser tab: menu bar, docked panels, viewport, asset browser, undo/redo, the works.
 
-See `WebPort-Plan.md` at the repo root (M9) for the porting history and the reasoning behind the
-browser-specific workarounds. See `ManaVoxel.Web/README.md` for the sibling project (play mode
-only) this one otherwise mirrors closely.
+See `ManaVoxel.Web/README.md` for the sibling project (play mode only) this one otherwise mirrors
+closely.
 
 ## Build and run
 
@@ -45,16 +44,14 @@ remainder of `AppBundle/` (runtime, HTML, the rewritten catalog) goes to itch.io
 uploader as before. Neither `asset-downloads.js` nor `ManaAssetCatalog` needed to change for
 this: a blob URL is resolved (`new URL(url, import.meta.url)`) and validated
 (`ManaAssetCatalog.ValidateUrl`) the same way whether it is relative or absolute -- the catalog
-just says a different thing depending on which script produced it. It no longer creates or
-commits `Binaries/ManaEditor.zip` or replaces a GitHub release ZIP. Generated build artifacts are
-not source files.
+just says a different thing depending on which script produced it.
 
 **One-time setup**: GitHub Pages must be enabled for this repo with "Source" set to "GitHub
 Actions" (Settings → Pages) before the deploy-pages step will succeed.
 
 The catalog includes all repository/project asset trees except the oversized
-`Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`. Model format/extension support remains
-unchanged. A ZIP pack downloads once when any model inside it is selected; loose glTF models
+`Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`. Model import is glTF/GLB only. A ZIP pack
+downloads once when any model inside it is selected; loose glTF models
 fetch their referenced buffers and textures. The library can be browsed without downloading
 models: unloaded entries show format placeholders, with thumbnails generated after download.
 
@@ -75,10 +72,8 @@ The server reads files off disk per request, so after a republish just refresh �
 
 ## What's different from `ManaVoxel.Web`
 
-That project deliberately keeps `ManaVoxel.csproj` out of its reference graph and re-links a
-handful of its files by source instead — at the time it was written, `ManaVoxel.csproj` had no
-browser-wasm build to reference at all. M9 changed that (see `WebPort-Plan.md`), so this project
-references `ManaVoxel.csproj` directly: the real `VoxelEditorGameMode`, not a hand-picked subset.
+That project remains play-mode-only and links the small set of `ManaVoxel` sources it needs. This
+project references `ManaVoxel.csproj` directly to run the real `VoxelEditorGameMode` and editor.
 
 ## What works
 

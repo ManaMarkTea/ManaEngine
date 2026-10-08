@@ -13,8 +13,7 @@ namespace ManaGraphics.Code.Graphics.Browser
     //
     // Uses the explicit JSHost.ImportAsync registration pattern rather than a bare
     // [JSImport("func", "mana_interop.js")] module-name string, to avoid depending on exactly how
-    // the wasm loader resolves a relative JS path (not confirmed against a live browser yet --
-    // see WebPort-Plan.md). InitializeAsync() must be awaited once before any other member here is
+    // the wasm loader resolves a relative JS path. InitializeAsync() must be awaited once before any other member here is
     // used; Program.cs does this before constructing ManaBrowserWindow.
     [SupportedOSPlatform("browser")]
     public static partial class ManaBrowserInterop

@@ -12,6 +12,7 @@ namespace ManaUI
         private readonly List<int> _shown = new();
         private Vector2 _madeAtSize;
         private int _columns = 1;
+        private int _arrangedColumns;
         private ScrollViewer? _scroller;
 
         /// <summary>The items; setting a new list drops every made element.</summary>
@@ -52,19 +53,35 @@ namespace ManaUI
             _columns = float.IsInfinity(inner.X) ? 1 : Math.Max(1, (int)((inner.X + Spacing) / MathF.Max(stepX, 1.0f)));
             var rows = (_items.Count + _columns - 1) / _columns;
 
+            // Which items to make follows the width last arranged at, not this pass's: a parent may measure several
+            // widths a frame (a dock sizing its columns), and making tiles for each threw away the ones the next pass
+            // made again -- every frame, so no tile lived long enough to ask for its thumbnail.
+            var columns = _arrangedColumns > 0 ? _arrangedColumns : _columns;
+            var realizedRows = (_items.Count + columns - 1) / columns;
+
             // Rows in view, from the scroll viewer: the panel is its content, so the offset counts from our top.
             var firstRow = 0;
-            var lastRow = Math.Min(rows, 12);
+            var lastRow = Math.Min(realizedRows, 12);
             if (FindScrollViewer() is { } scroller && scroller.Viewport.Y > 0.0f)
             {
-                firstRow = Math.Clamp((int)(scroller.Offset.Y / MathF.Max(stepY, 1.0f)) - 1, 0, rows);
-                lastRow = Math.Clamp((int)MathF.Ceiling((scroller.Offset.Y + scroller.Viewport.Y) / MathF.Max(stepY, 1.0f)) + 1, 0, rows);
+                firstRow = Math.Clamp((int)(scroller.Offset.Y / MathF.Max(stepY, 1.0f)) - 1, 0, realizedRows);
+                lastRow = Math.Clamp((int)MathF.Ceiling((scroller.Offset.Y + scroller.Viewport.Y) / MathF.Max(stepY, 1.0f)) + 1, 0, realizedRows);
             }
 
-            var first = firstRow * _columns;
-            var end = Math.Min(_items.Count, lastRow * _columns);
-            if (_shown.Count != Math.Max(0, end - first) || (_shown.Count > 0 && _shown[0] != first) || Children.Count != _shown.Count)
+            var first = firstRow * columns;
+            var end = Math.Min(_items.Count, lastRow * columns);
+
+            // Kept while what is made still covers the view, so a narrower pass before the real one changes nothing.
+            var shownFirst = _shown.Count > 0 ? _shown[0] : -1;
+            var shownEnd = _shown.Count > 0 ? _shown[^1] + 1 : -1;
+            var covered = shownFirst == first && shownEnd >= end && shownEnd <= _items.Count && Children.Count == _shown.Count;
+            if (!covered)
             {
+                if (shownFirst == first)
+                {
+                    end = Math.Min(_items.Count, Math.Max(end, shownEnd));
+                }
+
                 foreach (var stale in _made.Keys.Where(index => index < first || index >= end).ToList())
                 {
                     _made.Remove(stale);
@@ -98,6 +115,14 @@ namespace ManaUI
         {
             var content = ContentBounds;
             var size = _madeAtSize;
+
+            // Columns from the width actually given, not from whichever measure pass came last.
+            _columns = Math.Max(1, (int)((content.Width + Spacing) / MathF.Max(size.X + Spacing, 1.0f)));
+            if (_columns != _arrangedColumns)
+            {
+                _arrangedColumns = _columns;
+                InvalidateMeasure();
+            }
             for (var i = 0; i < Children.Count && i < _shown.Count; i++)
             {
                 var index = _shown[i];

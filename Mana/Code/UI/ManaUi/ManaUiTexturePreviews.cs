@@ -1,8 +1,5 @@
+using ManaCore.Imaging;
 using ManaUI;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace Mana.Code.UI.ManaUi
 {
@@ -144,12 +141,7 @@ namespace Mana.Code.UI.ManaUi
                     return null;
                 }
 
-                var options = new DecoderOptions
-                {
-                    TargetSize = new Size(ThumbnailSize * 2, ThumbnailSize * 2)
-                };
-
-                using var image = Image.Load<Rgba32>(options, path);
+                var image = ManaImageCodec.Load(path);
 
                 var sourceWidth = (uint)image.Width;
                 var sourceHeight = (uint)image.Height;
@@ -158,19 +150,12 @@ namespace Mana.Code.UI.ManaUi
                 var width = Math.Max(1, (int)MathF.Round(image.Width * MathF.Min(1.0f, scale)));
                 var height = Math.Max(1, (int)MathF.Round(image.Height * MathF.Min(1.0f, scale)));
 
-                image.Mutate(context => context.Resize(width, height));
-
-                var pixels = new byte[width * height * 4];
-                image.CopyPixelDataTo(pixels);
-
-                var uv = atlas.Add(pixels, width, height);
+                var uv = atlas.Add(image.Resized(width, height).Pixels, width, height);
                 if (uv == null)
                 {
                     return null;
                 }
 
-                // The decoder may already have downscaled, so the reported source size is what the file
-                // says rather than what came back -- worth being honest about in a picker.
                 return new ManaUiTexturePreview(uv.Value, new Vector2(width, height), sourceWidth, sourceHeight);
             }
             catch (Exception)
@@ -204,25 +189,15 @@ namespace Mana.Code.UI.ManaUi
                     return null;
                 }
 
-                using var image = Image.LoadPixelData<Rgba32>(texture.PixelData, width, height);
-
                 var scale = ThumbnailSize / (float)Math.Max(width, height);
                 var thumbWidth = Math.Max(1, (int)MathF.Round(width * MathF.Min(1.0f, scale)));
                 var thumbHeight = Math.Max(1, (int)MathF.Round(height * MathF.Min(1.0f, scale)));
 
-                image.Mutate(context =>
-                {
-                    context.Resize(thumbWidth, thumbHeight);
+                // LoadCpuPixelData flips on the way in, because that is what a GL texture coordinate
+                // wants. A thumbnail is looked at rather than sampled, so it is flipped back.
+                var thumb = new ManaImage(width, height, texture.PixelData).Resized(thumbWidth, thumbHeight).FlipVertical();
 
-                    // LoadCpuPixelData flips on the way in, because that is what a GL texture coordinate
-                    // wants. A thumbnail is looked at rather than sampled, so it is flipped back.
-                    context.Flip(FlipMode.Vertical);
-                });
-
-                var pixels = new byte[thumbWidth * thumbHeight * 4];
-                image.CopyPixelDataTo(pixels);
-
-                var uv = atlas.Add(pixels, thumbWidth, thumbHeight);
+                var uv = atlas.Add(thumb.Pixels, thumbWidth, thumbHeight);
                 if (uv == null)
                 {
                     return null;

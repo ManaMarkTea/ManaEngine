@@ -55,6 +55,7 @@ namespace ManaUI
 
             // macOS.
             "Apple Symbols",
+            "Arial Unicode",
             "SFNSMono",
 
             // Common Linux packages.

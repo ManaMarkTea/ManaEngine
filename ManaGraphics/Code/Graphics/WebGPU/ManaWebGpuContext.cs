@@ -5,8 +5,6 @@ using System.Numerics;
 using System.Text;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using ManaGraphics.Code.Graphics.Overlays;
 using Silk.NET.WebGPU;
@@ -15,7 +13,6 @@ using Silk.NET.WebGPU.Extensions.WGPU;
 #endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 using ManaCore.Diagnostics;
 
@@ -260,7 +257,7 @@ namespace ManaGraphics.Code.Graphics
             // `await` to appear within at all (regardless of whether the specific method touches a
             // pointer). See ManaWebGpuContext.BrowserAsync.cs's CompleteBrowserInitializationAsync,
             // a separate non-unsafe partial declaration of this same class, which callers must
-            // await before this context is usable; not yet confirmed working against a real browser.
+            // await before this context is usable.
         }
 
         private void FinishInitialization(string? requestedBackend, IWindow window)

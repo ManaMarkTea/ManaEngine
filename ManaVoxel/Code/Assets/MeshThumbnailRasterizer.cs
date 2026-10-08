@@ -1,7 +1,5 @@
 using ManaCore.Graphics;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
+using ManaCore.Imaging;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -110,7 +108,7 @@ namespace ManaVoxel.Code.Assets
             var vertexColors = mesh.Colors.Length == positions.Length ? mesh.Colors : null;
             var uvs = mesh.TextureCoordinates0.Length == positions.Length ? mesh.TextureCoordinates0 : null;
 
-            using var texture = uvs != null ? DecodeTexture(mesh.AlbedoTextureBytes) : null;
+            var texture = uvs != null ? DecodeTexture(mesh.AlbedoTextureBytes) : null;
             var factor = mesh.AlbedoFactor;
 
             for (var i = 0; i + 2 < indexes.Length; i += 3)
@@ -175,7 +173,7 @@ namespace ManaVoxel.Code.Assets
         /// Decodes and downsizes a texture's raw bytes, or returns null for anything missing or unreadable --
         /// a texture that fails to decode should cost the preview its colour, not the whole preview.
         /// </summary>
-        private static SixLabors.ImageSharp.Image<Rgba32>? DecodeTexture(byte[]? textureBytes)
+        private static ManaImage? DecodeTexture(byte[]? textureBytes)
         {
             if (textureBytes == null || textureBytes.Length == 0)
             {
@@ -184,15 +182,14 @@ namespace ManaVoxel.Code.Assets
 
             try
             {
-                var image = ImageSharpImage.Load<Rgba32>(textureBytes);
+                var image = ManaImageCodec.Load(textureBytes);
 
                 // Flipped for the same reason ManaWebGpuMeshTextureCache flips every texture it uploads:
                 // the loaders store V already flipped (see ManaSharpGltfLoader's uv0 comment), so a
                 // consumer that samples the image the way it was decoded reads the wrong row. Without
                 // this, a Kenney model's UVs -- which sit in the top fifth of its colormap -- landed in
                 // the opaque black band at the bottom instead, and every thumbnail drew as a silhouette.
-                image.Mutate(x => x.Flip(FlipMode.Vertical).Resize(TextureSampleSize, TextureSampleSize));
-                return image;
+                return image.FlipVertical().Resized(TextureSampleSize, TextureSampleSize);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
@@ -237,7 +234,11 @@ namespace ManaVoxel.Code.Assets
             }
 
             var lambert = Vector3.Dot(normal, LightDirection);
-            return AmbientLight + ((1.0f - AmbientLight) * Math.Clamp(lambert, 0.0f, 1.0f));
+            var linear = AmbientLight + ((1.0f - AmbientLight) * Math.Clamp(lambert, 0.0f, 1.0f));
+
+            // The GPU thumbnail lights in linear space and writes to an sRGB target, so the light multiplies the
+            // colour as shade^(1/2.2) on the stored values. Applied straight, the same shade came out far darker.
+            return MathF.Pow(linear, 1.0f / 2.2f);
         }
 
         private static (Vector3 Centre, float Radius) BoundingSphere(Vector3[] positions)
@@ -276,7 +277,7 @@ namespace ManaVoxel.Code.Assets
             Vector3 c,
             float shade,
             Vector4 colorOrFactor,
-            SixLabors.ImageSharp.Image<Rgba32>? texture,
+            ManaImage? texture,
             Vector2 uvA,
             Vector2 uvB,
             Vector2 uvC)
@@ -372,7 +373,7 @@ namespace ManaVoxel.Code.Assets
         }
 
         /// <summary>Nearest-neighbour sample, wrapped -- a tiling texture (a lot of these are) should repeat, not smear at the seam.</summary>
-        private static Vector4 SampleTexture(SixLabors.ImageSharp.Image<Rgba32> texture, Vector2 uv)
+        private static Vector4 SampleTexture(ManaImage texture, Vector2 uv)
         {
             var u = Wrap(uv.X);
             var v = Wrap(uv.Y);
@@ -380,8 +381,9 @@ namespace ManaVoxel.Code.Assets
             var x = Math.Clamp((int)(u * texture.Width), 0, texture.Width - 1);
             var y = Math.Clamp((int)(v * texture.Height), 0, texture.Height - 1);
 
-            var pixel = texture[x, y];
-            return new Vector4(pixel.R / 255.0f, pixel.G / 255.0f, pixel.B / 255.0f, pixel.A / 255.0f);
+            var i = (y * texture.Width + x) * 4;
+            var pixels = texture.Pixels;
+            return new Vector4(pixels[i] / 255.0f, pixels[i + 1] / 255.0f, pixels[i + 2] / 255.0f, pixels[i + 3] / 255.0f);
         }
 
         private static float Wrap(float value)

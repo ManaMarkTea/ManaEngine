@@ -19,7 +19,12 @@ class PublishAssetsTests(unittest.TestCase):
             excluded = root / 'Mana' / EXCLUDED
             excluded.parent.mkdir(parents=True)
             excluded.write_bytes(b'oversized')
-            (root / 'Assets').mkdir()
+            assets = root / 'Assets'
+            assets.mkdir()
+            geodata = assets / 'GeoData'
+            geodata.mkdir()
+            with zipfile.ZipFile(geodata / 'ne_10m_lakes.zip', 'w') as archive:
+                archive.writestr('ne_10m_lakes.shp', b'water')
             with zipfile.ZipFile(root / 'Assets/pack.zip', 'w') as archive:
                 archive.writestr('Models/ship.glb', b'model')
             output = root / 'output'
@@ -27,6 +32,7 @@ class PublishAssetsTests(unittest.TestCase):
             self.assertEqual(len(catalog['models']), 2)
             files = {item['path']: item for item in catalog['files']}
             self.assertNotIn(EXCLUDED, files)
+            self.assertNotIn('Assets/GeoData/ne_10m_lakes.zip', files)
             self.assertEqual(files['Assets/Models/test.gltf']['dependencies'],
                              ['Assets/Models/paint red.png', 'Assets/Models/test.bin'])
             for item in files.values():
@@ -50,17 +56,17 @@ class PublishAssetsTests(unittest.TestCase):
     def test_compressed_variant_stages_supported_sibling(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            model = root / 'Assets/Models/Duck'
+            model = root / 'Assets/Models/Example'
             (model / 'glTF').mkdir(parents=True)
             (model / 'glTF-Draco').mkdir()
-            (model / 'glTF/Duck.gltf').write_text('{"buffers":[{"uri":"Duck.bin"}]}')
-            (model / 'glTF/Duck.bin').write_bytes(b'plain mesh')
-            (model / 'glTF-Draco/Duck.gltf').write_text(json.dumps({
+            (model / 'glTF/Example.gltf').write_text('{"buffers":[{"uri":"Example.bin"}]}')
+            (model / 'glTF/Example.bin').write_bytes(b'plain mesh')
+            (model / 'glTF-Draco/Example.gltf').write_text(json.dumps({
                 'extensionsRequired': ['KHR_draco_mesh_compression'],
-                'buffers': [{'uri': 'Duck.bin'}]}))
+                'buffers': [{'uri': 'Example.bin'}]}))
             catalog = publish(root, root / 'output')
             compressed = next(item for item in catalog['files'] if 'glTF-Draco' in item['path'])
-            self.assertEqual(compressed['dependencies'], ['Assets/Models/Duck/glTF/Duck.gltf'])
+            self.assertEqual(compressed['dependencies'], ['Assets/Models/Example/glTF/Example.gltf'])
 
 
 if __name__ == '__main__':

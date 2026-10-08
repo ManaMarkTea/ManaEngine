@@ -9,6 +9,24 @@ namespace ManaVoxel.Code.Assets
     /// </summary>
     public static class ManaProjectFolder
     {
+        /// <summary>Resolves directory aliases before comparing paths or making asset references.</summary>
+        public static string CanonicalPath(string path)
+        {
+            var full = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(full)!;
+            var current = root;
+            foreach (var part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+            {
+                current = Path.Combine(current, part);
+                // Resolve each ancestor too: on macOS /var is a link to /private/var.
+                if (Directory.Exists(current))
+                {
+                    current = new DirectoryInfo(current).ResolveLinkTarget(true)?.FullName ?? current;
+                }
+            }
+            return current;
+        }
+
         /// <summary>
         /// The folder, created if this is the first time. Never throws on a read-only location -- it falls
         /// back to the executable's own folder, which is at worst a place the content can still be written.

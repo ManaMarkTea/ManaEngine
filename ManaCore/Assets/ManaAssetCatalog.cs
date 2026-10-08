@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using ManaCore.Diagnostics;
+using ManaCore.Imaging;
 
 namespace ManaCore.Assets;
 
@@ -210,7 +212,56 @@ public sealed class ManaAssetCatalog
     public async Task EnsureAsync(string reference)
     {
         var key = Key(reference);
-        if (key == null) return;
+        if (key != null) await DownloadClosureAsync(key);
+        await PreparePicturesAsync(reference, key);
+    }
+
+    /// <summary>
+    /// The browser decodes pictures only asynchronously, so whatever was just made ready to load has its
+    /// pictures decoded now, for the synchronous load that follows (<see cref="ManaImageCodec"/>).
+    /// </summary>
+    private async Task PreparePicturesAsync(string reference, string? key)
+    {
+        if (!OperatingSystem.IsBrowser()) return;
+        try
+        {
+            foreach (var picture in PicturesOf(reference, key))
+                await ManaImageCodec.PrepareAsync(picture);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException or FormatException)
+        {
+            ManaLog.WriteDiagnostic($"[Images] could not decode the pictures of '{reference}' ahead: {exception.Message}");
+        }
+    }
+
+    private IEnumerable<byte[]> PicturesOf(string reference, string? key)
+    {
+        if (reference.StartsWith("zip:", StringComparison.OrdinalIgnoreCase))
+        {
+            // A whole pack ("zip:pack.zip/") is too much to decode; a picture or model in one is not.
+            var body = reference[4..].Replace('\\', '/');
+            var split = body.IndexOf(".zip/", StringComparison.OrdinalIgnoreCase);
+            var entry = split < 0 ? "" : body[(split + 5)..];
+            return key == null || entry.Length == 0 ? [] : ManaModelPictures.OfZipEntry(LocalPath(key), entry);
+        }
+
+        if (reference.StartsWith("zipasset:", StringComparison.Ordinal) || reference.StartsWith("zipasset-rel:", StringComparison.Ordinal))
+        {
+            var start = reference.IndexOf(':') + 1;
+            var end = reference.IndexOf(':', start);
+            if (end < 0) return [];
+            var zip = key != null ? LocalPath(key) : Encoding.UTF8.GetString(Convert.FromBase64String(reference[start..end]));
+            var entry = Encoding.UTF8.GetString(Convert.FromBase64String(reference[(end + 1)..]));
+            return File.Exists(zip) ? ManaModelPictures.OfZipEntry(zip, entry) : [];
+        }
+
+        // A model's own pictures, and those of a sibling it falls back to, which its closure holds.
+        var files = key != null ? Closure(key).Select(LocalPath) : File.Exists(reference) ? [reference] : [];
+        return files.Where(File.Exists).SelectMany(ManaModelPictures.OfFile);
+    }
+
+    private async Task DownloadClosureAsync(string key)
+    {
         // Sequential dependency loads bound peak browser memory; requests for the same file share a task.
         foreach (var path in Closure(key))
         {

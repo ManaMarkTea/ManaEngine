@@ -1,3 +1,4 @@
+using Mana.Code.Content;
 using ManaUI;
 using ManaVoxel.Code.Assets;
 
@@ -17,6 +18,32 @@ public static class SpriteAssetChecks
 
         string[] walk = ["zip:p.zip/character_green_idle.png", "zip:p.zip/character_green_walk_a.png", "zip:p.zip/character_green_walk_b.png"];
         var sheet = SpriteAssetFactory.Sheet(walk);
+        var scratch = Path.Combine(Path.GetTempPath(), "mana-sprite-save-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = Path.Combine(scratch, "Walk.manasheet");
+            ManaContentAssets.Save(sheet, path);
+            var json = File.ReadAllText(path);
+            check("saved sprite pivots stay on one line", json.Contains("\"pivot\": [0.5, 0]", StringComparison.Ordinal));
+            check("sprite formatting preserves every serialized value",
+                System.Text.Json.Nodes.JsonNode.DeepEquals(System.Text.Json.Nodes.JsonNode.Parse(json),
+                    System.Text.Json.JsonSerializer.SerializeToNode(sheet, ManaContentAssets.Json)));
+            var loaded = ManaContentAssets.Load<ManaSpriteSheet>(path);
+            check("formatted sprite sheets load with their frames and pivot", loaded != null
+                && loaded.Frames.SequenceEqual(sheet.Frames) && loaded.Pivot.SequenceEqual(sheet.Pivot));
+            if (loaded != null)
+            {
+                ManaContentAssets.Save(loaded, path);
+                check("loading and saving a sprite sheet adds no formatting churn", File.ReadAllText(path) == json);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(scratch))
+            {
+                Directory.Delete(scratch, true);
+            }
+        }
         check("a sheet from picked pictures takes them as its frames, in order", sheet.Frames.SequenceEqual(walk));
         check("named from what their names share, in whole words", sheet.Name == "Character Green", sheet.Name);
         check("with an idle on the first frame and one playing them all",

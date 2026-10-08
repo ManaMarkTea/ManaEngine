@@ -33,6 +33,8 @@ struct SkyboxUniform {
     inverse_direction_view_projection : mat4x4<f32>,
     // xyz = direction towards the sun; w = 0 the environment image, 1 a day sky, 2 space.
     sun : vec4<f32>,
+    // xyz = direction towards the moon; w = 1 when the dated sky clock has a moon.
+    moon : vec4<f32>,
     // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = how far the clouds have drifted (ManaSky).
     parameters : vec4<f32>,
 };
@@ -45,12 +47,13 @@ struct SkyboxUniform {
 
 // The moon's angular radius, as the cosine of it -- about 1.5 degrees, larger than life so it reads on screen.
 const MoonCosRadius : f32 = 0.99965;
+const HorizonMoonCosRadius : f32 = 0.99939;
 
 /// The moon's colour in this direction, or nothing off its disc. The disc is a sphere facing the viewer: each
 /// point is mapped to the latitude and longitude it shows, so the maria sit where they should.
-fn moon_disc(direction : vec3<f32>, toward_moon : vec3<f32>) -> vec4<f32> {
+fn moon_disc(direction : vec3<f32>, toward_moon : vec3<f32>, toward_sun : vec3<f32>, cos_radius : f32) -> vec4<f32> {
     let cos_angle = dot(direction, toward_moon);
-    if (cos_angle < MoonCosRadius - 0.0002) {
+    if (cos_angle < cos_radius - 0.0002) {
         return vec4<f32>(0.0);
     }
 
@@ -61,7 +64,7 @@ fn moon_disc(direction : vec3<f32>, toward_moon : vec3<f32>) -> vec4<f32> {
     }
     let right = normalize(cross(north, toward_moon));
     let up = cross(toward_moon, right);
-    let sin_radius = sqrt(1.0 - MoonCosRadius * MoonCosRadius);
+    let sin_radius = sqrt(1.0 - cos_radius * cos_radius);
     let p = vec2<f32>(dot(direction, right), dot(direction, up)) / sin_radius;
     let r2 = dot(p, p);
     if (r2 >= 1.0) {
@@ -74,11 +77,15 @@ fn moon_disc(direction : vec3<f32>, toward_moon : vec3<f32>) -> vec4<f32> {
     let latitude = asin(clamp(n.y, -1.0, 1.0));
     let uv = vec2<f32>(0.5 + longitude / 6.2831853, 0.5 - latitude / 3.14159265);
     let albedo = textureSampleLevel(moon_texture, sky_sampler, uv, 0.0).rgb;
+    let air_length = ray_sphere(vec3<f32>(0.0), AtmosphereRadius, Eye, direction).y;
+    let air = transmittance(optical_depth(Eye, direction, air_length));
+    let surface_normal = right * n.x + up * n.y - toward_moon * n.z;
+    let sunlit = dot(surface_normal, toward_sun);
 
-    // A full moon is nearly flat-lit; a touch of darkening at the limb, and a soft edge.
+    // Keep the unlit hemisphere transparent so stars and sky remain visible through a crescent.
     let limb = mix(0.8, 1.0, pow(n.z, 0.4));
     let edge = 1.0 - smoothstep(0.96, 1.0, sqrt(r2));
-    return vec4<f32>(albedo * limb, edge);
+    return vec4<f32>(albedo * limb * air, edge * smoothstep(-0.015, 0.015, sunlit));
 }
 
 struct VertexOutput {
@@ -312,11 +319,19 @@ fn day_sky(direction : vec3<f32>, jitter : f32) -> vec3<f32> {
     colour = colour + vec3<f32>(0.004, 0.008, 0.02) * night;
     if (up > 0.0) {
         colour = colour + stars(direction, 0.012, sky.parameters.x) * night * smoothstep(0.0, 0.2, up);
-        let toward_moon = -toward_sun;
+    }
+    if (up > 0.0 && sky.moon.w > 0.5) {
+        let toward_moon = normalize(sky.moon.xyz);
         let moon_dot = max(dot(direction, toward_moon), 0.0);
-        let moon = moon_disc(direction, toward_moon);
-        colour = mix(colour, moon.rgb * vec3<f32>(1.0, 1.0, 1.05) * 1.8, moon.a * night);
-        colour = colour + vec3<f32>(0.8, 0.85, 1.0) * night * pow(moon_dot, 200.0) * 0.08;
+        // A restrained horizon-size cue stands in for the Moon illusion, not a physical change in angular size.
+        let horizon = 1.0 - smoothstep(0.0, 0.2, toward_moon.y);
+        let moon_cos_radius = mix(MoonCosRadius, HorizonMoonCosRadius, horizon);
+        let moon = moon_disc(direction, toward_moon, toward_sun, moon_cos_radius);
+        let moon_visibility = mix(0.42, 1.0, night);
+        colour = mix(colour, moon.rgb * vec3<f32>(1.0, 1.0, 1.05) * 1.8, moon.a * moon_visibility);
+        let moon_phase_angle = sky.parameters.w * 6.2831853;
+        let moon_illumination = (1.0 - cos(moon_phase_angle)) * 0.5;
+        colour = colour + vec3<f32>(0.8, 0.85, 1.0) * night * moon_illumination * pow(moon_dot, 200.0) * 0.08;
     }
 
     // Clouds on a flat layer overhead, drifting slowly, thinning towards the horizon where they would crowd

@@ -261,7 +261,8 @@ public static class ImageChecks
             // Which is what the variation selector is for: it asks for the colour form explicitly.
             var textHeart = emoji.GetGlyph(0x2764);
             var colorHeart = emoji.GetGlyph(0x2764, preferColor: true);
-            Check("a bare heart is the text form", !textHeart.IsColor, "dingbat");
+            Check("a bare heart is drawable text", textHeart.IsDrawable && !textHeart.IsColor,
+                emoji.FindFontFor(0x2764)?.Name ?? "no text fallback");
             Check("a selector asks for the colour form", colorHeart.IsColor,
                 colorHeart.IsColor ? "colour" : "still text");
             Check("the selector is detected in a string",

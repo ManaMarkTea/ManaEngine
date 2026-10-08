@@ -1,11 +1,8 @@
 using Mana.Code;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
+using ManaCore.Imaging;
 using Silk.NET.OpenGL;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace Mana
 {
@@ -98,33 +95,29 @@ namespace Mana
 
         public void LoadCpuPixelData()
         {
+            if (DecodeSource() is { } image)
+            {
+                Width = (uint)image.Width;
+                Height = (uint)image.Height;
+                SizeInBytes = image.Width * image.Height * 4;
+                PixelData = image.Pixels;
+            }
+        }
+
+        /// <summary>The texture's picture, flipped for GPU texture coordinates, or null when it has no source.</summary>
+        private ManaImage? DecodeSource()
+        {
             if (PixelStream != null)
             {
-                DecoderOptions options = new DecoderOptions();
-                using (var img = Image.Load<Rgba32>(options, PixelStream))
-                {
-                    img.Mutate(x => x.Flip(FlipMode.Vertical));
-                    Width = (uint)img.Width;
-                    Height = (uint)img.Height;
-                    SizeInBytes = img.Width * img.Height * 4;
-                    PixelData = new byte[SizeInBytes];
-                    img.CopyPixelDataTo(PixelData);
-                }
+                using var memory = new MemoryStream();
+                PixelStream.CopyTo(memory);
+                return ManaImageCodec.Load(memory.ToArray()).FlipVertical();
             }
-            else if (!string.IsNullOrEmpty(OriginalFilename))
+            if (!string.IsNullOrEmpty(OriginalFilename))
             {
-                var resolvedFilename = ResolveTexturePath(OriginalFilename);
-                DecoderOptions options = new DecoderOptions();
-                using (var img = Image.Load<Rgba32>(options, resolvedFilename))
-                {
-                    img.Mutate(x => x.Flip(FlipMode.Vertical));
-                    Width = (uint)img.Width;
-                    Height = (uint)img.Height;
-                    SizeInBytes = img.Width * img.Height * 4;
-                    PixelData = new byte[SizeInBytes];
-                    img.CopyPixelDataTo(PixelData);
-                }
+                return ManaImageCodec.Load(ResolveTexturePath(OriginalFilename)).FlipVertical();
             }
+            return null;
         }
 
         public virtual void Load()
@@ -171,38 +164,21 @@ namespace Mana
                     gl.TexSubImage2D(TextureTargetType, 0, 0, 0, Width, Height, InternalPixelFormat, InternalPixelType, data);
                 }
             }
-            else if (PixelStream != null)
+            else if (DecodeSource() is { } image)
             {
-                DecoderOptions options = new DecoderOptions();
-                using (var img = Image.Load<Rgba32>(options, PixelStream))
+                Width = (uint)image.Width;
+                Height = (uint)image.Height;
+                SizeInBytes = image.Width * image.Height * 8;
+                AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
+                fixed (void* data = image.Pixels)
                 {
-                    img.Mutate(x => x.Flip(FlipMode.Vertical));
-                    Width = (uint)img.Width;
-                    Height = (uint)img.Height;
-                    SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
-                    AllocateEmptyTextImage2D(gl, TextureTargetType, (uint)img.Width, (uint)img.Height);
-                    UploadImageRows(img, gl);
+                    gl.TexSubImage2D(TextureTargetType, 0, 0, 0, Width, Height, InternalPixelFormat, InternalPixelType, data);
                 }
-            }
-            else if (string.IsNullOrEmpty(OriginalFilename))
-            {
-                // Create an empty texture with allocated space (Common for Render Targets)
-                UpdateTextureSize();
             }
             else
             {
-                var resolvedFilename = ResolveTexturePath(OriginalFilename);
-
-                DecoderOptions options = new DecoderOptions();
-                using (var img = Image.Load<Rgba32>(options, resolvedFilename))
-                {
-                    img.Mutate(x => x.Flip(FlipMode.Vertical));
-                    Width = (uint)img.Width;
-                    Height = (uint)img.Height;
-                    SizeInBytes = img.Width * img.Height * (img.PixelType.BitsPerPixel / 4);
-                    AllocateEmptyTextImage2D(gl, TextureTargetType, (uint)img.Width, (uint)img.Height);
-                    UploadImageRows(img, gl);
-                }
+                // Create an empty texture with allocated space (Common for Render Targets)
+                UpdateTextureSize();
             }
         }
 
@@ -254,20 +230,6 @@ namespace Mana
             gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
         }
 
-        private unsafe void UploadImageRows(Image<Rgba32> image, GL gl)
-        {
-            image.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < accessor.Height; y++)
-                {
-                    fixed (void* data = accessor.GetRowSpan(y))
-                    {
-                        gl.TexSubImage2D(TextureTargetType, 0, 0, y, (uint)accessor.Width, 1, InternalPixelFormat, InternalPixelType, data);
-                    }
-                }
-            });
-        }
-
         public virtual void Bind(int channel)
         {
             EnsureOpenGlTexture().Bind(channel);
@@ -286,7 +248,7 @@ namespace Mana
             }
 
 #if MANA_BROWSER
-            // No OpenGL on the browser target (WebGPU-only; see WebPort-Plan.md) -- this
+            // No OpenGL on the browser target (WebGPU-only) -- this
             // legacy per-texture-unit Bind(int) path is OpenGL-only; WebGPU binds
             // textures through its own bind groups instead, never through here.
             throw new PlatformNotSupportedException(

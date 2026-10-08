@@ -4,6 +4,12 @@ name: Build web editor and play, deploy to GitHub Pages
 on:
   push:
     branches: [master]
+    # Notes, docs and photos can't change either app; a push of only those doesn't rebuild.
+    paths-ignore:
+      - "**/*.md"
+      - "DevPhotos/**"
+      - ".gitignore"
+  workflow_dispatch:
 
 # One deploy at a time, the newest winning: two pushes close together otherwise race to Pages.
 concurrency:
@@ -17,14 +23,21 @@ permissions:
 
 jobs:
   build:
+    # The two AOT publishes are most of the run, so they build side by side rather than one after the other.
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - app: editor
+            project: ManaVoxel.Editor.Web
+          - app: play
+            project: ManaVoxel.Web
     runs-on: ubuntu-latest
-    # RunAOTCompilation + the emscripten native build in ManaVoxel.Editor.Web.csproj/ManaVoxel.Web.csproj
-    # are both slow, and this job now publishes both; give it real headroom rather than hitting the
-    # default 6-hour cap's opposite problem of no cap at all silently hanging a stuck build.
+    # RunAOTCompilation + the emscripten native build are slow; give real headroom without letting a
+    # stuck build hang for the default 6 hours.
     timeout-minutes: 60
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      APP_BUNDLE: Artifacts/Bin/${{ matrix.project }}/Release/net10.0/browser-wasm/AppBundle
 
     steps:
       - name: Checkout
@@ -61,40 +74,51 @@ jobs:
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools --skip-manifest-update
 
-      - name: Publish web editor
-        # ManaVoxel.Editor.Web's browser-wasm publish graph currently builds some referenced
-        # projects more than once; keep them serialized so GenerateDepsFile does not race on the
-        # shared browser-wasm output path (for example ManaCore.deps.json).
-        run: dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release -m:1
+      - name: Publish ${{ matrix.app }}
+        # The browser-wasm publish graph builds some referenced projects more than once; keep them
+        # serialized so GenerateDepsFile does not race on the shared output (e.g. ManaCore.deps.json).
+        run: dotnet publish ${{ matrix.project }}/${{ matrix.project }}.csproj -c Release -m:1
 
-      - name: Pre-build asset preview images
-        # Runs before split_for_itch.py: it needs the real model bytes still sitting in
-        # AppBundle/AssetLibrary, and whatever it adds there rides along with everything else once
-        # that step moves the library out to GitHub Pages.
-        run: >
-          dotnet run --project Tools/ThumbnailBaker --
-          --app-bundle Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
-
-      - name: Publish web play
-        run: dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1
-
-      - name: Move both apps' external asset libraries off to a shared GitHub Pages folder
-        # itch.io caps a browser-embedded build's *extracted* size at 500MB; the external asset
-        # library alone is already well past that. It moves to GitHub Pages instead, and each
-        # app's own copy of the catalog is repointed at the same absolute URL there --
-        # ManaAssetCatalog and asset-downloads.js both already handle an absolute blob URL
-        # unchanged, so nothing else about either build needs to know which host it ends up
-        # shipped to. Both apps split into the same --library-out: files are content-hashed, so a
-        # name shared between the editor and play catalogs collides harmlessly (identical bytes).
+      - name: Move the external asset library off to the shared GitHub Pages folder
+        # itch.io caps a browser build's extracted size at 500MB and the asset library alone is past
+        # that, so it is served from GitHub Pages and the app's catalog points there. Both apps split
+        # into the same folder once merged: files are content-hashed, so a shared name is identical bytes.
         run: |
           python Tools/WebAssets/split_for_itch.py \
-            --app-bundle Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle \
-            --library-out pages-site/web-assets/AssetLibrary \
+            --app-bundle "$APP_BUNDLE" \
+            --library-out stage/web-assets/AssetLibrary \
             --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
-          python Tools/WebAssets/split_for_itch.py \
-            --app-bundle Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle \
-            --library-out pages-site/web-assets/AssetLibrary \
-            --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
+          mkdir -p stage/apps
+          mv "$APP_BUNDLE" "stage/apps/${{ matrix.app }}"
+
+      - name: Upload ${{ matrix.app }} build
+        uses: actions/upload-artifact@v7
+        with:
+          name: stage-${{ matrix.app }}
+          path: stage
+          include-hidden-files: true
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: Tools/WebAssets
+
+      - name: Download both builds
+        uses: actions/download-artifact@v8
+        with:
+          pattern: stage-*
+          path: stage
+          merge-multiple: true
 
       - name: Assemble GitHub Pages site
         # Each app's build goes in <app>/v/<build>/, named by <app>/version.json, which index.html reads
@@ -104,10 +128,11 @@ jobs:
         # copy is right. The landing page at the site root is the selector between the apps.
         run: |
           build="${GITHUB_SHA::12}"
-          for pair in "editor:ManaVoxel.Editor.Web" "play:ManaVoxel.Web"; do
-            app="${pair%%:*}"; project="${pair##*:}"
+          mkdir -p pages-site
+          mv stage/web-assets pages-site/web-assets
+          for app in editor play; do
             mkdir -p "pages-site/$app/v/$build"
-            cp -r "Artifacts/Bin/$project/Release/net10.0/browser-wasm/AppBundle/." "pages-site/$app/v/$build/"
+            cp -r "stage/apps/$app/." "pages-site/$app/v/$build/"
             cp "pages-site/$app/v/$build/index.html" "pages-site/$app/index.html"
             echo "{\"build\":\"$build\"}" > "pages-site/$app/version.json"
           done
@@ -123,10 +148,12 @@ jobs:
         uses: actions/deploy-pages@v5
 
       - name: Upload web editor to itch.io
-        uses: KikimoraGames/itch-publish@v0.0.3
+        if: github.repository == 'ManaMarkTea/ManaRenderer'
+        # Pin the action source to the reviewed v0.0.3 commit; this step receives the Butler secret.
+        uses: KikimoraGames/itch-publish@ea06fdc7e36b34a6c4f88b379a73f3362537b998 # v0.0.3
         with:
           butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
-          gameData: Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle
+          gameData: stage/apps/editor
           itchUsername: manamarktea
           itchGameId: mana-editor
           buildChannel: web

@@ -688,23 +688,33 @@ namespace ManaVoxel.Code.Levels
         }
 
         private static readonly System.Text.RegularExpressions.Regex PackReference = new(@"zip:([^/""\\]+\.zip)/", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex PictureReference = new(@"zip:[^""\\]+?\.(?:png|jpe?g)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         private static readonly System.Text.RegularExpressions.Regex SpriteAssetPath = new(@"""assetPath""\s*:\s*""([^""]+\.mana(?:sheet|slice))""", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         /// <summary>The asset packs a script's sprites draw from: named in its own fields, or in the sheets and slices it points at.</summary>
+        private static IEnumerable<string> SpritePacks(ManaLevelScript script) =>
+            SpriteText(script).SelectMany(text => PackReference.Matches(text).Select(match => match.Groups[1].Value))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Each pack picture a script's sprites draw, found the same way.</summary>
+        private static IEnumerable<string> SpritePictures(ManaLevelScript script) =>
+            SpriteText(script).SelectMany(text => PictureReference.Matches(text).Select(match => match.Value))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        // The script's own fields, then the text of each sheet or slice asset it names.
         [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
-        private static IEnumerable<string> SpritePacks(ManaLevelScript script)
+        private static IEnumerable<string> SpriteText(ManaLevelScript script)
         {
             var text = System.Text.Json.JsonSerializer.Serialize(script.Properties);
-            var packs = new HashSet<string>(PackReference.Matches(text).Select(match => match.Groups[1].Value), StringComparer.OrdinalIgnoreCase);
+            yield return text;
             foreach (System.Text.RegularExpressions.Match asset in SpriteAssetPath.Matches(text))
             {
                 var file = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, asset.Groups[1].Value);
                 if (File.Exists(file))
                 {
-                    packs.UnionWith(PackReference.Matches(File.ReadAllText(file)).Select(match => match.Groups[1].Value));
+                    yield return File.ReadAllText(file);
                 }
             }
-            return packs;
         }
 
         public static async Task EnsureAssetsAsync(ManaLevel level)
@@ -735,6 +745,12 @@ namespace ManaVoxel.Code.Levels
                     {
                         try { await catalog.EnsureAsync($"zip:{pack}/"); }
                         catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload sprite pack '{pack}': {ex.Message}"); }
+                    }
+                    // Each picture on its own as well: the browser decodes pictures only ahead of their synchronous load.
+                    foreach (var picture in SpritePictures(script))
+                    {
+                        try { await catalog.EnsureAsync(picture); }
+                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload sprite picture '{picture}': {ex.Message}"); }
                     }
                     if (!string.Equals(script.Type, ManaAudioSourceComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) { continue; }
                     string Text(string key) => script.Properties.FirstOrDefault(pair =>
@@ -875,8 +891,8 @@ namespace ManaVoxel.Code.Levels
 
                 _waterMaskLoadAttempted = true;
                 var mask = new GeoWaterMask();
-                var lakesPath = ResolveAssetPath(Path.Combine("GeoData", "ne_10m_lakes.zip"));
-                var oceanPath = ResolveAssetPath(Path.Combine("GeoData", "ne_10m_ocean.zip"));
+                var lakesPath = ResolveAssetPath(Path.Combine("Assets", "GeoData", "ne_10m_lakes.zip"));
+                var oceanPath = ResolveAssetPath(Path.Combine("Assets", "GeoData", "ne_10m_ocean.zip"));
                 mask.AddLakes(GeoPolygonSet.TryLoadFromZip(lakesPath, "ne_10m_lakes.shp"));
                 mask.Add(GeoPolygonSet.TryLoadFromZip(oceanPath, "ne_10m_ocean.shp"));
                 GeoWaterMask.Shared = mask;

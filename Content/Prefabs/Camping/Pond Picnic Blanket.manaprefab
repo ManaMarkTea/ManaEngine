@@ -1808,9 +1808,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.52,
-          0.3,
-          0.12,
+          0.8,
+          0.62,
+          0.36,
           1
         ],
         "size": [
@@ -1860,42 +1860,6 @@
         }
       },
       {
-        "id": "92b6c0fe90e0472ba60c936d7aa57202",
-        "name": "Basket handle",
-        "kind": "Shape",
-        "position": [
-          1.02,
-          0.65,
-          -0.56
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          0.35,
-          0.42,
-          0.06
-        ],
-        "shape": "Torus",
-        "color": [
-          0.31,
-          0.16,
-          0.075,
-          1
-        ],
-        "size": [
-          1,
-          1,
-          1
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
-      },
-      {
         "id": "f7c1eee2533f40fc964d892f1210cdb1",
         "name": "Cooler",
         "kind": "Shape",
@@ -1916,9 +1880,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.16,
-          0.43,
-          0.48,
+          0.35,
+          0.68,
+          0.85,
           1
         ],
         "size": [
@@ -1955,9 +1919,9 @@
         ],
         "shape": "Cube",
         "color": [
+          0.96,
+          0.95,
           0.9,
-          0.88,
-          0.77,
           1
         ],
         "size": [
@@ -1971,48 +1935,33 @@
         }
       },
       {
-        "id": "a330308e9ee64e0b805ae493ada4edf2",
+        "id": "2f17dbae9cf446dca19c4c782cadf30f",
         "name": "Serving board",
-        "kind": "Shape",
+        "kind": "Mesh",
         "position": [
           0.2,
-          0.08,
+          0.03,
           0
         ],
         "rotation": [
           0,
-          0,
+          1.5707963267948966,
           0
         ],
         "scale": [
-          1,
-          1,
-          1
+          1.0,
+          1.0,
+          1.0
         ],
-        "shape": "Cube",
-        "color": [
-          0.88,
-          0.77,
-          0.49,
-          1
-        ],
-        "size": [
-          0.68,
-          0.05,
-          0.5
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
+        "asset": "zip:kenney_food-kit.zip/Models/GLB format/cutting-board.glb"
       },
       {
         "id": "a567bda5ef164017b8eb4099ac23a94a",
-        "name": "Picnic fruit",
-        "kind": "Shape",
+        "name": "Apple",
+        "kind": "Mesh",
         "position": [
-          0.02,
-          0.2,
+          0.0,
+          0.09,
           -0.1
         ],
         "rotation": [
@@ -2021,35 +1970,20 @@
           0
         ],
         "scale": [
-          0.16,
-          0.18,
-          0.16
+          1.0,
+          1.0,
+          1.0
         ],
-        "shape": "Sphere",
-        "color": [
-          0.85,
-          0.1,
-          0.08,
-          1
-        ],
-        "size": [
-          1,
-          1,
-          1
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
+        "asset": "zip:kenney_food-kit.zip/Models/GLB format/apple.glb"
       },
       {
         "id": "b39d91e1760246c1adfa34dfe20e9969",
-        "name": "Picnic fruit",
-        "kind": "Shape",
+        "name": "Orange",
+        "kind": "Mesh",
         "position": [
-          0.23,
-          0.2,
-          0.07
+          0.22,
+          0.09,
+          0.08
         ],
         "rotation": [
           0,
@@ -2057,34 +1991,19 @@
           0
         ],
         "scale": [
-          0.16,
-          0.18,
-          0.16
+          1.0,
+          1.0,
+          1.0
         ],
-        "shape": "Sphere",
-        "color": [
-          0.75,
-          0.65,
-          0.1,
-          1
-        ],
-        "size": [
-          1,
-          1,
-          1
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
+        "asset": "zip:kenney_food-kit.zip/Models/GLB format/orange.glb"
       },
       {
         "id": "a101e3d4999e4c33af1336e270e2679f",
-        "name": "Picnic fruit",
-        "kind": "Shape",
+        "name": "Pear",
+        "kind": "Mesh",
         "position": [
-          0.4,
-          0.2,
+          0.42,
+          0.09,
           -0.08
         ],
         "rotation": [
@@ -2093,35 +2012,20 @@
           0
         ],
         "scale": [
-          0.16,
-          0.18,
-          0.16
+          1.0,
+          1.0,
+          1.0
         ],
-        "shape": "Sphere",
-        "color": [
-          0.16,
-          0.48,
-          0.14,
-          1
-        ],
-        "size": [
-          1,
-          1,
-          1
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
+        "asset": "zip:kenney_food-kit.zip/Models/GLB format/pear.glb"
       },
       {
         "id": "231b46b902c64fa3aee2c40561ebe7c0",
         "name": "Seat cushion",
-        "kind": "Shape",
+        "kind": "Mesh",
         "position": [
-          -0.85,
-          0.12,
-          0.5
+          -1.15,
+          0.03,
+          0.65
         ],
         "rotation": [
           0,
@@ -2129,35 +2033,20 @@
           0
         ],
         "scale": [
-          1,
-          1,
-          1
+          1.5,
+          1.5,
+          1.5
         ],
-        "shape": "Cube",
-        "color": [
-          0.22,
-          0.4,
-          0.39,
-          1
-        ],
-        "size": [
-          0.65,
-          0.19,
-          0.48
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
+        "asset": "zip:kenney_furniture-kit.zip/Models/GLTF format/benchCushionLow.glb"
       },
       {
         "id": "00805ab0fb454c9dafc41e1b9355d68e",
         "name": "Seat cushion",
-        "kind": "Shape",
+        "kind": "Mesh",
         "position": [
-          -0.75,
-          0.12,
-          -0.55
+          -1.05,
+          0.03,
+          -0.4
         ],
         "rotation": [
           0,
@@ -2165,26 +2054,11 @@
           0
         ],
         "scale": [
-          1,
-          1,
-          1
+          1.5,
+          1.5,
+          1.5
         ],
-        "shape": "Cube",
-        "color": [
-          0.22,
-          0.4,
-          0.39,
-          1
-        ],
-        "size": [
-          0.65,
-          0.19,
-          0.48
-        ],
-        "material": {
-          "metallic": 0,
-          "roughness": 0.85
-        }
+        "asset": "zip:kenney_furniture-kit.zip/Models/GLTF format/benchCushionLow.glb"
       },
       {
         "id": "c124d77d27264765b82f3bd8e4ef7355",
@@ -2207,9 +2081,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.19,
-          0.27,
-          0.31,
+          0.78,
+          0.22,
+          0.18,
           1
         ],
         "size": [
@@ -2257,6 +2131,48 @@
           "metallic": 0,
           "roughness": 0.85
         }
+      },
+      {
+        "id": "41be88b2de674859872df2a0f2c63a68",
+        "name": "Pie",
+        "kind": "Mesh",
+        "position": [
+          -0.05,
+          0.03,
+          0.68
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "asset": "zip:kenney_food-kit.zip/Models/GLB format/pie.glb"
+      },
+      {
+        "id": "b9a4da62107c4c40b2a10e21bb6f8f8a",
+        "name": "Cookie",
+        "kind": "Mesh",
+        "position": [
+          0.4,
+          0.03,
+          0.85
+        ],
+        "rotation": [
+          0,
+          0.4,
+          0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "asset": "zip:kenney_food-kit.zip/Models/GLB format/cookie.glb"
       }
     ]
   },

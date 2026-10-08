@@ -2,7 +2,8 @@ struct PrefilterParams {
     roughness : f32,
     source_resolution : f32,
     sample_count : u32,
-    _pad0 : u32,
+    // 1: diffuse irradiance (cosine-weighted hemisphere) instead of a GGX reflection lobe.
+    mode : u32,
 };
 
 @group(0) @binding(0) var source_sampler : sampler;
@@ -107,6 +108,32 @@ fn prefilter(direction : vec3<f32>) -> vec3<f32> {
     return color / total_weight;
 }
 
+// Cosine-weighted, so the samples' own density carries the n.l weight and a plain average is the irradiance.
+// Read from the prefiltered cube at a level as wide as each sample's share of the hemisphere: a fixed sample
+// count then sees clouds and the sun disc already spread, not as speckle.
+fn irradiance(direction : vec3<f32>) -> vec3<f32> {
+    let n = normalize(direction);
+    let up = select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 0.0, 1.0), abs(n.z) < 0.999);
+    let tangent = normalize(cross(up, n));
+    let bitangent = cross(n, tangent);
+    let sample_count = max(params.sample_count, 1u);
+    let sa_texel = 4.0 * PI / (6.0 * params.source_resolution * params.source_resolution);
+    let sa_sample = 2.0 * PI / f32(sample_count);
+    let mip_level = max(0.0, 0.5 * log2(sa_sample / sa_texel));
+
+    var color = vec3<f32>(0.0);
+    for (var i = 0u; i < sample_count; i = i + 1u) {
+        let xi = hammersley(i, sample_count);
+        let phi = 2.0 * PI * xi.x;
+        let sin_theta = sqrt(xi.y);
+        let cos_theta = sqrt(max(1.0 - xi.y, 0.0));
+        let l = tangent * (cos(phi) * sin_theta) + bitangent * (sin(phi) * sin_theta) + n * cos_theta;
+        color = color + textureSampleLevel(source_cube, source_sampler, l, mip_level).rgb;
+    }
+
+    return color / f32(sample_count);
+}
+
 @compute @workgroup_size(8, 8, 1)
 fn cs_main(@builtin(global_invocation_id) id : vec3<u32>) {
     let destination_size = textureDimensions(destination_cube);
@@ -117,6 +144,11 @@ fn cs_main(@builtin(global_invocation_id) id : vec3<u32>) {
     let pixel = vec2<f32>(f32(id.x) + 0.5, f32(id.y) + 0.5);
     let uv = pixel / vec2<f32>(destination_size) * 2.0 - vec2<f32>(1.0);
     let direction = cube_direction(id.z, uv);
-    let color = prefilter(direction);
+    var color : vec3<f32>;
+    if (params.mode == 1u) {
+        color = irradiance(direction);
+    } else {
+        color = prefilter(direction);
+    }
     textureStore(destination_cube, vec2<i32>(id.xy), i32(id.z), vec4<f32>(color, 1.0));
 }

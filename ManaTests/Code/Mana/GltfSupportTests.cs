@@ -74,8 +74,8 @@ public static class GltfSupportChecks
             ManaGltfSupport.DescribeUnsupported(notGltf) == null,
             ManaGltfSupport.DescribeUnsupported(notGltf) ?? "passed through");
 
-        // Exercise the actual loader, not only the header check. The Khronos sample sets (this Duck
-        // included) ship the same model several times over in sibling "glTF*" folders, so
+        // Exercise the actual loader, not only the header check. Khronos sample sets ship the same
+        // model several times over in sibling "glTF*" folders, so
         // FindSupportedAlternative finds the plain glTF copy and LoadFile succeeds transparently rather
         // than refusing outright -- the refusal path above is what fires for a pack with no such sibling.
         var repository = new DirectoryInfo(AppContext.BaseDirectory);
@@ -86,11 +86,11 @@ public static class GltfSupportChecks
 
         if (repository != null)
         {
-            var duck = Path.Combine(repository.FullName, "Mana", "Assets", "Models", "Duck", "glTF-Draco", "Duck.gltf");
+            var dracoModel = Path.Combine(repository.FullName, "Mana", "Assets", "Models", "Lantern", "glTF-Draco", "Lantern.gltf");
 
-            Check("the shipped Draco Duck has a plain sibling to fall back to",
-                ManaGltfSupport.FindSupportedAlternative(duck) != null,
-                ManaGltfSupport.FindSupportedAlternative(duck) ?? "no sibling found");
+            Check("the shipped Draco Lantern has a plain sibling to fall back to",
+                ManaGltfSupport.FindSupportedAlternative(dracoModel) != null,
+                ManaGltfSupport.FindSupportedAlternative(dracoModel) ?? "no sibling found");
 
             var world = new ManaWorld();
             var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
@@ -100,14 +100,14 @@ public static class GltfSupportChecks
             ManaSceneNode? loaded = null;
             try
             {
-                loaded = loader.LoadFile(duck);
+                loaded = loader.LoadFile(dracoModel);
             }
             catch (Exception ex)
             {
                 caught = ex;
             }
 
-            Check("and importing the Draco file itself succeeds via that sibling",
+            Check("and importing the Draco Lantern itself succeeds via that sibling",
                 caught == null && loaded != null,
                 caught?.Message ?? "loaded");
         }

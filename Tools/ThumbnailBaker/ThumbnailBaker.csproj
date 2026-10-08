@@ -16,8 +16,7 @@
     <!-- Plain reference, no RuntimeIdentifier override: this needs the ordinary desktop-targeted
          ManaVoxel assembly (MeshThumbnailCache, ManaSharpGltfLoader, the CPU rasterizer), the same one
          ManaTests already builds against for its own headless mesh/thumbnail suites. Never published
-         itself; run directly off a source build as part of the web publish pipeline (see
-         .github/workflows/build-web.yml). -->
+         itself; run offline off a source build by Tools/WebAssets/bake_thumbnails.py. -->
     <ProjectReference Include="..\..\ManaVoxel\ManaVoxel.csproj" />
   </ItemGroup>
 

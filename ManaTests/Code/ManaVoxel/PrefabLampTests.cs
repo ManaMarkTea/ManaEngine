@@ -183,7 +183,7 @@ public static class PrefabLampChecks
             Environment.CurrentDirectory = scratch;
             var lampPath = Path.Combine(scratch, "Content", "Prefabs", "Lamp.manaprefab");
             var bluePath = Path.Combine(scratch, "Content", "Prefabs", "Blue Lamp.manaprefab");
-            check("the copies are the ones read", Path.GetFullPath(ManaContentLibrary.Root) == Path.GetFullPath(Path.Combine(scratch, "Content")), ManaContentLibrary.Root);
+            check("the copies are the ones read", ManaProjectFolder.CanonicalPath(ManaContentLibrary.Root) == ManaProjectFolder.CanonicalPath(Path.Combine(scratch, "Content")), ManaContentLibrary.Root);
 
             // The base changes: the variant follows it, and keeps the one thing it changed.
             var lamp = ManaPrefab.Load(lampPath);

@@ -1,9 +1,8 @@
 // Mirrors the subset of ManaVoxel/Program.cs's project-wide `global using` directives that the
 // source files linked in from ManaVoxel (see ManaVoxel.Web.csproj) rely on. Those files are
 // compiled here without ManaVoxel's Program.cs, so without this they lose usings they have always
-// silently depended on -- exactly the trap documented in WebPort-Plan.md for Mana.csproj, where
-// excluding Program.cs quietly deleted the global usings and produced a long tail of
-// "type not found" errors that looked like missing references.
+// silently depended on. Keep the aliases here when linking more ManaVoxel source files, or the
+// compiler can report misleading "type not found" errors that look like missing references.
 //
 // Deliberately only the browser-safe entries: ManaVoxel's list also globals in editor/loader
 // namespaces that have no browser-wasm build.

@@ -1,10 +1,8 @@
 using System.Security.Cryptography;
 using ManaCore.Graphics;
+using ManaCore.Imaging;
 using ManaGraphics.Code.Diagnostics;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using Silk.NET.WebGPU;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -128,24 +126,19 @@ namespace ManaGraphics.Code.Graphics
             uint width;
             uint height;
 
-            if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
+            if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath)
+                && TryDecode(() => ManaImageCodec.Load(cpuData.AlbedoTexturePath)) is { } image)
             {
-                using var image = ImageSharpImage.Load<Rgba32>(cpuData.AlbedoTexturePath);
-                image.Mutate(x => x.Flip(FlipMode.Vertical));
                 width = (uint)image.Width;
                 height = (uint)image.Height;
-                pixels = new byte[image.Width * image.Height * 4];
-                image.CopyPixelDataTo(pixels);
+                pixels = image.Pixels;
                 ManaConsole.WriteDiagnostic($"WebGPU mesh texture loaded: {cpuData.AlbedoTexturePath}");
             }
-            else if (cpuData.AlbedoTextureBytes is { Length: > 0 } embeddedBytes)
+            else if (cpuData.AlbedoTextureBytes is { Length: > 0 } embeddedBytes && TryDecode(() => ManaImageCodec.Load(embeddedBytes)) is { } embedded)
             {
-                using var image = ImageSharpImage.Load<Rgba32>(embeddedBytes);
-                image.Mutate(x => x.Flip(FlipMode.Vertical));
-                width = (uint)image.Width;
-                height = (uint)image.Height;
-                pixels = new byte[image.Width * image.Height * 4];
-                image.CopyPixelDataTo(pixels);
+                width = (uint)embedded.Width;
+                height = (uint)embedded.Height;
+                pixels = embedded.Pixels;
                 ManaConsole.WriteDiagnostic($"WebGPU mesh texture loaded from embedded bytes ({embeddedBytes.Length} bytes).");
             }
             else
@@ -188,19 +181,30 @@ namespace ManaGraphics.Code.Graphics
                 ? TextureFormat.Rgba8UnormSrgb
                 : TextureFormat.Rgba8Unorm;
 
-            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path) && TryDecode(() => ManaImageCodec.Load(path)) is { } image)
             {
-                using var image = ImageSharpImage.Load<Rgba32>(path);
-                image.Mutate(x => x.Flip(FlipMode.Vertical));
-
-                var loaded = new byte[image.Width * image.Height * 4];
-                image.CopyPixelDataTo(loaded);
-
-                CreateRgba8Texture(loaded, (uint)image.Width, (uint)image.Height, kind.ToString(), format, out texture, out textureView);
+                CreateRgba8Texture(image.Pixels, (uint)image.Width, (uint)image.Height, kind.ToString(), format, out texture, out textureView);
                 return;
             }
 
             CreateRgba8Texture(NeutralPixel(kind), 1, 1, $"{kind} fallback", format, out texture, out textureView);
+        }
+
+        /// <summary>
+        /// A texture's picture flipped for GPU texture coordinates, or null when it cannot be read -- or, in the
+        /// browser, is not decoded yet -- so the mesh draws with the neutral map rather than failing the frame.
+        /// </summary>
+        private static ManaImage? TryDecode(Func<ManaImage> load)
+        {
+            try
+            {
+                return load().FlipVertical();
+            }
+            catch (InvalidDataException exception)
+            {
+                ManaConsole.WriteDiagnostic($"WebGPU texture unreadable: {exception.Message}");
+                return null;
+            }
         }
 
         /// <summary>The value that leaves a channel exactly as its scalar left it.</summary>

@@ -13,7 +13,7 @@ namespace Mana.Code
         public GL gl => RequireOpenGl();
         public GL? OpenGl => (GraphicsDevice as IOpenGlGraphicsDevice)?.Gl;
 #else
-        // No OpenGL on the browser target at all (WebGPU-only; see WebPort-Plan.md) --
+        // No OpenGL on the browser target at all (WebGPU-only) --
         // always null, matching the existing "this ManaContext has no OpenGL context"
         // case every caller already checks for on desktop.
         public GL? OpenGl => null;

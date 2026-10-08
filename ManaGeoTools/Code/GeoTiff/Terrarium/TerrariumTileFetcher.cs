@@ -1,5 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ManaCore.Imaging;
 
 namespace ManaGeoTools.Code.GeoTiff.Terrarium
 {
@@ -68,9 +67,10 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
 
             try
             {
+                await ManaImageCodec.PrepareAsync(pngBytes);
                 return DecodeTile(zoom, tileX, tileY, pngBytes);
             }
-            catch (Exception ex) when (ex is UnknownImageFormatException or InvalidImageContentException)
+            catch (InvalidDataException ex)
             {
                 Console.WriteLine($"[Terrarium] Failed to decode tile {zoom}/{tileX}/{tileY}: {ex.Message}");
                 return null;
@@ -124,26 +124,22 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
 
         private static TerrariumHeightTile DecodeTile(int zoom, int tileX, int tileY, byte[] pngBytes)
         {
-            using var image = Image.Load<Rgba32>(pngBytes);
+            var image = ManaImageCodec.Load(pngBytes);
             var heights = new float[TerrariumHeightTile.TileSize * TerrariumHeightTile.TileSize];
-
-            image.ProcessPixelRows(accessor =>
+            var pixels = image.Pixels;
+            for (var y = 0; y < Math.Min(image.Height, TerrariumHeightTile.TileSize); y++)
             {
-                for (var y = 0; y < accessor.Height; y++)
+                for (var x = 0; x < Math.Min(image.Width, TerrariumHeightTile.TileSize); x++)
                 {
-                    var row = accessor.GetRowSpan(y);
-                    for (var x = 0; x < row.Length; x++)
-                    {
-                        var pixel = row[x];
-                        var elevation = pixel.R * 256f + pixel.G + pixel.B / 256f - 32768f;
-                        // Out-of-range decodes are treated as "no data" (0m), the same convention
-                        // GeoTiff.GetHeightAtLatLong already uses for its own no-data case -- rather
-                        // than applying the sentinel directly as a genuine, absurdly tall/deep spike.
-                        heights[y * TerrariumHeightTile.TileSize + x] =
-                            elevation is >= MinPlausibleElevationMeters and <= MaxPlausibleElevationMeters ? elevation : 0f;
-                    }
+                    var i = (y * image.Width + x) * 4;
+                    var elevation = pixels[i] * 256f + pixels[i + 1] + pixels[i + 2] / 256f - 32768f;
+                    // Out-of-range decodes are treated as "no data" (0m), the same convention
+                    // GeoTiff.GetHeightAtLatLong already uses for its own no-data case -- rather
+                    // than applying the sentinel directly as a genuine, absurdly tall/deep spike.
+                    heights[y * TerrariumHeightTile.TileSize + x] =
+                        elevation is >= MinPlausibleElevationMeters and <= MaxPlausibleElevationMeters ? elevation : 0f;
                 }
-            });
+            }
 
             return new TerrariumHeightTile(zoom, tileX, tileY, heights);
         }

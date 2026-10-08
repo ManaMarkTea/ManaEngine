@@ -9,11 +9,9 @@ using Mana.Code.Shapes;
 using Mana.Code.Shapes.Loaders;
 using ManaCore.Diagnostics;
 using ManaCore.Graphics;
+using ManaCore.Imaging;
 using ManaGraphics.Code.Graphics;
 using ManaVoxel.Code.Services;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -62,10 +60,10 @@ namespace ManaVoxel.Code.Assets
         // WebGPU, so cached sideways fallback renders regenerate.
         // 9: imported node rotations now preserve their authored axis when glTF quaternions are decomposed
         // into Mana's X=pitch, Y=yaw, Z=roll Euler convention.
-        private const int CacheFormatVersion = 9;
-
-        private const int BytesPerPixel = 4;
-        private static readonly int ExpectedByteCount = ThumbnailSize * ThumbnailSize * BytesPerPixel;
+        // 10: a preview mixing materials (a prefab of shapes and textured models) bakes each part's colour
+        // instead of sampling the first part's texture everywhere.
+        // 11: CPU previews light in linear space like the GPU ones, so they are no longer darker than them.
+        public const int CacheFormatVersion = 11;
 
         private readonly ManaContext _context;
         private readonly ManaWebGpuContext? _webGpuContext;
@@ -572,25 +570,22 @@ namespace ManaVoxel.Code.Assets
         {
             try
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(file);
+                var image = ManaImageCodec.Load(file);
                 columns = Math.Max(1, columns);
                 rows = Math.Max(1, rows);
                 var width = Math.Max(1, image.Width / columns);
                 var height = Math.Max(1, image.Height / rows);
                 var cell = Math.Clamp(frame, 0, columns * rows - 1);
-                image.Mutate(context => context.Crop(new SixLabors.ImageSharp.Rectangle(cell % columns * width, cell / columns * height, width, height)));
+                image = image.Cropped(cell % columns * width, cell / columns * height, width, height);
                 var fit = (int)(ThumbnailSize * 0.84f);
                 var scale = MathF.Min((float)fit / image.Width, (float)fit / image.Height);
-                image.Mutate(context => context.Resize(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale))));
+                image = image.Resized(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale)));
 
-                using var canvas = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(ThumbnailSize, ThumbnailSize);
-                var at = new SixLabors.ImageSharp.Point((ThumbnailSize - image.Width) / 2, (ThumbnailSize - image.Height) / 2);
-                canvas.Mutate(context => context.DrawImage(image, at, 1.0f));
-                var pixels = new byte[ThumbnailSize * ThumbnailSize * 4];
-                canvas.CopyPixelDataTo(pixels);
-                return pixels;
+                var canvas = new ManaImage(ThumbnailSize, ThumbnailSize);
+                canvas.Draw(image, (ThumbnailSize - image.Width) / 2, (ThumbnailSize - image.Height) / 2);
+                return canvas.Pixels;
             }
-            catch (Exception exception) when (exception is IOException or SixLabors.ImageSharp.ImageFormatException)
+            catch (Exception exception) when (exception is IOException or InvalidDataException)
             {
                 return null;
             }
@@ -712,6 +707,17 @@ namespace ManaVoxel.Code.Assets
             byte[]? albedoTextureBytes = null;
             Vector4? albedoFactor = null;
 
+            // Parts with different materials (a prefab of plain shapes and textured models) cannot share one
+            // texture: a shape would sample the model's palette at its own UVs and come out as noise. Each
+            // part's texture and factor are baked into its vertex colours instead.
+            var first = placements[0].Mesh.CpuData ?? placements[0].Mesh.GetOrCreateCpuData();
+            var mixedMaterials = placements.Any(placement =>
+            {
+                var other = placement.Mesh.CpuData ?? placement.Mesh.GetOrCreateCpuData();
+                return !ReferenceEquals(other.AlbedoTextureBytes, first.AlbedoTextureBytes) || other.AlbedoFactor != first.AlbedoFactor;
+            });
+            var bakedTextures = new Dictionary<byte[], ManaImage?>(ReferenceEqualityComparer.Instance);
+
             foreach (var (mesh, transform) in placements)
             {
                 var part = mesh.CpuData ?? mesh.GetOrCreateCpuData();
@@ -735,6 +741,10 @@ namespace ManaVoxel.Code.Assets
                         ? Vector3.TransformNormal(part.Normals[i], normalTransform).Normalized()
                         : Vector3.UnitY;
                     colors[vertexOffset + i] = i < part.Colors.Length ? part.Colors[i] : Vector4.One;
+                    if (mixedMaterials)
+                    {
+                        colors[vertexOffset + i] = BakedColor(part, i, bakedTextures);
+                    }
                     uv0[vertexOffset + i] = i < part.TextureCoordinates0.Length ? part.TextureCoordinates0[i] : Vector2.Zero;
                     uv1[vertexOffset + i] = i < part.TextureCoordinates1.Length ? part.TextureCoordinates1[i] : Vector2.Zero;
                 }
@@ -749,7 +759,7 @@ namespace ManaVoxel.Code.Assets
                 // The first part's material stands in for the whole preview, same trade the Assimp path
                 // makes: ManaMeshCpuData carries one albedo, and a multi-part character has no single
                 // correct answer for which of its several materials that should be.
-                if (albedoTextureBytes == null && albedoFactor == null)
+                if (!mixedMaterials && albedoTextureBytes == null && albedoFactor == null)
                 {
                     albedoTextureBytes = part.AlbedoTextureBytes;
                     albedoFactor = part.AlbedoFactor;
@@ -768,6 +778,44 @@ namespace ManaVoxel.Code.Assets
                 AlbedoTextureBytes = albedoTextureBytes,
                 AlbedoFactor = albedoFactor
             };
+        }
+
+        /// <summary>One vertex's colour with its part's albedo texture and factor folded in, for a preview mixing materials.</summary>
+        private static Vector4 BakedColor(ManaMeshCpuData part, int vertex, Dictionary<byte[], ManaImage?> decoded)
+        {
+            var color = vertex < part.Colors.Length ? part.Colors[vertex] : Vector4.One;
+            if (part.AlbedoFactor is { } factor)
+            {
+                color *= factor;
+            }
+
+            if (part.AlbedoTextureBytes is { Length: > 0 } bytes && vertex < part.TextureCoordinates0.Length)
+            {
+                if (!decoded.TryGetValue(bytes, out var image))
+                {
+                    try
+                    {
+                        // Flipped like the rasterizer's own decode: the loaders store V already flipped.
+                        image = ManaImageCodec.Load(bytes).FlipVertical();
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        image = null;
+                    }
+                    decoded[bytes] = image;
+                }
+
+                if (image != null)
+                {
+                    var uv = part.TextureCoordinates0[vertex];
+                    var x = Math.Clamp((int)((uv.X - MathF.Floor(uv.X)) * image.Width), 0, image.Width - 1);
+                    var y = Math.Clamp((int)((uv.Y - MathF.Floor(uv.Y)) * image.Height), 0, image.Height - 1);
+                    var offset = ((y * image.Width) + x) * 4;
+                    color *= new Vector4(image.Pixels[offset] / 255.0f, image.Pixels[offset + 1] / 255.0f, image.Pixels[offset + 2] / 255.0f, image.Pixels[offset + 3] / 255.0f);
+                }
+            }
+
+            return color;
         }
 
         private static void CollectMeshPlacements(
@@ -797,7 +845,9 @@ namespace ManaVoxel.Code.Assets
         /// Cache file name. Includes the asset's size and write time, so an edited model regenerates rather
         /// than showing a preview of what it used to look like -- a hash of the path alone would not notice.
         /// </summary>
-        private string CacheFileFor(string assetPath)
+        private string CacheFileFor(string assetPath) => CacheFileFor(_cacheDirectory, assetPath);
+
+        private static string CacheFileFor(string cacheDirectory, string assetPath)
         {
             var stamp = string.Empty;
             try
@@ -815,7 +865,7 @@ namespace ManaVoxel.Code.Assets
 
             var key = $"{CacheFormatVersion}|{ThumbnailSize}|{assetPath}|{stamp}";
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
-            return Path.Combine(_cacheDirectory, $"{hash[..32]}.thumb");
+            return Path.Combine(cacheDirectory, $"{hash[..32]}.thumb");
         }
 
         /// <summary>
@@ -835,7 +885,7 @@ namespace ManaVoxel.Code.Assets
         {
             try
             {
-                using var image = Image.Load<Rgba32>(file);
+                var image = ManaImageCodec.Load(file);
 
                 // A size mismatch is a half-written or otherwise unusable file; regenerating (or, for a
                 // pre-built preview, falling back to Generate) is the fix, and handing a wrongly-sized
@@ -845,30 +895,27 @@ namespace ManaVoxel.Code.Assets
                     return null;
                 }
 
-                var pixels = new byte[ExpectedByteCount];
-                image.CopyPixelDataTo(pixels);
-                return pixels;
+                return image.Pixels;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ImageFormatException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 return null;
             }
         }
 
-        private void SaveToDisk(string assetPath, byte[] pixels)
+        private void SaveToDisk(string assetPath, byte[] pixels) => WriteCacheFile(_cacheDirectory, assetPath, pixels);
+
+        private static void WriteCacheFile(string cacheDirectory, string assetPath, byte[] pixels)
         {
             try
             {
-                Directory.CreateDirectory(_cacheDirectory);
-                var file = CacheFileFor(assetPath);
+                Directory.CreateDirectory(cacheDirectory);
+                var file = CacheFileFor(cacheDirectory, assetPath);
 
                 // Written beside the target and moved into place, so a crash mid-write cannot leave a
                 // half-file that later reads as a valid cache entry.
                 var temporary = file + ".tmp";
-                using (var image = Image.LoadPixelData<Rgba32>(pixels, ThumbnailSize, ThumbnailSize))
-                {
-                    image.SaveAsPng(temporary);
-                }
+                ManaImageCodec.SavePng(new ManaImage(ThumbnailSize, ThumbnailSize, pixels), temporary);
 
                 File.Move(temporary, file, overwrite: true);
             }
@@ -876,6 +923,109 @@ namespace ManaVoxel.Code.Assets
             {
                 ManaLog.WriteDiagnostic($"[Thumbnails] could not cache '{Path.GetFileName(assetPath)}': {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Fills the disk cache for everything the Import and Project panels show, so a fresh checkout (or a new
+        /// pack) opens with every thumbnail ready instead of rendering them one at a time as tiles scroll into view.
+        /// Headless and on every core, so these are the CPU renders the web previews are baked with.
+        /// </summary>
+        public static (int Made, int Cached, int Failed) PrecacheLibrary(Action<string> report)
+        {
+            var library = new MeshAssetLibrary();
+            library.RequestScan(force: true);
+            while (library.IsScanning)
+            {
+                Thread.Sleep(20);
+            }
+            library.PollScan();
+
+            var assets = library.FilteredEntries.Select(entry => entry.PrimaryPath)
+                .Concat(ManaContentLibrary.List().Select(entry => entry.Path).Where(IsContentAsset))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var cacheDirectory = DefaultCacheDirectory();
+            report($"Thumbnails: {assets.Count} assets, cache {cacheDirectory}");
+
+            int made = 0, cached = 0, failed = 0, done = 0;
+            var retry = new ConcurrentBag<string>();
+            var lastReport = Environment.TickCount64;
+            Parallel.ForEach(
+                assets,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                // One throwaway context per worker: a loader shares state through its context.
+                () =>
+                {
+                    var world = new ManaWorld();
+                    var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+                    world.Context = context;
+                    return context;
+                },
+                (path, _, context) =>
+                {
+                    if (File.Exists(CacheFileFor(cacheDirectory, path)))
+                    {
+                        Interlocked.Increment(ref cached);
+                    }
+                    else
+                    {
+                        if (TryMake(context, path, cacheDirectory))
+                        {
+                            Interlocked.Increment(ref made);
+                        }
+                        else
+                        {
+                            retry.Add(path);
+                        }
+                    }
+
+                    var count = Interlocked.Increment(ref done);
+                    var now = Environment.TickCount64;
+                    if (now - Interlocked.Read(ref lastReport) > 2000)
+                    {
+                        Interlocked.Exchange(ref lastReport, now);
+                        report($"  {count}/{assets.Count}");
+                    }
+                    return context;
+                },
+                _ => { });
+
+            // A few loaders share static state and collide when run side by side; alone they are fine.
+            var soloWorld = new ManaWorld();
+            var soloContext = new ManaContext(null!, null!, soloWorld) { DeferGpuUploads = true };
+            soloWorld.Context = soloContext;
+            foreach (var path in retry)
+            {
+                if (TryMake(soloContext, path, cacheDirectory, report))
+                {
+                    made++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+
+            report($"Thumbnails: {made} made, {cached} already cached, {failed} without a preview.");
+            return (made, cached, failed);
+        }
+
+        private static bool TryMake(ManaContext context, string path, string cacheDirectory, Action<string>? reportFailure = null)
+        {
+            try
+            {
+                if (GenerateViaCpuStandalone(context, path) is { } pixels)
+                {
+                    WriteCacheFile(cacheDirectory, path, pixels);
+                    return true;
+                }
+            }
+            catch (Exception exception)
+            {
+                reportFailure?.Invoke($"  failed {MeshAssetLibrary.DisplayName(path)}: {exception.Message}");
+            }
+
+            return false;
         }
 
         public void Dispose()

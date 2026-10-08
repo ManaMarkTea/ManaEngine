@@ -26,6 +26,9 @@ namespace ManaVoxel.Code.Gameplay.Course
 
         private static readonly Vector4 MarkerColor = new(1.0f, 0.55f, 0.1f, 1.0f);
 
+        // Every enemy in play, so a projectile can find what it hit without walking the scene.
+        private static readonly List<EnemyComponent> Active = new();
+
         private readonly EditorVolumeMarker _beatEnd;
         private readonly HiddenMeshes _hidden = new();
 
@@ -91,6 +94,10 @@ namespace ManaVoxel.Code.Gameplay.Course
             _hideAfterSeconds = 0.0f;
             _playingClip = null;
             Owner.Context.World.GameState.RegisterEnemy();
+            lock (Active)
+            {
+                Active.Add(this);
+            }
             // The route's end marker is an editor aid; left up, it would ride along beside the enemy all game.
             _beatEnd.Update(false, BeatEndSize, Vector3.Zero, MarkerColor);
             _startFlip = Owner.GetComponent<Mana.Code.Components.ManaSpriteBase>()?.FlipX;
@@ -98,6 +105,11 @@ namespace ManaVoxel.Code.Gameplay.Course
 
         public override void EndPlay()
         {
+            lock (Active)
+            {
+                Active.Remove(this);
+            }
+
             Owner.Position = _start;
             if (_startFlip is { } flip && Owner.GetComponent<Mana.Code.Components.ManaSpriteBase>() is { } sprite)
             {
@@ -167,6 +179,68 @@ namespace ManaVoxel.Code.Gameplay.Course
             }
 
             state.Damage(Damage, Owner.Name, ManaDeathFlavor.Enemy);
+        }
+
+        /// <summary>
+        /// Defeats the first living enemy of <paramref name="world"/> that the segment from <paramref name="from"/>
+        /// to <paramref name="to"/> passes through, as a thrown or shot thing would. Judged in the XY plane, since
+        /// a side-on shot has no depth to miss by.
+        /// </summary>
+        public static bool TryShoot(ManaWorld world, Vector3 from, Vector3 to)
+        {
+            EnemyComponent[] enemies;
+            lock (Active)
+            {
+                enemies = Active.ToArray();
+            }
+
+            var state = world.GameState;
+            foreach (var enemy in enemies)
+            {
+                if (enemy.IsDefeated || !ReferenceEquals(enemy.Owner.Context.World, world) || state.Status != ManaGameStatus.Playing)
+                {
+                    continue;
+                }
+
+                var centre = enemy.Owner.WorldTransform.Translation + enemy.Offset;
+                var half = enemy.Size * 0.5f;
+                if (!SegmentCrossesBox(from.X, from.Y, to.X, to.Y, centre.X, centre.Y, half.X, half.Y))
+                {
+                    continue;
+                }
+
+                enemy.IsDefeated = true;
+                enemy._chasing = false;
+                enemy.Defeat();
+                state.DefeatEnemy();
+                Mana.Code.Audio.ManaAudioCueRouter.EmitAt(enemy.Owner, ManaCore.Audio.ManaSoundCue.EnemyDefeat);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Slab test of a segment against a box centred on (cx, cy) with the given half extents.</summary>
+        public static bool SegmentCrossesBox(float x0, float y0, float x1, float y1, float cx, float cy, float halfX, float halfY)
+        {
+            var enter = 0.0f;
+            var exit = 1.0f;
+            return Slab(x0, x1 - x0, cx - halfX, cx + halfX, ref enter, ref exit)
+                && Slab(y0, y1 - y0, cy - halfY, cy + halfY, ref enter, ref exit);
+        }
+
+        private static bool Slab(float start, float delta, float min, float max, ref float enter, ref float exit)
+        {
+            if (MathF.Abs(delta) < 1e-6f)
+            {
+                return start >= min && start <= max;
+            }
+
+            var a = (min - start) / delta;
+            var b = (max - start) / delta;
+            enter = MathF.Max(enter, MathF.Min(a, b));
+            exit = MathF.Min(exit, MathF.Max(a, b));
+            return enter <= exit;
         }
 
         /// <summary>Whether a player whose feet are at <paramref name="feetY"/> is landing on a head at <paramref name="topY"/>.</summary>

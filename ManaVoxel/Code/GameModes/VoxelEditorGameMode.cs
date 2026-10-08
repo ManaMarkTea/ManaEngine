@@ -51,7 +51,6 @@ namespace Mana.Code.GameModes
         private static readonly Vector4 PatchUpresDoneOutlineColor = new(0.25f, 0.85f, 0.25f, 1.0f);
         private static readonly Vector4 PatchUpresFailedOutlineColor = new(0.9f, 0.2f, 0.2f, 1.0f);
 
-        public ManaSceneNode Cursor { get; private set; } = null!;
         private ManaSceneNode? _lightningBall = null;
         private ManaSceneNode? _liquidBall = null;
 
@@ -234,30 +233,6 @@ namespace Mana.Code.GameModes
                     bool rounded = ManaUi?.Root?.Theme?.Kind == UiThemeKind.Lcars;
                     BuildGridRoom(rounded);
 
-                    var shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
-
-                    lock (world.SceneLock)
-                    {
-                        Cursor = shapes.AddSphere(new Vector3(64, 3, 64), Colors.White, 1.0f);
-                        Cursor.Name = "CursorBall";
-
-                        // Demo scenery, not level content: the shape factory tags everything it builds so
-                        // placed props round-trip, and these are the ones the game mode puts there itself.
-                        // Left tagged they would be saved into every level and then loaded a second time on
-                        // top of the copies this code always makes. See ManaLevelSource.
-                        Cursor.LevelSource = null;
-
-                        // A donut that spins and bobs like a pickup. Its motion component has no inspector
-                        // widget on purpose: selecting this is the standing demonstration that the
-                        // reflection fallback turns a plain component into a working editor.
-                        var pickup = shapes.AddTorus(new Vector3(60, 1.5f, 60), Colors.Gold, 2.0f);
-                        pickup.Name = "Pickup Donut";
-                        pickup.Components.Add(new ManaPickupMotionComponent(pickup));
-                        pickup.LevelSource = null;
-                    }
-
-                    _pickingExclusions.Add(Cursor);
-
                     // Probe for optional KML placemarks. Deliberately only
                     // a file-existence check -- the actual parse/mesh build happens lazily the first time
                     // View > Show Airspace (KML) is switched on, so startup never pays for an overlay
@@ -265,6 +240,7 @@ namespace Mana.Code.GameModes
                     Loading.Report(new ManaLoadingProgress("Checking for KML placemarks", 0.9f));
                     _planetScenery.ProbeKmlAirspace();
 
+                    Loading.Report(new ManaLoadingProgress("Starting graphics renderer", 0.9f));
                     LoadingCoordinator.CompleteBackgroundWork();
                 }
                 catch (Exception ex)
@@ -277,13 +253,6 @@ namespace Mana.Code.GameModes
 
         protected override void OnLoadingComplete()
         {
-            if (Cursor.Components[0] is MeshRendererComponent renderer)
-            {
-                var cursorMaterial = renderer.DynamicMaterial;
-                cursorMaterial.Name = "Cursor Material";
-                cursorMaterial.Shader = new ManaLiquidShader(Context);
-            }
-
             if (_lightningBall?.Components[0] is MeshRendererComponent lightningRenderer)
             {
                 var lightningMaterial = lightningRenderer.DynamicMaterial;
@@ -332,8 +301,6 @@ namespace Mana.Code.GameModes
                 environmentLoading.Status,
                 0.95f + environmentLoading.Fraction * 0.05f));
         }
-
-        private const string PlanetDetailCacheFolder = @"C:\Users\night\Code\ManaAirSpace\Textures\HeightMaps\ETOPO2022";
 
         // A planet/region inspector hook and a background terrain-cache-size reader used to sit here,
         // both feeding the ImGui SceneInspectorPanelView. ManaUI's TerrainCacheWidget and PlanetWidget are
@@ -711,8 +678,6 @@ namespace Mana.Code.GameModes
             {
                 var pos = VoxelRasterizer.SnapHitToAdjacentCenter(hit.Position, hit.Normal);
 
-                Cursor.Position = pos;
-                Cursor.UpdateTransform();
                 _viewModel.SetHoveredVoxel(pos, hit.Normal, Context.World.MainCamera.Owner.Position);
                 toolPoint = new VoxelToolPoint(pos, hit.Normal);
 
@@ -778,8 +743,6 @@ namespace Mana.Code.GameModes
             // The mirror of the placement cursor: this steps INTO the surface, landing on the voxel that
             // was actually hit rather than the empty cell beside it that Stroke/Line/etc would place into.
             var occupiedPos = VoxelRasterizer.SnapHitToOccupiedCenter(hit.Position, hit.Normal);
-            Cursor.Position = occupiedPos;
-            Cursor.UpdateTransform();
             _viewModel.SetHoveredVoxel(occupiedPos, hit.Normal, Context.World.MainCamera.Owner.Position);
 
             var justPressed = leftMouseDown && !_directEditPointerWasDown;

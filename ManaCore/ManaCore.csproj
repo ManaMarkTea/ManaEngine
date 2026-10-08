@@ -2,10 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- Lets restore compute a browser-wasm graph too, needed for ManaVoxel.Web's
-         ProjectReferences (SetTargetFramework="...;RuntimeIdentifier=browser-wasm") to
-         resolve at all; see WebPort-Plan.md M8. Doesn't change anything about how this
-         project builds normally. -->
+        <!-- Lets restore compute a browser-wasm graph for RID-specific web-host ProjectReferences
+          using SetTargetFramework. Doesn't change normal desktop builds. -->
     <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -21,6 +19,12 @@
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <!-- ManaImageCodec decodes and encodes with ImageSharp on desktop; the browser decodes with its own
+       image decoder instead (ManaImageCodec.Browser.cs), so the web builds never compile ImageSharp. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
 
 </Project>

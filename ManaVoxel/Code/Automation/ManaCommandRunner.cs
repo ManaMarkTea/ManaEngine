@@ -1,5 +1,6 @@
 using Mana.Code.GameModes;
 using Mana.Code.Nodes;
+using ManaVoxel.Code.Gameplay.Course;
 using ManaVoxel.Code.GridMaps;
 using ManaVoxel.Code.UI;
 
@@ -158,6 +159,18 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "bow":
+                        // Holds the bow's fire key (name "hold", "hold_up" for a high shot) or lets go ("release").
+                        BowComponent.SetHoldFire(_context.World, command.Name is "hold" or "hold_up", command.Name == "hold_up");
+                        _index++;
+                        break;
+
+                    case "import_filter":
+                        // Types into the Import panel's filter box, to bring one pack's models into view.
+                        ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.MeshAssets.Filter = command.Name ?? string.Empty;
+                        _index++;
+                        break;
+
                     case "log_player":
                         // Where the player is and whether it stands, for a scripted check of a level's footing.
                         if (_context.World.GameState.Player is { } logged)
@@ -173,23 +186,57 @@ namespace ManaVoxel.Code.Automation
                         _index++;
                         break;
 
+                    case "wind":
+                        // position: [speed m/s, direction in degrees clockwise from -Z, gustiness 0..1]; any can be left off.
+                        var windSettings = _context.World.IrradianceSettings;
+                        if (command.Position is { Length: > 0 } windValues)
+                        {
+                            windSettings.WindSpeed = windValues[0];
+                            if (windValues.Length > 1)
+                            {
+                                windSettings.WindDirection = windValues[1];
+                            }
+                            if (windValues.Length > 2)
+                            {
+                                windSettings.Gustiness = windValues[2];
+                            }
+                        }
+                        _index++;
+                        break;
+
                     case "sky":
                         // The sky mode by name; a time of day holds the cycle still there, for a screenshot.
+                        var sky = _context.World.IrradianceSettings;
                         if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(command.Name, true, out var skyMode))
                         {
-                            _context.World.IrradianceSettings.Sky = skyMode;
+                            sky.Sky = skyMode;
+                        }
+                        if (command.SkyDateTime is { } skyDateTime)
+                        {
+                            sky.SkyDateTime = skyDateTime;
+                            sky.TimeSpeed = 0.0f;
+                            sky.RealTime = false;
+                            sky.TimeOfDay = sky.DaySystem == ManaCore.Graphics.ManaSkyDaySystem.Sidereal
+                                ? ManaCore.Graphics.ManaSky.SiderealPhaseAt(skyDateTime)
+                                : ManaCore.Graphics.ManaSky.PhaseAt(skyDateTime.TimeOfDay.TotalHours);
                         }
                         if (command.TimeOfDay is { } timeOfDay)
                         {
-                            var sky = _context.World.IrradianceSettings;
                             sky.TimeSpeed = 0.0f;
                             sky.RealTime = false;
+                            void SetTime(float phase)
+                            {
+                                sky.TimeOfDay = phase;
+                                var hours = ManaCore.Graphics.ManaSky.HoursAt(phase);
+                                sky.SkyDateTime = new DateTimeOffset(sky.SkyDateTime.Date.AddHours(hours), sky.SkyDateTime.Offset);
+                            }
+
                             if (command.Frames > 0)
                             {
                                 // Always forward, as the day goes -- sunset to night, or on through dawn.
                                 var from = sky.TimeOfDay;
                                 var ahead = ((timeOfDay - from) % 1.0f + 1.0f) % 1.0f;
-                                _glides.Add((eased => sky.TimeOfDay = (from + ahead * eased) % 1.0f, command.Frames, !command.Background));
+                                _glides.Add((eased => SetTime((from + ahead * eased) % 1.0f), command.Frames, !command.Background));
                                 _glideSteps.Add(0);
                                 _index++;
                                 if (!command.Background)
@@ -198,7 +245,7 @@ namespace ManaVoxel.Code.Automation
                                 }
                                 break;
                             }
-                            sky.TimeOfDay = timeOfDay;
+                            SetTime(timeOfDay);
                         }
                         _index++;
                         break;

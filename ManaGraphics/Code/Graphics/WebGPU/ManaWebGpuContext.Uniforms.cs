@@ -5,8 +5,6 @@ using System.Buffers.Binary;
 using System.Text;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 #if !MANA_BROWSER
@@ -14,7 +12,6 @@ using Silk.NET.WebGPU.Extensions.WGPU;
 #endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
@@ -73,6 +70,10 @@ namespace ManaGraphics.Code.Graphics
                     ? _activeRenderScene.SunColor
                     : Vector4.Zero
             };
+
+            var wind = _activeRenderScene.Wind;
+            uniform.Wind = new Vector4(wind.Direction.X, wind.Direction.Y, wind.Speed, wind.Gustiness);
+            uniform.WindMotion = new Vector4(wind.Drift.X, wind.Drift.Y, wind.Distance, wind.Gust);
 
             for (var i = 0; i < ManaRenderScene.MaxLocalLights; i++)
             {
@@ -340,6 +341,8 @@ namespace ManaGraphics.Code.Graphics
             public Vector4 SunColor;
             public LocalLightArray LocalLightPositions;
             public LocalLightArray LocalLightColors;
+            public Vector4 Wind;
+            public Vector4 WindMotion;
         }
 
         [System.Runtime.CompilerServices.InlineArray(ManaRenderScene.MaxLocalLights)]

@@ -2,9 +2,6 @@ using System.Globalization;
 using ManaCore.Graphics;
 using ManaUI;
 
-// ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
-using Button = ManaUI.Button;
-
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
@@ -30,7 +27,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             ("30 min/s  (48 s day)", 1800.0f, false),
             ("1 hr/s  (24 s day)", 3600.0f, false),
             ("2 hr/s  (12 s day)", 7200.0f, false),
-            ("6 hr/s  (4 s day)", 21600.0f, false)
+            ("6 hr/s  (4 s day)", 21600.0f, false),
+            ("Reverse 1 min/s", -60.0f, false),
+            ("Reverse 5 min/s", -300.0f, false),
+            ("Reverse 10 min/s", -600.0f, false),
+            ("Reverse 30 min/s", -1800.0f, false),
+            ("Reverse 1 hr/s", -3600.0f, false),
+            ("Reverse 2 hr/s", -7200.0f, false),
+            ("Reverse 6 hr/s", -21600.0f, false)
         };
 
         public static UiElement Build(UiTheme theme, ManaIrradianceSettings sky)
@@ -63,13 +67,23 @@ namespace ManaVoxel.Code.UI.ManaUi
                 sky.TimeSpeed = 0.0f;
             }
 
+            void HoldForDateChange()
+            {
+                Hold();
+                if (resume == 0)
+                {
+                    resume = 2;
+                }
+            }
+
             // Shows the sky's own time while nothing is picked; a pick jumps there and holds, then clears
             // itself so the box goes back to showing the time.
             var times = new ComboBox { Width = 132.0f };
             times.SetItems(Times, time => time.Name);
             times.SelectedIndex = -1;
+            times.BindPolled(c => c.Visibility, () => sky.DaySystem == ManaSkyDaySystem.Solar ? Visibility.Visible : Visibility.Collapsed);
             times.BindPolled(c => c.Placeholder, () => Cycling()
-                ? $"{(ManaSky.Evaluate(sky).TowardSun.Y > 0.0f ? "Day" : "Night")}  {Format(ManaSky.HoursAt(sky.TimeOfDay))}"
+                ? $"{(sky.DaySystem == ManaSkyDaySystem.Sidereal ? "Sidereal" : ManaSky.Evaluate(sky).TowardSun.Y > 0.0f ? "Day" : "Night")}  {Format(ManaSky.HoursAt(sky.TimeOfDay))}"
                 : "Time of day");
             times.SelectionChanged += (_, index) =>
             {
@@ -79,7 +93,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
 
                 Hold();
-                sky.TimeOfDay = ManaSky.PhaseAt(Times[index].Hours);
+                var hours = Times[index].Hours;
+                sky.SkyDateTime = new DateTimeOffset(sky.SkyDateTime.Date.AddHours(hours), sky.SkyDateTime.Offset);
+                sky.TimeOfDay = ManaSky.PhaseAt(hours);
                 times.SelectedIndex = -1;
             };
             times.WithTooltip("The sky's time of day. Pick one to jump there and hold it; play runs the day on.");
@@ -123,9 +139,55 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Run(index);
                 }
             };
-            speeds.WithTooltip("How fast the day runs, in sky time a second -- or real time, following the wall clock.");
+            speeds.WithTooltip("How fast and which direction the day runs, in sky time a second -- or real time, following the wall clock.");
 
-            return new StackPanel().Horizontal(2.0f).Children(times.CenterV(), play.CenterV(), speeds.CenterV());
+            var daySystems = new[]
+            {
+                ("Solar day", ManaSkyDaySystem.Solar),
+                ("Sidereal day", ManaSkyDaySystem.Sidereal)
+            };
+            var pickedDaySystem = sky.DaySystem;
+            var dateTime = new ManaDateTimePickerWidget(theme)
+            {
+                Value = sky.SkyDateTime,
+                MoonPhaseEmojiProvider = ManaLunarPhase.EmojiAt,
+                CalendarDayEmojiProvider = ManaLunarPhase.PrincipalPhaseEmojiAt,
+                MoonPhaseNameProvider = ManaLunarPhase.NameAt,
+                AdditionalContentFactory = popupTheme =>
+                {
+                    pickedDaySystem = sky.DaySystem;
+                    var selector = new ComboBox { Width = 150.0f };
+                    selector.SetItems(daySystems, item => item.Item1);
+                    selector.SelectedIndex = Array.FindIndex(daySystems, item => item.Item2 == pickedDaySystem);
+                    selector.SelectionChanged += (_, index) =>
+                    {
+                        if (!selector.IsApplyingBinding && index >= 0 && index < daySystems.Length)
+                        {
+                            pickedDaySystem = daySystems[index].Item2;
+                        }
+                    };
+                    return new StackPanel().Vertical(2.0f).Children(
+                        new TextBlock().Text("Day system").Foreground(popupTheme.TextMuted).FontSize(popupTheme.FontSizeSmall),
+                        selector);
+                }
+            };
+            dateTime.ValueChanged += (_, value) =>
+            {
+                if (dateTime.IsApplyingBinding)
+                {
+                    return;
+                }
+
+                HoldForDateChange();
+                sky.SkyDateTime = value;
+                sky.DaySystem = pickedDaySystem;
+                sky.TimeOfDay = pickedDaySystem == ManaSkyDaySystem.Sidereal
+                    ? ManaSky.SiderealPhaseAt(value)
+                    : ManaSky.PhaseAt(value.TimeOfDay.TotalHours);
+            };
+            dateTime.BindPolled(d => d.Value, () => sky.SkyDateTime);
+
+            return new StackPanel().Horizontal(2.0f).Children(dateTime.CenterV(), times.CenterV(), play.CenterV(), speeds.CenterV());
         }
 
         private static string Format(float hours)

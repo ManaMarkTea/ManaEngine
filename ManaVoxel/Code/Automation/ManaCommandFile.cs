@@ -12,7 +12,7 @@ namespace ManaVoxel.Code.Automation
         /// <summary>
         /// The command; CLAUDE.md ("Testing levels with scripts") says what each does. Levels and assets: open_level,
         /// open_prefab, open_asset, open_panel, open_tools, select_node, review_changes. View: move_camera, sky,
-        /// emission, screenshot. Play: play, stop_play, teleport_player, log_player. Checks: dirty_report, profile_reset,
+        /// wind, emission, screenshot. Play: play, stop_play, teleport_player, log_player, bow (hold / hold_up / release the bow's fire key). UI: import_filter (the Import panel's filter text). Checks: dirty_report, profile_reset,
         /// profile_dump. Pictures: gizmos. Editing: drop_to_floor, grid_autotile, grid_generate. Flow: wait, quit.
         /// </summary>
         public string Type { get; set; } = "";
@@ -57,6 +57,9 @@ namespace ManaVoxel.Code.Automation
 
         /// <summary>gizmos: whether editor helpers (axes, selection, markers) show -- off for a picture.</summary>
         public bool? Visible { get; set; }
+
+        /// <summary>sky: exact simulated local date/time, in ISO 8601 form.</summary>
+        public DateTimeOffset? SkyDateTime { get; set; }
 
         /// <summary>sky: where in the day to hold a day-night cycle, 0..1 (0 sunrise, 0.25 noon, 0.5 sunset).</summary>
         public float? TimeOfDay { get; set; }

@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using ManaCore.Assets;
+using ManaCore.Imaging;
 
 namespace ManaCore.Browser;
 
@@ -37,6 +38,7 @@ public static partial class ManaBrowserAssets
         await JSHost.ImportAsync("mana_assets", $"../asset-downloads.js?v={Guid.NewGuid():N}");
         ManaAssetCatalog.Current = new ManaAssetCatalog(await LoadCatalog(), AppContext.BaseDirectory,
             (url, hash, size) => Download(url, hash, size), ExternalAssetBaseUrl);
+        await ManaImageCodec.PrepareBundledAsync(Path.Combine(AppContext.BaseDirectory, "Assets"));
     }
 }
 #endif

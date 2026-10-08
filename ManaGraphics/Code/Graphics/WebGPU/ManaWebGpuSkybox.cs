@@ -4,6 +4,7 @@ using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -56,7 +57,10 @@ namespace ManaGraphics.Code.Graphics
             // xyz = direction towards the sun; w = 0 the environment image, 1 a day sky, 2 space.
             public Vector4 Sun;
 
-            // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = how far the clouds have drifted.
+            // xyz = direction towards the moon; w = 1 when the dated sky clock has a moon.
+            public Vector4 Moon;
+
+            // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = cloud drift; w = lunar phase, 0..1.
             public Vector4 Parameters;
         }
 
@@ -153,7 +157,8 @@ namespace ManaGraphics.Code.Graphics
             {
                 InverseDirectionViewProjection = inverse,
                 Sun = new Vector4(sun, sky.Mode switch { ManaSkyMode.Photo => 0.0f, ManaSkyMode.Space => 2.0f, _ => 1.0f }),
-                Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, 0.0f)
+                Moon = new Vector4(sky.TowardMoon, sky.Mode == ManaSkyMode.DayNightCycle ? 1.0f : 0.0f),
+                Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase)
             };
             _api.QueueWriteBuffer(_queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }
@@ -382,9 +387,8 @@ namespace ManaGraphics.Code.Graphics
             uint height = 1;
             if (_moonPath != null && File.Exists(_moonPath))
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(_moonPath);
-                pixels = new byte[image.Width * image.Height * 4];
-                image.CopyPixelDataTo(pixels);
+                var image = ManaImageCodec.Load(_moonPath);
+                pixels = image.Pixels;
                 width = (uint)image.Width;
                 height = (uint)image.Height;
             }

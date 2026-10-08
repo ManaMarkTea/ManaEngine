@@ -2,6 +2,12 @@ using System.Numerics;
 
 namespace ManaCore.Graphics
 {
+    public enum ManaSkyDaySystem
+    {
+        Solar,
+        Sidereal
+    }
+
     public sealed class ManaIrradianceSettings
     {
         public float Exposure { get; set; } = 0.92f;
@@ -28,23 +34,49 @@ namespace ManaCore.Graphics
         /// </summary>
         public ManaSkyMode Sky { get; set; } = ManaSkyMode.Day;
 
+        /// <summary>The simulated local date and wall-clock time; lunar phase is evaluated in UTC.</summary>
+        public DateTimeOffset SkyDateTime { get; set; } = InitialSkyDateTime();
+
+        /// <summary>Whether one sky rotation follows a solar day or a sidereal day.</summary>
+        public ManaSkyDaySystem DaySystem { get; set; } = ManaSkyDaySystem.Solar;
+
         /// <summary>Where in the day the cycle is, 0..1: 0 is sunrise (6 am), 0.25 noon, 0.5 sunset, 0.75 midnight.</summary>
         public float TimeOfDay { get; set; } = 0.12f;
 
         /// <summary>
-        /// How fast the cycle runs, in sky seconds per real second: 60 is a minute a second, 3600 an hour a
-        /// second (a day in 24 s). 0 holds it still.
+        /// How fast the cycle runs, in simulated seconds per real second: 60 is a minute a second, 3600 an hour a
+        /// second. Negative runs backwards; 0 holds it still.
         /// </summary>
         public float TimeSpeed { get; set; } = 300.0f;
 
         /// <summary>Follows the wall clock instead: the sky is as it is outside right now.</summary>
         public bool RealTime { get; set; }
 
+        /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
+        public float WindSpeed { get; set; } = ManaWind.ReferenceSpeed;
+
+        /// <summary>Where the wind blows toward, in degrees clockwise from -Z (north, seen from above).</summary>
+        public float WindDirection { get; set; } = 60.0f;
+
+        /// <summary>0 holds the breeze steady; 1 lulls and gusts to about twice it.</summary>
+        public float Gustiness { get; set; } = 0.5f;
+
         // When ManaSky.Tick last moved the clock on, so each frame advances it by the time since.
         internal double LastTickSeconds = -1.0;
 
+        // ManaWind.Tick's own clock and how far the air has carried things -- kept here so speed changes never jump them.
+        internal double LastWindTickSeconds = -1.0;
+        internal Vector2 WindDrift;
+        internal float WindDistance;
+
         // How far the clouds have drifted, in seconds of wind -- see ManaSky.Tick.
         internal double CloudSeconds;
+
+        private static DateTimeOffset InitialSkyDateTime()
+        {
+            var now = DateTimeOffset.Now;
+            return new DateTimeOffset(now.Year, now.Month, now.Day, 8, 52, 48, now.Offset);
+        }
 
         public ManaIrradianceSettings Clone()
         {
@@ -66,9 +98,14 @@ namespace ManaCore.Graphics
                 VertexNormalsEnabled = VertexNormalsEnabled,
                 VertexNormalLength = VertexNormalLength,
                 Sky = Sky,
+                SkyDateTime = SkyDateTime,
+                DaySystem = DaySystem,
                 TimeOfDay = TimeOfDay,
                 TimeSpeed = TimeSpeed,
-                RealTime = RealTime
+                RealTime = RealTime,
+                WindSpeed = WindSpeed,
+                WindDirection = WindDirection,
+                Gustiness = Gustiness
             };
         }
     }

@@ -133,6 +133,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = BowComponent.ScriptType,
+                    ComponentType = typeof(BowComponent),
+                    Create = node => new BowComponent(node)
+                },
+                new()
+                {
                     Type = SpringPadComponent.ScriptType,
                     ComponentType = typeof(SpringPadComponent),
                     Create = node => new SpringPadComponent(node)
@@ -201,6 +207,7 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaGlowComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPlatformer2DComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(BowComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaParallaxComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteSheetComponent))]

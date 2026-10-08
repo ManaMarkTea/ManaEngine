@@ -575,8 +575,8 @@ public static class LevelSerializationChecks
         var galleryMeshes = WalkNodes(gallery?.Nodes ?? Enumerable.Empty<ManaLevelNode>())
             .Where(node => node.Kind == ManaLevelSourceKind.Mesh)
             .ToList();
-        Check("the PBR gallery presents four material-rich models",
-            galleryMeshes.Count == 4,
+        Check("the PBR gallery presents three material-rich models",
+            galleryMeshes.Count == 3,
             string.Join(", ", galleryMeshes.Select(node => node.Name)));
         Check("every gallery model resolves from its portable asset path",
             galleryMeshes.All(node =>

@@ -1,7 +1,6 @@
 using Silk.NET.WebGPU;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -61,18 +60,22 @@ namespace ManaGraphics.Code.Graphics
                 var size = (int)pending.Size;
                 for (var face = 0; face < 6; face++)
                 {
-                    using var image = new Image<Rgba32>(size, size);
+                    var image = new ManaImage(size, size);
                     for (var y = 0; y < size; y++)
                     {
                         var row = face * (int)pending.PaddedRow * size + y * (int)pending.PaddedRow;
                         for (var x = 0; x < size; x++)
                         {
                             var o = row + x * 4;
-                            image[x, y] = new Rgba32(data[o], data[o + 1], data[o + 2], 255);
+                            var p = (y * size + x) * 4;
+                            image.Pixels[p] = data[o];
+                            image.Pixels[p + 1] = data[o + 1];
+                            image.Pixels[p + 2] = data[o + 2];
+                            image.Pixels[p + 3] = 255;
                         }
                     }
 
-                    image.SaveAsPng($"{pending.Prefix}.face{face}.png");
+                    ManaImageCodec.SavePng(image, $"{pending.Prefix}.face{face}.png");
                 }
             }, TaskContinuationOptions.ExecuteSynchronously);
         }

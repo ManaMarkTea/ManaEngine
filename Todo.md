@@ -14,14 +14,25 @@
     deploy (the editor's 'Failed to fetch ManaAudio.wasm'). The first deploy after this can still trip a browser holding
     the old index.html for up to 10 minutes; a reload after that fixes it for good.
 
+[] - Can the stars be real constalations?
 
+[x] - Can the moon match up to the real phase of the moon (New moon, half moon, full moon)
+    `ManaLunarPhase` calculates the phase and illumination; the simulated date/time now drives the moon, its
+    light, and reflections.
 
-[] - Can the moon match up to the real phase of the moon (New moon, half moon, full moon)
+[x] - Add date/time picking and sidereal day steps to the sky clock.
+    The clock accepts a local date/time and can use either a solar day or an 86,164-second sidereal day; negative
+    speeds advance the calendar backwards too.
+
+[x] - Run the day-night cycle backwards.
+    Sky Clock speed presets include reverse rates, and clouds drift backwards with the cycle.
 
 
 [] - Can the mana command runner be in a higher up in the project dependencies? with more commands registered by the project that supports it. - like things only mana voxel can do etc.
 
-[] - It can be hard to tell when something is html, or mana ui.  Is there a way to mark html as such
+[x] - It can be hard to tell when something is html, or mana ui.  Is there a way to mark html as such
+    Browser loading screens, level selector, pause menu and Escape hint now carry an HTML badge.
+    Labels live inside each HTML surface and disappear with it; checked the page layouts in headless Chrome.
 
 [] - Do we support nested prefabs, and is it possible?
 
@@ -29,11 +40,15 @@
 [] - Auto-Normal looks really bad.
 
 
+[] - Can we organize the panels menu? Some things are more important than others, some things are for debugging, etc.  Also a search bar that finds a given menu (like unreal) would be cool
+
 [] - Can we also support exporting video in addition to the PNG snapshots we take now. Prolly using FFMPEG to compress pngs or something.
 
-[] - The search location panel is gone, i think it moved somewhere but i can't find it anymore. where is it?
+[x] - The search location panel is gone, i think it moved somewhere but i can't find it anymore. where is it?
+    Location search is a dialog under View > Search Location... (formerly Search Area...), renamed for discoverability.
 
-[] - There is a blue ball and yellow donut in every scene for some reason - i forgot why, remove them.
+[x] - There is a blue ball and yellow donut in every scene for some reason - i forgot why, remove them.
+    Removed the startup cursor sphere and demo pickup donut from VoxelEditorGameMode; voxel hover feedback remains.
 
 [x] - Finish the Little Pond Level - Add tents and picnic stuff
     Added Kenney Mini Forest tents and woodland, a fire circle, picnic table, blanket and supplies.
@@ -41,7 +56,9 @@
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
 
-[] - JSON files seem to be adding lots of new lines again, i thought it was fixed.
+[x] - JSON files seem to be adding lots of new lines again, i thought it was fixed.
+    Sprite assets were bypassing ManaJsonFormat. Their shared save path now uses it too, keeping short arrays
+    like pivots on one line. Checked value preservation and stable load/save formatting; existing files update when saved.
 
 [] - Some kind of particle system. - Points, trails, ribbons, etc.
 
@@ -49,7 +66,10 @@
 
 [] - UI Editor is not working and not used, needs updating - low priority
 
-[] - Perf: Split up the world perf ManaUI by panel to help know which panel is slow
+[x] - Perf: Split up the world perf ManaUI by panel to help know which panel is slow
+    World Perf now separates panel CPU timings into Bindings, Measure, Arrange and Record, including floated panels.
+    Scope names sit above aligned Peak/Now/Avg milliseconds and peak allocation columns; frame totals stay separate.
+    Timings also appear in profile_dump. Verified in-app (DevPhotos/2026-10-01 panel-timings.png); all 2,920 checks pass.
 
 Claude, overnight summary (2026-09-29): every item below is done and pushed; the 2D work went furthest. Open
 the 2D Sample and press F5 -- a side-on pixel-art platformer: A/D run, Space (double) jumps, three glowing coins on
@@ -87,8 +107,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     "fit the model" were captured by guessing, and the guess flipped once the model finished loading (or the
     moving platform's ghost joined its bounds). Colliders now remember whether they follow the model, refit when
     the model grows, and ignore editor-only children; all 8 levels now open clean. See ColliderIntentChecks.
-    Still to do: the planet code hard-codes C:\Users\night\...\GeoData paths (will break on the Mac) -- fixing that
-    in the VoxelEditorGameMode split below.
+    Still to do: the planet code had machine-specific GeoData paths -- fixed in the VoxelEditorGameMode split below.
 
 [x] Add Support for 2d gameplay (Sprites, platforms, sprite sheet animations, sprite lighting and normals, polygon colliders, etc)
     Claude (overnight), milestone 1 done:
@@ -160,7 +179,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     - Planet, true-scale regions, KML airspace, streaming and planet stats -> EditorPlanetScenery (its own class;
       the game mode owns one and only reads its Planet to pick/up-res patches).
     - Dead code deleted: the editor's own water mask and country/state border loaders (unused since planets load
-      through ManaLevelLoader), taking every hard-coded C:\Users\night\...\GeoData path with them. The optional
+      through ManaLevelLoader), taking the old machine-specific GeoData paths with them. The optional
       KML file is now MANA_KML_AIRSPACE or ../ManaAirSpace/AirSpaceModels/UnitedStates.xml.
     - The rest split into partial files by job: .Room (the grid room), .Placement (placing from the Import panel),
       .ColliderDebug (selection collider wireframes), .Selection (picking + F / End / Escape).

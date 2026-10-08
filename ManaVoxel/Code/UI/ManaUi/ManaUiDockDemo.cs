@@ -218,8 +218,20 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ? null
                 : scene => editor.Levels.SceneHasChanges(scene);
 
+            Func<float> projectFolderWidth = () => 210f;
+
             // Persistence stores ids and asks for the panel back by name, since content is application-owned.
-            DockItem? Resolve(string id) => id switch
+            DockItem? Resolve(string id)
+            {
+                var item = BuildPanel(id);
+                if (item != null)
+                {
+                    item.Content.ProfileName = item.Title;
+                }
+                return item;
+            }
+
+            DockItem? BuildPanel(string id) => id switch
             {
                 "showcase" => new DockItem("ManaUI", ManaUiShowcaseView.BuildContent(theme, vm, liveStat).Scrollable())
                 {
@@ -239,7 +251,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     "Import",
                     MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
                 "project" when editor != null && world != null => new DockItem(
-                    "Project", ProjectManaView.Build(theme, world, editor)) { Id = "project" },
+                    "Project", ProjectManaView.Build(theme, world, editor, () => projectFolderWidth())) { Id = "project" },
                 "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable())
                 {
                     Id = "blurtest"
@@ -387,6 +399,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 BackdropBlur = theme.BackdropBlur,
                 Child = bottom
             };
+
+            projectFolderWidth = () => leftPanel.Visibility != Visibility.Collapsed
+                && bottom.AllItems().Any(item => item.Id == "project")
+                ? MathF.Max(120f, leftPanel.Size - 8f - theme.Spacing) : 210f;
 
             void Save()
             {
@@ -769,12 +785,21 @@ namespace ManaVoxel.Code.UI.ManaUi
             // spans the left column and the viewport (columns 0-1). The right column spans both of the
             // lower rows so it reaches the status bar unbroken, matching Unreal's own Outliner/Details
             // column running the full height beside a Content Browser docked under the viewport.
+            var viewportToolbarHeight = editor == null ? 0f : menuBarHeight;
+            var viewportToolbar = new Border().Height(viewportToolbarHeight)
+                .Fill(theme.Surface).Outline(theme.Border, 1f);
+            if (editor != null)
+            {
+                viewportToolbar.Child = ViewportToolbarManaView.Build(editor, camera, world);
+            }
+
             var dockArea = new Grid()
                 .Rows("Auto, *, Auto")
                 .Columns("Auto, *, Auto")
                 .Children(
                     topPanel.GridRow(0).GridColumn(0, span: 3),
                     leftPanel.GridRow(1).GridColumn(0),
+                    new Grid().Rows("Auto, *").Columns("*").Children(viewportToolbar).GridRow(1).GridColumn(1),
                     rightPanel.GridRow(1, span: 2).GridColumn(2),
                     bottomPanel.GridRow(2).GridColumn(0, span: 2))
                 .Anchor(top: menuBarHeight, left: 0.0f, right: 0.0f, bottom: StatusBarHeight);
@@ -787,7 +812,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     theme,
                     () => leftPanel.Visibility == Visibility.Collapsed ? 0.0f : leftPanel.Size,
                     () => rightPanel.Visibility == Visibility.Collapsed ? 0.0f : rightPanel.Size,
-                    () => menuBarHeight + (topPanel.Visibility == Visibility.Collapsed ? 0.0f : topPanel.Size),
+                    () => menuBarHeight + viewportToolbarHeight + (topPanel.Visibility == Visibility.Collapsed ? 0.0f : topPanel.Size),
                     () => StatusBarHeight + (bottomPanel.Visibility == Visibility.Collapsed ? 0.0f : bottomPanel.Size),
                     camera,
                     editor)

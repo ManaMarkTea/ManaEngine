@@ -6,32 +6,13 @@ using Silk.NET.Core.Contexts;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // Bridges Silk.NET.WebGPU's real, unmodified API onto browser-wasm. Silk.NET's own default
-    // loader (WebGPULibraryNameContainer) dynamically loads a native shared-library file at
-    // runtime, which doesn't exist as a separate artifact in a statically linked browser-wasm
-    // binary -- see WebPort-Plan.md M2 for the full writeup, including the proven recipe this
-    // class implements: a one-line forwarding shim per wgpu* function in mana_webgpu.c (built via
-    // a NativeFileReference in ManaGraphics.csproj against Emscripten's own library_webgpu.js,
-    // which does the real JS/Promise/handle-mapping work -- these shims are pure forwards, not a
-    // reimplementation of WebGPU-to-JS bridging), a "registration manifest" of throwaway
-    // [LibraryImport] declarations so the PInvokeTableGenerator keeps them in
-    // obj/.../pinvoke-table.h, and NativeLibrary.Load/GetExport here to resolve Silk.NET's
-    // requested C name (e.g. "wgpuCreateInstance") to the shim's exported name
-    // (e.g. "mana_wgpuCreateInstance") at runtime.
-    //
-    // Generated mechanically by reflecting over Silk.NET.WebGPU.dll's WebGPU class (see
-    // WebPort-Plan.md M2's function list) rather than hand-transcribed, to avoid signature
-    // transcription errors across 69 functions. NOT yet live-browser verified -- the ~65 plain
-    // synchronous functions match exactly what the M0 spike proved works, but the 4
-    // callback-taking ones (InstanceRequestAdapter, AdapterRequestDevice,
-    // DeviceSetUncapturedErrorCallback, BufferMapAsync) exercise a genuinely different path
-    // (Emscripten's library_webgpu.js calling back into a wasm function pointer after a JS
-    // Promise resolves, on a later microtask -- not the same call stack) that the M0 spike never
-    // exercised. ManaWebGpuContext's browser construction path is written to tolerate that
-    // (see ManaWebGpuContext.cs's MANA_BROWSER branch: an async factory instead of the
-    // synchronous constructor desktop uses, since a real requestAdapter() cannot resolve
-    // synchronously inside a single JS-thread call the way wgpu-native's desktop implementation
-    // does), but has not been confirmed against a real browser yet.
+    // Silk.NET's default loader expects a native shared library, which does not exist as a
+    // separate artifact in browser-wasm. This context maps Silk.NET's wgpu* names to the
+    // mana_wgpu* forwarding shims in mana_webgpu.c. The LibraryImport declarations register
+    // those exports with the wasm P/Invoke table; NativeLibrary resolves them at runtime.
+    // Keep the shim declarations and name map in sync with Silk.NET.WebGPU when updating it.
+    // Adapter/device requests use the separate JS Promise bridge because callbacks through the
+    // legacy Emscripten WebGPU path are not reliable in this .NET wasm setup.
     public sealed partial class ManaBrowserWebGpuNativeContext : INativeContext
     {
         private static readonly Dictionary<string, string> ShimNames = new()
@@ -203,7 +184,7 @@ namespace ManaGraphics.Code.Graphics
 
             Console.WriteLine($"[NativeContext] -> NOT FOUND, throwing.");
             throw new PlatformNotSupportedException(
-                $"Browser WebGPU shim for '{proc}' not found in mana_webgpu.c -- see WebPort-Plan.md M2.");
+                $"Browser WebGPU shim for '{proc}' not found in mana_webgpu.c.");
         }
 
         public bool TryGetProcAddress(string proc, out nint addr, int? slot = null)

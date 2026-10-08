@@ -4,8 +4,6 @@ using System.Text;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Loading;
 using ManaCore.Graphics;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 #if !MANA_BROWSER
@@ -13,7 +11,6 @@ using Silk.NET.WebGPU.Extensions.WGPU;
 #endif
 using Silk.NET.Windowing;
 using Silk.NET.Input;
-using ImageSharpImage = SixLabors.ImageSharp.Image;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -52,8 +49,6 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var prefilteredMap = environmentReflectionMap.PrefilteredReflectionMapResource;
-            var irradianceMap = environmentReflectionMap.IrradianceMapResource;
             var pipeline = GetOrCreateSceneCapturePipeline();
             ManaConsole.WriteDiagnostic($"WebGPU scene environment capture: position={source.SceneCapturePosition}, meshes={_sceneMeshes.Count(mesh => mesh.Instance.IncludeInEnvironmentCapture)}.");
 
@@ -63,14 +58,9 @@ namespace ManaGraphics.Code.Graphics
                 EnsureSceneCaptureDepthResources(environmentMap.Width);
                 RenderSceneCaptureFace(commandEncoder, (TextureView*)environmentMap.RenderTargetViews[face], pipeline, captureCamera, face);
 
-                if (irradianceMap.RenderTargetViews.Count >= 6)
-                {
-                    EnsureSceneCaptureDepthResources(irradianceMap.Width);
-                    RenderSceneCaptureFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], pipeline, captureCamera, face);
-                }
             }
 
-            DispatchEnvironmentPrefilter(commandEncoder, environmentMap, prefilteredMap);
+            DispatchEnvironmentPrefilter(commandEncoder, environmentReflectionMap);
             _framesSinceEnvironmentCapture = 0;
         }
 
@@ -96,7 +86,6 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var environmentMap = map.EnvironmentMapResource;
-            var irradianceMap = map.IrradianceMapResource;
             var prefilteredMap = map.PrefilteredReflectionMapResource;
             if (environmentMap.RenderTargetViews.Count < 6 || prefilteredMap.TextureView == null)
             {
@@ -112,13 +101,9 @@ namespace ManaGraphics.Code.Graphics
                 // Bound only to fill the layout -- a computed sky never samples it -- and not a cube drawn into here.
                 var unusedView = (TextureView*)prefilteredMap.TextureView;
                 DrawSkyFace(commandEncoder, (TextureView*)environmentMap.RenderTargetViews[face], camera, sky, unusedView, face);
-                if (irradianceMap.RenderTargetViews.Count >= 6)
-                {
-                    DrawSkyFace(commandEncoder, (TextureView*)irradianceMap.RenderTargetViews[face], camera, sky, unusedView, face);
-                }
             }
 
-            DispatchEnvironmentPrefilter(commandEncoder, environmentMap, prefilteredMap);
+            DispatchEnvironmentPrefilter(commandEncoder, map);
             map.DrawnSky = sky;
             map.HasPhoto = false;
             map.FramesSinceSkyDrawn = 0;
@@ -128,9 +113,13 @@ namespace ManaGraphics.Code.Graphics
 
         private static bool SkyMoved(ManaSky.State drawn, ManaSky.State sky)
         {
+            var moonPhaseDelta = MathF.Abs(drawn.MoonPhase - sky.MoonPhase);
+            moonPhaseDelta = MathF.Min(moonPhaseDelta, 1.0f - moonPhaseDelta);
             return drawn.Mode != sky.Mode ||
                 Vector3.Dot(drawn.TowardSun, sky.TowardSun) < 0.99985f ||
-                MathF.Abs(drawn.Daylight - sky.Daylight) > 0.01f;
+                (sky.Mode == ManaSkyMode.DayNightCycle && Vector3.Dot(drawn.TowardMoon, sky.TowardMoon) < 0.99985f) ||
+                MathF.Abs(drawn.Daylight - sky.Daylight) > 0.01f ||
+                moonPhaseDelta > 0.001f;
         }
 
         private void DrawSkyFace(CommandEncoder* commandEncoder, TextureView* faceView, ManaCameraData camera, ManaSky.State sky, TextureView* unusedView, int face)
@@ -245,19 +234,19 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderRelease(renderPass);
         }
 
-        private void DispatchEnvironmentPrefilter(
-            CommandEncoder* commandEncoder,
-            ManaWebGpuTextureResource sourceMap,
-            ManaWebGpuTextureResource destinationMap)
+        private void DispatchEnvironmentPrefilter(CommandEncoder* commandEncoder, ManaWebGpuEnvironmentReflectionMap map)
         {
-            GetOrCreateEnvironmentPrefilterCompute().Dispatch(commandEncoder, sourceMap, destinationMap);
+            var compute = GetOrCreateEnvironmentPrefilterCompute();
+            compute.Dispatch(commandEncoder, map.EnvironmentMapResource, map.PrefilteredReflectionMapResource);
+            compute.DispatchIrradiance(commandEncoder, map.PrefilteredReflectionMapResource, map.IrradianceMapResource);
         }
 
         private void DispatchEnvironmentPrefilterNow(ManaWebGpuEnvironmentReflectionMap environmentReflectionMap)
         {
             GetOrCreateEnvironmentPrefilterCompute().DispatchNow(
                 environmentReflectionMap.EnvironmentMapResource,
-                environmentReflectionMap.PrefilteredReflectionMapResource);
+                environmentReflectionMap.PrefilteredReflectionMapResource,
+                environmentReflectionMap.IrradianceMapResource);
         }
 
         private ManaWebGpuEnvironmentPrefilterCompute GetOrCreateEnvironmentPrefilterCompute()

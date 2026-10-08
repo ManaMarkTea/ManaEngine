@@ -239,13 +239,13 @@ namespace ManaVoxel.Code.UI
 
         public void DeleteAsset(string path) => Run(() =>
         {
-            var full = Path.GetFullPath(path);
-            if (!full.StartsWith(Path.GetFullPath(ManaContentLibrary.Root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || !Entries.Any(entry => string.Equals(Path.GetFullPath(entry.Path), full, StringComparison.OrdinalIgnoreCase)))
+            var full = ManaProjectFolder.CanonicalPath(path);
+            if (!full.StartsWith(ManaProjectFolder.CanonicalPath(ManaContentLibrary.Root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || !Entries.Any(entry => string.Equals(ManaProjectFolder.CanonicalPath(entry.Path), full, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new InvalidOperationException("Choose an asset inside Content.");
             }
-            if (string.Equals(_editingPath, full, StringComparison.OrdinalIgnoreCase))
+            if (_editingPath != null && string.Equals(ManaProjectFolder.CanonicalPath(_editingPath), full, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("Close this prefab before deleting its source.");
             }

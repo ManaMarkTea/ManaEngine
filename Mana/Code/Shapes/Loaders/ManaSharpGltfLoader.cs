@@ -15,9 +15,8 @@ using System.Numerics;
 
 namespace Mana.Code.Shapes.Loaders
 {
-    // Pure-managed counterpart to ManaGltfLoader for targets with no native Assimp build
-    // (browser-wasm; see WebPort-Plan.md M4). Reads glTF/GLB only, via SharpGLTF, matching the
-    // same public surface and producing the same Mana data (ManaMesh/ManaMaterial/ManaScene/
+    // Shared pure-managed glTF/GLB loader for every target. Reads via SharpGLTF, producing
+    // Mana data (ManaMesh/ManaMaterial/ManaScene/
     // skeleton/animation) so callers -- ManaWorld.LoadFromGltf(Memory), CharacterSpawnService,
     // VoxelFileImportService -- don't need to know which backend loaded a file.
     //

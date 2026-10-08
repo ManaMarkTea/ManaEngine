@@ -19,10 +19,7 @@ Console.WriteLine($"ManaGraphicsBackendKind values: {string.Join(", ", Enum.GetN
 // The real M1/M2 attempt: a live browser IWindow (canvas-backed), the real WebGPU shim, and
 // GameSilkWebGpu's actual render loop -- the same code path VoxelPlayGameMode's own bring-up
 // uses on desktop, unmodified beyond the #if MANA_BROWSER branches already wired into it. Its
-// default per-frame behavior clears the canvas to a solid color, matching M0's original
-// "canvas clears to a color" verification target -- but this time through the real engine, not
-// a throwaway spike. NOT yet confirmed working end to end against a real browser; the whole
-// point of shipping this now is to find out from an actual browser console what breaks first.
+// browser render loop uses the real engine and WebGPU shim; it has been verified in Chrome.
 await ManaBrowserInterop.InitializeAsync();
 // Emoji come from the browser's own font rather than a 10 MB download.
 ManaBrowserEmoji.Install();

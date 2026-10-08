@@ -10,6 +10,8 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
+# Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
+EXCLUDED_PREFIXES = ("Assets/GeoData/", "Assets/Generated/")
 ROOTS = ("Assets", "Mana/Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaVoxel/Assets")
 SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength",
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
@@ -48,7 +50,7 @@ def publish(root, output):
             if not source.is_file():
                 continue
             path = "Assets/" + source.relative_to(root / directory).as_posix()
-            if path == EXCLUDED:
+            if path == EXCLUDED or path.startswith(EXCLUDED_PREFIXES):
                 continue
             if path in sources:
                 raise ValueError(f"Duplicate asset path: {path}")
@@ -96,6 +98,7 @@ def publish(root, output):
                     if Path(entry).suffix.lower() in (".glb", ".gltf"):
                         models.append(dict(path=path, entry=entry))
 
+    attach_thumbnails(root, library, files, models)
     publish_levels(root, output)
     catalog = dict(version=1, files=files, models=models)
     temporary = output / "asset-catalog.json.tmp"
@@ -109,6 +112,36 @@ def publish(root, output):
     print(f"External library: {len(files)} files, {len(models)} models, "
           f"{sum(item['size'] for item in files) / 1024**2:.1f} MiB; not part of startup download.")
     return catalog
+
+
+def attach_thumbnails(root, library, files, models):
+    """Points each model at its pre-built preview in Assets/Generated/Thumbnails (bake_thumbnails.py makes them), when
+    it was rendered from the model file as it is now; any other model is drawn on demand in the browser."""
+    cache = root / "Assets" / "Generated" / "Thumbnails"
+    index_file = cache / "index.json"
+    if not index_file.exists():
+        return
+    thumbnails = json.loads(index_file.read_text(encoding="utf-8"))["thumbnails"]
+    digests = {item["path"]: item["sha256"] for item in files}
+    attached = stale = 0
+    for model in models:
+        label = model["path"] + ("!" + model["entry"] if "entry" in model else "")
+        cached = thumbnails.get(label)
+        source = cache / cached["png"] if cached else None
+        if not cached or cached["source"] != digests[model["path"]] or not source.exists():
+            stale += 1
+            continue
+        # "!" separates a zip from the entry inside it, so a preview path never collides with a real asset.
+        path = label + ".thumb.png"
+        digest = Path(cached["png"]).stem
+        destination = library / cached["png"]
+        if not destination.exists():
+            shutil.copyfile(source, destination)
+        files.append(dict(path=path, url="AssetLibrary/" + cached["png"], sha256=digest,
+                          size=source.stat().st_size, dependencies=[]))
+        model["thumbnail"] = path
+        attached += 1
+    print(f"Thumbnails: {attached} pre-built, {stale} without one (run Tools/WebAssets/bake_thumbnails.py).")
 
 
 # Levels the browser cannot play yet, and why -- left off the selector rather than shown and failing.

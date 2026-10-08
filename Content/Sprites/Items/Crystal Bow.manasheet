@@ -1,0 +1,46 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "f2e5c6553a94434fa7bcbd6d4d3d2ae0",
+  "name": "Crystal Bow",
+  "frames": [
+    "Content/Sprites/Items/Bows/crystal_bow_idle.png",
+    "Content/Sprites/Items/Bows/crystal_bow_draw.png",
+    "Content/Sprites/Items/Bows/crystal_bow_full.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 56,
+  "pivot": [
+    0.5,
+    0.5
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    },
+    {
+      "name": "draw",
+      "frames": [
+        1
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    },
+    {
+      "name": "full",
+      "frames": [
+        2
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    }
+  ]
+}

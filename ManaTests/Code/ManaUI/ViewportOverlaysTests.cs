@@ -21,6 +21,21 @@ public static class ViewportOverlayChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        var editor = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+        var toolbar = ViewportToolbarManaView.Build(editor, () => null, null);
+        var displayMenu = toolbar.Menus.Single(menu => menu.Text == "Display");
+        var wireframe = displayMenu.Items.Single(item => item.Text == "Wireframe");
+        wireframe.Invoke();
+        Check("viewport wireframe changes the editor setting", editor.ShowWireframe && wireframe.ResolveChecked());
+        editor.ShowWireframe = false;
+        Check("viewport display checks follow external changes", !wireframe.ResolveChecked());
+        var focus = toolbar.Menus.Single(menu => menu.Text == "Focus").Items.Single();
+        focus.Invoke();
+        Check("viewport commands tolerate no camera or selection", true);
+        var toolbarRoot = new UiRoot(fonts) { Content = toolbar };
+        toolbarRoot.UpdateLayout(new Vector2(280, 30));
+        Check("viewport menu fits a narrow viewport", toolbar.DesiredSize.X <= 280 && toolbarRoot.Render().InstanceCount > 0);
+
         // A camera at the origin looking down -Z, which is what the engine's own look-at produces.
         var view = Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 10.0f), Vector3.Zero, Vector3.UnitY);
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 4.0f, 1.0f, 0.1f, 100.0f);

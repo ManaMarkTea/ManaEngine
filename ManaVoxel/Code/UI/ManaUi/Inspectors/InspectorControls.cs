@@ -63,6 +63,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 grid.Children.Add(trailing.Margin(theme.Spacing, 0.0f, 0.0f, 0.0f).GridColumn(3));
             }
 
+            grid.Tag = new InspectorPropertySearch.PropertyLabel(label);
             return grid;
         }
 

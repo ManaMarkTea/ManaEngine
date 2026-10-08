@@ -270,7 +270,7 @@ public static class PortedMainMenuChecks
         root.Content = workspace;
         root.UpdateLayout(new Vector2(1600, 900));
 
-        var bars = FindAll<MenuBar>(workspace);
+        var bars = FindAll<MenuBar>(workspace).Where(bar => bar.Menus.Any(menu => menu.Text == "File")).ToList();
         Check("the workspace has a menu bar", bars.Count == 1, $"{bars.Count} bars");
 
         if (bars.Count != 1)
@@ -360,7 +360,7 @@ public static class PortedMainMenuChecks
             string.Join(", ", docked));
 
         var searchMenu = bars[0].Menus.First(menu => menu.Text == "View")
-            .Items.First(item => item.Text == "Search Area...");
+            .Items.First(item => item.Text == "Search Location...");
         searchMenu.Invoke();
         root.UpdateLayout(new Vector2(1280, 900));
         Check("search opens a modal over the workspace",

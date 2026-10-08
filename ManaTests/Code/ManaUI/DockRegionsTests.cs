@@ -36,7 +36,7 @@ public static class DockRegionsChecks
                 root, new ManaUiShowcaseViewModel(), null, persist: false, editor: vm, world: world);
             root.UpdateLayout(new Vector2(1920, 1080));
 
-            var menuBar = FindFirst<MenuBar>(root.Content!);
+            var menuBar = FindAll<MenuBar>(root.Content!).Single(bar => bar.Menus.Any(menu => menu.Text == "File"));
             Check("the menu bar is present", menuBar != null);
 
             var menuBorder = FindAncestorBorder(menuBar);
@@ -88,7 +88,7 @@ public static class DockRegionsChecks
             // The default RightColumn preset leaves the left column empty (collapsed to 0x0, an
             // undefined position), so Unity is chosen first to give both columns real content to be flush
             // about.
-            var menuForFlushCheck = FindFirst<MenuBar>(root.Content!);
+            var menuForFlushCheck = FindAll<MenuBar>(root.Content!).Single(bar => bar.Menus.Any(menu => menu.Text == "File"));
             var layoutMenuForFlushCheck = menuForFlushCheck!.Menus.First(item => item.Text == "Layout");
             layoutMenuForFlushCheck.Items.First(item => item.Text == "Unity").Invoked?.Invoke();
             root.UpdateLayout(new Vector2(1920, 1080));

@@ -8,8 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
     <ManaCopyWebGpuNativeRuntime>true</ManaCopyWebGpuNativeRuntime>
-    <!-- Compile-time symbol for the growing number of small browser-vs-desktop branches
-         (see WebPort-Plan.md) that don't warrant a full partial-class split. -->
+    <!-- Compile-time symbol for small browser-vs-desktop branches that don't warrant a full partial-class split. -->
     <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
@@ -34,7 +33,7 @@
     <Compile Remove="Code\Graphics\OpenGL\Legacy\**\*.cs" />
   </ItemGroup>
 
-  <!-- Browser target is WebGPU-only (see WebPort-Plan.md); OpenGL has no browser-wasm
+  <!-- Browser target is WebGPU-only; OpenGL has no browser-wasm
        backend and isn't needed there. Unlike Mana.csproj (whose BaseGameMode.cs calls
        ManaGameModeGraphicsBridge directly and so re-includes it via a Link for browser),
        nothing inside ManaGraphics itself references that dispatcher outside this same
@@ -49,7 +48,6 @@
   <ItemGroup>
     <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />

@@ -1,0 +1,28 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "e8369542844941959023d8e1643d03b1",
+  "name": "Crystal Arrow",
+  "frames": [
+    "Content/Sprites/Items/Bows/crystal_arrow.png"
+  ],
+  "texture": "",
+  "columns": 1,
+  "rows": 1,
+  "normalMap": "",
+  "pixelsPerUnit": 56,
+  "pivot": [
+    0.5,
+    0.5
+  ],
+  "animations": [
+    {
+      "name": "fly",
+      "frames": [
+        0
+      ],
+      "framesPerSecond": 1,
+      "loop": true
+    }
+  ]
+}

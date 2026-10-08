@@ -23,7 +23,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             dialog.BindPolled(d => d.Width, () => MathF.Min(640.0f, root.Size.X));
             dialog.BindPolled(d => d.Height, () => MathF.Min(560.0f, root.Size.Y));
             dialog.Children.Add(new Grid().Columns("*, Auto").Rows("Auto").Children(
-                new TextBlock().Text("Search Area").CenterV().GridColumn(0),
+                new TextBlock().Text("Search Location").CenterV().GridColumn(0),
                 new Button().Label("Close").OnClick(() => root.Popups.Close(popup)).GridColumn(1)));
             dialog.Children.Add(Build(theme, viewModel, model).GridRow(1));
             var overlay = new Grid().Rows("*").Columns("*").Children(dialog.CenterH().CenterV());

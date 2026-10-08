@@ -80,6 +80,9 @@ namespace Mana.Code.Components
         }
 
         public ManaPawnNode? Player => _player;
+
+        /// <summary>The way the character last moved, for things that follow its aim (a bow).</summary>
+        public bool FacingRight { get; private set; } = true;
         public ManaSceneNode? SpriteNode => _spriteNode;
 
         public override void BeginPlay()
@@ -210,7 +213,8 @@ namespace Mana.Code.Components
             }
             foreach (var child in node.Children)
             {
-                if (!ReferenceEquals(child, _spriteNode))
+                // Sprites riding on the player (its own, a held bow) are 2D art, not the 3D model being hidden.
+                if (!ReferenceEquals(child, _spriteNode) && child.GetComponent<ManaSpriteBase>() == null)
                 {
                     HideRenderers(child);
                 }
@@ -259,6 +263,7 @@ namespace Mana.Code.Components
                 {
                     _facingRight = velocityX > 0.0f;
                 }
+                _settings.FacingRight = _facingRight;
 
                 if (Owner.GetComponent<ManaSpriteSheetComponent>() is { } sprite)
                 {

@@ -321,6 +321,9 @@ export function drawEmoji(codepoint, size, width, height, baseline, pixels) {
     context.clearRect(0, 0, width, height);
     context.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif`;
     context.textBaseline = 'alphabetic';
+    // A text glyph or tofu box comes out in the fill colour; an emoji font ignores it. Testing for colour
+    // instead dropped the grey ones (a skull).
+    context.fillStyle = '#ff00ff';
     // VS16 asks for the emoji form of a character that also has a text one (U+2764, a heart).
     const text = String.fromCodePoint(codepoint) + '️';
     context.fillText(text, Math.ceil(size / 4), baseline);
@@ -328,7 +331,7 @@ export function drawEmoji(codepoint, size, width, height, baseline, pixels) {
 
     let coloured = false;
     for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] > 32 && (Math.abs(data[i] - data[i + 1]) > 24 || Math.abs(data[i + 1] - data[i + 2]) > 24)) {
+        if (data[i + 3] > 32 && !(data[i] > 200 && data[i + 1] < 64 && data[i + 2] > 200)) {
             coloured = true;
             break;
         }
@@ -337,8 +340,14 @@ export function drawEmoji(codepoint, size, width, height, baseline, pixels) {
         return 0;
     }
 
+    // Drawn again in the default black, which an emoji font may use for parts in the text colour.
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = '#000000';
+    context.fillText(text, Math.ceil(size / 4), baseline);
+    const final = context.getImageData(0, 0, width, height).data;
+
     // A Uint8Array view: the span only takes the typed array matching its element type, not a clamped one.
-    pixels.set(new Uint8Array(data.buffer, data.byteOffset, data.length));
+    pixels.set(new Uint8Array(final.buffer, final.byteOffset, final.length));
     manaLoading()?.emoji?.(text);
     return context.measureText(text).width;
 }

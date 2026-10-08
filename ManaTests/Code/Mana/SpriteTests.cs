@@ -4,6 +4,7 @@ using Mana.Code.Components;
 using Mana.Code.Content;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
+using ManaCore.Imaging;
 using ManaUI;
 
 namespace ManaTests;
@@ -69,42 +70,31 @@ public static class SpriteChecks
 
         // ---- Made normal maps --------------------------------------------------------------------------------------
         // A 20-pixel square in a transparent 32: each edge must lean outwards, green up the picture (row 0 is the top).
-        using (var square = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(32, 32))
-        {
-            for (var y = 6; y < 26; y++)
-            {
-                for (var x = 6; x < 26; x++)
-                {
-                    square[x, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32(200, 60, 60, 255);
-                }
-            }
-            using var made = ManaSpriteNormals.Build(square, 4.0f);
-            check("a made normal map leans out at the left edge", made[6, 16].R < 100, $"{made[6, 16]}");
-            check("and at the right", made[25, 16].R > 155, $"{made[25, 16]}");
-            check("and up at the top edge (green up the picture)", made[16, 6].G > 155, $"{made[16, 6]}");
-            check("and down at the bottom", made[16, 25].G < 100, $"{made[16, 25]}");
-            check("level in the middle, past the bevel", made[16, 16] is { R: 128, G: 128, B: 255 }, $"{made[16, 16]}");
-            check("and flat where it is transparent", made[1, 1] is { R: 128, G: 128, B: 255 }, $"{made[1, 1]}");
-        }
-        using (var parted = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(32, 32, new SixLabors.ImageSharp.PixelFormats.Rgba32(90, 200, 120, 255)))
-        {
-            // An outline drawn down the middle of a solid picture: a crease, each side rounding down into it.
-            for (var y = 0; y < 32; y++)
-            {
-                parted[15, y] = parted[16, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32(30, 30, 40, 255);
-            }
-            using var made = ManaSpriteNormals.Build(parted, 4.0f, 1.0f);
-            check("an inner outline creases the picture: left of it faces right, into the crease", made[13, 16].R > 155, $"{made[13, 16]}");
-            check("and right of it faces left", made[18, 16].R < 100, $"{made[18, 16]}");
-            using var outlineOnly = ManaSpriteNormals.Build(parted, 4.0f, 0.0f);
-            check("with inner edges off, only transparency shapes it", outlineOnly[13, 16] is { R: 128, G: 128, B: 255 }, $"{outlineOnly[13, 16]}");
-        }
-        using (var tile = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(16, 16,new SixLabors.ImageSharp.PixelFormats.Rgba32(90, 160, 60, 255)))
-        {
-            using var made = ManaSpriteNormals.Build(tile, 4.0f);
-            check("a solid tile stays flat to its sides, so a run of them shows no seams",
-                made[0, 0] is { R: 128, G: 128, B: 255 } && made[15, 8] is { R: 128, G: 128, B: 255 }, $"{made[0, 0]} {made[15, 8]}");
-        }
+        var square = new ManaImage(32, 32);
+        Fill(square, 6, 6, 20, 20, 200, 60, 60);
+        var made = ManaSpriteNormals.Build(square, 4.0f);
+        check("a made normal map leans out at the left edge", At(made, 6, 16).R < 100, $"{At(made, 6, 16)}");
+        check("and at the right", At(made, 25, 16).R > 155, $"{At(made, 25, 16)}");
+        check("and up at the top edge (green up the picture)", At(made, 16, 6).G > 155, $"{At(made, 16, 6)}");
+        check("and down at the bottom", At(made, 16, 25).G < 100, $"{At(made, 16, 25)}");
+        check("level in the middle, past the bevel", At(made, 16, 16) == Flat, $"{At(made, 16, 16)}");
+        check("and flat where it is transparent", At(made, 1, 1) == Flat, $"{At(made, 1, 1)}");
+
+        // An outline drawn down the middle of a solid picture: a crease, each side rounding down into it.
+        var parted = new ManaImage(32, 32);
+        Fill(parted, 0, 0, 32, 32, 90, 200, 120);
+        Fill(parted, 15, 0, 2, 32, 30, 30, 40);
+        var creased = ManaSpriteNormals.Build(parted, 4.0f, 1.0f);
+        check("an inner outline creases the picture: left of it faces right, into the crease", At(creased, 13, 16).R > 155, $"{At(creased, 13, 16)}");
+        check("and right of it faces left", At(creased, 18, 16).R < 100, $"{At(creased, 18, 16)}");
+        var outlineOnly = ManaSpriteNormals.Build(parted, 4.0f, 0.0f);
+        check("with inner edges off, only transparency shapes it", At(outlineOnly, 13, 16) == Flat, $"{At(outlineOnly, 13, 16)}");
+
+        var tile = new ManaImage(16, 16);
+        Fill(tile, 0, 0, 16, 16, 90, 160, 60);
+        var flatTile = ManaSpriteNormals.Build(tile, 4.0f);
+        check("a solid tile stays flat to its sides, so a run of them shows no seams",
+            At(flatTile, 0, 0) == Flat && At(flatTile, 15, 8) == Flat, $"{At(flatTile, 0, 0)} {At(flatTile, 15, 8)}");
         if (packed != null)
         {
             var coinNode = Node("Lit Coin");
@@ -228,6 +218,31 @@ public static class SpriteChecks
         collider.Rebuild();
         check("and rebuilds it when the outline changes, keeping just one", collider.Body != null && !ReferenceEquals(collider.Body, first)
             && ledge.Components.OfType<ManaCollisionComponent>().Count() == 1);
+    }
+
+    private readonly record struct Pixel(byte R, byte G, byte B);
+
+    private static readonly Pixel Flat = new(128, 128, 255);
+
+    private static Pixel At(ManaImage image, int x, int y)
+    {
+        var i = (y * image.Width + x) * 4;
+        return new Pixel(image.Pixels[i], image.Pixels[i + 1], image.Pixels[i + 2]);
+    }
+
+    private static void Fill(ManaImage image, int left, int top, int width, int height, byte r, byte g, byte b)
+    {
+        for (var y = top; y < top + height; y++)
+        {
+            for (var x = left; x < left + width; x++)
+            {
+                var i = (y * image.Width + x) * 4;
+                image.Pixels[i] = r;
+                image.Pixels[i + 1] = g;
+                image.Pixels[i + 2] = b;
+                image.Pixels[i + 3] = 255;
+            }
+        }
     }
 
     private static bool Near(Vector2 a, Vector2 b) => Vector2.Distance(a, b) < 1e-4f;

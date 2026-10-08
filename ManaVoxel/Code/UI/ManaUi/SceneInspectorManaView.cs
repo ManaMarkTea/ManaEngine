@@ -37,6 +37,10 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             var inspector = new InspectorContext(theme, context, widgets, selection, history);
             var target = new SelectionTarget(selection);
+            var search = new TextBox { Placeholder = "Search properties or sections" };
+            InspectorPropertySearch? filter = null;
+            search.TextChanged += (_, _) => filter?.Apply(search.Text);
+
 
             // The tree is retained, so the panel cannot simply re-run when the selection changes -- it has
             // to notice. DynamicContent polls the selection and rebuilds only on an actual change, which is
@@ -44,11 +48,18 @@ namespace ManaVoxel.Code.UI.ManaUi
             var content = new DynamicContent()
                 .Showing<SelectionTarget.Snapshot>(
                     target.Current,
-                    snapshot => BuildSelection(snapshot, inspector))
+                    snapshot =>
+                    {
+                        var built = BuildSelection(snapshot, inspector);
+                        filter = new InspectorPropertySearch(built);
+                        filter.Apply(search.Text);
+                        return built;
+                    })
                 .Empty(EmptyState(theme));
 
-            return new Grid().Rows("*").Columns("*").Padding(8.0f).Children(
-                content.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f));
+            return new Grid().Rows("Auto, *", theme.Spacing).Columns("*").Padding(8.0f).Children(
+                search,
+                content.Scrollable().Configure(viewer => viewer.MinHeight = 120.0f).GridRow(1));
         }
 
         private static UiElement EmptyState(UiTheme theme)

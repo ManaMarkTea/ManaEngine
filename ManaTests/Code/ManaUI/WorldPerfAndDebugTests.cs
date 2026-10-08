@@ -22,6 +22,19 @@ public static class WorldPerfAndDebugChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        var probe = new TextBlock().Text("Panel timing probe");
+        probe.BindTextPolled(() => "Panel timing probe");
+        var panel = new StackPanel().Children(probe);
+        panel.ProfileName = "Timing test";
+        var timingRoot = new UiRoot(fonts) { Content = panel };
+        timingRoot.UpdateLayout(new Vector2(360, 200));
+        timingRoot.Render();
+        foreach (var phase in new[] { "Bindings", "Measure", "Arrange", "Record" })
+        {
+            Check($"panel {phase} reaches the profiler",
+                ManaCore.Diagnostics.ManaFrameProfiler.Names.Contains($"ManaUI panel: Timing test / {phase}"), "");
+        }
+
         RunWorldPerf(fonts, Check);
         RunDebug(fonts, Check);
     }
