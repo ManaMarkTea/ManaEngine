@@ -132,6 +132,11 @@ namespace Mana.Code
 
         public void update(double deltaTime)
         {
+            if (ManaTime.FixedFrameSeconds is { } fixedStep)
+            {
+                deltaTime = fixedStep;
+            }
+
             // Closes the PREVIOUS tick, not this one, and does it here rather than at the end of Render for
             // a specific reason: on the WebGPU path the real GPU frame is submitted after Render returns
             // (GameSilkWebGpu.Render calls ClearFrame last), so closing in Render filed every GPU scope

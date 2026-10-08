@@ -4,6 +4,9 @@
     {
         public static ManaTime GlobalTime = new ManaTime();
 
+        /// <summary>When set, every frame lasts this long whatever the clock says: a recording steps by frame, not by how long saving one took.</summary>
+        public static double? FixedFrameSeconds;
+
         public bool TimePaused = false;
 
         public DateTime StartTime = DateTime.Now;

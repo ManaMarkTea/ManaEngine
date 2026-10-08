@@ -76,6 +76,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `select_node` | `name` | Selects a node by name (brings up its Inspector and gizmo) |
 | `screenshot` | `path`, `clean` | Writes the next frame to a PNG (WebGPU only); `clean` leaves out every panel and the HUD -- the scene across the whole window |
 | `gizmos` | `visible` | Editor helpers (axes, markers) on or off -- off for pictures |
+| `record` / `stop_record` | `path` (folder), `frames` (fps, 30), `clean`, `visible` | Saves every frame as `<path>/00000.jpg..` at a fixed step (1/fps a frame, so a slow save never speeds the game up); `record` with no path changes `clean`, and `visible: false` holds capture without ending the take. `Tools/Automation/sizzle.py` joins the takes of `Content/Scripts/Sizzle Reel.json` into an MP4 |
 | `play` / `stop_play` | | Enters and leaves play mode (F5) |
 | `teleport_player` | `position` | While playing, moves the character -- to look at a stretch of a level without walking there |
 | `log_player` | `name` | While playing, logs `Command file: player <name> at <feet>, grounded <bool>` |

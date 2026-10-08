@@ -1,6 +1,7 @@
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.PixelFormats;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
@@ -156,6 +157,12 @@ namespace ManaGraphics.Code.Graphics
 
             // Bgra32, matching the surface's own Bgra8UnormSrgb format -- no channel swizzle needed.
             using var image = ImageSharpImage.LoadPixelData<Bgra32>(pixels, (int)width, (int)height);
+            if (path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
+            {
+                // Recorded frames: a couple of thousand of them, so small and quick beats lossless.
+                image.SaveAsJpeg(path, new JpegEncoder { Quality = 95 });
+                return;
+            }
             image.SaveAsPng(path);
         }
     }

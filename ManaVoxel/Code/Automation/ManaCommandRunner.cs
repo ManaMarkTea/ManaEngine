@@ -29,6 +29,13 @@ namespace ManaVoxel.Code.Automation
         private int _waitFramesRemaining;
         private Task? _pendingScreenshot;
 
+        // record .. stop_record: every frame saved as <folder>/00000.jpg.. at a fixed step, for ffmpeg to join.
+        private string? _recordFolder;
+        private bool _recordClean;
+        private bool _recordPaused;
+        private int _recordFrame;
+        private readonly List<Task> _recordTasks = new();
+
         // Glides under way (move_camera or sky with frames): each steps once a frame with an eased 0..1, and the
         // script holds until the blocking ones finish; background ones run on alongside what follows.
         private readonly List<(Action<float> Apply, int Frames, bool Blocking)> _glides = new();
@@ -53,6 +60,18 @@ namespace ManaVoxel.Code.Automation
 
         public void Tick()
         {
+            CaptureRecordedFrame();
+            if (_recordFolder == null && _recordTasks.Count > 0)
+            {
+                // Stopped: hold until the last frames are written (their readback needs this thread's polling).
+                _recordTasks.RemoveAll(task => task.IsCompleted);
+                if (_recordTasks.Count > 0)
+                {
+                    return;
+                }
+                ManaConsole.WriteDiagnostic($"Command file: recorded {_recordFrame} frames");
+            }
+
             if (StepGlides())
             {
                 return;
@@ -282,6 +301,28 @@ namespace ManaVoxel.Code.Automation
                         _pendingScreenshot = _webGpuContext.CaptureFrameAsync(RequirePath(command), command.Clean);
                         return;
 
+                    case "record":
+                        // Path = folder (omit it while recording to just change clean); Frames = frames a second (30).
+                        if (command.Path != null)
+                        {
+                            Directory.CreateDirectory(command.Path);
+                            _recordFolder = command.Path;
+                            _recordFrame = 0;
+                            ManaTime.FixedFrameSeconds = 1.0 / (command.Frames > 0 ? command.Frames : 30);
+                        }
+                        _recordClean = command.Clean;
+                        _recordPaused = command.Visible == false;
+                        Mana.Code.UI.ManaEditorGizmos.FullWindowView = _recordClean;
+                        _index++;
+                        break;
+
+                    case "stop_record":
+                        _recordFolder = null;
+                        ManaTime.FixedFrameSeconds = null;
+                        Mana.Code.UI.ManaEditorGizmos.FullWindowView = false;
+                        _index++;
+                        break;
+
                     case "gizmos":
                         Mana.Code.UI.ManaEditorGizmos.Visible = command.Visible ?? !Mana.Code.UI.ManaEditorGizmos.Visible;
                         _index++;
@@ -315,6 +356,36 @@ namespace ManaVoxel.Code.Automation
                         break;
                 }
             }
+        }
+
+        private void CaptureRecordedFrame()
+        {
+            if (_recordFolder == null || _recordPaused || _webGpuContext == null)
+            {
+                return;
+            }
+
+            _recordTasks.RemoveAll(task => task.IsCompleted);
+            if (_recordTasks.Count > 6)
+            {
+                // Saving has fallen behind; the oldest frame has long since been read back, so this wait is short.
+                try
+                {
+                    _recordTasks[0].Wait(5000);
+                }
+                catch (AggregateException)
+                {
+                }
+            }
+
+            var capture = _webGpuContext.CaptureFrameAsync(Path.Combine(_recordFolder, $"{_recordFrame:D5}.jpg"), _recordClean);
+            if (capture.IsFaulted)
+            {
+                // A screenshot command holds the slot this frame; the sequence must stay gapless, so skip numbering it.
+                return;
+            }
+            _recordTasks.Add(capture);
+            _recordFrame++;
         }
 
         // Frames per second since the last profile_reset, then every timed scope by average cost -- what makes

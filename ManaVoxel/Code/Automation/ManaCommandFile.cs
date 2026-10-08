@@ -52,6 +52,9 @@ namespace ManaVoxel.Code.Automation
         /// <summary>screenshot: the scene alone across the whole window, without the editor's panels or the HUD.</summary>
         public bool Clean { get; set; }
 
+        // record: Path is a new folder of frames (omit it while recording to change clean/visible), Frames the frame
+        // rate (30), Clean drops the panels, Visible false holds capture (a level loading) without ending the take.
+
         /// <summary>gizmos: whether editor helpers (axes, selection, markers) show -- off for a picture.</summary>
         public bool? Visible { get; set; }
 

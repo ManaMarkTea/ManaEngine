@@ -1,0 +1,4395 @@
+[
+ {
+  "type": "gizmos",
+  "visible": false
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Flight Helmet.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   42,
+   7,
+   48
+  ],
+  "target": [
+   32,
+   2.9,
+   32
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/01-helmet",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.52,
+  "frames": 270,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   36.2,
+   3.9,
+   38
+  ],
+  "target": [
+   32,
+   2.9,
+   32
+  ],
+  "frames": 270
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/PBR Gallery.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.16
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   30,
+   7,
+   70
+  ],
+  "target": [
+   49,
+   2.4,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/02-gallery",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3,
+  "frames": 210,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   49,
+   4.4,
+   63
+  ],
+  "target": [
+   49,
+   2.4,
+   44
+  ],
+  "frames": 210
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Little Pond.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   32,
+   16,
+   64
+  ],
+  "target": [
+   32,
+   1,
+   32
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/03-pond",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.43,
+  "frames": 200,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   45,
+   5,
+   48
+  ],
+  "target": [
+   32,
+   1,
+   32
+  ],
+  "frames": 200
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.58,
+  "frames": 150,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   22,
+   4,
+   44
+  ],
+  "target": [
+   32,
+   1,
+   32
+  ],
+  "frames": 150
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Tests/Reflections.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.48
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   66,
+   4,
+   49
+  ],
+  "target": [
+   59,
+   0,
+   49
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/04-reflections",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.95,
+  "frames": 240,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   66,
+   5,
+   49
+  ],
+  "target": [
+   59,
+   3,
+   49
+  ],
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Planet Showcase.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 900
+ },
+ {
+  "type": "sky",
+  "name": "Space"
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   32,
+   60,
+   230
+  ],
+  "target": [
+   32,
+   40,
+   32
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 60
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/05-planet",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   78,
+   50,
+   120
+  ],
+  "target": [
+   32,
+   40,
+   32
+  ],
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Voxel Showcase.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.22
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   20,
+   40,
+   180
+  ],
+  "target": [
+   44,
+   16,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/06-voxels",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   66,
+   30,
+   150
+  ],
+  "target": [
+   44,
+   16,
+   40
+  ],
+  "frames": 210
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Prefab Lamps.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.45
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   30,
+   6,
+   60
+  ],
+  "target": [
+   40,
+   0.8,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/07-lamps",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.97,
+  "frames": 240,
+  "background": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   40,
+   2.6,
+   53
+  ],
+  "target": [
+   40,
+   0.8,
+   44
+  ],
+  "frames": 240
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Little Train Yard.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.3
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   30,
+   30,
+   120
+  ],
+  "target": [
+   64,
+   0,
+   62
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/08-trainyard",
+  "clean": true,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   64,
+   16,
+   104
+  ],
+  "target": [
+   64,
+   0,
+   62
+  ],
+  "frames": 150
+ },
+ {
+  "type": "play"
+ },
+ {
+  "type": "wait",
+  "frames": 240
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "stop_play"
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Sample Course.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.2
+ },
+ {
+  "type": "play"
+ },
+ {
+  "type": "wait",
+  "frames": 120
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/09-course",
+  "clean": false,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": false
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   47,
+   1.3,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 45
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   90,
+   1.3,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 45
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   118,
+   1.8,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 45
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   111.5,
+   3.2,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 75
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   139.5,
+   4.0,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 45
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   168,
+   4.6,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 110
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.48,
+  "frames": 150,
+  "background": true
+ },
+ {
+  "type": "wait",
+  "frames": 150
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "stop_play"
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/2D Sample.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 240
+ },
+ {
+  "type": "play"
+ },
+ {
+  "type": "wait",
+  "frames": 120
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   33,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/10-platformer",
+  "clean": false,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": false
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   33.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   33.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   34.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   35.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   36.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   37.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   38.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   39.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   40.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   41.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   42.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   42.9,
+   1.62,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   43.8,
+   2.25,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   44.7,
+   3.18,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   45.6,
+   4.27,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   46.5,
+   5.34,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   47.4,
+   6.22,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   48.3,
+   6.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   49.2,
+   6.89,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   50.1,
+   6.57,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   51.0,
+   5.86,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   51.9,
+   4.88,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   52.8,
+   3.78,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   53.7,
+   2.74,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   54.6,
+   1.93,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   55.5,
+   1.47,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   56.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   57.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   58.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   59.1,
+   1.62,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   60.0,
+   2.45,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   60.9,
+   2.99,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   61.8,
+   2.63,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   62.7,
+   1.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   63.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   64.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   65.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   66.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   67.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   68.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   69.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   69.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   70.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   71.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   72.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   73.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   74.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   75.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   76.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   77.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   78.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   78.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   79.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   80.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   81.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   82.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   83.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   84.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   85.2,
+   1.42,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   86.1,
+   1.99,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   87.0,
+   2.9,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   87.9,
+   3.39,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   88.8,
+   3.07,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   89.7,
+   2.19,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   90.6,
+   1.49,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   91.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   92.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   93.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   94.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   95.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   96.0,
+   1.55,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   96.9,
+   2.35,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   97.8,
+   2.97,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   98.7,
+   2.71,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   99.6,
+   1.86,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   100.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   101.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   102.3,
+   1.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   103.2,
+   2.63,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   104.1,
+   2.99,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   105.0,
+   2.45,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   105.9,
+   1.62,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   106.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   107.7,
+   1.48,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   108.6,
+   1.82,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   109.5,
+   2.38,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   110.4,
+   3.12,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   111.3,
+   3.96,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   112.2,
+   4.82,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   113.1,
+   5.61,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   114.0,
+   6.26,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   114.9,
+   6.7,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   115.8,
+   6.89,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   116.7,
+   6.82,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   117.6,
+   6.48,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   118.5,
+   5.92,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   119.4,
+   5.18,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   120.3,
+   4.34,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   121.2,
+   3.48,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   122.1,
+   2.69,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   123.0,
+   2.04,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   123.9,
+   1.6,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   124.8,
+   1.41,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   125.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   126.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   127.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   128.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   129.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   130.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   131.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   132.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   132.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   133.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   134.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   135.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   136.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   137.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   138.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   139.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   140.1,
+   1.62,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   141.0,
+   2.45,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   141.9,
+   2.99,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   142.8,
+   2.63,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   143.7,
+   1.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   144.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   145.5,
+   1.42,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   146.4,
+   1.58,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   147.3,
+   1.87,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   148.2,
+   2.28,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   149.1,
+   2.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   150.0,
+   3.33,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   150.9,
+   3.91,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   151.8,
+   4.47,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   152.7,
+   4.97,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   153.6,
+   5.39,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   154.5,
+   5.7,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   155.4,
+   5.87,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   156.3,
+   5.89,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   157.2,
+   5.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   158.1,
+   5.51,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   159.0,
+   5.12,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   159.9,
+   4.64,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   160.8,
+   4.1,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   161.7,
+   3.52,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   162.6,
+   2.95,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   163.5,
+   2.43,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   164.4,
+   1.99,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   165.3,
+   1.66,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   166.2,
+   1.46,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   167.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   168.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   168.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   169.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   170.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   171.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   172.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   173.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   174.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   175.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   176.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   177.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   177.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   178.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   179.7,
+   1.43,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   180.6,
+   2.05,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   181.5,
+   2.85,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   182.4,
+   2.9,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   183.3,
+   2.15,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   184.2,
+   1.46,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   185.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   186.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   186.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   187.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   188.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   189.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   190.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   191.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   192.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   193.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   194.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   195.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   195.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   196.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   197.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   198.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   199.5,
+   1.46,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   200.4,
+   1.83,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   201.3,
+   2.5,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   202.2,
+   3.35,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   203.1,
+   4.25,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   204.0,
+   5.05,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   204.9,
+   5.63,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   205.8,
+   5.89,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   206.7,
+   5.79,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   207.6,
+   5.34,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   208.5,
+   4.63,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   209.4,
+   3.75,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   210.3,
+   2.86,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   211.2,
+   2.1,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   212.1,
+   1.58,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   213.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   213.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   214.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   215.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   216.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   217.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   218.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   219.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   220.2,
+   1.69,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   221.1,
+   2.54,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   222.0,
+   3.0,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   222.9,
+   2.54,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   223.8,
+   3.09,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   224.7,
+   4.44,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   225.6,
+   5.3,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   226.5,
+   5.25,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   227.4,
+   4.31,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   228.3,
+   2.93,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   229.2,
+   1.78,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   230.1,
+   1.62,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   231.0,
+   2.45,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   231.9,
+   2.99,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   232.8,
+   2.63,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   233.7,
+   1.77,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   234.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   235.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   236.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   237.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   238.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   239.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   240.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   240.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   241.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   242.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   243.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   244.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   245.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   246.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   247.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   248.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   249.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   249.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   250.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   251.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   252.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   253.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   254.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   255.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   256.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   257.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   258.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   258.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   259.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   260.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   261.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   262.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   263.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   264.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   265.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   266.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   267.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   267.9,
+   1.92,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   268.8,
+   3.04,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   269.7,
+   3.84,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   270.6,
+   3.66,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   271.5,
+   2.65,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   272.4,
+   1.64,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   273.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   274.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   275.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   276.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   276.9,
+   1.5,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   277.8,
+   2.25,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   278.7,
+   2.94,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   279.6,
+   2.78,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   280.5,
+   1.95,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   281.4,
+   1.41,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   282.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   283.2,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   284.1,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   285.0,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   285.9,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   286.8,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   287.7,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   288.6,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   289.5,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   290.4,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "teleport_player",
+  "position": [
+   291.3,
+   1.4,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 0
+ },
+ {
+  "type": "wait",
+  "frames": 40
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "stop_play"
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Sample Course.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 300
+ },
+ {
+  "type": "gizmos",
+  "visible": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   60,
+   10,
+   62
+  ],
+  "target": [
+   70,
+   1,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "record",
+  "path": "Artifacts/Sizzle/11-editor",
+  "clean": false,
+  "frames": 30,
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 4
+ },
+ {
+  "type": "record",
+  "clean": false
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   75,
+   9,
+   60
+  ],
+  "target": [
+   85,
+   2,
+   40
+  ],
+  "frames": 120
+ },
+ {
+  "type": "select_node",
+  "name": "Section 2 - Container Yard"
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "open_panel",
+  "name": "import"
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "open_panel",
+  "name": "project"
+ },
+ {
+  "type": "wait",
+  "frames": 60
+ },
+ {
+  "type": "open_panel",
+  "name": "uidesigner"
+ },
+ {
+  "type": "wait",
+  "frames": 90
+ },
+ {
+  "type": "open_asset",
+  "path": "Content/Sprites/Characters/Green Alien.manasheet"
+ },
+ {
+  "type": "wait",
+  "frames": 90
+ },
+ {
+  "type": "open_panel",
+  "name": "worldperf"
+ },
+ {
+  "type": "wait",
+  "frames": 70
+ },
+ {
+  "type": "stop_record"
+ },
+ {
+  "type": "wait",
+  "frames": 3
+ },
+ {
+  "type": "quit"
+ }
+]
