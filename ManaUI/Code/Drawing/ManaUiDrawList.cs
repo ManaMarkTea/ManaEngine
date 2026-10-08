@@ -296,11 +296,20 @@ namespace ManaUI
 
             // The seams between pieces sit on whole pixels: a seam at x.5 antialiases both neighbours to half
             // coverage and lets a hairline of the background through, worst at the rounded corners.
-            for (var i = 1; i <= 2; i++)
+            // The outer edges too: a control's far edge is often fractional (its width is), and left alone it
+            // antialiased to a faint column on the right and bottom that the left and top never had.
+            for (var i = 0; i <= 3; i++)
             {
                 x[i] = MathF.Round(x[i]);
                 y[i] = MathF.Round(y[i]);
             }
+
+            x[3] = MathF.Max(x[3], x[0] + 1.0f);
+            y[3] = MathF.Max(y[3], y[0] + 1.0f);
+            x[1] = MathF.Min(x[1], x[3]);
+            x[2] = Math.Clamp(x[2], x[1], x[3]);
+            y[1] = MathF.Min(y[1], y[3]);
+            y[2] = Math.Clamp(y[2], y[1], y[3]);
 
             for (var row = 0; row < 3; row++)
             {
