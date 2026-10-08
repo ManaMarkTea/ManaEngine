@@ -298,3 +298,8 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     each advance set to the glyph's own width plus a gap (the files in Mana/Assets/Fonts/Kenney are the tightened ones), and
     a capitals-only family (ManaFontManager.CapsOnlyFamilies) draws its lower case as small capitals at 80% size
     (ManaFont.SmallCapsFont). The Kenney theme uses the wide cut at 14 px.
+[x] - Scenes panel beside Project / prefabs (2026-10-08).
+    Searchable, virtualized level tiles open scenes through the existing level host. Thumbnails use
+    Content/Levels/Pictures; scenes without a picture show a placeholder. Refresh rescans saved levels.
+    Available under Panels > Assets > Scenes, including saved dock layouts. Checked with the scripted
+    editor screenshot in Tools/Automation/Checks/scenes-ui.json and headless search/preview checks.

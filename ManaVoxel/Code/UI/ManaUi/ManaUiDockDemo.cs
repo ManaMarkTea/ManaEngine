@@ -30,9 +30,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Bump when a panel is added, removed or renamed; missing panels get merged in on load. Also bump
         /// when a strip's content changes shape enough that a saved size for it is stale -- 18 is the compact
         /// toolbar, whose old saved height was more than twice what its content now measures, and 21 is the
-        /// default panel set shrinking (see OpensByDefault). 23 adds the Grid Map tool panel.
+        /// default panel set shrinking (see OpensByDefault). 23 adds the Grid Map tool panel; 25 adds Scenes.
         /// </summary>
-        private const int LayoutVersion = 24;
+        private const int LayoutVersion = 25;
 
         private static string DefaultLayoutPath =>
             ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
@@ -44,6 +44,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             ["tools"] = "Toolbar",
             ["import"] = "Import",
             ["project"] = "Project",
+            ["scenes"] = "Scenes",
             ["blurtest"] = "Blur Test",
             ["outliner"] = "Outliner",
             ["inspector"] = "Inspector",
@@ -91,6 +92,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             "tools",
             "import",
             "project",
+            "scenes",
             "blurtest",
             "outliner",
             "inspector",
@@ -256,6 +258,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
                 "project" when editor != null && world != null => new DockItem(
                     "Project", ProjectManaView.Build(theme, world, editor, () => projectFolderWidth())) { Id = "project" },
+                "scenes" when editor != null => new DockItem(
+                    "Scenes", ScenesManaView.Build(theme, editor.Levels)) { Id = "scenes" },
                 "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f)))
                 {
                     Id = "blurtest"
@@ -647,7 +651,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // Voxel Tools goes back to its own strip, Import to its own, and everything else prefers the
                 // right column.
                 var host = id == "tools" ? top
-                    : id is "import" or "project" ? bottom
+                    : id is "import" or "project" or "scenes" ? bottom
                     : right.RootNode != null ? right : left;
                 host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
             }
@@ -956,6 +960,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             Place(top, resolve, "tools", DockSide.Center);
             var import = Place(bottom, resolve, "import", DockSide.Center);
             Place(bottom, resolve, "project", DockSide.Center, import);
+            Place(bottom, resolve, "scenes", DockSide.Center, import);
 
             switch (preset)
             {
@@ -1115,7 +1120,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     continue;
                 }
 
-                if (id is "import" or "project")
+                if (id is "import" or "project" or "scenes")
                 {
                     bottom.Dock(item, DockSide.Center, DockHost.FindFirstGroup(bottom.RootNode));
                     continue;
@@ -1441,7 +1446,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static readonly (string Heading, string[] Ids)[] PanelGroups =
         {
             ("Editor", new[] { "level", "outliner", "inspector", "tools" }),
-            ("Assets", new[] { "import", "project", UiDesignerManaView.PanelId }),
+            ("Assets", new[] { "import", "project", "scenes", UiDesignerManaView.PanelId }),
             ("Debugging", new[] { "worldperf", "debug", "about", "showcase", "blurtest" }),
             ("Settings", new[] { "preferences" })
         };

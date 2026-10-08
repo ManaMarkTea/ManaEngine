@@ -31,6 +31,4 @@
     earlier fix). If you still see it, tell me the level and the time of day -- or does it show only at a distance, where
     the shadow cascades get coarser?
 
-[] - Make a new panel next to prefabs which has the various levels with thumbnails. prolly called "Scenes"
-
 [] - Big step!!  Rename ManaVoxel, its no longer just a voxel editor

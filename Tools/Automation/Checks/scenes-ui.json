@@ -1,0 +1,6 @@
+[
+  { "type": "open_panel", "name": "scenes" },
+  { "type": "wait", "frames": 120 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "quit" }
+]
