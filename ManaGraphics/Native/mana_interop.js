@@ -3,6 +3,8 @@
 
 let canvas = null;
 let resizeObserver = null;
+let lastLogicalWidth = 0;
+let lastLogicalHeight = 0;
 const startTime = performance.now();
 
 // A touch laptop keeps desktop quality; phones and tablets start with a bounded GPU workload.
@@ -75,9 +77,12 @@ function applyCanvasSize(cssWidth, cssHeight, deviceWidth, deviceHeight) {
     const logicalHeight = Math.max(1, Math.round(cssHeight));
     const width = Math.max(1, deviceWidth);
     const height = Math.max(1, deviceHeight);
-    if (canvas.width === width && canvas.height === height) return;
-    canvas.width = width;
-    canvas.height = height;
+    if (canvas.width === width && canvas.height === height &&
+        lastLogicalWidth === logicalWidth && lastLogicalHeight === logicalHeight) return;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    lastLogicalWidth = logicalWidth;
+    lastLogicalHeight = logicalHeight;
     if (globalThis.ManaExports) {
         globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop.OnResize(logicalWidth, logicalHeight, width, height);
     }

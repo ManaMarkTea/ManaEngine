@@ -24,7 +24,7 @@ function browser({ touch = 1, coarse = true, override = '' } = {}) {
     const api = context.api;
     api.selectCanvas('#canvas'); api.observeResize(); api.startRenderLoop();
     resize([{ contentRect: { width: 402, height: 874 }, devicePixelContentBoxSize: [{ inlineSize: 1206, blockSize: 2622 }] }]);
-    return { api, context, sizes, canvas, frames(count, milliseconds) {
+    return { api, context, sizes, canvas, resize, frames(count, milliseconds) {
         for (let i = 0; i < count; i++) { now += milliseconds; nextFrame(now); }
     } };
 }
@@ -60,4 +60,7 @@ for (const options of [{ touch: 0, coarse: false }, { touch: 10, coarse: false }
     assert.equal(desktop.api.getGpuParticleBudget(), -1);
 }
 assert.equal(browser({ touch: 0, coarse: false, override: '?rendering=mobile' }).api.isMobileRendering(), true);
+const zoom = browser({ touch: 0, coarse: false });
+zoom.resize([{ contentRect: { width: 201, height: 437 }, devicePixelContentBoxSize: [{ inlineSize: 1206, blockSize: 2622 }] }]);
+assert.deepEqual(zoom.sizes.at(-1), [201, 437, 1206, 2622], 'logical resize is reported even when physical dimensions stay unchanged');
 console.log('Mobile rendering checks passed.');
