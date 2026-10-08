@@ -12,6 +12,18 @@ namespace ManaUI
     {
         private readonly Dictionary<string, UiSkinSlice> _slices = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>The atlas the pictures were packed into, and its generation then. Other users of the atlas
+        /// (the Import panel's thumbnails, when it fills) reset it, which leaves these UVs pointing at whatever
+        /// was packed there next -- so a theme asks <see cref="Refresh"/> for a new skin when the generation moves.</summary>
+        public ManaImageAtlas? Atlas { get; init; }
+
+        public int Generation { get; init; }
+
+        /// <summary>Builds the skin again into the current atlas; null leaves the theme flat.</summary>
+        public Func<UiSkin?>? Refresh { get; init; }
+
+        public bool IsStale => Atlas != null && Atlas.Generation != Generation;
+
         public UiSkin Add(string name, UiSkinSlice slice)
         {
             _slices[name] = slice;

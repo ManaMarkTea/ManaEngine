@@ -50,6 +50,17 @@ public static class SkinChecks
         }
         check("at 150% scale every seam and edge lies on a device pixel, and the rectangle is fully covered", onPixels && covered >= 200.4f * 100.1f, $"{covered}");
 
+        // Another user of the atlas resetting it must not leave the theme drawing someone else's pixels.
+        var atlas = new ManaImageAtlas(64, 64);
+        var rebuilt = 0;
+        UiSkin Make() => new UiSkin { Atlas = atlas, Generation = atlas.Generation, Refresh = () => { rebuilt++; return Make(); } };
+        var skinned = UiTheme.Create(UiThemeKind.Kenney);
+        skinned.Skin = Make();
+        _ = skinned.Skin;
+        atlas.Reset();
+        var after = skinned.Skin;
+        check("a skin is rebuilt once its atlas has been reset, and not before", rebuilt == 1 && after != null && !after.IsStale, $"{rebuilt}");
+
         var theme = UiTheme.Create(UiThemeKind.Kenney);
         check("the Kenney theme is its own kind, with no skin until a host gives it one", theme.Kind == UiThemeKind.Kenney && theme.Skin == null, "");
     }

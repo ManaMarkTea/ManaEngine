@@ -101,8 +101,23 @@ namespace ManaUI
 
         public Vector4 Accent { get; set; } = UiColor.FromHex("#4A88E8");
 
-        /// <summary>Pictures controls are drawn in instead of flat colour, or null for a flat theme.</summary>
-        public UiSkin? Skin { get; set; }
+        /// <summary>Pictures controls are drawn in instead of flat colour, or null for a flat theme. Rebuilt on
+        /// first use after the atlas holding it was reset, since its pictures would otherwise be someone else's.</summary>
+        public UiSkin? Skin
+        {
+            get
+            {
+                if (_skin is { IsStale: true } stale)
+                {
+                    _skin = stale.Refresh?.Invoke();
+                }
+
+                return _skin;
+            }
+            set => _skin = value;
+        }
+
+        private UiSkin? _skin;
         public Vector4 AccentHover { get; set; } = UiColor.FromHex("#5D97F0");
         public Vector4 AccentPressed { get; set; } = UiColor.FromHex("#3A72CC");
 

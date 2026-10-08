@@ -11,18 +11,24 @@ namespace Mana.Code.UI.ManaUi
     /// </summary>
     public static class KenneyUiSkin
     {
-        private static readonly ConditionalWeakTable<ManaImageAtlas, UiSkin?> Built = new();
+        private static readonly ConditionalWeakTable<ManaImageAtlas, Holder> Built = new();
+
+        private sealed class Holder
+        {
+            public int Generation = -1;
+            public UiSkin? Skin;
+        }
 
         public static UiSkin? For(ManaImageAtlas atlas)
         {
-            if (Built.TryGetValue(atlas, out var existing))
+            var holder = Built.GetOrCreateValue(atlas);
+            if (holder.Generation != atlas.Generation)
             {
-                return existing;
+                holder.Generation = atlas.Generation;
+                holder.Skin = Build(atlas);
             }
 
-            var skin = Build(atlas);
-            Built.Add(atlas, skin);
-            return skin;
+            return holder.Skin;
         }
 
         /// <summary>Puts the skin on a theme if it is the Kenney one.</summary>
@@ -35,6 +41,8 @@ namespace Mana.Code.UI.ManaUi
         }
 
         private const int Gutter = 4;
+
+        private static readonly Dictionary<string, ManaImage> Decoded = new(StringComparer.Ordinal);
 
         private static ManaImage Padded(ManaImage image, int border)
         {
@@ -56,7 +64,7 @@ namespace Mana.Code.UI.ManaUi
 
         private static UiSkin? Build(ManaImageAtlas atlas)
         {
-            var skin = new UiSkin();
+            var skin = new UiSkin { Atlas = atlas, Generation = atlas.Generation, Refresh = () => For(atlas) };
             // Insets are in the picture's own pixels: its rounded corner and border.
             // Pictures from the Space expansion and from the plain UI pack, which has what the first lacks: check boxes,
             // arrows, knobs and inputs. Insets are in the picture's own pixels (its rounded corner and border); 0 draws
@@ -107,31 +115,37 @@ namespace Mana.Code.UI.ManaUi
             {
                 if (!uvs.TryGetValue(file, out var packed))
                 {
-                    var path = ManaSpritePictures.Resolve(file);
-                    if (path == null)
+                    // Decoded once per run: an atlas reset (the Import panel filling it) rebuilds the skin, and that
+                    // should be a repack, not a reread of thirty pictures.
+                    if (!Decoded.TryGetValue(file, out var padded))
                     {
-                        // The Space pack is the essential one; a missing plain pack only costs its extras.
-                        if (file.StartsWith(Plain, StringComparison.Ordinal))
+                        var path = ManaSpritePictures.Resolve(file);
+                        if (path == null)
                         {
-                            continue;
+                            // The Space pack is the essential one; a missing plain pack only costs its extras.
+                            if (file.StartsWith(Plain, StringComparison.Ordinal))
+                            {
+                                continue;
+                            }
+                            return null;
                         }
-                        return null;
+
+                        try
+                        {
+                            // Packed with a border of its own edge pixels, and the picture's UVs taken from inside it.
+                            // The atlas filters and mips its contents, so a picture touching transparent padding fades
+                            // at its rim; repeating the edge keeps every neighbour the same colour.
+                            padded = Padded(ManaImageCodec.Load(path), Gutter);
+                        }
+                        catch (Exception exception) when (exception is IOException or InvalidDataException)
+                        {
+                            return null;
+                        }
+
+                        Decoded[file] = padded;
                     }
 
-                    ManaImage image;
-                    try
-                    {
-                        image = ManaImageCodec.Load(path);
-                    }
-                    catch (Exception exception) when (exception is IOException or InvalidDataException)
-                    {
-                        return null;
-                    }
-
-                    // Packed with a border of its own edge pixels, and the picture's UVs taken from inside it. The atlas
-                    // filters and mips its contents, so a picture touching transparent padding fades at its rim (the
-                    // faint line along a control's right and bottom); repeating the edge keeps every neighbour the same colour.
-                    var padded = Padded(image, Gutter);
+                    var image = (Width: padded.Width - Gutter * 2, Height: padded.Height - Gutter * 2);
                     if (atlas.Add(padded.Pixels, padded.Width, padded.Height) is not { } outer)
                     {
                         return null;
