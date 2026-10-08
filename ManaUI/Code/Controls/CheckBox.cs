@@ -84,6 +84,18 @@ namespace ManaUI
 
             var corners = new CornerRadius(3.0f);
 
+            var boxTint = enabled ? (IsPointerOver ? new Vector4(1.08f, 1.08f, 1.08f, 1.0f) : UiColor.White) : new Vector4(1.0f, 1.0f, 1.0f, 0.5f);
+            if (drawList.DrawSkinIcon(theme, _isChecked ? "checkOn" : "checkOff", box, boxTint))
+            {
+                RenderFocusRing(drawList, box, corners);
+                if (_label != null)
+                {
+                    _label.Foreground = enabled ? theme.Text : theme.TextDisabled;
+                }
+
+                return;
+            }
+
             if (_isChecked)
             {
                 var fill = enabled ? theme.Accent : theme.SurfaceAlt;

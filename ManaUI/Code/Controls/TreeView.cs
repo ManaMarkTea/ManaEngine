@@ -660,6 +660,12 @@ namespace ManaUI
             var size = 8.0f;
             var box = new UiRect(centre.X - size * 0.5f, centre.Y - size * 0.5f, size, size);
 
+            if (drawList.DrawSkinIcon(theme, _owner.IsExpanded(_item) ? "arrowDown" : "arrowRight",
+                    new UiRect(centre.X - 6.0f, centre.Y - 6.0f, 12.0f, 12.0f), UiColor.White))
+            {
+                return;
+            }
+
             UiIcons.Triangle(
                 drawList,
                 box,

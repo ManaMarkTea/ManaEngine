@@ -7,6 +7,24 @@ namespace ManaUI
     public static class UiSkinDrawing
     {
         /// <summary>
+        /// A whole skin picture (no stretching) drawn into <paramref name="rect"/>: an arrow, a check box. False when the
+        /// theme has no such picture.
+        /// </summary>
+        public static bool DrawSkinIcon(this ManaUiDrawList drawList, UiTheme theme, string name, UiRect rect, Vector4 tint)
+        {
+            if (theme.Skin is not { } skin || !skin.TryGet(name, out var slice))
+            {
+                return false;
+            }
+
+            drawList.DrawImage(rect, slice.Uv, tint, CornerRadius.Zero);
+            return true;
+        }
+
+        /// <summary>Whether the theme's skin has a slice of this name.</summary>
+        public static bool HasSkin(this UiTheme theme, string name) => theme.Skin != null && theme.Skin.TryGet(name, out _);
+
+        /// <summary>
         /// Draws the named slice over <paramref name="rect"/>, tinted by <paramref name="tint"/> (alpha kept). Corners
         /// are sized to the rectangle: a control shorter than the picture shrinks them to fit, a big panel keeps small ones.
         /// False when the theme has no skin or no such slice, and nothing was drawn.

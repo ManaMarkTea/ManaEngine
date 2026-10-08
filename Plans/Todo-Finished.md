@@ -273,3 +273,8 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     Claude (2026-10-08, later): matched to Kenney's own sample picture -- the Kenney theme is now a light one: pale lilac
     panels, buttons and fields with dark type, blue title bars and primary buttons, the pack's bright blue behind, raised
     buttons that sit flat when pressed.
+
+    Claude (2026-10-08, third pass): no more 1 px seams in the nine-slices (each quad overlaps its neighbour by half a pixel);
+    selected tabs are blue with white type; sliders get a thicker track and a round knob, and the inspector's drag strips are
+    sliders too; check boxes, combo and tree arrows and text fields now use the plain UI pack (Assets/kenney_ui-pack.zip) as well.
+    Still unused from that pack: its font (Kenney Future), dividers, stars, and the coloured (green/red/yellow) fills.

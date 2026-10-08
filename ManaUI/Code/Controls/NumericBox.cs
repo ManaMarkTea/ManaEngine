@@ -755,7 +755,11 @@ namespace ManaUI
             var enabled = IsScrubbable;
             var active = IsDragging || (enabled && IsPointerOver);
 
-            drawList.FillRect(strip, enabled ? theme.SurfaceAlt : theme.Surface, corners);
+            var skinnedStrip = drawList.DrawSkin(theme, "track", strip, enabled ? UiColor.White : new Vector4(1.0f, 1.0f, 1.0f, 0.5f), lift: false);
+            if (!skinnedStrip)
+            {
+                drawList.FillRect(strip, enabled ? theme.SurfaceAlt : theme.Surface, corners);
+            }
 
             if (!enabled)
             {
@@ -773,7 +777,11 @@ namespace ManaUI
                 var width = strip.Width * progress;
                 if (width > 0.0f)
                 {
-                    drawList.FillRect(new UiRect(strip.X, strip.Y, width, strip.Height), tint, corners);
+                    var filled = new UiRect(strip.X, strip.Y, width, strip.Height);
+                    if (!drawList.DrawSkin(theme, "fill", filled, new Vector4(1.0f, 1.0f, 1.0f, active ? 1.0f : 0.85f), lift: false))
+                    {
+                        drawList.FillRect(filled, tint, corners);
+                    }
                 }
 
                 return;

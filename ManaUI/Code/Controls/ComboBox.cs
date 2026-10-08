@@ -167,6 +167,11 @@ namespace ManaUI
             var centre = new Vector2(Bounds.Right - ArrowWidth * 0.5f - 4.0f, Bounds.Center.Y);
             var box = new UiRect(centre.X - 4.5f, centre.Y - 3.0f, 9.0f, 6.0f);
 
+            if (drawList.DrawSkinIcon(Theme, IsDropDownOpen ? "arrowUp" : "arrowDown", new UiRect(centre.X - 6.0f, centre.Y - 6.0f, 12.0f, 12.0f), UiColor.White))
+            {
+                return;
+            }
+
             UiIcons.Triangle(
                 drawList,
                 box,

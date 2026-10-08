@@ -572,17 +572,24 @@ namespace ManaUI
 
                 if (selected)
                 {
-                    if (!drawList.DrawSkin(theme, "button", tab, theme.SurfaceRaised))
+                    if (drawList.DrawSkin(theme, "primary", tab, UiColor.White, lift: false))
+                    {
+                        // A blue tab in the skin: no accent bar needed.
+                    }
+                    else
                     {
                         drawList.FillRect(tab, theme.Surface, tabRadius);
-                    }
 
-                    // A short accent bar along the top reads as "this one" more clearly than fill alone.
-                    drawList.FillRect(new UiRect(tab.X, tab.Y, tab.Width, 2.0f), theme.Accent, accentRadius);
+                        // A short accent bar along the top reads as "this one" more clearly than fill alone.
+                        drawList.FillRect(new UiRect(tab.X, tab.Y, tab.Width, 2.0f), theme.Accent, accentRadius);
+                    }
                 }
                 else if (hovered)
                 {
-                    drawList.FillRect(tab, theme.Hover, tabRadius);
+                    if (!drawList.DrawSkin(theme, "button", tab, theme.SurfaceRaised))
+                    {
+                        drawList.FillRect(tab, theme.Hover, tabRadius);
+                    }
                 }
 
                 var layout = new TextLayout
@@ -596,7 +603,7 @@ namespace ManaUI
                 layout.Render(
                     drawList,
                     new UiRect(tab.X + TabPaddingX, tab.Y, layout.MaxWidth, tab.Height),
-                    selected ? theme.Text : theme.TextMuted,
+                    selected ? (theme.HasSkin("primary") ? theme.TextOnAccent : theme.Text) : theme.TextMuted,
                     VerticalAlignment.Center);
 
                 if (_items[i].CanClose && (selected || hovered))

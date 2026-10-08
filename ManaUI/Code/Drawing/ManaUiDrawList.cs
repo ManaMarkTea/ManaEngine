@@ -305,12 +305,16 @@ namespace ManaUI
                         continue;
                     }
 
+                    // Edges that land between device pixels would leave a hairline of background between quads;
+                    // reaching half a pixel into the neighbour closes it, and the picture is opaque there.
+                    var cell = new UiRect(x[column], y[row], width + (column < 2 ? 0.5f : 0.0f), height + (row < 2 ? 0.5f : 0.0f));
+
                     var uv = new Vector4(
                         slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column],
                         slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row],
                         slice.Uv.X + (slice.Uv.Z - slice.Uv.X) * u[column + 1],
                         slice.Uv.Y + (slice.Uv.W - slice.Uv.Y) * v[row + 1]);
-                    DrawImage(new UiRect(x[column], y[row], width, height), uv, tint, CornerRadius.Zero);
+                    DrawImage(cell, uv, tint, CornerRadius.Zero);
                 }
             }
         }

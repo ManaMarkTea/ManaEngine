@@ -120,7 +120,7 @@ namespace ManaUI
             var enabled = IsEffectivelyEnabled;
 
             var track = TrackRect();
-            var corners = new CornerRadius(TrackThickness * 0.5f);
+            var corners = new CornerRadius(track.Height * 0.5f);
 
             var skin = theme.Skin;
             var skinnedTrack = skin != null && skin.TryGet("track", out var trackSlice) ? trackSlice : (UiSkinSlice?)null;
@@ -154,12 +154,19 @@ namespace ManaUI
                 ThumbDiameter);
 
             var thumbCorners = new CornerRadius(ThumbDiameter * 0.5f);
-            drawList.DrawBox(
-                thumb,
-                ApplyStateOverlay(enabled ? theme.SurfaceRaised : theme.SurfaceAlt),
-                enabled ? theme.Accent : theme.Border,
-                2.0f,
-                thumbCorners);
+            var skinnedThumb = drawList.DrawSkinIcon(
+                theme, "thumb", thumb.Inflate(new Thickness(3.0f)),
+                enabled ? (IsPressed ? new Vector4(0.85f, 0.9f, 1.0f, 1.0f) : IsPointerOver ? new Vector4(1.0f, 1.0f, 1.0f, 1.0f) : new Vector4(0.93f, 0.95f, 1.0f, 1.0f))
+                    : new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
+            if (!skinnedThumb)
+            {
+                drawList.DrawBox(
+                    thumb,
+                    ApplyStateOverlay(enabled ? theme.SurfaceRaised : theme.SurfaceAlt),
+                    enabled ? theme.Accent : theme.Border,
+                    2.0f,
+                    thumbCorners);
+            }
 
             RenderFocusRing(drawList, thumb, thumbCorners);
         }
@@ -168,11 +175,13 @@ namespace ManaUI
         private UiRect TrackRect()
         {
             var inset = ThumbDiameter * 0.5f;
+            // A skin's track is a pill with a border, which wants more height than the flat hairline does.
+            var thickness = Theme.HasSkin("track") ? 9.0f : TrackThickness;
             return new UiRect(
                 Bounds.X + inset,
-                Bounds.Center.Y - TrackThickness * 0.5f,
+                Bounds.Center.Y - thickness * 0.5f,
                 MathF.Max(0.0f, Bounds.Width - ThumbDiameter),
-                TrackThickness);
+                thickness);
         }
 
         protected override void OnPointerPressed(UiPointerEventArgs e)
