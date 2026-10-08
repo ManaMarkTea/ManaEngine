@@ -80,6 +80,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "Gustiness", Scalar(
                     () => settings.Gustiness, v => settings.Gustiness = v, 0.0f, 1.0f)),
 
+                Section(theme, "Night sky"),
+
+                new CheckBox().Label("Constellation lines")
+                    .Checked(settings.ConstellationLines)
+                    .OnChanged(value => settings.ConstellationLines = value),
+
                 Section(theme, "Debug world"),
 
                 new CheckBox().Label("Draw debug world")
@@ -134,6 +140,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             settings.WindSpeed = defaults.WindSpeed;
             settings.WindDirection = defaults.WindDirection;
             settings.Gustiness = defaults.Gustiness;
+            settings.ConstellationLines = defaults.ConstellationLines;
         }
 
         private static UiElement Row(UiTheme theme, string label, UiElement editor)

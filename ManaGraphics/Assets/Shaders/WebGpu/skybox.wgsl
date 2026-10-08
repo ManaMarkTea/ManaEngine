@@ -37,7 +37,15 @@ struct SkyboxUniform {
     moon : vec4<f32>,
     // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = how far the clouds have drifted (ManaSky).
     parameters : vec4<f32>,
+    // Rows taking an equatorial direction to east, up, north (xyz); celestial_east.w is how strongly the
+    // constellation lines show. All zero when the sky has no date to turn the stars by.
+    celestial_east : vec4<f32>,
+    celestial_up : vec4<f32>,
+    celestial_north : vec4<f32>,
 };
+
+#include "include/constellations.wgsl"
+
 
 @group(0) @binding(0) var<uniform> sky : SkyboxUniform;
 @group(0) @binding(1) var sky_sampler : sampler;
@@ -282,6 +290,50 @@ fn stars(direction : vec3<f32>, density : f32, seconds : f32) -> vec3<f32> {
     return colour * brightness * twinkle * (1.0 - smoothstep(0.0, 0.35, distance));
 }
 
+// The catalogue's real stars, and the lines joining them when asked, for a direction in the sky's own frame
+// (east, up, north). Turned into the equatorial frame the catalogue is written in, so they rise and set with the date.
+fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
+    if (dot(sky.celestial_up.xyz, sky.celestial_up.xyz) < 0.5) {
+        return vec3<f32>(0.0);
+    }
+    let equatorial = sky.celestial_east.xyz * direction.x + sky.celestial_up.xyz * direction.y + sky.celestial_north.xyz * direction.z;
+
+    var total = vec3<f32>(0.0);
+    for (var i = 0u; i < STAR_COUNT; i = i + 1u) {
+        let star = STAR_DIRECTIONS[i];
+        // Squared angle between them; stars further than about 0.6 degrees add nothing.
+        let angle_squared = 2.0 * (1.0 - dot(equatorial, star.xyz));
+        if (angle_squared > 0.0002) {
+            continue;
+        }
+        let magnitude = star.w;
+        let sigma = 0.0013 * (1.0 + 0.3 * clamp(2.5 - magnitude, 0.0, 3.0));
+        let brightness = 2.4 * pow(0.55, magnitude);
+        let warmth = STAR_WARMTH[i];
+        let colour = mix(mix(vec3<f32>(0.7, 0.8, 1.0), vec3<f32>(1.0, 0.95, 0.88), clamp(warmth * 2.0, 0.0, 1.0)), vec3<f32>(1.0, 0.55, 0.35), clamp(warmth * 2.0 - 1.0, 0.0, 1.0));
+        total = total + colour * brightness * exp(-angle_squared / (2.0 * sigma * sigma));
+    }
+
+    let lines = sky.celestial_east.w;
+    if (lines > 0.0) {
+        var line = 0.0;
+        for (var i = 0u; i < SEGMENT_COUNT; i = i + 1u) {
+            let pair = SEGMENTS[i];
+            let a = STAR_DIRECTIONS[pair.x].xyz;
+            let b = STAR_DIRECTIONS[pair.y].xyz;
+            let normal = normalize(cross(a, b));
+            // Between the two ends, and within a pixel or so of the great circle joining them.
+            let side_a = dot(cross(a, equatorial), normal);
+            let side_b = dot(cross(equatorial, b), normal);
+            if (side_a > 0.0 && side_b > 0.0) {
+                line = max(line, 1.0 - smoothstep(0.0, 0.0011, abs(dot(equatorial, normal))));
+            }
+        }
+        total = total + vec3<f32>(0.35, 0.5, 0.8) * line * 0.22 * lines;
+    }
+    return total;
+}
+
 // ---- The skies -------------------------------------------------------------------------------------------
 
 const Ground : vec3<f32> = vec3<f32>(0.30, 0.33, 0.37);
@@ -319,6 +371,9 @@ fn day_sky(direction : vec3<f32>, jitter : f32) -> vec3<f32> {
     colour = colour + vec3<f32>(0.004, 0.008, 0.02) * night;
     if (up > 0.0) {
         colour = colour + stars(direction, 0.012, sky.parameters.x) * night * smoothstep(0.0, 0.2, up);
+        if (night > 0.0) {
+            colour = colour + catalogue_stars(direction) * night * smoothstep(0.0, 0.15, up);
+        }
     }
     if (up > 0.0 && sky.moon.w > 0.5) {
         let toward_moon = normalize(sky.moon.xyz);

@@ -1,5 +1,3 @@
-[] - Can the stars be real constalations?
-
 [] - Auto-Normal looks really bad.
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?

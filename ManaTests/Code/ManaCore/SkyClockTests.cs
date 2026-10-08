@@ -12,6 +12,18 @@ public static class SkyClockChecks
         check("and an hour comes back the hour it was", Near(ManaSky.HoursAt(ManaSky.PhaseAt(17.85)), 17.85f) && Near(ManaSky.HoursAt(ManaSky.PhaseAt(0.0)), 0.0f),
             $"{ManaSky.HoursAt(ManaSky.PhaseAt(17.85))}");
 
+        // The star catalogue's frame: an orthonormal turn, with Polaris held at the observer's latitude all night and
+        // facing north (+Z), whatever the hour.
+        foreach (var hour in new[] { 0, 5, 11, 17 })
+        {
+            var (west, up, north) = ManaSky.CelestialFrame(new DateTimeOffset(2026, 12, 20, hour, 0, 0, TimeSpan.Zero));
+            var polaris = Vector3.Normalize(new Vector3(0.0f, 0.0f, 1.0f) + new Vector3(0.02f, 0.01f, 0.0f));
+            var altitude = MathF.Asin(Vector3.Dot(up, polaris)) * 180.0f / MathF.PI;
+            check($"the sky's frame is orthonormal and Polaris sits near 47.6 degrees up at {hour:00}:00 UTC",
+                MathF.Abs(west.Length() - 1.0f) < 1e-4f && MathF.Abs(Vector3.Dot(west, up)) < 1e-4f && MathF.Abs(Vector3.Dot(up, north)) < 1e-4f
+                    && MathF.Abs(altitude - 47.6f) < 1.5f && Vector3.Dot(north, polaris) > 0.0f ? true : false, $"{altitude:0.0} degrees");
+        }
+
         var newMoon = new DateTimeOffset(2000, 1, 6, 18, 14, 0, TimeSpan.Zero);
         var quarterMoon = newMoon.AddDays(29.530588853 / 4.0);
         var fullMoon = newMoon.AddDays(29.530588853 / 2.0);

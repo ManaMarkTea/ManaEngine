@@ -62,6 +62,12 @@ namespace ManaGraphics.Code.Graphics
 
             // x = seconds, for the stars' twinkle; y = daylight, 0..1; z = cloud drift; w = lunar phase, 0..1.
             public Vector4 Parameters;
+
+            // Rows taking an equatorial direction to east, up, north (xyz); east.w = how strongly the constellation
+            // lines show. All zero when the sky has no date to turn the stars by.
+            public Vector4 CelestialEast;
+            public Vector4 CelestialUp;
+            public Vector4 CelestialNorth;
         }
 
         /// <param name="depthFormat">The pass's depth format, or null for a pass with no depth (a cube face).</param>
@@ -158,7 +164,10 @@ namespace ManaGraphics.Code.Graphics
                 InverseDirectionViewProjection = inverse,
                 Sun = new Vector4(sun, sky.Mode switch { ManaSkyMode.Photo => 0.0f, ManaSkyMode.Space => 2.0f, _ => 1.0f }),
                 Moon = new Vector4(sky.TowardMoon, sky.Mode == ManaSkyMode.DayNightCycle ? 1.0f : 0.0f),
-                Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase)
+                Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase),
+                CelestialEast = new Vector4(sky.CelestialEast, sky.ConstellationLines),
+                CelestialUp = new Vector4(sky.CelestialUp, 0.0f),
+                CelestialNorth = new Vector4(sky.CelestialNorth, 0.0f)
             };
             _api.QueueWriteBuffer(_queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }

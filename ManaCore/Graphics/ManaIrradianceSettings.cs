@@ -52,6 +52,9 @@ namespace ManaCore.Graphics
         /// <summary>Follows the wall clock instead: the sky is as it is outside right now.</summary>
         public bool RealTime { get; set; }
 
+        /// <summary>Draws the constellation figures over the night sky's real stars (Day and Night only).</summary>
+        public bool ConstellationLines { get; set; }
+
         /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
         public float WindSpeed { get; set; } = ManaWind.ReferenceSpeed;
 
@@ -105,7 +108,8 @@ namespace ManaCore.Graphics
                 RealTime = RealTime,
                 WindSpeed = WindSpeed,
                 WindDirection = WindDirection,
-                Gustiness = Gustiness
+                Gustiness = Gustiness,
+                ConstellationLines = ConstellationLines
             };
         }
     }

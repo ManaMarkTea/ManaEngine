@@ -375,6 +375,10 @@ namespace Mana.Code.Automation
             {
                 sky.Sky = skyMode;
             }
+            if (command.Visible is { } lines)
+            {
+                sky.ConstellationLines = lines;
+            }
             if (command.SkyDateTime is { } skyDateTime)
             {
                 sky.SkyDateTime = skyDateTime;

@@ -35,7 +35,11 @@ namespace ManaCore.Graphics
             Vector3 SunTint,
             float CloudTime = 0.0f,
             float MoonPhase = 0.0f,
-            Vector3 TowardMoon = default);
+            Vector3 TowardMoon = default,
+            Vector3 CelestialEast = default,
+            Vector3 CelestialUp = default,
+            Vector3 CelestialNorth = default,
+            float ConstellationLines = 0.0f);
 
         // The day speed the clouds drift at their own pace for; faster days push them faster, like a timelapse.
         private const float CloudBaseSpeed = 300.0f;
@@ -110,7 +114,33 @@ namespace ManaCore.Graphics
             var elevation = towardSun.Y;
             var daylight = 0.08f + 0.92f * SmoothStep(-0.08f, 0.25f, elevation);
             var tint = Vector3.Lerp(new Vector3(1.0f, 0.62f, 0.42f), Vector3.One, SmoothStep(0.0f, 0.4f, elevation));
-            return new State(ManaSkyMode.DayNightCycle, towardSun, daylight, tint, (float)settings.CloudSeconds, moonPhase, towardMoon);
+            // Rows of the matrix taking an equatorial star direction (x toward RA 0h, z toward the pole) to this
+            // sky's east, up and north, so the star catalogue turns with the date and hour.
+            var (east, up, north) = CelestialFrame(settings.SkyDateTime);
+            return new State(ManaSkyMode.DayNightCycle, towardSun, daylight, tint, (float)settings.CloudSeconds, moonPhase, towardMoon,
+                east, up, north, settings.ConstellationLines ? 1.0f : 0.0f);
+        }
+
+        /// <summary>Local sidereal time in degrees at the observer for <paramref name="time"/>.</summary>
+        private static double LocalSiderealDegrees(DateTimeOffset time)
+        {
+            var julianDate = 2440587.5 + (time.UtcDateTime - DateTime.UnixEpoch).TotalDays;
+            var centuries = (julianDate - 2451545.0) / 36525.0;
+            return 280.46061837 + 360.98564736629 * (julianDate - 2451545.0) +
+                0.000387933 * centuries * centuries - centuries * centuries * centuries / 38710000.0 + ObserverLongitudeDegrees;
+        }
+
+        /// <summary>The X (west), Y (up) and Z (north) rows of the equatorial-to-world rotation at the observer; same frame as the sun's direction.</summary>
+        public static (Vector3 East, Vector3 Up, Vector3 North) CelestialFrame(DateTimeOffset time)
+        {
+            var sidereal = ToRadians(LocalSiderealDegrees(time));
+            var latitude = ToRadians(ObserverLatitudeDegrees);
+            float sinL = (float)Math.Sin(sidereal), cosL = (float)Math.Cos(sidereal);
+            float sinP = (float)Math.Sin(latitude), cosP = (float)Math.Cos(latitude);
+            // The first row is world +X, which is west (see EquatorialToHorizon): east negated.
+            return (new Vector3(sinL, -cosL, 0.0f),
+                new Vector3(cosP * cosL, cosP * sinL, sinP),
+                new Vector3(-sinP * cosL, -sinP * sinL, cosP));
         }
 
         private static (Vector3 Sun, Vector3 Moon) CelestialDirectionsAt(DateTimeOffset time)
@@ -201,7 +231,9 @@ namespace ManaCore.Graphics
                 Math.Cos(declination) * Math.Cos(hourAngle) * Math.Sin(observerLatitude);
             var up = Math.Sin(declination) * Math.Sin(observerLatitude) +
                 Math.Cos(declination) * Math.Cos(hourAngle) * Math.Cos(observerLatitude);
-            return Vector3.Normalize(new Vector3((float)east, (float)up, (float)north));
+            // The scene looks down -Z by default, which is south here (north is +Z); east is then to the left, -X.
+            // With +X as east the whole sky -- sun, moon and stars -- came out as a mirror image.
+            return Vector3.Normalize(new Vector3((float)-east, (float)up, (float)north));
         }
 
         private static double ToRadians(double degrees) => degrees * Math.PI / 180.0;

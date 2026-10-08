@@ -1,0 +1,106 @@
+[
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Tests/Particles.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 200
+ },
+ {
+  "type": "gizmos",
+  "visible": false
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "skyDateTime": "2026-12-20T22:30:00-08:00",
+  "visible": true
+ },
+ {
+  "type": "wait",
+  "frames": 40
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   50,
+   2,
+   50
+  ],
+  "target": [
+   65,
+   12,
+   41
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.orion.png",
+  "clean": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   50,
+   2,
+   50
+  ],
+  "target": [
+   50,
+   12,
+   30
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.south.png",
+  "clean": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   50,
+   2,
+   50
+  ],
+  "target": [
+   50,
+   14,
+   70
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.north.png",
+  "clean": true
+ },
+ {
+  "type": "sky",
+  "visible": false
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.north-nolines.png",
+  "clean": true
+ },
+ {
+  "type": "quit"
+ }
+]

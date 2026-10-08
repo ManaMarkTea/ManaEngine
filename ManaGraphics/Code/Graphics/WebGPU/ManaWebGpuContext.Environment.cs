@@ -119,6 +119,8 @@ namespace ManaGraphics.Code.Graphics
                 Vector3.Dot(drawn.TowardSun, sky.TowardSun) < 0.99985f ||
                 (sky.Mode == ManaSkyMode.DayNightCycle && Vector3.Dot(drawn.TowardMoon, sky.TowardMoon) < 0.99985f) ||
                 MathF.Abs(drawn.Daylight - sky.Daylight) > 0.01f ||
+                drawn.ConstellationLines != sky.ConstellationLines ||
+                (sky.Mode == ManaSkyMode.DayNightCycle && Vector3.Dot(drawn.CelestialEast, sky.CelestialEast) < 0.99985f) ||
                 moonPhaseDelta > 0.001f;
         }
 

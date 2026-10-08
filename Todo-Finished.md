@@ -196,3 +196,14 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     (sparks, smoke, fountain, rain; Tools/Automation/Checks/particles.json). Tests: ParticleChecks.
     Still open: ribbons (a trail joining each particle's past positions), textured particles / sprite-sheet frames,
     collisions, and OpenGL (untested there -- the mesh updates through the same dynamic path skinned meshes use).
+
+[x] - Can the stars be real constalations?
+    Claude: yes -- in Day and Night the sky draws ~130 real bright stars (right ascension, declination, magnitude, colour)
+    and 20 constellations (Orion, Ursa Major/Minor, Cassiopeia, Cygnus, Lyra, Scorpius, Leo, Taurus, Gemini, ...) in the
+    sky shader, turned by the simulated date, hour and observer (Seattle), so they rise, set and wheel round Polaris with the
+    sky clock. Scene Inspector > Night sky > Constellation lines draws the figures. The procedural random stars stay as
+    the faint fill. DevPhotos/2026-10-07 real-constellations-*.png; Tools/Automation/Checks/constellations.json.
+    Found on the way: the sun, moon and now stars were a mirror image (east on the right when facing south); the sky's
+    frame is now -X east, so the sun crosses left to right as you face south.
+    Still open: the constellation positions were typed from memory of the catalogue (good to a few arcminutes, worth a
+    check against a star atlas), Space mode keeps its random stars, and the observer is fixed at Seattle.
