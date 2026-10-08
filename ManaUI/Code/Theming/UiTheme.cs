@@ -279,6 +279,10 @@ namespace ManaUI
             return new UiTheme
             {
                 Kind = UiThemeKind.Kenney,
+                FontFamily = "KenneyFutureNarrow",
+                FontFamilyMedium = "KenneyFutureNarrow",
+                FontSize = 16.0f,
+                FontSizeSmall = 14.0f,
                 Background = UiColor.FromHex("#3399DD"),
                 Surface = UiColor.FromHex("#DCDFEA"),
                 SurfaceAlt = UiColor.FromHex("#A5A8B8"),

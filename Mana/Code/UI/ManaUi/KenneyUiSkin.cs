@@ -34,6 +34,26 @@ namespace Mana.Code.UI.ManaUi
             }
         }
 
+        private const int Gutter = 4;
+
+        private static ManaImage Padded(ManaImage image, int border)
+        {
+            var width = image.Width + border * 2;
+            var height = image.Height + border * 2;
+            var result = new ManaImage(width, height);
+            for (var y = 0; y < height; y++)
+            {
+                var sy = Math.Clamp(y - border, 0, image.Height - 1);
+                for (var x = 0; x < width; x++)
+                {
+                    var sx = Math.Clamp(x - border, 0, image.Width - 1);
+                    Array.Copy(image.Pixels, (sy * image.Width + sx) * 4, result.Pixels, (y * width + x) * 4, 4);
+                }
+            }
+
+            return result;
+        }
+
         private static UiSkin? Build(ManaImageAtlas atlas)
         {
             var skin = new UiSkin();
@@ -67,6 +87,21 @@ namespace Mana.Code.UI.ManaUi
                 ("arrowRight", Plain + "Blue/Default/arrow_basic_e_small.png", 0.0f)
             };
 
+            // Every progress fill the pack draws: four colours, round or square, plain or glossy.
+            var fills = new List<(string Name, string File, float Inset)>();
+            foreach (var (tone, colour) in new[] { ("Accent", "Blue"), ("Success", "Green"), ("Warning", "Yellow"), ("Danger", "Red") })
+            {
+                foreach (var shape in new[] { "round", "square" })
+                {
+                    foreach (var gloss in new[] { false, true })
+                    {
+                        fills.Add(($"fill.{tone}.{shape}{(gloss ? ".gloss" : string.Empty)}",
+                            Space + $"{colour}/Default/bar_{shape}{(gloss ? "_gloss" : string.Empty)}_large.png", shape == "round" ? 11.0f : 4.0f));
+                    }
+                }
+            }
+            parts = parts.Concat(fills).Append(("track.square", Space + "Extra/Default/bar_shadow_square_large.png", 4.0f)).ToArray();
+
             var uvs = new Dictionary<string, (Vector4 Uv, Vector2 Size)>();
             foreach (var (name, file, inset) in parts)
             {
@@ -93,11 +128,18 @@ namespace Mana.Code.UI.ManaUi
                         return null;
                     }
 
-                    if (atlas.Add(image.Pixels, image.Width, image.Height) is not { } uv)
+                    // Packed with a border of its own edge pixels, and the picture's UVs taken from inside it. The atlas
+                    // filters and mips its contents, so a picture touching transparent padding fades at its rim (the
+                    // faint line along a control's right and bottom); repeating the edge keeps every neighbour the same colour.
+                    var padded = Padded(image, Gutter);
+                    if (atlas.Add(padded.Pixels, padded.Width, padded.Height) is not { } outer)
                     {
                         return null;
                     }
 
+                    var uv = new Vector4(
+                        outer.X + Gutter / (float)atlas.Width, outer.Y + Gutter / (float)atlas.Height,
+                        outer.Z - Gutter / (float)atlas.Width, outer.W - Gutter / (float)atlas.Height);
                     packed = (uv, new Vector2(image.Width, image.Height));
                     uvs[file] = packed;
                 }

@@ -45,6 +45,12 @@ namespace ManaUI
         /// <summary>Above 1, drawn as this many separate blocks, filled from the start -- a battery, a health row. Drawn flat.</summary>
         public int Segments { get; set; }
 
+        /// <summary>Square ends instead of round -- in a skin, the pack's square bars.</summary>
+        public bool Square { get; set; }
+
+        /// <summary>A glossy fill (in a skin, the pack's gloss bars): lit from above, for emphasis.</summary>
+        public bool Gloss { get; set; }
+
         /// <summary>A vertical bar's height when nothing else constrains it.</summary>
         public float Length { get; set; } = 120.0f;
 
@@ -56,13 +62,8 @@ namespace ManaUI
             _ => theme.Accent
         };
 
-        private string FillSlice => Tone switch
-        {
-            UiTone.Success => "fillSuccess",
-            UiTone.Warning => "fillWarning",
-            UiTone.Danger => "fillDanger",
-            _ => "fill"
-        };
+        // "fill.Success.square.gloss", and so on: every tone, shape and finish the skin was given.
+        private string FillSlice => $"fill.{Tone}.{(Square ? "square" : "round")}{(Gloss ? ".gloss" : string.Empty)}";
 
         /// <summary>
         /// Indeterminate: a band sweeping the track rather than a fraction filled, for work with no
@@ -102,10 +103,10 @@ namespace ManaUI
                 return;
             }
 
-            var corners = new CornerRadius(Bounds.Height * 0.5f);
+            var corners = Square ? new CornerRadius(2.0f) : new CornerRadius(Bounds.Height * 0.5f);
 
             var skin = theme.Skin;
-            if (skin != null && skin.TryGet("track", out var track))
+            if (skin != null && (Square && skin.TryGet("track.square", out var track) || skin.TryGet("track", out track)))
             {
                 drawList.DrawNineSlice(Bounds, track, Vector4.One, Bounds.Height / track.Size.Y);
             }

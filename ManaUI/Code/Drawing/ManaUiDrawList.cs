@@ -302,11 +302,18 @@ namespace ManaUI
             // coverage and lets a hairline of the background through, worst at the rounded corners.
             // The outer edges too: a control's far edge is often fractional (its width is), and left alone it
             // antialiased to a faint column on the right and bottom that the left and top never had.
-            for (var i = 0; i <= 3; i++)
+            for (var i = 1; i <= 2; i++)
             {
                 x[i] = MathF.Round(x[i]);
                 y[i] = MathF.Round(y[i]);
             }
+
+            // Outwards, never in: rounding a far edge down left its last pixel part-covered, which read as a missing
+            // outline on the right and bottom only.
+            x[0] = MathF.Floor(x[0]);
+            y[0] = MathF.Floor(y[0]);
+            x[3] = MathF.Ceiling(x[3]);
+            y[3] = MathF.Ceiling(y[3]);
 
             x[3] = MathF.Max(x[3], x[0] + 1.0f);
             y[3] = MathF.Max(y[3], y[0] + 1.0f);

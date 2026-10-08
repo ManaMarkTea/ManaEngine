@@ -1553,6 +1553,8 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static readonly string[] FontChoices =
         {
             "Roboto",
+            "KenneyFutureNarrow",
+            "KenneyFuture",
             "BarlowCondensed-Regular",
             "segoeui",
             "SegoeUI",
@@ -1581,6 +1583,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "trebuc" => "Trebuchet MS",
                 "consola" => "Consolas",
                 "BarlowCondensed-Regular" => "Barlow Condensed",
+                "KenneyFuture" => "Kenney Future",
+                "KenneyFutureNarrow" => "Kenney Future Narrow",
                 "SFNSDisplay" => "SF Pro",
                 "DejaVuSans" => "DejaVu Sans",
                 _ => family

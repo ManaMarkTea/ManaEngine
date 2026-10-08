@@ -286,3 +286,9 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     a card. New controls to match Kenney's sample: ProgressBar Tone/Vertical/Segments, StatusLight, red close dot on windows,
     a red Danger button.
     Not matched yet: the folder-tab panel shape, the translucent title-less "Energy" tray, crosshair cursors.
+
+    Claude (2026-10-08, fifth pass): the gap was the picture's own outer pixels. The pack's atlas is filtered and mipped, so
+    a picture touching empty padding faded at its rim; skin pictures are now packed with a four-pixel border of their own edge
+    pixels, and the outer edges of a nine-slice snap outwards (floor/ceiling) so the far edge keeps full coverage. Progress
+    bars gained Square and Gloss, in four tones, from every bar the pack has. The Kenney theme now sets in Kenney Future Narrow
+    (Mana/Assets/Fonts/Kenney, CC0; also in Appearance > Font, with the wide Kenney Future).

@@ -321,6 +321,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new ProgressBar { Fraction = 0.45f, Tone = UiTone.Danger }.Width(320.0f),
                 new ProgressBar { Fraction = 0.7f, Tone = UiTone.Warning }.Width(320.0f),
                 new ProgressBar { Fraction = 0.9f, Tone = UiTone.Success }.Width(320.0f),
+                new ProgressBar { Fraction = 0.8f, Gloss = true, Thickness = 12.0f }.Width(320.0f),
+                new ProgressBar { Fraction = 0.55f, Square = true, Tone = UiTone.Warning, Thickness = 12.0f }.Width(320.0f),
+                new ProgressBar { Fraction = 0.4f, Square = true, Gloss = true, Tone = UiTone.Danger, Thickness = 12.0f }.Width(320.0f),
+                new ProgressBar { Fraction = 0.75f, Gloss = true, Tone = UiTone.Success, Thickness = 16.0f }.Width(320.0f),
                 new ProgressBar { Fraction = 0.6f, Segments = 6, Thickness = 16.0f }.Width(320.0f),
                 new StackPanel().Horizontal(theme.Spacing * 2.0f).Children(
                     new ProgressBar { Fraction = 0.8f, Vertical = true, Thickness = 14.0f, Tone = UiTone.Success },
