@@ -270,31 +270,39 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Kenney's Space UI pack: a deep navy with the pack's sky blue for accents. The pictures themselves
-        /// (<see cref="Skin"/>) come from the host once it has an atlas to put them in.
+        /// Kenney's Space UI pack, as its own sample shows it: pale grey-lilac panels and buttons with dark type, blue
+        /// header bars, and the pack's bright blue behind. The pictures themselves (<see cref="Skin"/>) come from the
+        /// host once it has an atlas to put them in; these tokens carry the colours without them.
         /// </summary>
         public static UiTheme Kenney()
         {
             return new UiTheme
             {
                 Kind = UiThemeKind.Kenney,
-                Background = UiColor.FromHex("#141A2A"),
-                Surface = UiColor.FromHex("#202A42"),
-                SurfaceAlt = UiColor.FromHex("#161D31"),
-                SurfaceRaised = UiColor.FromHex("#2D3A5C"),
-                RowAlternate = UiColor.FromHex("#1B2439"),
-                Text = UiColor.FromHex("#E8EEFA"),
-                TextMuted = UiColor.FromHex("#9AA8C6"),
-                TextDisabled = UiColor.FromHex("#66728E"),
+                Background = UiColor.FromHex("#3399DD"),
+                Surface = UiColor.FromHex("#DCDFEA"),
+                SurfaceAlt = UiColor.FromHex("#A5A8B8"),
+                SurfaceRaised = UiColor.FromHex("#E8EAF2"),
+                RowAlternate = UiColor.FromHex("#D2D5E2"),
+                Text = UiColor.FromHex("#3A3F50"),
+                TextMuted = UiColor.FromHex("#686E84"),
+                TextDisabled = UiColor.FromHex("#9A9FB2"),
+                TextOnAccent = UiColor.FromHex("#FFFFFF"),
                 Accent = UiColor.FromHex("#1FA0DC"),
                 AccentHover = UiColor.FromHex("#3DB4EC"),
                 AccentPressed = UiColor.FromHex("#1584B8"),
-                Border = UiColor.FromHex("#34416A"),
-                BorderStrong = UiColor.FromHex("#4A5B8C"),
-                CornerRadius = new CornerRadius(6.0f),
-                CornerRadiusLarge = new CornerRadius(10.0f),
-                GridFloor = UiColor.FromHex("#8E96AE"),
-                GridLine = UiColor.FromHex("#66708E")
+                Border = UiColor.FromHex("#B0B4C6"),
+                BorderStrong = UiColor.FromHex("#8A90A8"),
+                Hover = new Vector4(0.06f, 0.20f, 0.40f, 0.07f),
+                Pressed = new Vector4(0.06f, 0.20f, 0.40f, 0.14f),
+                Selected = UiColor.FromHex("#BBD4F5"),
+                SurfaceGradient = 0.0f,
+                AccentGradient = 0.0f,
+                CornerRadius = new CornerRadius(5.0f),
+                CornerRadiusLarge = new CornerRadius(8.0f),
+                GridFloor = UiColor.FromHex("#C8CCDA"),
+                GridLine = UiColor.FromHex("#9CA2B8"),
+                GridCheckerRatio = 0.9645f
             };
         }
 

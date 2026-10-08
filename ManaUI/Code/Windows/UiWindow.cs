@@ -232,9 +232,9 @@ namespace ManaUI
 
             drawList.DrawShadow(Bounds, new Vector4(0.0f, 0.0f, 0.0f, 0.4f), 20.0f, corners);
             var skin = theme.Skin;
-            if (skin != null && skin.TryGet("panel", out var panel))
+            if (drawList.DrawSkin(theme, "panel", Bounds, theme.Surface))
             {
-                drawList.DrawNineSlice(Bounds, panel, theme.Surface * 1.12f, 0.5f);
+                // Dressed in the skin's panel.
             }
             else
             {
@@ -333,7 +333,8 @@ namespace ManaUI
                 layout.MaxWidth,
                 titleBar.Height);
 
-            layout.Render(drawList, textArea, IsFocusedWindow ? theme.Text : theme.TextMuted,
+            var onBlueBar = theme.Skin != null && theme.Skin.TryGet("titleBar", out _);
+            layout.Render(drawList, textArea, onBlueBar ? (IsFocusedWindow ? theme.TextOnAccent : theme.TextOnAccent.WithAlpha(0.75f)) : IsFocusedWindow ? theme.Text : theme.TextMuted,
                 VerticalAlignment.Center);
         }
 

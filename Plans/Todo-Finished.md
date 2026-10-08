@@ -269,3 +269,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     expander headers, tabs (view and dock), the menu bar and menu rows (blue pill highlight), menu popups, and scrollbars,
     on top of buttons, windows, tab panels and sliders/progress bars. Border has a SkinName for any other panel.
     Not done: the pack's font, its cursors (the cursor pack is a separate zip) and the web (the pack is not in the asset catalog).
+
+    Claude (2026-10-08, later): matched to Kenney's own sample picture -- the Kenney theme is now a light one: pale lilac
+    panels, buttons and fields with dark type, blue title bars and primary buttons, the pack's bright blue behind, raised
+    buttons that sit flat when pressed.

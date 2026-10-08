@@ -185,6 +185,12 @@ namespace ManaUI
                 tint = new Vector4(MathF.Min(fill.X * 1.18f, 1.0f), MathF.Min(fill.Y * 1.18f, 1.0f), MathF.Min(fill.Z * 1.18f, 1.0f), 1.0f);
             }
 
+            // Pressed: the flat picture, so the button reads as pushed in.
+            if (!accent && IsPressed && skin.TryGet("buttonPressed", out var pressed))
+            {
+                slice = pressed;
+            }
+
             drawList.DrawNineSlice(Bounds, slice, tint, MathF.Min(1.0f, Bounds.Height / slice.Size.Y));
             return true;
         }

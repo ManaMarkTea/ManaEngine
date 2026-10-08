@@ -41,13 +41,14 @@ namespace Mana.Code.UI.ManaUi
             // Insets are in the picture's own pixels: its rounded corner and border.
             var parts = new (string Name, string File, float Inset)[]
             {
-                ("button", "Extra/Default/button_rectangle.png", 12.0f),
-                ("panel", "Extra/Default/panel_rectangle.png", 14.0f),
+                ("button", "Extra/Default/button_rectangle_depth.png", 12.0f),
+                ("buttonPressed", "Extra/Default/button_rectangle.png", 12.0f),
+                ("panel", "Extra/Default/button_rectangle.png", 14.0f),
                 ("titleBar", "Blue/Default/bar_square_large.png", 5.0f),
                 ("primary", "Blue/Default/bar_round_large.png", 11.0f),
                 ("track", "Extra/Default/bar_shadow_round_large.png", 11.0f),
                 ("fill", "Blue/Default/bar_round_large.png", 11.0f),
-                ("input", "Extra/Default/bar_shadow_square_outline_large.png", 6.0f)
+                ("input", "Extra/Default/button_rectangle.png", 12.0f)
             };
 
             var uvs = new Dictionary<string, (Vector4 Uv, Vector2 Size)>();

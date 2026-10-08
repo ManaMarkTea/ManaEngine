@@ -139,10 +139,8 @@ namespace ManaUI
 
             if (drawList.DrawSkin(theme, "input", Bounds, enabled ? UiColor.White : new Vector4(1.0f, 1.0f, 1.0f, 0.5f), lift: false))
             {
-                if (IsFocused)
-                {
-                    drawList.DrawBorder(Bounds, theme.Accent, 1.5f, corners);
-                }
+                // The skin's pale picture has no edge of its own that reads as a field, so the border does.
+                drawList.DrawBorder(Bounds, IsFocused ? theme.Accent : theme.BorderStrong, IsFocused ? 1.5f : 1.0f, corners);
             }
             else
             {

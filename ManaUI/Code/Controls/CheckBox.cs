@@ -95,7 +95,11 @@ namespace ManaUI
             }
             else
             {
-                if (!drawList.DrawSkin(theme, "input", box, enabled ? UiColor.White : new Vector4(1.0f, 1.0f, 1.0f, 0.5f), lift: false))
+                if (drawList.DrawSkin(theme, "input", box, enabled ? UiColor.White : new Vector4(1.0f, 1.0f, 1.0f, 0.5f), lift: false))
+                {
+                    drawList.DrawBorder(box, theme.BorderStrong, 1.0f, corners);
+                }
+                else
                 {
                     drawList.DrawBox(
                         box,
