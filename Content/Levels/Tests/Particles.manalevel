@@ -1,0 +1,265 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Particles",
+  "camera": {
+    "position": [
+      51,
+      2.5,
+      50
+    ],
+    "rotation": [
+      -0.12,
+      0,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "id": "f66b8890f9a5427f85d5b7d2c724a3ea",
+      "name": "Floor",
+      "kind": "Shape",
+      "position": [
+        50,
+        -0.1,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.25,
+        0.27,
+        0.3,
+        1
+      ],
+      "size": [
+        24,
+        0.2,
+        14
+      ]
+    },
+    {
+      "id": "845125a8f2814c62a072acb782fdb0f0",
+      "name": "Sparks",
+      "kind": "Group",
+      "position": [
+        44,
+        0.3,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "1f9001470ee849c1b3001fb8ce830c50",
+          "type": "ParticleEmitter",
+          "properties": {
+            "rate": 60,
+            "speed": 4,
+            "spreadDegrees": 25,
+            "lifetime": 1.4,
+            "gravity": [
+              0,
+              -6,
+              0
+            ],
+            "startSize": 0.1,
+            "endSize": 0.02,
+            "startColor": [
+              1,
+              0.75,
+              0.25,
+              1
+            ],
+            "endColor": [
+              1,
+              0.15,
+              0.02,
+              0
+            ],
+            "brightness": 2.5,
+            "shape": "Points"
+          }
+        }
+      ]
+    },
+    {
+      "id": "0a237db6d5064adc9b83bd87373881fe",
+      "name": "Smoke",
+      "kind": "Group",
+      "position": [
+        48,
+        0.5,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "79ca52df9bfd40329dd756ddfd338c6e",
+          "type": "ParticleEmitter",
+          "properties": {
+            "rate": 14,
+            "speed": 0.8,
+            "spreadDegrees": 15,
+            "lifetime": 4,
+            "gravity": [
+              0.15,
+              0.5,
+              0
+            ],
+            "startSize": 0.4,
+            "endSize": 1.8,
+            "startColor": [
+              0.45,
+              0.45,
+              0.48,
+              0.55
+            ],
+            "endColor": [
+              0.7,
+              0.7,
+              0.72,
+              0
+            ],
+            "brightness": 1,
+            "maxParticles": 120
+          }
+        }
+      ]
+    },
+    {
+      "id": "396a7fbf20d04ec391890eea990a5df3",
+      "name": "Fountain",
+      "kind": "Group",
+      "position": [
+        52,
+        0.2,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "07aad725bf854de39ce0682f68b30b2e",
+          "type": "ParticleEmitter",
+          "properties": {
+            "rate": 90,
+            "speed": 5.5,
+            "spreadDegrees": 12,
+            "lifetime": 1.8,
+            "gravity": [
+              0,
+              -9.8,
+              0
+            ],
+            "startSize": 0.12,
+            "endSize": 0.08,
+            "startColor": [
+              0.6,
+              0.8,
+              1,
+              0.9
+            ],
+            "endColor": [
+              0.8,
+              0.9,
+              1,
+              0.1
+            ],
+            "shape": "Points",
+            "maxParticles": 300
+          }
+        }
+      ]
+    },
+    {
+      "id": "7ca406a35f1b4d7eb6c52f3f8b050ecb",
+      "name": "Rain",
+      "kind": "Group",
+      "position": [
+        57,
+        6,
+        40
+      ],
+      "rotation": [
+        3.14159,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "b0d65a2686a644a3860430d7981a4657",
+          "type": "ParticleEmitter",
+          "properties": {
+            "rate": 160,
+            "speed": 9,
+            "spreadDegrees": 4,
+            "radius": 3,
+            "lifetime": 0.7,
+            "gravity": [
+              0,
+              0,
+              0
+            ],
+            "startSize": 0.04,
+            "endSize": 0.04,
+            "startColor": [
+              0.75,
+              0.85,
+              1,
+              0.8
+            ],
+            "endColor": [
+              0.75,
+              0.85,
+              1,
+              0.3
+            ],
+            "shape": "Streaks",
+            "streakLength": 0.12,
+            "maxParticles": 300
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -4,8 +4,6 @@
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
 
-[] - Some kind of particle system. - Points, trails, ribbons, etc.
-
 [] - Is there some kind of couch co-op 4 - 8 player game we could make using this stuff
 
 [] - UI Editor is not working and not used, needs updating - low priority

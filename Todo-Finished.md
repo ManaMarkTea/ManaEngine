@@ -186,3 +186,13 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     as two delegates (capture a frame, dump the environment) so Mana needs no ManaGraphics reference. The editor's
     (open_level, prefabs, panels, selection, grid maps, bow, play) are registered by ManaVoxel's VoxelCommands.
     Checked with a script (open, sky, screenshot, unknown command, profile, quit) and all tests pass.
+
+[x] - Some kind of particle system. - Points, trails, ribbons, etc.
+    Claude: a "ParticleEmitter" script (Add Component) -- ManaParticleEmitterComponent. Rate, burst, spread cone, radius,
+    lifetime, speed, gravity, size and colour from birth to death, brightness (above 1 blooms). Shapes: Points (soft
+    discs facing the camera) and Streaks (stretched along travel -- rain, embers). Simulated on the CPU in world space and
+    drawn as one unlit, blended mesh sorted back to front (ManaParticleMesh), so an emitter is one draw. Runs in the editor
+    for tuning; the level saves only the script's properties. Reference scene: Content/Levels/Tests/Particles
+    (sparks, smoke, fountain, rain; Tools/Automation/Checks/particles.json). Tests: ParticleChecks.
+    Still open: ribbons (a trail joining each particle's past positions), textured particles / sprite-sheet frames,
+    collisions, and OpenGL (untested there -- the mesh updates through the same dynamic path skinned meshes use).

@@ -90,6 +90,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = "ParticleEmitter",
+                    ComponentType = typeof(Mana.Code.Components.ManaParticleEmitterComponent),
+                    Create = node => new Mana.Code.Components.ManaParticleEmitterComponent(node)
+                },
+                new()
+                {
                     Type = "Light",
                     ComponentType = typeof(ManaLightSourceComponent),
                     Create = node => new ManaLightSourceComponent(node),
@@ -206,6 +212,7 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaGlowComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaParticleEmitterComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPlatformer2DComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(BowComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaParallaxComponent))]

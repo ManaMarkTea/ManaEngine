@@ -1,0 +1,44 @@
+[
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Tests/Particles.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 240
+ },
+ {
+  "type": "sky",
+  "name": "DayNightCycle",
+  "timeOfDay": 0.49
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   51,
+   2.5,
+   50
+  ],
+  "target": [
+   51,
+   2.0,
+   40
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 90
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.png",
+  "clean": true
+ },
+ {
+  "type": "quit"
+ }
+]

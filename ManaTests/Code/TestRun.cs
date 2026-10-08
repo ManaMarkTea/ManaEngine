@@ -118,6 +118,7 @@ public static class TestRunner
         ("ManaVoxel", "polygon editing", PolygonEditChecks.Run),
         ("ManaVoxel", "sprite assets", SpriteAssetChecks.Run),
         ("ManaVoxel", "glow", GlowChecks.Run),
+        ("ManaVoxel", "particles", ParticleChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
         ("ManaUI", "window resize grip", WindowChecks.RunGrip),
