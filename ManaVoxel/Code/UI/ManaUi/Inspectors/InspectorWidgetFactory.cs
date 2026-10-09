@@ -48,6 +48,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         {
             return new InspectorWidgetFactory()
                 .Register(new SceneWidget())
+                .Register(new GameModesWidget())
                 .Register(new NodeIdentityWidget())
                 .Register(new TransformWidget())
                 .Register(new LevelSourceWidget())

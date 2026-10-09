@@ -46,7 +46,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             foreach (var tile in mine.Where(t => t.IsResource && t.Building == TywBuilding.None).OrderByDescending(t => t.Richness))
             {
-                if (me.CanAfford(TywCosts.Extractor))
+                if (me.CanAfford(game.ExtractorCost(_player)))
                 {
                     game.Act(_player, tile.Hex);
                     return;
@@ -57,6 +57,19 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             if (game.TrainCount(_player) < Math.Max(1, (extractors + 1) * 2 / 3 + 1) && game.BuyTrain(_player) == null)
             {
                 return;
+            }
+
+            // Light the richest dark mine, once coal is no longer scarce.
+            if (game.TorchCount(_player) < TywGame.MaxTorches && me.Bank[(int)TywResource.Coal] >= 3 && me.CanAfford(TywCosts.Torch))
+            {
+                var dark = game.Board.Tiles
+                    .Where(t => t.BuildingOwner == _player && t.Building is TywBuilding.Extractor or TywBuilding.Factory && !game.IsLit(t) && !t.HasTorch)
+                    .OrderByDescending(t => t.Richness)
+                    .FirstOrDefault();
+                if (dark != null && game.PlaceTorch(_player, dark.Hex) == null)
+                {
+                    return;
+                }
             }
 
             if (Expand(game, me, mine))
@@ -95,7 +108,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             var candidates = game.Board.Tiles
                 .Where(t => (t.IsResource && t.Owner == -1 && t.Building == TywBuilding.None) ||
-                            (t.Building == TywBuilding.Town && !game.IsTownConnected(t.Hex, _player)))
+                            (t.IsShared && !game.IsTownConnected(t.Hex, _player)))
                 .Select(t => (Tile: t, Near: reach.Min(h => h.DistanceTo(t.Hex))))
                 .OrderBy(c => c.Near)
                 .Take(8)
@@ -112,7 +125,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 }
 
                 float value;
-                if (tile.Building == TywBuilding.Town)
+                if (tile.IsShared)
                 {
                     value = game.TownConnections(tile.Hex).Any() ? 2.0f : 3.0f;
                 }

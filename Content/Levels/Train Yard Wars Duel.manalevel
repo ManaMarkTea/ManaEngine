@@ -1,0 +1,33 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Train Yard Wars Duel",
+  "camera": {
+    "position": [
+      64.0,
+      70.0,
+      120.0
+    ],
+    "rotation": [
+      -0.9,
+      0,
+      0
+    ]
+  },
+  "gameModes": [
+    {
+      "id": "8b48717744644d4d8410ee5fa2a523f9",
+      "type": "TrainYardWars",
+      "properties": {
+        "players": 2,
+        "seed": 42,
+        "prestigeTarget": 8,
+        "matchMinutes": 8.0,
+        "botThinkSeconds": 1.0,
+        "hour": 18.0,
+        "daylight": 0.25
+      }
+    }
+  ],
+  "nodes": []
+}

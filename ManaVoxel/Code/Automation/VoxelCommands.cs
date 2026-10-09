@@ -54,6 +54,16 @@ namespace ManaVoxel.Code.Automation
                 var node = runner.FindNode(command.Name);
                 if (node == null)
                 {
+                    // A scene of that name instead: what brings up its Inspector (level settings, game modes).
+                    var scene = context.World.Scenes.FirstOrDefault(s => string.Equals(s.Name, command.Name, StringComparison.OrdinalIgnoreCase));
+                    if (scene != null)
+                    {
+                        context.World.Selection.SelectedNode = null;
+                        context.World.Selection.SelectedComponent = null;
+                        context.World.Selection.SelectedScene = scene;
+                        return;
+                    }
+
                     ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: select_node found no node named '{command.Name}', skipping.");
                     return;
                 }

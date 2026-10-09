@@ -22,11 +22,15 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             }
         }
 
+        /// <summary>Nothing was drawn: not worth a node.</summary>
+        public bool IsEmpty { get; private set; }
+
         protected override void GenerateData()
         {
             base.GenerateData();
             var builder = new TywMeshBuilder(DynamicGeometryContainer);
             _build(builder);
+            IsEmpty = builder.IsEmpty;
             MinSize = builder.Min;
             MaxSize = builder.Max;
             // CPU data only: the WebGPU backend uploads from it, and this game runs on WebGPU alone.

@@ -89,7 +89,7 @@ namespace ManaVoxel.Web
 
         protected override void BuildManaUi(ManaUiHost host)
         {
-            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hudText, () => Context.World.GameState.FormatHud(),
+            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hudText, () => _player != null ? Context.World.GameState.FormatHud() : "",
                 ManaUiPlayResults.Build(host.Root.Theme, Context.World.GameState, Restart, BackToLevels, "Back to levels"),
                 ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
         }
@@ -225,6 +225,22 @@ namespace ManaVoxel.Web
         /// </summary>
         private void SpawnPlayer()
         {
+            // A character only when the level's game modes ask for one (the Character mode); otherwise the world runs
+            // under a free camera. Other modes are not run in the browser yet.
+            var modes = Context.World.Scenes.SelectMany(scene => scene.GameModes).ToList();
+            if (!Mana.Code.GameModes.ManaGameModeRunner.AnyWantsPlayerCharacter(modes))
+            {
+                if (_pawnController != null)
+                {
+                    _pawnController.MouseLookControlsEnabled = false;
+                }
+
+                Context.World.BeginPlay();
+                Console.WriteLine("[BrowserPlay] Spawned a debug camera (the level has no Character game mode).");
+                _hudText = "Debug camera  --  WASD and Q/E fly, hold right mouse to look, Esc menu";
+                return;
+            }
+
             if (!_characterSpawn.IsAvailable)
             {
                 Console.WriteLine("[BrowserPlay] No character packs found under Assets/; running without a player.");
@@ -260,8 +276,9 @@ namespace ManaVoxel.Web
 
             _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
             _player.UpdateTransform();
-            // Double jump, matching desktop play (VoxelPlayGameMode).
-            _player.MaxJumpCount = 2;
+            // The Character mode's jumps, as on desktop (PlayModeController.JumpsFor).
+            _player.MaxJumpCount = modes.OfType<Mana.Code.GameModes.ManaCharacterGameMode>()
+                .Select(mode => Math.Max(1, mode.MaxJumps)).DefaultIfEmpty(2).Max();
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);

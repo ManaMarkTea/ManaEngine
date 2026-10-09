@@ -250,7 +250,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // Lamps illuminate the room independently of daylight. Use its inward-facing normal so
     // mirrored walls and the floor all receive light from inside the room.
     var local_diffuse = vec3<f32>(0.0);
-    for (var i = 0u; i < 16u; i = i + 1u) {
+    for (var i = 0u; i < 64u; i = i + 1u) {
+        if (frame.local_light_positions[i].w <= 0.0) {
+            break;
+        }
         let to_light = frame.local_light_positions[i].xyz - input.world_position;
         let distance = max(length(to_light), 0.05);
         let attenuation = mana_point_light_attenuation(distance, frame.local_light_positions[i].w);

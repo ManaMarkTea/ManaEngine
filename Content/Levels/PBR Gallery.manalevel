@@ -6,6 +6,15 @@
     "position": [49, 8, 71],
     "rotation": [-0.16, 0, 0]
   },
+  "gameModes": [
+    {
+      "id": "a777e7eaab2a409f8439a0016d16ed10",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "name": "Gallery Architecture",

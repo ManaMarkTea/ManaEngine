@@ -615,8 +615,17 @@ public static class LevelSerializationChecks
                 && item.Camera.Position[0] >= 32.0f
                 && item.Camera.Position[2] >= 32.0f),
             string.Join(", ", allBundledLevels.Select(item => item.Name)));
+        // Play spawns a character only for a level that asks with the Character game mode; one with a Player Start
+        // that forgot would quietly play as a debug camera.
+        var startsWithoutCharacter = allBundledLevels
+            .Where(item => item.PlayerStart != null && item.GameModes?.Any(mode => mode.Type == "Character") != true)
+            .Select(item => item.Name)
+            .ToList();
+        Check("bundled levels with a Player Start play as a character (Character game mode)", startsWithoutCharacter.Count == 0,
+            string.Join(", ", startsWithoutCharacter));
         Check("bundled level roots use the 32,0,32 scene offset",
-            allBundledLevels.All(item => item.Nodes.Count > 0
+            // A level may be all rules and no placed nodes -- a game mode that builds its own world.
+            allBundledLevels.All(item => (item.Nodes.Count > 0 || item.GameModes is { Count: > 0 })
                 && item.Nodes.All(node => node.Position.Length >= 3
                     && node.Position[0] >= 32.0f
                     && node.Position[2] >= 32.0f)),

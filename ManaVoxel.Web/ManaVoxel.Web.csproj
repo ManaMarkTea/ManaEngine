@@ -73,6 +73,7 @@
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevel.cs" Link="Levels\ManaLevel.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMaterial.cs" Link="Levels\ManaLevelMaterial.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelLoader.cs" Link="Levels\ManaLevelLoader.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelGameModes.cs" Link="Levels\ManaLevelGameModes.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMeshColliders.cs" Link="Levels\ManaLevelMeshColliders.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
     <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />

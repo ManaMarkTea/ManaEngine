@@ -6,6 +6,15 @@
     "position": [40, 3.2, 50],
     "rotation": [-0.25, 0, 0]
   },
+  "gameModes": [
+    {
+      "id": "16a3574314b74b27a2b7e17c63ae30b8",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "id": "750591498d4e4aca9062ec82a7800df9",

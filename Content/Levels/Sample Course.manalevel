@@ -6,6 +6,15 @@
     "position": [50.056774, 11.60346, 55.99221],
     "rotation": [-0.69680053, -0.18880221, 0]
   },
+  "gameModes": [
+    {
+      "id": "914e0ab97482457b80d52b1d143a90a4",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "name": "Section 1 - Road",

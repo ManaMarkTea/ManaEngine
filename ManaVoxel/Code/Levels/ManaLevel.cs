@@ -35,6 +35,9 @@ namespace ManaVoxel.Code.Levels
         /// <summary>Optional: the sky the level wants -- a night with the stars out, say. Absent leaves the editor's own sky alone.</summary>
         public ManaLevelSky? Sky { get; set; }
 
+        /// <summary>Optional: the level's game modes -- its rules -- run on Play, each with its settings. See ManaLevelGameModes.</summary>
+        public List<ManaLevelGameModeEntry>? GameModes { get; set; }
+
         public List<ManaLevelNode> Nodes { get; set; } = new();
 
         public ManaLevelNode? PlayerStart =>

@@ -9,7 +9,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
     public static class TywGeometry
     {
         public const float HexRadius = 2.0f;
-        public const float TopY = 0.3f;
+        // The hexagon kit tiles are 0.2 thick at a scale of 2 * sqrt(3): their surface is where track lies.
+        public static readonly float TopY = 0.2f * HexRadius * TywHex.Sqrt3;
 
         public static Vector3 Center(TywHex hex)
         {

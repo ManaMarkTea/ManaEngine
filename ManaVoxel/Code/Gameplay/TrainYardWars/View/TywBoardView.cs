@@ -1,4 +1,5 @@
 using Mana;
+using Mana.Code.Components;
 using Mana.Code.Nodes;
 using ManaCore.Diagnostics;
 using ManaVoxel.Code.Gameplay.TrainYardWars.Rules;
@@ -36,6 +37,10 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private const string Forest = "zip:kenney_mini-forest_1.0.zip/Models/GLB format/";
         private const string Factory = "zip:kenney_factory-kit_3.0.zip/Models/GLB format/";
         private const string Trains = "zip:kenney_train-kit.zip/Models/GLB format/";
+        private const string Kit = "zip:kenney_hexagon-kit.zip/Models/GLB format/";
+
+        // The hexagon kit's tiles are 1 across the flats; ours are HexRadius corner to centre.
+        private static readonly float KitScale = TywGeometry.HexRadius / (1.0f / TywHex.Sqrt3);
 
         private static readonly string[] CargoWagons =
         {
@@ -49,6 +54,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private const string Locomotive = Trains + "train-locomotive-a.glb";
         private const float TrainLength = 1.3f;
         private const float WagonGap = 1.28f;
+        // The kit's locomotive faces +Z (its front wheels are there), which Place turns to +X.
+        private static readonly Vector3 ChimneyOffset = new(0.45f, 0.92f, 0.0f);
 
         private readonly ManaContext _context;
         private readonly ManaScene _scene;
@@ -74,7 +81,14 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private sealed class HexNodes
         {
             public int Revision = -1;
+            public bool Cleared;
             public ManaMeshSceneNode? Track;
+            public int TrackLinks;
+            public float TrackBornAt = float.NegativeInfinity;
+            public ManaSceneNode? Fire;
+            public ManaSceneNode? Torch;
+            public float BuildingBornAt = float.NegativeInfinity;
+            public Vector3 BuildingAt;
             public ManaSceneNode? Building;
             public TywBuilding BuildingKind;
             public ManaMeshSceneNode? Stock;
@@ -88,6 +102,54 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             public ManaSceneNode Locomotive = null!;
             public ManaSceneNode? Wagon;
             public int WagonCargo = -2;
+            public ManaParticleEmitterComponent? Smoke;
+            public PoseBlend LocomotivePose = new();
+            public PoseBlend WagonPose = new();
+        }
+
+        /// <summary>
+        /// Where a car was drawn last, so a jump (a train turning round at a stop puts its wagon on the other side)
+        /// is eased over a moment instead of snapping.
+        /// </summary>
+        private sealed class PoseBlend
+        {
+            private const float Seconds = 0.45f;
+
+            public bool Has;
+            public Vector3 Position;
+            public float Yaw;
+            private Vector3 _fromPosition;
+            private float _fromYaw;
+            private float _startedAt = float.NegativeInfinity;
+
+            public (Vector3 Position, float Yaw) Step(Vector3 position, float yaw, float now)
+            {
+                if (Has && (Vector3.Distance(position, Position) > 0.9f || MathF.Abs(AngleBetween(Yaw, yaw)) > 1.0f) && now - _startedAt > Seconds)
+                {
+                    _fromPosition = Position;
+                    _fromYaw = Yaw;
+                    _startedAt = now;
+                }
+
+                var t = Math.Clamp((now - _startedAt) / Seconds, 0.0f, 1.0f);
+                if (Has && t < 1.0f)
+                {
+                    var ease = t * t * (3.0f - 2.0f * t);
+                    position = Vector3.Lerp(_fromPosition, position, ease);
+                    yaw = _fromYaw + AngleBetween(_fromYaw, yaw) * ease;
+                }
+
+                Has = true;
+                Position = position;
+                Yaw = yaw;
+                return (position, yaw);
+            }
+
+            private static float AngleBetween(float from, float to)
+            {
+                var delta = (to - from) % MathF.Tau;
+                return delta > MathF.PI ? delta - MathF.Tau : delta < -MathF.PI ? delta + MathF.Tau : delta;
+            }
         }
 
         /// <summary>Loads every model the board uses, off the main thread during the loading screen.</summary>
@@ -95,15 +157,30 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         {
             var assets = new List<string>
             {
-                Forest + "tree.glb", Forest + "tree-high.glb", Forest + "rocks-low.glb", Forest + "stones.glb",
-                Forest + "rocks-high.glb", Forest + "plant.glb", Factory + "hopper-round.glb",
-                Factory + "hopper-high-square.glb", Locomotive, EmptyWagon
+                Forest + "rocks-low.glb", Forest + "stones.glb", Forest + "rocks-high.glb",
+                Factory + "hopper-round.glb", Factory + "hopper-high-square.glb", Locomotive, EmptyWagon
             };
             assets.AddRange(CargoWagons);
+            assets.AddRange(new[]
+            {
+                "water", "water-rocks", "sand", "sand-rocks", "sand-desert", "grass", "grass-forest", "stone",
+                "stone-hill", "stone-rocks", "stone-mountain", "grass-hill", "building-port", "unit-tree", "unit-house", "unit-mansion",
+                "unit-mill", "unit-tower"
+            }.Select(name => Kit + name + ".glb"));
             foreach (var asset in assets)
             {
                 Model(asset);
             }
+        }
+
+        /// <summary>The middle of the board and how far it reaches, in world units on the ground.</summary>
+        public static (Vector3 Center, Vector2 HalfSize) Extent(TywBoard board)
+        {
+            var points = board.Tiles.Select(t => TywGeometry.Center(t.Hex)).ToList();
+            var min = new Vector2(points.Min(p => p.X), points.Min(p => p.Z));
+            var max = new Vector2(points.Max(p => p.X), points.Max(p => p.Z));
+            var middle = (min + max) * 0.5f;
+            return (new Vector3(middle.X, 0.0f, middle.Y), (max - min) * 0.5f);
         }
 
         /// <summary>Clears whatever was shown and lays out a fresh board for <paramref name="game"/>.</summary>
@@ -119,17 +196,33 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 _owned.Clear();
                 _hexes.Clear();
                 _trains.Clear();
+                _chunks.Clear();
                 _game = game;
 
-                var sea = new ManaWaterNode(_context, new Vector2(400.0f, 400.0f), 96) { Name = "TYW Sea" };
-                sea.Position = new Vector3(0.0f, 0.12f, 0.0f);
+                // Open sea past the map's edge, a little above the kit's own (shallow) water tiles.
+                var (center, half) = Extent(game.Board);
+                var sea = new ManaWaterNode(_context, new Vector2(half.X * 2.0f + 160.0f, half.Y * 2.0f + 160.0f), 128) { Name = "TYW Sea" };
+                sea.Position = center + new Vector3(0.0f, 0.13f * KitScale, 0.0f);
                 sea.UpdateTransform();
                 Add(sea);
 
                 foreach (var tile in game.Board.Tiles)
                 {
-                    AddTile(tile);
-                    _hexes[tile.Hex] = new HexNodes();
+                    _hexes[tile.Hex] = new HexNodes { Cleared = IsCleared(game, tile) };
+                    var key = ChunkOf(tile.Hex);
+                    if (!_chunks.TryGetValue(key, out var chunk))
+                    {
+                        chunk = new Chunk();
+                        _chunks[key] = chunk;
+                    }
+
+                    chunk.Tiles.Add(tile);
+                    AddEffects(tile);
+                }
+
+                foreach (var chunk in _chunks.Values)
+                {
+                    BuildChunk(chunk);
                 }
 
                 _hover = new ManaMeshSceneNode(_context, new TywMesh(_context,
@@ -150,74 +243,150 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             _owned.Add(node);
         }
 
-        // ---- The board, once ------------------------------------------------------------------------------
-
-        private static Vector4 TerrainColor(TywTerrain terrain) => terrain switch
+        private void Remove(ManaSceneNode? node)
         {
-            TywTerrain.Forest => new Vector4(0.27f, 0.52f, 0.23f, 1.0f),
-            TywTerrain.Hills => new Vector4(0.66f, 0.58f, 0.43f, 1.0f),
-            TywTerrain.Fields => new Vector4(0.80f, 0.74f, 0.36f, 1.0f),
-            TywTerrain.Mountain => new Vector4(0.52f, 0.52f, 0.56f, 1.0f),
-            TywTerrain.Lake => new Vector4(0.20f, 0.42f, 0.55f, 1.0f),
-            TywTerrain.Town => new Vector4(0.74f, 0.71f, 0.64f, 1.0f),
-            TywTerrain.Depot => new Vector4(0.55f, 0.55f, 0.55f, 1.0f),
-            _ => new Vector4(0.52f, 0.70f, 0.34f, 1.0f)
-        };
-
-        private void AddTile(TywTile tile)
-        {
-            var random = new Random(tile.Hex.Q * 7919 + tile.Hex.R * 104729 + 17);
-            var center = TywGeometry.Center(tile.Hex);
-            var jitter = 0.94f + 0.12f * (float)random.NextDouble();
-            var color = TerrainColor(tile.Terrain) * new Vector4(jitter, jitter, jitter, 1.0f);
-            if (tile.Terrain == TywTerrain.Depot)
+            if (node != null)
             {
-                color = Vector4.Lerp(color, PlayerColors[tile.BuildingOwner], 0.55f);
+                _scene.Children.Remove(node);
+                _owned.Remove(node);
+            }
+        }
+
+        // ---- The ground ---------------------------------------------------------------------------------------
+
+        private const int ChunkSize = 8;
+
+        /// <summary>A block of hexes whose ground is drawn as one batch, rebuilt when any of them changes.</summary>
+        private sealed class Chunk
+        {
+            public readonly List<TywTile> Tiles = new();
+            public readonly List<ManaSceneNode> Nodes = new();
+            public bool Dirty;
+        }
+
+        private readonly Dictionary<(int, int), Chunk> _chunks = new();
+
+        private static (int, int) ChunkOf(TywHex hex)
+        {
+            var column = hex.Q + (hex.R - (hex.R & 1)) / 2;
+            return (column / ChunkSize, hex.R / ChunkSize);
+        }
+
+        private void BuildChunk(Chunk chunk)
+        {
+            foreach (var node in chunk.Nodes)
+            {
+                Remove(node);
             }
 
-            var top = tile.Terrain == TywTerrain.Lake ? -0.35f : TywGeometry.TopY;
-            var side = color * new Vector4(0.62f, 0.58f, 0.52f, 1.0f);
-            var mesh = new TywMesh(_context, b =>
+            chunk.Nodes.Clear();
+            var batch = new TywGroundBatch();
+            foreach (var tile in chunk.Tiles)
             {
-                b.HexPrism(Vector3.Zero, TywGeometry.HexRadius - 0.04f, -1.2f, top, color, side);
+                AppendGround(batch, tile, _hexes[tile.Hex].Cleared);
+            }
+
+            foreach (var node in batch.Build(_context, "TYW Ground"))
+            {
+                chunk.Nodes.Add(node);
+                Add(node);
+            }
+
+            chunk.Dirty = false;
+        }
+
+        // Track through a forest, hill or mountain clears it: trains do not drive through trees.
+        private static bool IsCleared(TywGame game, TywTile tile) =>
+            tile.Owner >= 0 || tile.Building is TywBuilding.Extractor or TywBuilding.Factory or TywBuilding.Station || game.AllLinks(tile.Hex).Any();
+
+        /// <summary>
+        /// One hex of ground: the kit's tile for its terrain, turned a random sixth for variety, with whatever stands
+        /// in its corners -- trees left by a clearing, houses round a town, a depot's shed. Corners 4, 5 and 0 (the
+        /// back of the hex) are where track never runs.
+        /// </summary>
+        private void AppendGround(TywGroundBatch batch, TywTile tile, bool cleared)
+        {
+            var random = new Random(tile.Hex.Q * 7919 + tile.Hex.R * 104729 + 17);
+            var turn = random.Next(6);
+            var center = TywGeometry.Center(tile.Hex) with { Y = 0.0f };
+
+            var name = tile.Terrain switch
+            {
+                TywTerrain.Water => random.Next(12) == 0 ? "water-rocks" : "water",
+                TywTerrain.Sand => random.Next(5) == 0 ? "sand-rocks" : "sand",
+                TywTerrain.Desert => cleared ? "sand" : "sand-desert",
+                // Not the kit's dirt tile: every vertex shares one UV, which this renderer shades flat grey.
+                TywTerrain.Fields => "grass",
+                TywTerrain.Forest => cleared ? "grass" : "grass-forest",
+                TywTerrain.Hills => cleared ? "stone" : random.Next(3) switch { 0 => "stone-hill", 1 => "stone-rocks", _ => "grass-hill" },
+                TywTerrain.Mountain => cleared ? "stone" : "stone-mountain",
+                TywTerrain.Port => "building-port",
+                _ => "grass"
+            };
+
+            if (tile.Terrain == TywTerrain.Port)
+            {
+                // The dock faces the land it serves: turn the tile so its quay is toward the most land.
+                turn = Enumerable.Range(0, 6).MaxBy(t => PortFacesLand(tile, t));
+            }
+
+            AddKit(batch, name, center, turn * MathF.PI / 3.0f);
+            var top = TywGeometry.TopY;
+            Vector3 Corner(int corner, float reach = 0.6f) => TywMeshBuilder.Corner(center, TywGeometry.HexRadius * reach, corner, top);
+
+            switch (tile.Terrain)
+            {
+                case TywTerrain.Forest when cleared:
+                    AddKit(batch, "unit-tree", Corner(4), random.NextSingle() * MathF.Tau);
+                    AddKit(batch, "unit-tree", Corner(0, 0.55f), random.NextSingle() * MathF.Tau);
+                    break;
+                case TywTerrain.Hills when cleared:
+                    AddProp(batch, Forest + "rocks-low.glb", Corner(5), 0.45f, random);
+                    break;
+                case TywTerrain.Mountain when cleared:
+                    AddProp(batch, Forest + "rocks-high.glb", Corner(4, 0.62f), 1.2f, random);
+                    AddProp(batch, Forest + "rocks-high.glb", Corner(0, 0.62f), 0.9f, random);
+                    break;
+                case TywTerrain.Town:
+                    AddKit(batch, "unit-house", Corner(4), random.Next(6) * MathF.PI / 3.0f);
+                    AddKit(batch, "unit-mansion", Corner(5), random.Next(6) * MathF.PI / 3.0f);
+                    AddKit(batch, "unit-house", Corner(0), random.Next(6) * MathF.PI / 3.0f);
+                    AddKit(batch, "unit-tower", Corner(1, 0.62f), 0.0f);
+                    break;
+            }
+
+            // Crop rows, yield marks and the depot's shed are drawn rather than loaded.
+            var extras = new TywMesh(_context, b =>
+            {
                 if (tile.Terrain == TywTerrain.Fields)
                 {
-                    // Crop rows in the back corners, clear of the track.
+                    // A patch of tilled earth with golden rows in each back corner.
                     foreach (var corner in new[] { 4, 5, 0 })
                     {
-                        var at = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.6f, corner, top + 0.06f);
+                        var at = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.58f, corner, top + 0.02f);
+                        b.Box(at, Vector3.UnitX, new Vector3(0.8f, 0.04f, 0.62f), new Vector4(0.62f, 0.42f, 0.25f, 1.0f));
                         for (var row = -1; row <= 1; row++)
                         {
-                            b.Box(at + new Vector3(0.0f, 0.0f, row * 0.16f), Vector3.UnitX, new Vector3(0.62f, 0.1f, 0.08f),
-                                new Vector4(0.93f, 0.78f, 0.25f, 1.0f));
+                            b.Box(at + new Vector3(0.0f, 0.06f, row * 0.18f), Vector3.UnitX, new Vector3(0.72f, 0.1f, 0.1f), new Vector4(0.98f, 0.82f, 0.3f, 1.0f));
                         }
                     }
                 }
 
+                // Yield: one to three small marks in the resource's colour at the front-left corner.
                 if (tile.Richness > 0)
                 {
-                    var pip = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.7f, 3, top + 0.03f);
+                    var mark = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.7f, 3, top + 0.04f);
+                    var color = Vector4.Lerp(ResourceColors[(int)tile.Produces], Vector4.One, 0.25f);
                     for (var i = 0; i < tile.Richness; i++)
                     {
-                        b.Box(pip + new Vector3((i - (tile.Richness - 1) * 0.5f) * 0.2f, 0.0f, 0.0f), Vector3.UnitX,
-                            new Vector3(0.13f, 0.06f, 0.13f), new Vector4(1.0f, 0.98f, 0.9f, 1.0f));
-                    }
-                }
-
-                if (tile.Terrain == TywTerrain.Town)
-                {
-                    foreach (var corner in new[] { 4, 5, 0, 1 })
-                    {
-                        var at = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.62f, corner, top);
-                        var height = 0.35f + 0.25f * (float)random.NextDouble();
-                        b.Box(at + new Vector3(0, height * 0.5f, 0), Vector3.UnitX, new Vector3(0.5f, height, 0.45f), new Vector4(0.95f, 0.9f, 0.8f, 1.0f));
-                        b.Box(at + new Vector3(0, height + 0.08f, 0), Vector3.UnitX, new Vector3(0.58f, 0.16f, 0.52f), new Vector4(0.75f, 0.25f, 0.2f, 1.0f));
+                        b.Box(mark + new Vector3((i - (tile.Richness - 1) * 0.5f) * 0.22f, 0.0f, 0.0f), Vector3.UnitX, new Vector3(0.15f, 0.08f, 0.15f), color);
                     }
                 }
 
                 if (tile.Terrain == TywTerrain.Depot)
                 {
                     var owner = PlayerColors[tile.BuildingOwner];
+                    b.HexRing(Vector3.Zero, TywGeometry.HexRadius - 0.06f, 0.22f, top + 0.02f, owner);
                     var shed = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.58f, 5, top);
                     b.Box(shed + new Vector3(0, 0.3f, 0), Vector3.UnitX, new Vector3(1.0f, 0.6f, 0.55f), new Vector4(0.9f, 0.87f, 0.8f, 1.0f));
                     b.Box(shed + new Vector3(0, 0.66f, 0), Vector3.UnitX, new Vector3(1.1f, 0.12f, 0.65f), owner);
@@ -227,48 +396,103 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 }
             });
 
-            var node = new ManaMeshSceneNode(_context, mesh) { Name = $"TYW Hex {tile.Hex}" };
-            node.Position = center with { Y = 0.0f };
-            node.UpdateTransform();
-            Add(node);
-
-            switch (tile.Terrain)
+            if (!extras.IsEmpty)
             {
-                case TywTerrain.Forest:
-                    Scatter(tile, random, new[] { "tree.glb", "tree-high.glb" }, 1.0f, 1.5f, 3);
-                    break;
-                case TywTerrain.Hills:
-                    Scatter(tile, random, new[] { "rocks-low.glb", "stones.glb" }, 0.35f, 0.55f, 3);
-                    break;
-                case TywTerrain.Mountain:
-                    Scatter(tile, random, new[] { "rocks-high.glb" }, 1.1f, 1.6f, 3);
-                    break;
-                case TywTerrain.Plains:
-                    if (random.NextDouble() < 0.5)
-                    {
-                        Scatter(tile, random, new[] { "plant.glb" }, 0.35f, 0.5f, 1);
-                    }
-
-                    break;
+                batch.Add(extras, extras.Materials[0], Matrix4x4.CreateTranslation(center));
             }
         }
 
-        // Scenery sits in the back corners, where track never runs.
-        private void Scatter(TywTile tile, Random random, string[] names, float minHeight, float maxHeight, int count)
+        // How much land lies on the side a port tile's quay faces when the tile is turned t sixths. The kit's port
+        // has its land half toward local +Z.
+        private int PortFacesLand(TywTile tile, int t)
         {
-            var corners = new List<int> { 4, 5, 0 };
-            for (var i = 0; i < count && corners.Count > 0; i++)
+            var facing = Vector3.Transform(Vector3.UnitZ, Matrix4x4.CreateRotationY(t * MathF.PI / 3.0f));
+            return Enumerable.Range(0, TywHex.DirectionCount).Count(d =>
             {
-                var corner = corners[random.Next(corners.Count)];
-                corners.Remove(corner);
-                var at = TywMeshBuilder.Corner(TywGeometry.Center(tile.Hex), TywGeometry.HexRadius * (0.56f + 0.1f * (float)random.NextDouble()), corner, TywGeometry.TopY);
-                var height = minHeight + (maxHeight - minHeight) * (float)random.NextDouble();
-                var node = Place(Forest + names[random.Next(names.Length)], height, -1, footprint: 1.0f);
-                if (node != null)
+                var neighbour = _game?.Board[tile.Hex.Neighbor(d)];
+                if (neighbour == null || neighbour.Terrain is TywTerrain.Water or TywTerrain.Port)
                 {
-                    node.LocalTransform = Matrix4x4.CreateRotationY((float)random.NextDouble() * MathF.Tau) * Matrix4x4.CreateTranslation(at);
-                    Add(node);
+                    return false;
                 }
+
+                var toward = TywGeometry.Center(neighbour.Hex) - TywGeometry.Center(tile.Hex);
+                return Vector3.Dot(Vector3.Normalize(toward with { Y = 0 }), facing) > 0.3f;
+            });
+        }
+
+        private void AddKit(TywGroundBatch batch, string name, Vector3 at, float yaw)
+        {
+            if (Model(Kit + name + ".glb") is { } prototype)
+            {
+                batch.Add(prototype, Matrix4x4.CreateScale(KitScale) * Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(at));
+            }
+        }
+
+        private void AddProp(TywGroundBatch batch, string asset, Vector3 at, float height, Random random)
+        {
+            if (Model(asset) is { } prototype)
+            {
+                batch.Add(prototype, Fit(prototype, height, lengthwise: false, footprint: 1.0f) *
+                                     Matrix4x4.CreateRotationY(random.NextSingle() * MathF.Tau) * Matrix4x4.CreateTranslation(at));
+            }
+        }
+
+        /// <summary>
+        /// Life on the landmarks: a town's chimney smokes and a lamp burns over it; a port has a harbour light. Lamps are
+        /// few on purpose -- the renderer has 64 slots for placed lights, and the torches players build need most of them.
+        /// </summary>
+        private void AddEffects(TywTile tile)
+        {
+            if (tile.Terrain is not (TywTerrain.Town or TywTerrain.Port))
+            {
+                return;
+            }
+
+            var town = tile.Terrain == TywTerrain.Town;
+            var center = TywGeometry.Center(tile.Hex);
+            var at = town ? TywMeshBuilder.Corner(center, TywGeometry.HexRadius * 0.6f, 5, center.Y) + new Vector3(0, 1.1f, 0) : center + new Vector3(0, 1.5f, 0);
+            var lamp = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(at)) { Name = "TYW Lamp" };
+            lamp.Components.Add(new ManaLightSourceComponent(lamp)
+            {
+                LightType = ManaLightType.Point,
+                Color = town ? new Vector4(1.0f, 0.72f, 0.4f, 1.0f) : new Vector4(0.75f, 0.88f, 1.0f, 1.0f),
+                Intensity = town ? 1.6f : 0.8f,
+                Range = town ? 6.0f : 4.0f,
+                FlickerAmount = town ? 0.12f : 0.0f,
+                FlickerSpeed = 3.0f
+            });
+            Add(lamp);
+
+            if (town)
+            {
+                var chimney = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(at)) { Name = "TYW Chimney" };
+                chimney.Components.Add(new ManaParticleEmitterComponent(chimney)
+                {
+                    MaxParticles = 30,
+                    Rate = 4.0f,
+                    Speed = 0.4f,
+                    SpreadDegrees = 10.0f,
+                    Lifetime = 2.4f,
+                    Gravity = new Vector3(0, 0.35f, 0),
+                    Drag = 0.5f,
+                    Turbulence = 0.6f,
+                    StartSize = 0.1f,
+                    EndSize = 0.5f,
+                    StartColor = new Vector4(0.85f, 0.85f, 0.85f, 0.6f),
+                    EndColor = new Vector4(0.75f, 0.75f, 0.78f, 0.0f)
+                });
+                Add(chimney);
+            }
+        }
+
+        /// <summary>Marks a hex's block for rebuilding once track or a building clears it.</summary>
+        private void SyncGround(TywGame game, TywTile tile, HexNodes nodes)
+        {
+            var cleared = IsCleared(game, tile);
+            if (cleared != nodes.Cleared)
+            {
+                nodes.Cleared = cleared;
+                _chunks[ChunkOf(tile.Hex)].Dirty = true;
             }
         }
 
@@ -304,6 +528,24 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 return null;
             }
 
+            var node = prototype.Instantiate(_context, Path.GetFileNameWithoutExtension(asset), Fit(prototype, size, lengthwise, footprint));
+            if (player >= 0)
+            {
+                foreach (var child in node.Children.OfType<ManaMeshSceneNode>())
+                {
+                    child.MeshRenderer.Material = Tinted(asset, child.MeshRenderer.Material, player);
+                }
+            }
+
+            return node;
+        }
+
+        /// <summary>
+        /// Sizes a model to <paramref name="size"/> -- its height, or with <paramref name="lengthwise"/> its long side,
+        /// laid along local +X -- standing on the origin.
+        /// </summary>
+        private static Matrix4x4 Fit(GridMapPrototype prototype, float size, bool lengthwise, float footprint)
+        {
             var extent = prototype.BoundsMax - prototype.BoundsMin;
             var middle = (prototype.BoundsMax + prototype.BoundsMin) * 0.5f;
             var turn = Matrix4x4.Identity;
@@ -321,17 +563,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 scale = MathF.Min(size / MathF.Max(0.001f, extent.Y), footprint / MathF.Max(0.001f, MathF.Max(extent.X, extent.Z)));
             }
 
-            var model = Matrix4x4.CreateTranslation(-middle.X, -prototype.BoundsMin.Y, -middle.Z) * Matrix4x4.CreateScale(scale) * turn;
-            var node = prototype.Instantiate(_context, Path.GetFileNameWithoutExtension(asset), model);
-            if (player >= 0)
-            {
-                foreach (var child in node.Children.OfType<ManaMeshSceneNode>())
-                {
-                    child.MeshRenderer.Material = Tinted(asset, child.MeshRenderer.Material, player);
-                }
-            }
-
-            return node;
+            return Matrix4x4.CreateTranslation(-middle.X, -prototype.BoundsMin.Y, -middle.Z) * Matrix4x4.CreateScale(scale) * turn;
         }
 
         private ManaMaterial Tinted(string asset, ManaMaterial source, int player)
@@ -367,12 +599,20 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     if (nodes.Revision != tile.Revision)
                     {
                         nodes.Revision = tile.Revision;
+                        SyncGround(game, tile, nodes);
                         RebuildTrack(game, tile, nodes);
+                        SyncTorch(tile, nodes);
                         RebuildBuilding(tile, nodes);
                     }
 
                     SyncStock(tile, nodes);
                     SyncDemand(tile, nodes);
+                    Animate(nodes);
+                }
+
+                foreach (var chunk in _chunks.Values.Where(c => c.Dirty))
+                {
+                    BuildChunk(chunk);
                 }
 
                 foreach (var train in game.Trains)
@@ -391,6 +631,13 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             }
 
             var damaged = tile.IsDamaged(game.Time);
+            SyncFire(tile, nodes, damaged);
+            if (links.Count > nodes.TrackLinks)
+            {
+                nodes.TrackBornAt = _clock;
+            }
+
+            nodes.TrackLinks = links.Count;
             var mesh = new TywMesh(_context, b =>
             {
                 foreach (var owner in links.Select(l => l.Owner).Distinct())
@@ -505,9 +752,158 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 return;
             }
 
-            node.LocalTransform = Matrix4x4.CreateTranslation(at);
+            nodes.BuildingAt = at;
+            nodes.BuildingBornAt = _clock;
+            node.LocalTransform = Matrix4x4.CreateScale(0.01f) * Matrix4x4.CreateTranslation(at);
             nodes.Building = node;
             Add(node);
+        }
+
+        // New track drops onto the board; a new building springs up out of it.
+        private void Animate(HexNodes nodes)
+        {
+            const float DropSeconds = 0.35f;
+            var drop = (_clock - nodes.TrackBornAt) / DropSeconds;
+            if (nodes.Track != null && drop < 3.0f)
+            {
+                var t = Math.Clamp(drop, 0.0f, 1.0f);
+                nodes.Track.LocalTransform = Matrix4x4.CreateTranslation(0.0f, 0.9f * (1.0f - t) * (1.0f - t), 0.0f);
+            }
+
+            const float PopSeconds = 0.4f;
+            var pop = (_clock - nodes.BuildingBornAt) / PopSeconds;
+            if (nodes.Building != null && pop < 3.0f)
+            {
+                // Back-out easing: overshoots a little, then settles.
+                var t = Math.Clamp(pop, 0.0f, 1.0f) - 1.0f;
+                var scale = MathF.Max(0.01f, 1.0f + 2.7f * t * t * t + 1.7f * t * t);
+                nodes.Building.LocalTransform = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(nodes.BuildingAt);
+            }
+        }
+
+        /// <summary>
+        /// A torch: a post with an iron bowl, a band in its owner's colour, a flame and a real flickering light -- the
+        /// light is the point. It stands in the front-left corner, beside the yield marks, clear of the track.
+        /// </summary>
+        private void SyncTorch(TywTile tile, HexNodes nodes)
+        {
+            if (tile.HasTorch == (nodes.Torch != null))
+            {
+                return;
+            }
+
+            if (!tile.HasTorch)
+            {
+                Remove(nodes.Torch);
+                nodes.Torch = null;
+                return;
+            }
+
+            var owner = PlayerColors[tile.TorchOwner];
+            var at = TywMeshBuilder.Corner(TywGeometry.Center(tile.Hex), TywGeometry.HexRadius * 0.5f, 3, TywGeometry.TopY);
+            var torch = new ManaMeshSceneNode(_context, new TywMesh(_context, b =>
+            {
+                b.Box(new Vector3(0, 0.45f, 0), Vector3.UnitX, new Vector3(0.08f, 0.9f, 0.08f), new Vector4(0.42f, 0.27f, 0.15f, 1.0f));
+                b.Box(new Vector3(0, 0.66f, 0), Vector3.UnitX, new Vector3(0.11f, 0.08f, 0.11f), owner);
+                b.Box(new Vector3(0, 0.94f, 0), Vector3.UnitX, new Vector3(0.24f, 0.1f, 0.24f), new Vector4(0.18f, 0.17f, 0.16f, 1.0f));
+            }))
+            {
+                Name = $"TYW Torch {tile.Hex}"
+            };
+            torch.LocalTransform = Matrix4x4.CreateTranslation(at);
+
+            var flame = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(0, 1.0f, 0)) { Name = "Flame" };
+            flame.Components.Add(new ManaParticleEmitterComponent(flame)
+            {
+                Shape = ManaParticleShape.Flames,
+                BlendMode = ManaParticleBlend.Additive,
+                MaxParticles = 40,
+                Rate = 24.0f,
+                Radius = 0.06f,
+                Speed = 0.4f,
+                SpreadDegrees = 10.0f,
+                Lifetime = 0.5f,
+                Gravity = new Vector3(0, 1.4f, 0),
+                StartSize = 0.17f,
+                EndSize = 0.03f,
+                StartColor = new Vector4(1.0f, 0.85f, 0.45f, 0.95f),
+                EndColor = new Vector4(1.0f, 0.25f, 0.05f, 0.0f)
+            });
+            torch.AddChild(flame);
+
+            var glow = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(0, 1.2f, 0)) { Name = "Light" };
+            glow.Components.Add(new ManaLightSourceComponent(glow)
+            {
+                LightType = ManaLightType.Point,
+                Color = new Vector4(1.0f, 0.62f, 0.28f, 1.0f),
+                Intensity = 2.4f,
+                Range = 5.5f,
+                FlickerAmount = 0.22f,
+                FlickerSpeed = 9.0f
+            });
+            torch.AddChild(glow);
+            nodes.Torch = torch;
+            Add(torch);
+        }
+
+        // Smoke and a few flames over a sabotaged hex, for as long as it stays broken.
+        private void SyncFire(TywTile tile, HexNodes nodes, bool damaged)
+        {
+            if (damaged == (nodes.Fire != null))
+            {
+                return;
+            }
+
+            if (!damaged)
+            {
+                _scene.Children.Remove(nodes.Fire!);
+                _owned.Remove(nodes.Fire!);
+                nodes.Fire = null;
+                return;
+            }
+
+            var fire = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(TywGeometry.Center(tile.Hex) + new Vector3(0, 0.1f, 0)))
+            {
+                Name = $"TYW Fire {tile.Hex}"
+            };
+            var flames = new ManaSceneNode(_context, Matrix4x4.Identity) { Name = "Flames" };
+            flames.Components.Add(new ManaParticleEmitterComponent(flames)
+            {
+                Shape = ManaParticleShape.Flames,
+                BlendMode = ManaParticleBlend.Additive,
+                MaxParticles = 60,
+                Rate = 30.0f,
+                Radius = 0.35f,
+                Speed = 0.6f,
+                SpreadDegrees = 12.0f,
+                Lifetime = 0.6f,
+                Gravity = new Vector3(0, 1.6f, 0),
+                StartSize = 0.22f,
+                EndSize = 0.04f,
+                StartColor = new Vector4(1.0f, 0.8f, 0.35f, 0.9f),
+                EndColor = new Vector4(1.0f, 0.2f, 0.05f, 0.0f)
+            });
+            var smoke = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(0, 0.3f, 0)) { Name = "Smoke" };
+            smoke.Components.Add(new ManaParticleEmitterComponent(smoke)
+            {
+                MaxParticles = 60,
+                Rate = 12.0f,
+                Radius = 0.3f,
+                Speed = 0.5f,
+                SpreadDegrees = 15.0f,
+                Lifetime = 2.6f,
+                Gravity = new Vector3(0, 0.5f, 0),
+                Drag = 0.4f,
+                Turbulence = 0.8f,
+                StartSize = 0.2f,
+                EndSize = 0.75f,
+                StartColor = new Vector4(0.18f, 0.17f, 0.16f, 0.75f),
+                EndColor = new Vector4(0.35f, 0.34f, 0.33f, 0.0f)
+            });
+            fire.AddChild(flames);
+            fire.AddChild(smoke);
+            nodes.Fire = fire;
+            Add(fire);
         }
 
         private void SyncStock(TywTile tile, HexNodes nodes)
@@ -600,6 +996,25 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 }
 
                 nodes = new TrainNodes { Locomotive = locomotive };
+                // Steam from the chimney, at the front end, up top.
+                var chimney = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(ChimneyOffset)) { Name = "Chimney" };
+                nodes.Smoke = new ManaParticleEmitterComponent(chimney)
+                {
+                    MaxParticles = 40,
+                    Rate = 8.0f,
+                    Speed = 0.7f,
+                    SpreadDegrees = 12.0f,
+                    Lifetime = 1.4f,
+                    Gravity = new Vector3(0, 0.5f, 0),
+                    Drag = 0.8f,
+                    Turbulence = 0.7f,
+                    StartSize = 0.14f,
+                    EndSize = 0.55f,
+                    StartColor = new Vector4(0.97f, 0.97f, 0.97f, 0.9f),
+                    EndColor = new Vector4(0.82f, 0.82f, 0.85f, 0.0f)
+                };
+                chimney.Components.Add(nodes.Smoke);
+                locomotive.AddChild(chimney);
                 _trains[train.Id] = nodes;
                 Add(locomotive);
             }
@@ -624,13 +1039,19 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             bool Terminal(TywHex hex) => game.Board[hex]?.IsTerminal == true;
             var step = TywGeometry.HexRadius * TywHex.Sqrt3;
             var lift = new Vector3(0.0f, 0.11f, 0.0f);
-            Pose(nodes.Locomotive, train.Path, train.Progress);
-            if (nodes.Wagon != null)
+            var moving = train.State is TywTrainState.ToPickup or TywTrainState.ToDrop && !train.IsBlocked;
+            if (nodes.Smoke != null)
             {
-                Pose(nodes.Wagon, train.Path, train.Progress - WagonGap / step);
+                nodes.Smoke.Rate = moving ? 9.0f : 1.5f;
             }
 
-            void Pose(ManaSceneNode node, List<TywHex> path, float s)
+            Pose(nodes.Locomotive, nodes.LocomotivePose, train.Path, train.Progress);
+            if (nodes.Wagon != null)
+            {
+                Pose(nodes.Wagon, nodes.WagonPose, train.Path, train.Progress - WagonGap / step);
+            }
+
+            void Pose(ManaSceneNode node, PoseBlend blend, List<TywHex> path, float s)
             {
                 var here = TywGeometry.PathPoint(path, s, Terminal);
                 var ahead = TywGeometry.PathPoint(path, s + 0.08f, Terminal);
@@ -648,8 +1069,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 }
 
                 direction = Vector3.Normalize(direction);
-                var yaw = MathF.Atan2(-direction.Z, direction.X);
-                node.LocalTransform = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(here + lift);
+                var (position, yaw) = blend.Step(here + lift, MathF.Atan2(-direction.Z, direction.X), _clock);
+                node.LocalTransform = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(position);
             }
         }
 

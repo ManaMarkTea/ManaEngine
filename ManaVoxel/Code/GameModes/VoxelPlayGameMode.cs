@@ -33,6 +33,13 @@ namespace Mana.Code.GameModes
         private readonly PlayHudState _hud = new();
 
         private ManaPawnController? _pawnController;
+        private readonly ManaGameModeRunner _gameModes = new();
+        private Mana.Code.Automation.ManaCommandRunner? _commandRunner;
+        private bool _exitRequested;
+
+        /// <summary>What play is with no character: the world running, a camera to look round it with.</summary>
+        public const string DebugCameraHint = "Debug camera  --  WASD and Q/E fly, hold right mouse to look, Esc quit  (add a Character game mode to the level to play as one)";
+        private ManaSceneNode? _ground;
         private ManaPawnNode? _player;
         private ManaWebGpuContext? _webGpuContext;
 #if !MANA_BROWSER
@@ -51,6 +58,9 @@ namespace Mana.Code.GameModes
 
         protected override string? WindowIconPath =>
             Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
+
+        /// <summary>Set by <c>--command-file</c>: a script drives the run (screenshots, waits, a game mode's own commands).</summary>
+        public string? CommandFilePath { get; set; }
 
         /// <summary>The character being played, once there is one. Exposed for tests and diagnostics.</summary>
         public ManaPawnNode? Player => _player;
@@ -84,7 +94,7 @@ namespace Mana.Code.GameModes
         /// </summary>
         protected override void BuildManaUi(ManaUiHost host)
         {
-            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hud.Text, () => Context.World.GameState.FormatHud(),
+            var playHud = ManaUiPlayHud.Build(host.Root.Theme, () => _hud.Text, () => _player != null ? Context.World.GameState.FormatHud() : "",
                 ManaUiPlayResults.Build(
                     host.Root.Theme,
                     Context.World.GameState,
@@ -92,6 +102,14 @@ namespace Mana.Code.GameModes
                     () => Context.Window.Close(),
                     "Quit"),
                 ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
+
+            // The level's game modes draw their own HUDs over it, and may hide it (see ManaLevelGameMode.ShowsPlayHud).
+            _gameModes.UseTheme(host.Root.Theme);
+            playHud.BindPolled(el => el.Visibility, () => _gameModes.ShowsPlayHud ? Visibility.Visible : Visibility.Collapsed);
+            var layer = new Grid();
+            layer.Children.Add(playHud);
+            layer.Children.Add(_gameModes.HudLayer);
+            host.Root.Content = layer;
         }
 
         public override void Load()
@@ -149,6 +167,7 @@ namespace Mana.Code.GameModes
                     // a slab that thin lets a character landing at normal fall speed tunnel straight
                     // through before Bepu's narrow phase ever sees an overlap.
                     const float GroundThickness = 2.0f;
+                    _ground = ground;
                     Context.Physics.AddBoxBody(
                         ground,
                         new Vector3(GroundSize, GroundThickness, GroundSize),
@@ -216,6 +235,22 @@ namespace Mana.Code.GameModes
                 start.IsMarkerVisible = false;
             }
 
+            // The character comes only when a level's game mode asks for it (the Character mode). Otherwise the world
+            // runs and the camera flies free -- or a mode with a camera of its own drives it.
+            var modes = Context.World.Scenes.SelectMany(scene => scene.GameModes).ToList();
+            if (!ManaGameModeRunner.AnyWantsPlayerCharacter(modes))
+            {
+                if (_pawnController != null)
+                {
+                    _pawnController.MouseLookControlsEnabled = false;
+                }
+
+                Context.World.BeginPlay();
+                BeginModes(modes);
+                _hud.Text = modes.Count > 0 ? "" : DebugCameraHint;
+                return;
+            }
+
             // The ground's centre, not the origin, when there is no Player Start -- a capsule dropped
             // exactly onto a box collider's corner edge can land with no contact generated at all (see
             // PlayModeController.DefaultSpawnPosition's matching comment), which reads as falling through
@@ -239,7 +274,7 @@ namespace Mana.Code.GameModes
             _player.Rotation = new Vector3(0.0f, start?.SpawnYawRadians ?? 0.0f, 0.0f);
             _player.UpdateTransform();
             // Double jump. FlyingMountComponent is parked -- see PlayModeController.
-            _player.MaxJumpCount = 2;
+            _player.MaxJumpCount = PlayModeController.JumpsFor(modes);
 
             _pawnController.Possess(_player);
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
@@ -247,12 +282,65 @@ namespace Mana.Code.GameModes
             // Before BeginPlay: the game state resets there, and course pieces read the player from it.
             Context.World.GameState.Player = _player;
             Context.World.BeginPlay();
+            BeginModes(modes);
 
             _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to double jump), C camera, R restart, Esc quit";
         }
 
+        private void BeginModes(List<ManaLevelGameMode> modes)
+        {
+            if (modes.Count == 0)
+            {
+                return;
+            }
+
+            EnsureCommandRunner();
+            // A mode that brings its own world has no use for the play floor (see ManaLevelGameMode.KeepsEditorFloor).
+            if (!modes.All(mode => mode.KeepsEditorFloor) && _ground != null)
+            {
+                foreach (var renderer in _ground.GetComponents<MeshRendererComponent>())
+                {
+                    renderer.IsVisible = false;
+                }
+            }
+
+            _gameModes.Begin(modes, new ManaPlaySession(Context, () => UiWantsMouse, () => UiWantsKeyboard, () => _exitRequested = true, standalone: true)
+            {
+                Commands = _commandRunner
+            });
+        }
+
+        private void EnsureCommandRunner()
+        {
+            if (_commandRunner != null || string.IsNullOrEmpty(CommandFilePath))
+            {
+                return;
+            }
+
+            _commandRunner = new Mana.Code.Automation.ManaCommandRunner(
+                CommandFilePath,
+                Context,
+                _webGpuContext == null ? null : _webGpuContext.CaptureFrameAsync,
+                _webGpuContext == null ? null : _webGpuContext.DumpEnvironmentFaces);
+        }
+
+        public override void Closing()
+        {
+            _gameModes.End();
+            base.Closing();
+        }
+
         public override void Update(double deltaTime)
         {
+            EnsureCommandRunner();
+            _commandRunner?.Tick();
+            _gameModes.Tick((float)deltaTime);
+            if (_exitRequested)
+            {
+                Context.Window.Close();
+                return;
+            }
+
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             Context.World.GameState.Tick((float)deltaTime);
 #if !MANA_BROWSER
@@ -265,8 +353,9 @@ namespace Mana.Code.GameModes
 
             // Escape quits rather than releasing the character: there is no editor to hand control back to.
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();
+            var modeKeys = _gameModes.HandlesExitKeys;
             var restartKeyDown = keyboard?.IsKeyPressed(Key.R) == true;
-            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard)
+            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard && !modeKeys)
             {
                 Restart();
             }
@@ -274,7 +363,7 @@ namespace Mana.Code.GameModes
             _restartKeyWasDown = restartKeyDown;
 
             var quitKeyDown = keyboard?.IsKeyPressed(Key.Escape) == true;
-            if (quitKeyDown && !_quitKeyWasDown)
+            if (quitKeyDown && !_quitKeyWasDown && !modeKeys)
             {
                 Context.Window.Close();
             }

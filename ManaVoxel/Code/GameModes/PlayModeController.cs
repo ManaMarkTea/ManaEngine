@@ -50,6 +50,15 @@ namespace Mana.Code.GameModes
 
         public bool IsPlaying { get; private set; }
 
+        /// <summary>The level game modes running this play (see ManaLevelGameMode), and their HUD layer.</summary>
+        public ManaGameModeRunner Modes { get; init; } = new();
+
+        /// <summary>Makes the session a mode is handed; the host fills in its view of input and the command runner.</summary>
+        public Func<Action, ManaPlaySession>? CreateSession { get; set; }
+
+        private bool _exitRequested;
+        private bool _savedLensShift;
+
         /// <summary>The character being played, or null while editing.</summary>
         public ManaPawnNode? Player => _player;
 
@@ -78,6 +87,15 @@ namespace Mana.Code.GameModes
             }
 
             LastError = null;
+            _exitRequested = false;
+
+            // Every open level's game modes run together. The character comes only when one of them asks for it
+            // (the Character mode); otherwise play is the running world and a free debug camera.
+            var modes = _context.World.Scenes.SelectMany(scene => scene.GameModes).ToList();
+            if (!ManaGameModeRunner.AnyWantsPlayerCharacter(modes))
+            {
+                return StartWithoutPlayer(modes);
+            }
 
             // No Player Start falls back to the same spot Shift+F5 uses, not the world origin -- the
             // origin is a room's corner in every game mode that builds a square floor, and a capsule
@@ -113,7 +131,7 @@ namespace Mana.Code.GameModes
             // A play-mode affordance, set on the character rather than baked into the spawn so an
             // editor-spawned character stays a single jumper. FlyingMountComponent is parked: re-adding it
             // here means dropping this back to 1, since it takes off on the air jump.
-            player.MaxJumpCount = 2;
+            player.MaxJumpCount = JumpsFor(modes);
 
             _player = player;
             _startNode = start;
@@ -133,12 +151,81 @@ namespace Mana.Code.GameModes
             _pawnController.SetCameraMode(ManaCameraMode.Follow);
 
             IsPlaying = true;
+            CoverWindow();
 
             // Before BeginPlay: the game state resets there, and course pieces read the player from it.
             _context.World.GameState.Player = player;
             _context.World.BeginPlay();
+            BeginModes(modes);
             PlayStateChanged?.Invoke(true);
             return true;
+        }
+
+        /// <summary>The Character mode's jump count (the most any asks for), or a double jump.</summary>
+        public static int JumpsFor(IEnumerable<ManaLevelGameMode> modes) =>
+            modes.OfType<ManaCharacterGameMode>().Select(mode => Math.Max(1, mode.MaxJumps)).DefaultIfEmpty(2).Max();
+
+        // No character wanted: the world runs and the editor camera flies free, or a mode drives it.
+        private bool StartWithoutPlayer(List<ManaLevelGameMode> modes)
+        {
+            var camera = _context.World.CameraNode;
+            _savedCameraPosition = camera?.Position ?? Vector3.Zero;
+            _savedCameraRotation = camera?.Rotation ?? Vector3.Zero;
+            _savedCameraMode = _pawnController.CameraMode;
+            _savedPossessedPawn = _pawnController.PossessedPawn;
+            _savedReleaseOnEscape = _pawnController.ReleaseOnEscape;
+            _savedMouseLookControls = _pawnController.MouseLookControlsEnabled;
+            _pawnController.Possess(null);
+            _pawnController.ReleaseOnEscape = false;
+
+            _startNode = ManaPlayerStartNode.Find(_context.World);
+            if (_startNode != null)
+            {
+                _startNode.IsMarkerVisible = false;
+            }
+
+            IsPlaying = true;
+            CoverWindow();
+            _context.World.BeginPlay();
+            BeginModes(modes);
+            PlayStateChanged?.Invoke(true);
+            return true;
+        }
+
+        // The editor's panels fold away while playing, so the picture fills the window instead of the old viewport.
+        private void CoverWindow()
+        {
+            var camera = _context.World.MainCamera;
+            _savedLensShift = camera.LensShiftToViewport;
+            camera.LensShiftToViewport = false;
+        }
+
+        private void BeginModes(List<ManaLevelGameMode> modes)
+        {
+            if (modes.Count == 0)
+            {
+                return;
+            }
+
+            var session = CreateSession?.Invoke(() => _exitRequested = true)
+                ?? new ManaPlaySession(_context, () => false, () => false, () => _exitRequested = true, standalone: false);
+            Modes.Begin(modes, session);
+        }
+
+        /// <summary>Once a frame while playing: runs the level's game modes, and leaves play if one asked to.</summary>
+        public void Tick(float deltaSeconds)
+        {
+            if (!IsPlaying)
+            {
+                return;
+            }
+
+            Modes.Tick(deltaSeconds);
+            if (_exitRequested)
+            {
+                _exitRequested = false;
+                Stop();
+            }
         }
 
         public void Stop()
@@ -149,6 +236,8 @@ namespace Mana.Code.GameModes
             }
 
             IsPlaying = false;
+            Modes.End();
+            _context.World.MainCamera.LensShiftToViewport = _savedLensShift;
             _context.World.EndPlay();
             _context.World.GameState.Player = null;
 
@@ -193,7 +282,7 @@ namespace Mana.Code.GameModes
         /// <summary>Plays the level again from the spawn without leaving play -- the results screen's Play Again, and R.</summary>
         public void Restart()
         {
-            if (IsPlaying)
+            if (IsPlaying && !Modes.HandlesExitKeys)
             {
                 _context.World.GameState.Restart(_context.World, _spawnPosition, _spawnYaw);
             }

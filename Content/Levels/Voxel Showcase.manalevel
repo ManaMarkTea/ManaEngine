@@ -6,6 +6,15 @@
     "position": [52, 16, 76],
     "rotation": [-0.28, 0, 0]
   },
+  "gameModes": [
+    {
+      "id": "2383e62d77634e9f8f7c5c9dc2189504",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "name": "Captain Voxels",

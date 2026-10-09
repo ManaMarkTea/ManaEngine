@@ -28,6 +28,9 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         /// <summary>Types whose members are plumbing rather than state. Properties from these are skipped.</summary>
         public HashSet<Type> IgnoredDeclaringTypes { get; } = new();
 
+        /// <summary>The section's heading; by default the type's name, marked as reflected.</summary>
+        public Func<object, string>? Title { get; set; }
+
         /// <summary>Property names never shown, whatever declares them.</summary>
         public HashSet<string> IgnoredNames { get; } = new(StringComparer.Ordinal);
 
@@ -70,7 +73,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
             // Named for what it is, so nobody mistakes a reflected list for a considered one.
             return new Expander()
-                .Header($"{subject.GetType().Name} (reflected)")
+                .Header(Title?.Invoke(subject) ?? $"{subject.GetType().Name} (reflected)")
                 .Content(rows);
         }
 
@@ -341,9 +344,16 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 
             // Integers keep the stepper, matching how a shader uniform's int is edited. A slider whose
             // step is a two-hundredth of its range is no way to pick a whole number.
+            // [Range] on a property gives its true limits; without one a range is guessed from the value.
+            var declared = property.GetCustomAttribute<System.ComponentModel.DataAnnotations.RangeAttribute>();
             if (type == typeof(int))
             {
                 var box = new NumericBox().Integer().Value(Convert.ToSingle(Read() ?? 0));
+                if (declared != null)
+                {
+                    box.Range(Convert.ToSingle(declared.Minimum), Convert.ToSingle(declared.Maximum));
+                }
+
                 box.ValueChanged += (_, value) =>
                 {
                     if (!box.IsApplyingBinding)
@@ -362,7 +372,9 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             {
                 var isDouble = type == typeof(double);
                 var current = Convert.ToSingle(Read() ?? 0.0);
-                var (minimum, maximum) = GuessRange(current);
+                var (minimum, maximum) = declared != null
+                    ? (Convert.ToSingle(declared.Minimum), Convert.ToSingle(declared.Maximum))
+                    : GuessRange(current);
 
                 return InspectorControls.Scalar(
                     () => Convert.ToSingle(Read() ?? 0.0),

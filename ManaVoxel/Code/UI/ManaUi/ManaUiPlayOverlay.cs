@@ -98,6 +98,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Top();
             scorePill.IsHitTestVisible = false;
             scoreText.IsHitTestVisible = false;
+            // Nothing to report (a debug camera has no coins or clock): no empty box either.
+            scorePill.BindPolled(el => el.Visibility, () => string.IsNullOrEmpty(gameplay()) ? Visibility.Collapsed : Visibility.Visible);
 
             // A grid with no tracks is a single cell, so both pills overlay it and each aligns itself.
             var overlay = new Grid();

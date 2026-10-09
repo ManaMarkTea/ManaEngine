@@ -47,7 +47,14 @@ namespace Mana.Code.GameModes
                 Context,
                 _pawnController,
                 (position, yaw) => _viewModel.SpawnCharacterAt(position, yaw, ManaPlayerStartNode.Find(Context.World)),
-                pawn => _viewModel.RemoveCharacter(pawn));
+                pawn => _viewModel.RemoveCharacter(pawn))
+            {
+                Modes = _gameModes,
+                CreateSession = exit => new ManaPlaySession(Context, () => UiWantsMouse, () => UiWantsKeyboard, exit, standalone: false)
+                {
+                    Commands = _commandRunner
+                }
+            };
 
             _viewModel.Levels.Host = this;
 
@@ -110,7 +117,9 @@ namespace Mana.Code.GameModes
             _playKeyWasDown = playKeyDown;
 
             var restartKeyDown = keyboard.IsKeyPressed(Key.R);
-            if (restartKeyDown && !_restartKeyWasDown && _playMode.IsPlaying)
+            // A level game mode that takes Escape and R (pause menus, its own replay) gets them instead.
+            var modeKeys = _gameModes.HandlesExitKeys;
+            if (restartKeyDown && !_restartKeyWasDown && _playMode.IsPlaying && !modeKeys)
             {
                 _playMode.Restart();
             }
@@ -118,7 +127,7 @@ namespace Mana.Code.GameModes
             _restartKeyWasDown = restartKeyDown;
 
             var stopKeyDown = keyboard.IsKeyPressed(Key.Escape);
-            if (stopKeyDown && !_stopKeyWasDown && _playMode.IsPlaying)
+            if (stopKeyDown && !_stopKeyWasDown && _playMode.IsPlaying && !modeKeys)
             {
                 _playMode.Stop();
             }
@@ -190,8 +199,12 @@ namespace Mana.Code.GameModes
         private string GetPlayHudText()
         {
             var player = _playMode?.Player;
-            var name = player?.Name ?? "Character";
-            return $"{name}  --  WASD move, Shift run, Space jump (again in the air to double jump), C camera, R restart, Esc stop";
+            if (player == null)
+            {
+                return "Debug camera  --  WASD and Q/E fly, hold right mouse to look, Esc stop  (add a Character game mode to the level to play as one)";
+            }
+
+            return $"{player.Name}  --  WASD move, Shift run, Space jump (again in the air to double jump), C camera, R restart, Esc stop";
         }
 
         // ---- IManaLevelHost ---------------------------------------------------------------------------

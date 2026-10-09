@@ -13,6 +13,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         public bool Paused { get; set; }
         public float Speed { get; set; } = 1.0f;
         public bool Autoplay { get; set; }
+
+        /// <summary>The controls line: shown for the opening, then on H, so it does not sit over the board all match.</summary>
+        public bool ShowControls { get; set; } = true;
     }
 
     /// <summary>
@@ -25,14 +28,15 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private static readonly Vector4 TextColor = new(0.95f, 0.96f, 1.0f, 0.95f);
         private static readonly Vector4 Muted = new(0.75f, 0.78f, 0.85f, 0.85f);
 
-        public static UiElement Build(UiTheme theme, TywHudState state)
+        public static UiElement Build(UiTheme theme, TywHudState state, UiElement popups, int humanSeat)
         {
             var overlay = new Grid();
-            overlay.Children.Add(Scoreboard(theme, state));
+            overlay.Children.Add(popups);
+            overlay.Children.Add(Scoreboard(theme, state, humanSeat));
             overlay.Children.Add(Clock(theme, state));
             overlay.Children.Add(EventLog(theme, state));
             overlay.Children.Add(Hint(theme, state));
-            overlay.Children.Add(Controls(theme));
+            overlay.Children.Add(Controls(theme, state));
             overlay.Children.Add(Results(theme, state));
             foreach (var element in Walk(overlay))
             {
@@ -74,18 +78,18 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private static Border Swatch(Vector4 color, float size = 12.0f) =>
             new Border().Fill(color).Rounded(3.0f).Size(size, size).CenterV();
 
-        private static UiElement Scoreboard(UiTheme theme, TywHudState state)
+        private static UiElement Scoreboard(UiTheme theme, TywHudState state, int humanSeat)
         {
             var rows = new StackPanel().Vertical(6.0f);
             var header = new StackPanel().Horizontal(0.0f);
-            header.Children.Add(new TextBlock().Text("").Width(108.0f));
+            header.Children.Add(new TextBlock().Text("").Width(116.0f));
             foreach (var name in new[] { "Wood", "Stone", "Grain", "Coal" })
             {
                 header.Children.Add(new TextBlock().Text(name).FontSize(theme.FontSizeSmall - 1.0f).Foreground(Muted).Width(46.0f));
             }
 
             header.Children.Add(new TextBlock().Text("Trains").FontSize(theme.FontSizeSmall - 1.0f).Foreground(Muted).Width(52.0f));
-            header.Children.Add(new TextBlock().Text("VP").FontSize(theme.FontSizeSmall - 1.0f).Foreground(Muted).Width(40.0f));
+            header.Children.Add(new TextBlock().Text("Prestige").FontSize(theme.FontSizeSmall - 1.0f).Foreground(Muted).Width(56.0f));
             rows.Children.Add(header);
 
             for (var index = 0; index < TywGame.PlayerNames.Length; index++)
@@ -102,7 +106,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     }
 
                     var player = game.Players[p];
-                    return player.IsBot && !(p == 0 && state.Autoplay) ? $"{player.Name} (bot)" : $"{player.Name} (you)";
+                    return p != humanSeat ? player.Name : state.Autoplay ? $"{player.Name} (bot)" : $"{player.Name} (you)";
                 }).Width(86.0f));
                 for (var r = 0; r < 4; r++)
                 {
@@ -127,9 +131,12 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     var game = state.Game;
                     return game == null || p >= game.Players.Count ? "" : game.VictoryPoints(p).ToString();
                 }, 2.0f, new Vector4(1.0f, 0.92f, 0.6f, 1.0f)).Width(40.0f));
-                row.BindPolled(el => el.Visibility, () =>
+                // Your own row stands out, so a glance finds your stock among eight.
+                var line = new Border().Rounded(5.0f).PaddingOf(4.0f, 2.0f).Content(row)
+                    .Fill(p == humanSeat ? new Vector4(1.0f, 1.0f, 1.0f, 0.10f) : new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+                line.BindPolled(el => el.Visibility, () =>
                     state.Game != null && p < state.Game.Players.Count ? Visibility.Visible : Visibility.Collapsed);
-                rows.Children.Add(row);
+                rows.Children.Add(line);
             }
 
             rows.Children.Add(Label(theme, () =>
@@ -160,7 +167,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
 
                 var left = TimeSpan.FromSeconds(MathF.Ceiling(game.TimeLeft));
                 var extra = state.Paused ? "   PAUSED" : state.Speed != 1.0f ? $"   x{state.Speed:0}" : "";
-                return $"{left:m\\:ss}   First to {game.VictoryTarget} VP{extra}";
+                return $"{left:m\\:ss}   First to {game.VictoryTarget} prestige{extra}";
             }, 4.0f);
             return Box(text).CenterH().Top().Margin(0, 16, 0, 0);
         }
@@ -216,14 +223,16 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             return box;
         }
 
-        private static UiElement Controls(UiTheme theme)
+        private static UiElement Controls(UiTheme theme, TywHudState state)
         {
             var text = new TextBlock()
-                .Text("Drag or click: lay track    Click your hex: extractor / factory / station / repair    Click a rival's hex: sabotage    " +
-                      "T: buy train    Space: pause    F: speed    B: bot plays for you    N: new map    Esc: quit")
+                .Text("Click or drag: lay track    Click your hex: build or repair    Click a rival's track: sabotage    T: buy train    1 / 2: build / torch    " +
+                      "Wheel / right-drag / WASD: camera    Home: whole map    L: evening / night / noon    Space: pause    F: speed    B: autoplay    R: replay    N: new map    H: hide this    Esc: pause / quit")
                 .FontSize(theme.FontSizeSmall)
                 .Foreground(Muted);
-            return Box(text).CenterH().Bottom().Margin(0, 0, 0, 14.0f);
+            var box = Box(text).CenterH().Bottom().Margin(0, 0, 0, 14.0f);
+            box.BindPolled(el => el.Visibility, () => state.ShowControls ? Visibility.Visible : Visibility.Collapsed);
+            return box;
         }
 
         private static UiElement Results(UiTheme theme, TywHudState state)
@@ -245,9 +254,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
 
                 return string.Join("\n", game.Players
                     .OrderByDescending(p => game.VictoryPoints(p.Index))
-                    .Select(p => $"{p.Name}: {game.VictoryPoints(p.Index)} VP  ({game.VictoryBreakdown(p.Index)})"));
+                    .Select(p => $"{p.Name}: {game.VictoryPoints(p.Index)} prestige  ({game.VictoryBreakdown(p.Index)})"));
             }, 0.0f);
-            var again = new TextBlock().Text("N for a new map, Esc to quit").FontSize(theme.FontSizeSmall).Foreground(Muted);
+            var again = new TextBlock().Text("R to replay this map, N for a new one, Esc to quit").FontSize(theme.FontSizeSmall).Foreground(Muted);
             var panel = new StackPanel().Vertical(12.0f).Children(title.CenterH(), standings.CenterH(), again.CenterH());
             var box = Box(panel).Center();
             box.BindPolled(el => el.Visibility, () => state.Game is { IsOver: true } ? Visibility.Visible : Visibility.Collapsed);

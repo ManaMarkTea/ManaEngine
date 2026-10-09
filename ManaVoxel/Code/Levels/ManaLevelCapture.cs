@@ -38,12 +38,22 @@ namespace ManaVoxel.Code.Levels
                 {
                     CaptureSceneNodes(scene, level.Nodes);
                     level.Sky ??= scene.AuthoredSky as ManaLevelSky;
+                    CaptureGameModes(scene, level);
                 }
 
                 CaptureCamera(world, level, cameraPose);
             }
 
             return level;
+        }
+
+        // Left out entirely when there are none, so a level without modes saves exactly as it did before.
+        private static void CaptureGameModes(ManaScene scene, ManaLevel level)
+        {
+            foreach (var mode in scene.GameModes)
+            {
+                (level.GameModes ??= new()).Add(ManaLevelGameModes.Capture(mode));
+            }
         }
 
         public static ManaLevel CaptureScene(
@@ -59,6 +69,7 @@ namespace ManaVoxel.Code.Levels
             {
                 CaptureSceneNodes(scene, level.Nodes);
                 level.Sky = scene.AuthoredSky as ManaLevelSky;
+                CaptureGameModes(scene, level);
                 if (includeCamera)
                 {
                     CaptureCamera(world, level, cameraPose);

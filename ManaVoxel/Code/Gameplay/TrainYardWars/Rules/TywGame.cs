@@ -7,10 +7,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         public static readonly int[] MountainTrack = { 2, 2, 0, 0 };
         public static readonly int[] Extractor = { 2, 1, 1, 0 };
         public static readonly int[] Station = { 2, 0, 1, 0 };
-        public static readonly int[] Locomotive = { 1, 0, 0, 2 };
+        public static readonly int[] Locomotive = { 1, 0, 1, 2 };
         public static readonly int[] Factory = { 0, 3, 1, 3 };
         public static readonly int[] Sabotage = { 0, 1, 0, 1 };
         public static readonly int[] Repair = { 1, 0, 0, 0 };
+        public static readonly int[] Torch = { 1, 0, 0, 1 };
 
         public static string Format(int[] cost)
         {
@@ -108,6 +109,25 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
     public sealed record TywEvent(float Time, int Player, string Text);
 
+    public enum TywNoticeKind
+    {
+        Banked,
+        Delivered,
+        TownReached,
+        TrackLaid,
+        Built,
+        TrainBought,
+        Traded,
+        TorchLit,
+        Sabotaged,
+        Repaired,
+        Award,
+        Won
+    }
+
+    /// <summary>Something that just happened on the board, for the view to show and sound.</summary>
+    public readonly record struct TywNotice(TywNoticeKind Kind, int Player, TywHex Hex, int Amount = 0, TywResource Resource = default, int Victim = -1);
+
     /// <summary>What a click on a hex would do for a player.</summary>
     public enum TywActionKind
     {
@@ -117,7 +137,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         Factory,
         Station,
         Sabotage,
-        Repair
+        Repair,
+        Torch
     }
 
     public sealed record TywAction(TywActionKind Kind, int[] Cost, string Label, string? Blocked);
@@ -138,7 +159,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
     public sealed class TywGame
     {
         public const float TrainSpeed = 1.5f;
-        public const float ProductionPerPip = 0.04f;
+        public const float ProductionPerYield = 0.04f;
         public const float TrickleSeconds = 10.0f;
         public const float SabotageSeconds = 20.0f;
         public const float SabotageCooldownSeconds = 30.0f;
@@ -148,12 +169,29 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         public const int TownLoadMinimum = 3;
         public const float TownRestSeconds = 30.0f;
 
+        /// <summary>A train waits for this much at a mine (unless the mine is full) rather than fetch single loads.</summary>
+        public const float PickupMinimum = 2.0f;
+
+        /// <summary>Banked at least this much of a load's resource, a train takes it to a port to trade instead.</summary>
+        public const int PortSurplus = 8;
+
+        /// <summary>Torches a player may have burning at once (the renderer's placed lights are shared by everyone).</summary>
+        public const int MaxTorches = 6;
+
+        /// <summary>How much faster a mine works with one of its owner's torches on it or beside it.</summary>
+        public const float TorchBoost = 0.5f;
+
         public static readonly string[] PlayerNames = { "Red", "Blue", "Green", "Yellow", "Purple", "Orange", "Teal", "Pink" };
 
         private readonly Dictionary<TywLink, int> _links = new();
         private readonly Dictionary<TywHex, HashSet<int>> _townConnections = new();
         private readonly List<TywTrain> _trains = new();
         private readonly List<TywEvent> _log = new();
+        private readonly List<TywNotice> _notices = new();
+        private readonly int[] _claimed = new int[8];
+        private readonly int[] _factories = new int[8];
+        private readonly int[] _extractors = new int[8];
+        private readonly int[] _torches = new int[8];
         private readonly Random _random;
         private int _nextTrainId = 1;
 
@@ -171,6 +209,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 };
                 Players.Add(player);
                 SpawnTrain(p);
+            }
+
+            foreach (var port in Board.Ports)
+            {
+                _townConnections[port] = new HashSet<int>();
             }
 
             foreach (var town in Board.Towns)
@@ -198,6 +241,25 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         public int Revision { get; private set; }
 
         public float TimeLeft => MathF.Max(0.0f, Duration - Time);
+
+        /// <summary>Hands over what happened since the last call.</summary>
+        public List<TywNotice> TakeNotices()
+        {
+            var taken = new List<TywNotice>(_notices);
+            _notices.Clear();
+            return taken;
+        }
+
+        // A headless match never takes them, so the oldest go.
+        private void Notify(TywNotice notice)
+        {
+            if (_notices.Count >= 256)
+            {
+                _notices.RemoveRange(0, 64);
+            }
+
+            _notices.Add(notice);
+        }
 
         // ---- Queries ---------------------------------------------------------------------------------------
 
@@ -252,7 +314,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         public int TrainCount(int player) => _trains.Count(t => t.Owner == player);
 
-        public int ClaimedHexes(int player) => Board.Tiles.Count(t => t.Owner == player && t.Building != TywBuilding.Depot);
+        /// <summary>Hexes a player's track has claimed (not counting the depot). Kept as a count: the awards read it every tick.</summary>
+        public int ClaimedHexes(int player) => _claimed[player];
 
         /// <summary>Where a player's points come from, for the scoreboard and for tuning.</summary>
         public string VictoryBreakdown(int player)
@@ -267,17 +330,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         public int VictoryPoints(int player)
         {
+            // Mines and factories earn nothing themselves: prestige comes from where the trains reach and what they deliver.
             var points = 0;
-            foreach (var tile in Board.Tiles)
-            {
-                if (tile.BuildingOwner != player)
-                {
-                    continue;
-                }
-
-                // Mines earn nothing themselves: points come from what the trains do with them.
-                points += tile.Building == TywBuilding.Factory ? 1 : 0;
-            }
 
             points += _townConnections.Values.Count(set => set.Contains(player));
             var p = Players[player];
@@ -304,7 +358,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 return false;
             }
 
-            if (tile.Building == TywBuilding.Town)
+            if (tile.IsShared)
             {
                 return true;
             }
@@ -485,16 +539,17 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 _links[new TywLink(a, b)] = player;
                 foreach (var tile in new[] { tileA, tileB })
                 {
-                    if (tile.Building != TywBuilding.Town)
+                    if (!tile.IsShared && tile.Owner != player)
                     {
                         tile.Owner = player;
+                        _claimed[player]++;
                     }
 
                     tile.Revision++;
                 }
 
                 built++;
-                if (tileB.Building == TywBuilding.Town)
+                if (tileB.IsShared)
                 {
                     ConnectTown(player, b);
                 }
@@ -503,6 +558,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             if (built > 0)
             {
                 Revision++;
+                Notify(new TywNotice(TywNoticeKind.TrackLaid, player, plan.Path[^1], built));
             }
 
             return built;
@@ -516,14 +572,16 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 return;
             }
 
+            var what = Board[town]!.Building == TywBuilding.Port ? "port" : "town";
+            Notify(new TywNotice(TywNoticeKind.TownReached, player, town, set.Count == 1 ? 2 : 1));
             if (set.Count == 1)
             {
                 Players[player].TownBonusPoints++;
-                Say(player, $"{Players[player].Name} reached a town first (+2 VP)");
+                Say(player, $"{Players[player].Name} reached a {what} first (+2 prestige)");
             }
             else
             {
-                Say(player, $"{Players[player].Name} connected a town (+1 VP)");
+                Say(player, $"{Players[player].Name} connected a {what} (+1 prestige)");
             }
         }
 
@@ -549,7 +607,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             if (tile.Owner == player && tile.Building == TywBuilding.None && tile.IsResource)
             {
-                return Offer(TywActionKind.Extractor, TywCosts.Extractor, $"{tile.Produces} extractor");
+                return Offer(TywActionKind.Extractor, ExtractorCost(player), $"{tile.Produces} extractor");
             }
 
             if (tile.Building == TywBuilding.Extractor && tile.BuildingOwner == player)
@@ -614,6 +672,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
                 case TywActionKind.Extractor:
                     p.Pay(action.Cost);
+                    _extractors[player]++;
                     tile.Building = TywBuilding.Extractor;
                     tile.BuildingOwner = player;
                     break;
@@ -621,6 +680,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 case TywActionKind.Factory:
                     p.Pay(action.Cost);
                     tile.Building = TywBuilding.Factory;
+                    _factories[player]++;
                     Say(player, $"{p.Name} built a factory");
                     break;
 
@@ -632,6 +692,14 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
                 case TywActionKind.Sabotage:
                     p.Pay(action.Cost);
+                    Notify(new TywNotice(TywNoticeKind.Sabotaged, player, hex, Victim: tile.Owner));
+                    // A cut line's torch goes out with it.
+                    if (tile.HasTorch)
+                    {
+                        _torches[tile.TorchOwner]--;
+                        tile.TorchOwner = -1;
+                    }
+
                     tile.DamagedUntil = Time + SabotageSeconds;
                     tile.SabotageImmuneUntil = Time + SabotageSeconds + SabotageCooldownSeconds;
                     Say(player, $"{p.Name} sabotaged {Players[tile.Owner].Name}'s line!");
@@ -640,11 +708,86 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 case TywActionKind.Repair:
                     p.Pay(action.Cost);
                     tile.DamagedUntil = Time;
+                    Notify(new TywNotice(TywNoticeKind.Repaired, player, hex));
                     break;
+            }
+
+            if (action.Kind is TywActionKind.Extractor or TywActionKind.Factory or TywActionKind.Station)
+            {
+                Notify(new TywNotice(TywNoticeKind.Built, player, hex));
             }
 
             tile.Revision++;
             Revision++;
+            return null;
+        }
+
+        public int TorchCount(int player) => _torches[player];
+
+        /// <summary>A mine with one of its owner's torches on its hex or the next one.</summary>
+        public bool IsLit(TywTile tile)
+        {
+            var owner = tile.BuildingOwner;
+            if (owner < 0)
+            {
+                return false;
+            }
+
+            if (tile.TorchOwner == owner)
+            {
+                return true;
+            }
+
+            foreach (var near in Board.Around(tile.Hex))
+            {
+                if (near.TorchOwner == owner)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>What placing a torch on <paramref name="hex"/> would do, for the hint.</summary>
+        public TywAction TorchActionAt(int player, TywHex hex)
+        {
+            var tile = Board[hex];
+            if (tile == null || !(tile.Owner == player || tile.BuildingOwner == player))
+            {
+                return new TywAction(TywActionKind.None, TywCosts.Torch, "Torch", "only on your own track or buildings");
+            }
+
+            if (tile.HasTorch)
+            {
+                return new TywAction(TywActionKind.None, TywCosts.Torch, "Torch", "already lit");
+            }
+
+            if (_torches[player] >= MaxTorches)
+            {
+                return new TywAction(TywActionKind.Torch, TywCosts.Torch, "Torch", $"all {MaxTorches} torches are burning");
+            }
+
+            return new TywAction(TywActionKind.Torch, TywCosts.Torch, "Torch",
+                Players[player].CanAfford(TywCosts.Torch) ? null : $"needs {TywCosts.Format(TywCosts.Torch)}");
+        }
+
+        /// <summary>Lights a torch on one of the player's hexes. Null on success, else why not.</summary>
+        public string? PlaceTorch(int player, TywHex hex)
+        {
+            var action = TorchActionAt(player, hex);
+            if (action.Kind != TywActionKind.Torch || action.Blocked != null)
+            {
+                return action.Blocked ?? "nowhere to put it";
+            }
+
+            var tile = Board[hex]!;
+            Players[player].Pay(TywCosts.Torch);
+            tile.TorchOwner = player;
+            _torches[player]++;
+            tile.Revision++;
+            Revision++;
+            Notify(new TywNotice(TywNoticeKind.TorchLit, player, hex));
             return null;
         }
 
@@ -663,6 +806,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             p.Pay(TywCosts.Locomotive);
             SpawnTrain(player);
+            Notify(new TywNotice(TywNoticeKind.TrainBought, player, p.Depot));
             Revision++;
             return null;
         }
@@ -689,9 +833,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             {
                 if (tile.Building is TywBuilding.Extractor or TywBuilding.Factory)
                 {
-                    var factory = tile.Building == TywBuilding.Factory;
-                    var cap = factory ? 10.0f : 6.0f;
-                    tile.Stock = MathF.Min(cap, tile.Stock + tile.Richness * ProductionPerPip * (factory ? 2.0f : 1.0f) * deltaSeconds);
+                    var rate = tile.Richness * ProductionPerYield * (tile.Building == TywBuilding.Factory ? 2.0f : 1.0f)
+                               * (IsLit(tile) ? 1.0f + TorchBoost : 1.0f);
+                    tile.Stock = MathF.Min(StockCap(tile), tile.Stock + rate * deltaSeconds);
                 }
 
                 if (tile.Building == TywBuilding.Town && Time >= tile.DemandChangesAt)
@@ -735,6 +879,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             }
         }
 
+        /// <summary>How many loads a mine holds before it stops producing.</summary>
+        public static float StockCap(TywTile tile) => tile.Building == TywBuilding.Factory ? 10.0f : 6.0f;
+
         private void ChangeDemand(TywTile town)
         {
             var next = (TywResource)_random.Next(3);
@@ -769,7 +916,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             if (best != holder && best >= 0)
             {
-                Say(best, $"{name} goes to {Players[best].Name} (+2 VP)");
+                Say(best, $"{name} goes to {Players[best].Name} (+2 prestige)");
+                Notify(new TywNotice(TywNoticeKind.Award, best, Players[best].Depot, 2));
                 Revision++;
             }
 
@@ -801,7 +949,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         {
             IsOver = true;
             Winner = winner;
-            Say(winner, $"{Players[winner].Name} wins with {VictoryPoints(winner)} VP!");
+            Say(winner, $"{Players[winner].Name} wins with {VictoryPoints(winner)} prestige!");
+            Notify(new TywNotice(TywNoticeKind.Won, winner, Players[winner].Depot));
             Revision++;
         }
 
@@ -877,6 +1026,13 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         private void Dispatch(TywTrain train)
         {
+            // Still loaded (the town it was bound for stopped wanting it): find somewhere to leave it first.
+            if (train.Amount > 0)
+            {
+                SendToDrop(train);
+                return;
+            }
+
             var fromHere = SearchTrack(train.Owner, train.At);
             TywTile? best = null;
             var bestScore = 0.0f;
@@ -888,7 +1044,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 }
 
                 var available = tile.Stock - tile.Reserved;
-                if (available < 1.0f || !fromHere.TryGetValue(tile.Hex, out var there))
+                var full = tile.Stock >= StockCap(tile) - 0.01f;
+                if ((available < PickupMinimum && !(full && available >= 1.0f)) || !fromHere.TryGetValue(tile.Hex, out var there))
                 {
                     continue;
                 }
@@ -960,7 +1117,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         private void SendToDrop(TywTrain train)
         {
-            var (path, _) = NearestDrop(train.Owner, train.At, train.Amount >= TownLoadMinimum ? train.Cargo : null);
+            var (path, _) = NearestDrop(train.Owner, train.At, train.Cargo, townLoad: train.Amount >= TownLoadMinimum);
             if (path == null)
             {
                 train.State = TywTrainState.Idle;
@@ -980,27 +1137,32 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 {
                     if (!tile.Wants(train.Cargo, Time) || train.Amount < TownLoadMinimum)
                     {
-                        // The town changed its mind on the way: take the load home instead.
-                        var (home, _) = NearestDrop(train.Owner, train.At, cargo: null);
-                        if (home != null && home.Count > 1)
-                        {
-                            StartDriving(train, home, TywTrainState.ToDrop);
-                            return;
-                        }
+                        // The town changed its mind on the way: keep the load, and the dispatcher takes it on.
+                        train.State = TywTrainState.Idle;
+                        train.NextThinkAt = Time;
+                        return;
                     }
-                    else
-                    {
-                        player.DeliveryPoints++;
-                        Say(train.Owner, $"{player.Name} delivered {train.Cargo} to a town (+1 VP)");
-                        ChangeDemand(tile);
-                        tile.SatisfiedUntil = Time + TownRestSeconds;
-                        tile.DemandChangesAt = tile.SatisfiedUntil + 45.0f;
-                        Revision++;
-                    }
+
+                    player.DeliveryPoints++;
+                    Say(train.Owner, $"{player.Name} delivered {train.Cargo} to a town (+1 prestige)");
+                    Notify(new TywNotice(TywNoticeKind.Delivered, train.Owner, tile.Hex, 1, train.Cargo));
+                    ChangeDemand(tile);
+                    tile.SatisfiedUntil = Time + TownRestSeconds;
+                    tile.DemandChangesAt = tile.SatisfiedUntil + 45.0f;
+                    Revision++;
+                }
+                else if (tile.Building == TywBuilding.Port)
+                {
+                    var wanted = Scarcest(player, train.Cargo);
+                    var amount = Math.Max(1, (train.Amount + 1) / 2);
+                    player.Bank[(int)wanted] += amount;
+                    Notify(new TywNotice(TywNoticeKind.Traded, train.Owner, tile.Hex, amount, wanted));
+                    Revision++;
                 }
                 else
                 {
                     player.Bank[(int)train.Cargo] += train.Amount;
+                    Notify(new TywNotice(TywNoticeKind.Banked, train.Owner, tile.Hex, train.Amount, train.Cargo));
                     Revision++;
                 }
             }
@@ -1011,10 +1173,45 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         }
 
         /// <summary>
+        /// Each mine costs a little more than the last (one more wood and stone for every three owned), so a big
+        /// world's spare hexes do not turn into an endless pile of resources.
+        /// </summary>
+        public int[] ExtractorCost(int player)
+        {
+            var extra = _extractors[player] / 3;
+            var cost = (int[])TywCosts.Extractor.Clone();
+            cost[(int)TywResource.Wood] += extra;
+            cost[(int)TywResource.Stone] += extra;
+            return cost;
+        }
+
+        /// <summary>What a player has least of, other than <paramref name="except"/>: what a port trades a load for.</summary>
+        private static TywResource Scarcest(TywPlayer player, TywResource except)
+        {
+            var best = except == TywResource.Wood ? TywResource.Stone : TywResource.Wood;
+            for (var r = 0; r < 4; r++)
+            {
+                if ((TywResource)r != except && player.Bank[r] < player.Bank[(int)best])
+                {
+                    best = (TywResource)r;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>A load worth trading at a port: plenty of it banked already, and something else running short.</summary>
+        private bool IsSurplus(int player, TywResource cargo)
+        {
+            var bank = Players[player].Bank;
+            return bank[(int)cargo] >= PortSurplus && bank.Where((_, r) => r != (int)cargo).Min() < 3;
+        }
+
+        /// <summary>
         /// The closest place a player's train can leave a load: their depot or a station, or -- with cargo a
         /// connected town is asking for and not much further -- that town.
         /// </summary>
-        private (List<TywHex>? Path, float Distance) NearestDrop(int player, TywHex from, TywResource? cargo)
+        private (List<TywHex>? Path, float Distance) NearestDrop(int player, TywHex from, TywResource? cargo, bool townLoad = false)
         {
             var search = SearchTrack(player, from);
             var bestDistance = float.PositiveInfinity;
@@ -1034,13 +1231,27 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             }
 
             var home = nearestOwn;
-            if (cargo is { } resource)
+            if (cargo is { } resource && townLoad)
             {
                 foreach (var (hex, entry) in search)
                 {
                     var tile = Board[hex]!;
                     if (tile.Wants(resource, Time) && IsTownConnected(hex, player) &&
                         entry.Distance <= bestDistance * 2.0f + 3.0f && entry.Distance < townDistance)
+                    {
+                        townDistance = entry.Distance;
+                        home = hex;
+                    }
+                }
+            }
+
+            // A load of something already piled up goes to a port, when one is connected and not far out of the way.
+            if (cargo is { } surplus && townDistance == float.PositiveInfinity && IsSurplus(player, surplus))
+            {
+                foreach (var (hex, entry) in search)
+                {
+                    if (Board[hex]!.Building == TywBuilding.Port && IsTownConnected(hex, player) &&
+                        entry.Distance <= bestDistance * 2.0f + 4.0f && entry.Distance < townDistance)
                     {
                         townDistance = entry.Distance;
                         home = hex;
@@ -1133,9 +1344,5 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             path.Reverse();
             return path;
         }
-
-        /// <summary>Hex distance by track from a terminal, for bots weighing a site; infinity when cut off.</summary>
-        public float TrackDistance(int player, TywHex from, TywHex to) =>
-            SearchTrack(player, from).TryGetValue(to, out var entry) ? entry.Distance : float.PositiveInfinity;
     }
 }

@@ -6,6 +6,15 @@
     "position": [32, 4.5, 44],
     "rotation": [-0.12, 0, 0]
   },
+  "gameModes": [
+    {
+      "id": "53df32fdfd4143db95f296a966140cde",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "name": "Gallery Floor",

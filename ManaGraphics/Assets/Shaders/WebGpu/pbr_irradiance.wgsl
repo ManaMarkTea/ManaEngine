@@ -249,11 +249,11 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     // Placed point lights -- lamps, torches. Inverse square, windowed to reach zero at the light's range so a
     // lamp lights its surroundings and not the whole level.
-    for (var i = 0u; i < 16u; i = i + 1u) {
+    for (var i = 0u; i < 64u; i = i + 1u) {
         let light_color = frame.local_light_colors[i].rgb;
         let range = frame.local_light_positions[i].w;
         if (range <= 0.0) {
-            continue;
+            break;
         }
 
         let to_light = frame.local_light_positions[i].xyz - input.world_position;

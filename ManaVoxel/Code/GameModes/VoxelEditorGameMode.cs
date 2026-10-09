@@ -38,6 +38,9 @@ namespace Mana.Code.GameModes
         private readonly VoxelFileImportService _fileImportService = new();
         private ManaPawnController? _pawnController;
         private PlayModeController? _playMode;
+
+        // Owned here rather than by the play controller: the HUD that shows its modes is built before Load makes that.
+        private readonly ManaGameModeRunner _gameModes = new();
         private TrackDebugVisualization? _trackDebugVisualization;
         private SceneTransformGizmo? _transformGizmo;
 
@@ -152,20 +155,24 @@ namespace Mana.Code.GameModes
 
             // Play collapses the whole workspace away and leaves the controls hint. Polled rather than
             // rebuilt on the switch, because _playMode does not exist yet -- this runs before Load.
-            host.Root.Content = new ManaUiPlayOverlay(
-                workspace,
-                ManaUiPlayHud.Build(
+            // The play HUD for a character game, with the level's game modes' own HUDs over it.
+            _gameModes.UseTheme(host.Root.Theme);
+            var playHud = ManaUiPlayHud.Build(
                     host.Root.Theme,
                     GetPlayHudText,
-                    () => Context.World.GameState.FormatHud(),
+                    () => _playMode?.Player != null ? Context.World.GameState.FormatHud() : "",
                     ManaUiPlayResults.Build(
                         host.Root.Theme,
                         Context.World.GameState,
                         () => _playMode?.Restart(),
                         () => _playMode?.Stop(),
                         "Back to Editor"),
-                    ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState)),
-                () => IsPlaying);
+                    ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
+            playHud.BindPolled(el => el.Visibility, () => _gameModes.ShowsPlayHud ? Visibility.Visible : Visibility.Collapsed);
+            var playLayer = new Grid();
+            playLayer.Children.Add(playHud);
+            playLayer.Children.Add(_gameModes.HudLayer);
+            host.Root.Content = new ManaUiPlayOverlay(workspace, playLayer, () => IsPlaying);
         }
 
         public override void Load()
@@ -514,6 +521,7 @@ namespace Mana.Code.GameModes
             if (IsPlaying)
             {
                 Context.World.GameState.Tick((float)deltaTime);
+                _playMode?.Tick((float)deltaTime);
             }
 
             PumpMeshThumbnails();

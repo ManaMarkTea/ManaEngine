@@ -251,8 +251,21 @@ namespace Mana.Code.GameModes
             }
         }
 
+        private bool _gridFloorShown = true;
+
         private void SyncGridRoomWalls()
         {
+            // A level game mode that brings its own world (see ManaLevelGameMode.KeepsEditorFloor) plays without the floor.
+            var floor = !IsPlaying || _gameModes.KeepsEditorFloor;
+            if (floor != _gridFloorShown && _gridXzPlane != null)
+            {
+                _gridFloorShown = floor;
+                foreach (var renderer in _gridXzPlane.GetComponents<MeshRendererComponent>())
+                {
+                    renderer.IsVisible = floor;
+                }
+            }
+
             var drawing = !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive);
             var show = ManaEditorGizmos.ShowRoom || drawing;
             if (_gridWallsShown == show)

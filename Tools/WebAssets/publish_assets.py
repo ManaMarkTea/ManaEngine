@@ -147,6 +147,8 @@ def attach_thumbnails(root, library, files, models):
 # Levels the browser cannot play yet, and why -- left off the selector rather than shown and failing.
 UNPLAYABLE_LEVELS = {
     "Planet Showcase": "streams elevation data the web build does not ship",
+    "Train Yard Wars": "its game mode is not run by the browser host yet",
+    "Train Yard Wars Duel": "its game mode is not run by the browser host yet",
 }
 
 # A line under each level's name on its card.

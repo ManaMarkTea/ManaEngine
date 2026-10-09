@@ -24,6 +24,9 @@ namespace Mana
         /// <summary>The sky block the level file was opened with (a ManaLevelSky), kept so saving writes it back.</summary>
         public object? AuthoredSky { get; set; }
 
+        /// <summary>The level's game modes (its rules), with their settings; saved with the level and run on Play.</summary>
+        public List<Mana.Code.GameModes.ManaLevelGameMode> GameModes { get; } = new();
+
 
         public ManaScene(ManaContext context) : base(context)
         {

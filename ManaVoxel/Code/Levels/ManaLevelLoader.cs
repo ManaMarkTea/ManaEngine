@@ -127,6 +127,15 @@ namespace ManaVoxel.Code.Levels
                 scene.AuthoredSky = level.Sky;
             }
 
+            scene.GameModes.Clear();
+            foreach (var entry in level.GameModes ?? new())
+            {
+                if (ManaLevelGameModes.Load(entry, result.Warnings) is { } mode)
+                {
+                    scene.GameModes.Add(mode);
+                }
+            }
+
             if (level.Camera != null && world.CameraNode != null)
             {
                 world.CameraNode.Position = ToVector3(level.Camera.Position);

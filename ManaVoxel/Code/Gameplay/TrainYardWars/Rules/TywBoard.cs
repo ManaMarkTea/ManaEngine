@@ -7,9 +7,12 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         Hills,
         Fields,
         Mountain,
-        Lake,
+        Water,
+        Sand,
+        Desert,
         Town,
-        Depot
+        Depot,
+        Port
     }
 
     public enum TywResource
@@ -27,7 +30,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         Extractor,
         Factory,
         Station,
-        Town
+        Town,
+        Port
     }
 
     /// <summary>One hex of the board and everything standing on it.</summary>
@@ -43,7 +47,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         public TywHex Hex { get; }
         public TywTerrain Terrain { get; internal set; }
 
-        /// <summary>1 to 3 pips on a resource hex; how fast its extractor fills.</summary>
+        /// <summary>Yield of a resource hex, 1 (poor) to 3 (rich): how fast its extractor fills.</summary>
         public int Richness { get; internal set; }
 
         /// <summary>The player whose track claims this hex, or -1. Towns are never claimed: anyone may run into one.</summary>
@@ -59,6 +63,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         /// <summary>Loads a train is already on its way to collect.</summary>
         public float Reserved { get; internal set; }
+
+        /// <summary>Who has a torch burning here, or -1. A torch lights the mines around it, and they work faster.</summary>
+        public int TorchOwner { get; internal set; } = -1;
+
+        public bool HasTorch => TorchOwner >= 0;
 
         public float DamagedUntil { get; internal set; }
         public float SabotageImmuneUntil { get; internal set; }
@@ -76,7 +85,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         /// <summary>Bumped whenever the track, building or damage on this hex changes, for the view to poll.</summary>
         public int Revision { get; internal set; }
 
-        public bool IsPassable => Terrain != TywTerrain.Lake;
+        /// <summary>Track can run here: anywhere on land, and out onto the water at a port.</summary>
+        public bool IsPassable => Terrain != TywTerrain.Water;
+
+        /// <summary>A place anyone may run track into: a town or a port.</summary>
+        public bool IsShared => Building is TywBuilding.Town or TywBuilding.Port;
 
         public bool IsResource => Terrain is TywTerrain.Forest or TywTerrain.Hills or TywTerrain.Fields or TywTerrain.Mountain;
 
@@ -95,19 +108,22 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
     }
 
     /// <summary>
-    /// The hex map: a big hexagon of land, a few lakes, neutral towns spread through the middle and one depot per
-    /// player on the rim. Seeded, so a match can be replayed and a test can count on its board.
+    /// The world: a continent from <see cref="TywMapGen"/>, ringed by sea; depots spread as far apart as the land
+    /// allows, neutral towns across it, ports out on the water. Seeded, so a match can be replayed and a test can
+    /// count on its board.
     /// </summary>
     public sealed class TywBoard
     {
         private readonly Dictionary<TywHex, TywTile> _tiles = new();
 
-        public TywBoard(int radius)
+        public TywBoard(int columns, int rows)
         {
-            Radius = radius;
+            Columns = columns;
+            Rows = rows;
         }
 
-        public int Radius { get; }
+        public int Columns { get; }
+        public int Rows { get; }
 
         public IEnumerable<TywTile> Tiles => _tiles.Values;
 
@@ -115,103 +131,200 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         public bool Contains(TywHex hex) => _tiles.ContainsKey(hex);
 
-        public static int RadiusFor(int players) => players <= 2 ? 4 : players <= 4 ? 5 : 6;
+        public IReadOnlyList<TywHex> Depots { get; private set; } = Array.Empty<TywHex>();
+        public IReadOnlyList<TywHex> Towns { get; private set; } = Array.Empty<TywHex>();
+        public IReadOnlyList<TywHex> Ports { get; private set; } = Array.Empty<TywHex>();
+
+        public static (int Columns, int Rows) SizeFor(int players) => players switch
+        {
+            <= 2 => (24, 18),
+            <= 4 => (32, 22),
+            <= 6 => (38, 26),
+            _ => (44, 30)
+        };
 
         public static TywBoard Generate(int players, int seed)
         {
             var random = new Random(seed);
-            var board = new TywBoard(RadiusFor(players));
-            foreach (var hex in TywHex.Spiral(board.Radius))
+            var (columns, rows) = SizeFor(players);
+            var board = new TywBoard(columns, rows);
+            foreach (var (hex, kind) in TywMapGen.Collapse(columns, rows, seed))
             {
-                board._tiles[hex] = new TywTile(hex, PickTerrain(random), PickRichness(random));
+                board._tiles[hex] = new TywTile(hex, kind, 0);
             }
 
-            // Depots evenly round the rim, starting at a random corner so seat 1 is not always east.
-            var rim = Ring(board.Radius).ToList();
-            var startIndex = random.Next(rim.Count);
-            var depots = new List<TywHex>();
+            board.KeepMainland();
+            foreach (var tile in board._tiles.Values.Where(t => t.IsResource))
+            {
+                var roll = random.Next(10);
+                tile.Richness = roll < 4 ? 1 : roll < 8 ? 2 : 3;
+            }
+
+            board.PlaceDepots(players, random);
+            board.PlaceTowns(players, random);
+            board.PlacePorts(players, random);
+            return board;
+        }
+
+        public IEnumerable<TywTile> Around(TywHex hex) =>
+            Enumerable.Range(0, TywHex.DirectionCount).Select(d => this[hex.Neighbor(d)]).OfType<TywTile>();
+
+        private static bool IsLand(TywTile tile) => tile.Terrain is not (TywTerrain.Water or TywTerrain.Port);
+
+        // Islands nobody could lay track to are sunk, so every bit of land is reachable.
+        private void KeepMainland()
+        {
+            var seen = new HashSet<TywHex>();
+            var largest = new List<TywTile>();
+            foreach (var start in _tiles.Values.Where(IsLand))
+            {
+                if (!seen.Add(start.Hex))
+                {
+                    continue;
+                }
+
+                var island = new List<TywTile>();
+                var queue = new Queue<TywTile>();
+                queue.Enqueue(start);
+                while (queue.TryDequeue(out var tile))
+                {
+                    island.Add(tile);
+                    foreach (var next in Around(tile.Hex).Where(n => IsLand(n) && seen.Add(n.Hex)))
+                    {
+                        queue.Enqueue(next);
+                    }
+                }
+
+                if (island.Count > largest.Count)
+                {
+                    largest = island;
+                }
+            }
+
+            var keep = largest.Select(t => t.Hex).ToHashSet();
+            foreach (var tile in _tiles.Values.Where(t => IsLand(t) && !keep.Contains(t.Hex)))
+            {
+                tile.Terrain = TywTerrain.Water;
+            }
+        }
+
+        // Each depot as far from the others as the land allows, on open ground away from the coast.
+        private void PlaceDepots(int players, Random random)
+        {
+            var sites = _tiles.Values
+                .Where(t => t.Terrain is TywTerrain.Plains or TywTerrain.Fields or TywTerrain.Desert && Around(t.Hex).All(IsLand))
+                .ToList();
+            if (sites.Count < players)
+            {
+                sites = _tiles.Values.Where(IsLand).ToList();
+            }
+
+            var depots = new List<TywHex> { sites[random.Next(sites.Count)].Hex };
+            while (depots.Count < players)
+            {
+                depots.Add(sites.Where(s => !depots.Contains(s.Hex)).MaxBy(s => depots.Min(d => d.DistanceTo(s.Hex)))!.Hex);
+            }
+
+            // The first was a random pick: move it to wherever is farthest from the rest.
+            var others = depots.Skip(1).ToList();
+            if (others.Count > 0)
+            {
+                depots[0] = sites.Where(s => !others.Contains(s.Hex)).MaxBy(s => others.Min(d => d.DistanceTo(s.Hex)))!.Hex;
+            }
+
             for (var p = 0; p < players; p++)
             {
-                var hex = rim[(startIndex + p * rim.Count / players) % rim.Count];
-                var tile = board._tiles[hex];
+                var tile = _tiles[depots[p]];
                 tile.Terrain = TywTerrain.Depot;
                 tile.Richness = 0;
                 tile.Building = TywBuilding.Depot;
                 tile.BuildingOwner = p;
                 tile.Owner = p;
-                depots.Add(hex);
+                EnsureNearby(depots[p], random);
             }
 
-            board.Depots = depots;
+            Depots = depots;
+        }
 
-            // Towns in the interior, kept apart from each other and from the depots.
-            var townCount = Math.Max(3, players);
-            var candidates = TywHex.Spiral(board.Radius - 1).OrderBy(_ => random.Next()).ToList();
-            var towns = new List<TywHex>();
-            foreach (var hex in candidates)
+        // A fair start: wood, stone, grain and coal all within reach of a depot, turning a nearby hex if need be
+        // (the one whose neighbours suit the new terrain best, so the bands still read).
+        private void EnsureNearby(TywHex depot, Random random)
+        {
+            foreach (var need in new[] { TywTerrain.Forest, TywTerrain.Hills, TywTerrain.Fields, TywTerrain.Mountain })
             {
-                if (towns.Count >= townCount)
-                {
-                    break;
-                }
-
-                if (towns.Any(t => t.DistanceTo(hex) < 3) || depots.Any(d => d.DistanceTo(hex) < 3))
+                var near = _tiles.Values.Where(t => t.Hex.DistanceTo(depot) is >= 2 and <= 5).ToList();
+                if (near.Any(t => t.Terrain == need))
                 {
                     continue;
                 }
 
-                var tile = board._tiles[hex];
+                var swap = near
+                    .Where(t => t.Building == TywBuilding.None && t.Terrain is TywTerrain.Plains or TywTerrain.Desert or TywTerrain.Fields or TywTerrain.Hills or TywTerrain.Forest)
+                    .OrderByDescending(t => Around(t.Hex).Count(n => TywMapGen.MayTouch(need, n.Terrain)))
+                    .ThenBy(_ => random.Next())
+                    .FirstOrDefault();
+                if (swap != null)
+                {
+                    swap.Terrain = need;
+                    swap.Richness = 2;
+                }
+            }
+        }
+
+        private void PlaceTowns(int players, Random random)
+        {
+            var count = players * 2 + 2;
+            var towns = new List<TywHex>();
+            foreach (var tile in _tiles.Values
+                         .Where(t => t.Building == TywBuilding.None && t.Terrain is TywTerrain.Plains or TywTerrain.Fields or TywTerrain.Sand or TywTerrain.Desert)
+                         .OrderBy(_ => random.Next()))
+            {
+                if (towns.Count >= count)
+                {
+                    break;
+                }
+
+                if (towns.Any(t => t.DistanceTo(tile.Hex) < 5) || Depots.Any(d => d.DistanceTo(tile.Hex) < 4))
+                {
+                    continue;
+                }
+
                 tile.Terrain = TywTerrain.Town;
                 tile.Richness = 0;
                 tile.Building = TywBuilding.Town;
                 tile.Demand = (TywResource)random.Next(4);
-                towns.Add(hex);
+                towns.Add(tile.Hex);
             }
 
-            board.Towns = towns;
-
-            // Lakes stay clear of depots and towns, so nobody starts walled in.
-            foreach (var tile in board._tiles.Values.Where(t => t.Terrain == TywTerrain.Lake))
-            {
-                if (depots.Concat(towns).Any(h => h.DistanceTo(tile.Hex) < 2))
-                {
-                    tile.Terrain = TywTerrain.Plains;
-                    tile.Richness = 0;
-                }
-            }
-
-            // Every depot gets each common resource, and coal, within reach: the Catan fairness pass.
-            foreach (var depot in depots)
-            {
-                foreach (var need in new[] { TywTerrain.Forest, TywTerrain.Hills, TywTerrain.Fields, TywTerrain.Mountain })
-                {
-                    var reach = need == TywTerrain.Mountain ? 4 : 3;
-                    var near = board._tiles.Values.Where(t => t.Hex.DistanceTo(depot) <= reach && t.Hex.DistanceTo(depot) >= 2).ToList();
-                    if (near.Any(t => t.Terrain == need))
-                    {
-                        continue;
-                    }
-
-                    var swap = near.Where(t => t.Terrain is TywTerrain.Plains or TywTerrain.Lake).OrderBy(_ => random.Next()).FirstOrDefault();
-                    if (swap != null)
-                    {
-                        swap.Terrain = need;
-                        swap.Richness = 2;
-                    }
-                }
-            }
-
-            foreach (var tile in board._tiles.Values.Where(t => !t.IsResource))
-            {
-                tile.Richness = 0;
-            }
-
-            return board;
+            Towns = towns;
         }
 
-        public IReadOnlyList<TywHex> Depots { get; private set; } = Array.Empty<TywHex>();
+        // Ports sit out on the water in a bay: sea hexes with open land on two or more sides, spread round the coast.
+        private void PlacePorts(int players, Random random)
+        {
+            var count = players + 2;
+            var ports = new List<TywHex>();
+            foreach (var tile in _tiles.Values
+                         .Where(t => t.Terrain == TywTerrain.Water && Around(t.Hex).Count(n => IsLand(n) && n.Building == TywBuilding.None) >= 2)
+                         .OrderBy(_ => random.Next()))
+            {
+                if (ports.Count >= count)
+                {
+                    break;
+                }
 
-        public IReadOnlyList<TywHex> Towns { get; private set; } = Array.Empty<TywHex>();
+                if (ports.Any(p => p.DistanceTo(tile.Hex) < 7) || Depots.Any(d => d.DistanceTo(tile.Hex) < 3))
+                {
+                    continue;
+                }
+
+                tile.Terrain = TywTerrain.Port;
+                tile.Building = TywBuilding.Port;
+                ports.Add(tile.Hex);
+            }
+
+            Ports = ports;
+        }
 
         public static IEnumerable<TywHex> Ring(int radius)
         {
@@ -229,26 +342,6 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                     hex = hex.Neighbor(side);
                 }
             }
-        }
-
-        private static TywTerrain PickTerrain(Random random)
-        {
-            var roll = random.Next(100);
-            return roll switch
-            {
-                < 22 => TywTerrain.Forest,
-                < 40 => TywTerrain.Hills,
-                < 58 => TywTerrain.Fields,
-                < 68 => TywTerrain.Mountain,
-                < 74 => TywTerrain.Lake,
-                _ => TywTerrain.Plains
-            };
-        }
-
-        private static int PickRichness(Random random)
-        {
-            var roll = random.Next(10);
-            return roll < 4 ? 1 : roll < 8 ? 2 : 3;
         }
     }
 }

@@ -27,8 +27,9 @@ struct FrameUniform {
     // rgb = color, a = intensity.
     sun_color : vec4<f32>,
     // Placed point lights (ManaRenderScene.LocalLight*): xyz position, w range; rgb colour x intensity.
-    local_light_positions : array<vec4<f32>, 16>,
-    local_light_colors : array<vec4<f32>, 16>,
+    // Packed from the front: the first slot with no range ends the list. 64 = ManaRenderScene.MaxLocalLights.
+    local_light_positions : array<vec4<f32>, 64>,
+    local_light_colors : array<vec4<f32>, 64>,
     // ManaWind: xy = unit direction it blows toward (world XZ), z = speed now in m/s, w = gustiness 0..1.
     wind : vec4<f32>,
     // xy = how far the air has carried things (world XZ metres), z = that path's length, w = gust now 0..1.

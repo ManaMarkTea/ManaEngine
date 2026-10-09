@@ -18,7 +18,12 @@
     handles several; nothing reads them yet apart from the flying mount), a camera that frames all players, and a join screen.
     Each game should be its own project to keep things seperate where posssible.  The editor prolly needs to depend on them all though to function?
 
-[] - Add support for GPU particles
+[x] - Add support for GPU particles
+    Codex (2026-10-08): GPU Particle Emitter on WebGPU -- additive procedural discs, shader-side ballistic motion/drag,
+    up to 10 million per emitter, without per-particle CPU work. Test scene: Content/Levels/GPU Particles.manalevel.
+    Run Tools/Automation/benchmark-gpu-particles.ps1 for a count sweep with a zero-particle baseline. Details: Plans/GpuParticles.md.
+    Moving/rotating emitters now preserve each particle's birth pose, with world-space gravity; no per-particle CPU state.
+    Optional bounce against two world-space infinite planes, with restitution and drag. Demo: GPU Particle Bounce.
 
 
 [] - UI Editor is not working and not used, needs updating - low priority
@@ -32,3 +37,6 @@
     the shadow cascades get coarser?
 
 [] - Big step!!  Rename ManaVoxel, its no longer just a voxel editor
+
+
+[] - Lights:  I dont like the limits, games like minecraft seem to have unlimited light sources. Unreal has MegaLights, etc.  How can we increase the light amounts?  Forward+ rendering?  Fake lights? etc

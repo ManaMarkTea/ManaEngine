@@ -12,7 +12,7 @@ namespace ManaCore.Graphics
         public Vector4[] LightPositions { get; init; } = new Vector4[4];
         public Vector4[] LightColors { get; init; } = new Vector4[4];
 
-        public const int MaxLocalLights = 16;
+        public const int MaxLocalLights = 64;
 
         // Lights placed in the scene -- lamps, torches -- apart from the grid above: xyz position, w range.
         // Colours are pre-multiplied by intensity; an unused slot is black.

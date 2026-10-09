@@ -6,6 +6,15 @@
     "position": [58.899593, 4.8226156, 95.480164],
     "rotation": [-0.4583995, -0.37759978, 0]
   },
+  "gameModes": [
+    {
+      "id": "e72dcf7745024ba09bccac88892e4395",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "name": "Gameplay",

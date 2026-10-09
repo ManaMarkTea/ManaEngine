@@ -14,6 +14,15 @@
       0
     ]
   },
+  "gameModes": [
+    {
+      "id": "6d7c1634e71a4ee8862df3af8c74a88c",
+      "type": "Character",
+      "properties": {
+        "maxJumps": 2
+      }
+    }
+  ],
   "nodes": [
     {
       "id": "cf72291bb0e9413a92385a3223dd5228",
