@@ -65,6 +65,9 @@
     <ProjectReference Include="..\Mana\Mana.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
     <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <!-- Games in projects of their own; ManaGames.cs registers their level game modes. -->
+    <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
   </ItemGroup>
 
 

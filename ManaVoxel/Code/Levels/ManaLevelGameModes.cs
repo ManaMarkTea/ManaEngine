@@ -16,7 +16,7 @@ namespace ManaVoxel.Code.Levels
     /// <summary>
     /// Every level game mode there is, by the name a level file uses, and the code that turns a file's entry into a
     /// running mode and back. The engine's own (Character) are listed here; a game's own registers itself with
-    /// <see cref="Register"/> when its assembly loads (see TrainYardWarsMode), so this file builds for the browser too.
+    /// <see cref="Register"/> when its assembly loads (see ManaGames), so this file builds for the browser too.
     /// A mode's public settings save and show in the Inspector with no more work.
     /// </summary>
     public static class ManaLevelGameModes

@@ -120,7 +120,7 @@ public static class TestRunner
         ("ManaVoxel", "sprite assets", SpriteAssetChecks.Run),
         ("ManaVoxel", "glow", GlowChecks.Run),
         ("ManaVoxel", "particles", ParticleChecks.Run),
-        ("ManaVoxel", "train yard wars rules", TrainYardWarsChecks.Run),
+        ("TrainYardWars", "train yard wars rules", TrainYardWarsChecks.Run),
         ("ManaVoxel", "yacht jousting rules", YachtJoustingChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),

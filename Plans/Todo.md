@@ -17,6 +17,11 @@
     needs first: more than one pawn (the world has a single GameState.Player), one gamepad per player (Silk.NET.Input
     handles several; nothing reads them yet apart from the flying mount), a camera that frames all players, and a join screen.
     Each game should be its own project to keep things seperate where posssible.  The editor prolly needs to depend on them all though to function?
+    Claude (2026-10-08): yes -- Train Yard Wars is now its own project, `Games/TrainYardWars/` (engine only, no editor
+    code). ManaVoxel references each game and registers its level game mode in `ManaVoxel/Code/Levels/ManaGames.cs`,
+    lending it what only the app has (mesh import), so the editor depends on the games and never the other way round.
+    Its tests are their own system: `dotnet run --project ManaTests -- TrainYardWars`. Yacht Jousting
+    (`ManaVoxel/Code/Gameplay/YachtJousting/`) could move to `Games/` the same way.
 
 [x] - Add support for GPU particles
     Codex (2026-10-08): GPU Particle Emitter on WebGPU -- additive procedural discs, shader-side ballistic motion/drag,
