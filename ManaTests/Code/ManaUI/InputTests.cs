@@ -37,6 +37,10 @@ public static class InputChecks
         root.Content = richHost;
         root.UpdateLayout(new Vector2(400, 300));
         Check("rich text wraps to the width it is given", rich.LineCount > 1, $"{rich.LineCount} lines");
+        var broken = new RichTextBlock("one\ntwo");
+        root.Content = new StackPanel().Children(broken);
+        root.UpdateLayout(new Vector2(400, 300));
+        Check("a newline in rich text starts a new line", broken.LineCount == 2, $"{broken.LineCount} lines");
 
         // -------------------------------------------------------------- hover + click
         var button = new Button("Click me") { Width = 120, Height = 30 };

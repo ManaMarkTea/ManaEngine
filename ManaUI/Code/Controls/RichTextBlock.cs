@@ -141,6 +141,12 @@ namespace ManaUI
                 {
                     Flush();
                 }
+                else if (c == '\n')
+                {
+                    // A line break is a run of its own.
+                    Flush();
+                    runs.Add(("\n", false, null));
+                }
                 else
                 {
                     word.Append(c);
@@ -179,6 +185,12 @@ namespace ManaUI
             _runs.Clear();
             foreach (var (text, bold, color) in Parse(_markup))
             {
+                if (text == "\n")
+                {
+                    Children.Add(new WrapBreak());
+                    continue;
+                }
+
                 var block = new TextBlock { Text = text, Foreground = color ?? _foreground };
                 if (!float.IsNaN(_fontSize))
                 {

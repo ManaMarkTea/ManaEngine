@@ -1,5 +1,11 @@
 namespace ManaUI
 {
+    /// <summary>In a <see cref="WrapPanel"/>, ends the line here, like a line break in text. Takes no room itself.</summary>
+    public sealed class WrapBreak : UiElement
+    {
+        protected override Vector2 MeasureOverride(Vector2 availableSize) => Vector2.Zero;
+    }
+
     /// <summary>
     /// Lays children out in a line, starting a new one when the current one runs out of room.
     /// <para>
@@ -75,6 +81,17 @@ namespace ManaUI
                     continue;
                 }
 
+                if (child is WrapBreak)
+                {
+                    totalMain = MathF.Max(totalMain, lineMain);
+                    totalCross += lineCross + CrossSpacing;
+                    lines++;
+                    lineMain = 0.0f;
+                    lineCross = 0.0f;
+                    lineEmpty = true;
+                    continue;
+                }
+
                 child.Measure(childConstraint);
 
                 var main = horizontal ? child.DesiredSize.X : child.DesiredSize.Y;
@@ -127,6 +144,16 @@ namespace ManaUI
             {
                 if (child.Visibility == Visibility.Collapsed)
                 {
+                    continue;
+                }
+
+                if (child is WrapBreak)
+                {
+                    crossOffset += lineCross + CrossSpacing;
+                    mainOffset = 0.0f;
+                    lineCross = 0.0f;
+                    lineEmpty = true;
+                    lines++;
                     continue;
                 }
 
