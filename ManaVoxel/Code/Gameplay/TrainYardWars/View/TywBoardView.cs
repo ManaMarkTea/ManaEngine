@@ -83,6 +83,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         {
             public int Revision = -1;
             public bool Cleared;
+
+            // The sides track leaves by (a bit each): what the ground's corner props have to keep clear of.
+            public int LinkSides;
             public ManaMeshSceneNode? Track;
             public int TrackLinks;
             public float TrackBornAt = float.NegativeInfinity;
@@ -284,7 +287,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             var batch = new TywGroundBatch();
             foreach (var tile in chunk.Tiles)
             {
-                AppendGround(batch, tile, _hexes[tile.Hex].Cleared);
+                AppendGround(batch, tile, _hexes[tile.Hex].Cleared, _hexes[tile.Hex].LinkSides);
             }
 
             foreach (var node in batch.Build(_context, "TYW Ground"))
@@ -305,7 +308,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         /// in its corners -- trees left by a clearing, houses round a town, a depot's shed. Corners 4, 5 and 0 (the
         /// back of the hex) are where track never runs.
         /// </summary>
-        private void AppendGround(TywGroundBatch batch, TywTile tile, bool cleared)
+        private void AppendGround(TywGroundBatch batch, TywTile tile, bool cleared, int linkSides)
         {
             var random = new Random(tile.Hex.Q * 7919 + tile.Hex.R * 104729 + 17);
             var turn = random.Next(6);
@@ -337,6 +340,38 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             var top = TywGeometry.TopY;
             Vector3 Corner(int corner, float reach = 0.6f) => TywMeshBuilder.Corner(center, TywGeometry.HexRadius * reach, corner, top);
 
+            // Track runs centre to edge on each linked side; a prop that close to one would stand on the rails.
+            bool Clear(Vector3 at, float room = 0.42f)
+            {
+                for (var d = 0; d < TywHex.DirectionCount; d++)
+                {
+                    if ((linkSides & 1 << d) != 0 &&
+                        DistanceToSegment(at with { Y = 0 }, center, TywGeometry.EdgeMid(tile.Hex, d) with { Y = 0 }) < TywGeometry.HexRadius * room)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            void Prop(string asset, Vector3 at, float height, float footprint)
+            {
+                if (Clear(at))
+                {
+                    AddProp(batch, asset, at, height, random, footprint);
+                }
+            }
+
+            void Kit(string kit, Vector3 at)
+            {
+                var yaw = random.NextSingle() * MathF.Tau;
+                if (Clear(at))
+                {
+                    AddKit(batch, kit, at, yaw);
+                }
+            }
+
             switch (tile.Terrain)
             {
                 // Open country gets the odd bush, rock or lone tree in a back corner, where track never runs.
@@ -344,34 +379,34 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     switch (random.Next(5))
                     {
                         case 0:
-                            AddProp(batch, Forest + "tree.glb", Corner(4 + random.Next(2)), 0.9f + random.NextSingle() * 0.4f, random, 0.7f);
+                            Prop(Forest + "tree.glb", Corner(4 + random.Next(2)), 0.9f + random.NextSingle() * 0.4f, 0.7f);
                             break;
                         case 1:
-                            AddProp(batch, Forest + "stones.glb", Corner(5), 0.18f, random, 0.6f);
+                            Prop(Forest + "stones.glb", Corner(5), 0.18f, 0.6f);
                             break;
                         case 2:
-                            AddKit(batch, "unit-tree", Corner(0, 0.55f), random.NextSingle() * MathF.Tau);
+                            Kit("unit-tree", Corner(0, 0.55f));
                             break;
                         default:
-                            AddProp(batch, Forest + "plant.glb", Corner(4), 0.32f, random, 0.45f);
-                            AddProp(batch, Forest + "plant.glb", Corner(0, 0.5f), 0.26f, random, 0.4f);
+                            Prop(Forest + "plant.glb", Corner(4), 0.32f, 0.45f);
+                            Prop(Forest + "plant.glb", Corner(0, 0.5f), 0.26f, 0.4f);
                             break;
                     }
 
                     break;
                 case TywTerrain.Sand or TywTerrain.Desert when random.Next(6) == 0:
-                    AddProp(batch, Forest + "stones.glb", Corner(4 + random.Next(2)), 0.14f, random, 0.5f);
+                    Prop(Forest + "stones.glb", Corner(4 + random.Next(2)), 0.14f, 0.5f);
                     break;
                 case TywTerrain.Forest when cleared:
-                    AddKit(batch, "unit-tree", Corner(4), random.NextSingle() * MathF.Tau);
-                    AddKit(batch, "unit-tree", Corner(0, 0.55f), random.NextSingle() * MathF.Tau);
+                    Kit("unit-tree", Corner(4));
+                    Kit("unit-tree", Corner(0, 0.55f));
                     break;
                 case TywTerrain.Hills when cleared:
-                    AddProp(batch, Forest + "rocks-low.glb", Corner(5), 0.45f, random);
+                    Prop(Forest + "rocks-low.glb", Corner(5), 0.45f, 1.0f);
                     break;
                 case TywTerrain.Mountain when cleared:
-                    AddProp(batch, Forest + "rocks-high.glb", Corner(4, 0.62f), 1.2f, random);
-                    AddProp(batch, Forest + "rocks-high.glb", Corner(0, 0.62f), 0.9f, random);
+                    Prop(Forest + "rocks-high.glb", Corner(4, 0.62f), 1.2f, 1.0f);
+                    Prop(Forest + "rocks-high.glb", Corner(0, 0.62f), 0.9f, 1.0f);
                     break;
                 case TywTerrain.Town:
                     AddKit(batch, "unit-house", Corner(4), random.Next(6) * MathF.PI / 3.0f);
@@ -386,14 +421,31 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             {
                 if (tile.Terrain == TywTerrain.Fields)
                 {
-                    // A patch of tilled earth with golden rows in each back corner.
+                    // Tilled earth in each back corner, rows of one crop per farm (wheat, greens or hay), ploughed
+                    // along one of the hex's three axes so neighbouring farms don't line up like a pattern.
+                    var crop = random.Next(3) switch
+                    {
+                        0 => new Vector4(0.98f, 0.8f, 0.3f, 1.0f),
+                        1 => new Vector4(0.5f, 0.76f, 0.28f, 1.0f),
+                        _ => new Vector4(0.9f, 0.88f, 0.52f, 1.0f)
+                    };
+                    var soil = (new Vector4(0.5f, 0.34f, 0.2f, 1.0f) * (0.9f + random.NextSingle() * 0.2f)) with { W = 1.0f };
+                    var plough = Vector3.Transform(Vector3.UnitX, Matrix4x4.CreateRotationY(random.Next(3) * MathF.PI / 3.0f));
+                    var across = Vector3.Cross(Vector3.UnitY, plough);
                     foreach (var corner in new[] { 4, 5, 0 })
                     {
-                        var at = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.58f, corner, top + 0.02f);
-                        b.Box(at, Vector3.UnitX, new Vector3(0.8f, 0.04f, 0.62f), new Vector4(0.62f, 0.42f, 0.25f, 1.0f));
-                        for (var row = -1; row <= 1; row++)
+                        var at = TywMeshBuilder.Corner(Vector3.Zero, TywGeometry.HexRadius * 0.56f, corner, top + 0.02f);
+                        if (!Clear(center + at, 0.4f))
                         {
-                            b.Box(at + new Vector3(0.0f, 0.06f, row * 0.18f), Vector3.UnitX, new Vector3(0.72f, 0.1f, 0.1f), new Vector4(0.98f, 0.82f, 0.3f, 1.0f));
+                            continue;
+                        }
+
+                        b.Box(at, plough, new Vector3(0.86f, 0.04f, 0.74f), soil);
+                        for (var row = 0; row < 4; row++)
+                        {
+                            var height = 0.06f + random.NextSingle() * 0.03f;
+                            b.Box(at + across * ((row - 1.5f) * 0.17f) + new Vector3(0.0f, 0.02f + height * 0.5f, 0.0f), plough,
+                                new Vector3(0.78f, height, 0.09f), crop);
                         }
                     }
                 }
@@ -426,6 +478,13 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             {
                 batch.Add(extras, extras.Materials[0], Matrix4x4.CreateTranslation(center));
             }
+        }
+
+        private static float DistanceToSegment(Vector3 point, Vector3 a, Vector3 b)
+        {
+            var ab = b - a;
+            var t = Math.Clamp(Vector3.Dot(point - a, ab) / MathF.Max(1e-6f, ab.LengthSquared()), 0.0f, 1.0f);
+            return Vector3.Distance(point, a + ab * t);
         }
 
         // How much land lies on the side a port tile's quay faces when the tile is turned t sixths. The kit's port
@@ -537,9 +596,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private void SyncGround(TywGame game, TywTile tile, HexNodes nodes)
         {
             var cleared = IsCleared(game, tile);
-            if (cleared != nodes.Cleared)
+            var sides = game.AllLinks(tile.Hex).Aggregate(0, (mask, link) => mask | 1 << link.Direction);
+            if (cleared != nodes.Cleared || sides != nodes.LinkSides)
             {
                 nodes.Cleared = cleared;
+                nodes.LinkSides = sides;
                 _chunks[ChunkOf(tile.Hex)].Dirty = true;
             }
         }
