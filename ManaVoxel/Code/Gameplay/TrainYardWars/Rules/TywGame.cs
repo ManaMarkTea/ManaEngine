@@ -178,6 +178,10 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         /// <summary>Banked at least this much of a load's resource, a train takes it to a port to trade instead.</summary>
         public const int PortSurplus = 8;
 
+        /// <summary>A depot swaps <see cref="MarketRate"/> of a pile this big for one of what is short, each trickle.</summary>
+        public const int MarketSurplus = 12;
+        public const int MarketRate = 3;
+
         /// <summary>Torches a player may have burning at once (the renderer's placed lights are shared by everyone).</summary>
         public const int MaxTorches = 6;
 
@@ -861,8 +865,25 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 if (Time >= player.NextTrickleAt)
                 {
                     player.NextTrickleAt += TrickleSeconds;
-                    player.Bank[player.TrickleIndex % 4]++;
-                    player.TrickleIndex++;
+                    // Whatever is scarcest (taking turns on a tie): a bank run dry of stone is a stall, a pile of grain is not.
+                    var gift = Enumerable.Range(0, 4).Select(i => (player.TrickleIndex + i) % 4).MinBy(r => player.Bank[r]);
+                    player.Bank[gift]++;
+                    player.TrickleIndex = gift + 1;
+
+                    // The depot's market: a pile swaps for what is short, dearer than at a port, so a player with no
+                    // port in reach is never left sitting on a hundred grain with nothing to build.
+                    var glut = Enumerable.Range(0, 4).MaxBy(r => player.Bank[r]);
+                    if (player.Bank[glut] >= MarketSurplus)
+                    {
+                        var wanted = Scarcest(player, (TywResource)glut);
+                        if (player.Bank[(int)wanted] < 3)
+                        {
+                            player.Bank[glut] -= MarketRate;
+                            player.Bank[(int)wanted]++;
+                            Notify(new TywNotice(TywNoticeKind.Traded, player.Index, player.Depot, 1, wanted));
+                        }
+                    }
+
                     Revision++;
                 }
             }

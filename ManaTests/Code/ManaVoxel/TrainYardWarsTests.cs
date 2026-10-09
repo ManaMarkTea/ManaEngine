@@ -195,6 +195,21 @@ public static class TrainYardWarsChecks
 
         Check("a train stops at a sabotaged hex", blockedSeen);
 
+        // The depot: a trickle of what is scarcest, and a pile swapped for what is short.
+        var depotGame = new TywGame(2, seed: 3, humans: 2);
+        var saver = depotGame.Players[0];
+        saver.Bank[0] = 0;
+        saver.Bank[1] = 4;
+        saver.Bank[2] = 40;
+        saver.Bank[3] = 4;
+        while (depotGame.Time < TywGame.TrickleSeconds + 0.05f)
+        {
+            depotGame.Tick(0.1f);
+        }
+
+        Check("the depot trickles what is scarcest, and swaps a pile for it", saver.Bank[0] == 2 && saver.Bank[2] == 40 - TywGame.MarketRate,
+            string.Join(",", saver.Bank));
+
         // Whole matches between bots, at 10 frames a second: they must end, and nothing is made from nothing.
         var lengths = new List<string>();
         foreach (var seed in new[] { 1, 2, 3, 4, 5 })
