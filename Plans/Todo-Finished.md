@@ -1,5 +1,11 @@
 # Finished
 
+[x] - Yacht Jousting from the supplied game images (2026-10-08): playable first-to-five boat duel against a bot,
+    charged lances, directional shields, guard, lane steering, pause/rematch, and ManaUI score/health HUD.
+    Uses Kenney ships, captains, rocks, islands, palms, docks and buoys plus the existing lighthouse.
+    Level: Content/Levels/Yacht Jousting.manalevel; implementation: ManaVoxel/Code/Gameplay/YachtJousting/;
+    details and remaining polish: Plans/YachtJousting.md.
+
 [x] - Version number in the app (bottom left, and in the About box); View > About did nothing; an emptied side column
     could only be got back by resetting the panels.
     Claude: the version is <Version> in Directory.Build.props (0.1.0; bump it for a release) plus the git commit, read by

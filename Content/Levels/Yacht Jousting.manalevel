@@ -1,0 +1,9 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Yacht Jousting",
+  "camera": { "position": [64, 19, 103], "rotation": [-0.4, 0, 0] },
+  "sky": { "mode": "DayNightCycle", "dateTime": "2026-10-08T17:00:00", "timeSpeed": 0 },
+  "gameModes": [{ "id": "b458d4db127942988ad999ca27d9fc31", "type": "YachtJousting", "properties": { "pointsToWin": 5 } }],
+  "nodes": []
+}

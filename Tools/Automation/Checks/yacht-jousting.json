@@ -1,0 +1,14 @@
+[
+  { "type": "open_level", "path": "Content/Levels/Yacht Jousting.manalevel" },
+  { "type": "wait", "frames": 120 },
+  { "type": "play" },
+  { "type": "wait", "frames": 145 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "yacht_autoplay", "visible": true },
+  { "type": "yacht_speed", "frames": 20 },
+  { "type": "wait", "frames": 4000 },
+  { "type": "yacht_log" },
+  { "type": "stop_play" },
+  { "type": "dirty_report", "path": "Artifacts/Automation/yacht-dirty" },
+  { "type": "quit" }
+]
