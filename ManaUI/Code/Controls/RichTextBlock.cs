@@ -203,7 +203,10 @@ namespace ManaUI
 
             var size = float.IsNaN(_fontSize) ? theme?.FontSize ?? 14.0f : _fontSize;
             HorizontalSpacing = MathF.Round(size * 0.28f);
-            return base.MeasureOverride(availableSize);
+            // A pixel of slack: a block arranged at exactly its measured width can otherwise wrap one word more than it
+            // measured for (float rounding), drawing a line over whatever comes next.
+            var measured = base.MeasureOverride(availableSize);
+            return new Vector2(MathF.Ceiling(measured.X) + 1.0f, measured.Y);
         }
     }
 }
