@@ -54,7 +54,9 @@ $logPath = Join-Path $Out "$Name.log"
 Set-Content -Path $scriptPath -Value $script
 
 # The editor runs from the repo root so level and asset paths in the script resolve as they do in a checkout.
-$process = Start-Process -FilePath $Exe -ArgumentList ($ExtraArgs + @("--command-file", "`"$scriptPath`"")) -WorkingDirectory $repo `
+# Start-Process joins its arguments with spaces, so a level path with spaces in it needs quotes of its own.
+$appArgs = @($ExtraArgs | ForEach-Object { if ($_ -match '\s' -and $_ -notmatch '^"') { "`"$_`"" } else { $_ } })
+$process = Start-Process -FilePath $Exe -ArgumentList ($appArgs + @("--command-file", "`"$scriptPath`"")) -WorkingDirectory $repo `
     -RedirectStandardOutput $logPath -PassThru -NoNewWindow
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
     Stop-Process -Id $process.Id -Force

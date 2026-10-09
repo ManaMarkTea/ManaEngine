@@ -313,7 +313,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
 
             var name = tile.Terrain switch
             {
-                TywTerrain.Water => random.Next(12) == 0 ? "water-rocks" : "water",
+                TywTerrain.Water => random.Next(12) switch { 0 => "water-rocks", 1 when random.Next(3) == 0 => "water-island", _ => "water" },
                 TywTerrain.Sand => random.Next(5) == 0 ? "sand-rocks" : "sand",
                 TywTerrain.Desert => cleared ? "sand" : "sand-desert",
                 // Not the kit's dirt tile: every vertex shares one UV, which this renderer shades flat grey.
@@ -331,12 +331,37 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 turn = Enumerable.Range(0, 6).MaxBy(t => PortFacesLand(tile, t));
             }
 
-            AddKit(batch, name, center, turn * MathF.PI / 3.0f);
+            // Mountains stand at different heights; nothing runs over one until it is cleared to stone.
+            var lift = tile.Terrain == TywTerrain.Mountain && !cleared ? 1.0f + random.NextSingle() * 0.4f : 1.0f;
+            AddKit(batch, name, center, turn * MathF.PI / 3.0f, GroundTint(tile), lift);
             var top = TywGeometry.TopY;
             Vector3 Corner(int corner, float reach = 0.6f) => TywMeshBuilder.Corner(center, TywGeometry.HexRadius * reach, corner, top);
 
             switch (tile.Terrain)
             {
+                // Open country gets the odd bush, rock or lone tree in a back corner, where track never runs.
+                case TywTerrain.Plains when random.Next(5) < 2:
+                    switch (random.Next(5))
+                    {
+                        case 0:
+                            AddProp(batch, Forest + "tree.glb", Corner(4 + random.Next(2)), 0.9f + random.NextSingle() * 0.4f, random, 0.7f);
+                            break;
+                        case 1:
+                            AddProp(batch, Forest + "stones.glb", Corner(5), 0.18f, random, 0.6f);
+                            break;
+                        case 2:
+                            AddKit(batch, "unit-tree", Corner(0, 0.55f), random.NextSingle() * MathF.Tau);
+                            break;
+                        default:
+                            AddProp(batch, Forest + "plant.glb", Corner(4), 0.32f, random, 0.45f);
+                            AddProp(batch, Forest + "plant.glb", Corner(0, 0.5f), 0.26f, random, 0.4f);
+                            break;
+                    }
+
+                    break;
+                case TywTerrain.Sand or TywTerrain.Desert when random.Next(6) == 0:
+                    AddProp(batch, Forest + "stones.glb", Corner(4 + random.Next(2)), 0.14f, random, 0.5f);
+                    break;
                 case TywTerrain.Forest when cleared:
                     AddKit(batch, "unit-tree", Corner(4), random.NextSingle() * MathF.Tau);
                     AddKit(batch, "unit-tree", Corner(0, 0.55f), random.NextSingle() * MathF.Tau);
@@ -421,19 +446,41 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             });
         }
 
-        private void AddKit(TywGroundBatch batch, string name, Vector3 at, float yaw)
+        private void AddKit(TywGroundBatch batch, string name, Vector3 at, float yaw, Vector4? tint = null, float lift = 1.0f)
         {
             if (Model(Kit + name + ".glb") is { } prototype)
             {
-                batch.Add(prototype, Matrix4x4.CreateScale(KitScale) * Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(at));
+                batch.Add(prototype, Matrix4x4.CreateScale(KitScale, KitScale * lift, KitScale) * Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(at), tint);
             }
         }
 
-        private void AddProp(TywGroundBatch batch, string asset, Vector3 at, float height, Random random)
+        /// <summary>
+        /// A shade for one hex of ground: broad patches of lusher and drier country across the map, and a little
+        /// difference from tile to tile on top, so neighbouring tiles of one terrain never read as copies.
+        /// </summary>
+        private static Vector4 GroundTint(TywTile tile)
+        {
+            var at = TywGeometry.Center(tile.Hex);
+            var patch = MathF.Sin(at.X * 0.11f + 1.7f) * MathF.Sin(at.Z * 0.09f + 0.4f) * 0.6f + MathF.Sin(at.X * 0.23f - at.Z * 0.19f) * 0.4f;
+            var jitter = new Random(tile.Hex.Q * 4241 + tile.Hex.R * 9973 + 5).NextSingle() - 0.5f;
+            var light = 1.0f + jitter * 0.12f + patch * 0.04f;
+            if (tile.Terrain is TywTerrain.Plains or TywTerrain.Forest or TywTerrain.Fields or TywTerrain.Hills)
+            {
+                // Lush is greener and a touch darker, dry is yellower.
+                var dry = new Vector4(1.07f, 1.02f, 0.84f, 1.0f);
+                var lush = new Vector4(0.9f, 1.03f, 0.92f, 1.0f);
+                var shade = Vector4.Lerp(lush, dry, Math.Clamp(patch * 0.5f + 0.5f, 0.0f, 1.0f));
+                return new Vector4(shade.X * light, shade.Y * light, shade.Z * light, 1.0f);
+            }
+
+            return new Vector4(light, light, light, 1.0f);
+        }
+
+        private void AddProp(TywGroundBatch batch, string asset, Vector3 at, float height, Random random, float footprint = 1.0f)
         {
             if (Model(asset) is { } prototype)
             {
-                batch.Add(prototype, Fit(prototype, height, lengthwise: false, footprint: 1.0f) *
+                batch.Add(prototype, Fit(prototype, height, lengthwise: false, footprint: footprint) *
                                      Matrix4x4.CreateRotationY(random.NextSingle() * MathF.Tau) * Matrix4x4.CreateTranslation(at));
             }
         }

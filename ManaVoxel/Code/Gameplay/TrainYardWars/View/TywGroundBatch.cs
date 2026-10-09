@@ -29,16 +29,18 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         }
 
         /// <summary>Adds every part of a loaded model, placed by <paramref name="world"/>.</summary>
-        public void Add(GridMapPrototype prototype, Matrix4x4 world)
+        /// <param name="tint">Multiplies the model's colours: one shade per tile keeps a field of kit tiles from reading as wallpaper.</param>
+        public void Add(GridMapPrototype prototype, Matrix4x4 world, Vector4? tint = null)
         {
             foreach (var part in prototype.Parts)
             {
-                Add(part.Mesh, part.Material, part.Transform * world);
+                Add(part.Mesh, part.Material, part.Transform * world, tint);
             }
         }
 
-        public void Add(ManaMesh mesh, ManaMaterial material, Matrix4x4 world)
+        public void Add(ManaMesh mesh, ManaMaterial material, Matrix4x4 world, Vector4? tint = null)
         {
+            var shade = tint ?? Vector4.One;
             ManaMeshCpuData cpu;
             try
             {
@@ -65,7 +67,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 group.Max = Vector3.Max(group.Max, position);
                 var normal = i < cpu.Normals.Length ? Vector3.TransformNormal(cpu.Normals[i], world) : Vector3.UnitY;
                 group.Normals.Add(normal.LengthSquared() > 1e-12f ? Vector3.Normalize(normal) : Vector3.UnitY);
-                group.Colors.Add(i < cpu.Colors.Length ? cpu.Colors[i] : Vector4.One);
+                group.Colors.Add((i < cpu.Colors.Length ? cpu.Colors[i] : Vector4.One) * shade);
                 group.Uv0.Add(i < cpu.TextureCoordinates0.Length ? cpu.TextureCoordinates0[i] : Vector2.Zero);
                 group.Uv1.Add(i < cpu.TextureCoordinates1.Length ? cpu.TextureCoordinates1[i] : Vector2.Zero);
             }

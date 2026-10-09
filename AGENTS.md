@@ -106,6 +106,7 @@ drive them in `Tools/Automation/Checks/` -- `./Tools/Automation/run-commands.ps1
 their material is in the level; compare each shot with the matching `-sky` one), `Sprite Normals` (lit Kenney sprites
 under a raking lamp: made normal maps on the left, flat on the right; `sprite-normals.json`). Add a scene and a
 script there whenever a rendering bug is fixed.
+`train-yard-wars.json` checks a game mode instead: it runs with `-ExtraArgs "--play","Content/Levels/Train Yard Wars.manalevel"`, joins two stand-in gamepads (`tyw_pad`), lets bots play, and logs the score.
 
 Patterns that work:
 - **Does a level open clean?** `open_level`, `wait`, `dirty_report`, then compare the two files -- the same means
