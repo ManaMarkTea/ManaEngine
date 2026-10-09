@@ -138,7 +138,10 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
 
         private void Join(TywGame game, IGamepad? pad, int scriptPad)
         {
-            var free = game.Players.FirstOrDefault(p => p.Index != HumanSeat && p.IsBot && _padSeats.All(s => s.Seat != p.Index));
+            var redIdle = !_mousePlayed && !_hud.Autoplay && _padSeats.All(s => s.Seat != HumanSeat);
+            var free = redIdle
+                ? game.Players[HumanSeat]
+                : game.Players.FirstOrDefault(p => p.Index != HumanSeat && p.IsBot && _padSeats.All(s => s.Seat != p.Index));
             if (free == null)
             {
                 Say("The table is full -- add players in the level's Train Yard Wars settings");
@@ -169,12 +172,13 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
         private void Leave(TywGame game, PadSeat seat, string why)
         {
             _padSeats.Remove(seat);
-            game.Players[seat.Seat].IsBot = true;
+            // Red goes back to the mouse; any other seat to a bot.
+            game.Players[seat.Seat].IsBot = seat.Seat != HumanSeat;
             _hud.SeatLabels.Remove(seat.Seat);
             _view?.ShowCursor(seat.Seat, null, null, Vector4.One, _clock);
             _view?.ShowPlan(seat.Seat, null, Vector4.One);
             _popups?.SetLabel(seat.Seat, null, "", Vector4.One);
-            Say($"{game.Players[seat.Seat].Name} {why}; a bot takes the seat");
+            Say($"{game.Players[seat.Seat].Name} {why}; " + (seat.Seat == HumanSeat ? "the seat is the mouse's again" : "a bot takes the seat"));
         }
 
         private void UpdateSeat(TywGame game, PadSeat seat, PadState state, float dt)

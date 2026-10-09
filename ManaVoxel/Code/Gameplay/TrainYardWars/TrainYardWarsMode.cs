@@ -23,6 +23,10 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
         public const string ModeType = "TrainYardWars";
 
         private const int HumanSeat = 0;
+
+        // Someone has played Red with the mouse or keyboard. Until then the first pad to join takes Red, so a couch of
+        // pads alone has no seat standing idle.
+        private bool _mousePlayed;
         private const float CameraPitch = -0.98f;
         // 1 shows the whole map, which is where play sits: it is one screen for everyone on the couch. Closer is for a look.
         private const float DefaultZoom = 1.0f;
@@ -532,12 +536,14 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
             if (Pressed(keyboard, Key.B))
             {
                 _hud.Autoplay = !_hud.Autoplay;
+                _mousePlayed = true;
                 _sounds?.Play(TywSounds.Toggle, 0.6f);
                 Say(_hud.Autoplay ? "A bot is playing your seat (B to take it back)" : "Your seat again");
             }
 
             if (Pressed(keyboard, Key.T) && !_hud.Paused)
             {
+                _mousePlayed = true;
                 if (game.BuyTrain(HumanSeat) is { } why)
                 {
                     Refuse($"No train: {why}");
@@ -640,6 +646,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
 
             if (!leftDown && _leftWasDown && hex is { } released && !_hud.Autoplay)
             {
+                _mousePlayed = true;
                 if (_hud.Paused)
                 {
                     Refuse("Paused -- Space to play on");
@@ -823,7 +830,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
         private void RegisterCommands(ManaCommandRunner runner)
         {
             // tyw_autoplay: a bot takes your seat. tyw_speed: frames = how many times real speed.
-            runner.Register("tyw_autoplay", command => _hud.Autoplay = command.Visible ?? true);
+            runner.Register("tyw_autoplay", command =>
+            {
+                _hud.Autoplay = command.Visible ?? true;
+                _mousePlayed = true;
+            });
             runner.Register("tyw_speed", command => _hud.Speed = Math.Max(1, command.Frames));
             // [zoom] or [zoom, x, z]: how close, and where to look, from the middle of the map.
             runner.Register("tyw_zoom", command =>
@@ -859,6 +870,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
                                                 $"{game.ClaimedHexes(p.Index)} hexes, {game.TrainCount(p.Index)} trains, time {game.Time:0}");
                     }
                 }
+
+                var sky = Context.World.IrradianceSettings;
+                ManaLog.WriteDiagnostic($"Command file: tyw light {sky.LightIntensity:0.00}, ibl {sky.IblIntensity:0.00}, sky {sky.Sky}, phase {sky.TimeOfDay:0.000}");
             });
 
             // A stand-in gamepad: frames = which pad (1, 2...), position = [stick x, stick y] (y down is +), name = the

@@ -316,7 +316,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
 
             var name = tile.Terrain switch
             {
-                TywTerrain.Water => random.Next(12) switch { 0 => "water-rocks", 1 when random.Next(3) == 0 => "water-island", _ => "water" },
+                TywTerrain.Water => random.Next(12) == 0 ? "water-rocks" : "water",
                 TywTerrain.Sand => random.Next(5) == 0 ? "sand-rocks" : "sand",
                 TywTerrain.Desert => cleared ? "sand" : "sand-desert",
                 // Not the kit's dirt tile: every vertex shares one UV, which this renderer shades flat grey.

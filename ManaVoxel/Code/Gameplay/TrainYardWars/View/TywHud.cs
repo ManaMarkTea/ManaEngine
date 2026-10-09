@@ -109,7 +109,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     }
 
                     var player = game.Players[p];
-                    if (p == humanSeat)
+                    if (p == humanSeat && !state.SeatLabels.ContainsKey(p))
                     {
                         return state.Autoplay ? $"{player.Name} (bot)" : $"{player.Name} (you)";
                     }
@@ -281,7 +281,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     .OrderByDescending(p => game.VictoryPoints(p.Index))
                     .Select(p => $"{p.Name}: {game.VictoryPoints(p.Index)} prestige  ({game.VictoryBreakdown(p.Index)})"));
             }, 0.0f);
-            var again = new TextBlock().Text("R to replay this map, N for a new one, Esc to quit").FontSize(theme.FontSizeSmall).Foreground(Muted);
+            var again = new TextBlock().Text("R to replay this map, N (or Start on a pad) for a new one, Esc to quit").FontSize(theme.FontSizeSmall).Foreground(Muted);
             var panel = new StackPanel().Vertical(12.0f).Children(title.CenterH(), standings.CenterH(), again.CenterH());
             var box = Box(panel).Center();
             box.BindPolled(el => el.Visibility, () => state.Game is { IsOver: true } ? Visibility.Visible : Visibility.Collapsed);
