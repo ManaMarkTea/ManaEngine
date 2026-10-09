@@ -97,6 +97,47 @@ public static class PawnCameraControlChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        (ManaSceneNode Target, ManaSpringArmComponent Arm) CreateLagRig()
+        {
+            var target = new ManaSceneNode(CreateContext(), Matrix4x4.Identity);
+            return (target, new ManaSpringArmComponent(target) { ProbeForCollision = false });
+        }
+        var (lagPawn, lagArm) = CreateLagRig();
+        lagArm.VerticalSocketLagSpeed = 3.0f;
+        lagArm.Evaluate(FrameSeconds);
+        var initialTarget = lagArm.CameraTarget;
+        lagPawn.Position += new Vector3(4.0f, 4.0f, 0.0f);
+        lagPawn.UpdateTransform();
+        lagArm.Evaluate(0.1f);
+        var followed = lagArm.CameraTarget - initialTarget;
+        Check("side-on camera follows horizontal travel faster than jump height",
+            followed.X > 2.5f && followed.Y > 0.5f && followed.Y < 1.5f, $"followed {followed}");
+        lagArm.SnapToTarget();
+        lagArm.Evaluate(FrameSeconds);
+        Check("snapping resets both camera axes without dragging through the level",
+            Vector3.Distance(lagArm.CameraTarget, lagPawn.Position + lagArm.SocketOffset) < 0.0001f);
+
+        Vector3 FollowAtRate(int fps, float? verticalSpeed)
+        {
+            var (pawn, arm) = CreateLagRig();
+            arm.VerticalSocketLagSpeed = verticalSpeed;
+            arm.Evaluate(1.0f / fps);
+            pawn.Position += new Vector3(4.0f, 4.0f, 0.0f);
+            pawn.UpdateTransform();
+            for (var frame = 0; frame < fps; frame++)
+            {
+                arm.Evaluate(1.0f / fps);
+            }
+            return arm.CameraTarget;
+        }
+        Check("vertical follow has the same response at 30 and 120 fps",
+            Vector3.Distance(FollowAtRate(30, 3.0f), FollowAtRate(120, 3.0f)) < 0.0001f);
+        var normalFollow = FollowAtRate(30, null);
+        Check("3D cameras retain equal follow speed on both axes",
+            MathF.Abs(normalFollow.X - (normalFollow.Y - lagArm.SocketOffset.Y)) < 0.0001f);
+        Check("zero vertical lag follows height immediately",
+            MathF.Abs(FollowAtRate(30, 0.0f).Y - (4.0f + lagArm.SocketOffset.Y)) < 0.0001f);
+
         // ---------------------------------------------------------- the boom never writes its target
         // The regression itself: AddLookInput used to turn its owner and then re-derive its own yaw from
         // that owner's rotation, which is what closed the loop.

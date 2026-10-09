@@ -29,6 +29,13 @@ move.fire('pointerdown',{pointerId:1,clientX:64,clientY:10});
 assert.equal(held.size,0,'loading cannot start movement');
 ready();
 assert.equal(elements.manaTouch.hidden,false);
+for (const surface of [elements.manaTouch, elements.manaCanvas]) {
+    for (const name of ['contextmenu', 'selectstart', 'dragstart']) {
+        let prevented = false;
+        surface.fire(name, {preventDefault() { prevented = true; }});
+        assert.equal(prevented, true, `${name} cannot interrupt touch play`);
+    }
+}
 move.fire('pointerdown',{pointerId:1,clientX:100,clientY:10});
 assert.deepEqual([...held].sort(),['KeyD','KeyW'],'stick supports diagonals');
 jump.fire('pointerdown',{pointerId:2});

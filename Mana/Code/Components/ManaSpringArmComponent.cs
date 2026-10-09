@@ -48,6 +48,9 @@ namespace Mana
         // collision probe and let the camera drift back into a wall it had just been pulled out of.
         public float SocketLagSpeed { get; set; } = 14.0f;
 
+        // Side-on games can soften jumps without making horizontal travel sluggish; null uses the usual speed.
+        public float? VerticalSocketLagSpeed { get; set; }
+
         // Copies any yaw the target turns by itself -- its turn keys, a walk order -- onto the boom, so
         // the camera stays behind a character that turns under its own steam.
         //
@@ -159,12 +162,16 @@ namespace Mana
         {
             var socket = Owner.WorldTransform.Translation + SocketOffset;
 
-            if (SocketLagSpeed > 0.0f && hasSmoothedSocket && deltaSeconds > 0.0f)
+            if (hasSmoothedSocket && deltaSeconds > 0.0f)
             {
                 // Exponential smoothing, framerate independent: the same responsiveness at 30fps and
                 // 240fps, unlike a raw per-frame lerp factor.
-                var blend = 1.0f - MathF.Exp(-SocketLagSpeed * deltaSeconds);
+                var previousHeight = smoothedSocket.Y;
+                var blend = SocketLagSpeed > 0.0f ? 1.0f - MathF.Exp(-SocketLagSpeed * deltaSeconds) : 1.0f;
                 smoothedSocket = Vector3.Lerp(smoothedSocket, socket, blend);
+                var verticalSpeed = VerticalSocketLagSpeed ?? SocketLagSpeed;
+                var verticalBlend = verticalSpeed > 0.0f ? 1.0f - MathF.Exp(-verticalSpeed * deltaSeconds) : 1.0f;
+                smoothedSocket.Y = previousHeight + (socket.Y - previousHeight) * verticalBlend;
             }
             else
             {

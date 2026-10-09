@@ -7,6 +7,12 @@ export function installTouchControls(graphics, openMenu) {
     const move = document.getElementById('manaMove');
     const knob = document.getElementById('manaMoveKnob');
     const look = document.getElementById('manaLook');
+    // Safari's long-press menu and text selection compete with held game inputs.
+    for (const surface of [root, document.getElementById('manaCanvas')]) {
+        for (const name of ['contextmenu', 'selectstart', 'dragstart']) {
+            surface.addEventListener(name, event => event.preventDefault());
+        }
+    }
     const keys = new Set();
     const pointers = new Map();
     let ready = false;

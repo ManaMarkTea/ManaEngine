@@ -56,6 +56,10 @@ namespace Mana.Code.Components
         [Category("Camera")]
         public float CameraHeight { get; set; } = 1.5f;
 
+        /// <summary>Vertical follow responsiveness per second; lower softens jumps, 0 follows height immediately.</summary>
+        [Category("Camera")]
+        public float CameraVerticalLagSpeed { get; set; } = 3.0f;
+
         /// <summary>Flat, no-perspective view -- every layer the same size however far back. Off shows depth.</summary>
         [Category("Camera")]
         public bool Orthographic { get; set; } = true;
@@ -72,7 +76,7 @@ namespace Mana.Code.Components
         private float _savedJumpHeight;
         private CameraComponent? _camera;
         private (bool Orthographic, float Height) _savedProjection;
-        private (float Yaw, float Pitch, float Length, bool Probe, bool FollowYaw, Vector3 Socket) _savedArm;
+        private (float Yaw, float Pitch, float Length, bool Probe, bool FollowYaw, Vector3 Socket, float? VerticalLag) _savedArm;
 
         public ManaPlatformer2DComponent(ManaSceneNode owner) : base(owner)
         {
@@ -163,6 +167,8 @@ namespace Mana.Code.Components
                 _arm.ProbeForCollision = _savedArm.Probe;
                 _arm.FollowTargetYaw = _savedArm.FollowYaw;
                 _arm.SocketOffset = _savedArm.Socket;
+                _arm.VerticalSocketLagSpeed = _savedArm.VerticalLag;
+                _arm.SnapToTarget();
                 _arm = null;
             }
             _player = null;
@@ -182,7 +188,7 @@ namespace Mana.Code.Components
             if (arm != null && !ReferenceEquals(arm, _arm))
             {
                 _arm = arm;
-                _savedArm = (arm.YawRadians, arm.PitchRadians, arm.ArmLength, arm.ProbeForCollision, arm.FollowTargetYaw, arm.SocketOffset);
+                _savedArm = (arm.YawRadians, arm.PitchRadians, arm.ArmLength, arm.ProbeForCollision, arm.FollowTargetYaw, arm.SocketOffset, arm.VerticalSocketLagSpeed);
                 arm.SnapToTarget();
             }
 
@@ -198,6 +204,7 @@ namespace Mana.Code.Components
                 _arm.ProbeForCollision = false;
                 _arm.FollowTargetYaw = false;
                 _arm.SocketOffset = new Vector3(0.0f, CameraHeight, 0.0f);
+                _arm.VerticalSocketLagSpeed = CameraVerticalLagSpeed;
             }
         }
 

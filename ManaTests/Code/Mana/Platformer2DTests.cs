@@ -55,6 +55,8 @@ public static class Platformer2DChecks
         model.Components.Add(modelRenderer);
         pawn.AddChild(model);
         pawn.PlaneZ = null;
+        var arm = new ManaSpringArmComponent(pawn) { VerticalSocketLagSpeed = 9.0f, ProbeForCollision = false };
+        pawn.Components.Add(arm);
 
         var start = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Player Start" };
         var platformer = new ManaPlatformer2DComponent(start);
@@ -62,6 +64,9 @@ public static class Platformer2DChecks
         world.DefaultScene.Children.Add(start);
         world.GameState.Player = pawn;
         world.BeginPlay();
+        platformer.UpdateComponent();
+        check("side-on play softens vertical follow while keeping horizontal response",
+            arm.VerticalSocketLagSpeed == platformer.CameraVerticalLagSpeed && arm.SocketLagSpeed == 14.0f);
 
         check("playing, the player is held to the plane it stands on", pawn.PlaneZ is { } z && MathF.Abs(z - pawn.Position.Z) < 1e-4f, $"{pawn.PlaneZ}");
         check("its model is hidden", !modelRenderer.IsVisible);
@@ -80,6 +85,8 @@ public static class Platformer2DChecks
         check("drawn from the Green Alien sheet", sprite?.Sheet == ManaPlatformer2DComponent.GreenAlien && sprite?.Asset?.Animation("walk") != null);
 
         world.EndPlay();
+        check("stopping restores the camera's original vertical follow",
+            arm.VerticalSocketLagSpeed == 9.0f);
         check("stopping shows the model again, drops the sprite and frees the plane",
             modelRenderer.IsVisible && platformer.SpriteNode == null && !pawn.Children.Any(c => c.Name == "2D Player Sprite") && pawn.PlaneZ == null);
     }
