@@ -23,7 +23,7 @@
         "seed": 0,
         "prestigeTarget": 15,
         "matchMinutes": 12.0,
-        "botThinkSeconds": 1.4
+        "botDifficulty": 0.5
       }
     }
   ],

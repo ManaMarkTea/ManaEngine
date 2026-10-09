@@ -23,7 +23,7 @@
         "seed": 42,
         "prestigeTarget": 8,
         "matchMinutes": 8.0,
-        "botThinkSeconds": 1.0,
+        "botDifficulty": 0.6,
         "hour": 18.0,
         "daylight": 0.25
       }
