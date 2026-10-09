@@ -607,7 +607,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             var p = Players[player];
             TywAction Offer(TywActionKind kind, int[] cost, string label) =>
-                new(kind, cost, label, p.CanAfford(cost) ? null : $"needs {TywCosts.Format(cost)}");
+                new(kind, cost, label, p.CanAfford(cost) ? null : Short(p, cost));
 
             if (tile.Owner == player && tile.IsDamaged(Time))
             {
@@ -677,7 +677,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                         return "no route";
                     }
 
-                    return BuildTrack(player, plan) > 0 ? null : $"needs {TywCosts.Format(plan.Cost)}";
+                    return BuildTrack(player, plan) > 0 ? null : Short(Players[player], plan.Cost);
 
                 case TywActionKind.Extractor:
                     p.Pay(action.Cost);
@@ -778,7 +778,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             }
 
             return new TywAction(TywActionKind.Torch, TywCosts.Torch, "Torch",
-                Players[player].CanAfford(TywCosts.Torch) ? null : $"needs {TywCosts.Format(TywCosts.Torch)}");
+                Players[player].CanAfford(TywCosts.Torch) ? null : Short(Players[player], TywCosts.Torch));
         }
 
         /// <summary>Lights a torch on one of the player's hexes. Null on success, else why not.</summary>
@@ -810,7 +810,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
             if (!p.CanAfford(TywCosts.Locomotive))
             {
-                return $"needs {TywCosts.Format(TywCosts.Locomotive)}";
+                return Short(p, TywCosts.Locomotive);
             }
 
             p.Pay(TywCosts.Locomotive);
@@ -1210,6 +1210,10 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             cost[(int)TywResource.Stone] += extra;
             return cost;
         }
+
+        // What is missing, not the whole price: the label already shows that.
+        private static string Short(TywPlayer player, int[] cost) =>
+            "short " + TywCosts.Format(cost.Select((c, i) => Math.Max(0, c - player.Bank[i])).ToArray());
 
         /// <summary>What a player has least of, other than <paramref name="except"/>: what a port trades a load for.</summary>
         private static TywResource Scarcest(TywPlayer player, TywResource except)

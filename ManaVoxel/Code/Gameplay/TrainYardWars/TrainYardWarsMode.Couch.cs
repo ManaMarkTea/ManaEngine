@@ -26,6 +26,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
             public float StepCooldown;
             public string Flash = "";
             public float FlashUntil;
+            public string Label = "";
         }
 
         /// <summary>What a pad is doing this frame: the left stick, and the buttons held.</summary>
@@ -215,7 +216,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
             if (state.Down.Contains(ButtonName.DPadDown)) { step.Z += 1.0f; }
             if (state.Down.Contains(ButtonName.DPadLeft)) { step.X -= 1.0f; }
             if (state.Down.Contains(ButtonName.DPadRight)) { step.X += 1.0f; }
-            seat.StepCooldown -= dt;
+            // Let go, and the next tap steps at once: the wait is only for repeating while held.
+            seat.StepCooldown = step == Vector3.Zero ? 0.0f : seat.StepCooldown - dt;
             if (step != Vector3.Zero && seat.StepCooldown <= 0.0f)
             {
                 var from = TywHex.FromWorld(new Vector2(seat.Cursor.X, seat.Cursor.Z), TywGeometry.HexRadius);
@@ -295,6 +297,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
 
             var label = _clock < seat.FlashUntil ? seat.Flash : PadHint(game, seat, hex, action, shown);
             var labelColor = _clock < seat.FlashUntil ? new Vector4(1.0f, 0.55f, 0.45f, 1.0f) : Vector4.Lerp(color, Vector4.One, 0.45f);
+            seat.Label = label;
             _popups?.SetLabel(seat.Seat, seat.Cursor with { Y = TywGeometry.TopY }, label, labelColor);
             seat.Down = new HashSet<ButtonName>(state.Down);
         }

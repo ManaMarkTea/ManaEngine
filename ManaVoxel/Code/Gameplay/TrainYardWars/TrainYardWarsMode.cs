@@ -909,7 +909,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
                 {
                     var hex = TywHex.FromWorld(new Vector2(seat.Cursor.X, seat.Cursor.Z), TywGeometry.HexRadius);
                     ManaLog.WriteDiagnostic($"Command file: tyw seat {seat.Seat} ({seat.Name}) cursor {hex}, torch {seat.TorchTool}, " +
-                                            $"hexes {_game?.ClaimedHexes(seat.Seat)}, trains {_game?.TrainCount(seat.Seat)}, bot {_game?.Players[seat.Seat].IsBot}");
+                                            $"hexes {_game?.ClaimedHexes(seat.Seat)}, trains {_game?.TrainCount(seat.Seat)}, bot {_game?.Players[seat.Seat].IsBot}, " +
+                                            $"bank [{string.Join(",", _game?.Players[seat.Seat].Bank ?? Array.Empty<int>())}], label '{seat.Label}'");
                 }
             });
 
