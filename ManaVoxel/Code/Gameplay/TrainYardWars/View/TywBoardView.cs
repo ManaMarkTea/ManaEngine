@@ -649,7 +649,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                         AddRails(b, piece, PlayerColors[owner], damaged);
                     }
                 }
-            });
+            }, glow: 0.14f);
 
             if (nodes.Track == null)
             {
@@ -1015,6 +1015,18 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     EndColor = new Vector4(0.82f, 0.82f, 0.85f, 0.0f)
                 };
                 chimney.Components.Add(nodes.Smoke);
+
+                // A headlamp: drawn glowing rather than lit (the placed lights are for torches and towns), so a train
+                // can be followed across the board after dark.
+                var lamp = new ManaMeshSceneNode(_context, new TywMesh(_context, b =>
+                {
+                    b.Box(new Vector3(0.66f, 0.42f, 0.0f), Vector3.UnitX, new Vector3(0.06f, 0.14f, 0.2f), new Vector4(1.0f, 0.92f, 0.6f, 1.0f));
+                    b.Box(new Vector3(0.0f, 1.0f, 0.0f), Vector3.UnitX, new Vector3(0.12f, 0.06f, 0.12f), PlayerColors[train.Owner]);
+                }, glow: 3.0f))
+                {
+                    Name = "Headlamp"
+                };
+                locomotive.AddChild(lamp);
                 locomotive.AddChild(chimney);
                 _trains[train.Id] = nodes;
                 Add(locomotive);

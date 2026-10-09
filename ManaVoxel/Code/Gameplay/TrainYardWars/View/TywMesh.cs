@@ -11,7 +11,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
     {
         private readonly Action<TywMeshBuilder> _build;
 
-        public TywMesh(ManaContext context, Action<TywMeshBuilder> build, bool unlit = false) : base(context)
+        /// <param name="glow">How much the mesh shines with its own colours (0 none): enough to read at dusk, not to light anything.</param>
+        public TywMesh(ManaContext context, Action<TywMeshBuilder> build, bool unlit = false, float glow = 0.0f) : base(context)
         {
             _build = build;
             DefaultVertexColor = Vector4.One;
@@ -19,6 +20,12 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             if (unlit && Materials.Length > 0)
             {
                 Materials[0].Unlit = true;
+            }
+
+            if (glow > 0.0f && Materials.Length > 0)
+            {
+                Materials[0].Emission.Value = Vector4.One;
+                Materials[0].EmissionStrength = glow;
             }
         }
 
