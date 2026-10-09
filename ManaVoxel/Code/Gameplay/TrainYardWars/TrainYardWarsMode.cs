@@ -40,7 +40,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
 
         /// <summary>Prestige that wins the match outright.</summary>
         [System.ComponentModel.DataAnnotations.Range(3, 40)]
-        public int PrestigeTarget { get; set; } = 12;
+        public int PrestigeTarget { get; set; } = 15;
 
         /// <summary>Length of a match in minutes; the most prestige wins when it runs out.</summary>
         [System.ComponentModel.DataAnnotations.Range(2.0, 30.0)]

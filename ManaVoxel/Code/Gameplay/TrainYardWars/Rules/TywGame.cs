@@ -169,6 +169,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         public const int TownLoadMinimum = 3;
         public const float TownRestSeconds = 30.0f;
 
+        /// <summary>Prestige for a delivery a town asked for: the trains' own way to score, worth the most per act.</summary>
+        public const int DeliveryPrestige = 2;
+
         /// <summary>A train waits for this much at a mine (unless the mine is full) rather than fetch single loads.</summary>
         public const float PickupMinimum = 2.0f;
 
@@ -231,7 +234,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         public IReadOnlyDictionary<TywLink, int> Links => _links;
         public float Time { get; private set; }
         public float Duration { get; set; } = 12 * 60;
-        public int VictoryTarget { get; set; } = 12;
+        public int VictoryTarget { get; set; } = 15;
         public bool IsOver { get; private set; }
         public int Winner { get; private set; } = -1;
         public int NetworkHolder { get; private set; } = -1;
@@ -573,8 +576,10 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
             }
 
             var what = Board[town]!.Building == TywBuilding.Port ? "port" : "town";
-            Notify(new TywNotice(TywNoticeKind.TownReached, player, town, set.Count == 1 ? 2 : 1));
-            if (set.Count == 1)
+            // Only a town pays the first-arrival bonus: a port is somewhere to trade, not a race.
+            var first = set.Count == 1 && what == "town";
+            Notify(new TywNotice(TywNoticeKind.TownReached, player, town, first ? 2 : 1));
+            if (first)
             {
                 Players[player].TownBonusPoints++;
                 Say(player, $"{Players[player].Name} reached a {what} first (+2 prestige)");
@@ -1143,9 +1148,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                         return;
                     }
 
-                    player.DeliveryPoints++;
-                    Say(train.Owner, $"{player.Name} delivered {train.Cargo} to a town (+1 prestige)");
-                    Notify(new TywNotice(TywNoticeKind.Delivered, train.Owner, tile.Hex, 1, train.Cargo));
+                    player.DeliveryPoints += DeliveryPrestige;
+                    Say(train.Owner, $"{player.Name} delivered {train.Cargo} to a town (+{DeliveryPrestige} prestige)");
+                    Notify(new TywNotice(TywNoticeKind.Delivered, train.Owner, tile.Hex, DeliveryPrestige, train.Cargo));
                     ChangeDemand(tile);
                     tile.SatisfiedUntil = Time + TownRestSeconds;
                     tile.DemandChangesAt = tile.SatisfiedUntil + 45.0f;

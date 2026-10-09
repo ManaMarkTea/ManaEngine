@@ -29,7 +29,7 @@ public static class TrainYardWarsChecks
         };
         var warnings = new List<string>();
         var loaded = ManaLevelGameModes.Load(entry, warnings) as TrainYardWarsMode;
-        Check("a level's game mode loads with its settings", loaded is { Players: 2, Seed: 42, MatchMinutes: 8.0f, PrestigeTarget: 12 } && warnings.Count == 0,
+        Check("a level's game mode loads with its settings", loaded is { Players: 2, Seed: 42, MatchMinutes: 8.0f, PrestigeTarget: 15 } && warnings.Count == 0,
             string.Join("; ", warnings));
         Check("Train Yard Wars runs its own world, without the character", loaded is { WantsPlayerCharacter: false, KeepsEditorFloor: false, HandlesExitKeys: true });
         if (loaded != null)

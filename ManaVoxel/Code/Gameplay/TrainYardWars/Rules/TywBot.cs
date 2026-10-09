@@ -10,6 +10,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
         private readonly Random _random;
         private float _nextThinkAt;
 
+        // A town or port it has set out for: it keeps laying toward it, a few hexes at a time, until it arrives.
+        private TywHex? _goal;
+
         public TywBot(int player, int seed)
         {
             _player = player;
@@ -44,7 +47,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 }
             }
 
-            foreach (var tile in mine.Where(t => t.IsResource && t.Building == TywBuilding.None).OrderByDescending(t => t.Richness))
+            // Mines on the hexes it owns -- though once it has a few, not on poor ground the track merely crosses:
+            // each mine costs more than the last.
+            var mineCount = game.Board.Tiles.Count(t => t.BuildingOwner == _player && t.Building is TywBuilding.Extractor or TywBuilding.Factory);
+            foreach (var tile in mine.Where(t => t.IsResource && t.Building == TywBuilding.None && (t.Richness >= 2 || mineCount < 3))
+                         .OrderByDescending(t => t.Richness))
             {
                 if (me.CanAfford(game.ExtractorCost(_player)))
                 {
@@ -100,23 +107,52 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
 
         private bool Expand(TywGame game, TywPlayer me, List<TywTile> mine)
         {
+            // Already on the way somewhere worth it: carry on while there is anything to lay with.
+            if (_goal is { } goal)
+            {
+                if (game.IsTownConnected(goal, _player) || game.PlanTrack(_player, goal) is not { NewLinks.Count: > 0 } onward)
+                {
+                    _goal = null;
+                }
+                else if (me.CanAfford(TywCosts.Track) && me.Bank[(int)TywResource.Wood] + me.Bank[(int)TywResource.Stone] >= 4)
+                {
+                    return game.BuildTrack(_player, onward) > 0;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
             var reach = mine.Select(t => t.Hex).Append(me.Depot).ToList();
             var haveResource = game.Board.Tiles
                 .Where(t => t.BuildingOwner == _player && t.Building is TywBuilding.Extractor or TywBuilding.Factory)
                 .Select(t => t.Produces)
                 .ToHashSet();
 
-            var candidates = game.Board.Tiles
-                .Where(t => (t.IsResource && t.Owner == -1 && t.Building == TywBuilding.None) ||
-                            (t.IsShared && !game.IsTownConnected(t.Hex, _player)))
-                .Select(t => (Tile: t, Near: reach.Min(h => h.DistanceTo(t.Hex))))
+            // What the towns it reaches are asking for is worth more: it turns into deliveries.
+            var wanted = game.Board.Towns
+                .Where(t => game.IsTownConnected(t, _player))
+                .Select(t => game.Board[t]!.Demand)
+                .ToHashSet();
+
+            int Near(TywTile t) => reach.Min(h => h.DistanceTo(t.Hex));
+            var hubs = game.Board.Tiles
+                .Where(t => t.IsShared && !game.IsTownConnected(t.Hex, _player))
+                .Select(t => (Tile: t, Near: Near(t)))
+                .Where(c => c.Near <= 14)
                 .OrderBy(c => c.Near)
-                .Take(8)
-                .ToList();
+                .Take(5);
+            var sites = game.Board.Tiles
+                .Where(t => t.IsResource && t.Owner == -1 && t.Building == TywBuilding.None)
+                .Select(t => (Tile: t, Near: Near(t)))
+                .OrderBy(c => c.Near)
+                .Take(10);
 
             TywTrackPlan? bestPlan = null;
+            TywTile? bestTile = null;
             var bestScore = 0.0f;
-            foreach (var (tile, _) in candidates)
+            foreach (var (tile, _) in hubs.Concat(sites))
             {
                 var plan = game.PlanTrack(_player, tile.Hex);
                 if (plan == null || plan.NewLinks.Count == 0)
@@ -127,7 +163,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 float value;
                 if (tile.IsShared)
                 {
-                    value = game.TownConnections(tile.Hex).Any() ? 2.0f : 3.0f;
+                    // Prestige: more for being first; a port a little less than a town.
+                    var first = !game.TownConnections(tile.Hex).Any();
+                    value = (first ? 6.0f : 3.5f) * (tile.Building == TywBuilding.Port ? 0.8f : 1.0f);
                 }
                 else
                 {
@@ -136,6 +174,11 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                     {
                         value *= 1.3f;
                     }
+
+                    if (wanted.Contains(tile.Produces))
+                    {
+                        value *= 1.4f;
+                    }
                 }
 
                 var score = value / (plan.Cost.Sum() + 1.0f);
@@ -143,15 +186,28 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.Rules
                 {
                     bestScore = score;
                     bestPlan = plan;
+                    bestTile = tile;
                 }
             }
 
-            if (bestPlan == null || !me.CanAfford(bestPlan.Cost))
+            if (bestPlan == null || bestTile == null)
             {
                 return false;
             }
 
-            return game.BuildTrack(_player, bestPlan) > 0;
+            if (me.CanAfford(bestPlan.Cost))
+            {
+                return game.BuildTrack(_player, bestPlan) > 0;
+            }
+
+            // Too dear in one go: a town or port is worth setting out for and finishing over the next turns.
+            if (bestTile.IsShared && me.Bank[(int)TywResource.Wood] >= 2 && me.Bank[(int)TywResource.Stone] >= 2)
+            {
+                _goal = bestTile.Hex;
+                return game.BuildTrack(_player, bestPlan) > 0;
+            }
+
+            return false;
         }
     }
 }
