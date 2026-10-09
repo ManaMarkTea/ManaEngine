@@ -26,6 +26,18 @@ namespace ManaUI
             protected set => SetVisualProperty(ref _isPressed, value);
         }
 
+        /// <summary>
+        /// Drawn as if the pointer were over it, without one: the selection a gamepad or keyboard moves through a
+        /// list of controls, where there is no pointer to hover.
+        /// </summary>
+        public bool IsHighlighted
+        {
+            get => _isHighlighted;
+            set => SetVisualProperty(ref _isHighlighted, value);
+        }
+
+        private bool _isHighlighted;
+
         public UiTheme Theme => Root?.Theme ?? DefaultTheme;
 
         private static readonly UiTheme DefaultTheme = UiTheme.Dark();
@@ -54,7 +66,7 @@ namespace ManaUI
             {
                 result = Composite(result, theme.Pressed);
             }
-            else if (IsPointerOver)
+            else if (IsPointerOver || _isHighlighted)
             {
                 result = Composite(result, theme.Hover);
             }

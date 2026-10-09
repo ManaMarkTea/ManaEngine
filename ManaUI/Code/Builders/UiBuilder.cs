@@ -459,6 +459,20 @@ namespace ManaUI
             return button;
         }
 
+        /// <summary>A picture before the button's text (or the whole button, with no text).</summary>
+        public static Button Icon(this Button button, UiElement icon)
+        {
+            button.Icon = icon;
+            return button;
+        }
+
+        /// <summary>Draws the control as hovered: a gamepad's or keyboard's selection.</summary>
+        public static T Highlighted<T>(this T control, bool highlighted = true) where T : Control
+        {
+            control.IsHighlighted = highlighted;
+            return control;
+        }
+
         public static Button Variant(this Button button, ButtonVariant variant)
         {
             button.Variant = variant;

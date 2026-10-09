@@ -26,6 +26,8 @@ namespace ManaUI
         private ButtonVariant _variant = ButtonVariant.Standard;
         private ICommand? _command;
         private TextBlock? _label;
+        private UiElement? _icon;
+        private StackPanel? _row;
 
         public Button()
         {
@@ -54,8 +56,36 @@ namespace ManaUI
 
                 _text = value ?? string.Empty;
                 EnsureLabel().Text = _text;
+                RebuildChild();
             }
         }
+
+        /// <summary>
+        /// A picture before the text -- an image, an emoji, anything -- or the whole of the button when it has no
+        /// text. Null for a text-only button.
+        /// </summary>
+        public UiElement? Icon
+        {
+            get => _icon;
+            set
+            {
+                if (ReferenceEquals(_icon, value))
+                {
+                    return;
+                }
+
+                _icon = value;
+                if (_icon != null)
+                {
+                    _icon.VerticalAlignment = VerticalAlignment.Center;
+                }
+
+                RebuildChild();
+            }
+        }
+
+        /// <summary>The gap between <see cref="Icon"/> and the text.</summary>
+        public float IconSpacing { get; set; } = 6.0f;
 
         public ButtonVariant Variant
         {
@@ -177,7 +207,7 @@ namespace ManaUI
             if (accent)
             {
                 tint = _variant == ButtonVariant.Danger && sliceName != "primaryDanger" ? new Vector4(1.0f, 0.45f, 0.4f, 1.0f) : Vector4.One;
-                tint = IsEffectivelyEnabled ? (IsPressed ? tint * 0.82f : IsPointerOver ? tint * 1.12f : tint) : new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
+                tint = IsEffectivelyEnabled ? (IsPressed ? tint * 0.82f : IsPointerOver || IsHighlighted ? tint * 1.12f : tint) : new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
                 tint.W = 1.0f;
             }
             else
@@ -206,7 +236,7 @@ namespace ManaUI
             return _variant switch
             {
                 ButtonVariant.Primary => (
-                    IsPressed ? theme.AccentPressed : IsPointerOver ? theme.AccentHover : theme.Accent,
+                    IsPressed ? theme.AccentPressed : IsPointerOver || IsHighlighted ? theme.AccentHover : theme.Accent,
                     UiColor.Transparent,
                     0.0f),
                 ButtonVariant.Danger => (theme.Danger, UiColor.Transparent, 0.0f),
@@ -289,10 +319,34 @@ namespace ManaUI
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                Child = _label;
             }
 
             return _label;
+        }
+
+        // Text alone is the label; an icon alone is itself; both sit in a row, the icon first.
+        private void RebuildChild()
+        {
+            // Let go of everything first: the label or icon may be moving between the button and the row.
+            Child = null;
+            _row?.Children.Clear();
+            var hasText = _label != null && _text.Length > 0;
+            if (_icon == null || !hasText)
+            {
+                Child = _icon ?? (hasText ? _label : null);
+                return;
+            }
+
+            _row ??= new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _row.Spacing = IconSpacing;
+            _row.Children.Add(_icon);
+            _row.Children.Add(_label!);
+            Child = _row;
         }
 
         private void OnCanExecuteChanged(object? sender, EventArgs e)

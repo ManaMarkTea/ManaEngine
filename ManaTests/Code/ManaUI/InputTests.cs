@@ -15,6 +15,17 @@ public static class InputChecks
         var root = new UiRoot(fonts);
         var time = 0.0;
 
+        // -------------------------------------------------------------- icon buttons
+        var iconOnly = new Button().Icon(new Border { Width = 16, Height = 16 });
+        Check("an icon alone is the button's content", iconOnly.Child is Border);
+        var withText = new Button("Buy").Icon(new Border { Width = 16, Height = 16 });
+        Check("an icon and text sit in a row, the icon first",
+            withText.Child is StackPanel { Children.Count: 2 } row && row.Children[0] is Border && row.Children[1] is TextBlock);
+        withText.Icon = null;
+        Check("dropping the icon leaves the text", withText.Child is TextBlock { Text: "Buy" });
+        withText.Highlighted();
+        Check("a highlighted control reads as selected without a pointer", withText.IsHighlighted && !withText.IsPointerOver);
+
         // -------------------------------------------------------------- hover + click
         var button = new Button("Click me") { Width = 120, Height = 30 };
         var canvas = new Canvas();
