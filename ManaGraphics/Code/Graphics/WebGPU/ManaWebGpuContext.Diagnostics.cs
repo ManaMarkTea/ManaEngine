@@ -98,7 +98,7 @@ namespace ManaGraphics.Code.Graphics
                     _environmentReflectionMap != null));
                 sections.Add(CreateSection("Rendering Quality",
                     ("Profile", UseMobileRendering ? "Mobile (adaptive particles)" : "Desktop"),
-                    ("Sky background", UseMobileRendering ? "Cached environment cube" : "Per-pixel sky"),
+                    ("Sky background", UseMobileRendering ? "Simple gradients and procedural stars" : "Per-pixel atmosphere"),
                     ("GPU particles requested", RequestedGpuParticleCount.ToString("N0")),
                     ("GPU particles drawn", LastGpuParticleCount.ToString("N0"))));
 

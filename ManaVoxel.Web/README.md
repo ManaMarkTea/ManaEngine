@@ -110,8 +110,9 @@ picked up automatically; no per-level packaging allowlist needs updating.
 ## Things that differ from desktop, and why
 
 - **Phones and tablets use mobile rendering automatically** (touch input with a coarse primary pointer).
-  Their canvas is capped at one render pixel per CSS pixel, and the background samples the sky cube
-  already generated for lighting instead of running atmospheric scattering at screen resolution.
+  Their canvas is capped at one render pixel per CSS pixel. A lightweight sky shader draws day/night
+  color gradients, a simple sun and moon, and sparse procedural stars. Both the background and lighting
+  cubes use it, avoiding atmospheric scattering, clouds and constellation loops on mobile.
   Environment/reflection cubes are capped at 128 px and irradiance at 16 px. Desktop quality is unchanged.
   GPU particles share a 20,000-particle starting budget across all emitters, proportional to their requested
   counts. Sustained frames slower than 38 ms lower it; five seconds of frames faster than 25 ms raise it
