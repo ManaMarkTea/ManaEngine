@@ -166,6 +166,8 @@ export function suppressKeys(codes) {
 // boot buries the real error under thousands of "runtime already exited" lines.
 let runtimeDead = false;
 let guardedInput = null;
+let pointerLockWanted = false;
+let pointerLockPending = false;
 
 function manaInput() {
     if (runtimeDead || !globalThis.ManaExports) {
@@ -261,6 +263,10 @@ export function installInput() {
         const api = manaInput();
         if (api && !inputBlocked()) {
             api.OnMouseDown(e.button);
+            // Retry a denied/deferred capture on a fresh user gesture, never on every frame.
+            if (pointerLockWanted) {
+                requestPointerLock();
+            }
         }
     });
 
@@ -286,18 +292,40 @@ export function installInput() {
 
     // Right-drag is a camera gesture here, not a context menu.
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    document.addEventListener('pointerlockchange', () => {
+        pointerLockPending = false;
+        // Lock is asynchronous: the drag may have ended before the browser grants it.
+        if (!pointerLockWanted && document.pointerLockElement === canvas) {
+            document.exitPointerLock();
+        }
+    });
+    document.addEventListener('pointerlockerror', () => {
+        pointerLockPending = false;
+    });
 }
 
 export function requestPointerLock() {
     // Touch look supplies deltas directly; mobile browsers do not need pointer lock.
     if (mobileRendering) return;
-    if (canvas && document.pointerLockElement !== canvas) {
-        canvas.requestPointerLock();
+    pointerLockWanted = true;
+    if (canvas && !inputBlocked() && !pointerLockPending &&
+        document.pointerLockElement !== canvas && typeof canvas.requestPointerLock === 'function') {
+        pointerLockPending = true;
+        try {
+            // The camera asks on the next frame after mousedown, while its transient activation
+            // is still live. Older browsers return void; newer ones may return a Promise.
+            const result = canvas.requestPointerLock();
+            result?.catch(() => { pointerLockPending = false; });
+        } catch {
+            pointerLockPending = false;
+        }
     }
 }
 
 export function exitPointerLock() {
-    if (document.pointerLockElement) {
+    pointerLockWanted = false;
+    if (canvas && document.pointerLockElement === canvas) {
         document.exitPointerLock();
     }
 }

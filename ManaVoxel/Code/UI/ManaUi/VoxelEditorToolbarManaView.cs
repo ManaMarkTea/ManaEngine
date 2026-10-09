@@ -212,13 +212,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return items;
             }
 
-            foreach (var path in paths)
-            {
-                var captured = path;
-                items.Add(new MenuItem(ManaLevelLibrary.DisplayName(captured), () => levels.Open(captured))
-                    .WithTooltip(captured)
-                    .Checkable(() => string.Equals(levels.CurrentPath, captured, StringComparison.OrdinalIgnoreCase)));
-            }
+            items.AddRange(LevelMenu.Build(ManaLevelFolder.Build(paths, ManaLevelLibrary.ResolveFolder()), levels));
 
             return items;
         }

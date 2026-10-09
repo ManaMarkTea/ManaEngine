@@ -116,7 +116,8 @@ namespace ManaVoxel.Code.UI
         public void New() => Host?.NewLevel();
 
         /// <summary>Saves to <see cref="LevelName"/>, which is also how Save As works -- rename, then save.</summary>
-        public void Save() => Host?.SaveLevel(ManaLevelLibrary.ResolvePath(LevelName));
+        public void Save() => Host?.SaveLevel(CurrentPath != null && LevelName == ManaLevelLibrary.DisplayName(CurrentPath)
+            ? CurrentPath : ManaLevelLibrary.ResolvePath(LevelName));
 
         public void SaveScene(ManaScene scene) => Host?.SaveScene(scene);
 

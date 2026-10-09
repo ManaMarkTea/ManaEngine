@@ -45,16 +45,37 @@ public static class ScenesManaView
     public static UiElement Build(UiTheme theme, LevelViewModel levels)
     {
         var search = new TextBox { Placeholder = "Search scenes" };
+        var rootFolder = ManaLevelLibrary.ResolveFolder();
+        IReadOnlyList<string>? folderSource = null;
+        ManaLevelFolder? folders = null;
+        var selectedFolder = "";
+        string? previousFolder = null;
+        ManaLevelFolder Folders()
+        {
+            if (!ReferenceEquals(folderSource, levels.Levels))
+            {
+                folderSource = levels.Levels;
+                folders = ManaLevelFolder.Build(folderSource, rootFolder);
+                if (folders.Find(selectedFolder) == null)
+                {
+                    selectedFolder = "";
+                }
+            }
+            return folders!;
+        }
         IReadOnlyList<string>? previous = null;
         string? previousSearch = null;
         IReadOnlyList<string> filtered = Array.Empty<string>();
         IReadOnlyList<string> Matches()
         {
-            if (!ReferenceEquals(previous, levels.Levels) || previousSearch != search.Text)
+            var folder = Folders().Find(selectedFolder)!;
+            if (!ReferenceEquals(previous, levels.Levels) || previousSearch != search.Text || previousFolder != selectedFolder)
             {
                 previous = levels.Levels;
                 previousSearch = search.Text;
-                filtered = Filter(previous, search.Text);
+                previousFolder = selectedFolder;
+                var contained = folder.DescendantLevels().ToHashSet(StringComparer.OrdinalIgnoreCase);
+                filtered = Filter(previous.Where(contained.Contains), search.Text);
             }
             return filtered;
         }
@@ -74,11 +95,27 @@ public static class ScenesManaView
                 CreateItem = index => Tile(theme, levels, paths[index])
             };
         });
+        var outliner = new DynamicContent().Showing<ManaLevelFolder>(Folders, root =>
+        {
+            var tree = new TreeView
+            {
+                ItemsSource = new[] { root },
+                ChildrenSelector = item => ((ManaLevelFolder)item).Children,
+                HasChildrenSelector = item => ((ManaLevelFolder)item).Children.Count > 0,
+                IsExpandedByDefault = _ => true,
+                ItemTemplate = item => new TextBlock().Text(((ManaLevelFolder)item).Name).Ellipsis(),
+                SelectedItem = root.Find(selectedFolder)
+            };
+            tree.SelectionChanged += (_, item) => selectedFolder = (item as ManaLevelFolder)?.RelativePath ?? "";
+            return tree.Scrollable();
+        });
         return new Grid().Rows("Auto, *, Auto", theme.Spacing).Columns("*").Padding(8).Children(
             new Grid().Rows("Auto").Columns("*, Auto", theme.Spacing).Children(
                 search, new Button().Label("Refresh").OnClick(levels.Refresh).GridColumn(1)),
-            list.Scrollable().GridRow(1),
-            new TextBlock().BindTextPolled(() => $"{Matches().Count} scenes · Open: {levels.CurrentLevelLabel}")
+            new Grid().Rows("*").Columns("140, *", theme.Spacing).Children(
+                new Border().Fill(theme.SurfaceAlt).Content(outliner),
+                list.Scrollable().GridColumn(1)).GridRow(1),
+            new TextBlock().BindTextPolled(() => $"{Matches().Count} scenes Â· Open: {levels.CurrentLevelLabel}")
                 .Foreground(theme.TextMuted).FontSize(theme.FontSizeSmall).Ellipsis().GridRow(2));
     }
 

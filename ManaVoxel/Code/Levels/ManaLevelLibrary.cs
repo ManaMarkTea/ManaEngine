@@ -19,10 +19,11 @@ namespace ManaVoxel.Code.Levels
         /// </summary>
         public static string ResolveFolder() => ManaProjectFolder.Resolve(FolderName);
 
-        /// <summary>Every level file in the folder, newest first -- the one you were just working on is on top.</summary>
-        public static IReadOnlyList<string> List()
+        /// <summary>Every level file beneath the folder, newest first -- the one you were just working on is on top.</summary>
+        public static IReadOnlyList<string> List() => List(ResolveFolder());
+
+        public static IReadOnlyList<string> List(string folder)
         {
-            var folder = ResolveFolder();
             if (!Directory.Exists(folder))
             {
                 return Array.Empty<string>();
@@ -31,7 +32,11 @@ namespace ManaVoxel.Code.Levels
             try
             {
                 return Directory
-                    .EnumerateFiles(folder, "*" + ManaLevel.FileExtension)
+                    .EnumerateFiles(folder, "*" + ManaLevel.FileExtension, new EnumerationOptions
+                    {
+                        RecurseSubdirectories = true, IgnoreInaccessible = true,
+                        AttributesToSkip = FileAttributes.ReparsePoint
+                    })
                     .OrderByDescending(File.GetLastWriteTimeUtc)
                     .ToList();
             }

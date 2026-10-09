@@ -21,15 +21,41 @@ export function installTouchControls(graphics, openMenu) {
         if (down) { keys.add(code); graphics.OnKeyDown(code, false); }
         else { keys.delete(code); graphics.OnKeyUp(code); }
     };
-    const reset = () => {
-        for (const code of [...keys]) key(code, false);
-        if ([...pointers.values()].some(p => p.kind === 'look')) graphics.OnMouseUp(2);
-        for (const [id, pointer] of pointers) {
-            if (pointer.element.hasPointerCapture(id)) pointer.element.releasePointerCapture(id);
-        }
-        pointers.clear();
-        knob.style.transform = '';
+    const release = id => {
+        const pointer = pointers.get(id);
+        if (!pointer) { return; }
+        pointers.delete(id);
+        if (pointer.kind === 'move') {
+            for (const code of ['KeyW','KeyA','KeyS','KeyD']) { key(code, false); }
+            knob.style.transform = '';
+        } else if (pointer.kind === 'look') { graphics.OnMouseUp(2); }
+        else { key(pointer.code, false); }
+        if (pointer.element.hasPointerCapture(id)) { pointer.element.releasePointerCapture(id); }
     };
+    const reset = () => {
+        for (const id of [...pointers.keys()]) { release(id); }
+        for (const code of [...keys]) { key(code, false); }
+    };
+    // Safari can lose a captured pointer's end event. Touch identifiers provide a second release path.
+    document.addEventListener('touchstart', event => {
+        for (const touch of event.changedTouches) {
+            const match = [...pointers.values()].find(p => p.touchId === undefined &&
+                Math.hypot(p.x - touch.clientX, p.y - touch.clientY) < 20);
+            if (match) { match.touchId = touch.identifier; }
+        }
+    }, {passive:true, capture:true});
+    document.addEventListener('touchend', event => {
+        const active = new Set([...event.touches].map(t => t.identifier));
+        for (const [id, pointer] of [...pointers]) {
+            if (active.size === 0 || (pointer.touchId !== undefined && !active.has(pointer.touchId))) {
+                release(id);
+            }
+        }
+    }, {passive:true, capture:true});
+    document.addEventListener('touchcancel', reset, {passive:true, capture:true});
+    for (const name of ['pointerup', 'pointercancel']) {
+        document.addEventListener(name, event => release(event.pointerId), true);
+    }
     const updateMove = event => {
         const rect = move.getBoundingClientRect();
         const radius = rect.width * 0.35;
@@ -44,7 +70,9 @@ export function installTouchControls(graphics, openMenu) {
     const bind = (element, kind, code) => {
         element.addEventListener('pointerdown', event => {
             if (!ready || globalThis.ManaMenuOpen || event.pointerType === 'mouse') return;
-            if ([...pointers.values()].some(p => p.element === element)) return;
+            for (const [id, pointer] of [...pointers]) {
+                if (pointer.element === element) { release(id); }
+            }
             event.preventDefault();
             element.setPointerCapture(event.pointerId);
             pointers.set(event.pointerId, {element, kind, code, x:event.clientX, y:event.clientY});
@@ -58,6 +86,7 @@ export function installTouchControls(graphics, openMenu) {
         element.addEventListener('pointermove', event => {
             const pointer = pointers.get(event.pointerId);
             if (!pointer) return;
+            if (event.buttons === 0) { release(event.pointerId); return; }
             event.preventDefault();
             if (kind === 'move') updateMove(event);
             else if (kind === 'look') {
@@ -65,16 +94,7 @@ export function installTouchControls(graphics, openMenu) {
                 pointer.x = event.clientX; pointer.y = event.clientY;
             }
         });
-        const end = event => {
-            const pointer = pointers.get(event.pointerId);
-            if (!pointer) return;
-            pointers.delete(event.pointerId);
-            if (kind === 'move') {
-                for (const code of ['KeyW','KeyA','KeyS','KeyD']) key(code, false);
-                knob.style.transform = '';
-            } else if (kind === 'look') graphics.OnMouseUp(2);
-            else key(code, false);
-        };
+        const end = event => release(event.pointerId);
         for (const name of ['pointerup','pointercancel','lostpointercapture']) element.addEventListener(name, end);
     };
     bind(move, 'move'); bind(look, 'look');
@@ -86,6 +106,8 @@ export function installTouchControls(graphics, openMenu) {
     document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); });
     window.addEventListener('blur', reset);
     window.addEventListener('resize', reset);
+    window.addEventListener('pagehide', reset);
+    window.addEventListener('pageshow', reset);
     return () => {
         ready = true;
         root.hidden = false;

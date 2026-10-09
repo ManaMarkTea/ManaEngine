@@ -264,18 +264,38 @@ namespace ManaGraphics.Code.Graphics.Browser
         };
     }
 
-    // The page owns the cursor, so this supports nothing; callers check IsSupported first and leave it be.
+    // Disabled uses DOM pointer lock; raw motion and custom cursor images are not supported.
     internal sealed class ManaBrowserCursor : ICursor
     {
         public CursorType Type { get; set; }
         public StandardCursor StandardCursor { get; set; }
-        public CursorMode CursorMode { get; set; }
+        private CursorMode _cursorMode;
+        public CursorMode CursorMode
+        {
+            get => _cursorMode;
+            set
+            {
+                if (!IsSupported(value))
+                {
+                    return;
+                }
+                _cursorMode = value;
+                if (value == CursorMode.Disabled)
+                {
+                    ManaBrowserInterop.RequestPointerLock();
+                }
+                else
+                {
+                    ManaBrowserInterop.ExitPointerLock();
+                }
+            }
+        }
         public bool IsConfined { get; set; }
         public int HotspotX { get; set; }
         public int HotspotY { get; set; }
         public Silk.NET.Core.RawImage Image { get; set; }
 
-        public bool IsSupported(CursorMode mode) => false;
+        public bool IsSupported(CursorMode mode) => mode is CursorMode.Normal or CursorMode.Disabled;
         public bool IsSupported(StandardCursor standardCursor) => false;
     }
 }
