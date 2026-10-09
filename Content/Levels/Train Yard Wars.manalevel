@@ -21,8 +21,8 @@
       "properties": {
         "players": 4,
         "seed": 0,
-        "prestigeTarget": 15,
-        "matchMinutes": 12.0,
+        "prestigeTarget": 70,
+        "matchMinutes": 30.0,
         "botDifficulty": 0.5
       }
     }
