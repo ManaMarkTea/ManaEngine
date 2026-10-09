@@ -319,7 +319,7 @@ export function startRenderLoop() {
                 fpsLabel.hidden = Boolean(document.hidden);
                 if (document.hidden || globalThis.ManaMenuOpen || dt <= 0 || dt > 5) {
                     fpsMilliseconds = fpsFrames = 0;
-                    fpsLabel.textContent = globalThis.ManaMenuOpen ? 'Paused' : 'FPS â€”';
+                    fpsLabel.textContent = globalThis.ManaMenuOpen ? 'Paused' : 'FPS ...';
                 } else {
                     fpsMilliseconds += dt * 1000;
                     fpsFrames++;
