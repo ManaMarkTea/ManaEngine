@@ -217,14 +217,18 @@
     .mana-level-name { font-size: 15px; font-weight: 600; }
     .mana-level-description { font-size: 12.5px; color: var(--mana-text-muted); line-height: 1.4; }
     .mana-select-footer { margin-top: 28px; text-align: center; font-size: 12px; color: var(--mana-text-muted); }
-    #manaEngineVersion {
+    #manaBuildInfo {
       position: fixed;
       right: max(16px, env(safe-area-inset-right));
       bottom: max(12px, env(safe-area-inset-bottom));
       color: var(--mana-text-muted);
       font-size: 12px;
+      max-width: calc(100% - 32px);
+      text-align: right;
+      z-index: 2;
       pointer-events: none;
     }
+    #manaBuildInfo > :not([hidden]) { display: block; font-size: inherit; }
 
     /* ---- Pause menu: Escape while playing ------------------------------------------------------------ */
     #manaMenu {
@@ -258,7 +262,7 @@
     #manaHint {
       position: fixed;
       right: 16px;
-      bottom: 14px;
+      bottom: 58px;
       padding: 6px 10px;
       font-size: 12px;
       color: var(--mana-text-muted);
@@ -302,7 +306,10 @@
       <div class="mana-levels" id="manaLevels"></div>
       <p class="mana-select-footer">WASD to move, Shift to run, Space to jump (again in the air to double jump), Esc for the menu</p>
     </div>
-    <small id="manaEngineVersion" title="Engine version and build date (UTC)" hidden></small>
+  </div>
+  <div id="manaBuildInfo">
+    <span id="manaFps" hidden></span>
+    <small id="manaEngineVersion" title="Engine version and build time in your local time zone" hidden></small>
   </div>
 
   <div id="manaMenu" role="dialog" aria-modal="true" aria-label="Paused">
@@ -443,7 +450,14 @@
         if (!engine) return;
         const label = document.getElementById('manaEngineVersion');
         const commit = engine.commit ? `+${engine.commit.slice(0, 7)}` : '';
-        label.textContent = `ManaRenderer v${engine.version}${commit} · ${engine.buildDate}`;
+        const buildTime = engine.buildTime ? new Date(engine.buildTime) : null;
+        const date = buildTime && !Number.isNaN(buildTime.getTime())
+          ? buildTime.toLocaleString(undefined, {
+              year: 'numeric', month: 'short', day: 'numeric',
+              hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+            })
+          : engine.buildDate;
+        label.textContent = `ManaRenderer v${engine.version}${commit} · ${date}`;
         label.hidden = false;
       })
       .catch(() => {});

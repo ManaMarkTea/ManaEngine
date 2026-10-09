@@ -38,7 +38,7 @@
   </ItemGroup>
   <Target Name="ManaPublishExternalAssets" AfterTargets="_WasmGenerateAppBundle">
     <WriteLinesToFile File="$(WasmAppDir)engine-version.json"
-                      Lines="{&quot;version&quot;:&quot;$(Version)&quot;,&quot;commit&quot;:&quot;$(SourceRevisionId)&quot;,&quot;buildDate&quot;:&quot;$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))&quot;}"
+                      Lines="{&quot;version&quot;:&quot;$(Version)&quot;,&quot;commit&quot;:&quot;$(SourceRevisionId)&quot;,&quot;buildDate&quot;:&quot;$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))&quot;,&quot;buildTime&quot;:&quot;$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))&quot;}"
                       Overwrite="true" Encoding="UTF-8" />
     <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)Tools/WebAssets/publish_assets.py&quot; --root &quot;$(MSBuildThisFileDirectory).&quot; --output &quot;$(WasmAppDir).&quot;" />
   </Target>

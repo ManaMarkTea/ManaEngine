@@ -306,12 +306,29 @@ export function isPointerLocked() {
 
 export function startRenderLoop() {
     let last = performance.now();
+    const fpsLabel = document.getElementById?.('manaFps');
+    let fpsMilliseconds = 0;
+    let fpsFrames = 0;
     function frame(now) {
         const dt = (now - last) / 1000.0;
         last = now;
         updateParticleBudget(dt * 1000);
         if (globalThis.ManaExports) {
             globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop.OnFrame(dt);
+            if (fpsLabel) {
+                fpsLabel.hidden = Boolean(document.hidden);
+                if (document.hidden || globalThis.ManaMenuOpen || dt <= 0 || dt > 5) {
+                    fpsMilliseconds = fpsFrames = 0;
+                    fpsLabel.textContent = globalThis.ManaMenuOpen ? 'Paused' : 'FPS â€”';
+                } else {
+                    fpsMilliseconds += dt * 1000;
+                    fpsFrames++;
+                    if (fpsMilliseconds >= 1000) {
+                        fpsLabel.textContent = `${(fpsFrames * 1000 / fpsMilliseconds).toFixed(1)} FPS`;
+                        fpsMilliseconds = fpsFrames = 0;
+                    }
+                }
+            }
         }
         requestAnimationFrame(frame);
     }

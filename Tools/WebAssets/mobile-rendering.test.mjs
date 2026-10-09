@@ -8,12 +8,13 @@ const source = (await readFile(new URL('../../ManaGraphics/Native/mana_interop.j
 function browser({ touch = 1, coarse = true, override = '' } = {}) {
     let nextFrame, resize, now = 0;
     const sizes = [];
+    const fpsLabel = { hidden: true, textContent: '' };
     const canvas = { clientWidth: 402, clientHeight: 874 };
     const context = {
         URLSearchParams, performance: { now: () => now },
         navigator: { maxTouchPoints: touch }, location: { search: override },
         window: { devicePixelRatio: 3, matchMedia: () => ({ matches: coarse, addEventListener() {} }) },
-        document: { hidden: false, querySelector: () => canvas },
+        document: { hidden: false, querySelector: () => canvas, getElementById: () => fpsLabel },
         ResizeObserver: class { constructor(callback) { resize = callback; } observe() {} },
         requestAnimationFrame: callback => { nextFrame = callback; },
         ManaExports: { ManaGraphics: { Code: { Graphics: { Browser: { ManaBrowserInterop: {
@@ -24,7 +25,7 @@ function browser({ touch = 1, coarse = true, override = '' } = {}) {
     const api = context.api;
     api.selectCanvas('#canvas'); api.observeResize(); api.startRenderLoop();
     resize([{ contentRect: { width: 402, height: 874 }, devicePixelContentBoxSize: [{ inlineSize: 1206, blockSize: 2622 }] }]);
-    return { api, context, sizes, canvas, resize, frames(count, milliseconds) {
+    return { api, context, sizes, canvas, resize, fpsLabel, frames(count, milliseconds) {
         for (let i = 0; i < count; i++) { now += milliseconds; nextFrame(now); }
     } };
 }
@@ -63,4 +64,16 @@ assert.equal(browser({ touch: 0, coarse: false, override: '?rendering=mobile' })
 const zoom = browser({ touch: 0, coarse: false });
 zoom.resize([{ contentRect: { width: 201, height: 437 }, devicePixelContentBoxSize: [{ inlineSize: 1206, blockSize: 2622 }] }]);
 assert.deepEqual(zoom.sizes.at(-1), [201, 437, 1206, 2622], 'logical resize is reported even when physical dimensions stay unchanged');
+const fps = browser();
+fps.frames(20, 50);
+assert.equal(fps.fpsLabel.textContent, '20.0 FPS', 'FPS measures delivered render frames');
+fps.context.ManaMenuOpen = true;
+fps.frames(20, 50);
+assert.equal(fps.fpsLabel.textContent, 'Paused');
+fps.context.ManaMenuOpen = false;
+fps.frames(10, 100);
+assert.equal(fps.fpsLabel.textContent, '10.0 FPS', 'resume starts a fresh averaging window');
+fps.context.document.hidden = true;
+fps.frames(10, 100);
+assert.equal(fps.fpsLabel.hidden, true, 'background throttling is excluded');
 console.log('Mobile rendering checks passed.');
