@@ -169,6 +169,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new Button().Label("Subtle").Variant(ButtonVariant.Subtle).Command(vm.BumpCommand),
                     new Button().Label("Disabled").Enabled(false)),
 
+                // Rich text: bold and coloured words in a run that still wraps.
+                new RichTextBlock("Torches make nearby mines work [good]**+50%**[/] faster; sabotage puts them [bad]**out**[/]. Hex colours too: [#ffcc44]amber[/].")
+                    .Configure(r => r.MaxWidth = 380.0f),
+
                 // Icons: any element before the text (an emoji here), or the whole button; and a highlighted one,
                 // as a gamepad or keyboard selection shows without a pointer.
                 new StackPanel().Horizontal(theme.Spacing).Children(

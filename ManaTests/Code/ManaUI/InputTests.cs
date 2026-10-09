@@ -26,6 +26,18 @@ public static class InputChecks
         withText.Highlighted();
         Check("a highlighted control reads as selected without a pointer", withText.IsHighlighted && !withText.IsPointerOver);
 
+        // -------------------------------------------------------------- rich text
+        var runs = RichTextBlock.Parse("Mines work [good]**+50%**[/] faster, [#ff0000]red[/] [nope]x");
+        Check("rich text splits words into runs, bold and coloured where marked",
+            runs.Count == 6 && runs[2] is { Text: "+50%", Bold: true, Color: not null } && runs[3] is { Text: "faster,", Bold: false, Color: null }
+            && runs[4].Color == new Vector4(1, 0, 0, 1) && runs[5].Text == "[nope]x",
+            string.Join(" | ", runs.Select(r => $"{r.Text}{(r.Bold ? "*" : "")}{(r.Color != null ? "c" : "")}")));
+        var rich = new RichTextBlock("one two three four five six seven eight nine ten") { Width = 80 };
+        var richHost = new StackPanel().Children(rich);
+        root.Content = richHost;
+        root.UpdateLayout(new Vector2(400, 300));
+        Check("rich text wraps to the width it is given", rich.LineCount > 1, $"{rich.LineCount} lines");
+
         // -------------------------------------------------------------- hover + click
         var button = new Button("Click me") { Width = 120, Height = 30 };
         var canvas = new Canvas();
