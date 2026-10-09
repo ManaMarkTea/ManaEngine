@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Runs the editor on a --command-file script and waits for it to quit: open a level, move the camera, play,
-    screenshot, check what changed. See "Testing levels with scripts" in CLAUDE.md for the commands.
+    screenshot, check what changed. See "Testing levels with scripts" in AGENTS.md for the commands.
 
 .EXAMPLE
     ./Tools/Automation/run-commands.ps1 -Name sample -Commands '[{"type":"open_level","path":"Content/Levels/2D Sample.manalevel"},{"type":"wait","frames":240},{"type":"play"},{"type":"wait","frames":120},{"type":"screenshot","path":"@@OUT@@"},{"type":"quit"}]'

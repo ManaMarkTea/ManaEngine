@@ -8,7 +8,7 @@
 // invocation of the C# callback function pointer) hits a confirmed Emscripten runtime bug
 // (RuntimeError: getWasmTableEntry(...) is not a function) when combined with .NET's wasm
 // bundling -- reproducible, not fixed by AOT compilation, not fixed by explicitly forcing
-// getWasmTableEntry past tree-shaking. See the browser build notes in CLAUDE.md.
+// getWasmTableEntry past tree-shaking. See the browser build notes in AGENTS.md.
 //
 // The actual browser-vendor async operations (navigator.gpu.requestAdapter()/
 // adapter.requestDevice(), both real Promises) still have to happen somehow, so these use

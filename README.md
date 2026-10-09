@@ -24,7 +24,7 @@ dotnet run --project ManaVoxel
 dotnet run --project ManaTests
 ```
 
-The headless tests do not require a GPU or window. See `CLAUDE.md` for editor automation, browser builds, content
+The headless tests do not require a GPU or window. See `AGENTS.md` for editor automation, browser builds, content
 formats, and additional test-running instructions.
 
 ## License and third-party notices

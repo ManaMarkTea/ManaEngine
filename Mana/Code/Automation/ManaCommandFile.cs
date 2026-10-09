@@ -10,7 +10,7 @@ namespace Mana.Code.Automation
     public sealed class ManaCommand
     {
         /// <summary>
-        /// The command; CLAUDE.md ("Testing levels with scripts") says what each does. Levels and assets: open_level,
+        /// The command; AGENTS.md ("Testing levels with scripts") says what each does. Levels and assets: open_level,
         /// open_prefab, open_asset, open_panel, open_tools, select_node, review_changes. View: move_camera, sky,
         /// wind, emission, screenshot. Play: play, stop_play, teleport_player, log_player, bow (hold / hold_up / release the bow's fire key). UI: import_filter (the Import panel's filter text). Checks: dirty_report, profile_reset,
         /// profile_dump. Pictures: gizmos. Editing: drop_to_floor, grid_autotile, grid_generate. Flow: wait, quit.
