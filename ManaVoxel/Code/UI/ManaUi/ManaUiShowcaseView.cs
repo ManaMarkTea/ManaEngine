@@ -169,6 +169,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new Button().Label("Subtle").Variant(ButtonVariant.Subtle).Command(vm.BumpCommand),
                     new Button().Label("Disabled").Enabled(false)),
 
+                // Icons: any element before the text (an emoji here), or the whole button; and a highlighted one,
+                // as a gamepad or keyboard selection shows without a pointer.
+                new StackPanel().Horizontal(theme.Spacing).Children(
+                    new Button().Label("Send").Icon(new TextBlock().Text("🚦")).Variant(ButtonVariant.Primary).Command(vm.BumpCommand),
+                    new Button().Label("Buy a train").Icon(new TextBlock().Text("🚂")).Command(vm.BumpCommand),
+                    new Button().Icon(new TextBlock().Text("⚙")).Variant(ButtonVariant.Subtle).Command(vm.BumpCommand),
+                    new Button().Label("Highlighted").Icon(new Border().Fill(theme.Accent).Rounded(5.0f).Size(10.0f, 10.0f)).Highlighted()),
+
                 new TextBlock()
                     .BindText(vm, v => v.ClickCount, n => $"Clicked {n} time{(n == 1 ? string.Empty : "s")}")
                     .Foreground(theme.TextMuted),

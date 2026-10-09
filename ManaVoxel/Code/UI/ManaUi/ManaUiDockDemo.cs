@@ -660,9 +660,19 @@ namespace ManaVoxel.Code.UI.ManaUi
             // is already docked is on screen, so unlike TogglePanel this never closes it.
             void OpenPanel(string id)
             {
-                if (!AllDocked(top, left, right, bottom).Any(item => item.Id == id))
+                if (AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == id) is not { } docked)
                 {
                     TogglePanel(id);
+                    return;
+                }
+
+                // Already docked, perhaps behind another tab: bring it to the front.
+                foreach (var host in new[] { top, left, right, bottom })
+                {
+                    if (host.GroupOf(docked) is { } group)
+                    {
+                        group.SelectedIndex = group.Items.ToList().IndexOf(docked);
+                    }
                 }
             }
 

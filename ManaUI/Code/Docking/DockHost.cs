@@ -236,6 +236,33 @@ namespace ManaUI
             return null;
         }
 
+        /// <summary>The tab group holding <paramref name="item"/>, or null when it is not docked here.</summary>
+        public DockTabGroup? GroupOf(DockItem item) => FindGroupOf(RootNode, item);
+
+        private static DockTabGroup? FindGroupOf(UiElement? node, DockItem item)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+
+            if (node is DockTabGroup group)
+            {
+                return group.Items.Contains(item) ? group : null;
+            }
+
+            var count = node.VisualChildCount;
+            for (var i = 0; i < count; i++)
+            {
+                if (FindGroupOf(node.GetVisualChild(i), item) is { } found)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>The tab group under a point, or null.</summary>
         public DockTabGroup? GroupAt(Vector2 point)
         {
