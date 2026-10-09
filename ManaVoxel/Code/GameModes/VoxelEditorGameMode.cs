@@ -172,7 +172,10 @@ namespace Mana.Code.GameModes
             var playLayer = new Grid();
             playLayer.Children.Add(playHud);
             playLayer.Children.Add(_gameModes.HudLayer);
-            host.Root.Content = new ManaUiPlayOverlay(workspace, playLayer, () => IsPlaying);
+            // Hidden in the top-right corner until the pointer comes near: step out of the match to inspect it.
+            playLayer.Children.Add(ManaUiPlayOverlay.EjectButton(host.Root.Theme, ToggleEject));
+            host.Root.Content = new ManaUiPlayOverlay(workspace, playLayer, () => IsPlaying,
+                ManaUiPlayOverlay.EjectedBanner(host.Root.Theme, () => IsEjected, ToggleEject, () => _playMode?.Stop()));
         }
 
         public override void Load()
@@ -947,7 +950,7 @@ namespace Mana.Code.GameModes
             // While playing, everything below this line is the editor acting on a pointer that now belongs
             // to the game: picking, voxel placement, mesh drag-and-drop, selection outlines. Only the things
             // the world needs regardless -- streaming, and the character's own input -- carry on.
-            if (_playMode is { IsPlaying: true })
+            if (IsPlaying)
             {
                 _transformGizmo?.Hide();
                 HidePolygonOverlay();

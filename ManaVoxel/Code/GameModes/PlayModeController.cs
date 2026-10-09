@@ -50,6 +50,35 @@ namespace Mana.Code.GameModes
 
         public bool IsPlaying { get; private set; }
 
+        /// <summary>
+        /// Stepped out of the running match to inspect it (F8, like Unreal's eject): the match is frozen where it was,
+        /// and the editor -- panels, picking, the free camera -- is back until F8 again resumes it.
+        /// </summary>
+        public bool IsEjected { get; private set; }
+
+        public void ToggleEject()
+        {
+            if (!IsPlaying)
+            {
+                return;
+            }
+
+            IsEjected = !IsEjected;
+            var camera = _context.World.MainCamera;
+            if (IsEjected)
+            {
+                Modes.Suspend();
+                camera.LensShiftToViewport = _savedLensShift;
+            }
+            else
+            {
+                camera.LensShiftToViewport = false;
+                Modes.Resume();
+            }
+
+            PlayStateChanged?.Invoke(IsPlaying);
+        }
+
         /// <summary>The level game modes running this play (see ManaLevelGameMode), and their HUD layer.</summary>
         public ManaGameModeRunner Modes { get; init; } = new();
 
@@ -236,6 +265,7 @@ namespace Mana.Code.GameModes
             }
 
             IsPlaying = false;
+            IsEjected = false;
             Modes.End();
             _context.World.MainCamera.LensShiftToViewport = _savedLensShift;
             _context.World.EndPlay();

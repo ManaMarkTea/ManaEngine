@@ -1,4 +1,5 @@
 using ManaUI;
+using Button = ManaUI.Button;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
@@ -19,13 +20,20 @@ namespace ManaVoxel.Code.UI.ManaUi
         private readonly UiElement _editor;
         private readonly UiElement _hud;
 
-        public ManaUiPlayOverlay(UiElement editor, UiElement hud, Func<bool> isPlaying)
+        private readonly UiElement? _banner;
+
+        public ManaUiPlayOverlay(UiElement editor, UiElement hud, Func<bool> isPlaying, UiElement? ejectedBanner = null)
         {
             _editor = editor;
             _hud = hud;
+            _banner = ejectedBanner;
 
             Children.Add(editor);
             Children.Add(hud);
+            if (ejectedBanner != null)
+            {
+                Children.Add(ejectedBanner);
+            }
 
             editor.BindPolled(el => el.Visibility, () => isPlaying() ? Visibility.Collapsed : Visibility.Visible);
             hud.BindPolled(el => el.Visibility, () => isPlaying() ? Visibility.Visible : Visibility.Collapsed);
@@ -35,6 +43,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             _editor.Measure(availableSize);
             _hud.Measure(availableSize);
+            _banner?.Measure(availableSize);
             return availableSize;
         }
 
@@ -43,7 +52,36 @@ namespace ManaVoxel.Code.UI.ManaUi
             var bounds = new UiRect(Vector2.Zero, finalSize);
             _editor.Arrange(bounds);
             _hud.Arrange(bounds);
+            _banner?.Arrange(bounds);
             return finalSize;
+        }
+
+        /// <summary>
+        /// A small Eject button in the top-right corner while playing, faint until the pointer comes near it: steps out
+        /// of the match into the editor to inspect it (F8 does the same).
+        /// </summary>
+        public static UiElement EjectButton(UiTheme theme, Action eject)
+        {
+            var button = new Button("Inspect (F8)").Icon(new TextBlock().Text("\u23CF")).Variant(ButtonVariant.Subtle).OnClick(eject);
+            button.Tooltip = "Step out of the game into the editor, with the match frozen. F8 again resumes it.";
+            var corner = new Border().Rounded(8.0f).PaddingOf(4.0f).Right().Top().Margin(0.0f, 140.0f, 8.0f, 0.0f).Content(button);
+            corner.Background = theme.Surface with { W = 0.0f };
+            // Nearly invisible over the game; there when the pointer is near.
+            corner.BindPolled(el => el.Opacity, () => button.IsPointerOver ? 1.0f : 0.12f);
+            return corner;
+        }
+
+        /// <summary>While ejected: a bar over the editor saying the match is frozen, with Resume and Stop.</summary>
+        public static UiElement EjectedBanner(UiTheme theme, Func<bool> isEjected, Action resume, Action stop)
+        {
+            var bar = new Border().Fill(theme.Accent with { W = 0.92f }).Rounded(8.0f).PaddingOf(12.0f, 6.0f)
+                .CenterH().Bottom().Margin(0.0f, 0.0f, 0.0f, 40.0f)
+                .Content(new StackPanel().Horizontal(10.0f).Children(
+                    new TextBlock().Text("Game paused for inspection").Foreground(theme.TextOnAccent).CenterV(),
+                    new Button("Resume (F8)").Icon(new TextBlock().Text("\u25B6")).OnClick(resume),
+                    new Button("Stop").Icon(new TextBlock().Text("\u23F9")).OnClick(stop)));
+            bar.BindPolled(el => el.Visibility, () => isEjected() ? Visibility.Visible : Visibility.Collapsed);
+            return bar;
         }
     }
 

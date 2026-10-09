@@ -16,6 +16,7 @@ namespace Mana.Code.GameModes
     public partial class VoxelEditorGameMode : IManaLevelHost
     {
         private bool _playKeyWasDown;
+        private bool _ejectKeyWasDown;
         private bool _stopKeyWasDown;
         private bool _restartKeyWasDown;
         private bool _undoKeyWasDown;
@@ -34,7 +35,15 @@ namespace Mana.Code.GameModes
 
         private ManaCommandRunner? _commandRunner;
 
-        public bool IsPlaying => _playMode is { IsPlaying: true };
+        // Ejected to inspect a frozen match counts as editing: the panels, picking and the camera are the editor's.
+        public bool IsPlaying => _playMode is { IsPlaying: true, IsEjected: false };
+
+        /// <summary>A match is running, though perhaps ejected from for inspection.</summary>
+        public bool IsMatchRunning => _playMode is { IsPlaying: true };
+
+        public bool IsEjected => _playMode is { IsEjected: true };
+
+        public void ToggleEject() => _playMode?.ToggleEject();
 
         private void InitializePlayMode()
         {
@@ -116,10 +125,18 @@ namespace Mana.Code.GameModes
 
             _playKeyWasDown = playKeyDown;
 
+            var ejectKeyDown = keyboard.IsKeyPressed(Key.F8);
+            if (ejectKeyDown && !_ejectKeyWasDown && _playMode.IsPlaying)
+            {
+                _playMode.ToggleEject();
+            }
+
+            _ejectKeyWasDown = ejectKeyDown;
+
             var restartKeyDown = keyboard.IsKeyPressed(Key.R);
             // A level game mode that takes Escape and R (pause menus, its own replay) gets them instead.
             var modeKeys = _gameModes.HandlesExitKeys;
-            if (restartKeyDown && !_restartKeyWasDown && _playMode.IsPlaying && !modeKeys)
+            if (restartKeyDown && !_restartKeyWasDown && IsPlaying && !modeKeys)
             {
                 _playMode.Restart();
             }
@@ -127,7 +144,7 @@ namespace Mana.Code.GameModes
             _restartKeyWasDown = restartKeyDown;
 
             var stopKeyDown = keyboard.IsKeyPressed(Key.Escape);
-            if (stopKeyDown && !_stopKeyWasDown && _playMode.IsPlaying && !modeKeys)
+            if (stopKeyDown && !_stopKeyWasDown && IsPlaying && !modeKeys)
             {
                 _playMode.Stop();
             }
@@ -339,6 +356,9 @@ namespace Mana.Code.GameModes
             {
                 return;
             }
+
+            // Saving while ejected from a match would capture the match's world: end the match first.
+            StopPlayBeforeEditing();
 
             try
             {
@@ -727,12 +747,14 @@ namespace Mana.Code.GameModes
                     OpenLevel,
                     on =>
                     {
-                        if (on != IsPlaying)
+                        if (on != IsMatchRunning)
                         {
                             TogglePlay();
                         }
                     },
                     DropSelectedToFloor);
+                // Steps out of (or back into) the running match, as F8 does.
+                _commandRunner.Register("eject", _ => ToggleEject());
             }
 
             _commandRunner.Tick();

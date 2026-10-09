@@ -66,6 +66,19 @@ namespace Mana.Code.GameModes
 
         /// <summary>This mode's on-screen furniture while playing, or null. Built once per play.</summary>
         public virtual UiElement? BuildHud(UiTheme theme) => null;
+
+        /// <summary>
+        /// The editor has stepped out of the running match to inspect it (F8): the match is frozen and the editor has
+        /// the camera and input. Give back anything borrowed that the editor needs; <see cref="Resume"/> takes it again.
+        /// </summary>
+        public virtual void Suspend()
+        {
+        }
+
+        /// <summary>Back into the match from <see cref="Suspend"/>.</summary>
+        public virtual void Resume()
+        {
+        }
     }
 
     /// <summary>What a running mode is given: the world, the host's view of input, and a way out.</summary>
@@ -153,6 +166,22 @@ namespace Mana.Code.GameModes
             foreach (var mode in _running)
             {
                 mode.Tick(deltaSeconds);
+            }
+        }
+
+        public void Suspend()
+        {
+            foreach (var mode in _running)
+            {
+                mode.Suspend();
+            }
+        }
+
+        public void Resume()
+        {
+            foreach (var mode in _running)
+            {
+                mode.Resume();
             }
         }
 
