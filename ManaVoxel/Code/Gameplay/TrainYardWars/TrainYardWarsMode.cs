@@ -723,15 +723,22 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
 
         // ---- What happened ---------------------------------------------------------------------------------
 
+        // A seat someone is playing: Red on the mouse (unless a bot has it), or any seat a pad holds.
+        private bool IsPerson(int seat) =>
+            (seat == HumanSeat && !_hud.Autoplay) || _padSeats.Any(s => s.Seat == seat);
+
         // Popups for everyone's doings, sounds mostly for your own: eight players' clunks would be a din.
         private void ShowNotices(TywGame game)
         {
-            var gold = new Vector4(1.0f, 0.88f, 0.35f, 1.0f);
+            // Every person playing hears their own doings; with more than one, prestige shows in its owner's colour
+            // rather than one gold that says nothing about whose it is.
+            var people = Enumerable.Range(0, game.Players.Count).Where(IsPerson).ToList();
             foreach (var notice in game.TakeNotices())
             {
-                var mine = notice.Player == HumanSeat;
+                var mine = people.Contains(notice.Player);
                 var at = TywGeometry.Center(notice.Hex);
                 var color = Vector4.Lerp(TywBoardView.PlayerColors[notice.Player], Vector4.One, 0.4f);
+                var gold = people.Count > 1 ? color : new Vector4(1.0f, 0.88f, 0.35f, 1.0f);
                 switch (notice.Kind)
                 {
                     case TywNoticeKind.Banked:
@@ -764,11 +771,14 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
                             _hud.Paused = true;
                         }
 
-                        _popups?.Add(at, "Sabotage!", new Vector4(1.0f, 0.4f, 0.3f, 1.0f), _clock, big: notice.Victim == HumanSeat);
-                        if (notice.Victim == HumanSeat)
+                        var victim = people.Contains(notice.Victim);
+                        _popups?.Add(at, "Sabotage!", new Vector4(1.0f, 0.4f, 0.3f, 1.0f), _clock, big: victim);
+                        if (victim)
                         {
                             _sounds?.Play(TywSounds.Alarm, 0.7f);
-                            Say($"{game.Players[notice.Player].Name} cut your line! Click the burning hex to repair it");
+                            Say(notice.Victim == HumanSeat && people.Count == 1
+                                ? $"{game.Players[notice.Player].Name} cut your line! Click the burning hex to repair it"
+                                : $"{game.Players[notice.Player].Name} cut {game.Players[notice.Victim].Name}'s line! Repair the burning hex");
                         }
                         else if (mine)
                         {
