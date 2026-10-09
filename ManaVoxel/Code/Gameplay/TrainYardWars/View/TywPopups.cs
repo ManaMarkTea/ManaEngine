@@ -18,6 +18,12 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         private readonly List<Popup> _active = new();
         private readonly float _fontSize;
 
+        // Cursor labels: one per seat, kept until changed -- a pad player's "what A does here" beside their pin.
+        private const int LabelCount = 8;
+        private readonly TextBlock[] _seatTexts = new TextBlock[LabelCount];
+        private readonly Border[] _seatPills = new Border[LabelCount];
+        private readonly (Vector3? At, string Text, Vector4 Color)[] _seatLabels = new (Vector3?, string, Vector4)[LabelCount];
+
         private sealed record Popup(Vector3 At, string Text, Vector4 Color, float Born, bool Big, float Seconds);
 
         public TywPopups(UiTheme theme)
@@ -30,6 +36,23 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 _pills[i] = new Border().Fill(new Vector4(0.05f, 0.06f, 0.09f, 0.72f)).Rounded(8.0f).PaddingOf(8.0f, 2.0f).Content(_labels[i]);
                 _pills[i].Visibility = Visibility.Collapsed;
                 _canvas.Children.Add(_pills[i]);
+            }
+
+            for (var i = 0; i < LabelCount; i++)
+            {
+                _seatTexts[i] = new TextBlock { FontSize = theme.FontSizeSmall };
+                _seatPills[i] = new Border().Fill(new Vector4(0.05f, 0.06f, 0.09f, 0.8f)).Rounded(6.0f).PaddingOf(7.0f, 2.0f).Content(_seatTexts[i]);
+                _seatPills[i].Visibility = Visibility.Collapsed;
+                _canvas.Children.Add(_seatPills[i]);
+            }
+        }
+
+        /// <summary>Sets (or with a null spot, hides) a seat's cursor label.</summary>
+        public void SetLabel(int seat, Vector3? world, string text, Vector4 color)
+        {
+            if (seat >= 0 && seat < LabelCount)
+            {
+                _seatLabels[seat] = (world, text, color);
             }
         }
 
@@ -81,6 +104,25 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 pill.Opacity = age < 0.66f ? 1.0f : 1.0f - (age - 0.66f) / 0.34f;
                 pill.Visibility = Visibility.Visible;
                 pill.At(x - pill.DesiredSize.X * 0.5f, y - pill.DesiredSize.Y * 0.5f);
+            }
+
+            for (var i = 0; i < LabelCount; i++)
+            {
+                var (at, text, color) = _seatLabels[i];
+                var pill = _seatPills[i];
+                var clip = at is { } spot ? Vector4.Transform(new Vector4(spot + new Vector3(0, 2.4f, 0), 1.0f), viewProjection) : Vector4.Zero;
+                if (at == null || string.IsNullOrEmpty(text) || clip.W <= 0.0f || size.X <= 0.0f)
+                {
+                    pill.Visibility = Visibility.Collapsed;
+                    continue;
+                }
+
+                _seatTexts[i].Text = text;
+                _seatTexts[i].Foreground = color;
+                pill.Visibility = Visibility.Visible;
+                var x = (clip.X / clip.W * 0.5f + 0.5f) * size.X;
+                var y = (0.5f - clip.Y / clip.W * 0.5f) * size.Y;
+                pill.At(x - pill.DesiredSize.X * 0.5f, y - pill.DesiredSize.Y);
             }
 
             _canvas.InvalidateArrange();

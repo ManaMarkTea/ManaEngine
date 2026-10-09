@@ -68,8 +68,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
 
         private TywGame? _game;
         private ManaMeshSceneNode? _hover;
-        private ManaMeshSceneNode? _preview;
-        private string _previewKey = "";
+        // Per seat: each player's route preview and cursor (the mouse player is seat 0, pads take the others).
+        private readonly Dictionary<int, (ManaSceneNode? Node, string Key)> _previews = new();
+        private readonly Dictionary<int, (ManaMeshSceneNode Ring, ManaMeshSceneNode Pin)> _cursors = new();
         private float _clock;
 
         public TywBoardView(ManaContext context, ManaScene scene)
@@ -232,8 +233,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                 };
                 _hover.MeshRenderer.IsVisible = false;
                 Add(_hover);
-                _preview = null;
-                _previewKey = "";
+                _previews.Clear();
+                _cursors.Clear();
             }
         }
 
@@ -1091,25 +1092,19 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
             }
         }
 
-        /// <summary>The route new track would take, drawn as a bright line; rebuilt only when it changes.</summary>
-        public void ShowPlan(IReadOnlyList<TywHex>? path, Vector4 color)
+        /// <summary>The route new track would take for a seat, drawn as a bright line; rebuilt only when it changes.</summary>
+        public void ShowPlan(int seat, IReadOnlyList<TywHex>? path, Vector4 color)
         {
             var key = path == null ? "" : string.Join(";", path) + color;
-            if (key == _previewKey)
+            if (_previews.TryGetValue(seat, out var current) && current.Key == key)
             {
                 return;
             }
 
-            _previewKey = key;
             lock (_context.World.SceneLock)
             {
-                if (_preview != null)
-                {
-                    _scene.Children.Remove(_preview);
-                    _owned.Remove(_preview);
-                    _preview = null;
-                }
-
+                Remove(current.Node);
+                _previews[seat] = (null, key);
                 if (path == null || path.Count < 2 || _game == null)
                 {
                     return;
@@ -1123,7 +1118,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     points.Add(TywGeometry.PathPoint(path, s, Terminal) + new Vector3(0, 0.25f, 0));
                 }
 
-                _preview = new ManaMeshSceneNode(_context, new TywMesh(_context, b =>
+                var node = new ManaMeshSceneNode(_context, new TywMesh(_context, b =>
                 {
                     for (var i = 0; i + 1 < points.Count; i++)
                     {
@@ -1132,9 +1127,63 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     }
                 }, unlit: true))
                 {
-                    Name = "TYW Plan"
+                    Name = $"TYW Plan {seat}"
                 };
-                Add(_preview);
+                Add(node);
+                _previews[seat] = (node, key);
+            }
+        }
+
+        /// <summary>
+        /// A pad player's cursor: a ring in their colour on the hex it is over, and a pin standing on the exact point,
+        /// tall enough to find among eight. Null hides it (the player left).
+        /// </summary>
+        public void ShowCursor(int seat, Vector3? point, TywHex? hex, Vector4 color, float now)
+        {
+            if (!_cursors.TryGetValue(seat, out var cursor))
+            {
+                if (point == null)
+                {
+                    return;
+                }
+
+                lock (_context.World.SceneLock)
+                {
+                    var ring = new ManaMeshSceneNode(_context, new TywMesh(_context,
+                        b => b.HexRing(Vector3.Zero, TywGeometry.HexRadius - 0.1f, 0.2f, 0.0f, color), unlit: true))
+                    {
+                        Name = $"TYW Cursor Ring {seat}"
+                    };
+                    var dark = color * new Vector4(0.45f, 0.45f, 0.45f, 1.0f);
+                    var pin = new ManaMeshSceneNode(_context, new TywMesh(_context, b =>
+                    {
+                        b.Box(new Vector3(0, 0.8f, 0), Vector3.UnitX, new Vector3(0.07f, 1.6f, 0.07f), dark);
+                        b.Box(new Vector3(0, 1.75f, 0), Vector3.UnitX, new Vector3(0.42f, 0.42f, 0.42f), color);
+                        b.Box(new Vector3(0, 0.03f, 0), Vector3.UnitX, new Vector3(0.36f, 0.04f, 0.36f), color);
+                    }, unlit: true))
+                    {
+                        Name = $"TYW Cursor Pin {seat}"
+                    };
+                    Add(ring);
+                    Add(pin);
+                    cursor = (ring, pin);
+                    _cursors[seat] = cursor;
+                }
+            }
+
+            cursor.Ring.MeshRenderer.IsVisible = hex != null && point != null;
+            cursor.Pin.MeshRenderer.IsVisible = point != null;
+            if (hex is { } at)
+            {
+                cursor.Ring.LocalTransform = Matrix4x4.CreateTranslation(TywGeometry.Center(at) + new Vector3(0, 0.03f, 0));
+            }
+
+            if (point is { } p)
+            {
+                // A slow bob and spin, so a cursor left alone still catches the eye.
+                var bob = 0.12f * MathF.Sin(now * 3.0f + seat);
+                cursor.Pin.LocalTransform = Matrix4x4.CreateRotationY(now * 1.5f + seat) *
+                                            Matrix4x4.CreateTranslation(p with { Y = TywGeometry.TopY + bob });
             }
         }
     }

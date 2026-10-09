@@ -18,7 +18,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
     /// level), and the game's notices become popups and sounds.
     /// </para>
     /// </summary>
-    public sealed class TrainYardWarsMode : ManaLevelGameMode
+    public sealed partial class TrainYardWarsMode : ManaLevelGameMode
     {
         public const string ModeType = "TrainYardWars";
 
@@ -125,7 +125,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
         private bool _leftWasDown;
         private TywHex? _pressHex;
         private bool _dragged;
-        private (TywHex Hex, int Revision, TywTrackPlan? Plan)? _planCache;
+        private readonly Dictionary<int, (TywHex Hex, int Revision, TywTrackPlan? Plan)> _planCache = new();
         private TywHex? _lastSabotage;
         private bool _introduced;
         private bool _helpPinned;
@@ -269,7 +269,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
             _hud.Paused = false;
             _hud.Message = $"Map {_seed}: drag from your depot to lay track toward a forest";
             _hud.MessageUntil = 8.0f;
-            _planCache = null;
+            _planCache.Clear();
+            ResetSeats();
             _popups?.Clear();
             _view?.Show(_game);
             (_mapCenter, _mapHalf) = TywBoardView.Extent(_game.Board);
@@ -303,6 +304,7 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
             }
 
             HandleMouse(game);
+            HandlePads(game, dt);
 
             if (!_hud.Paused)
             {
@@ -579,15 +581,15 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
         }
 
         // Planning is a search over the whole board; once per hex and board change is plenty.
-        private TywTrackPlan? PlanFor(TywGame game, TywHex hex)
+        private TywTrackPlan? PlanFor(TywGame game, int seat, TywHex hex)
         {
-            if (_planCache is { } cached && cached.Hex == hex && cached.Revision == game.Revision)
+            if (_planCache.TryGetValue(seat, out var cached) && cached.Hex == hex && cached.Revision == game.Revision)
             {
                 return cached.Plan;
             }
 
-            var plan = game.PlanTrack(HumanSeat, hex);
-            _planCache = (hex, game.Revision, plan);
+            var plan = game.PlanTrack(seat, hex);
+            _planCache[seat] = (hex, game.Revision, plan);
             return plan;
         }
 
@@ -616,19 +618,19 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
             TywTrackPlan? plan = null;
             if (hex is { } target && !_torchTool && (_dragged || action?.Kind == TywActionKind.Track))
             {
-                plan = PlanFor(game, target);
+                plan = PlanFor(game, HumanSeat, target);
             }
 
             if (plan != null && plan.NewLinks.Count > 0)
             {
                 var affordable = player.CanAfford(plan.Cost);
-                view.ShowPlan(plan.Path, affordable ? Vector4.Lerp(color, Vector4.One, 0.35f) : new Vector4(1.0f, 0.25f, 0.2f, 1.0f));
+                view.ShowPlan(HumanSeat, plan.Path, affordable ? Vector4.Lerp(color, Vector4.One, 0.35f) : new Vector4(1.0f, 0.25f, 0.2f, 1.0f));
                 _hud.Hint = $"Track: {plan.NewLinks.Count} {(plan.NewLinks.Count == 1 ? "hex" : "hexes")} for {TywCosts.Format(plan.Cost)}" +
                             (affordable ? "" : "  (not enough -- lays what you can pay for)");
             }
             else
             {
-                view.ShowPlan(null, color);
+                view.ShowPlan(HumanSeat, null, color);
                 _hud.Hint = hex is { } here ? Describe(game, here, action) : "";
             }
 
@@ -856,6 +858,34 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars
                         ManaLog.WriteDiagnostic($"Command file: tyw {p.Name} {game.VictoryPoints(p.Index)} prestige ({game.VictoryBreakdown(p.Index)}), " +
                                                 $"{game.ClaimedHexes(p.Index)} hexes, {game.TrainCount(p.Index)} trains, time {game.Time:0}");
                     }
+                }
+            });
+
+            // A stand-in gamepad: frames = which pad (1, 2...), position = [stick x, stick y] (y down is +), name = the
+            // buttons held, comma-separated ("A", "Start,X"). It stays as set until the next tyw_pad for that pad.
+            runner.Register("tyw_pad", command =>
+            {
+                var state = new PadState
+                {
+                    Stick = command.Position is { Length: >= 2 } stick ? new Vector2(stick[0], stick[1]) : Vector2.Zero
+                };
+                foreach (var name in (command.Name ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (Enum.TryParse<ButtonName>(name, true, out var button))
+                    {
+                        state.Down.Add(button);
+                    }
+                }
+
+                _scriptPads[Math.Max(1, command.Frames)] = state;
+            });
+            runner.Register("tyw_seats_log", _ =>
+            {
+                foreach (var seat in _padSeats)
+                {
+                    var hex = TywHex.FromWorld(new Vector2(seat.Cursor.X, seat.Cursor.Z), TywGeometry.HexRadius);
+                    ManaLog.WriteDiagnostic($"Command file: tyw seat {seat.Seat} ({seat.Name}) cursor {hex}, torch {seat.TorchTool}, " +
+                                            $"hexes {_game?.ClaimedHexes(seat.Seat)}, trains {_game?.TrainCount(seat.Seat)}, bot {_game?.Players[seat.Seat].IsBot}");
                 }
             });
 

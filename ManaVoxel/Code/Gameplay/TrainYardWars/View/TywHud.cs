@@ -14,6 +14,9 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         public float Speed { get; set; } = 1.0f;
         public bool Autoplay { get; set; }
 
+        /// <summary>Seats taken on a gamepad and what to call them ("pad 1"); the rest are bots, bar the mouse player.</summary>
+        public Dictionary<int, string> SeatLabels { get; } = new();
+
         /// <summary>The controls line: shown for the opening, then on H, so it does not sit over the board all match.</summary>
         public bool ShowControls { get; set; } = true;
     }
@@ -106,7 +109,12 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     }
 
                     var player = game.Players[p];
-                    return p != humanSeat ? player.Name : state.Autoplay ? $"{player.Name} (bot)" : $"{player.Name} (you)";
+                    if (p == humanSeat)
+                    {
+                        return state.Autoplay ? $"{player.Name} (bot)" : $"{player.Name} (you)";
+                    }
+
+                    return state.SeatLabels.TryGetValue(p, out var seat) ? $"{player.Name} ({seat})" : player.Name;
                 }).Width(86.0f));
                 for (var r = 0; r < 4; r++)
                 {
@@ -227,7 +235,8 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
         {
             var text = new TextBlock()
                 .Text("Click or drag: lay track    Click your hex: build or repair    Click a rival's track: sabotage    T: buy train    1 / 2: build / torch    " +
-                      "Wheel / right-drag / WASD: camera    Home: whole map    L: evening / night / noon    Space: pause    F: speed    B: autoplay    R: replay    N: new map    H: hide this    Esc: pause / quit")
+                      "Wheel / right-drag / WASD: camera    Home: whole map    L: evening / night / noon    Space: pause    F: speed    B: autoplay    R: replay    N: new map    H: hide this    Esc: pause / quit\n" +
+                      "Gamepads: A or Start to join    stick / D-pad: cursor    A: build    X: train    Y: torch tool    B: build tool    Start: pause    Back: leave")
                 .FontSize(theme.FontSizeSmall)
                 .Foreground(Muted);
             var box = Box(text).CenterH().Bottom().Margin(0, 0, 0, 14.0f);
