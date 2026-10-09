@@ -82,6 +82,10 @@ and a stack trace in a console nobody had open.
 
 ## Controls
 
+Phones show a movement stick, a drag-to-look pad, and Jump, Run, Camera, and Menu buttons.
+Movement, looking, and actions support separate fingers at the same time. Pausing, rotating,
+or backgrounding the page releases held controls. FPS appears at the upper left during play.
+
 | Input | Action |
 |---|---|
 | `W` `A` `S` `D` / arrows | Move |

@@ -5,7 +5,8 @@
 //   node Tools/WebAssets/webdrive.mjs Artifacts/WebDrive '[{"go":"http://127.0.0.1:8123/"},{"shot":"selector"}]'
 //
 // Steps: {go: url}, {wait: ms}, {waitFor: "console text", timeout: ms}, {shot: name}, {press: "KeyW", key: "w", hold: ms},
-// {down: code}, {up: code}, {eval: "javascript"}.
+// {down: code}, {up: code}, {eval: "javascript"}, {viewport: {width, height, deviceScaleFactor, mobile}},
+// {touch: {type: "touchStart" | "touchMove" | "touchEnd", touchPoints: [{x, y, id}]}}.
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -57,7 +58,12 @@ const key = async (code, keyName, type) => send('Input.dispatchKeyEvent', {
 });
 
 for (const step of steps) {
-    if (step.go) {
+    if (step.viewport) {
+        await send('Emulation.setDeviceMetricsOverride', step.viewport);
+        await send('Emulation.setTouchEmulationEnabled', { enabled: Boolean(step.viewport.mobile), maxTouchPoints: 5 });
+    } else if (step.touch) {
+        await send('Input.dispatchTouchEvent', step.touch);
+    } else if (step.go) {
         note('go: ' + step.go);
         await send('Page.navigate', { url: step.go });
     } else if (step.wait) {

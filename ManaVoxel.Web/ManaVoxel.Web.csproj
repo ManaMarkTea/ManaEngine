@@ -112,6 +112,7 @@
 
   <ItemGroup>
     <WasmExtraFilesToDeploy Include="index.html" />
+    <WasmExtraFilesToDeploy Include="touch-controls.js" />
     <WasmExtraFilesToDeploy Include="..\ManaGraphics\Native\mana_interop.js" Link="mana_interop.js" />
   </ItemGroup>
 

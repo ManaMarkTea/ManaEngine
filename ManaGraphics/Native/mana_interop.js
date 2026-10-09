@@ -289,6 +289,8 @@ export function installInput() {
 }
 
 export function requestPointerLock() {
+    // Touch look supplies deltas directly; mobile browsers do not need pointer lock.
+    if (mobileRendering) return;
     if (canvas && document.pointerLockElement !== canvas) {
         canvas.requestPointerLock();
     }

@@ -1,4 +1,5 @@
 import { dotnet } from './_framework/dotnet.js'
+import { installTouchControls } from './touch-controls.js';
 
 // --- Download progress ---------------------------------------------------
 // The overlay in index.html is already on screen by the time this module runs; what it has no
@@ -157,18 +158,21 @@ function installPauseMenu(game, graphics) {
     const menu = document.getElementById('manaMenu');
     const hint = document.getElementById('manaHint');
     let ready = false;
+    const touchReady = installTouchControls(graphics, () => setOpen(true));
 
     // Playable once the loading screen has gone; before that there is nothing to pause.
     const hide = globalThis.ManaLoading.hide;
     globalThis.ManaLoading.hide = function () {
         hide();
         ready = true;
+        touchReady();
         hint.classList.add('mana-shown');
         setTimeout(() => hint.classList.remove('mana-shown'), 5000);
     };
 
     const setOpen = open => {
         globalThis.ManaMenuOpen = open;
+        document.dispatchEvent(new Event('mana-pause'));
         menu.classList.toggle('mana-open', open);
         game.SetPaused(open);
         if (open) {
