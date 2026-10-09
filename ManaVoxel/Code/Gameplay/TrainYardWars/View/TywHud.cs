@@ -139,8 +139,24 @@ namespace ManaVoxel.Code.Gameplay.TrainYardWars.View
                     var game = state.Game;
                     return game == null || p >= game.Players.Count ? "" : game.VictoryPoints(p).ToString();
                 }, 2.0f, new Vector4(1.0f, 0.92f, 0.6f, 1.0f)).Width(40.0f));
+                // How near the target each player is, in their colour: the race at a glance from the sofa.
+                const float BarWidth = 380.0f;
+                // Never zero: a zero width reads as "no width set", and the bar would stretch the whole scoreboard.
+                var fill = new Border().Fill(TywBoardView.PlayerColors[p]).Rounded(2.0f).Height(3.0f).Left().Width(1.0f);
+                fill.BindPolled(el => el.Width, () =>
+                {
+                    var game = state.Game;
+                    return game == null || p >= game.Players.Count
+                        ? 1.0f
+                        : MathF.Max(1.0f, BarWidth * Math.Clamp(game.VictoryPoints(p) / (float)Math.Max(1, game.VictoryTarget), 0.0f, 1.0f));
+                });
+                var bar = new Grid().Left().Width(BarWidth).Children(
+                    new Border().Fill(new Vector4(1.0f, 1.0f, 1.0f, 0.08f)).Rounded(2.0f).Height(3.0f).Width(BarWidth).Left(),
+                    fill);
+                var stack = new StackPanel().Vertical(2.0f).Children(row, bar.Margin(22.0f, 0.0f, 0.0f, 0.0f));
+
                 // Your own row stands out, so a glance finds your stock among eight.
-                var line = new Border().Rounded(5.0f).PaddingOf(4.0f, 2.0f).Content(row)
+                var line = new Border().Rounded(5.0f).PaddingOf(4.0f, 2.0f).Content(stack)
                     .Fill(p == humanSeat ? new Vector4(1.0f, 1.0f, 1.0f, 0.10f) : new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
                 line.BindPolled(el => el.Visibility, () =>
                     state.Game != null && p < state.Game.Players.Count ? Visibility.Visible : Visibility.Collapsed);
