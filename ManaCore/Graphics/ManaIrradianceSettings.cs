@@ -60,13 +60,13 @@ namespace ManaCore.Graphics
         public bool ShowAllConstellations { get; set; }
 
         /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
-        public float WindSpeed { get; set; } = ManaWind.ReferenceSpeed;
+        public float WindSpeed { get; set; } = 2.5f;
 
         /// <summary>Where the wind blows toward, in degrees clockwise from -Z (north, seen from above).</summary>
         public float WindDirection { get; set; } = 60.0f;
 
         /// <summary>0 holds the breeze steady; 1 lulls and gusts to about twice it.</summary>
-        public float Gustiness { get; set; } = 0.5f;
+        public float Gustiness { get; set; } = 0.35f;
 
         // When ManaSky.Tick last moved the clock on, so each frame advances it by the time since.
         internal double LastTickSeconds = -1.0;

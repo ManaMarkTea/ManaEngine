@@ -35,12 +35,13 @@ namespace ManaCore.Graphics
 
         /// <summary>
         /// How much of a gust is blowing at a moment, 0..1: three slow swells at unrelated rates, so their sum peaks
-        /// every half minute or so but never on a beat you can hear.
+        /// now and then but never on a beat you can hear.
         /// </summary>
         public static float GustAt(double seconds)
         {
             var raw = 0.5 + 0.25 * Math.Sin(seconds * 0.37) + 0.15 * Math.Sin(seconds * 0.83 + 1.7) + 0.1 * Math.Sin(seconds * 2.1 + 4.1);
-            var x = Math.Clamp((raw - 0.55) / 0.4, 0.0, 1.0);
+            // Starts well above the swells' average, so most of the time is breeze and a gust is an event.
+            var x = Math.Clamp((raw - 0.65) / 0.3, 0.0, 1.0);
             return (float)(x * x * (3.0 - 2.0 * x));
         }
 

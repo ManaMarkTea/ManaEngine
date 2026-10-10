@@ -80,7 +80,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `move_camera` | `position`, `target`, `frames`, `background` | Puts the editor camera somewhere, facing a point; with `frames`, glides there eased (`background` lets the script go on meanwhile) |
 | `select_node` | `name` | Selects a node by name (brings up its Inspector and gizmo), or a scene by name (its level settings and game modes) |
 | `screenshot` | `path`, `clean` | Writes the next frame to a PNG (WebGPU only); `clean` leaves out every panel and the HUD -- the scene across the whole window |
-| `wind` | `position` (speed m/s, direction degrees, gustiness) | Sets the world wind (`ManaWind`): 0 is a glassy pond, 4 the default breeze, 12+ chop |
+| `wind` | `position` (speed m/s, direction degrees, gustiness) | Sets the world wind (`ManaWind`): 0 is a glassy pond, 2.5 the default breeze, 4 a fresh one, 12+ chop |
 | `gizmos` | `visible` | Editor helpers (axes, markers) on or off -- off for pictures |
 | `record` / `stop_record` | `path` (folder), `frames` (fps, 30), `clean`, `visible` | Saves every frame as `<path>/00000.jpg..` at a fixed step (1/fps a frame, so a slow save never speeds the game up); `record` with no path changes `clean`, and `visible: false` holds capture without ending the take. `Tools/Automation/sizzle.py` joins the takes of `Content/Scripts/Sizzle Reel.json` into an MP4 |
 | `play` / `stop_play` | | Enters and leaves play mode (F5) |
