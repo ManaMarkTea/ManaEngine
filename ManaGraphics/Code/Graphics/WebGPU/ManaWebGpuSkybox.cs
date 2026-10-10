@@ -32,6 +32,10 @@ namespace ManaGraphics.Code.Graphics
         private Texture* _moonTexture;
         private TextureView* _moonView;
 
+        // The star catalogue (ManaConstellationTable), read by the night sky: one buffer, written once.
+        private WebGpuBuffer* _constellationBuffer;
+        private ulong _constellationSize;
+
         private BindGroupLayout* _bindGroupLayout;
         private PipelineLayout* _pipelineLayout;
         private RenderPipeline* _pipeline;
@@ -179,7 +183,7 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var entries = stackalloc BindGroupLayoutEntry[4];
+            var entries = stackalloc BindGroupLayoutEntry[5];
             entries[0] = new BindGroupLayoutEntry
             {
                 Binding = 0,
@@ -219,7 +223,14 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 4, Entries = entries };
+            entries[4] = new BindGroupLayoutEntry
+            {
+                Binding = 4,
+                Visibility = ShaderStage.Fragment,
+                Buffer = new BufferBindingLayout { Type = BufferBindingType.ReadOnlyStorage }
+            };
+
+            var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 5, Entries = entries };
             _bindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
             if (_bindGroupLayout == null)
             {
@@ -241,6 +252,7 @@ namespace ManaGraphics.Code.Graphics
 
             _shaderModule = CreateShaderModule(_shaderPath);
             CreateMoonTexture();
+            CreateConstellationBuffer();
 
             var uniformDescriptor = new BufferDescriptor
             {
@@ -359,7 +371,7 @@ namespace ManaGraphics.Code.Graphics
                 _bindGroups[slot] = 0;
             }
 
-            var entries = stackalloc BindGroupEntry[4];
+            var entries = stackalloc BindGroupEntry[5];
             entries[0] = new BindGroupEntry
             {
                 Binding = 0,
@@ -370,11 +382,12 @@ namespace ManaGraphics.Code.Graphics
             entries[1] = new BindGroupEntry { Binding = 1, Sampler = clampSampler };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = environmentView };
             entries[3] = new BindGroupEntry { Binding = 3, TextureView = _moonView };
+            entries[4] = new BindGroupEntry { Binding = 4, Buffer = _constellationBuffer, Size = _constellationSize };
 
             var descriptor = new BindGroupDescriptor
             {
                 Layout = _bindGroupLayout,
-                EntryCount = 4,
+                EntryCount = 5,
                 Entries = entries
             };
 
@@ -475,6 +488,23 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
+        private void CreateConstellationBuffer()
+        {
+            var bytes = ManaConstellationTable.Bytes();
+            _constellationSize = (ulong)bytes.Length;
+            var descriptor = new BufferDescriptor { Size = _constellationSize, Usage = BufferUsage.Storage | BufferUsage.CopyDst };
+            _constellationBuffer = _api.DeviceCreateBuffer(_device, &descriptor);
+            if (_constellationBuffer == null)
+            {
+                throw new InvalidOperationException("Failed to create the WebGPU skybox star buffer.");
+            }
+
+            fixed (byte* data = bytes)
+            {
+                _api.QueueWriteBuffer(_queue, _constellationBuffer, 0, data, (nuint)bytes.Length);
+            }
+        }
+
         public void Dispose()
         {
             for (var slot = 0; slot < _slots; slot++)
@@ -510,6 +540,12 @@ namespace ManaGraphics.Code.Graphics
             {
                 _api.TextureRelease(_moonTexture);
                 _moonTexture = null;
+            }
+
+            if (_constellationBuffer != null)
+            {
+                _api.BufferRelease(_constellationBuffer);
+                _constellationBuffer = null;
             }
 
             if (_pipelineLayout != null)

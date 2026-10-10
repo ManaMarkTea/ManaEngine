@@ -52,6 +52,7 @@ struct SkyboxUniform {
 @group(0) @binding(2) var sky_texture : texture_cube<f32>;
 // The moon's map, equirectangular with the near side at the centre: NASA's CGI Moon Kit (LRO colour, public domain).
 @group(0) @binding(3) var moon_texture : texture_2d<f32>;
+@group(0) @binding(4) var<storage, read> constellations : ConstellationTable;
 
 // The moon's angular radius, as the cosine of it -- about 1.5 degrees, larger than life so it reads on screen.
 const MoonCosRadius : f32 = 0.99965;
@@ -306,13 +307,9 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
     }
     let equatorial = to_equatorial(direction);
 
-    // The tables are consts, copied into locals here (a const cannot be indexed by a variable): as module-level
-    // privates they were rebuilt for every pixel of every frame, whether or not it showed a star.
-    var star_table = STAR_DIRECTIONS;
-    var warmth_table = STAR_WARMTH;
     var total = vec3<f32>(0.0);
     for (var i = 0u; i < STAR_COUNT; i = i + 1u) {
-        let star = star_table[i];
+        let star = constellations.stars[i];
         // Squared angle between them; stars further than about 0.6 degrees add nothing.
         let angle_squared = 2.0 * (1.0 - dot(equatorial, star.xyz));
         if (angle_squared > 0.0002) {
@@ -321,7 +318,7 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
         let magnitude = star.w;
         let sigma = 0.0013 * (1.0 + 0.3 * clamp(2.5 - magnitude, 0.0, 3.0));
         let brightness = 2.4 * pow(0.55, magnitude);
-        let warmth = warmth_table[i];
+        let warmth = constellations.warmth[i / 4u][i % 4u];
         let colour = mix(mix(vec3<f32>(0.7, 0.8, 1.0), vec3<f32>(1.0, 0.95, 0.88), clamp(warmth * 2.0, 0.0, 1.0)), vec3<f32>(1.0, 0.55, 0.35), clamp(warmth * 2.0 - 1.0, 0.0, 1.0));
         total = total + colour * brightness * exp(-angle_squared / (2.0 * sigma * sigma));
     }
@@ -332,18 +329,16 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
         let view_ray = sky.inverse_direction_view_projection * vec4<f32>(0.0, 0.0, 1.0, 1.0);
         let view_centre = to_equatorial(normalize(view_ray.xyz / view_ray.w));
         var line = 0.0;
-        var segment_table = SEGMENTS;
-        var centre_table = FIGURE_CENTRES;
         for (var i = 0u; i < SEGMENT_COUNT; i = i + 1u) {
-            let pair = segment_table[i];
-            let gaze = dot(view_centre, centre_table[pair.z].xyz);
+            let pair = constellations.segments[i];
+            let gaze = dot(view_centre, constellations.centres[pair.z].xyz);
             // Full within about 20 degrees of the figure's middle, gone past about 45.
             let shown = select(smoothstep(0.707, 0.94, gaze), 1.0, lines > 1.5);
             if (shown <= 0.0) {
                 continue;
             }
-            let a = star_table[pair.x].xyz;
-            let b = star_table[pair.y].xyz;
+            let a = constellations.stars[pair.x].xyz;
+            let b = constellations.stars[pair.y].xyz;
             let normal = normalize(cross(a, b));
             // Between the two ends, and within a pixel or so of the great circle joining them.
             let side_a = dot(cross(a, equatorial), normal);
