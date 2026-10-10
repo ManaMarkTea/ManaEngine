@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: write
   contents: read
   pages: write
   id-token: write
@@ -83,10 +84,18 @@ jobs:
         # itch.io caps a browser build's extracted size at 500MB and the asset library alone is past
         # that, so it is served from GitHub Pages and the app's catalog points there. Both apps split
         # into the same folder once merged: files are content-hashed, so a shared name is identical bytes.
+        #
+        # The library is byte-identical in both builds, so only the editor job uploads it; the play job
+        # splits into a scratch folder that is never uploaded (about 500MB less storage per run).
         run: |
+          if [ "${{ matrix.app }}" = "editor" ]; then
+            library_out=stage/web-assets/AssetLibrary
+          else
+            library_out="$RUNNER_TEMP/unused-library"
+          fi
           python Tools/WebAssets/split_for_itch.py \
             --app-bundle "$APP_BUNDLE" \
-            --library-out stage/web-assets/AssetLibrary \
+            --library-out "$library_out" \
             --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
           mkdir -p stage/apps
           mv "$APP_BUNDLE" "stage/apps/${{ matrix.app }}"
@@ -157,3 +166,15 @@ jobs:
           itchUsername: manamarktea
           itchGameId: mana-editor
           buildChannel: web
+
+      - name: Delete the stage artifacts
+        # They only hand the builds to this job; left to expire they count against the Actions storage quota.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name | startswith("stage-")) | .id' |
+          while read -r id; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" || true
+          done
