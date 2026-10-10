@@ -2,6 +2,11 @@
   "format": "mana-level",
   "version": 2,
   "name": "Prefab Lamps",
+  "web": {
+    "publish": true,
+    "description": "Lamps placed from one prefab, a red one among them.",
+    "order": 7
+  },
   "camera": {
     "position": [40, 3.2, 50],
     "rotation": [-0.25, 0, 0]

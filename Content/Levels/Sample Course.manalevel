@@ -2,6 +2,11 @@
   "format": "mana-level",
   "version": 1,
   "name": "Sample Course",
+  "web": {
+    "publish": true,
+    "description": "The obstacle course: coins, springs, hazards, enemies and moving platforms.",
+    "order": 1
+  },
   "camera": {
     "position": [50.056774, 11.60346, 55.99221],
     "rotation": [-0.69680053, -0.18880221, 0]

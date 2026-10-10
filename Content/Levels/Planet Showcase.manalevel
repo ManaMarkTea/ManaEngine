@@ -2,6 +2,9 @@
   "format": "mana-level",
   "version": 1,
   "name": "Planet Showcase",
+  "web": {
+    "publish": false
+  },
   "camera": {
     "position": [32, 52, 144],
     "rotation": [-0.08, 0, 0]

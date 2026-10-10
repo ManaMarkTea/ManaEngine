@@ -49,6 +49,12 @@ namespace Mana.Code.GameModes
         /// </summary>
         public virtual bool HandlesExitKeys => false;
 
+        /// <summary>
+        /// Assets the mode loads by itself rather than through the level's nodes (models, pictures, sounds), by
+        /// reference. Hosts that must fetch ahead -- the web build -- download these before play.
+        /// </summary>
+        public virtual IEnumerable<string> Assets => Array.Empty<string>();
+
         /// <summary>Play has started: build what the match needs. Everything added must go again in <see cref="EndPlay"/>.</summary>
         public virtual void BeginPlay(ManaPlaySession session)
         {

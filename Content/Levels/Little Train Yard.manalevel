@@ -2,6 +2,11 @@
   "format": "mana-level",
   "version": 1,
   "name": "Little Train Yard",
+  "web": {
+    "publish": true,
+    "description": "Trains on a loop around a small yard.",
+    "order": 5
+  },
   "camera": {
     "position": [58.899593, 4.8226156, 95.480164],
     "rotation": [-0.4583995, -0.37759978, 0]

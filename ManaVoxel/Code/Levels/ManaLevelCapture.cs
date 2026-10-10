@@ -38,6 +38,7 @@ namespace ManaVoxel.Code.Levels
                 {
                     CaptureSceneNodes(scene, level.Nodes);
                     level.Sky ??= scene.AuthoredSky as ManaLevelSky;
+                    level.Web ??= ManaLevelWeb.From(scene.Publishing);
                     CaptureGameModes(scene, level);
                 }
 
@@ -69,6 +70,7 @@ namespace ManaVoxel.Code.Levels
             {
                 CaptureSceneNodes(scene, level.Nodes);
                 level.Sky = scene.AuthoredSky as ManaLevelSky;
+                level.Web = ManaLevelWeb.From(scene.Publishing);
                 CaptureGameModes(scene, level);
                 if (includeCamera)
                 {

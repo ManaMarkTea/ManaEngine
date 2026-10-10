@@ -17,6 +17,10 @@ namespace ManaVoxel.Web
             BrowserPlayGameMode.Paused = paused;
         }
 
+        /// <summary>True when the level's game mode handles Escape itself, so the page should not open its menu.</summary>
+        [JSExport]
+        internal static bool ModeHandlesEscape() => BrowserPlayGameMode.Current?.ModeHandlesEscape == true;
+
         [JSExport]
         internal static void Restart()
         {

@@ -2,6 +2,11 @@
   "format": "mana-level",
   "version": 1,
   "name": "Flight Helmet",
+  "web": {
+    "publish": true,
+    "description": "The Khronos flight helmet, up close.",
+    "order": 10
+  },
   "camera": {
     "position": [32, 4.5, 44],
     "rotation": [-0.12, 0, 0]

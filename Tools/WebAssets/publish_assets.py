@@ -144,51 +144,30 @@ def attach_thumbnails(root, library, files, models):
     print(f"Thumbnails: {attached} pre-built, {stale} without one (run Tools/WebAssets/bake_thumbnails.py).")
 
 
-# Levels the browser cannot play yet, and why -- left off the selector rather than shown and failing.
-UNPLAYABLE_LEVELS = {
-    "Planet Showcase": "streams elevation data the web build does not ship",
-    "Train Yard Wars": "its game mode is not run by the browser host yet",
-    "Train Yard Wars Duel": "its game mode is not run by the browser host yet",
-}
-
-# A line under each level's name on its card.
-LEVEL_DESCRIPTIONS = {
-    "Sample Course": "The obstacle course: coins, springs, hazards, enemies and moving platforms.",
-    "2D Sample": "A side-on run through five biomes -- grass, desert, snow, mushrooms and a castle.",
-    "Little Train Yard": "Trains on a loop around a small yard.",
-    "Little Pond": "A quiet pond with water to wade into.",
-    "Prefab Lamps": "Lamps placed from one prefab, a red one among them.",
-    "Voxel Showcase": "Characters and props built from voxels.",
-    "PBR Gallery": "Materials side by side under the same light.",
-    "Flight Helmet": "The Khronos flight helmet, up close.",
-}
-
-# The order the selector shows them in: the ones made to be played first, then the showcases.
-LEVEL_ORDER = ["Sample Course", "2D Sample", "Little Train Yard", "Little Pond", "Prefab Lamps", "Voxel Showcase", "PBR Gallery", "Flight Helmet"]
-
-
 def publish_levels(root, output):
     """levels.json: what the page's level selector lists -- each bundled level's name, file, picture and size.
-    A level's picture is Content/Levels/Pictures/<name>.jpg, copied beside the list."""
+    A level is listed when its own "web" block says publish (the scene's Publishing in the editor's Inspector), with
+    that block's description and order. Its picture is Content/Levels/Pictures/<name>.jpg, copied beside the list."""
     levels = []
     pictures = output / "level-pictures"
     pictures.mkdir(exist_ok=True)
     for source in sorted((root / "Content" / "Levels").rglob("*.manalevel")):
         document = json.loads(source.read_text(encoding="utf-8-sig"))
         name = document.get("name") or source.stem
-        # Content/Levels/Tests holds reference scenes for checking rendering, not levels to play.
-        if name in UNPLAYABLE_LEVELS or source.relative_to(root / "Content" / "Levels").parts[0] == "Tests":
+        web = document.get("web") or {}
+        if not web.get("publish"):
             continue
         def count(nodes):
             return sum(1 + count(node.get("children") or []) for node in nodes or [])
         entry = dict(name=name, file="Content/Levels/" + source.relative_to(root / "Content" / "Levels").as_posix(),
-                     description=LEVEL_DESCRIPTIONS.get(name, ""), nodes=count(document.get("nodes")))
+                     description=web.get("description") or "", nodes=count(document.get("nodes")),
+                     order=web.get("order", 100))
         picture = root / "Content" / "Levels" / "Pictures" / f"{name}.jpg"
         if picture.exists():
             shutil.copyfile(picture, pictures / picture.name)
             entry["picture"] = "level-pictures/" + picture.name
         levels.append(entry)
-    levels.sort(key=lambda level: (LEVEL_ORDER.index(level["name"]) if level["name"] in LEVEL_ORDER else len(LEVEL_ORDER), level["name"]))
+    levels.sort(key=lambda level: (level["order"], level["name"]))
     temporary = output / "levels.json.tmp"
     temporary.write_text(json.dumps(dict(levels=levels), indent=1), encoding="utf-8")
     temporary.replace(output / "levels.json")

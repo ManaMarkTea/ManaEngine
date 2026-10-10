@@ -2,6 +2,9 @@
   "format": "mana-level",
   "version": 2,
   "name": "GPU Particle Bounce",
+  "web": {
+    "publish": true
+  },
   "camera": {
     "position": [42.49184, 6.5039, 58.235664],
     "rotation": [-0.2991997, -0.40877595, 0]

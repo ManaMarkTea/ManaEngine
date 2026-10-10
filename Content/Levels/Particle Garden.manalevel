@@ -2,6 +2,9 @@
   "format": "mana-level",
   "version": 2,
   "name": "Particle Garden",
+  "web": {
+    "publish": true
+  },
   "camera": {
     "position": [
       47,

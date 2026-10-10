@@ -2,6 +2,11 @@
   "format": "mana-level",
   "version": 1,
   "name": "PBR Gallery",
+  "web": {
+    "publish": true,
+    "description": "Materials side by side under the same light.",
+    "order": 9
+  },
   "camera": {
     "position": [49, 8, 71],
     "rotation": [-0.16, 0, 0]

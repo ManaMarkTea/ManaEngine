@@ -29,6 +29,9 @@ namespace ManaVoxel.Code.Levels
 
         public string Name { get; set; } = "Untitled";
 
+        /// <summary>Publishing: whether the web build's level selector lists it, and how. Left out when unset.</summary>
+        public ManaLevelWeb? Web { get; set; }
+
         /// <summary>Where the editor camera was. Restored on load so a level opens looking at itself.</summary>
         public ManaLevelCamera? Camera { get; set; }
 
@@ -119,6 +122,30 @@ namespace ManaVoxel.Code.Levels
         }
 
         public static ManaLevel Load(string path) => FromJson(File.ReadAllText(path));
+    }
+
+    /// <summary>A level's publishing (ManaScenePublishing as saved): read by Tools/WebAssets/publish_assets.py.</summary>
+    public sealed class ManaLevelWeb
+    {
+        public bool Publish { get; set; }
+        public string? Description { get; set; }
+        public int? Order { get; set; }
+
+        public static ManaLevelWeb? From(Mana.ManaScenePublishing publishing) => publishing.IsDefault
+            ? null
+            : new ManaLevelWeb
+            {
+                Publish = publishing.PublishToWeb,
+                Description = publishing.Description.Length > 0 ? publishing.Description : null,
+                Order = publishing.Order != Mana.ManaScenePublishing.DefaultOrder ? publishing.Order : null
+            };
+
+        public Mana.ManaScenePublishing ToPublishing() => new()
+        {
+            PublishToWeb = Publish,
+            Description = Description ?? string.Empty,
+            Order = Order ?? Mana.ManaScenePublishing.DefaultOrder
+        };
     }
 
     /// <summary>The sky a level asks for when it opens; any field left out keeps the current setting.</summary>

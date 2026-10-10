@@ -5,10 +5,11 @@ bundled level, and a controllable character. No editor.
 
 ## Levels and the menu
 
-The page opens on a level selector: every level in `Content/Levels`, with a picture from
-`Content/Levels/Pictures/<name>.jpg` and a line from `LEVEL_DESCRIPTIONS` in
-`Tools/WebAssets/publish_assets.py`, which writes the list (`levels.json`) at publish time. Levels the
-browser cannot play yet are left off in `UNPLAYABLE_LEVELS` there. Picking one reloads the page with
+The page opens on a level selector: every level in `Content/Levels` whose own `web` block says
+`"publish": true` (the scene's Publishing section in the editor's Inspector), with its `description`, in its
+`order`, and a picture from `Content/Levels/Pictures/<name>.jpg`. `Tools/WebAssets/publish_assets.py` writes the
+list (`levels.json`) at publish time. A level's game modes run here as on desktop; one that builds its world in
+code names what to fetch ahead in `ManaLevelGameMode.Assets`, and one that handles Escape keeps the page's menu shut. Picking one reloads the page with
 `?level=Content/Levels/<file>`; only then does the engine download, and the level is the program's argument.
 
 Escape while playing opens the pause menu (Resume, Restart level, Choose another level); the game stops

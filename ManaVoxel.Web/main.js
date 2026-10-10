@@ -186,7 +186,8 @@ function installPauseMenu(game, graphics) {
 
     // Capture phase, so the game's own key handler never sees this Escape.
     window.addEventListener('keydown', event => {
-        if (event.code !== 'Escape' || !ready) {
+        // A game with a pause of its own (Train Yard Wars) gets Escape; its own menu has Quit.
+        if (event.code !== 'Escape' || !ready || (!globalThis.ManaMenuOpen && game.ModeHandlesEscape())) {
             return;
         }
         event.preventDefault();

@@ -2,6 +2,9 @@
   "format": "mana-level",
   "version": 2,
   "name": "GPU Particles",
+  "web": {
+    "publish": true
+  },
   "camera": {
     "position": [46.96527, 6.482023, 56.29299],
     "rotation": [-0.20639987, -0.2848003, 0]

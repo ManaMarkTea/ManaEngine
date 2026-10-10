@@ -127,6 +127,7 @@ namespace ManaVoxel.Code.Levels
                 scene.AuthoredSky = level.Sky;
             }
 
+            scene.Publishing = level.Web?.ToPublishing() ?? new ManaScenePublishing();
             scene.GameModes.Clear();
             foreach (var entry in level.GameModes ?? new())
             {
@@ -786,6 +787,16 @@ namespace ManaVoxel.Code.Levels
                 }
                 if (node.Children != null)
                     foreach (var child in node.Children) nodes.Enqueue(child);
+            }
+
+            // What the level's game modes build at play time, which no node names.
+            foreach (var entry in level.GameModes ?? new())
+            {
+                foreach (var asset in ManaLevelGameModes.Create(entry.Type)?.Assets ?? [])
+                {
+                    try { await catalog.EnsureAsync(asset); }
+                    catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload '{asset}' for game mode {entry.Type}: {ex.Message}"); }
+                }
             }
         }
 

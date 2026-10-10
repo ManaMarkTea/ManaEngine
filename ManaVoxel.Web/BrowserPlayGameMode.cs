@@ -1,4 +1,5 @@
 using Mana;
+using ManaUI;
 using Mana.Code.Nodes;
 using Mana.Code.UI.ManaUi;
 using ManaVoxel.Code.UI.ManaUi;
@@ -34,6 +35,13 @@ namespace ManaVoxel.Web
 
         private readonly string _levelPath;
         private readonly CharacterSpawnService _characterSpawn = new();
+        // The level's own game modes (its rules), run as standalone play runs them.
+        private readonly Mana.Code.GameModes.ManaGameModeRunner _gameModes = new();
+        private ManaSceneNode? _ground;
+        private bool _exitRequested;
+
+        /// <summary>A running mode takes Escape for itself (its own pause), so the page's menu leaves it alone.</summary>
+        public bool ModeHandlesEscape => _gameModes.HandlesExitKeys;
         private ManaPawnController? _pawnController;
         private ManaPawnNode? _player;
 
@@ -89,9 +97,17 @@ namespace ManaVoxel.Web
 
         protected override void BuildManaUi(ManaUiHost host)
         {
-            host.Root.Content = ManaUiPlayHud.Build(host.Root.Theme, () => _hudText, () => _player != null ? Context.World.GameState.FormatHud() : "",
+            var playHud = ManaUiPlayHud.Build(host.Root.Theme, () => _hudText, () => _player != null ? Context.World.GameState.FormatHud() : "",
                 ManaUiPlayResults.Build(host.Root.Theme, Context.World.GameState, Restart, BackToLevels, "Back to levels"),
                 ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
+
+            // The level's game modes draw their own HUDs over it, and may hide it (see ManaLevelGameMode.ShowsPlayHud).
+            _gameModes.UseTheme(host.Root.Theme);
+            playHud.BindPolled(el => el.Visibility, () => _gameModes.ShowsPlayHud ? Visibility.Visible : Visibility.Collapsed);
+            var layer = new Grid();
+            layer.Children.Add(playHud);
+            layer.Children.Add(_gameModes.HudLayer);
+            host.Root.Content = layer;
         }
 
         // The page's level selector is the same page without ?level=.
@@ -170,6 +186,8 @@ namespace ManaVoxel.Web
                         "Ground");
                 }
 
+                _ground = ground;
+
                 // Extended downward from the visual floor (Y=0 stays the walkable surface) and much
                 // thicker than a flush 0.1 units -- see VoxelEditorGameMode's matching comment for why a
                 // slab that thin lets a character landing at normal fall speed tunnel straight through
@@ -236,8 +254,11 @@ namespace ManaVoxel.Web
                 }
 
                 Context.World.BeginPlay();
-                Console.WriteLine("[BrowserPlay] Spawned a debug camera (the level has no Character game mode).");
-                _hudText = "Debug camera  --  WASD and Q/E fly, hold right mouse to look, Esc menu";
+                BeginModes(modes);
+                Console.WriteLine(modes.Count > 0
+                    ? $"[BrowserPlay] Running game modes: {string.Join(", ", modes.Select(mode => mode.Type))}."
+                    : "[BrowserPlay] Spawned a debug camera (the level has no Character game mode).");
+                _hudText = modes.Count > 0 ? "" : "Debug camera  --  WASD and Q/E fly, hold right mouse to look, Esc menu";
                 return;
             }
 
@@ -293,10 +314,32 @@ namespace ManaVoxel.Web
             _spawnYaw = start?.SpawnYawRadians ?? 0.0f;
             Context.World.GameState.Player = _player;
             Context.World.BeginPlay();
+            BeginModes(modes);
 
             Console.WriteLine($"[BrowserPlay] Spawned '{_player.Name}' at {spawnPosition}. WASD move, Shift run, Space jump, C camera.");
             _hudText = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to double jump), C camera, R restart, Esc menu";
 
+        }
+
+        private void BeginModes(List<Mana.Code.GameModes.ManaLevelGameMode> modes)
+        {
+            if (modes.Count == 0)
+            {
+                return;
+            }
+
+            // A mode that brings its own world has no use for the play floor (see ManaLevelGameMode.KeepsEditorFloor).
+            if (!modes.All(mode => mode.KeepsEditorFloor) && _ground != null)
+            {
+                foreach (var renderer in _ground.GetComponents<MeshRendererComponent>())
+                {
+                    renderer.IsVisible = false;
+                }
+            }
+
+            // A mode's Quit goes back to the level selector: there is no window to close.
+            _gameModes.Begin(modes, new Mana.Code.GameModes.ManaPlaySession(Context, () => UiWantsMouse, () => UiWantsKeyboard,
+                () => _exitRequested = true, standalone: true));
         }
 
         private bool _dismissedLoadingScreen;
@@ -324,6 +367,14 @@ namespace ManaVoxel.Web
 
         public override void Update(double deltaTime)
         {
+            _gameModes.Tick((float)deltaTime);
+            if (_exitRequested)
+            {
+                _exitRequested = false;
+                BackToLevels();
+                return;
+            }
+
             // UiWantsKeyboard, not a raw poll: when a text field has focus, WASD is typing, not walking.
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             // The clock, deaths and respawns, as the desktop play mode runs them.
@@ -339,7 +390,7 @@ namespace ManaVoxel.Web
             }
 
             var restartKeyDown = Context.Input?.Keyboards.FirstOrDefault()?.IsKeyPressed(Silk.NET.Input.Key.R) == true;
-            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard)
+            if (restartKeyDown && !_restartKeyWasDown && !UiWantsKeyboard && !_gameModes.HandlesExitKeys)
             {
                 Restart();
             }

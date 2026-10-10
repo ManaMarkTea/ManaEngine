@@ -27,6 +27,9 @@ namespace Mana
         /// <summary>The level's game modes (its rules), with their settings; saved with the level and run on Play.</summary>
         public List<Mana.Code.GameModes.ManaLevelGameMode> GameModes { get; } = new();
 
+        /// <summary>Where the level is published (the web build's level selector); saved with the level.</summary>
+        public ManaScenePublishing Publishing { get; set; } = new();
+
 
         public ManaScene(ManaContext context) : base(context)
         {

@@ -60,6 +60,8 @@
          ManaAudio builds its desktop OpenAL backend and the browser silently falls back to no audio. -->
     <ProjectReference Include="..\ManaAudio\ManaAudio.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <!-- The games in projects of their own (Games/), registered by ManaGames.cs below as on desktop. -->
+    <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,6 +76,7 @@
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMaterial.cs" Link="Levels\ManaLevelMaterial.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelLoader.cs" Link="Levels\ManaLevelLoader.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelGameModes.cs" Link="Levels\ManaLevelGameModes.cs" />
+    <Compile Include="..\ManaVoxel\Code\Levels\ManaGames.cs" Link="Levels\ManaGames.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMeshColliders.cs" Link="Levels\ManaLevelMeshColliders.cs" />
     <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
     <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />
