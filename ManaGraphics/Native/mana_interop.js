@@ -20,6 +20,11 @@ let fastWindows = 0;
 let warmupMs = 0;
 
 export function isMobileRendering() { return Boolean(mobileRendering); }
+// The sky shader: 0 simple gradients, 1 those plus the real star catalogue, 2 the full atmosphere. Phones start
+// simple; ?sky=simple|stars|full (or the page's Sky setting) picks one anywhere.
+const skyModes = { simple: 0, stars: 1, full: 2 };
+const skyOverride = new URLSearchParams(globalThis.location?.search || '').get('sky');
+export function getSkyMode() { return skyModes[skyOverride] ?? (mobileRendering ? 0 : 2); }
 export function getGpuParticleBudget() { return mobileRendering ? particleBudget : -1; }
 
 // RAF measures delivered frames, including GPU backpressure. CPU encode time alone misses that.

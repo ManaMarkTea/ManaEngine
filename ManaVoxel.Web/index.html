@@ -314,6 +314,21 @@
     .mana-button.mana-primary:hover { background: #5B96EE; }
     .mana-menu-hint { text-align: center; font-size: 12px; color: var(--mana-text-muted); margin: 4px 0 0; }
 
+    /* ---- Settings: picked here, carried in the URL, read by the engine as it starts ---------------------- */
+    .mana-settings { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 18px; font-size: 13px; color: var(--mana-text-muted); }
+    #manaSelect .mana-settings { margin: -16px 0 28px; }
+    #manaMenu .mana-settings { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 4px; }
+    .mana-setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .mana-setting select {
+      font: inherit;
+      color: #DFE1E5;
+      background: #35383E;
+      border: 1px solid var(--mana-border);
+      border-radius: 6px;
+      padding: 5px 8px;
+    }
+    .mana-setting select:focus-visible { border-color: var(--mana-accent); outline: none; }
+
     /* A reminder the menu exists, for the first seconds of play. */
     #manaHint {
       position: fixed;
@@ -359,6 +374,7 @@
       <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
       <h1 class="mana-title">MANA RENDERER</h1>
       <p class="mana-select-subtitle">Choose a level to play</p>
+      <div class="mana-settings" data-mana-settings></div>
       <div class="mana-levels" id="manaLevels"></div>
       <p class="mana-select-footer">WASD to move, Shift to run, Space to jump (again in the air to double jump), Esc for the menu</p>
     </div>
@@ -381,6 +397,7 @@
       <button class="mana-button mana-primary" id="manaResume">Resume</button>
       <button class="mana-button" id="manaRestart">Restart level</button>
       <button class="mana-button" id="manaQuit">Choose another level</button>
+      <div class="mana-settings" data-mana-settings title="Changing one reloads the level"></div>
       <p class="mana-menu-hint">Esc to resume</p>
     </div>
   </div>

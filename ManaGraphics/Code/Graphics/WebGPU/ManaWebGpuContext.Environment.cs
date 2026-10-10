@@ -93,7 +93,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _environmentSkybox ??= new ManaWebGpuSkybox(
-                _api, _device, _queue, null, SkyShaderPath, 6, MoonTexturePath);
+                _api, _device, _queue, null, SkyShaderPath, 6, MoonTexturePath, starCatalogue: SkyMode >= 1);
 
             for (var face = 0; face < 6; face++)
             {

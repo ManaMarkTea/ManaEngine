@@ -60,6 +60,9 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("isMobileRendering", ModuleName)]
         internal static partial bool IsMobileRendering();
 
+        [JSImport("getSkyMode", ModuleName)]
+        internal static partial int GetSkyMode();
+
         [JSImport("getGpuParticleBudget", ModuleName)]
         internal static partial int GetGpuParticleBudget();
 

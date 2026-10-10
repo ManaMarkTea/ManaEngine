@@ -27,6 +27,8 @@ namespace ManaGraphics.Code.Graphics
         private readonly string _shaderPath;
         private readonly string? _moonPath;
         private readonly int _slots;
+        // The simple sky draws the catalogue's stars only when asked (the full one always does); handed to it in celestial_north.w.
+        private readonly bool _starCatalogue;
 
         // The moon's map (NASA's CGI Moon Kit), sampled across its disc as a sphere.
         private Texture* _moonTexture;
@@ -76,8 +78,9 @@ namespace ManaGraphics.Code.Graphics
 
         /// <param name="depthFormat">The pass's depth format, or null for a pass with no depth (a cube face).</param>
         /// <param name="slots">Draws a frame can hold with different cameras -- six for the faces of a cube.</param>
-        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat? depthFormat, string shaderPath, int slots = 1, string? moonPath = null)
+        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat? depthFormat, string shaderPath, int slots = 1, string? moonPath = null, bool starCatalogue = true)
         {
+            _starCatalogue = starCatalogue;
             _moonPath = moonPath;
             _api = api;
             _device = device;
@@ -171,7 +174,7 @@ namespace ManaGraphics.Code.Graphics
                 Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase),
                 CelestialEast = new Vector4(sky.CelestialEast, sky.ConstellationLines),
                 CelestialUp = new Vector4(sky.CelestialUp, 0.0f),
-                CelestialNorth = new Vector4(sky.CelestialNorth, 0.0f)
+                CelestialNorth = new Vector4(sky.CelestialNorth, _starCatalogue ? 1.0f : 0.0f)
             };
             _api.QueueWriteBuffer(_queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }

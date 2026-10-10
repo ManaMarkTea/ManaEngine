@@ -5,7 +5,10 @@ import {resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 const out = resolve(process.argv[2] ?? 'artifacts/MobileSkyShader');
 mkdirSync(out, {recursive:true});
-const source = readFileSync(new URL('../../ManaGraphics/Assets/Shaders/WebGpu/skybox_mobile.wgsl', import.meta.url),'utf8');
+// The engine resolves #include before compiling (ManaWgslPreprocessor); so does this, one level deep.
+const shaderDir = new URL('../../ManaGraphics/Assets/Shaders/WebGpu/', import.meta.url);
+const source = readFileSync(new URL('skybox_mobile.wgsl', shaderDir),'utf8')
+  .replace(/^[ \t]*#include[ \t]+"([^"]+)"[ \t]*$/gm, (_, path) => readFileSync(new URL(path, shaderDir),'utf8'));
 const check = async source => {
   try {
     const adapter = await navigator.gpu.requestAdapter();
@@ -18,7 +21,8 @@ const check = async source => {
       {binding:0,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'uniform'}},
       {binding:1,visibility:GPUShaderStage.FRAGMENT,sampler:{type:'filtering'}},
       {binding:2,visibility:GPUShaderStage.FRAGMENT,texture:{viewDimension:'cube'}},
-      {binding:3,visibility:GPUShaderStage.FRAGMENT,texture:{viewDimension:'2d'}}
+      {binding:3,visibility:GPUShaderStage.FRAGMENT,texture:{viewDimension:'2d'}},
+      {binding:4,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}}
     ]});
     const pipeline = await device.createRenderPipelineAsync({layout:device.createPipelineLayout({bindGroupLayouts:[layout]}),
       vertex:{module,entryPoint:'vs_main'},fragment:{module,entryPoint:'fs_main',targets:[{format:'rgba8unorm'}]}});
@@ -28,7 +32,8 @@ const check = async source => {
     const moon = device.createTexture({size:[1,1],format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING});
     const group = device.createBindGroup({layout,entries:[{binding:0,resource:{buffer:uniform}},
       {binding:1,resource:device.createSampler({minFilter:'linear',magFilter:'linear'})},
-      {binding:2,resource:cube.createView({dimension:'cube'})},{binding:3,resource:moon.createView()}]});
+      {binding:2,resource:cube.createView({dimension:'cube'})},{binding:3,resource:moon.createView()},
+      {binding:4,resource:{buffer:device.createBuffer({size:(128+32+101+20)*16,usage:GPUBufferUsage.STORAGE})}}]});
     const width=256,height=128;
     const target=device.createTexture({size:[width,height],format:'rgba8unorm',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
     const readback=device.createBuffer({size:width*height*4,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
@@ -53,14 +58,18 @@ const check = async source => {
     const night=await draw(1,0,'Night and stars');
     const space=await draw(2,1,'Space');
     const photo=await draw(0,1,'Photo texture');
+    values[39]=1; // celestial_north.w: the star catalogue on (?sky=stars).
+    const catalogue=await draw(1,0,'Night with the catalogue'); values[39]=0;
     let bright=0,dayBlue=0,nightBlue=0;
     for(let i=0;i<night.length;i+=4){ if(night[i]>70) bright++; dayBlue+=day[i+2]; nightBlue+=night[i+2]; }
     if(dayBlue<=nightBlue*5) throw Error('day/night gradients do not respond to daylight');
     if(bright<5) throw Error('night sky did not draw stars');
     if(space[2]>=day[2]) throw Error('space did not select its dark palette');
+    let catalogueBright=0; for(let i=0;i<catalogue.length;i+=4){ if(catalogue[i]>70) catalogueBright++; }
+    if(catalogueBright<5) throw Error('night sky with the catalogue on lost its stars');
     if(photo[0]!==32 || photo[1]!==64 || photo[2]!==128) throw Error('Photo mode did not sample the environment cube');
     const error=await device.popErrorScope(); if(error) throw Error(error.message);
-    console.log(`PASS: mobile sky pipeline, day/night gradients, ${bright} star pixels, space and Photo validated.`);
+    console.log(`PASS: mobile sky pipeline, day/night gradients, ${bright} star pixels, the catalogue switch, space and Photo validated.`);
   } catch(error) {console.error('FAIL: '+error.stack);}
 };
 writeFileSync(resolve(out,'index.html'),`<body style="background:#171a20;color:#aaa"><script type="module">(${check.toString()})(${JSON.stringify(source)});</script>`);

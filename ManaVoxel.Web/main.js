@@ -101,6 +101,53 @@ function installDownloadProgress() {
     };
 }
 
+// --- Settings ----------------------------------------------------------------------------------------
+// Graphics choices live in the URL (?sky=, ?rendering=), which the engine reads once as it starts: changing one reloads
+// the page with it, keeping the level. Unset means automatic -- phones get the light path, everything else the full one.
+const settings = [
+    { key: 'sky', label: 'Sky', options: [['', 'Automatic'], ['simple', 'Simple'], ['stars', 'Simple + real stars'], ['full', 'Full atmosphere']] },
+    { key: 'rendering', label: 'Graphics', options: [['', 'Automatic'], ['mobile', 'Phone'], ['desktop', 'Desktop']] }
+];
+
+function mountSettings() {
+    const params = new URLSearchParams(location.search);
+    for (const container of document.querySelectorAll('[data-mana-settings]')) {
+        for (const setting of settings) {
+            const label = document.createElement('label');
+            label.className = 'mana-setting';
+            label.append(setting.label);
+            const select = document.createElement('select');
+            for (const [value, text] of setting.options) {
+                select.append(new Option(text, value, false, (params.get(setting.key) ?? '') === value));
+            }
+            select.addEventListener('change', () => {
+                const next = new URLSearchParams(location.search);
+                if (select.value) {
+                    next.set(setting.key, select.value);
+                } else {
+                    next.delete(setting.key);
+                }
+                location.search = next.toString();
+            });
+            label.append(select);
+            container.append(label);
+        }
+    }
+}
+
+// The URL without the level: back to the selector, keeping the settings.
+function searchWith(level) {
+    const params = new URLSearchParams(location.search);
+    if (level) {
+        params.set('level', level);
+    } else {
+        params.delete('level');
+    }
+    return params.toString();
+}
+
+mountSettings();
+
 // --- Level selector ----------------------------------------------------------------------------------
 // The page opens on a list of levels; picking one reloads it with ?level=, and only then does the engine download.
 // levels.json is written at publish time from Content/Levels (see Tools/WebAssets/publish_assets.py).
@@ -144,7 +191,7 @@ async function showLevelSelector() {
         body.append(name, description);
         card.append(picture, body);
         card.addEventListener('click', () => {
-            location.search = '?level=' + encodeURIComponent(level.file);
+            location.search = searchWith(level.file);
         });
         list.append(card);
     }
@@ -201,7 +248,7 @@ function installPauseMenu(game, graphics) {
         setOpen(false);
     });
     document.getElementById('manaQuit').addEventListener('click', () => {
-        location.search = '';
+        location.search = searchWith(null);
     });
 }
 

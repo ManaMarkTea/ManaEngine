@@ -117,7 +117,10 @@ picked up automatically; no per-level packaging allowlist needs updating.
 - **Phones and tablets use mobile rendering automatically** (touch input with a coarse primary pointer).
   Their canvas is capped at one render pixel per CSS pixel. A lightweight sky shader draws day/night
   color gradients, a simple sun and moon, and sparse procedural stars. Both the background and lighting
-  cubes use it, avoiding atmospheric scattering, clouds and constellation loops on mobile.
+  cubes use it, avoiding atmospheric scattering and clouds on mobile. `?sky=simple|stars|full` picks the
+  sky anywhere: `stars` is the lightweight sky plus the real star catalogue and constellation lines (read
+  from a storage buffer, so they cost only on night-sky pixels), `full` the desktop atmosphere. The level
+  selector and the pause menu set it, and `?rendering=`, from their Sky and Graphics settings.
   Environment/reflection cubes are capped at 128 px and irradiance at 16 px. Desktop quality is unchanged.
   GPU particles share a 20,000-particle starting budget across all emitters, proportional to their requested
   counts. Sustained frames slower than 38 ms lower it; five seconds of frames faster than 25 ms raise it

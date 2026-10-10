@@ -17,9 +17,14 @@ mkdirSync(out, { recursive: true });
 const log = [];
 const note = line => { log.push(line); console.log(line); };
 
-const running = await fetch('http://127.0.0.1:9333/json/version').then(() => true, () => false);
-const chrome = running ? null : spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', [
-    '--headless=new', '--remote-debugging-port=9333', '--enable-unsafe-webgpu', '--enable-features=Vulkan',
+// CDP_PORT picks another port when one Chrome is already driving something else.
+const port = process.env.CDP_PORT ?? '9333';
+const running = await fetch(`http://127.0.0.1:${port}/json/version`).then(() => true, () => false);
+const chromePath = process.env.CHROME_PATH ?? (process.platform === 'darwin'
+    ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    : 'C:/Program Files/Google/Chrome/Application/chrome.exe');
+const chrome = running ? null : spawn(chromePath, [
+    '--headless=new', `--remote-debugging-port=${port}`, '--enable-unsafe-webgpu', '--enable-features=Vulkan',
     '--window-size=1280,720', `--user-data-dir=${resolve(out, 'chrome-profile')}`, '--no-first-run', '--autoplay-policy=no-user-gesture-required', 'about:blank'
 ], { stdio: 'ignore' });
 
@@ -27,7 +32,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 let target;
 for (let i = 0; i < 150 && !target; i++) {
     await sleep(200);
-    try { target = (await (await fetch('http://127.0.0.1:9333/json/list')).json()).find(t => t.type === 'page'); } catch { }
+    try { target = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page'); } catch { }
 }
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise(resolve => socket.addEventListener('open', resolve));

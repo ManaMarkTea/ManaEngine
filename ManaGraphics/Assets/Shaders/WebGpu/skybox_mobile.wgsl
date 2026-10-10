@@ -1,5 +1,9 @@
-// Mobile sky: a few gradients and sparse procedural stars. Same bindings as the desktop sky;
-// used for both the visible background and the environment cubes that light the scene.
+// Mobile sky: a few gradients and sparse procedural stars, plus the real catalogue and its constellation lines when
+// asked for (?sky=stars; celestial_north.w). Same bindings as the desktop sky; used for both the visible background
+// and the environment cubes that light the scene.
+#include "include/constellations.wgsl"
+#include "include/star_catalogue.wgsl"
+
 struct SkyboxUniform {
     inverse_direction_view_projection : mat4x4<f32>,
     sun : vec4<f32>,
@@ -13,6 +17,7 @@ struct SkyboxUniform {
 @group(0) @binding(1) var sky_sampler : sampler;
 @group(0) @binding(2) var sky_texture : texture_cube<f32>;
 @group(0) @binding(3) var moon_texture : texture_2d<f32>;
+@group(0) @binding(4) var<storage, read> constellations : ConstellationTable;
 
 struct VertexOutput {
     @builtin(position) position : vec4<f32>,
@@ -62,13 +67,16 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     colour += vec3<f32>(1.0, 0.85, 0.55) * smoothstep(0.9996, 0.9998, sun_dot) * 3.0 * daylight;
     let night_amount = (1.0 - daylight) * select(smoothstep(0.0, 0.2, direction.y), 1.0, space);
     if (night_amount > 0.01) {
-        // Rotate dated skies with the shared sky clock, without a catalogue or constellation loops.
+        // Rotate dated skies with the shared sky clock.
         var star_direction = direction;
         if (dot(sky.celestial_up.xyz, sky.celestial_up.xyz) > 0.5) {
             star_direction = direction.x * sky.celestial_east.xyz + direction.y * sky.celestial_up.xyz
                 + direction.z * sky.celestial_north.xyz;
         }
         colour += stars(star_direction) * night_amount;
+        if (sky.celestial_north.w > 0.5 && !space) {
+            colour += catalogue_stars(direction) * night_amount;
+        }
         colour += vec3<f32>(0.7, 0.75, 0.85) * smoothstep(0.9995, 0.9998, dot(direction, sky.moon.xyz))
             * sky.moon.w * night_amount;
     }
