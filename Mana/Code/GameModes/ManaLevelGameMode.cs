@@ -85,6 +85,16 @@ namespace Mana.Code.GameModes
         public virtual void Resume()
         {
         }
+
+        /// <summary>
+        /// In the editor, while the level is open and not playing: show what play would build (a mode that builds its
+        /// world in code would otherwise leave the level looking empty). Called every editor frame -- build once, again
+        /// when the settings change; <paramref name="visible"/> false takes it down (play is starting, or the mode went).
+        /// Whatever it adds must stay out of the level: a scene of its own, nodes with no level source.
+        /// </summary>
+        public virtual void EditorPreview(ManaContext context, bool visible)
+        {
+        }
     }
 
     /// <summary>What a running mode is given: the world, the host's view of input, and a way out.</summary>

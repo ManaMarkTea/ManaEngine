@@ -527,6 +527,7 @@ namespace Mana.Code.GameModes
                 _playMode?.Tick((float)deltaTime);
             }
 
+            SyncGameModePreviews();
             PumpMeshThumbnails();
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();
