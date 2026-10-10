@@ -3,7 +3,7 @@
 // their magnitude in w, the warmth of each (0 blue-white .. 1 red), and the line figures joining them.
 const STAR_COUNT : u32 = 128u;
 const SEGMENT_COUNT : u32 = 101u;
-var<private> STAR_DIRECTIONS : array<vec4<f32>, 128> = array<vec4<f32>, 128>(
+const STAR_DIRECTIONS : array<vec4<f32>, 128> = array<vec4<f32>, 128>(
     vec4<f32>(0.02077, 0.99145, 0.12880, 0.50),
     vec4<f32>(0.19521, 0.97033, -0.14263, 0.13),
     vec4<f32>(0.15076, 0.98236, 0.11060, 1.64),
@@ -133,10 +133,10 @@ var<private> STAR_DIRECTIONS : array<vec4<f32>, 128> = array<vec4<f32>, 128>(
     vec4<f32>(0.80335, -0.52670, -0.27787, 2.90),
     vec4<f32>(0.79382, -0.60036, -0.09700, 2.90)
 );
-var<private> STAR_WARMTH : array<f32, 128> = array<f32, 128>(
+const STAR_WARMTH : array<f32, 128> = array<f32, 128>(
 1.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.10, 0.80, 0.40, 0.40, 0.40, 0.30, 0.40, 0.00, 0.50, 0.80, 0.30, 0.40, 0.50, 0.40, 0.50, 0.80, 0.50, 0.00, 0.30, 0.00, 0.40, 0.50, 0.70, 0.10, 0.70, 0.10, 0.20, 0.10, 0.90, 0.30, 0.30, 0.90, 0.60, 1.00, 0.00, 0.10, 0.00, 0.10, 0.80, 0.00, 0.80, 0.40, 0.40, 0.40, 0.00, 0.00, 0.00, 0.00, 0.20, 0.70, 0.20, 0.40, 0.70, 0.60, 0.10, 0.90, 0.00, 0.00, 0.80, 0.60, 0.00, 0.50, 0.10, 0.80, 0.20, 1.00, 0.50, 0.30, 1.00, 0.10, 0.00, 0.00, 0.40, 0.00, 0.00, 0.30, 0.00, 0.00, 0.00, 1.00, 0.00, 0.30, 0.00, 0.80, 0.70, 0.20, 0.40, 0.40, 0.00, 1.00, 0.00, 0.00, 0.90, 0.60, 0.00, 0.00, 0.20, 0.80, 0.50, 0.00, 0.70, 0.50, 0.20, 0.90, 0.40, 0.00, 0.00, 0.10, 0.00, 0.40, 0.10, 0.20, 0.90, 0.20, 0.90, 0.20, 0.00, 0.80, 0.80, 0.20, 0.30
 );
-var<private> SEGMENTS : array<vec3<u32>, 101> = array<vec3<u32>, 101>(
+const SEGMENTS : array<vec3<u32>, 101> = array<vec3<u32>, 101>(
     vec3<u32>(7u, 0u, 0u),
     vec3<u32>(0u, 5u, 0u),
     vec3<u32>(5u, 6u, 0u),
@@ -240,7 +240,7 @@ var<private> SEGMENTS : array<vec3<u32>, 101> = array<vec3<u32>, 101>(
     vec3<u32>(111u, 112u, 19u)
 );
 // Where each figure sits in the sky, so its lines can come up as the view turns toward it.
-var<private> FIGURE_CENTRES : array<vec4<f32>, 20> = array<vec4<f32>, 20>(
+const FIGURE_CENTRES : array<vec4<f32>, 20> = array<vec4<f32>, 20>(
     vec4<f32>(0.10508, 0.99434, 0.01597, 0.0),
     vec4<f32>(-0.53907, -0.03584, 0.84150, 0.0),
     vec4<f32>(-0.09867, -0.14842, 0.98399, 0.0),

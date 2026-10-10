@@ -306,9 +306,13 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
     }
     let equatorial = to_equatorial(direction);
 
+    // The tables are consts, copied into locals here (a const cannot be indexed by a variable): as module-level
+    // privates they were rebuilt for every pixel of every frame, whether or not it showed a star.
+    var star_table = STAR_DIRECTIONS;
+    var warmth_table = STAR_WARMTH;
     var total = vec3<f32>(0.0);
     for (var i = 0u; i < STAR_COUNT; i = i + 1u) {
-        let star = STAR_DIRECTIONS[i];
+        let star = star_table[i];
         // Squared angle between them; stars further than about 0.6 degrees add nothing.
         let angle_squared = 2.0 * (1.0 - dot(equatorial, star.xyz));
         if (angle_squared > 0.0002) {
@@ -317,7 +321,7 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
         let magnitude = star.w;
         let sigma = 0.0013 * (1.0 + 0.3 * clamp(2.5 - magnitude, 0.0, 3.0));
         let brightness = 2.4 * pow(0.55, magnitude);
-        let warmth = STAR_WARMTH[i];
+        let warmth = warmth_table[i];
         let colour = mix(mix(vec3<f32>(0.7, 0.8, 1.0), vec3<f32>(1.0, 0.95, 0.88), clamp(warmth * 2.0, 0.0, 1.0)), vec3<f32>(1.0, 0.55, 0.35), clamp(warmth * 2.0 - 1.0, 0.0, 1.0));
         total = total + colour * brightness * exp(-angle_squared / (2.0 * sigma * sigma));
     }
@@ -328,16 +332,18 @@ fn catalogue_stars(direction : vec3<f32>) -> vec3<f32> {
         let view_ray = sky.inverse_direction_view_projection * vec4<f32>(0.0, 0.0, 1.0, 1.0);
         let view_centre = to_equatorial(normalize(view_ray.xyz / view_ray.w));
         var line = 0.0;
+        var segment_table = SEGMENTS;
+        var centre_table = FIGURE_CENTRES;
         for (var i = 0u; i < SEGMENT_COUNT; i = i + 1u) {
-            let pair = SEGMENTS[i];
-            let gaze = dot(view_centre, FIGURE_CENTRES[pair.z].xyz);
+            let pair = segment_table[i];
+            let gaze = dot(view_centre, centre_table[pair.z].xyz);
             // Full within about 20 degrees of the figure's middle, gone past about 45.
             let shown = select(smoothstep(0.707, 0.94, gaze), 1.0, lines > 1.5);
             if (shown <= 0.0) {
                 continue;
             }
-            let a = STAR_DIRECTIONS[pair.x].xyz;
-            let b = STAR_DIRECTIONS[pair.y].xyz;
+            let a = star_table[pair.x].xyz;
+            let b = star_table[pair.y].xyz;
             let normal = normalize(cross(a, b));
             // Between the two ends, and within a pixel or so of the great circle joining them.
             let side_a = dot(cross(a, equatorial), normal);
@@ -377,6 +383,13 @@ fn day_sky(direction : vec3<f32>, jitter : f32) -> vec3<f32> {
     let daylight = sky.parameters.y;
     let sun_dot = max(dot(direction, toward_sun), 0.0);
     let reaching = sunlight(toward_sun);
+
+    // Well below the horizon the sky is the flat ground colour and nothing else (the mix at the end is complete from
+    // -0.25), so skip the air, clouds and stars: a camera looking down at a board is nearly all such pixels.
+    if (up < -0.25) {
+        let floor_colour = Ground * mix(0.05, 1.0, daylight) * mix(vec3<f32>(1.0), reaching, 0.5);
+        return floor_colour * (1.0 + (jitter - 0.5) * 0.03) + vec3<f32>((jitter - 0.5) * 0.0015);
+    }
 
     // The air, lit by the sun where it can see it. Looking below the horizon the air is sampled at a
     // grazing angle instead, so the haze runs right down to the floor's edge rather than stopping at a line.
