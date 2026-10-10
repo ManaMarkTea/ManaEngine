@@ -232,6 +232,7 @@ namespace ManaVoxel.Code.Levels
 
         /// <summary>On a shape: its material, where it differs from the one the shape is built with.</summary>
         public ManaLevelMaterial? Material { get; set; }
+        public Dictionary<int, ManaLevelMaterial>? MeshMaterials { get; set; }
 
         public ManaLevelVoxels? Voxels { get; set; }
 

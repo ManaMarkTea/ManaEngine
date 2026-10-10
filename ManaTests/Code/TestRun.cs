@@ -153,6 +153,8 @@ public static class TestRunner
         ("ManaUI", "world perf and debug panels", WorldPerfAndDebugChecks.Run),
 
         ("Graphics", "pbr material maps", MaterialMapChecks.Run),
+        ("Mana", "material ZIP packs", MaterialZipChecks.Run),
+        ("ManaUI", "material picker", MaterialPickerChecks.Run),
         ("Graphics", "startup diagnostics", StartupDiagnosticsChecks.Run),
 
         // Last on purpose: it runs a filtered suite of its own, and being last keeps that nesting to one

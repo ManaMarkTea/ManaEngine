@@ -22,6 +22,7 @@ namespace Mana.Code.Materials
         }
 
         public ManaShader? Shader { get; set; }
+        public string? SourceZip { get; set; }
 
         public ManaTextureVector4 Albedo;
         public ManaTextureVector4 Normal;

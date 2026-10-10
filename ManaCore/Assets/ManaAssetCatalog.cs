@@ -17,6 +17,9 @@ public sealed class ManaAssetCatalog
     private readonly string root;
     private readonly Dictionary<string, string> modelThumbnails = new(StringComparer.Ordinal);
     public IReadOnlyList<string> Models { get; }
+    public IEnumerable<string> MaterialZips => files.Keys.Where(path =>
+        path.StartsWith("Assets/Materials/", StringComparison.OrdinalIgnoreCase)
+        && path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// A catalog whose blob URLs may point at <paramref name="externalAssetBaseUrl"/> instead of only the

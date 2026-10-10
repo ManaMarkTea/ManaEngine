@@ -1,0 +1,55 @@
+[
+  {
+    "type": "open_level",
+    "path": "Content/Levels/Tests/Material Packs.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 200
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      53,
+      7,
+      60
+    ],
+    "target": [
+      51,
+      1.5,
+      46
+    ]
+  },
+  {
+    "type": "gizmos",
+    "visible": false
+  },
+  {
+    "type": "wait",
+    "frames": 40
+  },
+  {
+    "type": "screenshot",
+    "path": "@@PHOTO@@ material-packs.png",
+    "clean": true
+  },
+  {
+    "type": "select_node",
+    "name": "Wood Parquet"
+  },
+  {
+    "type": "wait",
+    "frames": 20
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@"
+  },
+  {
+    "type": "dirty_report",
+    "path": "Artifacts/Automation/material-packs"
+  },
+  {
+    "type": "quit"
+  }
+]

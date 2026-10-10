@@ -23,9 +23,12 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 InspectorControls.Row(context, "Shader",
                     InspectorControls.ReadOnly(theme, material.Shader?.GetType().Name ?? "none")));
 
-            // Said once, here, rather than leaving an empty gap where the channels would be. A "shader toy"
-            // material ignores albedo and roughness entirely, and offering them is an invitation to spend
-            // ten minutes wondering why nothing happens.
+            if (material.Shader is ManaPbrShader)
+            {
+                rows.Children.Add(InspectorControls.Row(context, "Preset", MaterialPicker.Build(material, context)));
+            }
+
+            // Only show channel controls for shaders that read them.
             if (material.Shader is not ManaPbrShader)
             {
                 rows.Children.Add(new TextBlock()

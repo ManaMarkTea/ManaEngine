@@ -1,87 +1,82 @@
-using System.Diagnostics;
+using System.IO.Compression;
 
 namespace Mana.Code.Materials
 {
     public static class ManaMaterialLoaderZip
     {
-        public static unsafe ManaMaterial LoadFromZip(ManaContext context, string filePath)
+        public static ManaMaterial LoadFromZip(ManaContext context, string filePath)
         {
-            ManaMaterial output = new ManaMaterial(context);
-            output.Name = ToMaterialName(filePath);
-
-            var zipArchive = System.IO.Compression.ZipFile.OpenRead(filePath);
-
-            Trace.WriteLine($"Zip Material: {filePath}");
-            foreach (var zipEntry in zipArchive.Entries)
-            {
-                Trace.WriteLine($"  {zipEntry.FullName}");
-
-                ManaTexture textureFromZip = new ManaTexture(context);
-                textureFromZip.Name = zipEntry.FullName;
-                textureFromZip.PixelStream = zipEntry.Open();
-                textureFromZip.Load();
-                textureFromZip.PixelStream.Close();
-                AssignToMaterial(context, output, textureFromZip);
-            }
-
-            return output;
+            var material = new ManaMaterial(context);
+            ApplyTo(material, filePath);
+            return material;
         }
 
-        private static List<string> albedoNames = new List<string> { "_albedo", "_basecolor", "_diffuse" };
-        private static List<string> ambientNames = new List<string> { "_ao", "_ambient" };
-        private static List<string> roughnessNames = new List<string> { "_roughness" };
-        private static List<string> normalNames = new List<string> { "_normal" };
-        private static List<string> emissionNames = new List<string> { "_emissive", "_emission" };
-        private static List<string> metallicNames = new List<string> { "_metallic", "_specular" };
-
-        private static string ToMaterialName(string filePath)
+        public static string? ChannelOf(string name)
         {
-            var fileName = Path.GetFileNameWithoutExtension(filePath);
-            if (string.IsNullOrWhiteSpace(fileName))
+            if (!new[] { ".png", ".jpg", ".jpeg", ".tga", ".bmp" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase))
             {
-                return "Zip Material";
+                return null;
             }
-
-            fileName = fileName
-                .Replace("-bl", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace("_bl", string.Empty, StringComparison.OrdinalIgnoreCase)
-                .Replace('-', ' ')
-                .Replace('_', ' ');
-
-            var words = fileName
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(word => char.ToUpperInvariant(word[0]) + word.Substring(1).ToLowerInvariant());
-
-            return $"{string.Join(' ', words)} Material";
+            var tokens = Path.GetFileNameWithoutExtension(name).ToLowerInvariant().Split(['_', '-', ' ', '.']);
+            foreach (var (channel, aliases) in new (string, string[])[]
+            {
+                ("Albedo", ["albedo", "basecolor", "diffuse", "color"]),
+                ("Occlusion", ["ao", "occlusion", "ambientocclusion", "ambient"]),
+                ("Roughness", ["roughness", "rough"]),
+                ("Normal", ["normal", "normalgl", "nor", "norgl"]),
+                ("Emission", ["emissive", "emission"]),
+                ("Metallic", ["metallic", "metalness"]),
+                ("Opacity", ["opacity", "alpha"])
+            })
+            {
+                if (tokens.Intersect(aliases).Any() && !tokens.Contains("dx"))
+                {
+                    return channel;
+                }
+            }
+            // Specular is not metalness; height and previews are not surface channels.
+            return null;
         }
 
-        private static void AssignToMaterial(ManaContext context, ManaMaterial material, ManaTexture texture)
+        public static void ApplyTo(ManaMaterial material, string filePath)
         {
-            if (texture.Name.Contains(albedoNames))
+            var diskPath = ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf(filePath)
+                ?? ManaTexture.ResolveTexturePath(filePath);
+            using var archive = ZipFile.OpenRead(diskPath);
+            var maps = new Dictionary<string, ManaTexture>(StringComparer.Ordinal);
+            foreach (var entry in archive.Entries.OrderBy(e => e.FullName, StringComparer.Ordinal))
             {
-                material.Albedo.TextureValue = texture;
+                if (ChannelOf(entry.FullName) is not { } channel || maps.ContainsKey(channel))
+                {
+                    continue;
+                }
+                maps[channel] = new ManaTexture(material.Context)
+                {
+                    Name = entry.Name,
+                    OriginalFilename = $"zip:{Path.GetFileName(filePath)}/{entry.FullName}"
+                };
             }
-            if (texture.Name.Contains(ambientNames))
+            if (!maps.ContainsKey("Albedo"))
             {
-                material.Occlusion.TextureValue = texture;
+                throw new InvalidDataException("A material ZIP needs an albedo, basecolor or diffuse map.");
             }
-            if (texture.Name.Contains(metallicNames))
-            {
-                material.Metallic.TextureValue = texture;
-            }
-            if (texture.Name.Contains(roughnessNames))
-            {
-                material.Roughness.TextureValue = texture;
-            }
-            if (texture.Name.Contains(normalNames))
-            {
-                material.Normal.TextureValue = texture;
-                material.NormalSelector = 0.0f;
-            }
-            if (texture.Name.Contains(emissionNames))
-            {
-                material.Emission.TextureValue = texture;
-            }
+            material.Albedo.TextureValue = maps.GetValueOrDefault("Albedo");
+            material.Normal.TextureValue = maps.GetValueOrDefault("Normal");
+            material.Roughness.TextureValue = maps.GetValueOrDefault("Roughness");
+            material.Metallic.TextureValue = maps.GetValueOrDefault("Metallic");
+            material.Occlusion.TextureValue = maps.GetValueOrDefault("Occlusion");
+            material.Emission.TextureValue = maps.GetValueOrDefault("Emission");
+            material.Opacity.TextureValue = maps.GetValueOrDefault("Opacity");
+            material.Albedo.Value = System.Numerics.Vector4.One;
+            material.Emission.Value = System.Numerics.Vector4.One;
+            material.Opacity.Value = 1.0f;
+            material.Roughness.Value = maps.ContainsKey("Roughness") ? 1.0f : 0.8f;
+            material.Metallic.Value = maps.ContainsKey("Metallic") ? 1.0f : 0.0f;
+            material.Occlusion.Value = 1.0f;
+            material.NormalSelector = maps.ContainsKey("Normal") ? 0.0f : 1.0f;
+            material.EmissionStrength = maps.ContainsKey("Emission") ? 1.0f : 0.0f;
+            material.Name = Path.GetFileNameWithoutExtension(filePath).Replace('-', ' ').Replace('_', ' ');
+            material.SourceZip = filePath;
         }
     }
 }

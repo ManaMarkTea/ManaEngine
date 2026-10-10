@@ -5,14 +5,15 @@ namespace Mana.Code.UI.ManaUi
     {
         public ManaUiTextureAsset(string path, string relativePath)
         {
-            Path = path;
+            _path = path;
             RelativePath = relativePath;
             Name = System.IO.Path.GetFileName(path);
             Folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path) ?? string.Empty);
         }
 
-        /// <summary>Absolute path, for decoding a thumbnail.</summary>
-        public string Path { get; }
+        private readonly string _path;
+        /// <summary>Absolute path, extracting a packed map only when its preview is requested.</summary>
+        public string Path => ManaTexture.ResolveTexturePath(_path);
 
         /// <summary>
         /// What gets stored on the material. Relative, because an absolute path baked into a scene would
@@ -48,8 +49,7 @@ namespace Mana.Code.UI.ManaUi
         public static List<string> SearchFolders { get; } = new()
         {
             System.IO.Path.Combine("Assets", "Textures", "MaterialTextures"),
-            System.IO.Path.Combine("Assets", "Textures", "Icons"),
-            System.IO.Path.Combine("Assets", "Models")
+            System.IO.Path.Combine("Content", "Textures")
         };
 
         public static IReadOnlyList<ManaUiTextureAsset> Assets => _assets ??= Scan();
@@ -68,7 +68,7 @@ namespace Mana.Code.UI.ManaUi
             // Both roots, because they are not the same thing and either can be the right one: the editor
             // runs with its output folder as the working directory, while a tool or a test run can have
             // the repository root. Searching only one of them finds nothing in the other.
-            var roots = new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory }
+            var roots = new[] { Directory.GetCurrentDirectory(), Path.Combine(Directory.GetCurrentDirectory(), "Mana"), AppContext.BaseDirectory }
                 .Where(r => !string.IsNullOrEmpty(r))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -87,7 +87,7 @@ namespace Mana.Code.UI.ManaUi
                 {
                     files = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories);
                 }
-                catch (IOException)
+                catch (Exception exception) when (exception is IOException or InvalidDataException)
                 {
                     continue;
                 }
@@ -99,7 +99,15 @@ namespace Mana.Code.UI.ManaUi
                         continue;
                     }
 
-                    if (!seen.Add(file))
+                    var stem = System.IO.Path.GetFileNameWithoutExtension(file);
+                    if (folder == System.IO.Path.Combine("Assets", "Textures", "MaterialTextures")
+                        && new[] { "background", "block", "container", "matrix", "toy_box", "window" }
+                        .Any(example => stem.StartsWith(example, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    if (!seen.Add(System.IO.Path.GetRelativePath(baseDirectory, file).Replace('\\', '/')))
                     {
                         continue;
                     }
@@ -114,8 +122,35 @@ namespace Mana.Code.UI.ManaUi
                 }
             }
 
+            var zips = roots.Select(root => System.IO.Path.Combine(root, "Assets", "Materials"))
+                .Where(Directory.Exists).SelectMany(folder => Directory.EnumerateFiles(folder, "*.zip", SearchOption.AllDirectories));
+            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog)
+            {
+                zips = zips.Concat(catalog.MaterialZips.Select(catalog.LocalFileOf).OfType<string>().Where(File.Exists));
+            }
+            foreach (var zip in zips.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var archive = System.IO.Compression.ZipFile.OpenRead(zip);
+                    foreach (var entry in archive.Entries.Where(e => Mana.Code.Materials.ManaMaterialLoaderZip.ChannelOf(e.FullName) != null))
+                    {
+                        var reference = $"zip:{System.IO.Path.GetFileName(zip)}/{entry.FullName}";
+                        if (seen.Add(reference))
+                        {
+                            found.Add(new ManaUiTextureAsset(reference, reference));
+                        }
+                    }
+                }
+                catch (Exception exception) when (exception is IOException or InvalidDataException)
+                {
+                    // A broken user pack should not prevent choosing a different texture.
+                }
+            }
+
             return found
-                .OrderBy(a => a.Folder, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(a => a.RelativePath.StartsWith("zip:", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(a => a.Folder, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }

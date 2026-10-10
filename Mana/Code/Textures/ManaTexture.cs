@@ -189,6 +189,14 @@ namespace Mana
         /// </summary>
         public static string ResolveTexturePath(string texturePath)
         {
+            if (texturePath.StartsWith("zip:", StringComparison.OrdinalIgnoreCase))
+            {
+                return ManaSpritePictures.Resolve(texturePath) ?? texturePath;
+            }
+            if (ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf(texturePath) is { } catalogPath)
+            {
+                return catalogPath;
+            }
             if (string.IsNullOrWhiteSpace(texturePath) || Path.IsPathRooted(texturePath))
             {
                 return texturePath;
@@ -232,6 +240,10 @@ namespace Mana
 
         public virtual void Bind(int channel)
         {
+            if (!IsLoaded && Context.OpenGl != null && (OriginalFilename.Length > 0 || PixelStream != null))
+            {
+                Load();
+            }
             EnsureOpenGlTexture().Bind(channel);
         }
 

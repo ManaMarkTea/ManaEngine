@@ -133,6 +133,10 @@ namespace Mana
 
             var zipName = Path.GetFileName(body[..(split + 4)]);
             var entryPath = body[(split + 5)..];
+            if (Path.IsPathRooted(entryPath) || entryPath.Split('/').Any(part => part is ".." or "." || part.Contains(':')))
+            {
+                return null;
+            }
             if (!Zips.TryGetValue(zipName, out var zip) || !File.Exists(zip))
             {
                 zip = FindZip(zipName);
@@ -188,9 +192,9 @@ namespace Mana
         {
             // In the browser the packs are not on disk to be found: the asset catalog downloads them on demand, and a
             // level preloads the ones its sprites use (ManaLevelLoader.EnsureAssetsAsync).
-            if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog && File.Exists(catalog.LocalFilePath("Assets/" + zipName)))
+            if (ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf($"zip:{zipName}/") is { } catalogFile && File.Exists(catalogFile))
             {
-                return catalog.LocalFilePath("Assets/" + zipName);
+                return catalogFile;
             }
             return PackFiles().FirstOrDefault(zip => string.Equals(Path.GetFileName(zip), zipName, StringComparison.OrdinalIgnoreCase));
         }
@@ -198,7 +202,7 @@ namespace Mana
         private static IEnumerable<string> PackFiles()
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var start in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
+            foreach (var start in new[] { Environment.CurrentDirectory, Path.Combine(Environment.CurrentDirectory, "Mana"), AppContext.BaseDirectory })
             {
                 for (var folder = new DirectoryInfo(start); folder != null; folder = folder.Parent)
                 {

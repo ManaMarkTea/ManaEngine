@@ -1,5 +1,14 @@
 # Finished
 
+[x] - Compact zipped PBR material picker (2026-10-10): Material > Preset picks a ZIP with previews and search,
+    assigning its maps together; maps and imported-mesh overrides survive level and prefab saves.
+    Added 512px CC0 wood parquet, black brick and concrete packs (1.7 MiB total) under Mana/Assets/Materials/,
+    with source/license notes and Tools/Materials/compact.py for resizing more packs. Removed UI icons,
+    model images and demonstration art from the surface texture picker. Rendering fixture:
+    Content/Levels/Tests/Material Packs.manalevel; Tools/Automation/Checks/material-packs.json.
+    Follow-up: displacement/height and specular workflows are not supported by the material pack loader.
+
+
 [x] - Yacht Jousting from the supplied game images (2026-10-08): playable first-to-five boat duel against a bot,
     charged lances, directional shields, guard, lane steering, pause/rematch, and ManaUI score/health HUD.
     Uses Kenney ships, captains, rocks, islands, palms, docks and buoys plus the existing lighthouse.

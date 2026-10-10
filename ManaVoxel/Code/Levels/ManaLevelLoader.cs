@@ -494,6 +494,17 @@ namespace ManaVoxel.Code.Levels
             var asset = entry.Asset ?? throw new InvalidDataException("Mesh entry has no asset reference.");
             var node = LoadMeshAsset(asset, context.World, into);
             node.LevelSource = ManaLevelSource.ForMesh(asset);
+            if (entry.MeshMaterials != null)
+            {
+                var renderers = ManaLevelMaterial.MeshRenderers(node).ToList();
+                foreach (var (index, surface) in entry.MeshMaterials)
+                {
+                    if (index >= 0 && index < renderers.Count)
+                    {
+                        surface.ApplyTo(renderers[index].DynamicMaterial);
+                    }
+                }
+            }
             node.Name = string.IsNullOrWhiteSpace(entry.Name) ? node.Name : entry.Name;
             ApplyTransform(node, entry);
             return node;
@@ -752,6 +763,17 @@ namespace ManaVoxel.Code.Levels
                     catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException)
                     {
                         ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload prefab '{reference.AssetPath}': {exception.Message}");
+                    }
+                }
+                foreach (var surface in (node.Material is { } shapeMaterial ? new[] { shapeMaterial } : [])
+                    .Concat(node.MeshMaterials?.Values.AsEnumerable() ?? []))
+                {
+                    foreach (var picture in surface.Pictures)
+                    {
+                        if (!string.IsNullOrEmpty(picture))
+                        {
+                            await catalog.EnsureAsync(picture);
+                        }
                     }
                 }
                 foreach (var script in node.Scripts ?? [])

@@ -196,6 +196,18 @@ namespace ManaVoxel.Code.Levels
                     // Written readably (and findable by name) whenever the zip is one of ours; see
                     // MeshAssetLibrary.ToReadableReference.
                     entry.Asset = MeshAssetLibrary.ToReadableReference(source.Asset);
+                    var overrides = new Dictionary<int, ManaLevelMaterial>();
+                    var meshIndex = 0;
+                    foreach (var meshRenderer in ManaLevelMaterial.MeshRenderers(node))
+                    {
+                        if (meshRenderer.Material.SourceZip != null
+                            && ManaLevelMaterial.Capture(meshRenderer.Material, node.Context, Vector4.One) is { } surface)
+                        {
+                            overrides.Add(meshIndex, surface);
+                        }
+                        meshIndex++;
+                    }
+                    entry.MeshMaterials = overrides.Count == 0 ? null : overrides;
                     entry.Collision = CaptureCollision(node);
                     break;
 

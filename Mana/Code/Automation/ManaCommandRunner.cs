@@ -304,13 +304,20 @@ namespace Mana.Code.Automation
 
             Register("material", command =>
             {
-                // Metallic and roughness (position x, y) on every mesh under the named node -- a mirror is [1, 0].
-                if (FindNode(command.Name) is { } surfaced && command.Position is { Length: >= 2 } surface)
+                // An optional ZIP preset, then metallic/roughness (position x, y), on each mesh under the named node.
+                if (FindNode(command.Name) is { } surfaced)
                 {
                     foreach (var renderer in Walk(surfaced).SelectMany(n => n.Components).OfType<global::Mana.MeshRendererComponent>())
                     {
-                        renderer.Material.Metallic.Value = surface[0];
-                        renderer.Material.Roughness.Value = surface[1];
+                        if (!string.IsNullOrWhiteSpace(command.Path))
+                        {
+                            Mana.Code.Materials.ManaMaterialLoaderZip.ApplyTo(renderer.DynamicMaterial, command.Path);
+                        }
+                        if (command.Position is { Length: >= 2 } surface)
+                        {
+                            renderer.Material.Metallic.Value = surface[0];
+                            renderer.Material.Roughness.Value = surface[1];
+                        }
                     }
                 }
             });

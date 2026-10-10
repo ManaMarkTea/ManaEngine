@@ -5,11 +5,39 @@ namespace ManaVoxel.Code.Levels
 {
     /// <summary>
     /// A node's material as a level saves it: only what differs from the material the node would get anyway, so
-    /// an untouched shape writes nothing and levels saved before this read back unchanged. Texture maps are not
-    /// in it yet -- just the values the Material inspector edits.
+    /// an untouched shape writes nothing and levels saved before this read back unchanged. Texture maps use portable
+    /// picture references, including entries inside material ZIPs.
     /// </summary>
     public sealed class ManaLevelMaterial
     {
+        public string? SourceZip { get; set; }
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public IEnumerable<string> Pictures => new[] { AlbedoMap, NormalMap, RoughnessMap, MetallicMap, OcclusionMap, EmissionMap, OpacityMap }
+            .OfType<string>().Where(path => path.Length > 0);
+
+        public static IEnumerable<MeshRendererComponent> MeshRenderers(Mana.Code.Nodes.ManaSceneNode node)
+        {
+            foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+            {
+                yield return renderer;
+            }
+            foreach (var child in node.Children)
+            {
+                foreach (var renderer in MeshRenderers(child))
+                {
+                    yield return renderer;
+                }
+            }
+        }
+        public string? AlbedoMap { get; set; }
+        public string? NormalMap { get; set; }
+        public string? RoughnessMap { get; set; }
+        public string? MetallicMap { get; set; }
+        public string? OcclusionMap { get; set; }
+        public string? EmissionMap { get; set; }
+        public string? OpacityMap { get; set; }
+
         public Vector4? Albedo { get; set; }
         public Vector4? Emission { get; set; }
         public float? EmissionStrength { get; set; }
@@ -39,6 +67,14 @@ namespace ManaVoxel.Code.Levels
 
             var captured = new ManaLevelMaterial
             {
+                SourceZip = material.SourceZip,
+                AlbedoMap = string.IsNullOrEmpty(material.Albedo.TextureValue?.OriginalFilename) ? null : material.Albedo.TextureValue?.OriginalFilename,
+                NormalMap = string.IsNullOrEmpty(material.Normal.TextureValue?.OriginalFilename) ? null : material.Normal.TextureValue?.OriginalFilename,
+                RoughnessMap = string.IsNullOrEmpty(material.Roughness.TextureValue?.OriginalFilename) ? null : material.Roughness.TextureValue?.OriginalFilename,
+                MetallicMap = string.IsNullOrEmpty(material.Metallic.TextureValue?.OriginalFilename) ? null : material.Metallic.TextureValue?.OriginalFilename,
+                OcclusionMap = string.IsNullOrEmpty(material.Occlusion.TextureValue?.OriginalFilename) ? null : material.Occlusion.TextureValue?.OriginalFilename,
+                EmissionMap = string.IsNullOrEmpty(material.Emission.TextureValue?.OriginalFilename) ? null : material.Emission.TextureValue?.OriginalFilename,
+                OpacityMap = string.IsNullOrEmpty(material.Opacity.TextureValue?.OriginalFilename) ? null : material.Opacity.TextureValue?.OriginalFilename,
                 Albedo = Differs(material.Albedo.Value, fresh.Albedo.Value),
                 Emission = Differs(material.Emission.Value, fresh.Emission.Value),
                 EmissionStrength = Differs((float)material.EmissionStrength, (float)fresh.EmissionStrength),
@@ -61,6 +97,61 @@ namespace ManaVoxel.Code.Levels
         /// <summary>Writes what this carries onto <paramref name="material"/>, leaving everything else as it is.</summary>
         public void ApplyTo(ManaMaterial material)
         {
+            material.SourceZip = SourceZip;
+            if (SourceZip != null)
+            {
+                // ZIP snapshots use fresh PBR defaults, rather than the imported model's old factors.
+                var defaults = new ManaMaterial(material.Context);
+                material.Albedo.Value = Vector4.One;
+                material.Emission.Value = defaults.Emission.Value;
+                material.Metallic.Value = defaults.Metallic.Value;
+                material.Roughness.Value = defaults.Roughness.Value;
+                material.Occlusion.Value = defaults.Occlusion.Value;
+                material.Opacity.Value = defaults.Opacity.Value;
+                material.NormalSelector = defaults.NormalSelector;
+                material.EmissionStrength = defaults.EmissionStrength;
+                material.OpacityMode = defaults.OpacityMode;
+                material.AlphaCutoff = defaults.AlphaCutoff;
+                material.UvScale = defaults.UvScale;
+                material.UvOffset = defaults.UvOffset;
+                material.FlatShaded = defaults.FlatShaded;
+                material.Unlit = defaults.Unlit;
+                material.Albedo.TextureValue = null;
+                material.Normal.TextureValue = null;
+                material.Roughness.TextureValue = null;
+                material.Metallic.TextureValue = null;
+                material.Occlusion.TextureValue = null;
+                material.Emission.TextureValue = null;
+                material.Opacity.TextureValue = null;
+            }
+            if (AlbedoMap is { } albedoMap)
+            {
+                material.Albedo.TextureValue = albedoMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = albedoMap };
+            }
+            if (NormalMap is { } normalMap)
+            {
+                material.Normal.TextureValue = normalMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = normalMap };
+            }
+            if (RoughnessMap is { } roughnessMap)
+            {
+                material.Roughness.TextureValue = roughnessMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = roughnessMap };
+            }
+            if (MetallicMap is { } metallicMap)
+            {
+                material.Metallic.TextureValue = metallicMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = metallicMap };
+            }
+            if (OcclusionMap is { } occlusionMap)
+            {
+                material.Occlusion.TextureValue = occlusionMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = occlusionMap };
+            }
+            if (EmissionMap is { } emissionMap)
+            {
+                material.Emission.TextureValue = emissionMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = emissionMap };
+            }
+            if (OpacityMap is { } opacityMap)
+            {
+                material.Opacity.TextureValue = opacityMap.Length == 0 ? null : new ManaTexture(material.Context) { OriginalFilename = opacityMap };
+            }
             if (Albedo is { } albedo)
             {
                 material.Albedo.Value = albedo;
@@ -133,7 +224,9 @@ namespace ManaVoxel.Code.Levels
         }
 
         private bool IsEmpty =>
-            Albedo == null && Emission == null && EmissionStrength == null && Metallic == null && Roughness == null
+            SourceZip == null &&
+            AlbedoMap == null && NormalMap == null && RoughnessMap == null && MetallicMap == null && OcclusionMap == null && EmissionMap == null && OpacityMap == null
+            && Albedo == null && Emission == null && EmissionStrength == null && Metallic == null && Roughness == null
             && Occlusion == null && NormalStrength == null && Opacity == null && OpacityMode == null && AlphaCutoff == null
             && UvScale == null && UvOffset == null && FlatShaded == null && Unlit == null;
 
