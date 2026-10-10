@@ -1,7 +1,9 @@
 <Project>
   <!-- Only boot dependencies enter the WASM filesystem; the catalog and library are separate. -->
   <PropertyGroup>
-    <ManaPython Condition="'$(ManaPython)' == ''">python</ManaPython>
+    <!-- macOS ships python3 with no plain python; Windows installs python. -->
+    <ManaPython Condition="'$(ManaPython)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">python</ManaPython>
+    <ManaPython Condition="'$(ManaPython)' == ''">python3</ManaPython>
   </PropertyGroup>
   <ItemGroup>
     <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)ManaAudio/Browser/mana_audio.js" Link="mana_audio.js" />
