@@ -50,6 +50,13 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("getDevicePixelRatio", ModuleName)]
         internal static partial double GetDevicePixelRatio();
 
+        [JSImport("pollGamepads", ModuleName)]
+        [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+        internal static partial double[] PollGamepads();
+
+        [JSImport("gamepadName", ModuleName)]
+        internal static partial string GamepadName(int slot);
+
         [JSImport("isMobileRendering", ModuleName)]
         internal static partial bool IsMobileRendering();
 
@@ -173,6 +180,8 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSExport]
         internal static void OnFrame(double deltaTimeSeconds)
         {
+            // Pads have no events in the browser: read them fresh before the frame that uses them.
+            ManaBrowserInputContext.Current?.PollGamepads();
             ManaBrowserWindow.Current?.RaiseFrame(deltaTimeSeconds);
 
             // After the frame, not before: scroll is a one-frame delta in Silk.NET's model, so the

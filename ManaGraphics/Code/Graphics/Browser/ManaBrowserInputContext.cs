@@ -19,19 +19,40 @@ namespace ManaGraphics.Code.Graphics.Browser
 
         private readonly ManaBrowserKeyboard _keyboard = new();
         private readonly ManaBrowserMouse _mouse = new();
+        private readonly ManaBrowserGamepad[] _gamepads = { new(0), new(1), new(2), new(3) };
 
         public ManaBrowserInputContext()
         {
             Current = this;
             Keyboards = new List<IKeyboard> { _keyboard };
             Mice = new List<IMouse> { _mouse };
+            Gamepads = _gamepads;
+        }
+
+        /// <summary>Reads every pad off the Gamepad API (mana_interop.js's pollGamepads); once a frame, before it runs.</summary>
+        internal void PollGamepads()
+        {
+            double[] state;
+            try
+            {
+                state = ManaBrowserInterop.PollGamepads();
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            for (var slot = 0; slot < _gamepads.Length && (slot + 1) * ManaBrowserGamepad.Stride <= state.Length; slot++)
+            {
+                _gamepads[slot].Update(state.AsSpan(slot * ManaBrowserGamepad.Stride, ManaBrowserGamepad.Stride));
+            }
         }
 
         internal ManaBrowserKeyboard Keyboard => _keyboard;
         internal ManaBrowserMouse Mouse => _mouse;
 
         public nint Handle => 0;
-        public IReadOnlyList<IGamepad> Gamepads { get; } = Array.Empty<IGamepad>();
+        public IReadOnlyList<IGamepad> Gamepads { get; }
         public IReadOnlyList<IJoystick> Joysticks { get; } = Array.Empty<IJoystick>();
         public IReadOnlyList<IKeyboard> Keyboards { get; }
         public IReadOnlyList<IMouse> Mice { get; }
@@ -62,6 +83,101 @@ namespace ManaGraphics.Code.Graphics.Browser
             if (ReferenceEquals(Current, this))
             {
                 Current = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// One Gamepad API slot, in the W3C standard mapping (an Xbox layout; most pads report it). Always listed, connected
+    /// or not, so a game polls <see cref="IsConnected"/> as it does on desktop.
+    /// </summary>
+    internal sealed class ManaBrowserGamepad : IGamepad
+    {
+        public const int Stride = 1 + 17 + 4;
+
+        // Standard-mapping button order, less the two triggers (6, 7), which are Triggers here as on desktop.
+        private static readonly (int Index, ButtonName Name)[] Map =
+        {
+            (0, ButtonName.A), (1, ButtonName.B), (2, ButtonName.X), (3, ButtonName.Y),
+            (4, ButtonName.LeftBumper), (5, ButtonName.RightBumper), (8, ButtonName.Back), (9, ButtonName.Start),
+            (10, ButtonName.LeftStick), (11, ButtonName.RightStick), (12, ButtonName.DPadUp), (13, ButtonName.DPadDown),
+            (14, ButtonName.DPadLeft), (15, ButtonName.DPadRight), (16, ButtonName.Home)
+        };
+
+        private readonly Button[] _buttons = new Button[Map.Length];
+        private readonly Thumbstick[] _thumbsticks = { new(0, 0.0f, 0.0f), new(1, 0.0f, 0.0f) };
+        private readonly Trigger[] _triggers = { new(0, 0.0f), new(1, 0.0f) };
+
+        public ManaBrowserGamepad(int index)
+        {
+            Index = index;
+            for (var i = 0; i < Map.Length; i++)
+            {
+                _buttons[i] = new Button(Map[i].Name, i, false);
+            }
+        }
+
+        public string Name { get; private set; } = string.Empty;
+        public int Index { get; }
+        public bool IsConnected { get; private set; }
+        public IReadOnlyList<Button> Buttons => _buttons;
+        public IReadOnlyList<Thumbstick> Thumbsticks => _thumbsticks;
+        public IReadOnlyList<Trigger> Triggers => _triggers;
+        public IReadOnlyList<IMotor> VibrationMotors { get; } = Array.Empty<IMotor>();
+        public Deadzone Deadzone { get; set; }
+
+        public event Action<IGamepad, Button>? ButtonDown;
+        public event Action<IGamepad, Button>? ButtonUp;
+        public event Action<IGamepad, Thumbstick>? ThumbstickMoved;
+        public event Action<IGamepad, Trigger>? TriggerMoved;
+
+        internal void Update(ReadOnlySpan<double> state)
+        {
+            var connected = state[0] > 0.5;
+            if (connected && !IsConnected)
+            {
+                try
+                {
+                    Name = ManaBrowserInterop.GamepadName(Index);
+                }
+                catch (Exception)
+                {
+                    Name = $"Gamepad {Index + 1}";
+                }
+            }
+
+            IsConnected = connected;
+            for (var i = 0; i < Map.Length; i++)
+            {
+                var pressed = connected && state[1 + Map[i].Index] > 0.5;
+                if (pressed == _buttons[i].Pressed)
+                {
+                    continue;
+                }
+
+                _buttons[i] = new Button(Map[i].Name, i, pressed);
+                (pressed ? ButtonDown : ButtonUp)?.Invoke(this, _buttons[i]);
+            }
+
+            for (var t = 0; t < 2; t++)
+            {
+                var position = connected ? (float)state[1 + 6 + t] : 0.0f;
+                if (position != _triggers[t].Position)
+                {
+                    _triggers[t] = new Trigger(t, position);
+                    TriggerMoved?.Invoke(this, _triggers[t]);
+                }
+            }
+
+            for (var s = 0; s < 2; s++)
+            {
+                var x = connected ? (float)state[18 + s * 2] : 0.0f;
+                var y = connected ? (float)state[19 + s * 2] : 0.0f;
+                if (x != _thumbsticks[s].X || y != _thumbsticks[s].Y)
+                {
+                    _thumbsticks[s] = new Thumbstick(s, x, y);
+                    ThumbstickMoved?.Invoke(this, _thumbsticks[s]);
+                }
             }
         }
     }

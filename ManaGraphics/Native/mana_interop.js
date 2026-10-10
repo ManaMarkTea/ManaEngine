@@ -65,6 +65,38 @@ export function getTimeMs() {
     return performance.now() - startTime;
 }
 
+// Gamepads, flattened for one cheap call a frame: per slot, connected (0/1), the 17 standard-mapping buttons
+// (A B X Y, LB RB, LT RT as 0..1, Back Start, sticks, D-pad up down left right, Home), then 4 stick axes.
+// Browsers only reveal a pad after a button is pressed on it with the page focused.
+const gamepadSlots = 4;
+const gamepadStride = 1 + 17 + 4;
+export function pollGamepads() {
+    const out = new Array(gamepadSlots * gamepadStride).fill(0);
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (let slot = 0, i = 0; i < pads.length && slot < gamepadSlots; i++) {
+        const pad = pads[i];
+        if (!pad || !pad.connected) {
+            continue;
+        }
+        const at = slot++ * gamepadStride;
+        out[at] = 1;
+        for (let b = 0; b < 17 && b < pad.buttons.length; b++) {
+            out[at + 1 + b] = pad.buttons[b].value || (pad.buttons[b].pressed ? 1 : 0);
+        }
+        for (let a = 0; a < 4 && a < pad.axes.length; a++) {
+            out[at + 18 + a] = pad.axes[a];
+        }
+    }
+    return out;
+}
+
+// The name of the pad in a slot pollGamepads filled ("Xbox Wireless Controller (STANDARD GAMEPAD ...)").
+export function gamepadName(slot) {
+    const pads = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).filter(pad => pad && pad.connected);
+    // Chrome appends "(STANDARD GAMEPAD Vendor: ...)": the name is enough for a lobby.
+    return pads[slot] ? pads[slot].id.replace(/\s*\((?:XInput )?STANDARD GAMEPAD[^)]*\)\s*$/i, '').trim() : '';
+}
+
 export function getDevicePixelRatio() {
     return mobileRendering ? Math.min(1, window.devicePixelRatio || 1) : window.devicePixelRatio || 1;
 }
