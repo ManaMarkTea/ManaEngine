@@ -1,0 +1,43 @@
+[
+  {
+    "type": "open_level",
+    "path": "Content/Levels/PBR Gallery.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 180
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      49,
+      25,
+      105
+    ],
+    "target": [
+      49,
+      0,
+      68
+    ]
+  },
+  {
+    "type": "gizmos",
+    "visible": false
+  },
+  {
+    "type": "wait",
+    "frames": 40
+  },
+  {
+    "type": "screenshot",
+    "path": "@@PHOTO@@ pbr-material-library.png",
+    "clean": true
+  },
+  {
+    "type": "dirty_report",
+    "path": "Artifacts/Automation/pbr-material-library"
+  },
+  {
+    "type": "quit"
+  }
+]

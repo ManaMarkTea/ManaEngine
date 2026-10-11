@@ -562,6 +562,6 @@
 
 
   <ItemGroup>
-    <Content Include="Assets\Materials\*.zip" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Materials\**\*.zip" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -4,18 +4,19 @@ In the Inspector, expand a mesh's Material section and choose its **Preset**.
 Each ZIP assigns its surface maps together. Individual map slots remain editable.
 Material choices and maps are saved with shapes and imported meshes.
 
-The bundled 512px packs total about 1.7 MiB:
+The 21 bundled presets use maps up to 512px and total about 15.7 MiB. Search by category in the picker. The PBR Gallery level shows every preset on a sphere, cube and torus.
 
-| Pack | Source |
+| Category | Packs |
 | --- | --- |
-| Dark wood parquet | https://cc0-textures.com/t/st-dark-wood-parquet-18 |
-| Black brick wall | https://cc0-textures.com/t/st-black-brick-wall-15 |
-| Concrete | https://cc0-textures.com/t/st-concrete-19 |
+| Metals | gold, silver brushed steel, aluminum, copper, rusted corrugated steel |
+| Wood | oak, pine |
+| Stone | white marble, granite |
+| Masonry | plaster, ceramic tile |
+| Ground | sand, grass, soil |
+| Fabric | denim, brown leather |
+| Plastic | black plastic, scratched blue plastic |
 
-These Share Textures assets are public domain / CC0, as stated on each source page.
-Each ZIP includes its source and license note. Normal vectors were renormalized after
-resizing. Height and specular maps are omitted. Concrete has no roughness map and uses
-an adjustable roughness of 0.8.
+Also included: dark wood parquet, black brick wall and concrete. Sources and CC0 notes are included inside each ZIP; the complete download manifest is `Tools/Materials/starter-packs.json`. Silver is silver-colored brushed steel. Aluminum uses constant metalness 1 and roughness 0.28 because its original pack used specular shading. White marble uses roughness 0.2. Normal maps are renormalized after resizing; height and specular maps are omitted.
 
 Add licensed material ZIPs to `Mana/Assets/Materials/` (bundled with builds), or
 `Assets/Materials/` (local project packs). Open the picker again to discover new packs.
@@ -31,5 +32,10 @@ python -m pip install Pillow numpy
 python Tools/Materials/compact.py input.zip Mana/Assets/Materials/new-pack.zip --source https://cc0-textures.com/t/source-page --size 512
 ```
 
-The compaction script's license note assumes Share Textures / CC0; update it when
-using a different source. Keep original downloads under `Artifacts/`, outside Git.
+Rebuild the categorized starter set (originals stay in ignored Artifacts):
+
+```powershell
+python Tools/Materials/build_starters.py --download
+```
+
+Only use assets whose redistribution license you have checked. Pass `--creator` to the compactor for the source author; its license note assumes CC0.

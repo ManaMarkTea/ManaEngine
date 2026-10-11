@@ -8,8 +8,8 @@
     "order": 9
   },
   "camera": {
-    "position": [49, 8, 71],
-    "rotation": [-0.16, 0, 0]
+    "position": [49, 25, 105],
+    "rotation": [-0.594, 0, 0]
   },
   "gameModes": [
     {
@@ -131,6 +131,2712 @@
       "position": [49, 0, 52],
       "rotation": [0, 3.1415927, 0],
       "scale": [1, 1, 1]
+    },
+    {
+      "id": "3092a72740bb433da2bf6c59df853db0",
+      "name": "Material Library - 21 ZIP Presets",
+      "kind": "Group",
+      "position": [
+        32,
+        0,
+        56
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "059974f5ae804284a9e33c75d849cc35",
+          "name": "Material Library Floor",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            16,
+            -0.15,
+            12
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            34,
+            0.3,
+            29
+          ],
+          "color": [
+            0.22,
+            0.24,
+            0.27,
+            1
+          ],
+          "collision": {
+            "useVisualBounds": true
+          }
+        },
+        {
+          "id": "10be82b424a8433d954181a6a7a45f91",
+          "name": "Gold - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            3.0,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:gold.zip/material_albedo.png",
+            "metallicMap": "zip:gold.zip/material_metallic.png",
+            "normalMap": "zip:gold.zip/material_normal.png",
+            "roughnessMap": "zip:gold.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/gold.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "47148a34fa6e447dbdd7056f63cc5935",
+          "name": "Gold - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            3.0,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:gold.zip/material_albedo.png",
+            "metallicMap": "zip:gold.zip/material_metallic.png",
+            "normalMap": "zip:gold.zip/material_normal.png",
+            "roughnessMap": "zip:gold.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/gold.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "a9119dd1122141198caa22d4305c8baa",
+          "name": "Gold - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            3.0,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:gold.zip/material_albedo.png",
+            "metallicMap": "zip:gold.zip/material_metallic.png",
+            "normalMap": "zip:gold.zip/material_normal.png",
+            "roughnessMap": "zip:gold.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/gold.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "32bd6f660b06429eb27067c51d72548e",
+          "name": "Silver Brushed Steel - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            7.4,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
+            "metallicMap": "zip:silver-brushed-steel.zip/material_metallic.png",
+            "normalMap": "zip:silver-brushed-steel.zip/material_normal.png",
+            "roughnessMap": "zip:silver-brushed-steel.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/silver-brushed-steel.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "7f3661424bed4247bbfcc519c18ce6e4",
+          "name": "Silver Brushed Steel - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            7.4,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
+            "metallicMap": "zip:silver-brushed-steel.zip/material_metallic.png",
+            "normalMap": "zip:silver-brushed-steel.zip/material_normal.png",
+            "roughnessMap": "zip:silver-brushed-steel.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/silver-brushed-steel.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "6ba5fe307b104073b10b9b5e48514b0a",
+          "name": "Silver Brushed Steel - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            7.4,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
+            "metallicMap": "zip:silver-brushed-steel.zip/material_metallic.png",
+            "normalMap": "zip:silver-brushed-steel.zip/material_normal.png",
+            "roughnessMap": "zip:silver-brushed-steel.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/silver-brushed-steel.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "8f33f82c72d944e49093879be7d17102",
+          "name": "Aluminum - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            11.8,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
+            "albedoMap": "zip:aluminum.zip/material_albedo.png",
+            "normalMap": "zip:aluminum.zip/material_normal.png",
+            "metallicMap": "zip:aluminum.zip/material_metallic.png",
+            "roughnessMap": "zip:aluminum.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/aluminum.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "a5da9509c05140de832690e7178fad37",
+          "name": "Aluminum - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            11.8,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
+            "albedoMap": "zip:aluminum.zip/material_albedo.png",
+            "normalMap": "zip:aluminum.zip/material_normal.png",
+            "metallicMap": "zip:aluminum.zip/material_metallic.png",
+            "roughnessMap": "zip:aluminum.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/aluminum.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "70822d137745463c90923b04463ea92d",
+          "name": "Aluminum - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            11.8,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
+            "albedoMap": "zip:aluminum.zip/material_albedo.png",
+            "normalMap": "zip:aluminum.zip/material_normal.png",
+            "metallicMap": "zip:aluminum.zip/material_metallic.png",
+            "roughnessMap": "zip:aluminum.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/aluminum.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "b39ee5456c7243c8a101d46a5cc8b1fa",
+          "name": "Copper - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            16.200000000000003,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:copper.zip/material_albedo.png",
+            "metallicMap": "zip:copper.zip/material_metallic.png",
+            "normalMap": "zip:copper.zip/material_normal.png",
+            "roughnessMap": "zip:copper.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/copper.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "aecc75c43cf34c129cc08d4ccee2bfe9",
+          "name": "Copper - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            16.200000000000003,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:copper.zip/material_albedo.png",
+            "metallicMap": "zip:copper.zip/material_metallic.png",
+            "normalMap": "zip:copper.zip/material_normal.png",
+            "roughnessMap": "zip:copper.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/copper.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "e049a4aab55e434cbad85b70cda88c5f",
+          "name": "Copper - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            16.200000000000003,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:copper.zip/material_albedo.png",
+            "metallicMap": "zip:copper.zip/material_metallic.png",
+            "normalMap": "zip:copper.zip/material_normal.png",
+            "roughnessMap": "zip:copper.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/copper.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "3bd2fb00baf847d2ba2868dd36bbfe26",
+          "name": "Rusted Corrugated Steel - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            20.6,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
+            "albedoMap": "zip:rusted-corrugated-steel.zip/material_albedo.png",
+            "metallicMap": "zip:rusted-corrugated-steel.zip/material_metallic.png",
+            "normalMap": "zip:rusted-corrugated-steel.zip/material_normal.png",
+            "roughnessMap": "zip:rusted-corrugated-steel.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/rusted-corrugated-steel.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "211f1740060c4da09e156a8afc7ae8b9",
+          "name": "Rusted Corrugated Steel - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            20.6,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
+            "albedoMap": "zip:rusted-corrugated-steel.zip/material_albedo.png",
+            "metallicMap": "zip:rusted-corrugated-steel.zip/material_metallic.png",
+            "normalMap": "zip:rusted-corrugated-steel.zip/material_normal.png",
+            "roughnessMap": "zip:rusted-corrugated-steel.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/rusted-corrugated-steel.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "c72da86b24aa45d895c9751bde4d544e",
+          "name": "Rusted Corrugated Steel - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            20.6,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
+            "albedoMap": "zip:rusted-corrugated-steel.zip/material_albedo.png",
+            "metallicMap": "zip:rusted-corrugated-steel.zip/material_metallic.png",
+            "normalMap": "zip:rusted-corrugated-steel.zip/material_normal.png",
+            "roughnessMap": "zip:rusted-corrugated-steel.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Metals/rusted-corrugated-steel.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "3a9efcf4b1bc4a40b2a39ef49a4e7d6d",
+          "name": "Black Plastic - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            25.0,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:black-plastic.zip/material_albedo.png",
+            "normalMap": "zip:black-plastic.zip/material_normal.png",
+            "roughnessMap": "zip:black-plastic.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Plastic/black-plastic.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "5c20dff864e04d879d0e2944b733abb1",
+          "name": "Black Plastic - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            25.0,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:black-plastic.zip/material_albedo.png",
+            "normalMap": "zip:black-plastic.zip/material_normal.png",
+            "roughnessMap": "zip:black-plastic.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Plastic/black-plastic.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "435cc9af2b5a465bbaa3756ca679a182",
+          "name": "Black Plastic - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            25.0,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:black-plastic.zip/material_albedo.png",
+            "normalMap": "zip:black-plastic.zip/material_normal.png",
+            "roughnessMap": "zip:black-plastic.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Plastic/black-plastic.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "4856480242a040549d042b8e7ff6e555",
+          "name": "Scratched Blue Plastic - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            29.400000000000002,
+            0.9,
+            3.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
+            "normalMap": "zip:scratched-blue-plastic.zip/material_normal.png",
+            "roughnessMap": "zip:scratched-blue-plastic.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Plastic/scratched-blue-plastic.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "59cd1e186f744ed6a6944650278adc9c",
+          "name": "Scratched Blue Plastic - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            29.400000000000002,
+            0.9,
+            5.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
+            "normalMap": "zip:scratched-blue-plastic.zip/material_normal.png",
+            "roughnessMap": "zip:scratched-blue-plastic.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Plastic/scratched-blue-plastic.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "142d7a3fb5a74a64b327b3dcdbf0fa5a",
+          "name": "Scratched Blue Plastic - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            29.400000000000002,
+            0.9,
+            8.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
+            "normalMap": "zip:scratched-blue-plastic.zip/material_normal.png",
+            "roughnessMap": "zip:scratched-blue-plastic.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Plastic/scratched-blue-plastic.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "bccf4823d5a94c06810fcc9ef95c5bf1",
+          "name": "Oak - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            3.0,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:oak.zip/material_occlusion.png",
+            "albedoMap": "zip:oak.zip/material_albedo.png",
+            "metallicMap": "zip:oak.zip/material_metallic.png",
+            "normalMap": "zip:oak.zip/material_normal.png",
+            "roughnessMap": "zip:oak.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Wood/oak.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "cd0c821931924265b608371a5b06c5fe",
+          "name": "Oak - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            3.0,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:oak.zip/material_occlusion.png",
+            "albedoMap": "zip:oak.zip/material_albedo.png",
+            "metallicMap": "zip:oak.zip/material_metallic.png",
+            "normalMap": "zip:oak.zip/material_normal.png",
+            "roughnessMap": "zip:oak.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Wood/oak.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "66c466bf311c48f68d069c7acf0b6287",
+          "name": "Oak - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            3.0,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:oak.zip/material_occlusion.png",
+            "albedoMap": "zip:oak.zip/material_albedo.png",
+            "metallicMap": "zip:oak.zip/material_metallic.png",
+            "normalMap": "zip:oak.zip/material_normal.png",
+            "roughnessMap": "zip:oak.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Wood/oak.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "26bfbe16eb8c434cb61d63aff42700f1",
+          "name": "Pine - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            7.4,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:pine.zip/material_occlusion.png",
+            "albedoMap": "zip:pine.zip/material_albedo.png",
+            "normalMap": "zip:pine.zip/material_normal.png",
+            "roughnessMap": "zip:pine.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Wood/pine.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "260d0c37015e412286d95e1fd3ef6e18",
+          "name": "Pine - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            7.4,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:pine.zip/material_occlusion.png",
+            "albedoMap": "zip:pine.zip/material_albedo.png",
+            "normalMap": "zip:pine.zip/material_normal.png",
+            "roughnessMap": "zip:pine.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Wood/pine.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "849450ef3e004993a9114051cb26934f",
+          "name": "Pine - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            7.4,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:pine.zip/material_occlusion.png",
+            "albedoMap": "zip:pine.zip/material_albedo.png",
+            "normalMap": "zip:pine.zip/material_normal.png",
+            "roughnessMap": "zip:pine.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Wood/pine.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "712ee09094a2488c822568a491abf7c2",
+          "name": "Dark Wood Parquet - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            11.8,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
+            "albedoMap": "zip:dark-wood-parquet.zip/material_albedo.png",
+            "metallicMap": "zip:dark-wood-parquet.zip/material_metallic.png",
+            "normalMap": "zip:dark-wood-parquet.zip/material_normal.png",
+            "roughnessMap": "zip:dark-wood-parquet.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/dark-wood-parquet.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "7231d7d65c814441be7a23f16661b458",
+          "name": "Dark Wood Parquet - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            11.8,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
+            "albedoMap": "zip:dark-wood-parquet.zip/material_albedo.png",
+            "metallicMap": "zip:dark-wood-parquet.zip/material_metallic.png",
+            "normalMap": "zip:dark-wood-parquet.zip/material_normal.png",
+            "roughnessMap": "zip:dark-wood-parquet.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/dark-wood-parquet.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "f2ee5071d3254f30a87496eb7467eddb",
+          "name": "Dark Wood Parquet - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            11.8,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
+            "albedoMap": "zip:dark-wood-parquet.zip/material_albedo.png",
+            "metallicMap": "zip:dark-wood-parquet.zip/material_metallic.png",
+            "normalMap": "zip:dark-wood-parquet.zip/material_normal.png",
+            "roughnessMap": "zip:dark-wood-parquet.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/dark-wood-parquet.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "071bff89c065447bb11fd5fa6a2d917a",
+          "name": "White Marble - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            16.200000000000003,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
+            "albedoMap": "zip:white-marble.zip/material_albedo.png",
+            "normalMap": "zip:white-marble.zip/material_normal.png",
+            "roughnessMap": "zip:white-marble.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Stone/white-marble.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "1eee33d64a5b4b4c9d6237b01ac89adb",
+          "name": "White Marble - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            16.200000000000003,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
+            "albedoMap": "zip:white-marble.zip/material_albedo.png",
+            "normalMap": "zip:white-marble.zip/material_normal.png",
+            "roughnessMap": "zip:white-marble.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Stone/white-marble.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "b598921ec59b4b0a9fd01030ab9eadff",
+          "name": "White Marble - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            16.200000000000003,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
+            "albedoMap": "zip:white-marble.zip/material_albedo.png",
+            "normalMap": "zip:white-marble.zip/material_normal.png",
+            "roughnessMap": "zip:white-marble.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Stone/white-marble.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "404ec23793804fb59a88d204c5cc4a2a",
+          "name": "Granite - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            20.6,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:granite.zip/material_albedo.png",
+            "normalMap": "zip:granite.zip/material_normal.png",
+            "roughnessMap": "zip:granite.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Stone/granite.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "304877ce50d6474394abb6f71c6d1e54",
+          "name": "Granite - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            20.6,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:granite.zip/material_albedo.png",
+            "normalMap": "zip:granite.zip/material_normal.png",
+            "roughnessMap": "zip:granite.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Stone/granite.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "ab8f479db9b94987baebb28751371554",
+          "name": "Granite - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            20.6,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:granite.zip/material_albedo.png",
+            "normalMap": "zip:granite.zip/material_normal.png",
+            "roughnessMap": "zip:granite.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Stone/granite.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "5f8cdc38b87d449bb7681de58b375e17",
+          "name": "Denim - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            25.0,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:denim.zip/material_occlusion.png",
+            "albedoMap": "zip:denim.zip/material_albedo.png",
+            "normalMap": "zip:denim.zip/material_normal.png",
+            "roughnessMap": "zip:denim.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Fabric/denim.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "493e84f8b7c4416bb4d6c665123ace45",
+          "name": "Denim - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            25.0,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:denim.zip/material_occlusion.png",
+            "albedoMap": "zip:denim.zip/material_albedo.png",
+            "normalMap": "zip:denim.zip/material_normal.png",
+            "roughnessMap": "zip:denim.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Fabric/denim.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "6814f6213a2f428ebbabdebeb2af5e48",
+          "name": "Denim - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            25.0,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:denim.zip/material_occlusion.png",
+            "albedoMap": "zip:denim.zip/material_albedo.png",
+            "normalMap": "zip:denim.zip/material_normal.png",
+            "roughnessMap": "zip:denim.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Fabric/denim.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "0a3062a2f8954ad592a701bf4ffdb2c3",
+          "name": "Brown Leather - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            29.400000000000002,
+            0.9,
+            12.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:brown-leather.zip/material_albedo.png",
+            "occlusionMap": "zip:brown-leather.zip/material_occlusion.png",
+            "normalMap": "zip:brown-leather.zip/material_normal.png",
+            "roughnessMap": "zip:brown-leather.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Fabric/brown-leather.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "b7986adb2bc34995af7d1e97dfedb02a",
+          "name": "Brown Leather - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            29.400000000000002,
+            0.9,
+            14.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:brown-leather.zip/material_albedo.png",
+            "occlusionMap": "zip:brown-leather.zip/material_occlusion.png",
+            "normalMap": "zip:brown-leather.zip/material_normal.png",
+            "roughnessMap": "zip:brown-leather.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Fabric/brown-leather.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "6f4e6d2ed5884aa183e7de9c80f8da80",
+          "name": "Brown Leather - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            29.400000000000002,
+            0.9,
+            17.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "albedoMap": "zip:brown-leather.zip/material_albedo.png",
+            "occlusionMap": "zip:brown-leather.zip/material_occlusion.png",
+            "normalMap": "zip:brown-leather.zip/material_normal.png",
+            "roughnessMap": "zip:brown-leather.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Fabric/brown-leather.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "6b7bacdc5e2c4484adfacf7938be489a",
+          "name": "Sand - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            3.0,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:sand.zip/material_occlusion.png",
+            "albedoMap": "zip:sand.zip/material_albedo.png",
+            "normalMap": "zip:sand.zip/material_normal.png",
+            "roughnessMap": "zip:sand.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/sand.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "5a2e07c4d10040aea7d57a116599d77b",
+          "name": "Sand - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            3.0,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:sand.zip/material_occlusion.png",
+            "albedoMap": "zip:sand.zip/material_albedo.png",
+            "normalMap": "zip:sand.zip/material_normal.png",
+            "roughnessMap": "zip:sand.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/sand.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "b817698e7c1e4403911005e7fb5cdbed",
+          "name": "Sand - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            3.0,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:sand.zip/material_occlusion.png",
+            "albedoMap": "zip:sand.zip/material_albedo.png",
+            "normalMap": "zip:sand.zip/material_normal.png",
+            "roughnessMap": "zip:sand.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/sand.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "e68c3a84f41940d0ba359ede1a7cdc1a",
+          "name": "Grass - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            7.4,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:grass.zip/material_occlusion.png",
+            "albedoMap": "zip:grass.zip/material_albedo.png",
+            "normalMap": "zip:grass.zip/material_normal.png",
+            "roughnessMap": "zip:grass.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/grass.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "1cbc02d967f04c649a0890a710e0bea6",
+          "name": "Grass - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            7.4,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:grass.zip/material_occlusion.png",
+            "albedoMap": "zip:grass.zip/material_albedo.png",
+            "normalMap": "zip:grass.zip/material_normal.png",
+            "roughnessMap": "zip:grass.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/grass.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "e5d7079eda1148138fbb91840a164095",
+          "name": "Grass - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            7.4,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:grass.zip/material_occlusion.png",
+            "albedoMap": "zip:grass.zip/material_albedo.png",
+            "normalMap": "zip:grass.zip/material_normal.png",
+            "roughnessMap": "zip:grass.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/grass.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "97baf967a5d6439c8c283da7af03dcfb",
+          "name": "Soil - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            11.8,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:soil.zip/material_occlusion.png",
+            "albedoMap": "zip:soil.zip/material_albedo.png",
+            "normalMap": "zip:soil.zip/material_normal.png",
+            "roughnessMap": "zip:soil.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/soil.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "0f5076df45d849e8ba903c39f1c616a0",
+          "name": "Soil - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            11.8,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:soil.zip/material_occlusion.png",
+            "albedoMap": "zip:soil.zip/material_albedo.png",
+            "normalMap": "zip:soil.zip/material_normal.png",
+            "roughnessMap": "zip:soil.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/soil.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "ae647064cec543ecacb2d2ad3fb1820b",
+          "name": "Soil - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            11.8,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:soil.zip/material_occlusion.png",
+            "albedoMap": "zip:soil.zip/material_albedo.png",
+            "normalMap": "zip:soil.zip/material_normal.png",
+            "roughnessMap": "zip:soil.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Ground/soil.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "f90d11803c4346338fb54e9da5752161",
+          "name": "Concrete - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            16.200000000000003,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:concrete.zip/material_occlusion.png",
+            "albedoMap": "zip:concrete.zip/material_albedo.png",
+            "normalMap": "zip:concrete.zip/material_normal.png",
+            "sourceZip": "Assets/Materials/concrete.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 0.8
+          }
+        },
+        {
+          "id": "68a9846aaf68414aa125078d92ad0f55",
+          "name": "Concrete - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            16.200000000000003,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:concrete.zip/material_occlusion.png",
+            "albedoMap": "zip:concrete.zip/material_albedo.png",
+            "normalMap": "zip:concrete.zip/material_normal.png",
+            "sourceZip": "Assets/Materials/concrete.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 0.8
+          }
+        },
+        {
+          "id": "1ec5efc26072475bae24c45e04a04fec",
+          "name": "Concrete - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            16.200000000000003,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:concrete.zip/material_occlusion.png",
+            "albedoMap": "zip:concrete.zip/material_albedo.png",
+            "normalMap": "zip:concrete.zip/material_normal.png",
+            "sourceZip": "Assets/Materials/concrete.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 0.8
+          }
+        },
+        {
+          "id": "3bd8f183898f4f0ca01538c9581534a0",
+          "name": "Plaster - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            20.6,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:plaster.zip/material_occlusion.png",
+            "albedoMap": "zip:plaster.zip/material_albedo.png",
+            "normalMap": "zip:plaster.zip/material_normal.png",
+            "roughnessMap": "zip:plaster.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Masonry/plaster.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "27a55f28cbb146158ec63a130404ab5a",
+          "name": "Plaster - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            20.6,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:plaster.zip/material_occlusion.png",
+            "albedoMap": "zip:plaster.zip/material_albedo.png",
+            "normalMap": "zip:plaster.zip/material_normal.png",
+            "roughnessMap": "zip:plaster.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Masonry/plaster.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "343433f52c494a3ea7485a7c91d6fad1",
+          "name": "Plaster - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            20.6,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:plaster.zip/material_occlusion.png",
+            "albedoMap": "zip:plaster.zip/material_albedo.png",
+            "normalMap": "zip:plaster.zip/material_normal.png",
+            "roughnessMap": "zip:plaster.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Masonry/plaster.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "3c184e967e554ab0ba0af611337db7f8",
+          "name": "Black Brick Wall - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            25.0,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
+            "albedoMap": "zip:black-brick-wall.zip/material_albedo.png",
+            "normalMap": "zip:black-brick-wall.zip/material_normal.png",
+            "roughnessMap": "zip:black-brick-wall.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/black-brick-wall.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "ba4430b9746441cf9431b30ad001d348",
+          "name": "Black Brick Wall - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            25.0,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
+            "albedoMap": "zip:black-brick-wall.zip/material_albedo.png",
+            "normalMap": "zip:black-brick-wall.zip/material_normal.png",
+            "roughnessMap": "zip:black-brick-wall.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/black-brick-wall.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "d50ca9bc93904adab7c69f95bd2f63d2",
+          "name": "Black Brick Wall - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            25.0,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
+            "albedoMap": "zip:black-brick-wall.zip/material_albedo.png",
+            "normalMap": "zip:black-brick-wall.zip/material_normal.png",
+            "roughnessMap": "zip:black-brick-wall.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/black-brick-wall.zip",
+            "normalStrength": 1,
+            "metallic": 0,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "22413967b0e64087877875d9d2829121",
+          "name": "Ceramic Tile - Sphere",
+          "kind": "Shape",
+          "shape": "Sphere",
+          "position": [
+            29.400000000000002,
+            0.9,
+            21.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",
+            "albedoMap": "zip:ceramic-tile.zip/material_albedo.png",
+            "metallicMap": "zip:ceramic-tile.zip/material_metallic.png",
+            "normalMap": "zip:ceramic-tile.zip/material_normal.png",
+            "roughnessMap": "zip:ceramic-tile.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Masonry/ceramic-tile.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "781d9c2b18e34e55a103c05b58c8b526",
+          "name": "Ceramic Tile - Cube",
+          "kind": "Shape",
+          "shape": "Cube",
+          "position": [
+            29.400000000000002,
+            0.9,
+            23.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",
+            "albedoMap": "zip:ceramic-tile.zip/material_albedo.png",
+            "metallicMap": "zip:ceramic-tile.zip/material_metallic.png",
+            "normalMap": "zip:ceramic-tile.zip/material_normal.png",
+            "roughnessMap": "zip:ceramic-tile.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Masonry/ceramic-tile.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        },
+        {
+          "id": "16fb4664647044468c60265c6c6f8296",
+          "name": "Ceramic Tile - Torus",
+          "kind": "Shape",
+          "shape": "Torus",
+          "position": [
+            29.400000000000002,
+            0.9,
+            26.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1.7,
+            1.7,
+            1.7
+          ],
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",
+            "albedoMap": "zip:ceramic-tile.zip/material_albedo.png",
+            "metallicMap": "zip:ceramic-tile.zip/material_metallic.png",
+            "normalMap": "zip:ceramic-tile.zip/material_normal.png",
+            "roughnessMap": "zip:ceramic-tile.zip/material_roughness.png",
+            "sourceZip": "Assets/Materials/Masonry/ceramic-tile.zip",
+            "normalStrength": 1,
+            "metallic": 1,
+            "roughness": 1
+          }
+        }
+      ]
     }
   ]
 }

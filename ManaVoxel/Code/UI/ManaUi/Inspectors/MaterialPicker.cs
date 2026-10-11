@@ -84,7 +84,10 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                             });
                         option.Child = new Grid().Columns("36, *", theme.Spacing).Rows("Auto").Children(
                             thumbnail.GridColumn(0),
-                            new TextBlock().Text(Path.GetFileNameWithoutExtension(chosen).Replace('-', ' ')).Ellipsis().CenterV().GridColumn(1));
+                            new StackPanel().Vertical(0.0f).CenterV().GridColumn(1).Children(
+                                new TextBlock().Text(Path.GetFileNameWithoutExtension(chosen).Replace('-', ' ')).Ellipsis(),
+                                new TextBlock().Text(Path.GetFileName(Path.GetDirectoryName(chosen)) is { } category && category != "Materials"
+                                    ? category : "General").Foreground(theme.TextMuted).FontSize(theme.FontSizeSmall).Ellipsis()));
                         list.Children.Add(option);
                     }
                     status.Text = entries.Count == 0 ? "Add material ZIPs to Assets/Materials." : $"{list.Children.Count} materials";

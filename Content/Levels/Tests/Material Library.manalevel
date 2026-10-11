@@ -1,0 +1,905 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Material Library",
+  "camera": {
+    "position": [
+      62,
+      22,
+      92
+    ],
+    "rotation": [
+      -0.6,
+      0,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "id": "3bd1f1373a2d4d61a6468e9cba1cd576",
+      "name": "Gold",
+      "kind": "Shape",
+      "shape": "Sphere",
+      "position": [
+        44,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:gold.zip/material_albedo.png",
+        "metallicMap": "zip:gold.zip/material_metallic.png",
+        "normalMap": "zip:gold.zip/material_normal.png",
+        "roughnessMap": "zip:gold.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Metals/gold.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "e3970feadbd3489fb963d60a4203d2ea",
+      "name": "Silver Brushed Steel",
+      "kind": "Shape",
+      "shape": "Sphere",
+      "position": [
+        50,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
+        "metallicMap": "zip:silver-brushed-steel.zip/material_metallic.png",
+        "normalMap": "zip:silver-brushed-steel.zip/material_normal.png",
+        "roughnessMap": "zip:silver-brushed-steel.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Metals/silver-brushed-steel.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "5a7525b6029c4f5580b12dbfd86cdece",
+      "name": "Aluminum",
+      "kind": "Shape",
+      "shape": "Sphere",
+      "position": [
+        56,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
+        "albedoMap": "zip:aluminum.zip/material_albedo.png",
+        "normalMap": "zip:aluminum.zip/material_normal.png",
+        "metallicMap": "zip:aluminum.zip/material_metallic.png",
+        "roughnessMap": "zip:aluminum.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Metals/aluminum.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "16169834a47b4cafa89998a2b79c0bad",
+      "name": "Copper",
+      "kind": "Shape",
+      "shape": "Sphere",
+      "position": [
+        62,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:copper.zip/material_albedo.png",
+        "metallicMap": "zip:copper.zip/material_metallic.png",
+        "normalMap": "zip:copper.zip/material_normal.png",
+        "roughnessMap": "zip:copper.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Metals/copper.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "dd04d07be1e548db8cd2302dd81d514c",
+      "name": "Rusted Corrugated Steel",
+      "kind": "Shape",
+      "shape": "Sphere",
+      "position": [
+        68,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
+        "albedoMap": "zip:rusted-corrugated-steel.zip/material_albedo.png",
+        "metallicMap": "zip:rusted-corrugated-steel.zip/material_metallic.png",
+        "normalMap": "zip:rusted-corrugated-steel.zip/material_normal.png",
+        "roughnessMap": "zip:rusted-corrugated-steel.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Metals/rusted-corrugated-steel.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "7a8c75a800d948acb386e3b876225a1b",
+      "name": "Black Plastic",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        74,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:black-plastic.zip/material_albedo.png",
+        "normalMap": "zip:black-plastic.zip/material_normal.png",
+        "roughnessMap": "zip:black-plastic.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Plastic/black-plastic.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "7829fd2b662d407388884a4ae629cc69",
+      "name": "Scratched Blue Plastic",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        80,
+        1.5,
+        68
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
+        "normalMap": "zip:scratched-blue-plastic.zip/material_normal.png",
+        "roughnessMap": "zip:scratched-blue-plastic.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Plastic/scratched-blue-plastic.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "e588424c39c8429cb551bba1cf2bdbe0",
+      "name": "Oak",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        44,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:oak.zip/material_occlusion.png",
+        "albedoMap": "zip:oak.zip/material_albedo.png",
+        "metallicMap": "zip:oak.zip/material_metallic.png",
+        "normalMap": "zip:oak.zip/material_normal.png",
+        "roughnessMap": "zip:oak.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Wood/oak.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "90a4a8c0a30448e19e7d94de4e585423",
+      "name": "Pine",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        50,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:pine.zip/material_occlusion.png",
+        "albedoMap": "zip:pine.zip/material_albedo.png",
+        "normalMap": "zip:pine.zip/material_normal.png",
+        "roughnessMap": "zip:pine.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Wood/pine.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "1f4bd94283704aa786da0752e6f8bd03",
+      "name": "Dark Wood Parquet",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        56,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
+        "albedoMap": "zip:dark-wood-parquet.zip/material_albedo.png",
+        "metallicMap": "zip:dark-wood-parquet.zip/material_metallic.png",
+        "normalMap": "zip:dark-wood-parquet.zip/material_normal.png",
+        "roughnessMap": "zip:dark-wood-parquet.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/dark-wood-parquet.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "b2b24a7d7ef24385b770e722a5af9839",
+      "name": "White Marble",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        62,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
+        "albedoMap": "zip:white-marble.zip/material_albedo.png",
+        "normalMap": "zip:white-marble.zip/material_normal.png",
+        "roughnessMap": "zip:white-marble.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Stone/white-marble.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "3d4cbf4189d641009b99040330e3878b",
+      "name": "Granite",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        68,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:granite.zip/material_albedo.png",
+        "normalMap": "zip:granite.zip/material_normal.png",
+        "roughnessMap": "zip:granite.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Stone/granite.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "9063de7af638406da4496334ecfeb6a8",
+      "name": "Denim",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        74,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:denim.zip/material_occlusion.png",
+        "albedoMap": "zip:denim.zip/material_albedo.png",
+        "normalMap": "zip:denim.zip/material_normal.png",
+        "roughnessMap": "zip:denim.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Fabric/denim.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "f4890e3253604834933c627189e2cd21",
+      "name": "Brown Leather",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        80,
+        1.5,
+        58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "albedoMap": "zip:brown-leather.zip/material_albedo.png",
+        "occlusionMap": "zip:brown-leather.zip/material_occlusion.png",
+        "normalMap": "zip:brown-leather.zip/material_normal.png",
+        "roughnessMap": "zip:brown-leather.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Fabric/brown-leather.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "4568cc185b384291b80e0f5d78df9765",
+      "name": "Sand",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        44,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:sand.zip/material_occlusion.png",
+        "albedoMap": "zip:sand.zip/material_albedo.png",
+        "normalMap": "zip:sand.zip/material_normal.png",
+        "roughnessMap": "zip:sand.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Ground/sand.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "36866fdf944d4902a92ef9321802f8a2",
+      "name": "Grass",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        50,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:grass.zip/material_occlusion.png",
+        "albedoMap": "zip:grass.zip/material_albedo.png",
+        "normalMap": "zip:grass.zip/material_normal.png",
+        "roughnessMap": "zip:grass.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Ground/grass.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "53b31a50f6534366b10dc6c887f2d7d4",
+      "name": "Soil",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        56,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:soil.zip/material_occlusion.png",
+        "albedoMap": "zip:soil.zip/material_albedo.png",
+        "normalMap": "zip:soil.zip/material_normal.png",
+        "roughnessMap": "zip:soil.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Ground/soil.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "34b8f7d18a534e94817b497cfaf5f868",
+      "name": "Concrete",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        62,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:concrete.zip/material_occlusion.png",
+        "albedoMap": "zip:concrete.zip/material_albedo.png",
+        "normalMap": "zip:concrete.zip/material_normal.png",
+        "sourceZip": "Assets/Materials/concrete.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 0.8
+      }
+    },
+    {
+      "id": "546b2560ebd449218ddc052398fab5d3",
+      "name": "Plaster",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        68,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:plaster.zip/material_occlusion.png",
+        "albedoMap": "zip:plaster.zip/material_albedo.png",
+        "normalMap": "zip:plaster.zip/material_normal.png",
+        "roughnessMap": "zip:plaster.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Masonry/plaster.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "2bb96871b06b4b7c86e40982f398e9aa",
+      "name": "Black Brick Wall",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        74,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
+        "albedoMap": "zip:black-brick-wall.zip/material_albedo.png",
+        "normalMap": "zip:black-brick-wall.zip/material_normal.png",
+        "roughnessMap": "zip:black-brick-wall.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/black-brick-wall.zip",
+        "normalStrength": 1,
+        "metallic": 0,
+        "roughness": 1
+      }
+    },
+    {
+      "id": "006f0f25bafb4a9a8e81011a3211d580",
+      "name": "Ceramic Tile",
+      "kind": "Shape",
+      "shape": "Cube",
+      "position": [
+        80,
+        1.5,
+        48
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "material": {
+        "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",
+        "albedoMap": "zip:ceramic-tile.zip/material_albedo.png",
+        "metallicMap": "zip:ceramic-tile.zip/material_metallic.png",
+        "normalMap": "zip:ceramic-tile.zip/material_normal.png",
+        "roughnessMap": "zip:ceramic-tile.zip/material_roughness.png",
+        "sourceZip": "Assets/Materials/Masonry/ceramic-tile.zip",
+        "normalStrength": 1,
+        "metallic": 1,
+        "roughness": 1
+      }
+    }
+  ],
+  "sky": {
+    "mode": "Photo"
+  }
+}

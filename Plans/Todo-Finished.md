@@ -318,3 +318,5 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     Content/Levels/Pictures; scenes without a picture show a placeholder. Refresh rescans saved levels.
     Available under Panels > Assets > Scenes, including saved dock layouts. Checked with the scripted
     editor screenshot in Tools/Automation/Checks/scenes-ui.json and headless search/preview checks.
+
+- [x] Expanded compact material presets to 21 across metals, wood, stone, masonry, ground, fabric and plastic (15.7 MiB total). Added category labels/search, reproducible CC0 source manifest and a 63-shape showcase in `Content/Levels/PBR Gallery.manalevel`; capture in `DevPhotos/2026-10-10 pbr-material-library.png`.

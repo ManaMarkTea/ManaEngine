@@ -1,0 +1,168 @@
+[
+  {
+    "category": "Metals",
+    "name": "gold",
+    "source": "https://cc0-textures.com/t/cc0t-metal-042-a",
+    "download": "https://download.cc0-textures.com/cc0t/Metal042A_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Metals",
+    "name": "silver-brushed-steel",
+    "source": "https://cc0-textures.com/t/cc0t-metal-012",
+    "download": "https://download.cc0-textures.com/cc0t/Metal012_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Metals",
+    "name": "aluminum",
+    "source": "https://cc0-textures.com/t/st-aluminium-texture",
+    "download": "https://download.cc0-textures.com/st/aluminium_texture-4K.zip",
+    "creator": "Share Textures",
+    "license": "CC0-1.0",
+    "size": 512,
+    "metallic": 1,
+    "roughness": 0.28
+  },
+  {
+    "category": "Metals",
+    "name": "copper",
+    "source": "https://cc0-textures.com/t/cc0t-metal-043-a",
+    "download": "https://download.cc0-textures.com/cc0t/Metal043A_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Metals",
+    "name": "rusted-corrugated-steel",
+    "source": "https://cc0-textures.com/t/cc0t-corrugated-steel-006-a",
+    "download": "https://download.cc0-textures.com/cc0t/CorrugatedSteel006A_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Wood",
+    "name": "oak",
+    "source": "https://cc0-textures.com/t/st-american-oak-1",
+    "download": "https://download.cc0-textures.com/st/american_oak_1-4K.zip",
+    "creator": "Share Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Wood",
+    "name": "pine",
+    "source": "https://cc0-textures.com/t/th-kitchen-wood",
+    "download": "https://download.cc0-textures.com/th/kitchen_wood_4K-JPG.zip",
+    "creator": "Texture Haven",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Stone",
+    "name": "white-marble",
+    "source": "https://cc0-textures.com/t/st-marble-1",
+    "download": "https://download.cc0-textures.com/st/marble_1-4K.zip",
+    "creator": "Share Textures",
+    "license": "CC0-1.0",
+    "size": 512,
+    "roughness": 0.2
+  },
+  {
+    "category": "Stone",
+    "name": "granite",
+    "source": "https://cc0-textures.com/t/cc0t-granite-001-a",
+    "download": "https://download.cc0-textures.com/cc0t/Granite001A_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Masonry",
+    "name": "plaster",
+    "source": "https://cc0-textures.com/t/th-beige-wall-001",
+    "download": "https://download.cc0-textures.com/th/beige_wall_001_4K-JPG.zip",
+    "creator": "Texture Haven",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Masonry",
+    "name": "ceramic-tile",
+    "source": "https://cc0-textures.com/t/st-ceramic-1",
+    "download": "https://download.cc0-textures.com/st/ceramic_1-4K.zip",
+    "creator": "Share Textures",
+    "license": "CC0-1.0",
+    "size": 512,
+    "roughness": 0.2
+  },
+  {
+    "category": "Ground",
+    "name": "sand",
+    "source": "https://cc0-textures.com/t/th-sand-01",
+    "download": "https://download.cc0-textures.com/th/sand_01_4K-JPG.zip",
+    "creator": "Texture Haven",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Ground",
+    "name": "grass",
+    "source": "https://cc0-textures.com/t/cc0t-grass-001",
+    "download": "https://download.cc0-textures.com/cc0t/Grass001_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Ground",
+    "name": "soil",
+    "source": "https://cc0-textures.com/t/th-brown-mud-02",
+    "download": "https://download.cc0-textures.com/th/brown_mud_02_4K-JPG.zip",
+    "creator": "Texture Haven",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Fabric",
+    "name": "denim",
+    "source": "https://cc0-textures.com/t/th-denim-fabric",
+    "download": "https://download.cc0-textures.com/th/denim_fabric_4K-JPG.zip",
+    "creator": "Texture Haven",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Fabric",
+    "name": "brown-leather",
+    "source": "https://cc0-textures.com/t/th-brown-leather",
+    "download": "https://download.cc0-textures.com/th/brown_leather_4K-JPG.zip",
+    "creator": "Texture Haven",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Plastic",
+    "name": "black-plastic",
+    "source": "https://cc0-textures.com/t/cc0t-plastic-006",
+    "download": "https://download.cc0-textures.com/cc0t/Plastic006_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  },
+  {
+    "category": "Plastic",
+    "name": "scratched-blue-plastic",
+    "source": "https://cc0-textures.com/t/cc0t-plastic-001",
+    "download": "https://download.cc0-textures.com/cc0t/Plastic001_4K-JPG.zip",
+    "creator": "CC0 Textures",
+    "license": "CC0-1.0",
+    "size": 512
+  }
+]
