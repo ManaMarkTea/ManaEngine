@@ -252,14 +252,21 @@ function installPauseMenu(game, graphics) {
     });
 }
 
-const chosenLevel = new URLSearchParams(location.search).get('level');
+const startup = new URLSearchParams(location.search);
+const editorMode = (startup.get('mode') ?? document.body.dataset.startMode) === 'editor';
+const chosenLevel = startup.get('level');
 
-if (!chosenLevel) {
+if (editorMode) {
+    // The editor draws its own version and frame rate in its status bar.
+    document.getElementById('manaBuildInfo').style.display = 'none';
+}
+
+if (!editorMode && !chosenLevel) {
     await showLevelSelector();
 } else try {
     installDownloadProgress();
 
-    const runtime = await dotnet.withApplicationArguments(chosenLevel).create();
+    const runtime = await dotnet.withApplicationArguments(...(editorMode ? ["--editor"] : [chosenLevel])).create();
     const { runMain } = runtime;
 
     // Downloads are done; from here the engine's own load owns the bar, reported from C# through
@@ -275,9 +282,11 @@ if (!chosenLevel) {
     // is why the adapter/device request stalled with no visible error at all. getAssemblyExports
     // lives on the runtime instance dotnet.create() returns, not as a named export of dotnet.js.
     globalThis.ManaExports = await runtime.getAssemblyExports('ManaGraphics');
-    const gameExports = await runtime.getAssemblyExports('ManaVoxel.Web');
-    installPauseMenu(gameExports.ManaVoxel.Web.BrowserGameControls,
-        globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop);
+    if (!editorMode) {
+        const gameExports = await runtime.getAssemblyExports('ManaVoxel.Web');
+        installPauseMenu(gameExports.ManaVoxel.Web.BrowserGameControls,
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop);
+    }
 
     // Does not wait for the game: browser bring-up is async and non-blocking, so this returns
     // long before there is anything on the canvas. The overlay is dismissed from the C# side,

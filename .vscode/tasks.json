@@ -216,7 +216,7 @@
       "command": "dotnet",
       "args": [
         "publish",
-        "${workspaceFolder}/ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj",
+        "${workspaceFolder}/ManaVoxel.Web/ManaVoxel.Web.csproj",
         "-c",
         "Release",
         "--nologo"
@@ -237,7 +237,7 @@
         "8002"
       ],
       "problemMatcher": [],
-      "detail": "Serve existing output at http://localhost:8002; terminate the task to stop."
+      "detail": "Serve the combined editor at http://localhost:8002/?mode=editor; terminate the task to stop."
     },
     {
       "label": "Run: ManaVoxel.Editor.Web",
@@ -252,7 +252,7 @@
         "8002"
       ],
       "problemMatcher": [],
-      "detail": "Publish Release, then serve at http://localhost:8002. Open the URL in your browser.",
+      "detail": "Publish Release, then serve at http://localhost:8002/?mode=editor. Open the URL in your browser.",
       "dependsOn": "Publish: ManaVoxel.Editor.Web (Release)",
       "dependsOrder": "sequence"
     },
@@ -362,7 +362,7 @@
         },
         {
           "label": "ManaVoxel.Editor.Web",
-          "value": "ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj"
+          "value": "ManaVoxel.Web/ManaVoxel.Web.csproj"
         },
         {
           "label": "Tools/AudioSmoke.Web",
@@ -399,7 +399,7 @@
       "id": "appBundle",
       "type": "promptString",
       "description": "Path to an existing published AppBundle",
-      "default": "Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle"
+      "default": "Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle"
     }
   ]
 }

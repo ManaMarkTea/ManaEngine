@@ -1,11 +1,4 @@
-// Mirrors the subset of ManaVoxel/Program.cs's project-wide `global using` directives that the
-// source files linked in from ManaVoxel (see ManaVoxel.Web.csproj) rely on. Those files are
-// compiled here without ManaVoxel's Program.cs, so without this they lose usings they have always
-// silently depended on. Keep the aliases here when linking more ManaVoxel source files, or the
-// compiler can report misleading "type not found" errors that look like missing references.
-//
-// Deliberately only the browser-safe entries: ManaVoxel's list also globals in editor/loader
-// namespaces that have no browser-wasm build.
+// Shared by the browser play mode; level and editor types come from the ManaVoxel reference.
 global using System.Numerics;
 global using Mana.Code;
 global using Mana.Code.Shapes;

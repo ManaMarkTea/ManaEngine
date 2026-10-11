@@ -1,8 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Browser-wasm executable for play mode. RuntimeIdentifier is fixed here permanently;
-       referenced shared projects use RuntimeIdentifiers plus SetTargetFramework for their
-       browser-wasm target. -->
+  <!-- One browser host selects editor or standalone play at startup. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -13,105 +11,36 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WasmMainJSPath>main.js</WasmMainJSPath>
     <DefineConstants>$(DefineConstants);MANA_BROWSER</DefineConstants>
-    <!-- AOT-compiling (not just interpreting) avoids a Mono wasm interpreter-specific crash
-         (memory access out of bounds building a native-to-interp trampoline) that happened the
-         moment a C# delegate was passed as a native callback parameter to
-         wgpuInstanceRequestAdapter; confirmed live in-browser, not just theorized. -->
+    <!-- AOT avoids the interpreter crash creating native WebGPU callback trampolines. -->
     <RunAOTCompilation>true</RunAOTCompilation>
-    <!-- ManaLevel.Load deserializes .manalevel through System.Text.Json's reflection-based path.
-         A trimmed/AOT wasm publish turns that off by default (the runtime throws
-         "JsonSerializerIsReflectionDisabled"), because reflection over trimmed types can't be
-         proven safe. Re-enabling it is the supported switch for exactly this case. The properly
-         AOT-shaped fix is a source-generated JsonSerializerContext for ManaLevel's DTOs, which
-         would also shrink the output; worth doing if level DTOs ever get trimmed away or the
-         payload size starts to matter. -->
+    <!-- Level and docking-layout JSON require reflection under trimming. -->
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
-    <!-- Activates Emscripten's own library_webgpu.js (the old USE_WEBGPU=1 API, not the newer
-         emdawnwebgpu port), which is what
-         ManaGraphics/Native/mana_webgpu.c's shims forward into. This has to live here, not in
-         ManaGraphics.csproj: confirmed by testing that NativeFileReference/EmccExportedFunction/
-         EmccExtraLDFlags items declared in a referenced project are silently ignored during the
-         top-level app's publish; only the entry project's own native-link step runs them.
-         getWasmTableEntry is an internal ($-prefixed) Emscripten library helper library_webgpu.js
-         depends on to turn our native callback's function-pointer parameter into a JS-callable
-         wrapper (needed to resolve the JS Promise from navigator.gpu.requestAdapter() back into
-         our callback); the .NET wasm build's own tree-shaking drops it since nothing else in this
-         app's JS-visible call graph references it statically. EXPORTED_RUNTIME_METHODS doesn't
-         apply here (that's for external JS calling into Module.*, not an internal library
-         dependency); confirmed by emcc itself rejecting "getWasmTableEntry" as an invalid
-         EXPORTED_RUNTIME_METHODS item. DEFAULT_LIBRARY_FUNCS_TO_INCLUDE is the correct flag to
-         force-include an internal library function past tree-shaking. -->
+    <!-- The trimmer can't follow that reflection (nor the Inspector's or UiMarkup's), so it warns on every
+         call; the assemblies it reaches into are rooted below instead, which keeps what it needs. -->
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- Emscripten WebGPU needs this internal callback helper retained by the native linker. -->
     <EmccExtraLDFlags>$(EmccExtraLDFlags) -sUSE_WEBGPU=1 -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$getWasmTableEntry</EmccExtraLDFlags>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Deliberately just the three libraries M8 scopes this project to; not
-         ManaVoxel.csproj itself. ManaVoxel is a WinExe with its own desktop-only
-         editor surface; referencing it here would reintroduce the same
-         RID-conditioned-restore problem documented for the "ManaVoxel -r browser-wasm"
-         experiment, since ManaVoxel.csproj would then be built both ways again
-         depending on which project is the invocation root. VoxelPlayGameMode.cs and
-         its handful of ManaVoxel-namespaced dependencies (Levels/Services/UI.ManaUi under Content/)
-         aren't reachable from here yet; extracting/sharing that code is follow-up
-         work, not part of this scaffold. -->
+    <!-- Share the editor and level types directly, so play does not compile linked copies. -->
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <!-- Pinned here too: RuntimeIdentifier does not flow through Mana's own reference, so without this
          ManaAudio builds its desktop OpenAL backend and the browser silently falls back to no audio. -->
     <ProjectReference Include="..\ManaAudio\ManaAudio.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
     <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
-    <!-- The games in projects of their own (Games/), registered by ManaGames.cs below as on desktop. -->
-    <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
+    <ProjectReference Include="..\ManaVoxel\ManaVoxel.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=browser-wasm" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Level loading, linked in by source rather than by referencing ManaVoxel.csproj: that
-         project is a WinExe whose editor surface has no browser-wasm build (see the
-         ProjectReference comment below for why it stays out). These particular files are pure
-         managed with no native dependencies, so compiling them into this assembly
-         costs nothing and leaves the desktop editor's own copy completely untouched. If the play
-         path ever needs much more of ManaVoxel than this, the better answer is extracting a
-         shared ManaLevels library rather than growing this list indefinitely. -->
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevel.cs" Link="Levels\ManaLevel.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMaterial.cs" Link="Levels\ManaLevelMaterial.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelLoader.cs" Link="Levels\ManaLevelLoader.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelGameModes.cs" Link="Levels\ManaLevelGameModes.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaGames.cs" Link="Levels\ManaGames.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelMeshColliders.cs" Link="Levels\ManaLevelMeshColliders.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVoxelCodec.cs" Link="Levels\ManaLevelVoxelCodec.cs" />
-    <Compile Include="..\ManaVoxel\Code\Gameplay\Trains\TrainCarComponent.cs" Link="Gameplay\TrainCarComponent.cs" />
-    <Compile Include="..\ManaVoxel\Code\Services\CharacterSpawnService.cs" Link="Services\CharacterSpawnService.cs" />
-    <!-- The play HUD, results and death screens: ManaUI only, the same ones desktop play shows. -->
-    <Compile Include="..\ManaVoxel\Code\UI\ManaUi\ManaUiPlayOverlay.cs" Link="UI\ManaUiPlayOverlay.cs" />
-    <Compile Include="..\ManaVoxel\Code\UI\ManaUi\ManaUiPlayResults.cs" Link="UI\ManaUiPlayResults.cs" />
-    <Compile Include="..\ManaVoxel\Code\UI\ManaUi\ManaUiDeathScreen.cs" Link="UI\ManaUiDeathScreen.cs" />
-    <Compile Include="..\ManaVoxel\Code\Loaders\MagicaVoxLoader.cs" Link="Levels\MagicaVoxLoader.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelComponentScripts.cs" Link="Levels\ManaLevelComponentScripts.cs" />
-    <!-- The shared level script registry now references the course components too. -->
-    <Compile Include="..\ManaVoxel\Code\Gameplay\Course\*.cs" Link="Gameplay\Course\%(Filename)%(Extension)" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelVector3Converter.cs" Link="Levels\ManaLevelVector3Converter.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaComponentReferenceConverter.cs" Link="Levels\ManaComponentReferenceConverter.cs" />
-    <Compile Include="..\ManaVoxel\Code\Levels\ManaLevelGridMapCodec.cs" Link="Levels\ManaLevelGridMapCodec.cs" />
-    <Compile Include="..\ManaVoxel\Code\GridMaps\ManaGridMapNode.cs" Link="GridMaps\ManaGridMapNode.cs" />
-    <Compile Include="..\ManaVoxel\Code\GridMaps\GridMapAutoTile.cs" Link="GridMaps\GridMapAutoTile.cs" />
-    <Compile Include="..\ManaVoxel\Code\Assets\ManaPrefab.cs" Link="Assets\ManaPrefab.cs" />
-    <Compile Include="..\ManaVoxel\Code\Assets\ManaContentKinds.cs" Link="Assets\ManaContentKinds.cs" />
-    <Compile Include="..\ManaVoxel\Code\Assets\ManaContentLibrary.cs" Link="Assets\ManaContentLibrary.cs" />
-    <!-- Only the zip-handling halves of these two: their other partials are editor-facing
-         (directory scanning, FileSystemWatcher, VoxelEditorViewModel) and don't build for browser.
-         Splitting them was pure code movement; desktop compiles the same class from both files. -->
-    <Compile Include="..\ManaVoxel\Code\Assets\MeshAssetLibrary.ZipPaths.cs" Link="Levels\MeshAssetLibrary.ZipPaths.cs" />
-    <Compile Include="..\ManaVoxel\Code\Services\VoxelFileImportService.ZipSidecar.cs" Link="Levels\VoxelFileImportService.ZipSidecar.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- The .manalevel DTOs (ManaLevel and friends, compiled into this assembly) are only ever
-         constructed by System.Text.Json's reflection, which the trimmer cannot see, so it
-         removes their parameterless constructors and deserialization fails at runtime with
-         "DeserializeNoConstructor". Rooting this assembly keeps them. Cheap here because this
-         assembly is just the entry point plus the linked level-loading sources; the engine
-         assemblies are still trimmed normally. -->
+    <!-- Keep entry types used by reflection and JavaScript exports. -->
     <TrimmerRootAssembly Include="ManaVoxel.Web" />
+    <!-- Preserve components discovered and constructed through reflection by the editor. -->
+    <TrimmerRootAssembly Include="Mana" />
+    <TrimmerRootAssembly Include="ManaVoxel" />
+    <!-- UiMarkup finds its element types by scanning this assembly. -->
+    <TrimmerRootAssembly Include="ManaUI" />
   </ItemGroup>
 
   <ItemGroup>
@@ -121,41 +50,28 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Enables ManaWebGpuContext.Device.cs's IsDemoMeshPipelineEnabled() so
-         FinishInitialization actually attempts CreateDemoMeshPipeline() (shader modules,
-         render pipeline, buffer upload, per-frame draw) instead of just clearing the canvas.
-         Keep this enabled so browser verification exercises the real mesh-rendering path. -->
+    <!-- Exercise real mesh rendering during browser validation. -->
     <WasmEnvironmentVariable Include="MANA_WEBGPU_DEMO_MESH" Value="1" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- BepuPhysics crashes Mono's LLVM AOT compiler outright: "Assertion at mini-llvm.c:10284,
-         condition `LLVMTypeOf (lhs) == LLVMTypeOf (rhs)' not met" while compiling BepuPhysics.dll.
-         That's an internal compiler failure on Bepu's heavily-SIMD generic code, not something
-         fixable from this side. Interpreting just this one assembly (everything else still gets
-         AOT'd) sidesteps it; a browser test established Bepu runs correctly under the
-         wasm interpreter, producing bit-identical results to desktop. Physics is not the frame
-         budget's hot spot here, so the interpreter's slowdown on it is an acceptable trade for
-         having physics at all. Revisit if a later runtime fixes the AOT crash. -->
+    <!-- Bepu SIMD generics crash LLVM AOT; interpret only the physics assemblies. -->
     <_AOT_InternalForceInterpretAssemblies Include="BepuPhysics" />
     <_AOT_InternalForceInterpretAssemblies Include="BepuUtilities" />
+    <!-- Only KML import reads XML here; interpreting it saves its AOT compile on every publish. -->
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml" />
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml.Linq" />
   </ItemGroup>
 
   <Import Project="..\WebAssets.props" />
 
   <ItemGroup>
-    <!-- Physically lives in ManaGraphics (the project whose ManaBrowserWebGpuNativeContext.cs
-         consumes it) but must be declared here; see the EmccExtraLDFlags comment above. -->
+    <!-- Native-link items must live in the entry project; project references do not forward them. -->
     <NativeFileReference Include="..\ManaGraphics\Native\mana_webgpu.c" />
-    <!-- Hand-added, not part of the mechanically-generated 69; see mana_webgpu.c. -->
     <EmccExportedFunction Include="_mana_wgpuInstanceCreateSurface" />
-    <!-- EM_JS-based bypass around the broken InstanceRequestAdapter/AdapterRequestDevice
-         callback path; see mana_webgpu.c and ManaBrowserWebGpuCallbackBridge.cs. -->
     <EmccExportedFunction Include="_mana_request_adapter" />
     <EmccExportedFunction Include="_mana_request_device" />
-    <!-- Diagnostic only; see mana_webgpu.c's mana_log_shader_compilation_info_impl. -->
     <EmccExportedFunction Include="_mana_log_shader_compilation_info" />
-    <!-- Diagnostic only; see mana_webgpu.c's mana_debug_readback_buffer_impl. -->
     <EmccExportedFunction Include="_mana_debug_readback_buffer" />
     <EmccExportedFunction Include="_mana_wgpuAdapterEnumerateFeatures" />
     <EmccExportedFunction Include="_mana_wgpuAdapterGetLimits" />
@@ -228,20 +144,8 @@
     <EmccExportedFunction Include="_mana_wgpuTextureViewRelease" />
   </ItemGroup>
 
-  <!-- Exact download size for the loading screen's progress bar, written into the app bundle at
-       publish time.
-
-       Without it the bar is useless. main.js can only add a resource's size to the denominator
-       once that resource's response headers have arrived, so early on the ratio is bytes-received
-       over bytes-of-what-has-started; which is close to 1 no matter how little of the app is
-       actually down. Measured live: the bar read "1.1 / 1.1 MB, 70%" with 57 MB still to come and
-       then sat there for the whole download. A total known before the first byte fixes it.
-
-       Deliberately measured off the produced bundle rather than declared by hand: this number is
-       exactly the kind that rots silently the first time an asset is added to the csproj above.
-       main.js treats a missing or stale manifest as non-fatal and falls back to the growing total,
-       so a build that skips this target still gets a working (if lazier) screen. -->
-  <UsingTask TaskName="ManaWriteDownloadSize" TaskFactory="RoslynCodeTaskFactory"
+  <!-- Measure the completed bundle for byte-based loading progress. -->
+  <UsingTask TaskName="ManaWriteEditorDownloadSize" TaskFactory="RoslynCodeTaskFactory"
              AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <AppBundleDir ParameterType="System.String" Required="true" />
@@ -249,14 +153,9 @@
     <Task>
       <Code Type="Fragment" Language="cs"><![CDATA[
 long total = 0;
-
-// Recursive, and _framework alone is the whole download: the bundled VFS assets (the environment
-// map and the asset zips, the largest single items after dotnet.native.wasm) land in
-// _framework/supportFiles, not beside it. Same set of files main.js counts on the way in.
 var directory = Path.Combine(AppBundleDir, "_framework");
 foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
 {
-    // Served, but never fetched unless devtools is open and goes looking for them.
     if (file.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
     {
         continue;
@@ -265,10 +164,6 @@ foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDi
     total += new FileInfo(file).Length;
 }
 
-// Overcounts by roughly 1.5 MB: all three icudt_*.dat shards are in the bundle and the runtime
-// downloads exactly one, but which one depends on the culture it resolves at runtime. That errs
-// in the safe direction -- the bar finishes the download phase slightly short and the engine
-// phase takes over, rather than pinning at 100% with bytes still arriving.
 File.WriteAllText(
     Path.Combine(AppBundleDir, "mana-download-size.json"),
     "{\"totalBytes\":" + total + "}");
@@ -278,16 +173,25 @@ Log.LogMessage(MessageImportance.High, "Loading screen: download total is " + to
     </Task>
   </UsingTask>
 
-  <!-- _WasmGenerateAppBundle, not Publish or Build. It is a private SDK target, and hooking one is
-       a real coupling; the alternatives are worse. A publish runs the bundle generation inside a
-       nested WasmNestedPublishApp build that happens AFTER the outer Publish target, so anything
-       written from AfterTargets="Publish" is produced first and then wiped when the bundle is
-       regenerated: measured, the manifest simply was not there afterwards. This is the point where
-       the app bundle exists and is final, for both build and publish. If a future SDK renames it,
-       the manifest stops being written and the screen silently falls back; grep the build log for
-       "Loading screen:" to confirm it still runs. -->
-  <Target Name="ManaWriteDownloadSizeManifest" AfterTargets="_WasmGenerateAppBundle">
-    <ManaWriteDownloadSize AppBundleDir="$(WasmAppDir)" />
+  <Target Name="ManaWriteEditorDownloadSizeManifest" AfterTargets="_WasmGenerateAppBundle">
+    <ManaWriteEditorDownloadSize AppBundleDir="$(WasmAppDir)" />
+  </Target>
+
+
+
+  <!-- The hosted browser app is AppBundle, populated only by WasmFilesToIncludeInFileSystem above.
+       The generic SDK publish/target directories can still collect referenced-project desktop content
+       from Mana.csproj's ordinary CopyToOutputDirectory items. Keep the full ETOPO baseline available
+       to desktop builds, but never leave this 444 MB source GeoTIFF in editor-web outputs that people
+       are likely to zip for itch.io. -->
+  <Target Name="ManaRemoveOversizedDesktopPlanetAssetFromEditorWebOutputs" AfterTargets="Build;Publish">
+    <ItemGroup>
+      <_ManaEditorWebOversizedDesktopAsset Include="$(TargetDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif"
+                                           Condition="Exists('$(TargetDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif')" />
+      <_ManaEditorWebOversizedDesktopAsset Include="$(PublishDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif"
+                                           Condition="'$(PublishDir)' != '' And Exists('$(PublishDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif')" />
+    </ItemGroup>
+    <Delete Files="@(_ManaEditorWebOversizedDesktopAsset)" />
   </Target>
 
 </Project>

@@ -1,7 +1,8 @@
 # ManaVoxel.Web — the browser build
 
-Play mode running in a browser: WebGPU rendering, real keyboard/mouse input, BepuPhysics, a
-bundled level, and a controllable character. No editor.
+One browser host provides standalone play and the full editor, sharing the engine, WebGPU,
+audio, physics and one AOT-compiled runtime bundle. Open `?mode=editor` for the editor;
+the default page is the play level selector.
 
 ## Levels and the menu
 
@@ -15,6 +16,14 @@ code names what to fetch ahead in `ManaLevelGameMode.Assets`, and one that handl
 Escape while playing opens the pause menu (Resume, Restart level, Choose another level); the game stops
 while it is open and the page keeps its keys and clicks. The menu talks to the game through
 `BrowserGameControls` (JS exports from this assembly).
+
+## Deployment
+
+CI publishes this project once and builds one versioned `app/v/<commit>/` directory.
+The existing `/editor/` and `/play/` links redirect there with the appropriate mode,
+keeping level and graphics parameters. Build and deployment share a runner, so there
+are no staging artifacts. The Pages upload is deleted after successful deployment.
+Both modes download the editor-capable runtime; assets remain on demand.
 
 ## Build and run
 
@@ -49,7 +58,7 @@ happens.
 ## The loading screen
 
 The wait here is much longer than desktop's and starts much earlier, so the screen is HTML
-(`index.html`) rather than the engine's own ManaUI/ImGui one. That is not a shortcut — it is the
+(`index.html`) rather than the engine's own ManaUI one. That is not a shortcut — it is the
 only thing that can cover the first and longest phase, because no C# is running during it:
 
 | Phase | Roughly | Driven by |
@@ -143,13 +152,12 @@ picked up automatically; no per-level packaging allowlist needs updating.
 
   Encoding sRGB in `hdr_tonemap.wgsl` instead — the first attempt — is the wrong layer, and the
   editor build is what proves it: the tonemap pass is only one of three things that write to the
-  surface, with ImGui and ManaUI drawing into the same pass afterwards. Those came out a gamma
+  surface, with ManaUI drawing into the same pass afterwards. Those came out a gamma
   dark, and encoding per-shader would still have blended the UI in the wrong space.
 - **Reflection-based JSON and trimmer roots are on.** Level DTOs are only ever constructed by
   `System.Text.Json`'s reflection, which the trimmer can't see.
-- **No editor, no ImGui.** `ManaVoxel.csproj` is never referenced; the handful of level-loading
-  and character-spawning sources it owns are linked in by source instead (see the `Compile
-  Include` block in the csproj).
+- **Shared editor and play host.** `ManaVoxel.csproj` is referenced with its browser-wasm target;
+  both startup modes use its level loaders and the same engine assemblies. ManaUI supplies the UI.
 
 ## Testing without a browser
 

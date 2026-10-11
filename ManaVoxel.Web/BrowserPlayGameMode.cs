@@ -13,22 +13,7 @@ using System.Diagnostics;
 
 namespace ManaVoxel.Web
 {
-    /// <summary>
-    /// Play mode for the browser: one level, one character, no editor.
-    /// <para>
-    /// A sibling of ManaVoxel's <c>VoxelPlayGameMode</c> rather than that class reused directly --
-    /// it lives in the ManaVoxel WinExe, whose editor surface has no browser-wasm
-    /// build. The parts that matter (ground, level load, pawn controller, follow camera) are small
-    /// and mirrored here; the level-loading types themselves ARE shared, linked in by source.
-    /// </para>
-    /// <para>
-    /// The one real behavioural difference: loading happens inline instead of on a
-    /// <c>Task.Run</c> background thread. Browser wasm is single-threaded by default, so a
-    /// background load buys nothing and only risks the "loading screen waits on loading" deadlock
-    /// already documented for the environment map. A bundled level is a filesystem read out of the
-    /// wasm VFS -- fast enough that blocking one frame on it is invisible.
-    /// </para>
-    /// </summary>
+    /// <summary>Standalone browser play with synchronous loading on the browser main thread.</summary>
     public sealed class BrowserPlayGameMode : BaseGameMode
     {
         private const float GroundSize = 256.0f;
@@ -114,7 +99,16 @@ namespace ManaVoxel.Web
         private static void BackToLevels()
         {
             using var location = System.Runtime.InteropServices.JavaScript.JSHost.GlobalThis.GetPropertyAsJSObject("location");
-            location?.SetProperty("search", "");
+            if (location == null)
+            {
+                return;
+            }
+            var search = location.GetPropertyAsString("search") ?? "";
+            var settings = search.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Where(parameter => !parameter.StartsWith("level=", StringComparison.Ordinal)
+                    && !parameter.StartsWith("mode=", StringComparison.Ordinal));
+            // Keep play explicit when the same bundle is hosted with an editor default on itch.io.
+            location.SetProperty("search", "?mode=play&" + string.Join("&", settings));
         }
 
         public void RunWebGpu()

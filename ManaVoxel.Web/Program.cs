@@ -1,76 +1,78 @@
 using Mana;
+using Mana.Code.GameModes;
 using ManaCore.Graphics;
-using ManaGraphics.Code.Graphics;
-#if MANA_BROWSER
+using ManaCore.Loading;
+using ManaGraphics.Code.Diagnostics;
 using ManaGraphics.Code.Graphics.Browser;
+using ManaVoxel.Code.Levels;
 using ManaVoxel.Web;
-#endif
 
-Console.WriteLine("ManaVoxel.Web booting (browser-wasm)...");
+var editorMode = args.Length > 0 && args[0] == "--editor";
+Console.WriteLine($"ManaVoxel.Web booting ({(editorMode ? "editor" : "play")}, browser-wasm)...");
 
-// Quick boot smoke test first (cheap, and gives useful diagnostic output even if the heavier
-// WebGPU bring-up below fails): proves the full ManaCore + Mana + ManaGraphics reference graph
-// loads and runs real engine code under Mono's wasm runtime.
-var world = new ManaWorld();
-Console.WriteLine($"ManaWorld constructed OK ({world.Meshes.Count} meshes, {world.Scenes.Count} scenes at boot).");
-Console.WriteLine($"ManaGraphicsBackendKind values: {string.Join(", ", Enum.GetNames<ManaGraphicsBackendKind>())}");
-
-#if MANA_BROWSER
-// The real M1/M2 attempt: a live browser IWindow (canvas-backed), the real WebGPU shim, and
-// GameSilkWebGpu's actual render loop -- the same code path VoxelPlayGameMode's own bring-up
-// uses on desktop, unmodified beyond the #if MANA_BROWSER branches already wired into it. Its
-// browser render loop uses the real engine and WebGPU shim; it has been verified in Chrome.
 await ManaBrowserInterop.InitializeAsync();
-// Emoji come from the browser's own font rather than a 10 MB download.
 ManaBrowserEmoji.Install();
 await ManaAudio.ManaAudioFactory.InitializeBrowserAsync();
-Console.WriteLine("Browser interop module loaded.");
-
-// The loading screen (index.html's overlay) has been up since the page loaded, showing the wasm
-// download. From here it belongs to the engine; see BrowserPlayGameMode's constructor for the
-// bridge that keeps it fed.
 ManaBrowserInterop.ReportLoadingProgress("Starting engine", 0.0f);
 
 try
 {
     await ManaCore.Browser.ManaBrowserAssets.InitializeAsync();
-
-    // The level picked on the selector page (main.js passes it as the program's argument), or the Sample Course.
-    // Only a bundled level: the argument comes off the URL, and nothing else in the file system is a level.
-    var levelPath = "Content/Levels/Sample Course.manalevel";
-    if (args.Length > 0 && args[0].StartsWith("Content/Levels/", StringComparison.Ordinal) && !args[0].Contains("..")
-        && args[0].EndsWith(".manalevel", StringComparison.Ordinal) && File.Exists(args[0]))
+    if (editorMode)
     {
-        levelPath = args[0];
+        ManaBrowserInterop.SuppressBrowserKeys("F5");
+        ManaUiDensity.RestorePreset();
+        _ = ManaBrowserEmoji.WarmAsync(new[]
+        {
+            0x1F30A, 0x1F480, 0x1F680, 0x1F3A8, 0x1F5D1, 0x1F6E2, 0x1F50C, 0x1F479,
+            0x1F4A8, 0x1F4A5, 0x1F600, 0x1F4E6, 0x1F527, 0x1F9EA, 0x1F30D, 0x1F30B,
+            0x1F332, 0x1F525, 0x1F4A7, 0x1F528, 0x1F4DD, 0x1F195, 0x1F496, 0x1F5A4, 0x1F53D
+        }, 15.0f);
+        var editor = new VoxelEditorGameMode(ManaGraphicsBackendKind.WebGpu);
+        var overlayHidden = false;
+        editor.Loading.PropertyChanged += (_, _) =>
+        {
+            if (overlayHidden)
+            {
+                return;
+            }
+            if (!editor.IsLoading)
+            {
+                overlayHidden = true;
+                ManaBrowserInterop.HideLoadingScreen();
+                return;
+            }
+            var snapshot = editor.Loading.Snapshot;
+            if (editor.LoadingCoordinator.Stage == ManaLoadingStage.Failed)
+            {
+                ManaBrowserInterop.ReportLoadingFailed(snapshot.Status);
+                return;
+            }
+            ManaBrowserInterop.ReportLoadingProgress(snapshot.Status, snapshot.Fraction);
+        };
+        // Yield so the browser paints the loading status before synchronous world construction.
+        await Task.Delay(32);
+        editor.RunWebGpu(null);
     }
-    Console.WriteLine($"[BrowserPlay] Level: {levelPath}");
-
-    await ManaVoxel.Code.Levels.ManaLevelLoader.EnsureAssetsAsync(ManaVoxel.Code.Levels.ManaLevel.Load(levelPath));
-    // The real game: ground, the bundled level, a pawn controller and a follow camera -- the same
-    // engine lifecycle the desktop play mode drives, minus the editor. See BrowserPlayGameMode.
-    var playMode = new BrowserPlayGameMode(levelPath, ManaGraphicsBackendKind.WebGpu);
-
-    // Not padding. Browser wasm is single-threaded, so BrowserPlayGameMode.Load runs inline on the
-    // main thread and holds it for seconds -- decoding a 5 MB environment map and unzipping meshes.
-    // The DOM writes queued above cannot paint until that lets go, so without a yield here the
-    // screen still reads "Downloading" for the whole load and then jumps straight to the game. One
-    // turn of the event loop lets the browser paint the status the user is about to be waiting on.
-    // (The screen's own animations are CSS, on the compositor, so those keep moving through the
-    // block regardless -- see index.html. This is only about the text and the bar position.)
-    await Task.Delay(32);
-
-    playMode.RunWebGpu();
-    Console.WriteLine("GameSilkWebGpu.Run() returned (expected: browser bring-up is async and non-blocking; " +
-        "watch the console above/after this line for how far it actually got).");
+    else
+    {
+        var levelPath = "Content/Levels/Sample Course.manalevel";
+        if (args.Length > 0 && args[0].StartsWith("Content/Levels/", StringComparison.Ordinal)
+            && !args[0].Contains("..") && args[0].EndsWith(".manalevel", StringComparison.Ordinal)
+            && File.Exists(args[0]))
+        {
+            levelPath = args[0];
+        }
+        Console.WriteLine($"[BrowserPlay] Level: {levelPath}");
+        await ManaLevelLoader.EnsureAssetsAsync(ManaLevel.Load(levelPath));
+        var play = new BrowserPlayGameMode(levelPath, ManaGraphicsBackendKind.WebGpu);
+        await Task.Delay(32);
+        play.RunWebGpu();
+    }
 }
 catch (Exception exception)
 {
-    // Anything thrown out of bring-up before the game mode's own loading coordinator exists would
-    // otherwise leave the overlay spinning forever with no clue why.
     Console.WriteLine($"Browser bring-up failed: {exception}");
     ManaBrowserInterop.ReportLoadingFailed(exception.Message);
     throw;
 }
-#else
-Console.WriteLine("Not a browser-wasm build; skipping the WebGPU bring-up attempt.");
-#endif

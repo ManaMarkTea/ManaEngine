@@ -23,22 +23,16 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    # The two AOT publishes are most of the run, so they build side by side rather than one after the other.
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - app: editor
-            project: ManaVoxel.Editor.Web
-          - app: play
-            project: ManaVoxel.Web
+  publish:
     runs-on: ubuntu-latest
     # RunAOTCompilation + the emscripten native build are slow; give real headroom without letting a
     # stuck build hang for the default 6 hours.
-    timeout-minutes: 60
+    timeout-minutes: 80
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     env:
-      APP_BUNDLE: Artifacts/Bin/${{ matrix.project }}/Release/net10.0/browser-wasm/AppBundle
+      APP_BUNDLE: Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle
 
     steps:
       - name: Checkout
@@ -75,78 +69,22 @@ jobs:
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools --skip-manifest-update
 
-      - name: Publish ${{ matrix.app }}
-        # The browser-wasm publish graph builds some referenced projects more than once; keep them
-        # serialized so GenerateDepsFile does not race on the shared output (e.g. ManaCore.deps.json).
-        run: dotnet publish ${{ matrix.project }}/${{ matrix.project }}.csproj -c Release -m:1
+      - name: Publish editor and play
+        # Serialize referenced-project builds to avoid shared output races.
+        run: dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1
 
-      - name: Move the external asset library off to the shared GitHub Pages folder
-        # itch.io caps a browser build's extracted size at 500MB and the asset library alone is past
-        # that, so it is served from GitHub Pages and the app's catalog points there. Both apps split
-        # into the same folder once merged: files are content-hashed, so a shared name is identical bytes.
-        #
-        # The library is byte-identical in both builds, so only the editor job uploads it; the play job
-        # splits into a scratch folder that is never uploaded (about 500MB less storage per run).
+      - name: Separate the external asset library
+        # itch.io's extracted-size limit is 500MB; the catalog points to the library on Pages.
         run: |
-          if [ "${{ matrix.app }}" = "editor" ]; then
-            library_out=stage/web-assets/AssetLibrary
-          else
-            library_out="$RUNNER_TEMP/unused-library"
-          fi
           python Tools/WebAssets/split_for_itch.py \
             --app-bundle "$APP_BUNDLE" \
-            --library-out "$library_out" \
+            --library-out pages-site/web-assets/AssetLibrary \
             --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
-          mkdir -p stage/apps
-          mv "$APP_BUNDLE" "stage/apps/${{ matrix.app }}"
-
-      - name: Upload ${{ matrix.app }} build
-        uses: actions/upload-artifact@v7
-        with:
-          name: stage-${{ matrix.app }}
-          path: stage
-          include-hidden-files: true
-          retention-days: 1
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          sparse-checkout: Tools/WebAssets
-
-      - name: Download both builds
-        uses: actions/download-artifact@v8
-        with:
-          pattern: stage-*
-          path: stage
-          merge-multiple: true
 
       - name: Assemble GitHub Pages site
-        # Each app's build goes in <app>/v/<build>/, named by <app>/version.json, which index.html reads
-        # uncached. Pages caches every file for 10 minutes and the file names carry no hash, so a deploy
-        # over the same paths let a browser pair new boot files with old cached ones -- integrity
-        # failures, reported as "Failed to fetch". A versioned folder's files never change, so any cached
-        # copy is right. The landing page at the site root is the selector between the apps.
-        run: |
-          build="${GITHUB_SHA::12}"
-          mkdir -p pages-site
-          mv stage/web-assets pages-site/web-assets
-          for app in editor play; do
-            mkdir -p "pages-site/$app/v/$build"
-            cp -r "stage/apps/$app/." "pages-site/$app/v/$build/"
-            cp "pages-site/$app/v/$build/index.html" "pages-site/$app/index.html"
-            echo "{\"build\":\"$build\"}" > "pages-site/$app/version.json"
-          done
-          cp Tools/WebAssets/pages-index.html pages-site/index.html
+        run: python Tools/WebAssets/assemble_pages.py --app-bundle "$APP_BUNDLE" --output pages-site --build "${GITHUB_SHA::12}" --itch-editor
 
+      # Build and deploy share a runner: no staging artifacts or second copy of the WASM bundle.
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
@@ -162,19 +100,19 @@ jobs:
         uses: KikimoraGames/itch-publish@ea06fdc7e36b34a6c4f88b379a73f3362537b998 # v0.0.3
         with:
           butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
-          gameData: stage/apps/editor
+          gameData: ${{ env.APP_BUNDLE }}
           itchUsername: manamarktea
           itchGameId: mana-editor
           buildChannel: web
 
-      - name: Delete the stage artifacts
-        # They only hand the builds to this job; left to expire they count against the Actions storage quota.
-        if: always()
+      - name: Delete the deployed Pages artifact
+        # The deployed site is independent of this upload; failed deployments retain it for one day.
+        if: always() && steps.deployment.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-            --jq '.artifacts[] | select(.name | startswith("stage-")) | .id' |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name == "github-pages") | .id' > "$RUNNER_TEMP/pages-artifact-ids"
           while read -r id; do
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" || true
-          done
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id"
+          done < "$RUNNER_TEMP/pages-artifact-ids"

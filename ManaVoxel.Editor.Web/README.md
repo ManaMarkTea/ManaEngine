@@ -1,24 +1,16 @@
-# ManaVoxel.Editor.Web — the browser build of the editor
+# Browser editor
 
-The real editor — `VoxelEditorGameMode`, not a cut-down stand-in — running through WebGPU in a
-browser tab: menu bar, docked panels, viewport, asset browser, undo/redo, the works.
-
-See `ManaVoxel.Web/README.md` for the sibling project (play mode only) this one otherwise mirrors
-closely.
-
-## Build and run
+The editor now runs in the combined `ManaVoxel.Web` host, alongside standalone play.
+Publish once, then choose a startup mode:
 
 ```bash
-# 1. Publish (AOT; takes a few minutes)
-dotnet publish ManaVoxel.Editor.Web/ManaVoxel.Editor.Web.csproj -c Release
-
-# 2. Serve
-python3 ManaVoxel.Editor.Web/serve.py          # http://localhost:8002  (or pass a port)
+dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1
+python ManaVoxel.Web/serve.py 8123
 ```
 
-Then open <http://localhost:8002>. The startup download contains the runtime, shaders, two UI
-fonts, the default textures, the player character pack, and level definitions. The rest of the
-library is fetched when a model is selected or a level needs it.
+Open `http://localhost:8123/?mode=editor` for the editor, or
+`http://localhost:8123/` for the play level selector. The old editor server command
+still serves this same bundle on port 8002; add `?mode=editor` to its URL.
 
 ## Deployment and assets
 
@@ -31,7 +23,7 @@ Publish requires Python 3.11+ (`python` on PATH; override with `-p:ManaPython=py
 For local serving, upload or serve the **entire AppBundle directory** as one unit:
 
 ```text
-Artifacts/Bin/ManaVoxel.Editor.Web/Release/net10.0/browser-wasm/AppBundle/
+Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle/
 ```
 
 itch.io is different: it caps a browser-embedded ("played in the browser") build's *extracted*
@@ -114,13 +106,8 @@ project references `ManaVoxel.csproj` directly to run the real `VoxelEditorGameM
 ## Testing without a browser
 
 Same headless-Chrome-probe technique as `ManaVoxel.Web` — see that project's README for the full
-script. Point it at `http://localhost:8002` instead of `8000`.
+script. Point it at `http://localhost:8002/?mode=editor` instead of `8000`.
 
 ## If a publish fails oddly
 
-See `ManaVoxel.Web/README.md`'s note on `obj`/`bin` corruption under a synced folder
-(`~/Documents`, iCloud) — same fix applies here:
-
-```bash
-rm -rf ManaVoxel.Editor.Web/obj ManaVoxel.Editor.Web/bin
-```
+See `ManaVoxel.Web/README.md`; both modes now use that project's build outputs.
