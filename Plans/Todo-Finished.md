@@ -1,5 +1,9 @@
 # Finished
 
+[x] - Train Yard Wars ground rebuild flicker (2026-10-10): replaced four-frame overlapping terrain with stable
+    scene instances per texture group, retaining the backend's old-buffer fallback under heavy upload queues.
+    Three regressions plus consecutive-frame WebGPU stress capture: Tools/Automation/Checks/train-yard-wars-flicker.json.
+
 [x] - Train Yard Wars terrain preservation (2026-10-10): edge rails no longer flatten mountain, hill or forest
     interiors. Mountain mines keep a full-height peak with a small working area against its front slope.
     In-app WebGPU check: Tools/Automation/Checks/train-yard-wars-mountains.json, standalone Full level;

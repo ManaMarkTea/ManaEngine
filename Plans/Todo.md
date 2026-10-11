@@ -27,6 +27,8 @@
     Codex (2026-10-10): Train Yard Wars performance and bot fixes are complete; review: Plans/TrainYardWarsReview.md.
     Follow-ups: reduce overlapping world gauges in eight-player matches; improve bot spending when one scarce
     resource blocks expansion; human playtest recovery after losing territory and full-edition pacing.
+    Rendering follow-up (2026-10-10): quitting immediately with recording readbacks pending can crash in
+    ManaWebGpuBufferReadback.OnBufferMapped; cancellation frees callback userdata before native teardown callbacks.
 
 [x] - Add support for GPU particles
     Codex (2026-10-08): GPU Particle Emitter on WebGPU -- additive procedural discs, shader-side ballistic motion/drag,
