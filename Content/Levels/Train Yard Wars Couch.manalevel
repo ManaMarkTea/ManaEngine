@@ -25,6 +25,7 @@
         "matchMinutes": 15.0,
         "botDifficulty": 0.5,
         "edition": "Couch",
+        "turning": "LoopsOnly",
         "hour": 17.0,
         "daylight": 0.5
       }
