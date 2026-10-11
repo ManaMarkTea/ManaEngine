@@ -1,5 +1,10 @@
 # Finished
 
+[x] - WebGPU scene anti-aliasing (2026-10-10): FXAA filters the tone-mapped scene in
+    ManaGraphics/Assets/Shaders/WebGpu/hdr_tonemap.wgsl; UI and selection outlines draw afterward.
+    Check: Content/Levels/Tests/Anti Aliasing.manalevel; Tools/Automation/Checks/anti-aliasing.json.
+    Follow-up: temporal anti-aliasing for motion shimmer and subpixel detail.
+
 [x] - Compact zipped PBR material picker (2026-10-10): Material > Preset picks a ZIP with previews and search,
     assigning its maps together; maps and imported-mesh overrides survive level and prefab saves.
     Added 512px CC0 wood parquet, black brick and concrete packs (1.7 MiB total) under Mana/Assets/Materials/,
