@@ -8,8 +8,8 @@
     "order": 9
   },
   "camera": {
-    "position": [49, 25, 105],
-    "rotation": [-0.594, 0, 0]
+    "position": [49, 18, 88],
+    "rotation": [-0.526, 0, 0]
   },
   "gameModes": [
     {
@@ -158,9 +158,9 @@
           "kind": "Shape",
           "shape": "Cube",
           "position": [
-            16,
+            17,
             -0.15,
-            12
+            6.5
           ],
           "rotation": [
             0,
@@ -175,7 +175,7 @@
           "size": [
             34,
             0.3,
-            29
+            16
           ],
           "color": [
             0.22,
@@ -192,7 +192,7 @@
           "name": "Gold - Shader Ball",
           "kind": "Mesh",
           "position": [
-            3.0,
+            8.6,
             0,
             3.0
           ],
@@ -225,7 +225,7 @@
           "name": "Silver Brushed Steel - Shader Ball",
           "kind": "Mesh",
           "position": [
-            7.4,
+            11.399999999999999,
             0,
             3.0
           ],
@@ -258,7 +258,7 @@
           "name": "Aluminum - Shader Ball",
           "kind": "Mesh",
           "position": [
-            11.8,
+            14.2,
             0,
             3.0
           ],
@@ -292,7 +292,7 @@
           "name": "Copper - Shader Ball",
           "kind": "Mesh",
           "position": [
-            16.200000000000003,
+            17.0,
             0,
             3.0
           ],
@@ -325,7 +325,7 @@
           "name": "Rusted Corrugated Steel - Shader Ball",
           "kind": "Mesh",
           "position": [
-            20.6,
+            19.799999999999997,
             0,
             3.0
           ],
@@ -359,7 +359,7 @@
           "name": "Black Plastic - Shader Ball",
           "kind": "Mesh",
           "position": [
-            25.0,
+            22.6,
             0,
             3.0
           ],
@@ -391,7 +391,7 @@
           "name": "Scratched Blue Plastic - Shader Ball",
           "kind": "Mesh",
           "position": [
-            29.400000000000002,
+            25.4,
             0,
             3.0
           ],
@@ -423,9 +423,9 @@
           "name": "Oak - Shader Ball",
           "kind": "Mesh",
           "position": [
-            3.0,
+            8.6,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -457,9 +457,9 @@
           "name": "Pine - Shader Ball",
           "kind": "Mesh",
           "position": [
-            7.4,
+            11.399999999999999,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -490,9 +490,9 @@
           "name": "Dark Wood Parquet - Shader Ball",
           "kind": "Mesh",
           "position": [
-            11.8,
+            14.2,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -524,9 +524,9 @@
           "name": "White Marble - Shader Ball",
           "kind": "Mesh",
           "position": [
-            16.200000000000003,
+            17.0,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -557,9 +557,9 @@
           "name": "Granite - Shader Ball",
           "kind": "Mesh",
           "position": [
-            20.6,
+            19.799999999999997,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -589,9 +589,9 @@
           "name": "Denim - Shader Ball",
           "kind": "Mesh",
           "position": [
-            25.0,
+            22.6,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -622,9 +622,9 @@
           "name": "Brown Leather - Shader Ball",
           "kind": "Mesh",
           "position": [
-            29.400000000000002,
+            25.4,
             0,
-            12.0
+            6.5
           ],
           "rotation": [
             0,
@@ -655,9 +655,9 @@
           "name": "Sand - Shader Ball",
           "kind": "Mesh",
           "position": [
-            3.0,
+            8.6,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
@@ -688,9 +688,9 @@
           "name": "Grass - Shader Ball",
           "kind": "Mesh",
           "position": [
-            7.4,
+            11.399999999999999,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
@@ -721,9 +721,9 @@
           "name": "Soil - Shader Ball",
           "kind": "Mesh",
           "position": [
-            11.8,
+            14.2,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
@@ -754,9 +754,9 @@
           "name": "Concrete - Shader Ball",
           "kind": "Mesh",
           "position": [
-            16.200000000000003,
+            17.0,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
@@ -786,9 +786,9 @@
           "name": "Plaster - Shader Ball",
           "kind": "Mesh",
           "position": [
-            20.6,
+            19.799999999999997,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
@@ -819,9 +819,9 @@
           "name": "Black Brick Wall - Shader Ball",
           "kind": "Mesh",
           "position": [
-            25.0,
+            22.6,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
@@ -852,9 +852,9 @@
           "name": "Ceramic Tile - Shader Ball",
           "kind": "Mesh",
           "position": [
-            29.400000000000002,
+            25.4,
             0,
-            21.0
+            10.0
           ],
           "rotation": [
             0,
