@@ -391,3 +391,6 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
 - [x] Converted the public-domain Mat Makin / derkreature ShaderBall OBJ to a unit-height GLB, preserving UVs and normals; applied all 21 ZIP presets in PBR Gallery. Source license and reproducible conversion script included.
 
 - [x] Simplified PBR Gallery to the 21 material shader balls and original display models; removed redundant cube and torus samples.
+
+- [x] Fixed Train Yard Wars return routing after wagon-by-wagon unloading (2026-10-11). Dock approaches now check the final engine heading for a route to connected mines, try alternative continuations, and count only the wagons delivered to a town. Automatic turnarounds also serve occupied unused spurs so connected trains can recover after track changes. Regression coverage in MatchReviewTests includes the reproduced seed-2 bot return trip and a stranded occupied spur.
+    Validation: all 274 Train Yard Wars checks passed, including 2/4/8-player bot matches; 140 focused rail, cargo, preview and level checks passed. No flicker tests were run.
