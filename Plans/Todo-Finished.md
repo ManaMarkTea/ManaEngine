@@ -1,5 +1,11 @@
 # Finished
 
+[x] - Train Yard Wars late-match performance (2026-10-10): settled rails batch by 8x8 map region,
+    retaining construction animations and stable render instances during GPU uploads. Seed 42, four-player
+    couch match after eight simulated minutes: 74 -> 106 FPS, 761 -> 529 rendered meshes on this machine.
+    Code: Games/TrainYardWars/Code/View/TywBoardView.TrackBatches.cs. Seven headless rendering checks;
+    repeatable comparison: Tools/Automation/Checks/train-yard-wars-perf.json (tyw_batch_tracks toggles batching).
+
 [x] - Filled the seven remaining level previews (2026-10-10), including Planet Showcase,
     Train Yard Wars Couch and all five rendering test scenes. All 21 bundled levels have
     thumbnails; update-scene-thumbnails.py --missing captures absent previews in their level's Pictures folder.
