@@ -4,7 +4,7 @@ In the Inspector, expand a mesh's Material section and choose its **Preset**.
 Each ZIP assigns its surface maps together. Individual map slots remain editable.
 Material choices and maps are saved with shapes and imported meshes.
 
-The 21 bundled presets use maps up to 512px and total about 15.7 MiB. Search by category in the picker. The PBR Gallery level shows every preset on a sphere, cube and torus.
+The 21 bundled presets use maps up to 512px and total about 15.7 MiB. Search by category in the picker. The PBR Gallery level shows every preset on a shader ball, cube and torus.
 
 | Category | Packs |
 | --- | --- |

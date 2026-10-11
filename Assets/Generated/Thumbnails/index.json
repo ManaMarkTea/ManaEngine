@@ -4433,6 +4433,10 @@
     "Assets/kenney_watercraft-pack.zip!Models/GLB format/ship-small.glb": {
       "source": "cd1470c1cf441c7f46d0944ae6d0d897242365dc97677c5079b3238965d659f3",
       "png": "492d794aa3f489e9ddc4a255fda935167755a18756678f6f6c81cc13ee8a02fa.png"
+    },
+    "Assets/Models/ShaderBall/ShaderBall.glb": {
+      "source": "d74a8cd5d4f9c7f143860fba25e3d63a4512ee686dfc9c95bb3a46eaadc73a60",
+      "png": "b5a809077b8c3026abeca261eab9e291ff6b9d8b0218e3b76bcfbdfb5a490eca.png"
     }
   }
 }

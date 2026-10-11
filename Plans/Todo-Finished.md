@@ -320,3 +320,5 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     editor screenshot in Tools/Automation/Checks/scenes-ui.json and headless search/preview checks.
 
 - [x] Expanded compact material presets to 21 across metals, wood, stone, masonry, ground, fabric and plastic (15.7 MiB total). Added category labels/search, reproducible CC0 source manifest and a 63-shape showcase in `Content/Levels/PBR Gallery.manalevel`; capture in `DevPhotos/2026-10-10 pbr-material-library.png`.
+
+- [x] Converted the public-domain Mat Makin / derkreature ShaderBall OBJ to a unit-height GLB, preserving UVs and normals; applied all 21 ZIP presets in PBR Gallery. Source license and reproducible conversion script included.

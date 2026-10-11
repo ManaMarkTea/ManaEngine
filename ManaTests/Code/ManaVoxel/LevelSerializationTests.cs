@@ -576,8 +576,11 @@ public static class LevelSerializationChecks
             .Where(node => node.Kind == ManaLevelSourceKind.Mesh)
             .ToList();
         Check("the PBR gallery presents three material-rich models",
-            galleryMeshes.Count == 3,
+            galleryMeshes.Count(node => node.Asset?.Contains("ShaderBall", StringComparison.Ordinal) != true) == 3,
             string.Join(", ", galleryMeshes.Select(node => node.Name)));
+        Check("the PBR gallery compares 21 ZIP presets on shader balls",
+            galleryMeshes.Count(node => node.Asset?.Contains("ShaderBall", StringComparison.Ordinal) == true
+                && node.MeshMaterials?.GetValueOrDefault(0)?.SourceZip != null) == 21);
         Check("every gallery model resolves from its portable asset path",
             galleryMeshes.All(node =>
                 node.Asset != null && File.Exists(ManaLevelLoader.ResolveAssetPath(node.Asset))),

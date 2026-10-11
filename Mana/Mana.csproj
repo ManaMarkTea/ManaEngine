@@ -563,5 +563,6 @@
 
   <ItemGroup>
     <Content Include="Assets\Materials\**\*.zip" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\Models\ShaderBall\ShaderBall.glb" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

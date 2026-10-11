@@ -189,12 +189,11 @@
         },
         {
           "id": "10be82b424a8433d954181a6a7a45f91",
-          "name": "Gold - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Gold - Shader Ball",
+          "kind": "Mesh",
           "position": [
             3.0,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -203,30 +202,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:gold.zip/material_albedo.png",
-            "metallicMap": "zip:gold.zip/material_metallic.png",
-            "normalMap": "zip:gold.zip/material_normal.png",
-            "roughnessMap": "zip:gold.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Metals/gold.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:gold.zip/material_albedo.png",
+              "metallicMap": "zip:gold.zip/material_metallic.png",
+              "normalMap": "zip:gold.zip/material_normal.png",
+              "roughnessMap": "zip:gold.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Metals/gold.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -315,12 +306,11 @@
         },
         {
           "id": "32bd6f660b06429eb27067c51d72548e",
-          "name": "Silver Brushed Steel - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Silver Brushed Steel - Shader Ball",
+          "kind": "Mesh",
           "position": [
             7.4,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -329,30 +319,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
-            "metallicMap": "zip:silver-brushed-steel.zip/material_metallic.png",
-            "normalMap": "zip:silver-brushed-steel.zip/material_normal.png",
-            "roughnessMap": "zip:silver-brushed-steel.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Metals/silver-brushed-steel.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
+              "metallicMap": "zip:silver-brushed-steel.zip/material_metallic.png",
+              "normalMap": "zip:silver-brushed-steel.zip/material_normal.png",
+              "roughnessMap": "zip:silver-brushed-steel.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Metals/silver-brushed-steel.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -441,12 +423,11 @@
         },
         {
           "id": "8f33f82c72d944e49093879be7d17102",
-          "name": "Aluminum - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Aluminum - Shader Ball",
+          "kind": "Mesh",
           "position": [
             11.8,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -455,31 +436,23 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
-            "albedoMap": "zip:aluminum.zip/material_albedo.png",
-            "normalMap": "zip:aluminum.zip/material_normal.png",
-            "metallicMap": "zip:aluminum.zip/material_metallic.png",
-            "roughnessMap": "zip:aluminum.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Metals/aluminum.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
+              "albedoMap": "zip:aluminum.zip/material_albedo.png",
+              "normalMap": "zip:aluminum.zip/material_normal.png",
+              "metallicMap": "zip:aluminum.zip/material_metallic.png",
+              "roughnessMap": "zip:aluminum.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Metals/aluminum.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -570,12 +543,11 @@
         },
         {
           "id": "b39ee5456c7243c8a101d46a5cc8b1fa",
-          "name": "Copper - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Copper - Shader Ball",
+          "kind": "Mesh",
           "position": [
             16.200000000000003,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -584,30 +556,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:copper.zip/material_albedo.png",
-            "metallicMap": "zip:copper.zip/material_metallic.png",
-            "normalMap": "zip:copper.zip/material_normal.png",
-            "roughnessMap": "zip:copper.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Metals/copper.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:copper.zip/material_albedo.png",
+              "metallicMap": "zip:copper.zip/material_metallic.png",
+              "normalMap": "zip:copper.zip/material_normal.png",
+              "roughnessMap": "zip:copper.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Metals/copper.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -696,12 +660,11 @@
         },
         {
           "id": "3bd2fb00baf847d2ba2868dd36bbfe26",
-          "name": "Rusted Corrugated Steel - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Rusted Corrugated Steel - Shader Ball",
+          "kind": "Mesh",
           "position": [
             20.6,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -710,31 +673,23 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
-            "albedoMap": "zip:rusted-corrugated-steel.zip/material_albedo.png",
-            "metallicMap": "zip:rusted-corrugated-steel.zip/material_metallic.png",
-            "normalMap": "zip:rusted-corrugated-steel.zip/material_normal.png",
-            "roughnessMap": "zip:rusted-corrugated-steel.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Metals/rusted-corrugated-steel.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
+              "albedoMap": "zip:rusted-corrugated-steel.zip/material_albedo.png",
+              "metallicMap": "zip:rusted-corrugated-steel.zip/material_metallic.png",
+              "normalMap": "zip:rusted-corrugated-steel.zip/material_normal.png",
+              "roughnessMap": "zip:rusted-corrugated-steel.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Metals/rusted-corrugated-steel.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -825,12 +780,11 @@
         },
         {
           "id": "3a9efcf4b1bc4a40b2a39ef49a4e7d6d",
-          "name": "Black Plastic - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Black Plastic - Shader Ball",
+          "kind": "Mesh",
           "position": [
             25.0,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -839,29 +793,21 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:black-plastic.zip/material_albedo.png",
-            "normalMap": "zip:black-plastic.zip/material_normal.png",
-            "roughnessMap": "zip:black-plastic.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Plastic/black-plastic.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:black-plastic.zip/material_albedo.png",
+              "normalMap": "zip:black-plastic.zip/material_normal.png",
+              "roughnessMap": "zip:black-plastic.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Plastic/black-plastic.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -948,12 +894,11 @@
         },
         {
           "id": "4856480242a040549d042b8e7ff6e555",
-          "name": "Scratched Blue Plastic - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Scratched Blue Plastic - Shader Ball",
+          "kind": "Mesh",
           "position": [
             29.400000000000002,
-            0.9,
+            0,
             3.0
           ],
           "rotation": [
@@ -962,29 +907,21 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
-            "normalMap": "zip:scratched-blue-plastic.zip/material_normal.png",
-            "roughnessMap": "zip:scratched-blue-plastic.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Plastic/scratched-blue-plastic.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
+              "normalMap": "zip:scratched-blue-plastic.zip/material_normal.png",
+              "roughnessMap": "zip:scratched-blue-plastic.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Plastic/scratched-blue-plastic.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1071,12 +1008,11 @@
         },
         {
           "id": "bccf4823d5a94c06810fcc9ef95c5bf1",
-          "name": "Oak - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Oak - Shader Ball",
+          "kind": "Mesh",
           "position": [
             3.0,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1085,31 +1021,23 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:oak.zip/material_occlusion.png",
-            "albedoMap": "zip:oak.zip/material_albedo.png",
-            "metallicMap": "zip:oak.zip/material_metallic.png",
-            "normalMap": "zip:oak.zip/material_normal.png",
-            "roughnessMap": "zip:oak.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Wood/oak.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:oak.zip/material_occlusion.png",
+              "albedoMap": "zip:oak.zip/material_albedo.png",
+              "metallicMap": "zip:oak.zip/material_metallic.png",
+              "normalMap": "zip:oak.zip/material_normal.png",
+              "roughnessMap": "zip:oak.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Wood/oak.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1200,12 +1128,11 @@
         },
         {
           "id": "26bfbe16eb8c434cb61d63aff42700f1",
-          "name": "Pine - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Pine - Shader Ball",
+          "kind": "Mesh",
           "position": [
             7.4,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1214,30 +1141,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:pine.zip/material_occlusion.png",
-            "albedoMap": "zip:pine.zip/material_albedo.png",
-            "normalMap": "zip:pine.zip/material_normal.png",
-            "roughnessMap": "zip:pine.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Wood/pine.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:pine.zip/material_occlusion.png",
+              "albedoMap": "zip:pine.zip/material_albedo.png",
+              "normalMap": "zip:pine.zip/material_normal.png",
+              "roughnessMap": "zip:pine.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Wood/pine.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1326,12 +1245,11 @@
         },
         {
           "id": "712ee09094a2488c822568a491abf7c2",
-          "name": "Dark Wood Parquet - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Dark Wood Parquet - Shader Ball",
+          "kind": "Mesh",
           "position": [
             11.8,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1340,31 +1258,23 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
-            "albedoMap": "zip:dark-wood-parquet.zip/material_albedo.png",
-            "metallicMap": "zip:dark-wood-parquet.zip/material_metallic.png",
-            "normalMap": "zip:dark-wood-parquet.zip/material_normal.png",
-            "roughnessMap": "zip:dark-wood-parquet.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/dark-wood-parquet.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
+              "albedoMap": "zip:dark-wood-parquet.zip/material_albedo.png",
+              "metallicMap": "zip:dark-wood-parquet.zip/material_metallic.png",
+              "normalMap": "zip:dark-wood-parquet.zip/material_normal.png",
+              "roughnessMap": "zip:dark-wood-parquet.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/dark-wood-parquet.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1455,12 +1365,11 @@
         },
         {
           "id": "071bff89c065447bb11fd5fa6a2d917a",
-          "name": "White Marble - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "White Marble - Shader Ball",
+          "kind": "Mesh",
           "position": [
             16.200000000000003,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1469,30 +1378,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
-            "albedoMap": "zip:white-marble.zip/material_albedo.png",
-            "normalMap": "zip:white-marble.zip/material_normal.png",
-            "roughnessMap": "zip:white-marble.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Stone/white-marble.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
+              "albedoMap": "zip:white-marble.zip/material_albedo.png",
+              "normalMap": "zip:white-marble.zip/material_normal.png",
+              "roughnessMap": "zip:white-marble.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Stone/white-marble.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1581,12 +1482,11 @@
         },
         {
           "id": "404ec23793804fb59a88d204c5cc4a2a",
-          "name": "Granite - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Granite - Shader Ball",
+          "kind": "Mesh",
           "position": [
             20.6,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1595,29 +1495,21 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:granite.zip/material_albedo.png",
-            "normalMap": "zip:granite.zip/material_normal.png",
-            "roughnessMap": "zip:granite.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Stone/granite.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:granite.zip/material_albedo.png",
+              "normalMap": "zip:granite.zip/material_normal.png",
+              "roughnessMap": "zip:granite.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Stone/granite.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1704,12 +1596,11 @@
         },
         {
           "id": "5f8cdc38b87d449bb7681de58b375e17",
-          "name": "Denim - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Denim - Shader Ball",
+          "kind": "Mesh",
           "position": [
             25.0,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1718,30 +1609,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:denim.zip/material_occlusion.png",
-            "albedoMap": "zip:denim.zip/material_albedo.png",
-            "normalMap": "zip:denim.zip/material_normal.png",
-            "roughnessMap": "zip:denim.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Fabric/denim.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:denim.zip/material_occlusion.png",
+              "albedoMap": "zip:denim.zip/material_albedo.png",
+              "normalMap": "zip:denim.zip/material_normal.png",
+              "roughnessMap": "zip:denim.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Fabric/denim.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1830,12 +1713,11 @@
         },
         {
           "id": "0a3062a2f8954ad592a701bf4ffdb2c3",
-          "name": "Brown Leather - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Brown Leather - Shader Ball",
+          "kind": "Mesh",
           "position": [
             29.400000000000002,
-            0.9,
+            0,
             12.0
           ],
           "rotation": [
@@ -1844,30 +1726,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "albedoMap": "zip:brown-leather.zip/material_albedo.png",
-            "occlusionMap": "zip:brown-leather.zip/material_occlusion.png",
-            "normalMap": "zip:brown-leather.zip/material_normal.png",
-            "roughnessMap": "zip:brown-leather.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Fabric/brown-leather.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "albedoMap": "zip:brown-leather.zip/material_albedo.png",
+              "occlusionMap": "zip:brown-leather.zip/material_occlusion.png",
+              "normalMap": "zip:brown-leather.zip/material_normal.png",
+              "roughnessMap": "zip:brown-leather.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Fabric/brown-leather.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -1956,12 +1830,11 @@
         },
         {
           "id": "6b7bacdc5e2c4484adfacf7938be489a",
-          "name": "Sand - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Sand - Shader Ball",
+          "kind": "Mesh",
           "position": [
             3.0,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -1970,30 +1843,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:sand.zip/material_occlusion.png",
-            "albedoMap": "zip:sand.zip/material_albedo.png",
-            "normalMap": "zip:sand.zip/material_normal.png",
-            "roughnessMap": "zip:sand.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Ground/sand.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:sand.zip/material_occlusion.png",
+              "albedoMap": "zip:sand.zip/material_albedo.png",
+              "normalMap": "zip:sand.zip/material_normal.png",
+              "roughnessMap": "zip:sand.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Ground/sand.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -2082,12 +1947,11 @@
         },
         {
           "id": "e68c3a84f41940d0ba359ede1a7cdc1a",
-          "name": "Grass - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Grass - Shader Ball",
+          "kind": "Mesh",
           "position": [
             7.4,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -2096,30 +1960,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:grass.zip/material_occlusion.png",
-            "albedoMap": "zip:grass.zip/material_albedo.png",
-            "normalMap": "zip:grass.zip/material_normal.png",
-            "roughnessMap": "zip:grass.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Ground/grass.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:grass.zip/material_occlusion.png",
+              "albedoMap": "zip:grass.zip/material_albedo.png",
+              "normalMap": "zip:grass.zip/material_normal.png",
+              "roughnessMap": "zip:grass.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Ground/grass.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -2208,12 +2064,11 @@
         },
         {
           "id": "97baf967a5d6439c8c283da7af03dcfb",
-          "name": "Soil - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Soil - Shader Ball",
+          "kind": "Mesh",
           "position": [
             11.8,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -2222,30 +2077,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:soil.zip/material_occlusion.png",
-            "albedoMap": "zip:soil.zip/material_albedo.png",
-            "normalMap": "zip:soil.zip/material_normal.png",
-            "roughnessMap": "zip:soil.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Ground/soil.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:soil.zip/material_occlusion.png",
+              "albedoMap": "zip:soil.zip/material_albedo.png",
+              "normalMap": "zip:soil.zip/material_normal.png",
+              "roughnessMap": "zip:soil.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Ground/soil.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -2334,12 +2181,11 @@
         },
         {
           "id": "f90d11803c4346338fb54e9da5752161",
-          "name": "Concrete - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Concrete - Shader Ball",
+          "kind": "Mesh",
           "position": [
             16.200000000000003,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -2348,29 +2194,21 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:concrete.zip/material_occlusion.png",
-            "albedoMap": "zip:concrete.zip/material_albedo.png",
-            "normalMap": "zip:concrete.zip/material_normal.png",
-            "sourceZip": "Assets/Materials/concrete.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 0.8
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:concrete.zip/material_occlusion.png",
+              "albedoMap": "zip:concrete.zip/material_albedo.png",
+              "normalMap": "zip:concrete.zip/material_normal.png",
+              "sourceZip": "Assets/Materials/concrete.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 0.8
+            }
           }
         },
         {
@@ -2457,12 +2295,11 @@
         },
         {
           "id": "3bd8f183898f4f0ca01538c9581534a0",
-          "name": "Plaster - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Plaster - Shader Ball",
+          "kind": "Mesh",
           "position": [
             20.6,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -2471,30 +2308,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:plaster.zip/material_occlusion.png",
-            "albedoMap": "zip:plaster.zip/material_albedo.png",
-            "normalMap": "zip:plaster.zip/material_normal.png",
-            "roughnessMap": "zip:plaster.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Masonry/plaster.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:plaster.zip/material_occlusion.png",
+              "albedoMap": "zip:plaster.zip/material_albedo.png",
+              "normalMap": "zip:plaster.zip/material_normal.png",
+              "roughnessMap": "zip:plaster.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Masonry/plaster.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -2583,12 +2412,11 @@
         },
         {
           "id": "3c184e967e554ab0ba0af611337db7f8",
-          "name": "Black Brick Wall - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Black Brick Wall - Shader Ball",
+          "kind": "Mesh",
           "position": [
             25.0,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -2597,30 +2425,22 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
-            "albedoMap": "zip:black-brick-wall.zip/material_albedo.png",
-            "normalMap": "zip:black-brick-wall.zip/material_normal.png",
-            "roughnessMap": "zip:black-brick-wall.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/black-brick-wall.zip",
-            "normalStrength": 1,
-            "metallic": 0,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
+              "albedoMap": "zip:black-brick-wall.zip/material_albedo.png",
+              "normalMap": "zip:black-brick-wall.zip/material_normal.png",
+              "roughnessMap": "zip:black-brick-wall.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/black-brick-wall.zip",
+              "normalStrength": 1,
+              "metallic": 0,
+              "roughness": 1
+            }
           }
         },
         {
@@ -2709,12 +2529,11 @@
         },
         {
           "id": "22413967b0e64087877875d9d2829121",
-          "name": "Ceramic Tile - Sphere",
-          "kind": "Shape",
-          "shape": "Sphere",
+          "name": "Ceramic Tile - Shader Ball",
+          "kind": "Mesh",
           "position": [
             29.400000000000002,
-            0.9,
+            0,
             21.0
           ],
           "rotation": [
@@ -2723,31 +2542,23 @@
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.1,
+            2.1,
+            2.1
           ],
-          "size": [
-            1.7,
-            1.7,
-            1.7
-          ],
-          "color": [
-            1,
-            1,
-            1,
-            1
-          ],
-          "material": {
-            "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",
-            "albedoMap": "zip:ceramic-tile.zip/material_albedo.png",
-            "metallicMap": "zip:ceramic-tile.zip/material_metallic.png",
-            "normalMap": "zip:ceramic-tile.zip/material_normal.png",
-            "roughnessMap": "zip:ceramic-tile.zip/material_roughness.png",
-            "sourceZip": "Assets/Materials/Masonry/ceramic-tile.zip",
-            "normalStrength": 1,
-            "metallic": 1,
-            "roughness": 1
+          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "meshMaterials": {
+            "0": {
+              "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",
+              "albedoMap": "zip:ceramic-tile.zip/material_albedo.png",
+              "metallicMap": "zip:ceramic-tile.zip/material_metallic.png",
+              "normalMap": "zip:ceramic-tile.zip/material_normal.png",
+              "roughnessMap": "zip:ceramic-tile.zip/material_roughness.png",
+              "sourceZip": "Assets/Materials/Masonry/ceramic-tile.zip",
+              "normalStrength": 1,
+              "metallic": 1,
+              "roughness": 1
+            }
           }
         },
         {
