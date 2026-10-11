@@ -1,0 +1,11 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Anti Aliasing.manalevel"},
+  {"type":"wait","frames":120},
+  {"type":"sky","name":"Day"},
+  {"type":"gizmos","visible":false},
+  {"type":"move_camera","position":[48,5,57],"target":[48,2,43]},
+  {"type":"wait","frames":30},
+  {"type":"screenshot","path":"@@OUT@@","clean":true},
+  {"type":"wait","frames":5},
+  {"type":"quit"}
+]
