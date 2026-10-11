@@ -358,7 +358,16 @@ namespace ManaGraphics.Code.Graphics
                 EntryCount = 3,
                 Entries = frameBindGroupEntries
             };
-            _frameBindGroup = _api.DeviceCreateBindGroup(_device, &frameBindGroupDescriptor);
+            var frameLabel = Marshal.StringToCoTaskMemUTF8("Scene frame and shadows");
+            try
+            {
+                frameBindGroupDescriptor.Label = (byte*)frameLabel;
+                _frameBindGroup = _api.DeviceCreateBindGroup(_device, &frameBindGroupDescriptor);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(frameLabel);
+            }
             if (_frameBindGroup == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU frame bind group.");

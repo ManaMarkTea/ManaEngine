@@ -394,7 +394,17 @@ namespace ManaGraphics.Code.Graphics
                 Entries = entries
             };
 
-            var bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            BindGroup* bindGroup;
+            var label = Marshal.StringToCoTaskMemUTF8($"Skybox slot {slot}");
+            try
+            {
+                descriptor.Label = (byte*)label;
+                bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(label);
+            }
             if (bindGroup == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox bind group.");

@@ -577,7 +577,7 @@ namespace ManaGraphics.Code.Graphics
                 entries[2] = new BindGroupEntry { Binding = 2, TextureView = _sceneTextureView }; // dummy
                 entries[3] = new BindGroupEntry { Binding = 3, TextureView = _outlineMaskView };
                 var desc = new BindGroupDescriptor { Layout = _bindGroupLayout, EntryCount = 4, Entries = entries };
-                _brightBindGroup = _api.DeviceCreateBindGroup(_device, &desc);
+                _brightBindGroup = CreateLabeledBindGroup("HDR bloom extraction", &desc);
             }
 
             // 2. Blur H Bind Group (samples _bloomViewA)
@@ -588,7 +588,7 @@ namespace ManaGraphics.Code.Graphics
                 entries[2] = new BindGroupEntry { Binding = 2, TextureView = _bloomViewA }; // dummy
                 entries[3] = new BindGroupEntry { Binding = 3, TextureView = _outlineMaskView };
                 var desc = new BindGroupDescriptor { Layout = _bindGroupLayout, EntryCount = 4, Entries = entries };
-                _blurHBindGroup = _api.DeviceCreateBindGroup(_device, &desc);
+                _blurHBindGroup = CreateLabeledBindGroup("HDR bloom horizontal blur", &desc);
             }
 
             // 3. Blur V Bind Group (samples _bloomViewB)
@@ -599,7 +599,7 @@ namespace ManaGraphics.Code.Graphics
                 entries[2] = new BindGroupEntry { Binding = 2, TextureView = _bloomViewB }; // dummy
                 entries[3] = new BindGroupEntry { Binding = 3, TextureView = _outlineMaskView };
                 var desc = new BindGroupDescriptor { Layout = _bindGroupLayout, EntryCount = 4, Entries = entries };
-                _blurVBindGroup = _api.DeviceCreateBindGroup(_device, &desc);
+                _blurVBindGroup = CreateLabeledBindGroup("HDR bloom vertical blur", &desc);
             }
 
             // 4. Combine Bind Group (samples _sceneTextureView and _bloomViewA)
@@ -610,7 +610,21 @@ namespace ManaGraphics.Code.Graphics
                 entries[2] = new BindGroupEntry { Binding = 2, TextureView = _bloomViewA };
                 entries[3] = new BindGroupEntry { Binding = 3, TextureView = _outlineMaskView };
                 var desc = new BindGroupDescriptor { Layout = _bindGroupLayout, EntryCount = 4, Entries = entries };
-                _combineBindGroup = _api.DeviceCreateBindGroup(_device, &desc);
+                _combineBindGroup = CreateLabeledBindGroup("HDR tone map and FXAA", &desc);
+            }
+        }
+
+        private BindGroup* CreateLabeledBindGroup(string name, BindGroupDescriptor* descriptor)
+        {
+            var label = Marshal.StringToCoTaskMemUTF8(name);
+            try
+            {
+                descriptor->Label = (byte*)label;
+                return _api.DeviceCreateBindGroup(_device, descriptor);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(label);
             }
         }
 

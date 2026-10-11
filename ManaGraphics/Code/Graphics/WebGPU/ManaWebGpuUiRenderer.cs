@@ -802,7 +802,16 @@ namespace ManaGraphics.Code.Graphics
                 Entries = entries
             };
 
-            _bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            var label = Marshal.StringToCoTaskMemUTF8("ManaUI atlas and backdrop");
+            try
+            {
+                descriptor.Label = (byte*)label;
+                _bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(label);
+            }
         }
 
         private void ReleaseGlyphTexture()
