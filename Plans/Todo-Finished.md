@@ -1,5 +1,11 @@
 # Finished
 
+[x] - Train Yard Wars turnaround ownership preference (2026-10-11): automatic loops first search for a short
+    route along owned ground or a ring around an owned hex, before falling back outside claimed land. Existing
+    unused loops move onto newly suitable owned land; captured enemy loop rails cannot be reused as one's own.
+    Rules: TywGame.Claim.cs; ownership, fallback and relocation regressions: MatchReviewTests.cs.
+    All 258 game checks and 125 final focused checks passed; no flicker tests run.
+
 [x] - Train Yard Wars mixed wagon cargo and side loading (2026-10-11): every wagon carries its own resource
     and quantity; dispatch fills spare space before delivering. Pickup routes position the loading wagon along
     the producer's edge when track allows, retaining a fallback for short dead-end sidings. Towns consume only
