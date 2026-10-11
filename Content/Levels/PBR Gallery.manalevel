@@ -31,25 +31,25 @@
         {
           "name": "Gallery Floor",
           "kind": "Shape",
-          "position": [17, -0.15, 12],
+          "position": [17, -0.15, 12.75],
           "rotation": [0, 0, 0],
           "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [0.16, 0.18, 0.2, 1],
-          "size": [34, 0.3, 18],
+          "color": [1, 1, 1, 1],
+          "size": [34, 0.3, 19.5],
+          "material": {
+            "sourceZip": "Assets/Materials/Wood/oak.zip",
+            "albedoMap": "zip:oak.zip/material_albedo.png",
+            "normalMap": "zip:oak.zip/material_normal.png",
+            "roughnessMap": "zip:oak.zip/material_roughness.png",
+            "metallic": 0,
+            "roughness": 0.7,
+            "normalStrength": 0.6,
+            "uvScale": [8.5, 4.875]
+          },
           "collision": {
             "useVisualBounds": true
           }
-        },
-        {
-          "name": "Back Wall",
-          "kind": "Shape",
-          "position": [17, 4, 3],
-          "rotation": [0, 0, 0],
-          "scale": [1, 1, 1],
-          "shape": "Cube",
-          "color": [0.62, 0.65, 0.68, 1],
-          "size": [34, 8, 0.25]
         },
         {
           "name": "Flight Helmet Plinth",
@@ -58,7 +58,7 @@
           "rotation": [0, 0, 0],
           "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [0.7, 0.72, 0.75, 1],
+          "color": [0.93, 0.82, 0.61, 1],
           "size": [3.5, 1.2, 3.5],
           "collision": {
             "useVisualBounds": true
@@ -71,7 +71,7 @@
           "rotation": [0, 0, 0],
           "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [0.53, 0.42, 0.28, 1],
+          "color": [0.93, 0.82, 0.61, 1],
           "size": [3.5, 1.2, 3.5],
           "collision": {
             "useVisualBounds": true
@@ -84,7 +84,7 @@
           "rotation": [0, 0, 0],
           "scale": [1, 1, 1],
           "shape": "Cube",
-          "color": [0.3, 0.46, 0.4, 1],
+          "color": [0.93, 0.82, 0.61, 1],
           "size": [3.5, 1.2, 3.5],
           "collision": {
             "useVisualBounds": true
@@ -177,12 +177,17 @@
             0.3,
             16
           ],
-          "color": [
-            0.22,
-            0.24,
-            0.27,
-            1
-          ],
+          "color": [1, 1, 1, 1],
+          "material": {
+            "sourceZip": "Assets/Materials/Wood/oak.zip",
+            "albedoMap": "zip:oak.zip/material_albedo.png",
+            "normalMap": "zip:oak.zip/material_normal.png",
+            "roughnessMap": "zip:oak.zip/material_roughness.png",
+            "metallic": 0,
+            "roughness": 0.7,
+            "normalStrength": 0.6,
+            "uvScale": [8.5, 4]
+          },
           "collision": {
             "useVisualBounds": true
           }

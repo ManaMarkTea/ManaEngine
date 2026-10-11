@@ -543,7 +543,6 @@ public static class LevelSerializationChecks
         var builtInLevelNames = new[]
         {
             "Voxel Showcase",
-            "Flight Helmet",
             "Planet Showcase",
             "PBR Gallery",
             "Little Pond"

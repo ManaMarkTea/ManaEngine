@@ -5,7 +5,7 @@
  },
  {
   "type": "open_level",
-  "path": "Content/Levels/Flight Helmet.manalevel"
+  "path": "Content/Levels/PBR Gallery.manalevel"
  },
  {
   "type": "wait",
@@ -19,14 +19,14 @@
  {
   "type": "move_camera",
   "position": [
-   42,
-   7,
-   48
+   47.5,
+   7.6,
+   60
   ],
   "target": [
-   32,
-   2.9,
-   32
+   37.5,
+   3.5,
+   44
   ]
  },
  {
@@ -58,14 +58,14 @@
  {
   "type": "move_camera",
   "position": [
-   36.2,
-   3.9,
-   38
+   41.7,
+   4.5,
+   50
   ],
   "target": [
-   32,
-   2.9,
-   32
+   37.5,
+   3.5,
+   44
   ],
   "frames": 270
  },

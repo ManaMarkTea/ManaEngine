@@ -1,5 +1,11 @@
 # Finished
 
+[x] - Refreshed the 14 scene thumbnails with WebGPU FXAA (2026-10-10), with repeatable captures in
+    Tools/Automation/update-scene-thumbnails.py. Consolidated material demos into PBR Gallery:
+    removed Material Library, Material Packs and Flight Helmet levels; the gallery keeps all models
+    and 21 material presets, with oak flooring, warm plinths and no backdrop wall.
+    Showcase tours now shoot the helmet in the gallery.
+
 [x] - WebGPU scene anti-aliasing (2026-10-10): FXAA filters the tone-mapped scene in
     ManaGraphics/Assets/Shaders/WebGpu/hdr_tonemap.wgsl; UI and selection outlines draw afterward.
     Check: Content/Levels/Tests/Anti Aliasing.manalevel; Tools/Automation/Checks/anti-aliasing.json.
@@ -10,7 +16,7 @@
     Added 512px CC0 wood parquet, black brick and concrete packs (1.7 MiB total) under Mana/Assets/Materials/,
     with source/license notes and Tools/Materials/compact.py for resizing more packs. Removed UI icons,
     model images and demonstration art from the surface texture picker. Rendering fixture:
-    Content/Levels/Tests/Material Packs.manalevel; Tools/Automation/Checks/material-packs.json.
+    Content/Levels/PBR Gallery.manalevel; Tools/Automation/Checks/pbr-material-library.json.
     Follow-up: displacement/height and specular workflows are not supported by the material pack loader.
 
 
