@@ -1,5 +1,17 @@
 # Finished
 
+[x] - Train Yard Wars mixed wagon cargo and side loading (2026-10-11): every wagon carries its own resource
+    and quantity; dispatch fills spare space before delivering. Pickup routes position the loading wagon along
+    the producer's edge when track allows, retaining a fallback for short dead-end sidings. Towns consume only
+    the requested resource, depots bank every load, and ports trade every type. Loading respects other trains'
+    reservations; unchanged wagon render instances survive load changes. Rules: TywTrain.Cargo.cs/TywTrain.cs;
+    visuals: TywBoardView.cs. Full game suite: 252 checks passed; final focused coverage: 122 checks passed.
+    Eight-player WebGPU capture: train-yard-wars-flicker.json, 151 consecutive frames.
+
+[x] - Train Yard Wars enemy tile menu crash (2026-10-11): attack menus use HexOwner instead of SabotageVictim,
+    which returns -1 for claimed territory without rival buildings or rails. Full-edition menus omit couch
+    attacks. Regression coverage: MatchReviewTests.cs; fix committed as d3829a4.
+
 [x] - Train Yard Wars preview pivots and transient gizmos (2026-10-11): generated batches use local vertices
     with pivots near their bounds; each depot has its own batch/pivot. Rebuilds preserve scene identities and update
     both editor Position and render transforms. Removed the editor's blanket gizmo ban on transient selections;
