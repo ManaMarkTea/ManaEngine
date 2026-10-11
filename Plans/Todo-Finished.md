@@ -1,5 +1,9 @@
 # Finished
 
+[x] - Filled the seven remaining level previews (2026-10-10), including Planet Showcase,
+    Train Yard Wars Couch and all five rendering test scenes. All 21 bundled levels have
+    thumbnails; update-scene-thumbnails.py --missing captures absent previews in their level's Pictures folder.
+
 [x] - Refreshed the 14 scene thumbnails with WebGPU FXAA (2026-10-10), with repeatable captures in
     Tools/Automation/update-scene-thumbnails.py. Consolidated material demos into PBR Gallery:
     removed Material Library, Material Packs and Flight Helmet levels; the gallery keeps all models
