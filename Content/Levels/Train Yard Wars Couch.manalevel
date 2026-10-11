@@ -2,17 +2,12 @@
   "format": "mana-level",
   "version": 2,
   "name": "Train Yard Wars Couch",
+  "web": {
+    "publish": true
+  },
   "camera": {
-    "position": [
-      64.0,
-      70.0,
-      120.0
-    ],
-    "rotation": [
-      -0.9,
-      0,
-      0
-    ]
+    "position": [64, 70, 120],
+    "rotation": [-0.9, 0, 0]
   },
   "gameModes": [
     {
@@ -22,12 +17,13 @@
         "players": 4,
         "seed": 0,
         "prestigeTarget": 40,
-        "matchMinutes": 15.0,
+        "matchMinutes": 15,
         "botDifficulty": 0.5,
-        "edition": "Couch",
         "turning": "LoopsOnly",
-        "hour": 17.0,
-        "daylight": 0.5
+        "edition": "Couch",
+        "hour": 17,
+        "daylight": 0.5,
+        "dayMinutes": 0
       }
     }
   ],
