@@ -94,6 +94,15 @@ struct CustomMaterialUniform {
 
     //PROPERTY(default=[0.0,0.0,0.0,0.0], min=[-1000.0,-1000.0,0.0,0.0], max=[1000.0,1000.0,100000.0,4.0])
     rippleData11 : vec4<f32>,
+
+    // Drifting crest lines that show whether or not the sun glints on them: water far from the sun's reflection
+    // otherwise has no sheen at all. 0 leaves the look as it was.
+    //PROPERTY(default=0.0, min=0.0, max=2.0)
+    crestStrength : f32,
+
+    // Ambient light added to the water's own colour, so its shaded side does not sink to a flat dark.
+    //PROPERTY(default=0.0, min=0.0, max=1.0)
+    ambientLift : f32,
 };
 
 @group(2) @binding(0) var<uniform> custom : CustomMaterialUniform;
@@ -313,7 +322,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // Lit like everything else: ambient that falls with ManaSky's daylight, the sun (or moon), and placed
     // lamps -- before, the water glowed the same at midnight as at noon.
     let daylight = frame.irradiance_factors.w;
-    var light = vec3<f32>(mix(0.07, 0.75, daylight));
+    var light = vec3<f32>(mix(0.07, 0.75, daylight) + custom.ambientLift);
     // Glints: the moon or sun, and each lamp, mirrored in the ripples -- the path of light across a pond.
     var glint = vec3<f32>(0.0);
     if (frame.sun_direction.w > 0.5) {
@@ -345,8 +354,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let ripple_tint = custom.shallowColor * 1.5 + vec3<f32>(0.05, 0.08, 0.08);
     // A gust's roughened patch reflects less sky, so it reads darker as it runs across.
     let shaded_color = mix(base_color, ripple_tint, ripple_highlight) * light * (1.0 - paw * 0.2);
+    // Crest lines: contours of drifting noise, thin and bright, in the water's own lighter shade.
+    let crest_field = wave_noise(input.world_position.xz * 0.85 + frame.wind_motion.xy * 0.35 + vec2<f32>(frame.time * 0.04, 0.0));
+    let band = 1.0 - abs(fract(crest_field * 3.2) - 0.5) * 2.0;
+    let crest = smoothstep(0.86, 0.98, band) * custom.crestStrength * calm;
+    let crest_tint = custom.shallowColor * 2.2 + vec3<f32>(0.10, 0.16, 0.16);
     // The sheen is the sky's reflection, so it fades with the daylight; lamps still catch the ripples.
-    let color = shaded_color + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight) * (1.0 - paw * 0.5)) + lamps * (0.04 + ripple_highlight * 0.3) + glint;
+    let color = mix(shaded_color, crest_tint * mix(0.5, 1.0, daylight), crest * 0.55) + vec3<f32>(fresnel * 0.3 * mix(0.12, 1.0, daylight) * (1.0 - paw * 0.5)) + lamps * (0.04 + ripple_highlight * 0.3) + glint;
     let alpha = saturate(custom.opacity - shallows * 0.15 + fresnel * 0.25 + ripple_highlight * 0.1);
 
     return vec4<f32>(color, alpha);
