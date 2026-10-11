@@ -27,7 +27,7 @@ public sealed class SelectionTransformOverlay : UiElement
             return;
 
         var selection = camera.Context.World.Selection;
-        if (selection.SelectedNode is not { IsEditorTransient: false } node)
+        if (selection.SelectedNode is not { } node)
             return;
 
         // Projected onto the UI's own logical size, which is the window over the display scale.

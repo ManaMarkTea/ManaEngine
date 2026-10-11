@@ -83,7 +83,7 @@ namespace Mana.Code.GameModes
         {
             var pointerDown = mouse.IsButtonPressed(MouseButton.Left);
 
-            if (!visible || selectedNode == null || selectedNode.IsEditorTransient)
+            if (!visible || selectedNode == null)
             {
                 Hide();
                 _pointerWasDown = pointerDown;

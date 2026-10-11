@@ -1,5 +1,11 @@
 # Finished
 
+[x] - Train Yard Wars preview pivots and transient gizmos (2026-10-11): generated batches use local vertices
+    with pivots near their bounds; each depot has its own batch/pivot. Rebuilds preserve scene identities and update
+    both editor Position and render transforms. Removed the editor's blanket gizmo ban on transient selections;
+    previews retain their transient status and stay out of level saves. All 111 targeted geometry/match/serialization
+    checks passed. In-app check: train-yard-wars-preview-pivots.json; DevPhotos/2026-10-11 train-yard-wars-preview-pivot.png.
+
 [x] - Train Yard Wars ground rebuild flicker (2026-10-10): replaced four-frame overlapping terrain with stable
     scene instances per texture group, retaining the backend's old-buffer fallback under heavy upload queues.
     Three regressions plus consecutive-frame WebGPU stress capture: Tools/Automation/Checks/train-yard-wars-flicker.json.
