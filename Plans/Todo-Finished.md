@@ -1,5 +1,10 @@
 # Finished
 
+[x] - Train Yard Wars terrain preservation (2026-10-10): edge rails no longer flatten mountain, hill or forest
+    interiors. Mountain mines keep a full-height peak with a small working area against its front slope.
+    In-app WebGPU check: Tools/Automation/Checks/train-yard-wars-mountains.json, standalone Full level;
+    screenshot: DevPhotos/2026-10-10 train-yard-wars-mountain-mine.png. All 21 view/match regressions passed.
+
 [x] - Train Yard Wars bot and late-match review (2026-10-10): fixed enemy attacks, border towers,
     defence priority, affordable expansion, interrupted cargo reservations, captured mine colours and ghost trains.
     Cached HUD icons: eight-player twelve-minute match 36 -> 75 FPS, UI layout 11.93 -> 0.29 ms locally.
