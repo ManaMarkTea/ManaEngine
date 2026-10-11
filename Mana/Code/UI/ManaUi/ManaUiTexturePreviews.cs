@@ -1,5 +1,6 @@
 using ManaCore.Imaging;
 using ManaUI;
+using System.Runtime.CompilerServices;
 
 namespace Mana.Code.UI.ManaUi
 {
@@ -43,8 +44,28 @@ namespace Mana.Code.UI.ManaUi
         /// <summary>Longest edge of a thumbnail. Small enough that a few hundred fit the atlas.</summary>
         private const int ThumbnailSize = 64;
 
-        private static readonly Dictionary<(ManaTexture Texture, int Generation), ManaUiTexturePreview?> Cache = new();
-        private static readonly Dictionary<(string Path, int Generation), ManaUiTexturePreview?> FileCache = new();
+        // UVs belong to one atlas; closed windows can release their previews with their atlas.
+        private static readonly ConditionalWeakTable<ManaImageAtlas, PreviewCache> Caches = new();
+
+        private sealed class PreviewCache
+        {
+            public int Generation = -1;
+            public readonly Dictionary<ManaTexture, ManaUiTexturePreview?> Textures = new();
+            public readonly Dictionary<string, ManaUiTexturePreview?> Files = new();
+        }
+
+        private static PreviewCache For(ManaImageAtlas atlas)
+        {
+            var cache = Caches.GetValue(atlas, _ => new PreviewCache());
+            if (cache.Generation != atlas.Generation)
+            {
+                cache.Textures.Clear();
+                cache.Files.Clear();
+                cache.Generation = atlas.Generation;
+            }
+
+            return cache;
+        }
 
         /// <summary>
         /// A thumbnail for a texture, decoding and packing it on first request. Returns false for a texture
@@ -70,11 +91,10 @@ namespace Mana.Code.UI.ManaUi
                 return true;
             }
 
-            // The generation is part of the key because a reset atlas invalidates every UV in it, and a
-            // stale one would draw whatever landed in that rectangle afterwards.
-            var key = (texture, atlas.Generation);
+            // Resetting an atlas invalidates every cached UV in it.
+            var cache = For(atlas).Textures;
 
-            if (Cache.TryGetValue(key, out var cached))
+            if (cache.TryGetValue(texture, out var cached))
             {
                 if (cached == null)
                 {
@@ -86,7 +106,7 @@ namespace Mana.Code.UI.ManaUi
             }
 
             var built = Build(atlas, texture);
-            Cache[key] = built;
+            cache[texture] = built;
 
             if (built == null)
             {
@@ -115,12 +135,12 @@ namespace Mana.Code.UI.ManaUi
                 return false;
             }
 
-            var key = (path, atlas.Generation);
+            var cache = For(atlas).Files;
 
-            if (!FileCache.TryGetValue(key, out var cached))
+            if (!cache.TryGetValue(path, out var cached))
             {
                 cached = BuildFromFile(atlas, path);
-                FileCache[key] = cached;
+                cache[path] = cached;
             }
 
             if (cached == null)
@@ -219,8 +239,7 @@ namespace Mana.Code.UI.ManaUi
         /// <summary>Drops every cached thumbnail. For a scene reload, where the textures themselves are gone.</summary>
         public static void Clear()
         {
-            Cache.Clear();
-            FileCache.Clear();
+            Caches.Clear();
         }
     }
 }

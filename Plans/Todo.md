@@ -24,6 +24,9 @@
     lending it what only the app has (mesh import), so the editor depends on the games and never the other way round.
     Its tests are their own system: `dotnet run --project ManaTests -- TrainYardWars`. Yacht Jousting
     (`ManaVoxel/Code/Gameplay/YachtJousting/`) could move to `Games/` the same way.
+    Codex (2026-10-10): Train Yard Wars performance and bot fixes are complete; review: Plans/TrainYardWarsReview.md.
+    Follow-ups: reduce overlapping world gauges in eight-player matches; improve bot spending when one scarce
+    resource blocks expansion; human playtest recovery after losing territory and full-edition pacing.
 
 [x] - Add support for GPU particles
     Codex (2026-10-08): GPU Particle Emitter on WebGPU -- additive procedural discs, shader-side ballistic motion/drag,

@@ -121,6 +121,7 @@ public static class TestRunner
         ("ManaVoxel", "glow", GlowChecks.Run),
         ("ManaVoxel", "particles", ParticleChecks.Run),
         ("TrainYardWars", "rail rendering batches", TrackBatchChecks.Run),
+        ("TrainYardWars", "match review regressions", MatchReviewChecks.Run),
         ("TrainYardWars", "train yard wars rules", TrainYardWarsChecks.Run),
         ("ManaVoxel", "yacht jousting rules", YachtJoustingChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),

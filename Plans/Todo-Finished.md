@@ -1,5 +1,10 @@
 # Finished
 
+[x] - Train Yard Wars bot and late-match review (2026-10-10): fixed enemy attacks, border towers,
+    defence priority, affordable expansion, interrupted cargo reservations, captured mine colours and ghost trains.
+    Cached HUD icons: eight-player twelve-minute match 36 -> 75 FPS, UI layout 11.93 -> 0.29 ms locally.
+    Fourteen regressions and repeatable bot-match automation; findings and remaining tuning: Plans/TrainYardWarsReview.md.
+
 [x] - Train Yard Wars late-match performance (2026-10-10): settled rails batch by 8x8 map region,
     retaining construction animations and stable render instances during GPU uploads. Seed 42, four-player
     couch match after eight simulated minutes: 74 -> 106 FPS, 761 -> 529 rendered meshes on this machine.
