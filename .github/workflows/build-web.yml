@@ -96,6 +96,8 @@ jobs:
 
       - name: Upload web editor to itch.io
         if: github.repository == 'ManaMarkTea/ManaRenderer'
+        # Pages is already live; an itch.io API timeout shouldn't fail the run (the next push re-uploads).
+        continue-on-error: true
         # Pin the action source to the reviewed v0.0.3 commit; this step receives the Butler secret.
         uses: KikimoraGames/itch-publish@ea06fdc7e36b34a6c4f88b379a73f3362537b998 # v0.0.3
         with:
