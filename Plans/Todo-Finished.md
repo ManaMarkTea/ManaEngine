@@ -1,5 +1,13 @@
 # Finished
 
+[x] - Train Yard Wars cargo transfer feedback and dock stops (2026-10-11): a moving yellow arrow points into
+    the loading wagon; a teal arrow points from the unloading wagon toward the dock. Yards have a marked east-side
+    cargo platform. Trains stop with each loaded wagon beside that platform, transfer one wagon, then pull forward
+    one wagon length for the next; towns and ports also transfer wagons individually. Split town deliveries award
+    prestige once, keeping unrelated cargo aboard. Rules: TywTrain/TywTrain.Cargo; visuals: TywBoardView.
+    All 271 game checks and 137 focused checks passed. In-app WebGPU verification:
+    Tools/Automation/Checks/train-yard-wars-cargo-transfer.json; DevPhotos/2026-10-11 train-yard-wars-cargo-transfer.png.
+
 [x] - Train Yard Wars turnaround ownership preference (2026-10-11): automatic loops first search for a short
     route along owned ground or a ring around an owned hex, before falling back outside claimed land. Existing
     unused loops move onto newly suitable owned land; captured enemy loop rails cannot be reused as one's own.
