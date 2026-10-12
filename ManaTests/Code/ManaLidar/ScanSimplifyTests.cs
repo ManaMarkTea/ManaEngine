@@ -50,6 +50,16 @@ public static class ScanSimplifyChecks
             $"{welded.Positions.Length} vertices");
         var weldedSimple = ScanMeshSimplifier.Simplify(welded, 0.002f);
         Check("and then simplify as one", weldedSimple.TriangleCount <= 12, $"{weldedSimple.TriangleCount} triangles");
+
+        // ---------------------------------------------------------------- loose islands
+        // A 5 cm fleck floating in the air goes; a 5 cm tab sharing an edge with the 1 m patch stays.
+        var fleck = Grid(1, (x, y) => 0.5f, offsetX: 3f, width: 0.05f);
+        var tab = Grid(1, (x, y) => 0f, offsetX: 1f, width: 0.05f);
+        var cleaned = ScanMeshSimplifier.DropIslands(ScanMeshSimplifier.Weld(new[] { flat, fleck, tab }, Guid.NewGuid()), 0.01f);
+        var kept = Enumerable.Range(0, cleaned.TriangleCount).Select(t => cleaned.Positions[cleaned.Indices[t * 3]]).ToArray();
+        Check("a small floating island is dropped", kept.All(p => p.X < 2f), $"{cleaned.TriangleCount} triangles left");
+        Check("a small piece joined to the surface stays", cleaned.TriangleCount == flat.TriangleCount + tab.TriangleCount,
+            $"{cleaned.TriangleCount} of {flat.TriangleCount + tab.TriangleCount}");
     }
 
     // An n x n grid over [offsetX, offsetX + width] x [0, width], height from f, facing +Z.

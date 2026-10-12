@@ -57,6 +57,55 @@ public static class ScanMeshSimplifier
             surfaces.Any(s => s != ScanSurface.None) ? surfaces.ToArray() : null);
     }
 
+    /// <summary>
+    /// Drops every connected island smaller than <paramref name="minArea"/> (m2): the confetti that stray depth
+    /// readings leave floating in the air. Real things in a room touch something larger and stay.
+    /// </summary>
+    public static ScanMeshPiece DropIslands(ScanMeshPiece piece, float minArea)
+    {
+        var parent = Enumerable.Range(0, piece.Positions.Length).ToArray();
+        int Find(int x)
+        {
+            while (parent[x] != x)
+            {
+                x = parent[x] = parent[parent[x]];
+            }
+            return x;
+        }
+        for (var t = 0; t < piece.TriangleCount; t++)
+        {
+            var a = Find(piece.Indices[t * 3]);
+            parent[Find(piece.Indices[t * 3 + 1])] = a;
+            parent[Find(piece.Indices[t * 3 + 2])] = a;
+        }
+
+        var area = new Dictionary<int, float>();
+        for (var t = 0; t < piece.TriangleCount; t++)
+        {
+            var root = Find(piece.Indices[t * 3]);
+            var p = piece.Positions[piece.Indices[t * 3]];
+            var cross = Vector3.Cross(piece.Positions[piece.Indices[t * 3 + 1]] - p, piece.Positions[piece.Indices[t * 3 + 2]] - p);
+            area[root] = area.GetValueOrDefault(root) + cross.Length() * 0.5f;
+        }
+
+        var keep = new List<int>();
+        for (var t = 0; t < piece.TriangleCount; t++)
+        {
+            if (area[Find(piece.Indices[t * 3])] >= minArea)
+            {
+                keep.Add(t);
+            }
+        }
+        if (keep.Count == piece.TriangleCount)
+        {
+            return piece;
+        }
+        // Unused vertices are left in: the simplifier and the atlas only ever walk triangles.
+        return new ScanMeshPiece(piece.Id, piece.Positions, piece.Normals,
+            keep.SelectMany(t => new[] { piece.Indices[t * 3], piece.Indices[t * 3 + 1], piece.Indices[t * 3 + 2] }).ToArray(),
+            piece.FaceSurfaces is { } surfaces ? keep.Select(t => surfaces[t]).ToArray() : null);
+    }
+
     /// <summary>A symmetric 4x4 sum of squared distances to planes, with how many planes went in.</summary>
     private struct Quadric
     {

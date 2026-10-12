@@ -23,6 +23,8 @@ public sealed class ScanExportOptions
     public int TextureSize { get; set; } = 2048;
     /// <summary>How far (metres) simplifying may move the surface; flat areas collapse to a few big triangles.</summary>
     public float SimplifyError { get; set; } = 0.005f;
+    /// <summary>Loose islands smaller than this (m2) are left out: depth noise floating in the air. 0 keeps all.</summary>
+    public float MinIslandArea { get; set; } = 0.01f;
     /// <summary>
     /// Encodes the baked RGB texture (width, height, rows top to bottom) as PNG or JPEG bytes. The apps pass their
     /// platform's JPEG encoder; left out, a plain PNG is written, which is several times larger.
@@ -73,6 +75,10 @@ public static class ScanGltfExporter
     {
         // One mesh first: pieces cut from one surface (fused blocks, anchors) would otherwise each keep their edges.
         var shape = ScanMeshSimplifier.Weld(pieces, Guid.NewGuid());
+        if (options.MinIslandArea > 0)
+        {
+            shape = ScanMeshSimplifier.DropIslands(shape, options.MinIslandArea);
+        }
         if (options.SimplifyError > 0)
         {
             shape = ScanMeshSimplifier.Simplify(shape, options.SimplifyError);
