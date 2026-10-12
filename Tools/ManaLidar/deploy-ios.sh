@@ -14,9 +14,11 @@ if [ -z "$device" ]; then
   device="$(python3 - "$json" <<'PY'
 import json, sys
 devices = json.load(open(sys.argv[1]))["result"]["devices"]
+# Wi-Fi phones read "disconnected" until used (the tunnel opens on demand), so paired is enough; USB ones sort first.
 ready = [d for d in devices
          if d["hardwareProperties"]["deviceType"] == "iPhone"
-         and d["connectionProperties"].get("tunnelState") != "disconnected"]
+         and d["connectionProperties"].get("pairingState") == "paired"]
+ready.sort(key=lambda d: d["connectionProperties"].get("transportType") != "wired")
 print(ready[0]["hardwareProperties"]["udid"] if ready else "")
 PY
 )"
