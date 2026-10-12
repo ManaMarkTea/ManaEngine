@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="Vapolia.Google.ARCore" Version="1.47.1" />
+    <PackageReference Include="Xamarin.AndroidX.Core" Version="1.16.0.3" />
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" />
   </ItemGroup>
 

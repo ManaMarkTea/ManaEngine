@@ -11,15 +11,18 @@ public static class ScanDepthMesher
     /// <summary>A cell is dropped when its depths differ by more than this share of the nearest one (a silhouette edge).</summary>
     public const float MaxDepthJump = 0.08f;
 
-    public static ScanMeshPiece? Build(ScanKeyframe keyframe, float minDepth = 0.2f, float maxDepth = 5f)
+    /// <summary>Every <paramref name="step"/>th depth sample becomes a vertex: the depth image is finer than a room scan needs.</summary>
+    public static ScanMeshPiece? Build(ScanKeyframe keyframe, int step = 1, float minDepth = 0.2f, float maxDepth = 5f)
     {
         if (keyframe.Depth is not { } depth || keyframe.DepthWidth < 2 || keyframe.DepthHeight < 2)
         {
             return null;
         }
 
-        int w = keyframe.DepthWidth;
-        int h = keyframe.DepthHeight;
+        step = Math.Max(1, step);
+        int w = keyframe.DepthWidth / step;
+        int h = keyframe.DepthHeight / step;
+        int full = keyframe.DepthWidth;
         var vertexOf = new int[w * h];
         var positions = new List<Vector3>();
         var scaleX = keyframe.Width / (float)w;
@@ -28,7 +31,7 @@ public static class ScanDepthMesher
         {
             for (var x = 0; x < w; x++)
             {
-                var z = depth[y * w + x];
+                var z = depth[y * step * full + x * step];
                 if (!(z >= minDepth && z <= maxDepth))
                 {
                     vertexOf[y * w + x] = -1;
@@ -43,6 +46,7 @@ public static class ScanDepthMesher
             }
         }
 
+        float Z(int cell) => depth[(cell / w) * step * full + (cell % w) * step];
         var indices = new List<int>();
         for (var y = 0; y < h - 1; y++)
         {
@@ -52,7 +56,7 @@ public static class ScanDepthMesher
                 var b = a + 1;
                 var c = a + w;
                 var d = c + 1;
-                if (vertexOf[a] < 0 || vertexOf[b] < 0 || vertexOf[c] < 0 || vertexOf[d] < 0 || Jumps(depth[a], depth[b], depth[c], depth[d]))
+                if (vertexOf[a] < 0 || vertexOf[b] < 0 || vertexOf[c] < 0 || vertexOf[d] < 0 || Jumps(Z(a), Z(b), Z(c), Z(d)))
                 {
                     continue;
                 }

@@ -9,37 +9,55 @@ public static class ImageConvert
     private const int DepthWidth = 128;
     private const int DepthHeight = 96;
 
-    public static ScanKeyframe ToKeyframe(global::Android.Media.Image color, global::Android.Media.Image depth, CameraIntrinsics intrinsics,
-        Matrix4x4 cameraToWorld, double seconds, int width, int height)
+    /// <summary>The raw bytes of one frame, copied out so the Images can be closed at once and the slow work done elsewhere.</summary>
+    public sealed class RawFrame
     {
-        var rgb = ToRgb(color, width, height);
-        var depthMetres = ToDepth(depth);
+        public byte[] Y = null!, U = null!, V = null!, Depth = null!;
+        public int ImageWidth, ImageHeight, YStride, ChromaStride, ChromaPixel, DepthImageWidth, DepthImageHeight, DepthStride;
+        public float[] Focal = null!, Principal = null!;
+        public int[] Dimensions = null!;
+    }
+
+    public static RawFrame Copy(global::Android.Media.Image color, global::Android.Media.Image depth, CameraIntrinsics intrinsics)
+    {
+        var planes = color.GetPlanes()!;
+        var depthPlane = depth.GetPlanes()![0];
+        return new RawFrame
+        {
+            Y = Copy(planes[0]), U = Copy(planes[1]), V = Copy(planes[2]), Depth = Copy(depthPlane),
+            ImageWidth = color.Width, ImageHeight = color.Height,
+            YStride = planes[0].RowStride, ChromaStride = planes[1].RowStride, ChromaPixel = planes[1].PixelStride,
+            DepthImageWidth = depth.Width, DepthImageHeight = depth.Height, DepthStride = depthPlane.RowStride,
+            Focal = intrinsics.GetFocalLength(), Principal = intrinsics.GetPrincipalPoint(), Dimensions = intrinsics.GetImageDimensions(),
+        };
+    }
+
+    public static ScanKeyframe ToKeyframe(RawFrame raw, Matrix4x4 cameraToWorld, double seconds, int width, int height)
+    {
+        var rgb = ToRgb(raw, width, height);
+        var depthMetres = ToDepth(raw);
 
         // Intrinsics are for the full camera image; scale them to the keyframe's size.
-        var dimensions = intrinsics.GetImageDimensions();
-        var scaleX = width / (float)dimensions[0];
-        var scaleY = height / (float)dimensions[1];
-        var focal = intrinsics.GetFocalLength();
-        var principal = intrinsics.GetPrincipalPoint();
+        var scaleX = width / (float)raw.Dimensions[0];
+        var scaleY = height / (float)raw.Dimensions[1];
+        var focal = raw.Focal;
+        var principal = raw.Principal;
         return new ScanKeyframe(width, height, rgb, cameraToWorld, focal[0] * scaleX, focal[1] * scaleY,
             principal[0] * scaleX, principal[1] * scaleY, seconds, DepthWidth, DepthHeight, depthMetres);
     }
 
     /// <summary>YUV_420_888 (BT.601 full range, as camera2 delivers it) sampled down to width x height.</summary>
-    private static byte[] ToRgb(global::Android.Media.Image image, int width, int height)
+    private static byte[] ToRgb(RawFrame image, int width, int height)
     {
-        var planes = image.GetPlanes()!;
-        var y = Copy(planes[0]);
-        var u = Copy(planes[1]);
-        var v = Copy(planes[2]);
-        int yStride = planes[0].RowStride, cStride = planes[1].RowStride, cPixel = planes[1].PixelStride;
+        byte[] y = image.Y, u = image.U, v = image.V;
+        int yStride = image.YStride, cStride = image.ChromaStride, cPixel = image.ChromaPixel;
         var rgb = new byte[width * height * 3];
         for (var oy = 0; oy < height; oy++)
         {
-            var sy = Math.Min((int)((oy + 0.5f) * image.Height / height), image.Height - 1);
+            var sy = Math.Min((int)((oy + 0.5f) * image.ImageHeight / height), image.ImageHeight - 1);
             for (var ox = 0; ox < width; ox++)
             {
-                var sx = Math.Min((int)((ox + 0.5f) * image.Width / width), image.Width - 1);
+                var sx = Math.Min((int)((ox + 0.5f) * image.ImageWidth / width), image.ImageWidth - 1);
                 float luma = y[sy * yStride + sx];
                 var chroma = (sy / 2) * cStride + (sx / 2) * cPixel;
                 float cb = u[chroma] - 128f;
@@ -54,18 +72,17 @@ public static class ImageConvert
     }
 
     /// <summary>DEPTH16: millimetres in the low 13 bits (confidence above them), resampled to a fixed grid in metres; 0 = unknown.</summary>
-    private static float[] ToDepth(global::Android.Media.Image image)
+    private static float[] ToDepth(RawFrame image)
     {
-        var plane = image.GetPlanes()![0];
-        var bytes = Copy(plane);
-        var stride = plane.RowStride;
+        var bytes = image.Depth;
+        var stride = image.DepthStride;
         var result = new float[DepthWidth * DepthHeight];
         for (var oy = 0; oy < DepthHeight; oy++)
         {
-            var sy = Math.Min(oy * image.Height / DepthHeight, image.Height - 1);
+            var sy = Math.Min(oy * image.DepthImageHeight / DepthHeight, image.DepthImageHeight - 1);
             for (var ox = 0; ox < DepthWidth; ox++)
             {
-                var sx = Math.Min(ox * image.Width / DepthWidth, image.Width - 1);
+                var sx = Math.Min(ox * image.DepthImageWidth / DepthWidth, image.DepthImageWidth - 1);
                 var raw = bytes[sy * stride + sx * 2] | (bytes[sy * stride + sx * 2 + 1] << 8);
                 result[oy * DepthWidth + ox] = (raw & 0x1FFF) / 1000f;
             }

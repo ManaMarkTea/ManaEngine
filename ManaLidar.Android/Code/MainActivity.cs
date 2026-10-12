@@ -1,5 +1,7 @@
 using Android;
 using Android.App;
+using Android.Content;
+using AndroidX.Core.Content;
 using Android.Content.PM;
 using Android.Opengl;
 using Android.OS;
@@ -74,6 +76,8 @@ public sealed class MainActivity : Activity
         var root = new FrameLayout(this);
         root.AddView(_surface);
         root.AddView(bottom, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent, GravityFlags.Bottom));
+        // Android 15+ draws edge to edge: keep the buttons clear of the navigation bar and the status bar.
+        root.SetOnApplyWindowInsetsListener(new InsetsListener(bottom));
         SetContentView(root);
 
         // Counts and hints a few times a second; the renderer thread only writes them.
@@ -148,6 +152,16 @@ public sealed class MainActivity : Activity
         }
     }
 
+    private void Share(string path)
+    {
+        var uri = FileProvider.GetUriForFile(this, $"{PackageName}.files", new Java.IO.File(path))!;
+        var send = new Intent(Intent.ActionSend);
+        send.SetType("model/gltf-binary");
+        send.PutExtra(Intent.ExtraStream, uri);
+        send.AddFlags(ActivityFlags.GrantReadUriPermission);
+        StartActivity(Intent.CreateChooser(send, "Share scan"));
+    }
+
     private void ExportScan()
     {
         if (_exporting)
@@ -178,7 +192,22 @@ public sealed class MainActivity : Activity
                 _exporting = false;
                 _export.Enabled = true;
                 Toast.MakeText(this, message, ToastLength.Long)!.Show();
+                if (File.Exists(path))
+                {
+                    Share(path);
+                }
             });
         });
+    }
+}
+
+/// <summary>Lifts the bottom controls above the system navigation bar.</summary>
+internal sealed class InsetsListener(View controls) : Java.Lang.Object, View.IOnApplyWindowInsetsListener
+{
+    public WindowInsets OnApplyWindowInsets(View v, WindowInsets insets)
+    {
+        var bars = insets.GetInsets(WindowInsets.Type.SystemBars());
+        controls.SetPadding(0, 0, 0, bars.Bottom);
+        return insets;
     }
 }

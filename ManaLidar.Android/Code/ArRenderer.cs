@@ -45,6 +45,10 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     private int _width;
     private int _height;
     private int _depthImagesSeen;
+    private int _busy;
+
+    /// <summary>Every 2nd depth sample is a mesh vertex: 64 x 48 a photo is plenty for a room.</summary>
+    private const int MeshStep = 2;
 
     public ArRenderer(Context context, ScanRecording recording)
     {
@@ -151,25 +155,43 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
             return;
         }
         // The depth image is only there some frames after the camera starts; no depth, no keyframe.
+        if (Interlocked.Exchange(ref _busy, 1) == 1)
+        {
+            return;
+        }
         Image? depthImage = null;
         Image? colorImage = null;
         try
         {
             depthImage = frame.AcquireDepthImage16Bits();
             colorImage = frame.AcquireCameraImage();
-            var keyframe = ImageConvert.ToKeyframe(colorImage, depthImage, camera.ImageIntrinsics, pose, seconds, PhotoSize.Width, PhotoSize.Height);
             if (_depthImagesSeen++ == 0)
             {
                 global::Android.Util.Log.Info("ManaLidar", $"first keyframe: camera {colorImage.Width}x{colorImage.Height}, depth {depthImage.Width}x{depthImage.Height}");
             }
-            _recording.AddKeyframe(keyframe);
-            if (ScanDepthMesher.Build(keyframe) is { } piece)
+            var raw = ImageConvert.Copy(colorImage, depthImage, camera.ImageIntrinsics);
+            var (width, height) = PhotoSize;
+            // _busy holds further frames back until this keyframe is in the recording.
+            Task.Run(() =>
             {
-                _recording.SetPiece(piece);
-            }
+                try
+                {
+                    var keyframe = ImageConvert.ToKeyframe(raw, pose, seconds, width, height);
+                    _recording.AddKeyframe(keyframe);
+                    if (ScanDepthMesher.Build(keyframe, MeshStep) is { } piece)
+                    {
+                        _recording.SetPiece(piece);
+                    }
+                }
+                finally
+                {
+                    Volatile.Write(ref _busy, 0);
+                }
+            });
         }
         catch (Exception e) when (e is NotYetAvailableException or DeadlineExceededException)
         {
+            Volatile.Write(ref _busy, 0);
         }
         finally
         {
