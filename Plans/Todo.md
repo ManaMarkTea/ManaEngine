@@ -27,6 +27,8 @@
     Codex (2026-10-10): Train Yard Wars performance and bot fixes are complete; review: Plans/TrainYardWarsReview.md.
     Codex (2026-10-11): Couch stockpiles now depend on owned yards: 10 of each good and 20 Steel per depot/station,
     with munitions capped at 24. Player cards show held/capacity; full yards keep cargo aboard until room is made.
+    Couch controls now choose claim or menu from the hex, with mouse drag / hold-A movement for rows of claims;
+    no Interact/Claim switching or card indicators. Check: Tools/Automation/Checks/train-yard-wars-context.json.
     Follow-ups: reduce overlapping world gauges in eight-player matches; improve bot spending when one scarce
     resource blocks expansion; human playtest recovery after losing territory and full-edition pacing.
     Rendering follow-up (2026-10-10): quitting immediately with recording readbacks pending can crash in
