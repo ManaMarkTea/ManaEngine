@@ -95,6 +95,7 @@ public static class TestRunner
         ("ManaCore", "json formatting", JsonFormatChecks.Run),
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),
         ("Mana", "glTF support and camera framing", GltfSupportChecks.Run),
+        ("ManaLidar", "scan colouring and glTF export", ScanExportChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),
         ("Mana", "pawn camera controls", PawnCameraControlChecks.Run),
         ("ManaVoxel", "flying mount", FlyingMountChecks.Run),

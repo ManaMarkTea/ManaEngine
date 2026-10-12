@@ -364,6 +364,8 @@ namespace Mana.Code.Shapes.Loaders
                 _ => ManaOpacityMode.Auto
             };
             outputMaterial.AlphaCutoff = material.AlphaCutoff;
+            // KHR_materials_unlit: colours with their light already in them (photo scans, baked art) shown as stored.
+            outputMaterial.Unlit = material.Unlit;
 
             BindColorChannel(material, "BaseColor", outputMaterial.Albedo);
             var readEmissive = BindColorChannel(material, "Emissive", outputMaterial.Emission);

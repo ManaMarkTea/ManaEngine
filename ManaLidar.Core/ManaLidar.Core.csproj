@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The scan-to-glTF half of ManaLidar with no Apple dependency, so ManaTests can check it on any desktop.
+       The iOS app (ManaLidar) feeds it ARKit's meshes and camera frames. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.6" />
+  </ItemGroup>
+
+</Project>
