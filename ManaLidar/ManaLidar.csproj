@@ -17,7 +17,12 @@
     <ApplicationId>com.manarenderer.manalidar</ApplicationId>
     <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
+    <AppIcon>AppIcon</AppIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ImageAsset Include="Resources\Assets.xcassets\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" />
