@@ -132,6 +132,16 @@
       "detail": "Builds and runs the standalone OpenGL scene viewer."
     },
     {
+      "label": "Deploy: ManaLidar to iPhone",
+      "type": "process",
+      "command": "${workspaceFolder}/Tools/ManaLidar/deploy-ios.sh",
+      "args": [
+        "${input:configuration}"
+      ],
+      "problemMatcher": "$msCompile",
+      "detail": "Mac only: builds ManaLidar and installs it on the connected iPhone."
+    },
+    {
       "label": "Run: ManaTests",
       "type": "process",
       "command": "dotnet",
