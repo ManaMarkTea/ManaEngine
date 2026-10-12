@@ -69,6 +69,7 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
 
     /// <summary>Every 2nd depth sample is a mesh vertex: 64 x 48 a photo is plenty for a room.</summary>
     private const int MeshStep = 2;
+    private const int OverlayPieces = 5;
 
     public ArRenderer(Context context, ScanRecording recording)
     {
@@ -182,6 +183,13 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         for (var i = 0; i < 2 && _newPieces.TryDequeue(out var piece); i++)
         {
             _overlay.Add(Upload(piece));
+        }
+        // Every photo's sheet overlaps the last: only the newest few stay drawn, so the view reads as what is being scanned now.
+        while (_overlay.Count > OverlayPieces)
+        {
+            var (vbo, ibo, _) = _overlay[0];
+            GLES20.GlDeleteBuffers(2, new[] { vbo, ibo }, 0);
+            _overlay.RemoveAt(0);
         }
         if (_overlay.Count == 0)
         {
