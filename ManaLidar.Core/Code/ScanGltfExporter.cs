@@ -14,6 +14,8 @@ public sealed class ScanExportOptions
     public bool Recenter { get; set; } = true;
     /// <summary>KHR_materials_unlit: photo colours already carry the room's light, so lighting them again darkens them.</summary>
     public bool Unlit { get; set; } = true;
+    /// <summary>Triangles are split until no edge is longer than this (metres) before colouring; 0 keeps ARKit's mesh.</summary>
+    public float MaxEdgeLength { get; set; }
     /// <summary>0..1 as pieces are coloured; colouring is nearly all of an export's time.</summary>
     public IProgress<float>? Progress { get; set; }
 }
@@ -31,6 +33,13 @@ public static class ScanGltfExporter
         ScanExportOptions? options = null)
     {
         options ??= new ScanExportOptions();
+        if (options.MaxEdgeLength > 0)
+        {
+            var maxEdge = options.MaxEdgeLength;
+            var split = new ScanMeshPiece[pieces.Count];
+            Parallel.For(0, pieces.Count, i => split[i] = ScanMeshSubdivider.Subdivide(pieces[i], maxEdge));
+            pieces = split;
+        }
         var vertexCount = pieces.Sum(p => p.Positions.Length);
         var indexCount = pieces.Sum(p => p.Indices.Length);
         var positions = new Vector3[vertexCount];
@@ -103,7 +112,7 @@ public static class ScanGltfExporter
 
     /// <summary>
     /// What to add to every position to put the floor at y = 0 and the room's middle over the origin. The floor is
-    /// the median height of floor-classified points when ARKit found enough of them, else a low percentile, so one
+    /// low in the heights of floor-classified points when ARKit found enough of them, else a low percentile, so one
     /// stray point under the floor cannot sink the room.
     /// </summary>
     public static Vector3 RecenterOffset(IReadOnlyList<ScanMeshPiece> pieces)
@@ -126,8 +135,10 @@ public static class ScanGltfExporter
                 }
             }
         }
+        // Low in the floor's own spread rather than its middle: a floor at the median puts half of it under
+        // whatever ground it is placed on (Mana's editor grid included) and it flickers through.
         var floor = floorHeights.Count >= 50
-            ? Percentile(floorHeights.ToArray(), 0.5f)
+            ? Percentile(floorHeights.ToArray(), 0.05f)
             : Percentile(all.Select(p => p.Y).ToArray(), 0.02f);
 
         var xs = all.Select(p => p.X).ToArray();

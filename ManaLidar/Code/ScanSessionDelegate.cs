@@ -33,6 +33,9 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
     /// <summary>Set by the controller: photos are only worth keeping while a scan is running.</summary>
     public volatile bool Capturing;
 
+    /// <summary>Size of the photos kept from now on; each keyframe remembers its own, so this can change mid-scan.</summary>
+    public (int Width, int Height) PhotoSize = ScanDetailSettings.PhotoSize(ScanDetail.Standard);
+
     /// <summary>What to tell the person about tracking ("Move slower"), or null when all is well.</summary>
     public string? TrackingHint { get; private set; }
 
@@ -61,7 +64,7 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
                 return;
             }
             var pose = ArkitConvert.ToNumerics(camera.Transform);
-            if (_recording.WantsKeyframe(pose, frame.Timestamp) && ArkitConvert.CaptureKeyframe(frame) is { } keyframe)
+            if (_recording.WantsKeyframe(pose, frame.Timestamp) && ArkitConvert.CaptureKeyframe(frame, PhotoSize.Width, PhotoSize.Height) is { } keyframe)
             {
                 _recording.AddKeyframe(keyframe);
             }

@@ -55,6 +55,47 @@ public static class ScanExportChecks
         ScanColorizer.Colorize(behind, new[] { camera }, seen);
         Check("a surface facing away is not coloured", seen.All(s => !s));
 
+        // A smeared photo and a crisp one from the same spot: the crisp one should decide the colour.
+        var smeared = Keyframe(left: new byte[] { 255, 0, 0 }, right: new byte[] { 255, 0, 0 });
+        var crisp = Keyframe(left: new byte[] { 0, 0, 255 }, right: new byte[] { 0, 0, 255 }, stripes: true);
+        colors = ScanColorizer.Colorize(Wall(z: -2f), new[] { smeared, crisp });
+        Check("a crisp photo outweighs a smeared one", colors[0].Z > colors[0].X * 3,
+            $"{colors[0]} (sharpness {smeared.Sharpness:F1} vs {crisp.Sharpness:F1})");
+
+        // ---------------------------------------------------------------- subdivision
+        var quad = new ScanMeshPiece(Guid.NewGuid(),
+            new[] { new Vector3(0, 0, 0), new Vector3(1, 0, 0), new Vector3(1, 1, 0), new Vector3(0, 1, 0) },
+            Enumerable.Repeat(Vector3.UnitZ, 4).ToArray(), new[] { 0, 1, 2, 0, 2, 3 },
+            new[] { ScanSurface.Wall, ScanSurface.Wall });
+        var fine = ScanMeshSubdivider.Subdivide(quad, 0.1f);
+        var longest = 0f;
+        var area = 0f;
+        var facingOut = true;
+        var edgeUse = new Dictionary<(int, int), int>();
+        for (var f = 0; f < fine.TriangleCount; f++)
+        {
+            var a = fine.Indices[f * 3];
+            var b = fine.Indices[f * 3 + 1];
+            var c = fine.Indices[f * 3 + 2];
+            var cross = Vector3.Cross(fine.Positions[b] - fine.Positions[a], fine.Positions[c] - fine.Positions[a]);
+            area += cross.Length() * 0.5f;
+            facingOut &= cross.Z > 0;
+            foreach (var (u, w) in new[] { (a, b), (b, c), (c, a) })
+            {
+                longest = Math.Max(longest, Vector3.Distance(fine.Positions[u], fine.Positions[w]));
+                var key = u < w ? (u, w) : (w, u);
+                edgeUse[key] = edgeUse.GetValueOrDefault(key) + 1;
+            }
+        }
+        Check("subdividing leaves no edge over the limit", longest <= 0.1f + 1e-5f, $"longest {longest:F3} m, {fine.TriangleCount} triangles");
+        Check("covers the same area", Math.Abs(area - 1f) < 1e-3f, $"{area:F4} m2");
+        Check("keeps every triangle's winding", facingOut);
+        // A crack (a T-junction) shows up as an inside edge used only once, adding to the outline's length.
+        var outline = edgeUse.Where(e => e.Value == 1).Sum(e => Vector3.Distance(fine.Positions[e.Key.Item1], fine.Positions[e.Key.Item2]));
+        Check("and has no cracks", Math.Abs(outline - 4f) < 1e-3f, $"open edges total {outline:F3} m");
+        Check("every new triangle keeps its surface", fine.FaceSurfaces?.Length == fine.TriangleCount
+            && fine.FaceSurfaces.All(x => x == ScanSurface.Wall));
+
         // ---------------------------------------------------------------- keyframe pacing
         var recording = new ScanRecording();
         Check("the first frame is a keyframe", recording.WantsKeyframe(Matrix4x4.Identity, 0));
@@ -70,6 +111,12 @@ public static class ScanExportChecks
         try
         {
             ScanGltfExporter.SaveGlb(path, new[] { wall, floor }, new[] { camera });
+
+            var detailed = ScanGltfExporter.Build(new[] { wall, floor }, new[] { camera },
+                new ScanExportOptions { MaxEdgeLength = ScanDetailSettings.MaxEdge(ScanDetail.Ultra) });
+            var detailedCount = detailed.LogicalMeshes[0].Primitives[0].VertexAccessors["POSITION"].Count;
+            Check("Ultra detail exports a finer mesh", detailedCount > 20 * (wall.Positions.Length + floor.Positions.Length),
+                $"{detailedCount} vertices");
 
             var model = ModelRoot.Load(path);
             var primitive = model.LogicalMeshes[0].Primitives[0];
@@ -113,7 +160,7 @@ public static class ScanExportChecks
     }
 
     // A 64x48 photo from the origin looking down -Z, its left half one colour and its right half another.
-    private static ScanKeyframe Keyframe(byte[] left, byte[] right, float depth = float.NaN)
+    private static ScanKeyframe Keyframe(byte[] left, byte[] right, float depth = float.NaN, bool stripes = false)
     {
         const int w = 64, h = 48;
         var rgb = new byte[w * h * 3];
@@ -122,6 +169,10 @@ public static class ScanExportChecks
             for (var x = 0; x < w; x++)
             {
                 (x < w / 2 ? left : right).CopyTo(rgb, (y * w + x) * 3);
+                if (stripes && x % 2 == 0)
+                {
+                    rgb[(y * w + x) * 3 + 2] /= 2; // fine detail, which a smeared photo lacks
+                }
             }
         }
         float[]? depthMap = float.IsNaN(depth) ? null : Enumerable.Repeat(depth, 16 * 12).ToArray();

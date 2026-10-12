@@ -62,7 +62,10 @@ public static class ScanColorizer
                     continue; // something nearer the camera hid this point in that photo
                 }
 
-                var weight = facing * facing * facing / (distance * distance + 0.05f);
+                // Squared again so the best view dominates: an average of many slightly misaligned photos is a blur.
+                var view = facing * facing * facing / (distance * distance + 0.05f);
+                var sharpness = keyframe.Sharpness + 1f; // + 1: a photo of a blank wall is sharp but has no edges to show it
+                var weight = view * view * sharpness * sharpness;
                 sum += keyframe.Sample(pixel) * weight;
                 weightSum += weight;
             }

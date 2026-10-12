@@ -35,6 +35,7 @@ public sealed class ScanKeyframe
         Depth = depth;
         Matrix4x4.Invert(cameraToWorld, out var worldToCamera);
         WorldToCamera = worldToCamera;
+        Sharpness = MeasureSharpness(width, height, rgb);
     }
 
     public int Width { get; }
@@ -53,6 +54,9 @@ public sealed class ScanKeyframe
     public float[]? Depth { get; }
     public int DepthWidth { get; }
     public int DepthHeight { get; }
+
+    /// <summary>Mean luma gradient: a photo taken mid-swing is smeared and scores low, so colouring leans on the crisp ones.</summary>
+    public float Sharpness { get; }
 
     public Vector3 Position => CameraToWorld.Translation;
     /// <summary>The way the camera looks (its -Z) in world space.</summary>
@@ -98,6 +102,25 @@ public sealed class ScanKeyframe
         var c = Texel(x0, y0 + 1);
         var d = Texel(x0 + 1, y0 + 1);
         return Vector3.Lerp(Vector3.Lerp(a, b, fx), Vector3.Lerp(c, d, fx), fy) / 255f;
+    }
+
+    private static float MeasureSharpness(int width, int height, byte[] rgb)
+    {
+        static int Luma(byte[] rgb, int i) => rgb[i] * 2 + rgb[i + 1] * 5 + rgb[i + 2];
+        long sum = 0;
+        long count = 0;
+        // Every other row and column is plenty for a score.
+        for (var y = 0; y < height - 1; y += 2)
+        {
+            for (var x = 0; x < width - 1; x += 2)
+            {
+                var i = (y * width + x) * 3;
+                var l = Luma(rgb, i);
+                sum += Math.Abs(l - Luma(rgb, i + 3)) + Math.Abs(l - Luma(rgb, i + width * 3));
+                count++;
+            }
+        }
+        return count == 0 ? 0 : sum / (8f * count);
     }
 
     private Vector3 Texel(int x, int y)

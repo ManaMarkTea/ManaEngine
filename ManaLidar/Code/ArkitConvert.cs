@@ -7,9 +7,6 @@ namespace ManaLidar;
 /// <summary>ARKit's buffers and matrices into ManaLidar.Core's plain types.</summary>
 public static class ArkitConvert
 {
-    /// <summary>Keyframe photo size: enough for vertex colours a couple of centimetres apart, small enough for hundreds.</summary>
-    public const int KeyframeWidth = 320;
-    public const int KeyframeHeight = 240;
     private const int DepthWidth = 128;
     private const int DepthHeight = 96;
 
@@ -84,7 +81,7 @@ public static class ArkitConvert
     /// A small copy of the frame's photo and LiDAR depth. Everything is copied out before returning, because ARKit
     /// stops handing out frames once a few of its buffers are held.
     /// </summary>
-    public static unsafe ScanKeyframe? CaptureKeyframe(ARFrame frame)
+    public static unsafe ScanKeyframe? CaptureKeyframe(ARFrame frame, int keyframeWidth, int keyframeHeight)
     {
         var image = frame.CapturedImage;
         if (image.PlaneCount < 2)
@@ -92,7 +89,7 @@ public static class ArkitConvert
             return null;
         }
 
-        var rgb = new byte[KeyframeWidth * KeyframeHeight * 3];
+        var rgb = new byte[keyframeWidth * keyframeHeight * 3];
         int width;
         int height;
         image.Lock(CVPixelBufferLock.ReadOnly);
@@ -106,7 +103,7 @@ public static class ArkitConvert
             var luma = new ReadOnlySpan<byte>((void*)image.GetBaseAddress(0), lumaStride * height);
             var chroma = new ReadOnlySpan<byte>((void*)image.GetBaseAddress(1), chromaStride * chromaHeight);
             YCbCrImage.DownsampleToRgb(luma, lumaStride, width, height, chroma, chromaStride,
-                KeyframeWidth, KeyframeHeight, rgb);
+                keyframeWidth, keyframeHeight, rgb);
         }
         finally
         {
@@ -141,9 +138,9 @@ public static class ArkitConvert
 
         // Intrinsics are for the full camera image; scale them to the keyframe's size.
         var k = frame.Camera.Intrinsics;
-        var sx = (float)KeyframeWidth / width;
-        var sy = (float)KeyframeHeight / height;
-        return new ScanKeyframe(KeyframeWidth, KeyframeHeight, rgb, ToNumerics(frame.Camera.Transform),
+        var sx = (float)keyframeWidth / width;
+        var sy = (float)keyframeHeight / height;
+        return new ScanKeyframe(keyframeWidth, keyframeHeight, rgb, ToNumerics(frame.Camera.Transform),
             k.M11 * sx, k.M22 * sy, k.M13 * sx, k.M23 * sy, frame.Timestamp,
             depth == null ? 0 : DepthWidth, depth == null ? 0 : DepthHeight, depth);
     }

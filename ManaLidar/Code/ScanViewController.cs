@@ -23,6 +23,9 @@ public sealed class ScanViewController : UIViewController
     private NSTimer? _statusTimer;
     private State _state = State.Idle;
     private bool _exporting;
+    private UISegmentedControl _detailPicker = null!;
+    private ScanDetail _detail;
+    private const string DetailKey = "ScanDetail";
 
     public override void ViewDidLoad()
     {
@@ -60,6 +63,16 @@ public sealed class ScanViewController : UIViewController
         _status.ClipsToBounds = true;
         View.AddSubview(_status);
 
+        _detailPicker = new UISegmentedControl("Standard", "High", "Ultra")
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false,
+            BackgroundColor = UIColor.FromWhiteAlpha(0, 0.45f),
+        };
+        _detailPicker.ValueChanged += (_, _) => SetDetail((ScanDetail)(int)_detailPicker.SelectedSegment);
+        View.AddSubview(_detailPicker);
+        var saved = (int)NSUserDefaults.StandardUserDefaults.IntForKey(DetailKey);
+        SetDetail(Enum.IsDefined(typeof(ScanDetail), saved) ? (ScanDetail)saved : ScanDetail.Standard);
+
         _newButton = MakeButton("New", UIColor.SystemGray, ConfirmNewScan);
         _primaryButton = MakeButton("Start", UIColor.SystemGreen, TogglePrimary);
         _exportButton = MakeButton("Export", UIColor.SystemBlue, AskExport);
@@ -84,6 +97,10 @@ public sealed class ScanViewController : UIViewController
             _status.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 16),
             _status.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -16),
             _status.HeightAnchor.ConstraintGreaterThanOrEqualTo(44),
+
+            _detailPicker.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 16),
+            _detailPicker.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -16),
+            _detailPicker.BottomAnchor.ConstraintEqualTo(buttons.TopAnchor, -12),
 
             buttons.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 16),
             buttons.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -16),
@@ -137,6 +154,16 @@ public sealed class ScanViewController : UIViewController
             _configuration.FrameSemantics = ARFrameSemantics.SceneDepth;
         }
         return _configuration;
+    }
+
+    // Photos taken from now on use the new size; the mesh is split to the new edge length at export.
+    private void SetDetail(ScanDetail detail)
+    {
+        _detail = detail;
+        _detailPicker.SelectedSegment = (int)detail;
+        _sessionDelegate.PhotoSize = ScanDetailSettings.PhotoSize(detail);
+        _recording.MaxKeyframes = ScanDetailSettings.MaxKeyframes(detail);
+        NSUserDefaults.StandardUserDefaults.SetInt((int)detail, DetailKey);
     }
 
     private void TogglePrimary()
@@ -198,7 +225,8 @@ public sealed class ScanViewController : UIViewController
         {
             Pause();
         }
-        var alert = UIAlertController.Create("Export scan", "Saved as a GLB in ManaLidar's folder in Files.",
+        var alert = UIAlertController.Create("Export scan",
+            $"{_detail} detail: colour down to {ScanDetailSettings.MaxEdge(_detail) * 100:0} cm. Saved as a GLB in ManaLidar's folder in Files.",
             UIAlertControllerStyle.Alert);
         alert.AddTextField(field =>
         {
@@ -226,6 +254,7 @@ public sealed class ScanViewController : UIViewController
         var options = new ScanExportOptions
         {
             Name = name,
+            MaxEdgeLength = ScanDetailSettings.MaxEdge(_detail),
             Progress = new Progress<float>(p => progressAlert.Message = $"Colouring the mesh... {p:P0}"),
         };
         Exception? failure = null;
