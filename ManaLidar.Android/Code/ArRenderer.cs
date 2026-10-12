@@ -32,6 +32,17 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         void main() { gl_FragColor = texture2D(u_texture, v_uv); }
         """;
 
+    private const string LineVertexShader = """
+        uniform mat4 u_mvp;
+        attribute vec3 a_pos;
+        void main() { gl_Position = u_mvp * vec4(a_pos, 1.0); }
+        """;
+
+    private const string LineFragmentShader = """
+        precision mediump float;
+        void main() { gl_FragColor = vec4(0.2, 0.95, 1.0, 0.55); }
+        """;
+
     private static readonly float[] QuadNdc = { -1, -1, +1, -1, -1, +1, +1, +1 };
 
     private readonly Context _context;
@@ -46,6 +57,15 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     private int _height;
     private int _depthImagesSeen;
     private int _busy;
+    private int _lineProgram;
+    private int _linePosition;
+    private int _lineMvp;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<ScanMeshPiece> _newPieces = new();
+    private readonly List<(int Vbo, int Ibo, int Count)> _overlay = new();
+    private readonly float[] _view = new float[16];
+    private readonly float[] _projection = new float[16];
+    private readonly float[] _mvp = new float[16];
+    private volatile bool _clearOverlay;
 
     /// <summary>Every 2nd depth sample is a mesh vertex: 64 x 48 a photo is plenty for a room.</summary>
     private const int MeshStep = 2;
@@ -83,7 +103,19 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         GLES20.GlLinkProgram(_program);
         _positionAttribute = GLES20.GlGetAttribLocation(_program, "a_position");
         _uvAttribute = GLES20.GlGetAttribLocation(_program, "a_uv");
+
+        _lineProgram = GLES20.GlCreateProgram();
+        GLES20.GlAttachShader(_lineProgram, Compile(GLES20.GlVertexShader, LineVertexShader));
+        GLES20.GlAttachShader(_lineProgram, Compile(GLES20.GlFragmentShader, LineFragmentShader));
+        GLES20.GlLinkProgram(_lineProgram);
+        _linePosition = GLES20.GlGetAttribLocation(_lineProgram, "a_pos");
+        _lineMvp = GLES20.GlGetUniformLocation(_lineProgram, "u_mvp");
+        // The context is new, so any old buffers are gone with it.
+        _overlay.Clear();
     }
+
+    /// <summary>The next frame drops the wireframe, for New Scan.</summary>
+    public void ClearOverlay() => _clearOverlay = true;
 
     public void OnSurfaceChanged(IGL10? gl, int width, int height)
     {
@@ -116,6 +148,10 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
             }
 
             var camera = frame.Camera;
+            if (camera.TrackingState == TrackingState.Tracking)
+            {
+                DrawOverlay(camera);
+            }
             Hint = camera.TrackingState == TrackingState.Tracking ? null : $"Tracking lost: {camera.TrackingFailureReason}";
             if (Capturing && camera.TrackingState == TrackingState.Tracking)
             {
@@ -126,6 +162,82 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         {
             Hint = e.Message;
         }
+    }
+
+    private void DrawOverlay(Camera camera)
+    {
+        if (_clearOverlay)
+        {
+            _clearOverlay = false;
+            foreach (var (vbo, ibo, _) in _overlay)
+            {
+                GLES20.GlDeleteBuffers(2, new[] { vbo, ibo }, 0);
+            }
+            _overlay.Clear();
+            while (_newPieces.TryDequeue(out _))
+            {
+            }
+        }
+        // Upload a couple of pieces a frame, so a burst never stalls the camera.
+        for (var i = 0; i < 2 && _newPieces.TryDequeue(out var piece); i++)
+        {
+            _overlay.Add(Upload(piece));
+        }
+        if (_overlay.Count == 0)
+        {
+            return;
+        }
+
+        camera.GetViewMatrix(_view, 0);
+        camera.GetProjectionMatrix(_projection, 0, 0.05f, 30f);
+        Matrix.MultiplyMM(_mvp, 0, _projection, 0, _view, 0);
+        GLES20.GlUseProgram(_lineProgram);
+        GLES20.GlUniformMatrix4fv(_lineMvp, 1, false, _mvp, 0);
+        GLES20.GlEnable(GLES20.GlBlend);
+        GLES20.GlBlendFunc(GLES20.GlSrcAlpha, GLES20.GlOneMinusSrcAlpha);
+        GLES20.GlEnableVertexAttribArray(_linePosition);
+        foreach (var (vbo, ibo, count) in _overlay)
+        {
+            GLES20.GlBindBuffer(GLES20.GlArrayBuffer, vbo);
+            GLES20.GlVertexAttribPointer(_linePosition, 3, GLES20.GlFloat, false, 0, 0);
+            GLES20.GlBindBuffer(GLES20.GlElementArrayBuffer, ibo);
+            GLES20.GlDrawElements(GLES20.GlLines, count, GLES20.GlUnsignedShort, 0);
+        }
+        GLES20.GlDisableVertexAttribArray(_linePosition);
+        GLES20.GlBindBuffer(GLES20.GlArrayBuffer, 0);
+        GLES20.GlBindBuffer(GLES20.GlElementArrayBuffer, 0);
+        GLES20.GlDisable(GLES20.GlBlend);
+    }
+
+    /// <summary>A piece's triangle edges as GL lines; pieces are in world space, so the camera's matrices place them.</summary>
+    private static (int Vbo, int Ibo, int Count) Upload(ScanMeshPiece piece)
+    {
+        var vertices = new float[piece.Positions.Length * 3];
+        for (var i = 0; i < piece.Positions.Length; i++)
+        {
+            vertices[i * 3] = piece.Positions[i].X;
+            vertices[i * 3 + 1] = piece.Positions[i].Y;
+            vertices[i * 3 + 2] = piece.Positions[i].Z;
+        }
+        var lines = new short[piece.Indices.Length * 2];
+        for (var t = 0; t < piece.Indices.Length; t += 3)
+        {
+            for (var e = 0; e < 3; e++)
+            {
+                lines[t * 2 + e * 2] = (short)piece.Indices[t + e];
+                lines[t * 2 + e * 2 + 1] = (short)piece.Indices[t + (e + 1) % 3];
+            }
+        }
+        var buffers = new int[2];
+        GLES20.GlGenBuffers(2, buffers, 0);
+        GLES20.GlBindBuffer(GLES20.GlArrayBuffer, buffers[0]);
+        GLES20.GlBufferData(GLES20.GlArrayBuffer, vertices.Length * sizeof(float), ToBuffer(vertices), GLES20.GlStaticDraw);
+        var index = ByteBuffer.AllocateDirect(lines.Length * sizeof(short))!.Order(ByteOrder.NativeOrder())!.AsShortBuffer()!;
+        index.Put(lines);
+        index.Position(0);
+        GLES20.GlBindBuffer(GLES20.GlElementArrayBuffer, buffers[1]);
+        GLES20.GlBufferData(GLES20.GlElementArrayBuffer, lines.Length * sizeof(short), index, GLES20.GlStaticDraw);
+        return (buffers[0], buffers[1], lines.Length);
     }
 
     private void DrawBackground()
@@ -181,6 +293,7 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
                     if (ScanDepthMesher.Build(keyframe, MeshStep) is { } piece)
                     {
                         _recording.SetPiece(piece);
+                        _newPieces.Enqueue(piece);
                     }
                 }
                 finally

@@ -59,6 +59,7 @@ public sealed class MainActivity : Activity
         {
             _renderer.Capturing = false;
             _recording.Clear();
+            _renderer.ClearOverlay();
             _start.Text = "Start";
         };
         _export = new Button(this) { Text = "Export" };
