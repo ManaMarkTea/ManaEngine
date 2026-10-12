@@ -30,49 +30,13 @@ public static class ScanColorizer
     {
         var colors = new Vector3[piece.Positions.Length];
         var surfaces = VertexSurfaces(piece);
-        var candidates = KeyframesThatCouldSee(piece, keyframes);
+        var (centre, radius) = Bounds(piece.Positions);
+        var candidates = Candidates(centre, radius, keyframes);
 
         Parallel.For(0, colors.Length, i =>
         {
-            var p = piece.Positions[i];
-            var n = piece.Normals[i];
-            var sum = Vector3.Zero;
-            var weightSum = 0f;
-            foreach (var keyframe in candidates)
+            if (TrySample(piece.Positions[i], piece.Normals[i], candidates, out colors[i]))
             {
-                if (!keyframe.Project(p, out var pixel, out var distance))
-                {
-                    continue;
-                }
-                // A margin keeps clear of the lens's blurriest, most distorted edge.
-                const float margin = 2f;
-                if (pixel.X < margin || pixel.Y < margin || pixel.X > keyframe.Width - margin || pixel.Y > keyframe.Height - margin)
-                {
-                    continue;
-                }
-                var toCamera = keyframe.Position - p;
-                var facing = Vector3.Dot(n, toCamera / MathF.Max(toCamera.Length(), 1e-4f));
-                if (facing < 0.15f)
-                {
-                    continue;
-                }
-                var depth = keyframe.DepthAt(pixel);
-                if (!float.IsNaN(depth) && depth > 0 && distance - depth > 0.04f + 0.03f * distance)
-                {
-                    continue; // something nearer the camera hid this point in that photo
-                }
-
-                // Squared again so the best view dominates: an average of many slightly misaligned photos is a blur.
-                var view = facing * facing * facing / (distance * distance + 0.05f);
-                var sharpness = keyframe.Sharpness + 1f; // + 1: a photo of a blank wall is sharp but has no edges to show it
-                var weight = view * view * sharpness * sharpness;
-                sum += keyframe.Sample(pixel) * weight;
-                weightSum += weight;
-            }
-
-            if (weightSum > 0)
-            {
-                colors[i] = sum / weightSum;
                 if (seen != null)
                 {
                     seen[i] = true;
@@ -84,6 +48,47 @@ public static class ScanColorizer
             }
         });
         return colors;
+    }
+
+    /// <summary>The colour of a surface point facing <paramref name="normal"/>, blended from the photos that saw it.</summary>
+    public static bool TrySample(Vector3 point, Vector3 normal, IReadOnlyList<ScanKeyframe> candidates, out Vector3 color)
+    {
+        var sum = Vector3.Zero;
+        var weightSum = 0f;
+        foreach (var keyframe in candidates)
+        {
+            if (!keyframe.Project(point, out var pixel, out var distance))
+            {
+                continue;
+            }
+            // A margin keeps clear of the lens's blurriest, most distorted edge.
+            const float margin = 2f;
+            if (pixel.X < margin || pixel.Y < margin || pixel.X > keyframe.Width - margin || pixel.Y > keyframe.Height - margin)
+            {
+                continue;
+            }
+            var toCamera = keyframe.Position - point;
+            var facing = Vector3.Dot(normal, toCamera / MathF.Max(toCamera.Length(), 1e-4f));
+            if (facing < 0.15f)
+            {
+                continue;
+            }
+            var depth = keyframe.DepthAt(pixel);
+            if (!float.IsNaN(depth) && depth > 0 && distance - depth > 0.04f + 0.03f * distance)
+            {
+                continue; // something nearer the camera hid this point in that photo
+            }
+
+            // Squared again so the best view dominates: an average of many slightly misaligned photos is a blur.
+            var view = facing * facing * facing / (distance * distance + 0.05f);
+            var sharpness = keyframe.Sharpness + 1f; // + 1: a photo of a blank wall is sharp but has no edges to show it
+            var weight = view * view * sharpness * sharpness;
+            sum += keyframe.Sample(pixel) * weight;
+            weightSum += weight;
+        }
+
+        color = weightSum > 0 ? sum / weightSum : default;
+        return weightSum > 0;
     }
 
     /// <summary>Each vertex takes the surface of the first triangle that uses it.</summary>
@@ -108,24 +113,25 @@ public static class ScanColorizer
         return surfaces;
     }
 
-    // A bounding-sphere check first: a room scan has hundreds of photos, and any one piece is in few of them.
-    private static List<ScanKeyframe> KeyframesThatCouldSee(ScanMeshPiece piece, IReadOnlyList<ScanKeyframe> keyframes)
+    public static (Vector3 Centre, float Radius) Bounds(IEnumerable<Vector3> points)
     {
-        var result = new List<ScanKeyframe>();
-        if (piece.Positions.Length == 0)
-        {
-            return result;
-        }
-        var min = piece.Positions[0];
-        var max = min;
-        foreach (var p in piece.Positions)
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        foreach (var p in points)
         {
             min = Vector3.Min(min, p);
             max = Vector3.Max(max, p);
         }
-        var centre = (min + max) * 0.5f;
-        var radius = (max - min).Length() * 0.5f;
+        return min.X > max.X ? (Vector3.Zero, 0f) : ((min + max) * 0.5f, (max - min).Length() * 0.5f);
+    }
 
+    /// <summary>
+    /// The keyframes whose view takes in some of a bounding sphere: a room scan has hundreds of photos, and any one
+    /// part of it is in few of them.
+    /// </summary>
+    public static List<ScanKeyframe> Candidates(Vector3 centre, float radius, IReadOnlyList<ScanKeyframe> keyframes)
+    {
+        var result = new List<ScanKeyframe>();
         foreach (var keyframe in keyframes)
         {
             var c = Vector3.Transform(centre, keyframe.WorldToCamera);

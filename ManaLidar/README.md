@@ -1,14 +1,17 @@
 # ManaLidar
 
 An iPhone/iPad LiDAR room scanner. It uses ARKit's scene reconstruction to build the room's mesh while you walk
-around, keeps small camera photos with LiDAR depth as it goes, and exports one coloured, unlit `.glb` (metres,
-Y up, floor at y = 0, room centred on the origin). Mana opens the GLB as it is.
+around, keeps camera photos with LiDAR depth as it goes, and exports one textured, unlit `.glb` (metres, Y up,
+floor at y = 0, room centred on the origin). Mana opens the GLB as it is.
 
 - `ManaLidar/`: the iOS app (`net10.0-ios`): camera with a live wireframe, Start/Pause, New, Export, and a
   Scans list.
-- `ManaLidar.Core/`: plain .NET with no Apple code. It merges the mesh, colours the vertices from the photos
-  (skipping a photo wherever the LiDAR saw something in front) and writes the glTF. It is tested by ManaTests on
-  any desktop (`dotnet run --project ManaTests -- ManaLidar`).
+- `ManaLidar.Core/`: plain .NET with no Apple code. It merges the mesh and simplifies it (flat areas become a
+  few large triangles), lays it out on one texture and paints that from the photos (skipping a photo wherever the
+  depth saw something in front, favouring sharp, head-on views), then writes the glTF. For phones without LiDAR
+  it also fuses depth frames into one surface (`ScanTsdfVolume`). It is tested by ManaTests on any desktop
+  (`dotnet run --project ManaTests -- ManaLidar`).
+- `ManaLidar.Android/`: the ARCore version, for phones with depth but no LiDAR.
 
 Needs a LiDAR device: iPhone 12 Pro or later Pro, or an iPad Pro from 2020 on.
 
@@ -60,7 +63,9 @@ phone. Rider works too.
    best colour.
 2. A hint under the counts says when tracking struggles ("Move slower", "more light").
 3. **Pause** freezes the scan; **Resume** carries on once the phone recognises where it is.
-4. **Export** names the scan, colours it (a few seconds) and opens the share sheet. AirDrop it to the Mac.
+4. **Export** names the scan, bakes its texture (a few seconds) and opens the share sheet. AirDrop it to the Mac.
+   **Detail** sets the photo size kept while scanning and, at export, the texture (2K, or 4K for High and Ultra)
+   and how much fine relief the simplified mesh keeps.
    Every export also stays in Files > On My iPhone > ManaLidar and in the app's **Scans** list (tap to share,
    swipe to delete).
 

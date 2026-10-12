@@ -1,6 +1,6 @@
 namespace ManaLidar;
 
-/// <summary>How much colour detail a scan keeps, traded against memory while scanning and the GLB's size.</summary>
+/// <summary>How much detail a scan keeps, traded against memory while scanning, export time and the GLB's size.</summary>
 public enum ScanDetail
 {
     Standard,
@@ -18,12 +18,28 @@ public static class ScanDetailSettings
         _ => (320, 240),
     };
 
-    /// <summary>Longest triangle edge in the export (metres): the finest colour detail the GLB can show.</summary>
-    public static float MaxEdge(ScanDetail detail) => detail switch
+    /// <summary>Texture width and height: the most detail the scan can carry, whatever its size.</summary>
+    public static int TextureSize(ScanDetail detail) => detail switch
     {
-        ScanDetail.High => 0.02f,
-        ScanDetail.Ultra => 0.01f,
-        _ => 0.04f,
+        ScanDetail.High => 4096,
+        ScanDetail.Ultra => 4096,
+        _ => 2048,
+    };
+
+    /// <summary>How far simplifying may move the surface (metres): smaller keeps more of the shape's fine relief.</summary>
+    public static float SimplifyError(ScanDetail detail) => detail switch
+    {
+        ScanDetail.High => 0.004f,
+        ScanDetail.Ultra => 0.002f,
+        _ => 0.008f,
+    };
+
+    /// <summary>Export settings for a level of detail.</summary>
+    public static ScanExportOptions Export(ScanDetail detail, string name) => new()
+    {
+        Name = name,
+        TextureSize = TextureSize(detail),
+        SimplifyError = SimplifyError(detail),
     };
 
     /// <summary>Keyframes kept before thinning: about 110, 280 and 420 MB of photos.</summary>

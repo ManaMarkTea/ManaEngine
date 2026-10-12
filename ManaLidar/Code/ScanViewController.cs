@@ -226,7 +226,7 @@ public sealed class ScanViewController : UIViewController
             Pause();
         }
         var alert = UIAlertController.Create("Export scan",
-            $"{_detail} detail: colour down to {ScanDetailSettings.MaxEdge(_detail) * 100:0} cm. Saved as a GLB in ManaLidar's folder in Files.",
+            $"{_detail} detail: a {ScanDetailSettings.TextureSize(_detail)} texture. Saved as a GLB in ManaLidar's folder in Files.",
             UIAlertControllerStyle.Alert);
         alert.AddTextField(field =>
         {
@@ -246,17 +246,14 @@ public sealed class ScanViewController : UIViewController
     {
         _exporting = true;
         UpdateUi();
-        var progressAlert = UIAlertController.Create("Exporting", "Colouring the mesh...", UIAlertControllerStyle.Alert);
+        var progressAlert = UIAlertController.Create("Exporting", "Painting the texture...", UIAlertControllerStyle.Alert);
         PresentViewController(progressAlert, true, null);
 
         var (pieces, keyframes) = _recording.Snapshot();
         var path = ScanFiles.PathFor(name);
-        var options = new ScanExportOptions
-        {
-            Name = name,
-            MaxEdgeLength = ScanDetailSettings.MaxEdge(_detail),
-            Progress = new Progress<float>(p => progressAlert.Message = $"Colouring the mesh... {p:P0}"),
-        };
+        var options = ScanDetailSettings.Export(_detail, name);
+        options.EncodeImage = EncodeJpeg;
+        options.Progress = new Progress<float>(p => progressAlert.Message = $"Painting the texture... {p:P0}");
         Exception? failure = null;
         try
         {
@@ -276,6 +273,25 @@ public sealed class ScanViewController : UIViewController
             return;
         }
         ScanFiles.Share(this, path, _exportButton);
+    }
+
+    // JPEG keeps a 4K photo texture to a few MB; Core's own PNG would be several times that.
+    private static byte[] EncodeJpeg(int width, int height, byte[] rgb)
+    {
+        var rgba = new byte[width * height * 4];
+        for (int i = 0, j = 0; i < rgb.Length; i += 3, j += 4)
+        {
+            rgba[j] = rgb[i];
+            rgba[j + 1] = rgb[i + 1];
+            rgba[j + 2] = rgb[i + 2];
+            rgba[j + 3] = 255;
+        }
+        using var space = CGColorSpace.CreateDeviceRGB();
+        using var context = new CGBitmapContext(rgba, width, height, 8, width * 4, space, CGImageAlphaInfo.NoneSkipLast);
+        using var cgImage = context.ToImage() ?? throw new InvalidOperationException("Could not make the texture image.");
+        using var image = UIImage.FromImage(cgImage);
+        using var jpeg = image.AsJPEG(0.88f) ?? throw new InvalidOperationException("Could not encode the texture.");
+        return jpeg.ToArray();
     }
 
     private void UpdateUi()

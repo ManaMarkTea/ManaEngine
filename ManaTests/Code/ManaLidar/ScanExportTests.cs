@@ -7,7 +7,8 @@ namespace ManaTests;
 
 /// <summary>
 /// ManaLidar's phone-free half: camera pixels to RGB, keyframes projecting the right way round, colouring that
-/// respects what the LiDAR saw in front, and a GLB that Mana's own loader reads back coloured and unlit.
+/// respects what the LiDAR saw in front, a texture laid out and painted from the photos, and GLBs (vertex-coloured
+/// and textured) that Mana's own loader reads back unlit.
 /// </summary>
 public static class ScanExportChecks
 {
@@ -62,39 +63,41 @@ public static class ScanExportChecks
         Check("a crisp photo outweighs a smeared one", colors[0].Z > colors[0].X * 3,
             $"{colors[0]} (sharpness {smeared.Sharpness:F1} vs {crisp.Sharpness:F1})");
 
-        // ---------------------------------------------------------------- subdivision
-        var quad = new ScanMeshPiece(Guid.NewGuid(),
-            new[] { new Vector3(0, 0, 0), new Vector3(1, 0, 0), new Vector3(1, 1, 0), new Vector3(0, 1, 0) },
-            Enumerable.Repeat(Vector3.UnitZ, 4).ToArray(), new[] { 0, 1, 2, 0, 2, 3 },
-            new[] { ScanSurface.Wall, ScanSurface.Wall });
-        var fine = ScanMeshSubdivider.Subdivide(quad, 0.1f);
-        var longest = 0f;
-        var area = 0f;
-        var facingOut = true;
-        var edgeUse = new Dictionary<(int, int), int>();
-        for (var f = 0; f < fine.TriangleCount; f++)
+        // ---------------------------------------------------------------- texture layout
+        var box = Box();
+        var boxAtlas = ScanAtlas.Build(box, 256, 1000f);
+        var rects = Enumerable.Range(0, boxAtlas.ChartCount).Select(c =>
         {
-            var a = fine.Indices[f * 3];
-            var b = fine.Indices[f * 3 + 1];
-            var c = fine.Indices[f * 3 + 2];
-            var cross = Vector3.Cross(fine.Positions[b] - fine.Positions[a], fine.Positions[c] - fine.Positions[a]);
-            area += cross.Length() * 0.5f;
-            facingOut &= cross.Z > 0;
-            foreach (var (u, w) in new[] { (a, b), (b, c), (c, a) })
-            {
-                longest = Math.Max(longest, Vector3.Distance(fine.Positions[u], fine.Positions[w]));
-                var key = u < w ? (u, w) : (w, u);
-                edgeUse[key] = edgeUse.GetValueOrDefault(key) + 1;
-            }
+            var uv = Enumerable.Range(0, boxAtlas.FaceCharts.Length).Where(f => boxAtlas.FaceCharts[f] == c)
+                .SelectMany(f => new[] { boxAtlas.Uvs[boxAtlas.Indices[f * 3]], boxAtlas.Uvs[boxAtlas.Indices[f * 3 + 1]], boxAtlas.Uvs[boxAtlas.Indices[f * 3 + 2]] })
+                .ToArray();
+            return (Min: uv.Aggregate(Vector2.Min), Max: uv.Aggregate(Vector2.Max));
+        }).ToArray();
+        Check("a box lays out as one chart a side", boxAtlas.ChartCount == 6, $"{boxAtlas.ChartCount} charts");
+        Check("every chart is inside the texture", rects.All(r => r.Min.X >= 0 && r.Min.Y >= 0 && r.Max.X <= 1 && r.Max.Y <= 1));
+        var overlaps = rects.SelectMany((a, i) => rects.Skip(i + 1).Where(b =>
+            a.Min.X < b.Max.X && b.Min.X < a.Max.X && a.Min.Y < b.Max.Y && b.Min.Y < a.Max.Y)).Count();
+        Check("and no two overlap", overlaps == 0, $"{overlaps} overlapping");
+        Check("at one texel density for all", boxAtlas.TexelsPerMetre > 30, $"{boxAtlas.TexelsPerMetre:F0} texels a metre");
+
+        // ---------------------------------------------------------------- baking
+        // A 1.2 x 0.8 m wall 2 m in front of the camera: its left half photographed red, its right half blue.
+        var bigWall = Grid(1.2f, 0.8f, 24, 16, z: -2f);
+        var bakedAtlas = ScanAtlas.Build(ScanMeshSimplifier.Simplify(bigWall, 0.004f), 256, 1000f);
+        var baked = ScanTextureBaker.Bake(bakedAtlas, new[] { camera });
+        Vector3 TexelNear(Vector3 world)
+        {
+            var nearest = Enumerable.Range(0, bakedAtlas.Positions.Length).MinBy(i => Vector3.Distance(bakedAtlas.Positions[i], world));
+            var centre = bakedAtlas.Uvs.Aggregate(Vector2.Zero, (a, b) => a + b) / bakedAtlas.Uvs.Length;
+            // A few texels in from the corner, toward the chart's middle: inside, never on its edge.
+            var uv = bakedAtlas.Uvs[nearest] + Vector2.Normalize(centre - bakedAtlas.Uvs[nearest]) * 6f / bakedAtlas.Size;
+            var at = ((int)(uv.Y * bakedAtlas.Size) * bakedAtlas.Size + (int)(uv.X * bakedAtlas.Size)) * 3;
+            return new Vector3(baked[at], baked[at + 1], baked[at + 2]) / 255f;
         }
-        Check("subdividing leaves no edge over the limit", longest <= 0.1f + 1e-5f, $"longest {longest:F3} m, {fine.TriangleCount} triangles");
-        Check("covers the same area", Math.Abs(area - 1f) < 1e-3f, $"{area:F4} m2");
-        Check("keeps every triangle's winding", facingOut);
-        // A crack (a T-junction) shows up as an inside edge used only once, adding to the outline's length.
-        var outline = edgeUse.Where(e => e.Value == 1).Sum(e => Vector3.Distance(fine.Positions[e.Key.Item1], fine.Positions[e.Key.Item2]));
-        Check("and has no cracks", Math.Abs(outline - 4f) < 1e-3f, $"open edges total {outline:F3} m");
-        Check("every new triangle keeps its surface", fine.FaceSurfaces?.Length == fine.TriangleCount
-            && fine.FaceSurfaces.All(x => x == ScanSurface.Wall));
+        var leftTexel = TexelNear(new Vector3(-0.6f, -0.4f, -2f));
+        var rightTexel = TexelNear(new Vector3(0.6f, 0.4f, -2f));
+        Check("the texture is red where the photo was", leftTexel.X > 0.9f && leftTexel.Z < 0.1f, leftTexel.ToString());
+        Check("and blue where it was blue", rightTexel.Z > 0.9f && rightTexel.X < 0.1f, rightTexel.ToString());
 
         // ---------------------------------------------------------------- keyframe pacing
         var recording = new ScanRecording();
@@ -108,19 +111,14 @@ public static class ScanExportChecks
         // ---------------------------------------------------------------- GLB through Mana's loader
         var floor = Floor(height: 1.25f, offsetX: 10f);
         var path = Path.Combine(Path.GetTempPath(), $"mana-scan-{Guid.NewGuid():N}.glb");
+        var texturedPath = Path.Combine(Path.GetTempPath(), $"mana-scan-{Guid.NewGuid():N}.glb");
         try
         {
-            ScanGltfExporter.SaveGlb(path, new[] { wall, floor }, new[] { camera });
-
-            var detailed = ScanGltfExporter.Build(new[] { wall, floor }, new[] { camera },
-                new ScanExportOptions { MaxEdgeLength = ScanDetailSettings.MaxEdge(ScanDetail.Ultra) });
-            var detailedCount = detailed.LogicalMeshes[0].Primitives[0].VertexAccessors["POSITION"].Count;
-            Check("Ultra detail exports a finer mesh", detailedCount > 20 * (wall.Positions.Length + floor.Positions.Length),
-                $"{detailedCount} vertices");
+            ScanGltfExporter.SaveGlb(path, new[] { wall, floor }, new[] { camera }, new ScanExportOptions { Texture = false });
 
             var model = ModelRoot.Load(path);
             var primitive = model.LogicalMeshes[0].Primitives[0];
-            Check("the GLB holds one mesh of both pieces",
+            Check("vertex colouring keeps every vertex of both pieces",
                 primitive.VertexAccessors["POSITION"].Count == wall.Positions.Length + floor.Positions.Length
                     && primitive.IndexAccessor.Count == wall.Indices.Length + floor.Indices.Length,
                 $"{primitive.VertexAccessors["POSITION"].Count} vertices");
@@ -139,6 +137,22 @@ public static class ScanExportChecks
             var loadedColors = loader.Meshes.FirstOrDefault()?.CpuData?.Colors;
             Check("with the scan's vertex colours", loadedColors is { Length: > 0 }
                 && loadedColors[0].X > 0.9f && loadedColors[0].Z < 0.1f, loadedColors?.FirstOrDefault().ToString() ?? "none");
+
+            // The default: simplified and textured.
+            ScanGltfExporter.SaveGlb(texturedPath, new[] { bigWall }, new[] { camera }, new ScanExportOptions { TextureSize = 256 });
+            var textured = ModelRoot.Load(texturedPath);
+            var texturedPrimitive = textured.LogicalMeshes[0].Primitives[0];
+            Check("a textured export carries UVs instead of vertex colours",
+                texturedPrimitive.VertexAccessors.ContainsKey("TEXCOORD_0") && !texturedPrimitive.VertexAccessors.ContainsKey("COLOR_0"));
+            Check("and simplifies the flat wall to a few triangles", texturedPrimitive.IndexAccessor.Count / 3 <= 8,
+                $"{bigWall.TriangleCount} -> {texturedPrimitive.IndexAccessor.Count / 3}");
+            Check("with its texture embedded as a PNG", textured.LogicalImages.Count == 1 && textured.LogicalImages[0].Content.IsPng);
+
+            var texturedLoader = new Mana.Code.Shapes.Loaders.ManaSharpGltfLoader(context);
+            texturedLoader.LoadFile(texturedPath);
+            Check("Mana loads it with the texture on its material",
+                texturedLoader.Materials.Count == 1 && texturedLoader.Materials[0].Unlit && texturedLoader.Materials[0].Albedo.TextureValue != null,
+                texturedLoader.Materials.FirstOrDefault()?.Albedo.TextureValue?.OriginalFilename ?? "no texture");
         }
         catch (Exception ex)
         {
@@ -147,7 +161,54 @@ public static class ScanExportChecks
         finally
         {
             File.Delete(path);
+            File.Delete(texturedPath);
         }
+    }
+
+    // A flat w x h grid facing +Z, centred on the view axis at depth z.
+    private static ScanMeshPiece Grid(float width, float height, int nx, int ny, float z)
+    {
+        var positions = new List<Vector3>();
+        for (var y = 0; y <= ny; y++)
+        {
+            for (var x = 0; x <= nx; x++)
+            {
+                positions.Add(new Vector3(width * (x / (float)nx - 0.5f), height * (y / (float)ny - 0.5f), z));
+            }
+        }
+        var indices = new List<int>();
+        for (var y = 0; y < ny; y++)
+        {
+            for (var x = 0; x < nx; x++)
+            {
+                var a = y * (nx + 1) + x;
+                indices.AddRange(new[] { a, a + 1, a + nx + 2, a, a + nx + 2, a + nx + 1 });
+            }
+        }
+        return new ScanMeshPiece(Guid.NewGuid(), positions.ToArray(), positions.Select(_ => Vector3.UnitZ).ToArray(), indices.ToArray(),
+            Enumerable.Repeat(ScanSurface.Wall, nx * ny * 2).ToArray());
+    }
+
+    // A closed 1 m box, faces outward, each side two triangles.
+    private static ScanMeshPiece Box()
+    {
+        var positions = new List<Vector3>();
+        var normals = new List<Vector3>();
+        var indices = new List<int>();
+        foreach (var n in new[] { Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ })
+        {
+            var u = MathF.Abs(n.Y) > 0.5f ? Vector3.UnitX : Vector3.UnitY;
+            var v = Vector3.Cross(n, u);
+            var b = positions.Count;
+            foreach (var (su, sv) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
+            {
+                positions.Add((n + u * su + v * sv) * 0.5f);
+                normals.Add(n);
+            }
+            // u x v = n, so (0, 1, 2) runs counter-clockwise seen from outside.
+            indices.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
+        }
+        return new ScanMeshPiece(Guid.NewGuid(), positions.ToArray(), normals.ToArray(), indices.ToArray());
     }
 
     private static byte[] Convert(byte y, byte cb, byte cr)

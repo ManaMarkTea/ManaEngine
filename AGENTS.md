@@ -13,7 +13,7 @@ C# .NET 10 renderer / game engine using Silk.NET. Target platforms are **macOS (
 | `ManaTests` | Headless test suite for all systems; suites live in `Code/<System>/` |
 | `ManaVoxel` | Voxel editor app (the main runnable executable) |
 | `Games/<Name>` | One project per game (`Games/TrainYardWars`): rules, view and level game mode, on the engine only; ManaVoxel references each and registers it (`ManaVoxel/Code/Levels/ManaGames.cs`) |
-| `ManaLidar` / `ManaLidar.Core` | iPhone LiDAR room scanner (`net10.0-ios`, built on the Mac; `ManaLidar/README.md`) and its Apple-free half -- ARKit mesh plus keyframe photos to a coloured, unlit GLB that Mana opens |
+| `ManaLidar` / `ManaLidar.Core` | iPhone LiDAR room scanner (`net10.0-ios`, built on the Mac; `ManaLidar/README.md`) and its Apple-free half -- ARKit mesh (or fused ARCore depth) plus keyframe photos to a simplified, textured, unlit GLB that Mana opens |
 
 **Runnable entry point:** `ManaVoxel`
 
