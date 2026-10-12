@@ -48,6 +48,8 @@ public sealed class MainActivity : Activity
         _status.SetBackgroundColor(global::Android.Graphics.Color.Argb(140, 0, 0, 0));
         _status.SetPadding(24, 16, 24, 16);
 
+        // Dev aid while the camera orientation is being pinned down: tap to try the next one, then New and rescan.
+        _status.Click += (_, _) => _renderer.Variant = (_renderer.Variant + 1) % 8;
         _start = new Button(this) { Text = "Start" };
         _start.Click += (_, _) =>
         {
@@ -85,7 +87,7 @@ public sealed class MainActivity : Activity
         var handler = new Handler(Looper.MainLooper!);
         void Tick()
         {
-            _status.Text = $"{_renderer.Hint ?? "Tracking"}\n{_recording.KeyframeCount} photos, {_recording.PieceCount} pieces, {_recording.TriangleCount:N0} triangles";
+            _status.Text = $"{_renderer.Hint ?? "Tracking"} [{_renderer.VariantName}]\n{_recording.KeyframeCount} photos, {_recording.PieceCount} pieces, {_recording.TriangleCount:N0} triangles";
             handler.PostDelayed(Tick, 250);
         }
         handler.Post(Tick);

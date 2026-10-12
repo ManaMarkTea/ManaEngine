@@ -260,7 +260,7 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     private void Capture(Frame frame)
     {
         var camera = frame.Camera;
-        var pose = CameraToWorld(camera.Pose);
+        var pose = CameraToWorld(camera);
         var seconds = frame.Timestamp / 1e9;
         if (!_recording.WantsKeyframe(pose, seconds))
         {
@@ -314,22 +314,32 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     }
 
     /// <summary>
-    /// ARCore's pose is the phone's (x across the screen, y up it, z out of it), but the camera image is the sensor's:
-    /// landscape, rotated a quarter turn from that. ScanKeyframe wants the image's own axes (x right, y up, -z ahead).
+    /// ScanKeyframe wants the camera image's own axes (x right, y up, -z ahead), but the camera image is the sensor's:
+    /// landscape, a quarter turn from the display. Which pose ARCore reports and which turn fixes it is checked on the
+    /// device by tapping the status text (<see cref="Variant"/>), because the docs leave it open.
     /// </summary>
-    private static Matrix4x4 CameraToWorld(Pose pose)
+    private Matrix4x4 CameraToWorld(Camera camera)
     {
         var m = new float[16];
-        pose.ToMatrix(m, 0);
+        (Variant < 4 ? camera.DisplayOrientedPose : camera.Pose).ToMatrix(m, 0);
         // ARCore fills a column-major matrix, which read straight through is the row-vector form System.Numerics uses.
         var device = new Matrix4x4(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
-        var image = new Matrix4x4(
-            0, -1, 0, 0,
-            1, 0, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1);
-        return image * device;
+        return Turns[Variant % 4] * device;
     }
+
+    // Image axes in the pose's frame, row-vector form: a quarter turn each way, none, and a half turn.
+    private static readonly Matrix4x4[] Turns =
+    {
+        new(0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+        new(0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+        Matrix4x4.Identity,
+        new(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+    };
+
+    /// <summary>0..7: pose source (display-oriented, then plain) times the four turns; tap the status text to step.</summary>
+    public volatile int Variant;
+
+    public string VariantName => $"{(Variant < 4 ? "display pose" : "sensor pose")} / turn {Variant % 4}";
 
     private static int Compile(int type, string source)
     {
