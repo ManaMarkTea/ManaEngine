@@ -38,6 +38,23 @@ public sealed class ScanRecording
         get { lock (_lock) { return _pieces.Values.Sum(p => p.TriangleCount); } }
     }
 
+    /// <summary>
+    /// What the scan holds in memory: photos (and their depth) are nearly all of it. An estimate of the arrays'
+    /// sizes, not of the process, so it can be shown live without asking the runtime anything.
+    /// </summary>
+    public long EstimatedBytes
+    {
+        get
+        {
+            lock (_lock)
+            {
+                var photos = _keyframes.Sum(k => (long)k.Rgb.Length + (k.Depth?.Length ?? 0) * 4L);
+                var mesh = _pieces.Values.Sum(p => p.Positions.Length * 24L + p.Indices.Length * 4L + (p.FaceSurfaces?.Length ?? 0));
+                return photos + mesh;
+            }
+        }
+    }
+
     public void SetPiece(ScanMeshPiece piece)
     {
         lock (_lock)

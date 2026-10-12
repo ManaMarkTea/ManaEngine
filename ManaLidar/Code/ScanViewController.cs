@@ -26,6 +26,14 @@ public sealed class ScanViewController : UIViewController
     private UISegmentedControl _detailPicker = null!;
     private ScanDetail _detail;
     private const string DetailKey = "ScanDetail";
+    // A building scanned a room at a time; its GLB is rewritten as each room goes in.
+    private ScanBuilding? _building;
+    private string? _buildingPath;
+    private string? _notice;
+
+    // How much more iOS will let this app have before it closes it: the number that matters on a phone.
+    [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")]
+    private static extern nuint os_proc_available_memory();
 
     public override void ViewDidLoad()
     {
@@ -156,7 +164,7 @@ public sealed class ScanViewController : UIViewController
         return _configuration;
     }
 
-    // Photos taken from now on use the new size; the mesh is split to the new edge length at export.
+    // Photos taken from now on use the new size; the texture size and simplifying follow it at export.
     private void SetDetail(ScanDetail detail)
     {
         _detail = detail;
@@ -199,6 +207,10 @@ public sealed class ScanViewController : UIViewController
         _sessionDelegate.Capturing = false;
         _recording.Clear();
         _sessionDelegate.ClearOverlay();
+        // A reset starts a new coordinate frame, so later rooms could no longer line up with the building's.
+        _building = null;
+        _buildingPath = null;
+        _notice = null;
         _sceneView.Session.Run(Configuration(), ARSessionRunOptions.ResetTracking | ARSessionRunOptions.RemoveExistingAnchors);
         _sessionDelegate.Capturing = true;
         _state = State.Scanning;
@@ -207,13 +219,15 @@ public sealed class ScanViewController : UIViewController
 
     private void ConfirmNewScan()
     {
-        if (_recording.TriangleCount == 0)
+        if (_recording.TriangleCount == 0 && _building == null)
         {
             StartNew();
             return;
         }
-        var alert = UIAlertController.Create("Start a new scan?", "The current scan is lost unless you export it first.",
-            UIAlertControllerStyle.Alert);
+        var message = _building == null
+            ? "The current scan is lost unless you export it first."
+            : $"This ends the building \"{_building.Name}\" (its {_building.Rooms.Count} rooms are saved). A room in progress is lost unless you add it first.";
+        var alert = UIAlertController.Create("Start a new scan?", message, UIAlertControllerStyle.Alert);
         alert.AddAction(UIAlertAction.Create("Cancel", UIAlertActionStyle.Cancel, null));
         alert.AddAction(UIAlertAction.Create("New Scan", UIAlertActionStyle.Destructive, _ => StartNew()));
         PresentViewController(alert, true, null);
@@ -225,21 +239,119 @@ public sealed class ScanViewController : UIViewController
         {
             Pause();
         }
-        var alert = UIAlertController.Create("Export scan",
-            $"{_detail} detail: a {ScanDetailSettings.TextureSize(_detail)} texture. Saved as a GLB in ManaLidar's folder in Files.",
-            UIAlertControllerStyle.Alert);
-        alert.AddTextField(field =>
+        var hasRoom = _recording.TriangleCount > 0;
+        var message = _building == null
+            ? $"{_detail} detail: a {ScanDetailSettings.TextureSize(_detail)} texture. Export Room saves this scan on its own; "
+                + "Add Room starts a building -- carry on into the next room and each one lines up with the last."
+            : $"Building \"{_building.Name}\", {_building.Rooms.Count} rooms so far.";
+        var alert = UIAlertController.Create("Export", message, UIAlertControllerStyle.Alert);
+        if (hasRoom)
         {
-            field.Text = $"Room {DateTime.Now:yyyy-MM-dd HH.mm}";
-            field.ClearButtonMode = UITextFieldViewMode.WhileEditing;
-        });
+            alert.AddTextField(field =>
+            {
+                field.Placeholder = "Room name";
+                field.Text = _building == null ? $"Room {DateTime.Now:yyyy-MM-dd HH.mm}" : $"Room {_building.Rooms.Count + 1}";
+                field.ClearButtonMode = UITextFieldViewMode.WhileEditing;
+            });
+        }
+        if (hasRoom && _building == null)
+        {
+            alert.AddTextField(field =>
+            {
+                field.Placeholder = "Building name";
+                field.Text = $"Building {DateTime.Now:yyyy-MM-dd HH.mm}";
+                field.ClearButtonMode = UITextFieldViewMode.WhileEditing;
+            });
+        }
+        string Field(int index, string fallback) =>
+            alert.TextFields?.ElementAtOrDefault(index)?.Text?.Trim() is { Length: > 0 } text ? text : fallback;
+
+        if (hasRoom && _building == null)
+        {
+            alert.AddAction(UIAlertAction.Create("Export Room", UIAlertActionStyle.Default, _ => Export(Field(0, "Room Scan"))));
+        }
+        if (hasRoom)
+        {
+            alert.AddAction(UIAlertAction.Create(_building == null ? "Add Room to a Building" : "Add Room", UIAlertActionStyle.Default,
+                _ => AddRoom(Field(0, "Room"), Field(1, "Building"))));
+        }
+        if (_building != null)
+        {
+            alert.AddAction(UIAlertAction.Create("Finish Building", UIAlertActionStyle.Default, _ => FinishBuilding()));
+        }
         alert.AddAction(UIAlertAction.Create("Cancel", UIAlertActionStyle.Cancel, null));
-        alert.AddAction(UIAlertAction.Create("Export", UIAlertActionStyle.Default, _ =>
-        {
-            var name = alert.TextFields?.FirstOrDefault()?.Text;
-            Export(string.IsNullOrWhiteSpace(name) ? "Room Scan" : name.Trim());
-        }));
         PresentViewController(alert, true, null);
+    }
+
+    private async void AddRoom(string roomName, string buildingName)
+    {
+        _exporting = true;
+        UpdateUi();
+        var progressAlert = UIAlertController.Create($"Adding {roomName}", "Painting the texture...", UIAlertControllerStyle.Alert);
+        PresentViewController(progressAlert, true, null);
+
+        var building = _building ?? new ScanBuilding(buildingName);
+        var path = _buildingPath ?? ScanFiles.PathFor(building.Name);
+        var (pieces, keyframes) = _recording.Snapshot();
+        var options = ScanDetailSettings.Export(_detail, roomName);
+        options.EncodeImage = EncodeJpeg;
+        options.Progress = new Progress<float>(p => progressAlert.Message = $"Painting the texture... {p:P0}");
+        Exception? failure = null;
+        try
+        {
+            await Task.Run(() =>
+            {
+                building.AddRoom(pieces, keyframes, options);
+                try
+                {
+                    building.SaveGlb(path);
+                }
+                catch
+                {
+                    building.RemoveLastRoom();
+                    throw;
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+
+        _exporting = false;
+        await DismissViewControllerAsync(true);
+        if (failure != null)
+        {
+            UpdateUi();
+            ShowMessage("Adding the room failed", failure.Message);
+            return;
+        }
+
+        _building = building;
+        _buildingPath = path;
+        _notice = $"{options.Name} added -- walk on to the next room";
+        // The room's photos and mesh are in the building now; let them go. Removing ARKit's anchors without
+        // resetting tracking keeps one coordinate frame, so the next room lines up with this one.
+        _sessionDelegate.Capturing = false;
+        _sessionDelegate.FinishRoom();
+        _recording.Clear();
+        _sceneView.Session.Run(Configuration(), ARSessionRunOptions.RemoveExistingAnchors);
+        _sessionDelegate.Capturing = true;
+        _state = State.Scanning;
+        UpdateUi();
+    }
+
+    private void FinishBuilding()
+    {
+        if (_buildingPath is not { } path)
+        {
+            return;
+        }
+        _building = null;
+        _buildingPath = null;
+        _notice = null;
+        UpdateUi();
+        ScanFiles.Share(this, path, _exportButton);
     }
 
     private async void Export(string name)
@@ -308,24 +420,41 @@ public sealed class ScanViewController : UIViewController
             State.Scanning => "Scanning",
             _ => "Paused",
         });
+        if (_building != null)
+        {
+            lines.Add($"{_building.Name}  ·  {_building.Rooms.Count} {(_building.Rooms.Count == 1 ? "room" : "rooms")}");
+        }
         if (triangles > 0)
         {
             lines.Add($"{triangles:N0} triangles  ·  {_recording.KeyframeCount} photos");
         }
+        var held = _recording.EstimatedBytes + (_building?.EstimatedBytes ?? 0);
+        if (held > 0)
+        {
+            lines.Add($"Scan {Megabytes(held)}  ·  {Megabytes((long)os_proc_available_memory())} left");
+        }
         if (_state == State.Scanning && _sessionDelegate.TrackingHint is { } hint)
         {
             lines.Add(hint);
+        }
+        else if (_notice != null && _state == State.Scanning && triangles < 2000)
+        {
+            lines.Add(_notice);
         }
         _status.Text = string.Join("\n", lines);
 
         _primaryButton.SetTitle(_state switch { State.Idle => "Start", State.Scanning => "Pause", _ => "Resume" },
             UIControlState.Normal);
         _primaryButton.BackgroundColor = _state == State.Scanning ? UIColor.SystemOrange : UIColor.SystemGreen;
-        _exportButton.Enabled = triangles > 0 && !_exporting;
+        _exportButton.Enabled = (triangles > 0 || _building != null) && !_exporting;
         _exportButton.Alpha = _exportButton.Enabled ? 1f : 0.45f;
         _newButton.Enabled = !_exporting;
         _primaryButton.Enabled = !_exporting;
     }
+
+    private static string Megabytes(long bytes) => bytes >= 1L << 30
+        ? $"{bytes / (double)(1L << 30):0.0} GB"
+        : $"{bytes / (double)(1L << 20):0} MB";
 
     private static UIButton MakeButton(string title, UIColor color, Action tapped)
     {

@@ -51,6 +51,9 @@ public sealed class ScanTsdfVolume
         get { lock (_lock) { return _blocks.Count; } }
     }
 
+    /// <summary>The voxels' memory: two floats each, in whole blocks.</summary>
+    public long EstimatedBytes => BlockCount * (long)BlockVoxels * 8;
+
     /// <summary>Adds a keyframe's depth to the volume and returns the pieces that changed (empty ones included).</summary>
     public IReadOnlyList<ScanMeshPiece> Integrate(ScanKeyframe keyframe)
     {

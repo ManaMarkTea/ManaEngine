@@ -163,6 +163,56 @@ public static class ScanExportChecks
             File.Delete(path);
             File.Delete(texturedPath);
         }
+
+        // ---------------------------------------------------------------- memory while scanning
+        var measured = new ScanRecording();
+        measured.AddKeyframe(camera);
+        Check("a photo counts toward the scan's memory", measured.EstimatedBytes == camera.Rgb.Length, $"{measured.EstimatedBytes} bytes");
+        measured.SetPiece(wall);
+        Check("and so does the mesh", measured.EstimatedBytes > camera.Rgb.Length, $"{measured.EstimatedBytes} bytes");
+        measured.Clear();
+        Check("clearing gives it back", measured.EstimatedBytes == 0);
+
+        // ---------------------------------------------------------------- a building, a room at a time
+        // Two rooms 4 m apart, scanned in one tracking frame: the second must keep its place beside the first.
+        var building = new ScanBuilding("House");
+        var kitchen = Floor(height: 1.25f, offsetX: 10f);
+        var hall = Floor(height: 1.25f, offsetX: 14f);
+        building.AddRoom(new[] { kitchen }, new[] { camera }, new ScanExportOptions { Name = "Room", TextureSize = 128 });
+        building.AddRoom(new[] { hall }, new[] { camera }, new ScanExportOptions { Name = "Room", TextureSize = 128 });
+        Check("rooms get names of their own", building.Rooms.Select(r => r.Name).SequenceEqual(new[] { "Room", "Room 2" }),
+            string.Join(", ", building.Rooms.Select(r => r.Name)));
+        var apart = building.Rooms[1].Positions.Min(p => p.X) - building.Rooms[0].Positions.Min(p => p.X);
+        Check("the second room keeps its place beside the first", Math.Abs(apart - 4f) < 1e-3f, $"{apart:F3} m apart");
+        Check("on the same floor", building.Rooms.All(r => Math.Abs(r.Positions.Max(p => p.Y)) < 1e-4f));
+        Check("a finished room is small next to its scan", building.EstimatedBytes > 0 && building.EstimatedBytes < 1_000_000,
+            $"{building.EstimatedBytes / 1024} KB");
+
+        var buildingPath = Path.Combine(Path.GetTempPath(), $"mana-building-{Guid.NewGuid():N}.glb");
+        try
+        {
+            building.SaveGlb(buildingPath);
+            var buildingModel = ModelRoot.Load(buildingPath);
+            var top = buildingModel.DefaultScene.VisualChildren.ToArray();
+            Check("the GLB holds the building with a node per room",
+                top.Length == 1 && top[0].Name == "House" && top[0].VisualChildren.Select(n => n.Name).SequenceEqual(new[] { "Room", "Room 2" }),
+                string.Join(", ", top.Select(n => $"{n.Name}[{string.Join(",", n.VisualChildren.Select(c => c.Name))}]")));
+
+            var world = new Mana.ManaWorld();
+            var context = new Mana.Code.ManaContext(null!, null!, world) { DeferGpuUploads = true };
+            var loader = new Mana.Code.Shapes.Loaders.ManaSharpGltfLoader(context);
+            loader.LoadFile(buildingPath);
+            Check("Mana loads every room", loader.Meshes.Count == 2 && loader.Materials.Count == 2,
+                $"{loader.Meshes.Count} meshes, {loader.Materials.Count} materials");
+        }
+        catch (Exception ex)
+        {
+            Check("a building exports and loads", false, ex.Message);
+        }
+        finally
+        {
+            File.Delete(buildingPath);
+        }
     }
 
     // A flat w x h grid facing +Z, centred on the view axis at depth z.

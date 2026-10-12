@@ -15,7 +15,11 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
     // Touched from the session queue and, on New Scan, the main thread.
     private readonly object _overlayLock = new();
     private readonly Dictionary<Guid, SCNNode> _overlayNodes = new();
+    // Rooms already added to a building: still drawn, dimmed, but no longer ARKit's to update.
+    private readonly List<SCNNode> _finishedNodes = new();
+    private readonly HashSet<Guid> _finishedAnchors = new();
     private readonly SCNMaterial _wireMaterial;
+    private readonly SCNMaterial _finishedMaterial;
 
     public ScanSessionDelegate(ScanRecording recording, SCNNode overlayRoot)
     {
@@ -28,6 +32,13 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
             DoubleSided = true,
         };
         _wireMaterial.Diffuse.Contents = UIColor.FromRGBA(0.35f, 0.85f, 1f, 0.55f);
+        _finishedMaterial = new SCNMaterial
+        {
+            FillMode = SCNFillMode.Lines,
+            LightingModelName = SCNLightingModel.Constant,
+            DoubleSided = true,
+        };
+        _finishedMaterial.Diffuse.Contents = UIColor.FromRGBA(1f, 1f, 1f, 0.18f);
     }
 
     /// <summary>Set by the controller: photos are only worth keeping while a scan is running.</summary>
@@ -91,14 +102,37 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
         });
     }
 
-    /// <summary>Forgets every overlay node; the controller calls it when a new scan starts.</summary>
+    /// <summary>Forgets every overlay node, finished rooms too; the controller calls it when a new scan starts.</summary>
     public void ClearOverlay()
     {
         EditOverlay(() =>
         {
-            foreach (var node in _overlayNodes.Values)
+            foreach (var node in _overlayNodes.Values.Concat(_finishedNodes))
             {
                 node.RemoveFromParentNode();
+            }
+            _overlayNodes.Clear();
+            _finishedNodes.Clear();
+            _finishedAnchors.Clear();
+        });
+    }
+
+    /// <summary>
+    /// A room has gone into the building: its wireframe stays on screen, dimmed, so you can see where you have
+    /// been, and late updates from its anchors (about to be removed) are ignored.
+    /// </summary>
+    public void FinishRoom()
+    {
+        EditOverlay(() =>
+        {
+            foreach (var (id, node) in _overlayNodes)
+            {
+                if (node.Geometry is { } geometry)
+                {
+                    geometry.FirstMaterial = _finishedMaterial;
+                }
+                _finishedNodes.Add(node);
+                _finishedAnchors.Add(id);
             }
             _overlayNodes.Clear();
         });
@@ -106,7 +140,13 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
 
     private void UpdateMeshes(ARAnchor[] anchors)
     {
-        var updates = anchors.OfType<ARMeshAnchor>().Select(ArkitConvert.ReadMesh).ToArray();
+        ARMeshAnchor[] current;
+        lock (_overlayLock)
+        {
+            current = anchors.OfType<ARMeshAnchor>()
+                .Where(a => !_finishedAnchors.Contains(new Guid(a.Identifier.GetBytes()))).ToArray();
+        }
+        var updates = current.Select(ArkitConvert.ReadMesh).ToArray();
         foreach (var piece in updates)
         {
             _recording.SetPiece(piece);

@@ -69,6 +69,21 @@ phone. Rider works too.
    Every export also stays in Files > On My iPhone > ManaLidar and in the app's **Scans** list (tap to share,
    swipe to delete).
 
+The status line shows what the scan holds (`Scan 140 MB`) and how much more memory iOS will give the app before
+closing it (`1.8 GB left`). Photos are nearly all of it; when "left" runs low, export, or add the room to a
+building (below).
+
+## A building, a room at a time
+
+Export > **Add Room to a Building** exports the room into a building GLB and lets go of its photos and mesh, so
+memory drops back. The finished room stays on screen as a dim outline. Walk on and scan the next room, then
+**Add Room** again. The phone keeps one coordinate frame the whole time, so the rooms line up. The building
+file is rewritten as each room goes in. It holds a node per room under one building node, so dropping it into
+Mana places the whole building, with each room selectable in the Outliner. **Finish Building** shares the file.
+
+Keep the app open between rooms. **New** (or closing the app) starts a new coordinate frame, and later rooms
+would no longer line up with the earlier ones.
+
 ## Viewing in Mana
 
 Drop the `.glb` onto the ManaVoxel editor window (`dotnet run --project ManaVoxel`) to place it in the open

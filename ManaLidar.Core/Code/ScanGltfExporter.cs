@@ -35,7 +35,30 @@ public sealed class ScanExportOptions
 }
 
 /// <summary>
-/// Turns a scan into one glTF mesh, metres, Y up: a simplified mesh with the photos baked into a texture
+/// One exported room, ready to write: positions already moved into the file's frame, and either UVs with an encoded
+/// texture or a colour per vertex. Small next to the scan it came from, so a building can hold many.
+/// </summary>
+public sealed class ScanRoomMesh
+{
+    public required string Name { get; init; }
+    public required Vector3[] Positions { get; init; }
+    public required Vector3[] Normals { get; init; }
+    public required uint[] Indices { get; init; }
+    public Vector2[]? Uvs { get; init; }
+    /// <summary>PNG or JPEG bytes, with <see cref="Uvs"/>.</summary>
+    public byte[]? Image { get; init; }
+    /// <summary>RGBA8, red in the lowest byte, when there is no texture.</summary>
+    public uint[]? Colors { get; init; }
+    public bool Unlit { get; init; } = true;
+
+    public int TriangleCount => Indices.Length / 3;
+
+    public long EstimatedBytes => Positions.Length * 24L + (Uvs?.Length ?? 0) * 8L + (Colors?.Length ?? 0) * 4L
+        + Indices.Length * 4L + (Image?.Length ?? 0);
+}
+
+/// <summary>
+/// Turns a scan into glTF, metres, Y up: a simplified mesh with the photos baked into a texture
 /// (POSITION, NORMAL, TEXCOORD_0), or with ScanExportOptions.Texture off every vertex coloured (COLOR_0).
 /// </summary>
 public static class ScanGltfExporter
@@ -52,26 +75,68 @@ public static class ScanGltfExporter
         options ??= new ScanExportOptions();
         var offset = options.Recenter ? RecenterOffset(pieces) : Vector3.Zero;
         var model = ModelRoot.CreateModel();
-        var material = CreateMaterial(model, options);
-        var mesh = model.CreateMesh(options.Name);
-        var primitive = mesh.CreatePrimitive();
-        primitive.Material = material;
-
-        if (options.Texture && options.Colors && keyframes.Count > 0 && pieces.Any(p => p.TriangleCount > 0))
-        {
-            WriteTextured(model, primitive, material, pieces, keyframes, options, offset);
-        }
-        else
-        {
-            WriteVertexColoured(model, primitive, pieces, keyframes, options, offset);
-        }
-
-        model.UseScene("Scene").CreateNode(options.Name).Mesh = mesh;
+        WriteRoom(model, model.UseScene("Scene"), MakeRoom(pieces, keyframes, options, offset));
         return model;
     }
 
-    private static void WriteTextured(ModelRoot model, MeshPrimitive primitive, Material material,
-        IReadOnlyList<ScanMeshPiece> pieces, IReadOnlyList<ScanKeyframe> keyframes, ScanExportOptions options, Vector3 offset)
+    /// <summary>Simplifies, lays out and paints (or vertex-colours) a scan, moved by <paramref name="offset"/>.</summary>
+    public static ScanRoomMesh MakeRoom(IReadOnlyList<ScanMeshPiece> pieces, IReadOnlyList<ScanKeyframe> keyframes,
+        ScanExportOptions options, Vector3 offset)
+    {
+        return options.Texture && options.Colors && keyframes.Count > 0 && pieces.Any(p => p.TriangleCount > 0)
+            ? MakeTextured(pieces, keyframes, options, offset)
+            : MakeVertexColoured(pieces, keyframes, options, offset);
+    }
+
+    /// <summary>Adds a room to a model as its own node (under a scene or a parent node), mesh and material.</summary>
+    public static Node WriteRoom(ModelRoot model, IVisualNodeContainer parent, ScanRoomMesh room)
+    {
+        var material = model.CreateMaterial(room.Name);
+        if (room.Unlit)
+        {
+            material.InitializeUnlit();
+        }
+        else
+        {
+            // A room is not metal: glTF's default metallic factor of 1 would turn every wall into a mirror.
+            material.InitializePBRMetallicRoughness();
+            material.FindChannel("MetallicRoughness")?.SetFactor("MetallicFactor", 0f);
+        }
+
+        var mesh = model.CreateMesh(room.Name);
+        var primitive = mesh.CreatePrimitive();
+        primitive.Material = material;
+        if (room.Positions.Length > 0)
+        {
+            primitive.SetVertexAccessor("POSITION", Accessor(model, room.Positions, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC3)));
+            primitive.SetVertexAccessor("NORMAL", Accessor(model, room.Normals, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC3)));
+            if (room.Uvs != null && room.Image != null)
+            {
+                primitive.SetVertexAccessor("TEXCOORD_0", Accessor(model, room.Uvs, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC2)));
+                var image = model.UseImage(new MemoryImage(room.Image));
+                image.Name = room.Name;
+                material.FindChannel("BaseColor")?.SetTexture(0, image, null, TextureWrapMode.CLAMP_TO_EDGE, TextureWrapMode.CLAMP_TO_EDGE,
+                    TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
+            }
+            else if (room.Colors != null)
+            {
+                primitive.SetVertexAccessor("COLOR_0", Accessor(model, room.Colors, BufferMode.ARRAY_BUFFER,
+                    new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_BYTE, true)));
+            }
+            var indexBytes = MemoryMarshal.AsBytes(room.Indices.AsSpan()).ToArray();
+            var indexAccessor = model.CreateAccessor();
+            indexAccessor.SetIndexData(model.UseBufferView(indexBytes, 0, null, 0, BufferMode.ELEMENT_ARRAY_BUFFER),
+                0, room.Indices.Length, IndexEncodingType.UNSIGNED_INT);
+            primitive.SetIndexAccessor(indexAccessor);
+        }
+
+        var node = parent.CreateNode(room.Name);
+        node.Mesh = mesh;
+        return node;
+    }
+
+    private static ScanRoomMesh MakeTextured(IReadOnlyList<ScanMeshPiece> pieces, IReadOnlyList<ScanKeyframe> keyframes,
+        ScanExportOptions options, Vector3 offset)
     {
         // One mesh first: pieces cut from one surface (fused blocks, anchors) would otherwise each keep their edges.
         var shape = ScanMeshSimplifier.Weld(pieces, Guid.NewGuid());
@@ -94,29 +159,25 @@ public static class ScanGltfExporter
         var bakeProgress = progress == null ? null : new Progress<float>(p => progress.Report(0.1f + p * 0.85f));
         var rgb = ScanTextureBaker.Bake(atlas, keyframes, bakeProgress);
         var encoded = (options.EncodeImage ?? ScanPng.EncodeRgb)(atlas.Size, atlas.Size, rgb);
-
-        var image = model.UseImage(new MemoryImage(encoded));
-        image.Name = options.Name;
-        material.FindChannel("BaseColor")?.SetTexture(0, image, null, TextureWrapMode.CLAMP_TO_EDGE, TextureWrapMode.CLAMP_TO_EDGE,
-            TextureMipMapFilter.LINEAR_MIPMAP_LINEAR, TextureInterpolationFilter.LINEAR);
-
-        var positions = atlas.Positions.Select(p => p + offset).ToArray();
-        primitive.SetVertexAccessor("POSITION", Accessor(model, positions, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC3)));
-        primitive.SetVertexAccessor("NORMAL", Accessor(model, atlas.Normals, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC3)));
-        primitive.SetVertexAccessor("TEXCOORD_0", Accessor(model, atlas.Uvs, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC2)));
-        SetIndices(model, primitive, atlas.Indices.Select(i => (uint)i).ToArray());
         progress?.Report(1f);
+
+        return new ScanRoomMesh
+        {
+            Name = options.Name,
+            Positions = atlas.Positions.Select(p => p + offset).ToArray(),
+            Normals = atlas.Normals,
+            Uvs = atlas.Uvs,
+            Image = encoded,
+            Indices = atlas.Indices.Select(i => (uint)i).ToArray(),
+            Unlit = options.Unlit,
+        };
     }
 
-    private static void WriteVertexColoured(ModelRoot model, MeshPrimitive primitive, IReadOnlyList<ScanMeshPiece> pieces,
-        IReadOnlyList<ScanKeyframe> keyframes, ScanExportOptions options, Vector3 offset)
+    private static ScanRoomMesh MakeVertexColoured(IReadOnlyList<ScanMeshPiece> pieces, IReadOnlyList<ScanKeyframe> keyframes,
+        ScanExportOptions options, Vector3 offset)
     {
         var vertexCount = pieces.Sum(p => p.Positions.Length);
         var indexCount = pieces.Sum(p => p.Indices.Length);
-        if (vertexCount == 0)
-        {
-            return;
-        }
         var positions = new Vector3[vertexCount];
         var normals = new Vector3[vertexCount];
         var colors = new uint[vertexCount];
@@ -145,36 +206,15 @@ public static class ScanGltfExporter
             options.Progress?.Report((p + 1f) / pieces.Count);
         }
 
-        primitive.SetVertexAccessor("POSITION", Accessor(model, positions, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC3)));
-        primitive.SetVertexAccessor("NORMAL", Accessor(model, normals, BufferMode.ARRAY_BUFFER, new AttributeFormat(DimensionType.VEC3)));
-        primitive.SetVertexAccessor("COLOR_0", Accessor(model, colors, BufferMode.ARRAY_BUFFER,
-            new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_BYTE, true)));
-        SetIndices(model, primitive, indices);
-    }
-
-    private static Material CreateMaterial(ModelRoot model, ScanExportOptions options)
-    {
-        var material = model.CreateMaterial(options.Name);
-        if (options.Unlit)
+        return new ScanRoomMesh
         {
-            material.InitializeUnlit();
-        }
-        else
-        {
-            // A room is not metal: glTF's default metallic factor of 1 would turn every wall into a mirror.
-            material.InitializePBRMetallicRoughness();
-            material.FindChannel("MetallicRoughness")?.SetFactor("MetallicFactor", 0f);
-        }
-        return material;
-    }
-
-    private static void SetIndices(ModelRoot model, MeshPrimitive primitive, uint[] indices)
-    {
-        var indexBytes = MemoryMarshal.AsBytes(indices.AsSpan()).ToArray();
-        var indexAccessor = model.CreateAccessor();
-        indexAccessor.SetIndexData(model.UseBufferView(indexBytes, 0, null, 0, BufferMode.ELEMENT_ARRAY_BUFFER),
-            0, indices.Length, IndexEncodingType.UNSIGNED_INT);
-        primitive.SetIndexAccessor(indexAccessor);
+            Name = options.Name,
+            Positions = positions,
+            Normals = normals,
+            Colors = colors,
+            Indices = indices,
+            Unlit = options.Unlit,
+        };
     }
 
     /// <summary>
