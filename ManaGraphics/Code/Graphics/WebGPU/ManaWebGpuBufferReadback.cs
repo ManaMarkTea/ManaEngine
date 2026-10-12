@@ -106,7 +106,12 @@ namespace ManaGraphics.Code.Graphics
         private static void OnBufferMapped(BufferMapAsyncStatus status, void* userdata)
         {
             var handle = GCHandle.FromIntPtr((nint)userdata);
-            var state = (ManaWebGpuBufferReadbackState)handle.Target!;
+            // Teardown (FaultAllPending) frees the handle first; releasing the device then fires this callback late.
+            if (handle.Target is not ManaWebGpuBufferReadbackState state)
+            {
+                return;
+            }
+
             state.Registry.Unregister(state);
 
             if (!state.TryComplete())
