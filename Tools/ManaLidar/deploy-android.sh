@@ -15,6 +15,10 @@ if [ -z "$device" ]; then
 fi
 echo "Device: $device"
 
-# -t:Run installs (fast deployment needs it) and starts the activity.
-dotnet build ManaLidar.Android -c "$config" -t:Run --nologo -v:q \
-  -p:AndroidSdkDirectory="$sdk" -p:JavaSdkDirectory="$JAVA_HOME" -p:AdbTarget="-s $device"
+# Build a standalone signed apk and update it in place: `-t:Run` uninstalls first, which loses the home-screen
+# shortcut and the camera permission every deploy.
+dotnet build ManaLidar.Android -c "$config" -t:SignAndroidPackage --nologo -v:q -p:EmbedAssembliesIntoApk=true \
+  -p:AndroidSdkDirectory="$sdk" -p:JavaSdkDirectory="$JAVA_HOME"
+apk="$(ls -t Artifacts/Bin/ManaLidar.Android/"$config"/net10.0-android/android-arm64/*-Signed.apk | head -1)"
+"$adb" -s "$device" install -r "$apk"
+"$adb" -s "$device" shell monkey -p com.manarenderer.manalidar -c android.intent.category.LAUNCHER 1 >/dev/null
