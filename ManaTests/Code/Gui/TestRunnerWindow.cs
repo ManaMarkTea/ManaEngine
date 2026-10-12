@@ -17,7 +17,7 @@ public static class TestRunnerWindow
     {
         var vm = new TestRunnerViewModel(fonts, systemFilter);
 
-        // Run once before the window opens, so it comes up showing results rather than an empty list.
+        // Started now but run in the background: the window comes up at once and fills in as suites finish.
         vm.RunTests();
 
         ManaUiHost? host = null;
@@ -37,7 +37,11 @@ public static class TestRunnerWindow
                     host.Root.Background = host.Root.Theme.Background;
                     host.Root.Content = TestRunnerView.Build(host.Root.Theme, vm);
                 },
-                beforeRender: deltaTime => host?.Render(deltaTime),
+                beforeRender: deltaTime =>
+                {
+                    vm.Pump();
+                    host?.Render(deltaTime);
+                },
                 webGpuReady: (context, _) =>
                 {
                     if (host != null)
@@ -56,6 +60,7 @@ public static class TestRunnerWindow
             // The GUI is a convenience; if the graphics stack will not start, say so and fall back to
             // reporting the result that was already computed.
             Console.WriteLine($"Could not open the GUI runner: {ex.Message}");
+            WaitForRun(vm);
             Console.WriteLine(vm.Summary);
             return vm.AllPassed ? 0 : 1;
         }
@@ -64,7 +69,22 @@ public static class TestRunnerWindow
             host?.Dispose();
         }
 
+        vm.Pump();
+        if (vm.IsRunning)
+        {
+            Console.WriteLine("Closed before the run finished.");
+            return 2;
+        }
         Console.WriteLine(vm.Summary);
         return vm.AllPassed ? 0 : 1;
+    }
+
+    private static void WaitForRun(TestRunnerViewModel vm)
+    {
+        while (vm.IsRunning)
+        {
+            Thread.Sleep(100);
+            vm.Pump();
+        }
     }
 }

@@ -103,12 +103,66 @@ public partial class TestRunnerViewModel : ObservableObject
 
     partial void OnSearchChanged(string value) => Rebuild();
 
+    [ObservableProperty]
+    private bool _isRunning;
+
+    // Written by the background run, read by Pump on the UI thread.
+    private TestRun? _finished;
+    private volatile string? _progress;
+    private int _running;
+
+    /// <summary>
+    /// Starts a run in the background. The full suite takes minutes now, and running it before the window opened
+    /// left nothing on screen for all that time. The suites never touch these view models; <see cref="Pump"/>
+    /// applies what they report on the UI thread.
+    /// </summary>
     [RelayCommand]
     public void RunTests()
     {
-        // Synchronous on purpose. The whole suite is well under a second, and running it off-thread would
-        // mean the view models it mutates were being touched from somewhere other than the UI thread.
-        Load(TestRunner.Run(_fonts, _systemFilter));
+        if (Interlocked.Exchange(ref _running, 1) == 1)
+        {
+            return;
+        }
+
+        var total = TestRunner.Catalog.Count(s => _systemFilter == null
+            || s.System.Contains(_systemFilter, StringComparison.OrdinalIgnoreCase));
+        var started = 0;
+        IsRunning = true;
+        Headline = "Running...";
+        Summary = $"0 of {total} suites";
+        Task.Run(() =>
+        {
+            TestRun run;
+            try
+            {
+                run = TestRunner.Run(_fonts, _systemFilter,
+                    onSectionStarted: section => _progress = $"{Interlocked.Increment(ref started)} of {total} suites  ·  {section.Title}");
+            }
+            catch (Exception ex)
+            {
+                run = new TestRun();
+                var section = new TestSection("ManaTests", "runner");
+                section.Checks.Add(new TestCheck("the run completed without throwing", false, ex.ToString()));
+                run.Sections.Add(section);
+            }
+            Volatile.Write(ref _finished, run);
+        });
+    }
+
+    /// <summary>Called every frame on the UI thread: shows progress, then the results once the run is done.</summary>
+    public void Pump()
+    {
+        if (_progress is { } progress)
+        {
+            _progress = null;
+            Summary = progress;
+        }
+        if (Interlocked.Exchange(ref _finished, null) is { } run)
+        {
+            Load(run);
+            IsRunning = false;
+            Volatile.Write(ref _running, 0);
+        }
     }
 
     /// <summary>
