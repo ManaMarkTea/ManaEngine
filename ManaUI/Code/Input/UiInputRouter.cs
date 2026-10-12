@@ -34,6 +34,7 @@ namespace ManaUI
         };
 
         private UiKey _heldKey = UiKey.None;
+        private bool _escapeCaptured;
         private UiModifiers _heldModifiers;
         private double _heldElapsed;
         private double _nextRepeatAt;
@@ -156,8 +157,8 @@ namespace ManaUI
         public bool IsPointerOverUi => HoveredElement != null || PointerCaptureTarget != null;
 
         /// <summary>True when a focused element wants raw keystrokes, so the host should suppress shortcuts.</summary>
-        public bool IsKeyboardCaptured => _root.FocusManager.Focused is { Focusable: true } focused
-            && focused.WantsAllKeyboardInput;
+        public bool IsKeyboardCaptured => _escapeCaptured
+            || (_root.FocusManager.Focused is { Focusable: true } focused && focused.WantsAllKeyboardInput);
 
         public void CapturePointer(UiElement element)
         {
@@ -349,6 +350,7 @@ namespace ManaUI
         public void ClearKeyboardState()
         {
             ClearHeldKey();
+            _escapeCaptured = false;
         }
 
         /// <summary>Returns true when the UI consumed the key, so the host should not treat it as a shortcut.</summary>
@@ -375,8 +377,10 @@ namespace ManaUI
 
             // Escape closes the topmost popup before anything else sees it, so a menu can be dismissed
             // even when focus is somewhere behind it.
-            if (key == UiKey.Escape && !isRepeat && _root.Popups.HandleEscape())
+            if (key == UiKey.Escape && (_escapeCaptured || (!isRepeat && _root.Popups.HandleEscape())))
             {
+                // Polling host shortcuts must also stand down after the popup has disappeared.
+                _escapeCaptured = true;
                 return true;
             }
 
@@ -411,6 +415,12 @@ namespace ManaUI
 
         public bool InjectKeyUp(UiKey key, UiModifiers modifiers = UiModifiers.None)
         {
+            if (key == UiKey.Escape && _escapeCaptured)
+            {
+                _escapeCaptured = false;
+                return true;
+            }
+
             if (_heldKey == key)
             {
                 ClearHeldKey();

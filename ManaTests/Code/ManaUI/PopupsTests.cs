@@ -74,6 +74,12 @@ public static class PopupChecks
         root.UpdateLayout(new Vector2(1000, 700));
         Check("escape closes the popup",
             root.Input.InjectKeyDown(UiKey.Escape) && !escapable.IsOpen);
+        Check("dismissing escape suppresses polling host shortcuts", root.Input.IsKeyboardCaptured);
+        Check("held escape stays consumed", root.Input.InjectKeyDown(UiKey.Escape));
+        Check("escape release clears shortcut capture",
+            root.Input.InjectKeyUp(UiKey.Escape) && !root.Input.IsKeyboardCaptured);
+        Check("next escape without a popup reaches the host", !root.Input.InjectKeyDown(UiKey.Escape));
+        root.Input.InjectKeyUp(UiKey.Escape);
 
         // Flipping: an anchor near the bottom should push the popup above it instead of off-screen.
         var lowAnchor = new Button("Low").Size(100.0f, 26.0f);
