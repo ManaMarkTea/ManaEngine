@@ -96,6 +96,7 @@ public static class TestRunner
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),
         ("Mana", "glTF support and camera framing", GltfSupportChecks.Run),
         ("ManaLidar", "scan colouring and glTF export", ScanExportChecks.Run),
+        ("ManaLidar", "depth fusion", ScanFusionChecks.Run),
         ("ManaLidar", "depth image meshing", DepthMeshChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),
         ("Mana", "pawn camera controls", PawnCameraControlChecks.Run),
