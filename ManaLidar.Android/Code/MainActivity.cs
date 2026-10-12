@@ -23,6 +23,8 @@ public sealed class MainActivity : Activity
     private const int CameraRequest = 1;
 
     private readonly ScanRecording _recording = new();
+    // ARCore's depth is noisier than LiDAR: 3 cm voxels smooth it into one surface.
+    private readonly ScanTsdfVolume _volume = new(voxelSize: 0.03f);
     private GLSurfaceView _surface = null!;
     private ArRenderer _renderer = null!;
     private TextView _status = null!;
@@ -39,7 +41,7 @@ public sealed class MainActivity : Activity
         _surface = new GLSurfaceView(this);
         _surface.SetEGLContextClientVersion(2);
         _surface.SetEGLConfigChooser(8, 8, 8, 8, 16, 0);
-        _renderer = new ArRenderer(this, _recording);
+        _renderer = new ArRenderer(this, _recording, _volume);
         _surface.SetRenderer(_renderer);
         _surface.RenderMode = Rendermode.Continuously;
 
@@ -61,6 +63,7 @@ public sealed class MainActivity : Activity
         {
             _renderer.Capturing = false;
             _recording.Clear();
+            _volume.Clear();
             _renderer.ClearOverlay();
             _start.Text = "Start";
         };
@@ -155,6 +158,20 @@ public sealed class MainActivity : Activity
         }
     }
 
+    /// <summary>The baked texture (RGB rows, top first) as a JPEG, a fraction of the PNG's size.</summary>
+    private static byte[] EncodeJpeg(int width, int height, byte[] rgb)
+    {
+        var pixels = new int[width * height];
+        for (var i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = unchecked((int)0xFF000000) | (rgb[i * 3] << 16) | (rgb[i * 3 + 1] << 8) | rgb[i * 3 + 2];
+        }
+        using var bitmap = global::Android.Graphics.Bitmap.CreateBitmap(pixels, width, height, global::Android.Graphics.Bitmap.Config.Argb8888!)!;
+        using var stream = new MemoryStream();
+        bitmap.Compress(global::Android.Graphics.Bitmap.CompressFormat.Jpeg!, 90, stream);
+        return stream.ToArray();
+    }
+
     private void Share(string path)
     {
         var uri = FileProvider.GetUriForFile(this, $"{PackageName}.files", new Java.IO.File(path))!;
@@ -183,7 +200,7 @@ public sealed class MainActivity : Activity
             try
             {
                 var (pieces, keyframes) = _recording.Snapshot();
-                ScanGltfExporter.SaveGlb(path, pieces, keyframes, new ScanExportOptions { Name = Path.GetFileNameWithoutExtension(path) });
+                ScanGltfExporter.SaveGlb(path, pieces, keyframes, new ScanExportOptions { Name = Path.GetFileNameWithoutExtension(path), EncodeImage = EncodeJpeg });
                 message = $"Saved {path}";
             }
             catch (Exception e)

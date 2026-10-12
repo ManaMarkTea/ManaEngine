@@ -47,6 +47,7 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
 
     private readonly Context _context;
     private readonly ScanRecording _recording;
+    private readonly ScanTsdfVolume _volume;
     private readonly FloatBuffer _quadNdc;
     private readonly FloatBuffer _quadUv;
     private int _textureId;
@@ -61,20 +62,18 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     private int _linePosition;
     private int _lineMvp;
     private readonly System.Collections.Concurrent.ConcurrentQueue<ScanMeshPiece> _newPieces = new();
-    private readonly List<(int Vbo, int Ibo, int Count)> _overlay = new();
+    private readonly Dictionary<Guid, (int Vbo, int Ibo, int Count)> _overlay = new();
     private readonly float[] _view = new float[16];
     private readonly float[] _projection = new float[16];
     private readonly float[] _mvp = new float[16];
     private volatile bool _clearOverlay;
 
-    /// <summary>Every 2nd depth sample is a mesh vertex: 64 x 48 a photo is plenty for a room.</summary>
-    private const int MeshStep = 2;
-    private const int OverlayPieces = 5;
 
-    public ArRenderer(Context context, ScanRecording recording)
+    public ArRenderer(Context context, ScanRecording recording, ScanTsdfVolume volume)
     {
         _context = context;
         _recording = recording;
+        _volume = volume;
         _quadNdc = ToBuffer(QuadNdc);
         _quadUv = ToBuffer(new float[8]);
     }
@@ -170,7 +169,7 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         if (_clearOverlay)
         {
             _clearOverlay = false;
-            foreach (var (vbo, ibo, _) in _overlay)
+            foreach (var (vbo, ibo, _) in _overlay.Values)
             {
                 GLES20.GlDeleteBuffers(2, new[] { vbo, ibo }, 0);
             }
@@ -179,17 +178,17 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
             {
             }
         }
-        // Upload a couple of pieces a frame, so a burst never stalls the camera.
-        for (var i = 0; i < 2 && _newPieces.TryDequeue(out var piece); i++)
+        // Upload some blocks a frame, so a burst never stalls the camera. A refined block replaces its old lines.
+        for (var i = 0; i < 24 && _newPieces.TryDequeue(out var piece); i++)
         {
-            _overlay.Add(Upload(piece));
-        }
-        // Every photo's sheet overlaps the last: only the newest few stay drawn, so the view reads as what is being scanned now.
-        while (_overlay.Count > OverlayPieces)
-        {
-            var (vbo, ibo, _) = _overlay[0];
-            GLES20.GlDeleteBuffers(2, new[] { vbo, ibo }, 0);
-            _overlay.RemoveAt(0);
+            if (_overlay.Remove(piece.Id, out var old))
+            {
+                GLES20.GlDeleteBuffers(2, new[] { old.Vbo, old.Ibo }, 0);
+            }
+            if (piece.TriangleCount > 0)
+            {
+                _overlay[piece.Id] = Upload(piece);
+            }
         }
         if (_overlay.Count == 0)
         {
@@ -204,7 +203,7 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         GLES20.GlEnable(GLES20.GlBlend);
         GLES20.GlBlendFunc(GLES20.GlSrcAlpha, GLES20.GlOneMinusSrcAlpha);
         GLES20.GlEnableVertexAttribArray(_linePosition);
-        foreach (var (vbo, ibo, count) in _overlay)
+        foreach (var (vbo, ibo, count) in _overlay.Values)
         {
             GLES20.GlBindBuffer(GLES20.GlArrayBuffer, vbo);
             GLES20.GlVertexAttribPointer(_linePosition, 3, GLES20.GlFloat, false, 0, 0);
@@ -298,9 +297,17 @@ public sealed class ArRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
                 {
                     var keyframe = ImageConvert.ToKeyframe(raw, pose, seconds, width, height);
                     _recording.AddKeyframe(keyframe);
-                    if (ScanDepthMesher.Build(keyframe, MeshStep) is { } piece)
+                    // Fused blocks keep their ids, so a refined block replaces its earlier mesh in the recording and overlay.
+                    foreach (var piece in _volume.Integrate(keyframe))
                     {
-                        _recording.SetPiece(piece);
+                        if (piece.TriangleCount > 0)
+                        {
+                            _recording.SetPiece(piece);
+                        }
+                        else
+                        {
+                            _recording.RemovePiece(piece.Id);
+                        }
                         _newPieces.Enqueue(piece);
                     }
                 }
