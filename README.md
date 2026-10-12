@@ -47,5 +47,4 @@ Notable bundled material with recorded terms:
 - Desktop image decoding and encoding use StbImageSharp and StbImageWriteSharp (ports of stb_image; public domain /
   MIT). ImageSharp was removed because its license is not free for every use.
 
-Assets without an individual notice are original work by the author or CC0. The Duck and Sci-Fi Helmet samples were
-removed because their redistribution terms were not established.
+Assets without an individual notice are original work by the author or CC0.
