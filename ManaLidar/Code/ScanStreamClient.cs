@@ -223,6 +223,9 @@ public static class ScanStreamBrowser
     /// "answered but could not be resolved".</summary>
     public static int LastBrowsed { get; private set; }
 
+    /// <summary>The network the last sweep knocked on (e.g. "192.168.1.x"), or why there was none.</summary>
+    public static string LastSwept { get; private set; } = "nothing";
+
     /// <summary>
     /// Bonjour and a sweep of this phone's own network at once, merged by address: Bonjour gives names, the sweep finds
     /// an editor even where Bonjour does not get through. Call on the main thread.
@@ -248,17 +251,22 @@ public static class ScanStreamBrowser
     /// </summary>
     public static async Task<IReadOnlyList<Found>> SweepAsync(int port, TimeSpan timeout)
     {
-        var mine = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
-            .Where(a => a.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+        // The Wi-Fi's address: en0 on an iPhone. Not the first one going -- cellular (pdp_ip0) and VPN tunnels
+        // (utun, e.g. Tailscale) have IPv4 addresses too, and sweeping theirs reaches nothing at home.
+        var candidates = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+            .Where(a => a.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up && a.Name.StartsWith("en"))
+            .OrderBy(a => a.Name == "en0" ? 0 : 1)
             .SelectMany(a => a.GetIPProperties().UnicastAddresses)
             .Select(u => u.Address)
-            .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-                && !System.Net.IPAddress.IsLoopback(a) && !a.ToString().StartsWith("169.254."));
+            .Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && IsHomeNetwork(a.GetAddressBytes()));
+        var mine = candidates.FirstOrDefault();
         if (mine == null)
         {
+            LastSwept = "no Wi-Fi address";
             return Array.Empty<Found>();
         }
         var prefix = mine.GetAddressBytes();
+        LastSwept = $"{prefix[0]}.{prefix[1]}.{prefix[2]}.x";
         var knocks = Enumerable.Range(1, 254).Where(last => last != prefix[3]).Select(async last =>
         {
             var host = $"{prefix[0]}.{prefix[1]}.{prefix[2]}.{last}";
@@ -278,6 +286,10 @@ public static class ScanStreamBrowser
         });
         return (await Task.WhenAll(knocks)).OfType<Found>().ToArray();
     }
+
+    // 10/8, 172.16/12 and 192.168/16: the addresses a home or office network hands out.
+    private static bool IsHomeNetwork(byte[] b) =>
+        b[0] == 10 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168);
 
     /// <summary>Looks for <paramref name="seconds"/>, then resolves what answered. Call on the main thread.</summary>
     public static async Task<IReadOnlyList<Found>> FindAsync(double seconds = 2.0)

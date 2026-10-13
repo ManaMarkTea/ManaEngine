@@ -413,7 +413,7 @@ public sealed class ScanViewController : UIViewController
             found.Count == 0
                 ? "No editor found. On the PC: Panels > Live Scan > Receive from the phone. On this phone: Settings > Privacy & "
                     + "Security > Local Network > ManaLidar on. Then search again, or enter the PC's address."
-                    + $" (Bonjour saw {ScanStreamBrowser.LastBrowsed}.)"
+                    + $" (Bonjour saw {ScanStreamBrowser.LastBrowsed}; searched {ScanStreamBrowser.LastSwept}.)"
                 : "Pick the editor to stream to. The scan appears there as you walk.",
             UIAlertControllerStyle.ActionSheet);
         foreach (var editor in found)
