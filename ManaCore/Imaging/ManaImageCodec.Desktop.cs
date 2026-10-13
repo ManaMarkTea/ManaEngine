@@ -8,8 +8,18 @@ namespace ManaCore.Imaging;
 
 public static partial class ManaImageCodec
 {
+    /// <summary>
+    /// A platform's own decoder, tried before Stb: the phone's ImageIO -- iOS's ahead-of-time compiled Stb turns JPEGs
+    /// green, and the system decoder is faster anyway. Null (the desktop) or a null result falls back to Stb.
+    /// </summary>
+    public static Func<byte[], ManaImage?>? PlatformDecoder { get; set; }
+
     private static ManaImage Decode(byte[] bytes)
     {
+        if (PlatformDecoder?.Invoke(bytes) is { } decoded)
+        {
+            return decoded;
+        }
         try
         {
             var result = ImageResult.FromMemory(bytes, ReadComponents.RedGreenBlueAlpha);

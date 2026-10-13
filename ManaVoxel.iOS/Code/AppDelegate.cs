@@ -14,6 +14,7 @@ public sealed class AppDelegate : UIApplicationDelegate
         Environment.SetEnvironmentVariable("MANA_LOG_ROOT", documents);
         Environment.CurrentDirectory = Path.Combine(NSBundle.MainBundle.BundlePath, "Game");
         IosEmoji.Install();
+        IosImageDecoder.Install();
         Trace($"Game folder {Environment.CurrentDirectory}, exists {Directory.Exists(Environment.CurrentDirectory)}");
         UIApplication.Main(args, null, typeof(AppDelegate));
         Trace("UIApplication.Main returned");
