@@ -144,7 +144,9 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropS
 # A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
 $keychain = "~/Library/Keychains/login.keychain-db"
 $steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain || exit 77; " +
-    "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null && touch ~/.mana-deploy/.signing-ready; }; " +
+    # Best effort, once: it can report "passphrase not correct" over one odd item even with the right password,
+    # and signing works without it where Xcode already let codesign use the key.
+    "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null 2>&1; touch ~/.mana-deploy/.signing-ready; }; " +
     "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && Tools/ManaLidar/deploy-ios.sh $Configuration"
 $password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 $code = $LASTEXITCODE
