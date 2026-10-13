@@ -117,7 +117,8 @@ if (git -C $repoRoot status --porcelain -- ManaLidar ManaLidar.Core ManaVoxel/Co
 Write-Host "Sending $commit to the Mac..."
 # Large files tracked by Git LFS (planet textures) are not needed by the phone app and have nowhere to go.
 $env:GIT_LFS_SKIP_PUSH = "1"
-git -C $repoRoot push --quiet --force "$($Mac):$deploy" HEAD:refs/heads/deploy
+# Into a branch that is never checked out (the build below detaches at it), or the next push is refused.
+git -C $repoRoot push --quiet --force "$($Mac):$deploy" HEAD:refs/heads/incoming
 Remove-Item Env:GIT_LFS_SKIP_PUSH
 if ($LASTEXITCODE -ne 0) {
     throw "Could not send the commit to the Mac."
@@ -144,7 +145,7 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropS
 $keychain = "~/Library/Keychains/login.keychain-db"
 $steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain || exit 77; " +
     "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null && touch ~/.mana-deploy/.signing-ready; }; " +
-    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force deploy && Tools/ManaLidar/deploy-ios.sh $Configuration"
+    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && Tools/ManaLidar/deploy-ios.sh $Configuration"
 $password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 $code = $LASTEXITCODE
 $password = $null
