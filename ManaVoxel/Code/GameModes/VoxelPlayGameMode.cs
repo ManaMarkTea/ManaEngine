@@ -140,7 +140,8 @@ namespace Mana.Code.GameModes
                     Restart,
                     () => Context.Window.Close(),
                     "Quit"),
-                ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState));
+                ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState),
+                Context.World.GameState);
 
             // The level's game modes draw their own HUDs over it, and may hide it (see ManaLevelGameMode.ShowsPlayHud).
             _gameModes.UseTheme(host.Root.Theme);
@@ -357,7 +358,7 @@ namespace Mana.Code.GameModes
             Context.World.BeginPlay();
             BeginModes(modes);
 
-            _hud.Text = $"{_player.Name}  --  {ControlsHint}";
+            _hud.Text = string.IsNullOrEmpty(ControlsHint) ? string.Empty : $"{_player.Name}  --  {ControlsHint}";
         }
 
         private void BeginModes(List<ManaLevelGameMode> modes)

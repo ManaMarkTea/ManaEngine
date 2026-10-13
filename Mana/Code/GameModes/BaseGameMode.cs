@@ -181,7 +181,23 @@ namespace Mana.Code
                 Context.Audio.SetListener(camera.Owner.Position, camera.Owner.Forward, camera.Owner.Up);
             }
             Context.Audio.Update();
+
+            // The game state's cues (hurt, a fall, a stomp) are felt as well as heard, in any level.
+            if (!_rumbleHooked)
+            {
+                _rumbleHooked = true;
+                Context.World.GameState.SoundRequested += cue =>
+                {
+                    if (Input.ManaRumble.For(cue) is { } strength)
+                    {
+                        Input.ManaRumble.Play(strength);
+                    }
+                };
+            }
+            Input.ManaRumble.Update((float)deltaTime, Context.Input);
         }
+
+        private bool _rumbleHooked;
 
         public abstract void Update(double deltaTime);
 

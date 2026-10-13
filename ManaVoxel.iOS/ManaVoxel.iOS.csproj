@@ -9,7 +9,7 @@
     <ImplicitUsings>true</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
-    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>18.0</SupportedOSPlatformVersion>
 
     <ApplicationTitle>Mana</ApplicationTitle>
     <ApplicationId>com.manarenderer.manavoxel</ApplicationId>

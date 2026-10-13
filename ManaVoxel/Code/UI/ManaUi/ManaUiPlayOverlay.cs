@@ -91,7 +91,40 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class ManaUiPlayHud
     {
-        public static UiElement Build(UiTheme theme, Func<string> status, Func<string>? gameplay = null, UiElement? results = null, UiElement? death = null)
+        private static readonly Vector4 ChipInk = new(0.07f, 0.06f, 0.12f, 1.0f);
+        private static readonly Vector4 ChipCream = new(1.0f, 0.98f, 0.92f, 1.0f);
+
+        /// <summary>
+        /// The play counts as chips -- gold coins, red enemies, hearts, a blue clock, deaths -- each shown only when the
+        /// level has any of it, wrapping on a narrow screen.
+        /// </summary>
+        public static UiElement Chips(UiTheme theme, Mana.Code.ManaGameState state)
+        {
+            UiElement Chip(Func<string> text, Vector4 fill, Vector4 ink, Func<bool> shown)
+            {
+                var block = new TextBlock().FontFamily(theme.FontFamilyMedium).FontSize(theme.FontSize + 5.0f).Foreground(ink);
+                block.BindPolled(t => t.Text, text);
+                var chip = new Border().Fill(fill).Rounded(18.0f).PaddingOf(14.0f, 5.0f).Shadow(10.0f, new Vector4(0.0f, 0.0f, 0.0f, 0.35f))
+                    .Content(block).Margin(4.0f, 4.0f, 4.0f, 4.0f);
+                chip.IsHitTestVisible = false;
+                chip.BindPolled(el => el.Visibility, () => shown() ? Visibility.Visible : Visibility.Collapsed);
+                return chip;
+            }
+
+            var row = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
+            row.Margin = new Thickness(12.0f, 12.0f, 12.0f, 0.0f);
+            row.Children.Add(Chip(() => $"\U0001FA99 {state.Coins}/{state.TotalCoins}", new Vector4(1.0f, 0.78f, 0.18f, 1.0f), ChipInk, () => state.TotalCoins > 0));
+            row.Children.Add(Chip(() => $"\U0001F47E {state.EnemiesDefeated}/{state.TotalEnemies}", new Vector4(0.95f, 0.3f, 0.45f, 1.0f), ChipCream, () => state.TotalEnemies > 0));
+            row.Children.Add(Chip(() => string.Concat(Enumerable.Repeat("\U0001F496", state.Health)) + string.Concat(Enumerable.Repeat("\U0001F5A4", Math.Max(0, state.MaxHealth - state.Health))),
+                new Vector4(1.0f, 0.98f, 0.95f, 0.92f), ChipInk, () => state.UsesHealth));
+            row.Children.Add(Chip(() => $"\u23F1 {ManaUiPlayResults.FormatTime(state.ElapsedSeconds)}", new Vector4(0.24f, 0.62f, 1.0f, 1.0f), ChipCream, () => true));
+            row.Children.Add(Chip(() => $"\U0001F480 {state.Deaths}", new Vector4(0.16f, 0.15f, 0.24f, 0.92f), ChipCream, () => state.Deaths > 0));
+            row.IsHitTestVisible = false;
+            return row;
+        }
+
+        public static UiElement Build(UiTheme theme, Func<string> status, Func<string>? gameplay = null, UiElement? results = null, UiElement? death = null,
+            Mana.Code.ManaGameState? chips = null)
         {
             // Wrapped and centred, inside side margins: a phone held upright is narrower than either line.
             var text = new TextBlock()
@@ -116,6 +149,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Nothing here may eat a click meant for the game behind it.
             pill.IsHitTestVisible = false;
             text.IsHitTestVisible = false;
+            // No hint (a phone, whose controls explain themselves): no empty bar either.
+            pill.BindPolled(el => el.Visibility, () => string.IsNullOrEmpty(status()) ? Visibility.Collapsed : Visibility.Visible);
 
             if (gameplay == null)
             {
@@ -147,7 +182,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             // A grid with no tracks is a single cell, so both pills overlay it and each aligns itself.
             var overlay = new Grid();
             overlay.Children.Add(pill);
-            overlay.Children.Add(scorePill);
+            if (chips != null)
+            {
+                // The game's own look: a coloured chip for each count rather than one line of text.
+                var row = Chips(theme, chips);
+                row.BindPolled(el => el.Visibility, () => string.IsNullOrEmpty(gameplay()) ? Visibility.Collapsed : Visibility.Visible);
+                overlay.Children.Add(row);
+            }
+            else
+            {
+                overlay.Children.Add(scorePill);
+            }
 
             // Under the results, over the score: a death while the level-complete panel is up is impossible,
             // but the order says which one wins if it ever happens.

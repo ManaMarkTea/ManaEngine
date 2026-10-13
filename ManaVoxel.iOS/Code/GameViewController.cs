@@ -33,6 +33,7 @@ public sealed class GameViewController : UIViewController
         base.ViewDidLoad();
         View!.BackgroundColor = UIColor.Black;
         _window = new IosWindow(View, _input);
+        IosHaptics.Install(View);
         _controls = new TouchControlsView(_input) { Frame = View.Bounds, AutoresizingMask = UIViewAutoresizing.FlexibleDimensions };
         View.AddSubview(_controls);
 
@@ -72,11 +73,13 @@ public sealed class GameViewController : UIViewController
                 OffersLevelSelect = true,
                 SafeArea = () => new ManaUI.Thickness((float)View!.SafeAreaInsets.Left, (float)View.SafeAreaInsets.Top,
                     (float)View.SafeAreaInsets.Right, (float)View.SafeAreaInsets.Bottom),
-                ControlsHint = "left thumb to move, drag to look, Jump / Run / Cam",
+                // The controls explain themselves on screen: no hint bar.
+                ControlsHint = string.Empty,
                 CommandFilePath = CommandScript(),
             };
             var game = _game;
             _controls!.GameControls = () => !game.IsLevelSelectOpen && !game.IsPaused && !game.IsLoading;
+            _controls.Scheme = () => game.TouchControls;
             _window.Render += _ => _controls.Refresh();
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");

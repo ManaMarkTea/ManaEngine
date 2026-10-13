@@ -1,31 +1,42 @@
 using System.Numerics;
 using CoreAnimation;
 using CoreGraphics;
+using Mana.Code.GameModes;
+using Mana.Code.Input;
 using Silk.NET.Input;
 
 namespace ManaVoxel.iOS;
 
 /// <summary>
-/// On-screen controls over the game, as the web build's touch-controls.js: a thumbstick wherever a thumb lands on
-/// the left that holds W/A/S/D, Jump/Run/Camera buttons on the right, and anywhere else a drag that holds the right
-/// mouse button to look round -- or, if the finger barely moved, a tap that clicks (the HUD's buttons).
+/// On-screen controls over the game, in two schemes the level's modes choose (<see cref="ManaTouchControls"/>):
+/// <list type="bullet">
+/// <item>Stick: a thumbstick wherever a thumb lands on the left that holds W/A/S/D, coloured Jump/Run/Camera buttons on
+/// the right that light up and tick under the thumb, and anywhere else a drag that holds the right mouse button to
+/// look round.</item>
+/// <item>Swipe (the runner): nothing on screen; a swipe left, right, up or down taps that arrow key.</item>
+/// </list>
+/// In both, a finger that barely moves is a tap that clicks (the HUD's buttons), and while a menu is up a drag scrolls.
 /// </summary>
 public sealed class TouchControlsView : UIView
 {
     private const float StickRadius = 60;
     private const float TapSlop = 10;
+    private const float SwipeDistance = 26;
 
     private readonly IosInput _input;
     private readonly Dictionary<IntPtr, Finger> _fingers = new();
-    private readonly CAShapeLayer _stickBase = Circle(StickRadius, 0.10f, 0.35f);
-    private readonly CAShapeLayer _stickKnob = Circle(26, 0.35f, 0.6f);
-    private readonly (string Label, Key Key, UIView View)[] _buttons;
+    private readonly CAShapeLayer _stickBase = Circle(StickRadius, UIColor.FromWhiteAlpha(1, 0.12f), UIColor.FromWhiteAlpha(1, 0.45f));
+    private readonly CAShapeLayer _stickKnob = Circle(28, UIColor.FromRGBA(0.35f, 0.75f, 1.0f, 0.85f), UIColor.White);
+    private readonly TouchButton[] _buttons;
 
     /// <summary>
     /// False while a menu is up (the start screen, the pause panel): the stick and buttons hide, a tap clicks and a
     /// drag scrolls, as a finger does on any list.
     /// </summary>
     public Func<bool> GameControls { get; set; } = () => true;
+
+    /// <summary>Which controls the level's modes want: the stick and buttons, or swipes.</summary>
+    public Func<ManaTouchControls> Scheme { get; set; } = () => ManaTouchControls.Stick;
 
     // ManaUI scrolls 48 points a wheel notch (ScrollViewer.WheelStep).
     private const float PointsPerNotch = 48.0f;
@@ -36,8 +47,17 @@ public sealed class TouchControlsView : UIView
         public CGPoint Start;
         public double StartTime;
         public bool Moved;
-        public Key Key;
+        public TouchButton? Button;
         public CGPoint Last;
+    }
+
+    /// <summary>A round button with a colour of its own that brightens and sinks while held.</summary>
+    private sealed class TouchButton
+    {
+        public required Key Key { get; init; }
+        public required UIView View { get; init; }
+        public required UIColor Color { get; init; }
+        public int Holds;
     }
 
     public TouchControlsView(IosInput input)
@@ -49,10 +69,15 @@ public sealed class TouchControlsView : UIView
         _stickKnob.Hidden = true;
         Layer.AddSublayer(_stickBase);
         Layer.AddSublayer(_stickKnob);
-        _buttons = new[] { ("Jump", Key.Space, Button("Jump")), ("Run", Key.ShiftLeft, Button("Run")), ("Cam", Key.C, Button("Cam")) };
-        foreach (var (_, _, view) in _buttons)
+        _buttons = new[]
         {
-            AddSubview(view);
+            MakeButton("⬆︎\nJump", Key.Space, UIColor.FromRGB(0.22f, 0.78f, 0.45f)),
+            MakeButton("»\nRun", Key.ShiftLeft, UIColor.FromRGB(0.24f, 0.55f, 1.0f)),
+            MakeButton("◎\nCam", Key.C, UIColor.FromRGB(0.62f, 0.38f, 0.95f)),
+        };
+        foreach (var button in _buttons)
+        {
+            AddSubview(button.View);
         }
     }
 
@@ -63,16 +88,19 @@ public sealed class TouchControlsView : UIView
         var insets = SafeAreaInsets;
         var right = Bounds.Width - insets.Right - 24;
         var bottom = Bounds.Height - insets.Bottom - 24;
-        Place(_buttons[0].View, right - 84, bottom - 84, 84);
-        Place(_buttons[1].View, right - 84 - 76, bottom - 60, 60);
-        Place(_buttons[2].View, right - 60, bottom - 84 - 76, 60);
+        Place(_buttons[0].View, right - 88, bottom - 88, 88);
+        Place(_buttons[1].View, right - 88 - 80, bottom - 66, 66);
+        Place(_buttons[2].View, right - 66, bottom - 88 - 80, 66);
     }
 
     private static void Place(UIView view, nfloat x, nfloat y, nfloat size)
     {
+        view.Transform = CGAffineTransform.MakeIdentity();
         view.Frame = new CGRect(x, y, size, size);
         view.Layer.CornerRadius = size / 2;
     }
+
+    private bool Swiping => Scheme() == ManaTouchControls.Swipe;
 
     public override void TouchesBegan(NSSet touches, UIEvent? evt)
     {
@@ -88,12 +116,16 @@ public sealed class TouchControlsView : UIView
                     _input.Mouse.Move(ToVector(at));
                 }
             }
+            else if (Swiping)
+            {
+                finger.Kind = "swipe";
+                _input.Mouse.Move(ToVector(at));
+            }
             else if (ButtonAt(at) is { } button)
             {
                 finger.Kind = "key";
-                finger.Key = button.Key;
-                button.View.Alpha = 1.0f;
-                _input.Keyboard.Set(button.Key, true);
+                finger.Button = button;
+                Press(button, true);
             }
             else if (at.X < Bounds.Width * 0.4 && at.Y > Bounds.Height * 0.3 && !_fingers.Values.Any(f => f.Kind == "stick"))
             {
@@ -121,46 +153,61 @@ public sealed class TouchControlsView : UIView
                 continue;
             }
             var at = touch.LocationInView(this);
-            if (finger.Kind == "menu")
+            switch (finger.Kind)
             {
-                if (!finger.Moved && Distance(at, finger.Start) > TapSlop)
-                {
+                case "menu":
+                    if (!finger.Moved && Distance(at, finger.Start) > TapSlop)
+                    {
+                        finger.Moved = true;
+                    }
+                    if (finger.Moved)
+                    {
+                        // Content follows the finger: dragging up scrolls down the list.
+                        _input.Mouse.Wheel(0, (float)(at.Y - finger.Last.Y) / PointsPerNotch);
+                    }
+                    finger.Last = at;
+                    break;
+                case "swipe" when !finger.Moved && Distance(at, finger.Start) > SwipeDistance:
+                    // One swipe a touch, as soon as it is one -- waiting for the finger to lift feels late.
                     finger.Moved = true;
-                }
-                if (finger.Moved)
-                {
-                    // Content follows the finger: dragging up scrolls down the list.
-                    _input.Mouse.Wheel(0, (float)(at.Y - finger.Last.Y) / PointsPerNotch);
-                }
-                finger.Last = at;
-            }
-            else if (finger.Kind == "stick")
-            {
-                var dx = (float)(at.X - finger.Start.X);
-                var dy = (float)(at.Y - finger.Start.Y);
-                var length = MathF.Sqrt(dx * dx + dy * dy);
-                if (length > StickRadius)
-                {
-                    dx *= StickRadius / length;
-                    dy *= StickRadius / length;
-                }
-                ShowStick(finger.Start, new CGPoint(finger.Start.X + dx, finger.Start.Y + dy));
-                var threshold = StickRadius * 0.3f;
-                _input.Keyboard.Set(Key.A, dx < -threshold);
-                _input.Keyboard.Set(Key.D, dx > threshold);
-                _input.Keyboard.Set(Key.W, dy < -threshold);
-                _input.Keyboard.Set(Key.S, dy > threshold);
-            }
-            else if (finger.Kind == "look")
-            {
-                if (!finger.Moved && Distance(at, finger.Start) > TapSlop)
-                {
-                    finger.Moved = true;
-                    _input.Mouse.Down(MouseButton.Right);
-                }
-                _input.Mouse.Move(ToVector(at));
+                    var dx = at.X - finger.Start.X;
+                    var dy = at.Y - finger.Start.Y;
+                    var key = Math.Abs(dx) > Math.Abs(dy) ? (dx < 0 ? Key.Left : Key.Right) : (dy < 0 ? Key.Up : Key.Down);
+                    _input.Keyboard.Set(key, true);
+                    _input.Keyboard.Set(key, false);
+                    ManaRumble.Play(ManaRumbleStrength.Tap);
+                    break;
+                case "stick":
+                    MoveStick(finger, at);
+                    break;
+                case "look":
+                    if (!finger.Moved && Distance(at, finger.Start) > TapSlop)
+                    {
+                        finger.Moved = true;
+                        _input.Mouse.Down(MouseButton.Right);
+                    }
+                    _input.Mouse.Move(ToVector(at));
+                    break;
             }
         }
+    }
+
+    private void MoveStick(Finger finger, CGPoint at)
+    {
+        var dx = (float)(at.X - finger.Start.X);
+        var dy = (float)(at.Y - finger.Start.Y);
+        var length = MathF.Sqrt(dx * dx + dy * dy);
+        if (length > StickRadius)
+        {
+            dx *= StickRadius / length;
+            dy *= StickRadius / length;
+        }
+        ShowStick(finger.Start, new CGPoint(finger.Start.X + dx, finger.Start.Y + dy));
+        var threshold = StickRadius * 0.3f;
+        _input.Keyboard.Set(Key.A, dx < -threshold);
+        _input.Keyboard.Set(Key.D, dx > threshold);
+        _input.Keyboard.Set(Key.W, dy < -threshold);
+        _input.Keyboard.Set(Key.S, dy > threshold);
     }
 
     public override void TouchesEnded(NSSet touches, UIEvent? evt) => End(touches);
@@ -178,18 +225,15 @@ public sealed class TouchControlsView : UIView
             switch (finger.Kind)
             {
                 case "menu":
+                case "swipe":
                     if (!finger.Moved)
                     {
                         _input.Mouse.Down(MouseButton.Left);
                         _input.Mouse.Up(MouseButton.Left);
                     }
                     break;
-                case "key":
-                    _input.Keyboard.Set(finger.Key, false);
-                    foreach (var button in _buttons.Where(b => b.Key == finger.Key))
-                    {
-                        button.View.Alpha = 0.55f;
-                    }
+                case "key" when finger.Button != null:
+                    Press(finger.Button, false);
                     break;
                 case "stick":
                     foreach (var key in new[] { Key.W, Key.A, Key.S, Key.D })
@@ -215,15 +259,34 @@ public sealed class TouchControlsView : UIView
         }
     }
 
-    /// <summary>Shows or hides the game's buttons as menus come and go; the window calls it every frame.</summary>
+    /// <summary>Holds a button's key, and shows it: brighter, a little sunk, a tick under the thumb.</summary>
+    private void Press(TouchButton button, bool down)
+    {
+        button.Holds = Math.Max(0, button.Holds + (down ? 1 : -1));
+        var held = button.Holds > 0;
+        _input.Keyboard.Set(button.Key, held);
+        if (down)
+        {
+            ManaRumble.Play(ManaRumbleStrength.Tap);
+        }
+        UIView.Animate(held ? 0.06 : 0.14, () =>
+        {
+            button.View.Transform = held ? CGAffineTransform.MakeScale(0.88f, 0.88f) : CGAffineTransform.MakeIdentity();
+            button.View.BackgroundColor = held ? Brighter(button.Color) : button.Color.ColorWithAlpha(0.82f);
+            button.View.Layer.BorderColor = UIColor.FromWhiteAlpha(1, held ? 1.0f : 0.75f).CGColor;
+        });
+    }
+
+    /// <summary>Shows the scheme's controls, and hides them while a menu is up; the window calls it every frame.</summary>
     public void Refresh()
     {
-        var visible = GameControls();
-        foreach (var (_, _, view) in _buttons)
+        var game = GameControls();
+        var buttons = game && !Swiping;
+        foreach (var button in _buttons)
         {
-            view.Hidden = !visible;
+            button.View.Hidden = !buttons;
         }
-        if (!visible && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look"))
+        if (!game && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look" or "swipe"))
         {
             Reset();
         }
@@ -232,18 +295,23 @@ public sealed class TouchControlsView : UIView
     /// <summary>Everything let go, when the app leaves the foreground with fingers down.</summary>
     public void Reset()
     {
+        foreach (var finger in _fingers.Values.Where(f => f.Button != null))
+        {
+            finger.Button!.Holds = 1;
+            Press(finger.Button, false);
+        }
         _fingers.Clear();
         _stickBase.Hidden = true;
         _stickKnob.Hidden = true;
         _input.ReleaseAll();
     }
 
-    private (string Label, Key Key, UIView View)? ButtonAt(CGPoint at)
+    private TouchButton? ButtonAt(CGPoint at)
     {
         foreach (var button in _buttons)
         {
-            // A little larger than drawn: thumbs land near, not on.
-            if (button.View.Frame.Inset(-12, -12).Contains(at))
+            // A little larger than drawn: thumbs land near, not on. The frame is the unsunk one.
+            if (!button.View.Hidden && button.View.Frame.Inset(-14, -14).Contains(at))
             {
                 return button;
             }
@@ -266,37 +334,51 @@ public sealed class TouchControlsView : UIView
 
     private static double Distance(CGPoint a, CGPoint b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 
-    private static CAShapeLayer Circle(float radius, float fill, float stroke) => new()
+    private static UIColor Brighter(UIColor color)
+    {
+        color.GetRGBA(out var r, out var g, out var b, out _);
+        return UIColor.FromRGBA((nfloat)Math.Min(1.0, r + 0.25), (nfloat)Math.Min(1.0, g + 0.25), (nfloat)Math.Min(1.0, b + 0.25), 1.0f);
+    }
+
+    private static CAShapeLayer Circle(float radius, UIColor fill, UIColor stroke) => new()
     {
         Path = UIBezierPath.FromOval(new CGRect(-radius, -radius, radius * 2, radius * 2)).CGPath,
-        FillColor = UIColor.FromWhiteAlpha(1, fill).CGColor,
-        StrokeColor = UIColor.FromWhiteAlpha(1, stroke).CGColor,
-        LineWidth = 2,
+        FillColor = fill.CGColor,
+        StrokeColor = stroke.CGColor,
+        LineWidth = 2.5f,
+        ShadowColor = UIColor.Black.CGColor,
+        ShadowOpacity = 0.3f,
+        ShadowRadius = 6,
+        ShadowOffset = new CGSize(0, 2),
     };
 
-    private static UIView Button(string label)
+    private static TouchButton MakeButton(string label, Key key, UIColor color)
     {
         var view = new UIView
         {
-            BackgroundColor = UIColor.FromWhiteAlpha(0.1f, 0.6f),
-            Alpha = 0.55f,
+            BackgroundColor = color.ColorWithAlpha(0.82f),
             UserInteractionEnabled = false,
         };
-        view.Layer.BorderColor = UIColor.FromWhiteAlpha(1, 0.7f).CGColor;
-        view.Layer.BorderWidth = 2;
+        view.Layer.BorderColor = UIColor.FromWhiteAlpha(1, 0.75f).CGColor;
+        view.Layer.BorderWidth = 2.5f;
+        view.Layer.ShadowColor = UIColor.Black.CGColor;
+        view.Layer.ShadowOpacity = 0.35f;
+        view.Layer.ShadowRadius = 6;
+        view.Layer.ShadowOffset = new CGSize(0, 3);
         var text = new UILabel
         {
             Text = label,
             TextColor = UIColor.White,
             TextAlignment = UITextAlignment.Center,
+            Lines = 2,
             AutoresizingMask = UIViewAutoresizing.FlexibleDimensions,
         };
-        if (UIFont.BoldSystemFontOfSize(15) is { } bold)
+        if (UIFont.BoldSystemFontOfSize(14) is { } bold)
         {
             text.Font = bold;
         }
         view.AddSubview(text);
         text.Frame = view.Bounds;
-        return view;
+        return new TouchButton { Key = key, View = view, Color = color };
     }
 }
