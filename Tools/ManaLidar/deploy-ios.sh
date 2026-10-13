@@ -35,7 +35,10 @@ if [ -z "$device" ]; then
 fi
 echo "Device: $device"
 
-dotnet build "$app_project" -c "$config" --nologo -v:q
+# Fresh build processes each time: MSBuild's reused workers belong to the SSH session that started them, where the
+# signing keychain this session unlocked still reads as locked (codesign: errSecInternalComponent).
+dotnet build-server shutdown >/dev/null 2>&1 || true
+dotnet build "$app_project" -c "$config" --nologo -v:q -nodeReuse:false
 app="$(ls -d "Artifacts/Bin/$app_project/$config/net10.0-ios/ios-arm64/"*.app | head -1)"
 xcrun devicectl device install app --device "$device" "$app"
 if [ -n "${CONSOLE:-}" ]; then
