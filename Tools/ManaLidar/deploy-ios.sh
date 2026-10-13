@@ -38,14 +38,10 @@ echo "Device: $device"
 # Fresh build processes each time: MSBuild's reused workers belong to the SSH session that started them, where the
 # signing keychain this session unlocked still reads as locked (codesign: errSecInternalComponent).
 dotnet build-server shutdown >/dev/null 2>&1 || true
-# The iOS SDK's incremental AOT recompiles a changed assembly but can keep stale code for it and for what was
-# compiled against it, and Mono aborts at launch on the mismatch. So our own assemblies (all Mana*, the games, and the
-# generic instances spanning them) are compiled fresh each build; .NET's and the packages' compiled code, which only
-# changes with a version bump, stays cached.
-aot="Artifacts/Obj/$app_project/$config/net10.0-ios/ios-arm64/nativelibraries/aot-output/arm64"
-if [ -d "$aot" ]; then
-  rm -f "$aot"/Mana* "$aot"/TrainYardWars* "$aot"/aot-instances*
-fi
+# The iOS SDK's incremental AOT can keep stale code, and Mono aborts at launch on the mismatch: a changed assembly
+# changes what the trimmer keeps of .NET itself, so even the framework's cached code goes stale. Compiled fresh
+# each build until the cache can be kept safely.
+rm -rf "Artifacts/Obj/$app_project/$config/net10.0-ios/ios-arm64/nativelibraries"
 dotnet build "$app_project" -c "$config" --nologo -v:q -nodeReuse:false
 app="$(ls -d "Artifacts/Bin/$app_project/$config/net10.0-ios/ios-arm64/"*.app | head -1)"
 xcrun devicectl device install app --device "$device" "$app"
