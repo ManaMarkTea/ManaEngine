@@ -94,6 +94,7 @@ public sealed class GameViewController : UIViewController
     /// <summary>
     /// Documents/commands.json, when one has been put there (devicectl copy to), drives the game as --command-file
     /// does on desktop: @@DOCUMENTS@@ in it becomes the Documents folder, so screenshots land where they can be fetched.
+    /// It runs on the next launch only, and is deleted as it starts.
     /// </summary>
     private static string? CommandScript()
     {
@@ -105,6 +106,8 @@ public sealed class GameViewController : UIViewController
         }
         var expanded = Path.Combine(documents, "commands.run.json");
         File.WriteAllText(expanded, File.ReadAllText(script).Replace("@@DOCUMENTS@@", documents));
+        // Once only: a script left behind would drive every launch after it (it once left the runner on autopilot).
+        File.Delete(script);
         AppDelegate.Trace($"Running the command script {script}");
         return expanded;
     }
