@@ -52,7 +52,9 @@ if (-not $Mac) {
 if ($Mac -notlike "*@*") {
     $user = if (Test-Path $userFile) { (Get-Content $userFile -Raw).Trim() } else { "" }
     if (-not $user) {
-        $user = Read-Host "User name on the Mac (as in its Users folder)"
+        Write-Host "Your Mac's account name -- the short one, like 'mark', not your full name. On the Mac: run 'whoami'" -ForegroundColor Yellow
+        Write-Host "in Terminal, or see Finder > Go > Home (the house folder's name)." -ForegroundColor Yellow
+        $user = Read-Host "Mac account name"
         New-Item -ItemType Directory -Force $settingsDir | Out-Null
         Set-Content $userFile $user
     }
@@ -69,12 +71,13 @@ if ($LASTEXITCODE -ne 0) {
         New-Item -ItemType Directory -Force (Split-Path $key) | Out-Null
         ssh-keygen -t ed25519 -N "" -q -f $key
     }
-    Write-Host "Installing this PC's key on the Mac -- enter the Mac password once; later runs will not ask." -ForegroundColor Yellow
+    Write-Host "Installing this PC's key on the Mac. At '$Mac's password:' type your Mac login password (the one" -ForegroundColor Yellow
+    Write-Host "that unlocks the Mac) and press Enter -- nothing shows as you type. Later runs will not ask." -ForegroundColor Yellow
     Get-Content "$key.pub" | ssh @sshOptions $Mac "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
     ssh @sshOptions -o BatchMode=yes $Mac "true"
     if ($LASTEXITCODE -ne 0) {
         if (Test-Path $userFile) { Remove-Item $userFile }
-        throw "Could not log in to $Mac. Check the user name (asked again next run) and that Remote Login is on."
+        throw "Could not log in to $Mac. The account name or password was not right; the name will be asked again next run."
     }
 }
 
