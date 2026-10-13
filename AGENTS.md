@@ -149,6 +149,36 @@ Browser-specific lessons and limits:
 - RID-specific web hosts need referenced projects to declare `RuntimeIdentifiers=browser-wasm`, and their `ProjectReference`s need `SetTargetFramework` for that RID. Do not rely on `-r` propagation to select the browser target.
 - Mesh import is glTF/GLB only through SharpGLTF on every platform. The Planet Showcase level is intentionally excluded from the browser selector; the rigged glTF skinning/animation path still lacks a validated browser fixture.
 
+## Deploying ManaLidar to the phone
+
+`ManaLidar` (iOS) builds only on the Mac, and `ManaLidar.Android` deploys from the Mac too. On Windows, check the iOS
+app compiles first -- `dotnet build ManaLidar/ManaLidar.csproj -t:Compile` type-checks it against the real iOS
+bindings without a Mac (the `ios` workload is installed here) -- then deploy:
+
+```powershell
+./Tools/ManaLidar/deploy-ios-from-windows.ps1        # or the VS Code task "Deploy: ManaLidar to iPhone (from Windows, via the Mac)"
+```
+
+It finds the Mac by itself (Bonjour `_sftp-ssh._tcp`, `Tools/ManaLidar/FindMac.cs` -- the first Mac with Remote Login
+on; here, ManaPotion), pushes this PC's **committed** HEAD over SSH into a deploy copy on the Mac
+(`~/.mana-deploy/ManaRenderer`, branch `incoming`, built detached) and runs `Tools/ManaLidar/deploy-ios.sh` there,
+which builds, signs, installs and launches on the iPhone (plugged into the Mac or Wi-Fi paired). Commit first:
+uncommitted changes are not sent. No GitHub is involved, and the Mac's own checkout (another session may be working
+in it) is never touched. On the Mac itself: `Tools/ManaLidar/deploy-ios.sh [Debug|Release]`, and
+`Tools/ManaLidar/deploy-android.sh` for the Android app.
+
+- **One-time setup, already done on this PC:** the Mac account name is kept in `%LOCALAPPDATA%\ManaRenderer\mac-user.txt`,
+  this PC's SSH key is installed on the Mac, and the Mac's login password is in `mac-password.xml` beside it
+  (DPAPI-encrypted for this Windows account), sent over stdin each run to unlock the signing keychain. A fresh
+  machine is asked for both once; deleting a file makes it ask again.
+- **Why each piece is there:** an SSH session finds the Mac's login keychain locked, which breaks both codesign
+  (`errSecInternalComponent`) and Git's GitHub login (`-25308`) -- hence the unlock, and pushing straight to the Mac
+  instead of pulling. Commands run in `zsh -lc` or `dotnet`/`git-lfs` are not on the PATH. A push into a checked-out
+  branch is refused, hence `incoming` and the detached build.
+- **iOS ahead-of-time code is not the desktop's:** the iPhone build got `Vector2` arithmetic wrong (V shifted, U
+  right), tearing textures until `ScanAtlas`/`ScanTextureBaker`/measure snapping moved to plain floats. Code that
+  runs on the phone avoids `Vector2` maths; `ScanAtlas.Verify` refuses a layout off the texture rather than saving it.
+
 ## Thumbnails
 
 The editor's Import and Project panels make a model's or asset's thumbnail the first time its tile is on screen and keep it in
