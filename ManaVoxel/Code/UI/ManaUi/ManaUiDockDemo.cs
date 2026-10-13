@@ -56,6 +56,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             [SpriteAssetManaView.PanelId] = "Sprite Asset",
             [PrefabChangesManaView.PanelId] = "Review Changes",
             [UiDesignerManaView.PanelId] = "UI Designer",
+            ["livescan"] = "Live Scan",
             ["showcase"] = "ManaUI",
             ["about"] = "Graphics Diagnostics",
             ["worldperf"] = "World Perf",
@@ -104,6 +105,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             SpriteAssetManaView.PanelId,
             PrefabChangesManaView.PanelId,
             UiDesignerManaView.PanelId,
+            "livescan",
             "showcase",
             "about",
             "worldperf",
@@ -181,7 +183,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f)),
             [SpriteAssetManaView.PanelId] = (null, new Vector2(400.0f, 640.0f)),
             [PrefabChangesManaView.PanelId] = (null, new Vector2(480.0f, 320.0f)),
-            [UiDesignerManaView.PanelId] = (null, new Vector2(1120.0f, 640.0f))
+            [UiDesignerManaView.PanelId] = (null, new Vector2(1120.0f, 640.0f)),
+            // Floats over the viewport like the tool windows, so the scan it receives stays in view.
+            ["livescan"] = (null, new Vector2(340.0f, 460.0f))
         };
 
         /// <summary>The live density subscription, so re-attaching replaces it rather than stacking a second one.</summary>
@@ -295,6 +299,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                     "Grid Map",
                     GridMapToolManaView.Build(theme, world, editor?.History)) { Id = GridMapToolManaView.PanelId },
                 UiDesignerManaView.PanelId => new DockItem("UI Designer", UiDesignerManaView.Build(theme)) { Id = UiDesignerManaView.PanelId },
+#if !MANA_BROWSER
+                "livescan" when world != null && editor != null => new DockItem("Live Scan", LiveScanManaView.Build(theme, world, editor)) { Id = "livescan" },
+#endif
                 PrefabChangesManaView.PanelId when world != null => new DockItem(
                     "Review Changes", PrefabChangesManaView.Build(theme, world)) { Id = PrefabChangesManaView.PanelId },
                 SpriteAssetManaView.PanelId => new DockItem("Sprite Asset", SpriteAssetManaView.Build(theme)) { Id = SpriteAssetManaView.PanelId },
@@ -1188,6 +1195,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 SpriteAssetManaView.PanelId => false,
                 PrefabChangesManaView.PanelId => false,
                 UiDesignerManaView.PanelId => false,
+                "livescan" => false,
                 _ => true
             };
         }

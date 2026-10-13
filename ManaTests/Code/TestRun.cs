@@ -98,6 +98,7 @@ public static class TestRunner
         ("ManaVoxel", "measuring tool", MeasureToolChecks.Run),
         ("ManaLidar", "scan colouring and glTF export", ScanExportChecks.Run),
         ("ManaLidar", "depth fusion", ScanFusionChecks.Run),
+        ("ManaLidar", "live-scan stream", ScanStreamChecks.Run),
         ("ManaLidar", "mesh simplification", ScanSimplifyChecks.Run),
         ("ManaLidar", "depth image meshing", DepthMeshChecks.Run),
         ("Mana", "line mesh in-place refresh", LineMeshRefreshChecks.Run),

@@ -951,6 +951,11 @@ namespace Mana.Code.GameModes
             // on exactly that. This method's first call is the first frame that is genuinely past loading.
             OpenStartupLevelIfRequested();
             TickCommandFileIfRequested();
+#if !MANA_BROWSER
+            // A phone streaming a scan: the session exists from the start, listening only once its panel is opened.
+            ManaVoxel.Code.LiveScan.LiveScanSession.Current ??= new ManaVoxel.Code.LiveScan.LiveScanSession(Context);
+            ManaVoxel.Code.LiveScan.LiveScanSession.Current.Update();
+#endif
 
             UpdatePlayModeShortcuts();
             UpdateEditShortcuts();

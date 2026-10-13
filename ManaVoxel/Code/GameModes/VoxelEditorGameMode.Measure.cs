@@ -111,6 +111,42 @@ namespace Mana.Code.GameModes
             tool.Point(SnapMeasurePoint(pointer, tool), shift, click);
         }
 
+#if !MANA_BROWSER
+        /// <summary>
+        /// The live_scan script command: "listen" (as opening the panel does), "photos"/"coverage" colouring, "clear",
+        /// and "bake" into the level (to <paramref name="path"/> when given). Logs what has streamed in.
+        /// </summary>
+        private void RunLiveScanCommand(string? name, string? path)
+        {
+            var session = ManaVoxel.Code.LiveScan.LiveScanSession.Current
+                ?? throw new InvalidDataException("live_scan: no live-scan session yet.");
+            switch (name?.ToLowerInvariant())
+            {
+                case "listen": session.Start(); break;
+                case "photos": session.Colour = ManaVoxel.Code.LiveScan.LiveScanSession.Colouring.Photos; break;
+                case "coverage": session.Colour = ManaVoxel.Code.LiveScan.LiveScanSession.Colouring.Coverage; break;
+                case "clear": session.Clear(); break;
+                case "bake":
+                    var file = Path.GetFullPath(path ?? Path.Combine("Assets/Lidar", $"Live {DateTime.Now:yyyy-MM-dd HH.mm.ss}.glb"));
+                    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                    session.Bake(file, ManaLidar.ScanDetail.High, null, (baked, at) =>
+                    {
+                        var model = Context.World.LoadFromGltf(baked, into: _viewModel.ActiveScene ?? Context.World.DefaultScene);
+                        model.LevelSource = Mana.Code.Levels.ManaLevelSource.ForMesh(baked);
+                        model.Position = at;
+                        session.Clear();
+                        ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: live scan baked to {baked}, placed at {at}.");
+                    }, error => ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: live scan bake failed: {error}"));
+                    break;
+                case "log": break;
+                default: throw new InvalidDataException($"live_scan: unknown '{name}'.");
+            }
+            ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
+                $"Command file: live scan {name}: phone {session.Server?.Phone ?? "none"}, {session.PieceCount} pieces, "
+                + $"{session.TriangleCount} triangles, {session.PhotoCount} photos, port {session.Server?.Port}");
+        }
+#endif
+
         /// <summary>
         /// The measure script command: modes and options by name, and "hover"/"click" at a world point -- projected
         /// to the screen and run through the same snapping as the pointer, so a script tests what a person gets.

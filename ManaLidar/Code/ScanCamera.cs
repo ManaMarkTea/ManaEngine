@@ -107,7 +107,7 @@ public sealed class ScanCamera
         // Walking looks round more gently: it is the view you are standing in, not a model in your hand.
         var rate = Walking ? 0.005f : 0.008f;
         _yaw -= dx * rate;
-        _pitch = Math.Clamp(_pitch - dy * rate * (Walking ? -1 : 1), MinPitch, MaxPitch);
+        _pitch = Math.Clamp(_pitch - dy * rate, MinPitch, MaxPitch);
         Apply();
     }
 
