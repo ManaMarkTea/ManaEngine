@@ -48,12 +48,21 @@
     <ManaPython Condition="'$(ManaPython)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">python</ManaPython>
     <ManaPython Condition="'$(ManaPython)' == ''">python3</ManaPython>
   </PropertyGroup>
-  <Target Name="ManaGameAssets" BeforeTargets="BeforeBuild">
+  <!-- Before the iOS SDK collects the bundle's files, which it does ahead of BeforeBuild. -->
+  <Target Name="ManaGameAssets" BeforeTargets="_CollectBundleResources">
     <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)../Tools/Mobile/game_assets.py&quot;" ConsoleToMSBuild="true" StandardOutputImportance="low">
       <Output TaskParameter="ConsoleOutput" ItemName="_ManaGameAsset" />
     </Exec>
     <ItemGroup>
       <BundleResource Include="$([System.String]::Copy('%(_ManaGameAsset.Identity)').Split('|')[0])" LogicalName="$([System.String]::Copy('%(_ManaGameAsset.Identity)').Split('|')[1])" />
+    </ItemGroup>
+  </Target>
+
+  <!-- The engine projects copy their whole Assets and Content folders beside a desktop build; the app carries
+       only its Game/ selection above. -->
+  <Target Name="ManaDropDesktopAssets" BeforeTargets="_ComputePublishLocation">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('','/').StartsWith('Assets/')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('','/').StartsWith('Content/'))" />
     </ItemGroup>
   </Target>
 
