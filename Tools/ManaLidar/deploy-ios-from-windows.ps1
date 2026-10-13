@@ -25,6 +25,10 @@ param(
     # The checkout on the Mac; found by itself (and remembered) when not given.
     [string] $Repo = $env:MANA_MAC_REPO,
     [ValidateSet("Debug", "Release")] [string] $Configuration = "Release",
+    # Which app: the scanner, or Mana itself (the engine on the phone or iPad).
+    [ValidateSet("ManaLidar", "ManaVoxel.iOS")] [string] $App = "ManaLidar",
+    # An iPhone or iPad by name or UDID, when several are paired with the Mac.
+    [string] $Device = $env:MANA_IOS_DEVICE,
     # Unused: the keychain is now always unlocked with the password kept from the first run.
     [switch] $UnlockKeychain,
     # Unused: the commit now goes straight to the Mac. Kept so older command lines still run.
@@ -111,7 +115,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $commit = (git -C $repoRoot rev-parse --short HEAD).Trim()
-if (git -C $repoRoot status --porcelain -- ManaLidar ManaLidar.Core ManaVoxel/Code/Measure) {
+if (git -C $repoRoot status --porcelain -- $App ManaLidar.Core ManaVoxel/Code/Measure ManaGraphics Mana ManaCore ManaUI Tools/Mobile) {
     Write-Host "Uncommitted changes to the app are not sent: building the last commit, $commit." -ForegroundColor Yellow
 }
 Write-Host "Sending $commit to the Mac..."
@@ -147,7 +151,7 @@ $steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain 2>~/.mana-
     # Best effort, once: it can report "passphrase not correct" over one odd item even with the right password,
     # and signing works without it where Xcode already let codesign use the key.
     "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null 2>&1; touch ~/.mana-deploy/.signing-ready; }; " +
-    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && Tools/ManaLidar/deploy-ios.sh $Configuration"
+    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && APP=$App DEVICE=`"$Device`" Tools/ManaLidar/deploy-ios.sh $Configuration"
 $password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 $code = $LASTEXITCODE
 $password = $null
@@ -169,4 +173,4 @@ if ($code -ne 0) {
     Write-Host "The deploy on the Mac failed (exit $code)." -ForegroundColor Yellow
     exit $code
 }
-Write-Host "ManaLidar ($commit) is on the phone." -ForegroundColor Green
+Write-Host "$App ($commit) is on the device." -ForegroundColor Green

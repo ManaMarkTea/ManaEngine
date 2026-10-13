@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Builds ManaLidar and installs + launches it on the connected iPhone (Mac only).
-# Usage: Tools/ManaLidar/deploy-ios.sh [Debug|Release]    DEVICE=<udid or name> picks one when several are plugged in.
+# Builds an iOS app -- ManaLidar, or APP=ManaVoxel.iOS -- and installs + launches it on the connected iPhone or iPad
+# (Mac only). Usage: Tools/ManaLidar/deploy-ios.sh [Debug|Release]    DEVICE=<udid or name> picks one when several are paired.
 # Installs with devicectl: `dotnet build -t:Run` hangs in mlaunch's install step here.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 config="${1:-Debug}"
-bundle_id="com.manarenderer.manalidar"
+app_project="${APP:-ManaLidar}"
+case "$app_project" in
+  ManaLidar) bundle_id="com.manarenderer.manalidar" ;;
+  ManaVoxel.iOS) bundle_id="com.manarenderer.manavoxel" ;;
+  *) echo "Unknown app $app_project (ManaLidar or ManaVoxel.iOS)." >&2; exit 1 ;;
+esac
 
 device="${DEVICE:-}"
 if [ -z "$device" ]; then
@@ -16,7 +21,7 @@ import json, sys
 devices = json.load(open(sys.argv[1]))["result"]["devices"]
 # Wi-Fi phones read "disconnected" until used (the tunnel opens on demand), so paired is enough; USB ones sort first.
 ready = [d for d in devices
-         if d["hardwareProperties"]["deviceType"] == "iPhone"
+         if d["hardwareProperties"]["deviceType"] in ("iPhone", "iPad")
          and d["connectionProperties"].get("pairingState") == "paired"]
 ready.sort(key=lambda d: d["connectionProperties"].get("transportType") != "wired")
 print(ready[0]["hardwareProperties"]["udid"] if ready else "")
@@ -25,12 +30,12 @@ PY
   rm -f "$json"
 fi
 if [ -z "$device" ]; then
-  echo "No iPhone found: plug it in, unlock it and trust this Mac (or set DEVICE=<udid>)." >&2
+  echo "No iPhone or iPad found: plug it in, unlock it and trust this Mac (or set DEVICE=<udid>)." >&2
   exit 1
 fi
 echo "Device: $device"
 
-dotnet build ManaLidar -c "$config" --nologo -v:q
-app="Artifacts/Bin/ManaLidar/$config/net10.0-ios/ios-arm64/ManaLidar.app"
+dotnet build "$app_project" -c "$config" --nologo -v:q
+app="$(ls -d "Artifacts/Bin/$app_project/$config/net10.0-ios/ios-arm64/"*.app | head -1)"
 xcrun devicectl device install app --device "$device" "$app"
-xcrun devicectl device process launch --device "$device" "$bundle_id" || echo "Installed; unlock the phone and open ManaLidar." >&2
+xcrun devicectl device process launch --device "$device" "$bundle_id" || echo "Installed; unlock the device and open the app." >&2

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Mana on iPhone and iPad, natively: the engine's WebGPU renderer on Metal through wgpu-native. Builds on a Mac
+       with Xcode (Tools/ManaLidar/deploy-ios-from-windows.ps1 -App ManaVoxel.iOS from Windows). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
+
+    <ApplicationTitle>Mana</ApplicationTitle>
+    <ApplicationId>com.manarenderer.manavoxel</ApplicationId>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <AppIcon>AppIcon</AppIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ImageAsset Include="Resources\Assets.xcassets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Not Silk.NET.WebGPU.Native.WGPU: it carries desktop libraries only. The phone's comes from the xcframework below. -->
+    <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
+  </ItemGroup>
+
+  <!-- wgpu-native for iOS, built once on the Mac by Tools/Mobile/build-wgpu-ios.sh into a cache outside the repo. -->
+  <PropertyGroup>
+    <ManaWgpuFramework Condition="'$(ManaWgpuFramework)' == ''">$(HOME)/Library/Caches/ManaRenderer/wgpu-native-33133da4/wgpu_native.xcframework</ManaWgpuFramework>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <NativeReference Include="$(ManaWgpuFramework)">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+  <Target Name="BuildWgpuForIos" BeforeTargets="BeforeBuild" Condition="$([MSBuild]::IsOSPlatform('OSX')) And !Exists('$(ManaWgpuFramework)')">
+    <Exec Command="bash &quot;$(MSBuildThisFileDirectory)../Tools/Mobile/build-wgpu-ios.sh&quot;" />
+  </Target>
+
+</Project>
