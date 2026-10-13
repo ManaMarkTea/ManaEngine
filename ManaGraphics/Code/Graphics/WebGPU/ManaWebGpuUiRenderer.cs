@@ -59,9 +59,14 @@ namespace ManaGraphics.Code.Graphics
             _queue = queue;
 
             // Resolved against the output directory the .wgsl is copied to, not the working directory --
-            // `dotnet run` from the repo root leaves the CWD somewhere else entirely.
-            _shaderModule = CreateShaderModule(
-                Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", "manaui.wgsl"));
+            // `dotnet run` from the repo root leaves the CWD somewhere else entirely. The phone apps carry it in their
+            // working folder (Game/) instead.
+            var shaderPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", "manaui.wgsl");
+            if (!File.Exists(shaderPath))
+            {
+                shaderPath = Path.Combine(Environment.CurrentDirectory, "Assets", "Shaders", "WebGpu", "manaui.wgsl");
+            }
+            _shaderModule = CreateShaderModule(shaderPath);
             _sampler = CreateSampler();
             _backdropSampler = CreateBackdropSampler();
             _bindGroupLayout = CreateBindGroupLayout();
