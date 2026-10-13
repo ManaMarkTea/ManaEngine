@@ -54,6 +54,19 @@ namespace ManaGraphics.Code.Graphics
 #if MANA_BROWSER
             RunBrowser();
 #else
+            if (ManaWebGpuNativeHost.Current is { } host)
+            {
+                // A phone's view: its Run fires Load and returns, and the platform's display link drives the frames.
+                ManaConsole.WriteDiagnostic("Running WebGPU on the platform's own view.");
+                _window = host.Window;
+                _window.Load += Load;
+                _window.Render += Render;
+                _window.FramebufferResize += Resize;
+                _window.Closing += Closing;
+                _window.Run();
+                return;
+            }
+
             ManaConsole.WriteDiagnostic("Creating WebGPU Silk window.");
             var options = WindowOptions.Default;
             options.API = new GraphicsAPI(ContextAPI.None, new APIVersion(0, 0));
@@ -124,7 +137,11 @@ namespace ManaGraphics.Code.Graphics
             {
                 ManaConsole.WriteDiagnosticElapsed("WebGPU window Load started.");
                 ManaWindowIcon.Apply(_window, _iconPath);
+#if MANA_BROWSER
                 _input = _window.CreateInput();
+#else
+                _input = ManaWebGpuNativeHost.Current?.Input ?? _window.CreateInput();
+#endif
 
                 // Everything up to and including the game mode's own Load() runs here, on this thread,
                 // before this method returns -- including dispatching whatever background loading task the

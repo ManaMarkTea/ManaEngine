@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Numerics;
 using System.Text;
@@ -24,20 +25,36 @@ namespace ManaGraphics.Code.Graphics
                 PowerPreference = PowerPreference.HighPerformance
             };
 
-            _api.InstanceRequestAdapter(_instance, &options, _requestAdapterCallback, null);
+            var self = GCHandle.Alloc(this);
+            try
+            {
+                _api.InstanceRequestAdapter(_instance, &options, new PfnRequestAdapterCallback(&OnRequestAdapter), (void*)GCHandle.ToIntPtr(self));
+            }
+            finally
+            {
+                self.Free();
+            }
             if (_adapter == null)
             {
-                throw new InvalidOperationException("Failed to request WebGPU adapter.");
+                throw new InvalidOperationException($"Failed to request WebGPU adapter. {_requestFailure}");
             }
         }
 
         private void RequestDevice()
         {
             var descriptor = new DeviceDescriptor();
-            _api.AdapterRequestDevice(_adapter, &descriptor, _requestDeviceCallback, null);
+            var self = GCHandle.Alloc(this);
+            try
+            {
+                _api.AdapterRequestDevice(_adapter, &descriptor, new PfnRequestDeviceCallback(&OnRequestDevice), (void*)GCHandle.ToIntPtr(self));
+            }
+            finally
+            {
+                self.Free();
+            }
             if (_device == null)
             {
-                throw new InvalidOperationException("Failed to request WebGPU device.");
+                throw new InvalidOperationException($"Failed to request WebGPU device. {_requestFailure}");
             }
         }
 #else
@@ -73,33 +90,40 @@ namespace ManaGraphics.Code.Graphics
 #endif
 
 #if !MANA_BROWSER
-        private void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
+        // Native callbacks are static [UnmanagedCallersOnly] methods, never delegates: iOS's ahead-of-time code
+        // cannot make a native entry point for a delegate. wgpu-native answers before the request returns.
+        private string? _requestFailure;
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
         {
+            var self = (ManaWebGpuContext)GCHandle.FromIntPtr((nint)userdata).Target!;
             if (status == RequestAdapterStatus.Success)
             {
-                _adapter = adapter;
+                self._adapter = adapter;
                 return;
             }
-
-            throw new InvalidOperationException($"WebGPU adapter request failed: {status} {ReadMessage(message)}");
+            self._requestFailure = $"{status} {ReadMessage(message)}";
         }
 
-        private void OnRequestDevice(RequestDeviceStatus status, Device* device, byte* message, void* userdata)
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static void OnRequestDevice(RequestDeviceStatus status, Device* device, byte* message, void* userdata)
         {
+            var self = (ManaWebGpuContext)GCHandle.FromIntPtr((nint)userdata).Target!;
             if (status == RequestDeviceStatus.Success)
             {
-                _device = device;
+                self._device = device;
                 return;
             }
-
-            throw new InvalidOperationException($"WebGPU device request failed: {status} {ReadMessage(message)}");
+            self._requestFailure = $"{status} {ReadMessage(message)}";
         }
-#endif
 
-        private void OnError(ErrorType type, byte* message, void* userdata)
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static void OnError(ErrorType type, byte* message, void* userdata)
         {
             ManaConsole.WriteDiagnostic($"[WebGPU] {type}: {ReadMessage(message)}");
         }
+#endif
 
 #if !MANA_BROWSER
         private static InstanceBackend ParseInstanceBackend(string? requestedBackend)

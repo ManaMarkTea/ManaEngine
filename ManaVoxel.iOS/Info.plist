@@ -22,6 +22,14 @@
 	<dict/>
 	<key>UIStatusBarHidden</key>
 	<true/>
+	<!-- ProMotion: the display link may run at 120 Hz. -->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<!-- The log (Artifacts/Logs) shows in the Files app, On My iPhone > Mana. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UIRequiresFullScreen</key>
 	<true/>
 	<key>UISupportedInterfaceOrientations</key>

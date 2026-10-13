@@ -38,7 +38,15 @@ namespace ManaGraphics.Code.Graphics
         // the userdata pointer, mirroring how RequestAdapterCallback/RequestDeviceCallback are already
         // rooted as fields in ManaWebGpuContext.Device.cs, just static here since this callback needs no
         // instance state of its own.
+#if MANA_BROWSER
         private static readonly BufferMapCallback OnBufferMappedThunk = OnBufferMapped;
+#else
+        // A static native entry point rather than a delegate: iOS's ahead-of-time code cannot call back into one.
+        private static readonly PfnBufferMapCallback OnBufferMappedThunk = new(&OnBufferMappedNative);
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly(CallConvs = new[] { typeof(System.Runtime.CompilerServices.CallConvCdecl) })]
+        private static void OnBufferMappedNative(BufferMapAsyncStatus status, void* userdata) => OnBufferMapped(status, userdata);
+#endif
 
         // Creates a MapRead|CopyDst staging buffer sized byteSize and encodes a copy from sourceBuffer
         // into it, into the CALLER's own (already-open) command encoder -- call this right after encoding

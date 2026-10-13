@@ -22,10 +22,37 @@
     <ImageAsset Include="Resources\Assets.xcassets\**" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- ManaVoxel is an executable too (the desktop editor); here it is only the game's code. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- Levels, prefabs, the Inspector and UiMarkup reach types by reflection and JSON. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+  </PropertyGroup>
+
   <ItemGroup>
-    <!-- Not Silk.NET.WebGPU.Native.WGPU: it carries desktop libraries only. The phone's comes from the xcframework below. -->
-    <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
+    <ProjectReference Include="..\ManaVoxel\ManaVoxel.csproj" />
+    <TrimmerRootAssembly Include="Mana" />
+    <TrimmerRootAssembly Include="ManaVoxel" />
+    <TrimmerRootAssembly Include="ManaUI" />
+    <TrimmerRootAssembly Include="ManaGraphics" />
   </ItemGroup>
+
+  <!-- What the game reads, in Game/ laid out as the repo is (the app runs with Game/ as its working folder): the
+       renderer's boot set and everything the bundled levels and prefabs refer to (Tools/Mobile/game_assets.py, about
+       70 MB), not the planet or the rest of the library. Listed at build time, so a new level brings its packs along. -->
+  <PropertyGroup>
+    <ManaPython Condition="'$(ManaPython)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">python</ManaPython>
+    <ManaPython Condition="'$(ManaPython)' == ''">python3</ManaPython>
+  </PropertyGroup>
+  <Target Name="ManaGameAssets" BeforeTargets="BeforeBuild">
+    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)../Tools/Mobile/game_assets.py&quot;" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" ItemName="_ManaGameAsset" />
+    </Exec>
+    <ItemGroup>
+      <BundleResource Include="$([System.String]::Copy('%(_ManaGameAsset.Identity)').Split('|')[0])" LogicalName="$([System.String]::Copy('%(_ManaGameAsset.Identity)').Split('|')[1])" />
+    </ItemGroup>
+  </Target>
 
   <!-- wgpu-native for iOS, built once on the Mac by Tools/Mobile/build-wgpu-ios.sh into a cache outside the repo. -->
   <PropertyGroup>

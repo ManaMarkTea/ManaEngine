@@ -20,8 +20,9 @@ namespace ManaCore.Diagnostics
         private static Logger? _logger;
 
         public static string DiagnosticLogPath { get; } =
-            Path.Combine(FindLogRoot(), "Artifacts", "Logs", "ManaGraphicsStartup.log");
+            Path.Combine(Environment.GetEnvironmentVariable("MANA_LOG_ROOT") ?? FindLogRoot(), "Artifacts", "Logs", "ManaGraphicsStartup.log");
 
+        // MANA_LOG_ROOT: where an app whose working folder is read-only (a phone's bundle) keeps its log.
         private static string FindLogRoot()
         {
             // Resolve the checkout even when dotnet run or the debugger starts in a project folder.

@@ -26,11 +26,6 @@ namespace ManaGraphics.Code.Graphics
         private readonly IWindow _window;
         private readonly IInputContext? _input;
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
-#if !MANA_BROWSER
-        private readonly RequestAdapterCallback _requestAdapterCallback;
-        private readonly RequestDeviceCallback _requestDeviceCallback;
-#endif
-        private readonly ErrorCallback _errorCallback;
         private readonly string? _requestedBackend;
 #if !MANA_BROWSER
         private readonly InstanceBackend _instanceBackend;
@@ -184,13 +179,8 @@ namespace ManaGraphics.Code.Graphics
 #if MANA_BROWSER
             _api = new WebGPU(new ManaBrowserWebGpuNativeContext());
 #else
-            _api = WebGPU.GetApi();
+            _api = ManaWebGpuNativeHost.Current?.CreateApi() ?? WebGPU.GetApi();
 #endif
-#if !MANA_BROWSER
-            _requestAdapterCallback = OnRequestAdapter;
-            _requestDeviceCallback = OnRequestDevice;
-#endif
-            _errorCallback = OnError;
 
             ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
 #if MANA_BROWSER
@@ -235,7 +225,9 @@ namespace ManaGraphics.Code.Graphics
             _surface = ManaBrowserWebGpuSurface.CreateFromCanvas(window, _api, _instance);
             Console.WriteLine($"[ManaWebGpuContext] CreateFromCanvas returned: {(nint)_surface:X}");
 #else
-            _surface = WebGPUSurface.CreateWebGPUSurface(window, _api, _instance);
+            _surface = ManaWebGpuNativeHost.Current is { } host
+                ? host.CreateSurface(_api, _instance)
+                : WebGPUSurface.CreateWebGPUSurface(window, _api, _instance);
 #endif
             if (_surface == null)
             {
@@ -272,7 +264,7 @@ namespace ManaGraphics.Code.Graphics
             }
 #endif
 #if !MANA_BROWSER
-            _api.DeviceSetUncapturedErrorCallback(_device, _errorCallback, null);
+            _api.DeviceSetUncapturedErrorCallback(_device, new PfnErrorCallback(&OnError), null);
 #else
             // Skipped in the browser build: this callback's delivery goes through the same
             // getWasmTableEntry-dependent dynCall path as the adapter/device request callbacks
