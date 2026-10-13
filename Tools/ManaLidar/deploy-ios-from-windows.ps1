@@ -13,7 +13,7 @@
     Connect via network).
 
     -Mac (or MANA_MAC) names a Mac instead, as user@host or just host; MANA_MAC_REPO if the checkout on the Mac is
-    not ~/Code/ManaRenderer.
+    not the one the script finds by itself.
 
 .EXAMPLE
     ./Tools/ManaLidar/deploy-ios-from-windows.ps1
@@ -22,7 +22,8 @@
 #>
 param(
     [string] $Mac = $env:MANA_MAC,
-    [string] $Repo = $(if ($env:MANA_MAC_REPO) { $env:MANA_MAC_REPO } else { "~/Code/ManaRenderer" }),
+    # The checkout on the Mac; found by itself (and remembered) when not given.
+    [string] $Repo = $env:MANA_MAC_REPO,
     [ValidateSet("Debug", "Release")] [string] $Configuration = "Release",
     # Signing needs the Mac's login keychain, which an SSH session finds locked ("errSecInternalComponent").
     # This asks for the Mac password and unlocks it for the build.
@@ -34,6 +35,7 @@ param(
 $ErrorActionPreference = "Stop"
 $settingsDir = Join-Path $env:LOCALAPPDATA "ManaRenderer"
 $userFile = Join-Path $settingsDir "mac-user.txt"
+$repoFile = Join-Path $settingsDir "mac-repo.txt"
 
 # ---------------------------------------------------------------- which Mac
 if (-not $Mac) {
@@ -80,6 +82,24 @@ if ($LASTEXITCODE -ne 0) {
         throw "Could not log in to $Mac. The account name or password was not right; the name will be asked again next run."
     }
 }
+
+# ---------------------------------------------------------------- where the checkout is on the Mac
+if (-not $Repo -and (Test-Path $repoFile)) {
+    $Repo = (Get-Content $repoFile -Raw).Trim()
+    ssh @sshOptions -o BatchMode=yes $Mac "test -d $Repo/ManaLidar.Core" 2>$null
+    if ($LASTEXITCODE -ne 0) { $Repo = "" }
+}
+if (-not $Repo) {
+    # Wherever it was cloned: the folder holding ManaLidar.Core, skipping ~/Library's caches.
+    $core = ssh @sshOptions -o BatchMode=yes $Mac 'find ~ -maxdepth 6 -type d -name ManaLidar.Core -not -path "*/Library/*" -not -path "*/.Trash/*" 2>/dev/null | head -1'
+    if (-not $core) {
+        throw "No ManaRenderer checkout found on the Mac. Clone it there, or pass -Repo ~/path/to/ManaRenderer."
+    }
+    $Repo = $core.Trim() -replace "/ManaLidar\.Core$", ""
+    New-Item -ItemType Directory -Force $settingsDir | Out-Null
+    Set-Content $repoFile $Repo
+}
+Write-Host "Checkout on the Mac: $Repo"
 
 # ---------------------------------------------------------------- what to build
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
