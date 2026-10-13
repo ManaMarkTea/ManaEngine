@@ -31,7 +31,9 @@ param(
     [string] $Device = $env:MANA_IOS_DEVICE,
     # Seconds of the app's own output (its log, a crash) to show after it launches.
     [int] $Console = 0,
-    # Unused: the keychain is now always unlocked with the password kept from the first run.
+    # Copies the signing identity into the Mac's deploy keychain again (a renewed certificate); asks the login password.
+    [switch] $ResetSigning,
+    # Unused: kept so older command lines still run.
     [switch] $UnlockKeychain,
     # Unused: the commit now goes straight to the Mac. Kept so older command lines still run.
     [switch] $Push
@@ -131,43 +133,36 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---------------------------------------------------------------- build and install, on the Mac
-# Signing needs the login keychain, which an SSH session finds locked (errSecInternalComponent). Its password is
-# asked once and kept encrypted for this Windows account only (DPAPI), then sent over stdin -- never on a command
-# line. Once, codesign is also let use the key without the click-to-allow dialog nobody is at the Mac to answer.
-$secretFile = Join-Path $settingsDir "mac-password.xml"
-if (Test-Path $secretFile) {
-    $secure = Import-Clixml $secretFile
-}
-else {
-    Write-Host "To sign the app over SSH the Mac's keychain must be unlocked. Your Mac login password is asked once and" -ForegroundColor Yellow
-    Write-Host "kept encrypted for your Windows account only ($secretFile)." -ForegroundColor Yellow
+# Signing needs a keychain an SSH session can unlock. The first run copies the signing identity into a keychain of
+# its own on the Mac (setup-mac-signing.sh), locked with a random password kept only there; every run after unlocks
+# that, so the Mac's login password is asked once, used once over stdin, and never stored.
+Remove-Item (Join-Path $settingsDir "mac-password.xml") -ErrorAction SilentlyContinue
+$signing = "~/.mana-deploy/signing"
+ssh @sshOptions -o BatchMode=yes $Mac "test -s $signing/password"
+if ($LASTEXITCODE -ne 0 -or $ResetSigning) {
+    Write-Host "Setting up signing on the Mac (once): your Mac login password unlocks the login keychain to copy the" -ForegroundColor Yellow
+    Write-Host "signing certificate into a keychain of its own. It is not kept anywhere." -ForegroundColor Yellow
     $secure = Read-Host "Mac login password" -AsSecureString
-    New-Item -ItemType Directory -Force $settingsDir | Out-Null
-    $secure | Export-Clixml $secretFile
+    $loginPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+    Get-Content -Raw (Join-Path $PSScriptRoot "setup-mac-signing.sh") | ssh @sshOptions -o BatchMode=yes $Mac "mkdir -p ~/.mana-deploy && tr -d '\r' > ~/.mana-deploy/setup-mac-signing.sh"
+    $loginPassword | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc 'bash ~/.mana-deploy/setup-mac-signing.sh'"
+    $setup = $LASTEXITCODE
+    $loginPassword = $null
+    if ($setup -ne 0) {
+        Write-Host "Setting up signing failed (exit $setup): was that the Mac's login password? Run again to retry." -ForegroundColor Yellow
+        exit 1
+    }
 }
-$password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
 
 # A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
-$keychain = "~/Library/Keychains/login.keychain-db"
-$steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain 2>~/.mana-deploy/unlock.err || exit 77; " +
-    # Best effort, once: it can report "passphrase not correct" over one odd item even with the right password,
-    # and signing works without it where Xcode already let codesign use the key.
-    "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null 2>&1; touch ~/.mana-deploy/.signing-ready; }; " +
-    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && APP=$App DEVICE=`"$Device`" CONSOLE=$(if ($Console -gt 0) { $Console } else { '' }) Tools/ManaLidar/deploy-ios.sh $Configuration"
-$password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
+$steps = "security unlock-keychain -p `"`$(cat $signing/password)`" $signing/mana-signing.keychain-db 2>~/.mana-deploy/unlock.err || exit 77; " +
+    "cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && APP=$App DEVICE=`"$Device`" CONSOLE=$(if ($Console -gt 0) { $Console } else { '' }) Tools/ManaLidar/deploy-ios.sh $Configuration"
+ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 $code = $LASTEXITCODE
-$password = $null
 
 if ($code -eq 77) {
-    # Only a refused passphrase means the stored one is wrong; anything else is kept and reported.
     $reason = (ssh @sshOptions -o BatchMode=yes $Mac "cat ~/.mana-deploy/unlock.err 2>/dev/null") -join " "
-    if ($reason -match "passphrase|password") {
-        Remove-Item $secretFile
-        Write-Host "The Mac did not accept the stored password ($reason). It was forgotten; the next run asks again." -ForegroundColor Yellow
-    }
-    else {
-        Write-Host "Unlocking the Mac's keychain failed: $reason" -ForegroundColor Yellow
-    }
+    Write-Host "Unlocking the signing keychain on the Mac failed: $reason. Run with -ResetSigning to set it up again." -ForegroundColor Yellow
     exit 1
 }
 if ($code -ne 0) {
