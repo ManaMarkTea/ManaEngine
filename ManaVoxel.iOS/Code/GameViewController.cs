@@ -84,10 +84,13 @@ public sealed class GameViewController : UIViewController
         {
             Text = $"Mana could not start:\n\n{ex}",
             TextColor = UIColor.White,
-            Font = UIFont.GetMonospacedSystemFont(11, UIFontWeight.Regular) ?? UIFont.SystemFontOfSize(11),
             Lines = 0,
             Frame = View!.Bounds.Inset(24, 48),
         };
+        if (UIFont.GetMonospacedSystemFont(11, UIFontWeight.Regular) is { } mono)
+        {
+            label.Font = mono;
+        }
         View.AddSubview(label);
     }
 

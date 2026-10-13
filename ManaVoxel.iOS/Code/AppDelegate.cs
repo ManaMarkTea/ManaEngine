@@ -3,8 +3,6 @@ namespace ManaVoxel.iOS;
 [Register("AppDelegate")]
 public sealed class AppDelegate : UIApplicationDelegate
 {
-    public override UIWindow? Window { get; set; }
-
     public static void Main(string[] args)
     {
         // The engine finds Content/ and Assets/ beside its working folder, as when run from the repo: the app carries
@@ -15,14 +13,28 @@ public sealed class AppDelegate : UIApplicationDelegate
         UIApplication.Main(args, null, typeof(AppDelegate));
     }
 
-    public override bool FinishedLaunching(UIApplication application, NSDictionary? launchOptions)
+    public override bool FinishedLaunching(UIApplication application, NSDictionary? launchOptions) => true;
+}
+
+/// <summary>The app's one window (iOS 26 makes every window belong to a scene; Info.plist names this class).</summary>
+[Register("SceneDelegate")]
+public sealed class SceneDelegate : UIResponder, IUIWindowSceneDelegate
+{
+    [Export("window")]
+    public UIWindow? Window { get; set; }
+
+    [Export("scene:willConnectToSession:options:")]
+    public void WillConnect(UIScene scene, UISceneSession session, UISceneConnectionOptions connectionOptions)
     {
-        Window = new UIWindow(UIScreen.MainScreen.Bounds)
+        if (scene is not UIWindowScene windowScene)
+        {
+            return;
+        }
+        Window = new UIWindow(windowScene)
         {
             RootViewController = new GameViewController(),
             OverrideUserInterfaceStyle = UIUserInterfaceStyle.Dark,
         };
         Window.MakeKeyAndVisible();
-        return true;
     }
 }

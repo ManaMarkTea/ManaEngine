@@ -58,11 +58,12 @@
     </ItemGroup>
   </Target>
 
-  <!-- The engine projects copy their whole Assets and Content folders beside a desktop build; the app carries
-       only its Game/ selection above. -->
+  <!-- The engine projects copy their whole Assets and Content folders beside a desktop build, and ManaVoxel brings
+       its desktop launcher (apphost, deps.json, runtimeconfig.json); the app carries only its Game/ selection above. -->
   <Target Name="ManaDropDesktopAssets" BeforeTargets="_ComputePublishLocation">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Assets')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Content'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)' == 'apphost' Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.deps.json')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.runtimeconfig.json'))" />
     </ItemGroup>
   </Target>
 

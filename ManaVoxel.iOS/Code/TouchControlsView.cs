@@ -236,10 +236,13 @@ public sealed class TouchControlsView : UIView
         {
             Text = label,
             TextColor = UIColor.White,
-            Font = UIFont.BoldSystemFontOfSize(15),
             TextAlignment = UITextAlignment.Center,
             AutoresizingMask = UIViewAutoresizing.FlexibleDimensions,
         };
+        if (UIFont.BoldSystemFontOfSize(15) is { } bold)
+        {
+            text.Font = bold;
+        }
         view.AddSubview(text);
         text.Frame = view.Bounds;
         return view;
