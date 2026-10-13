@@ -30,6 +30,8 @@ public sealed class ScanViewController : UIViewController
     private ScanBuilding? _building;
     private string? _buildingPath;
     private string? _notice;
+    private UIBarButtonItem _streamButton = null!;
+    private const string LastEditorKey = "LastStreamEditor";
 
     // How much more iOS will let this app have before it closes it: the number that matters on a phone.
     [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")]
@@ -42,6 +44,8 @@ public sealed class ScanViewController : UIViewController
         View!.BackgroundColor = UIColor.Black;
         NavigationItem.RightBarButtonItem = new UIBarButtonItem("Scans", UIBarButtonItemStyle.Plain,
             (_, _) => NavigationController?.PushViewController(new ScansViewController(), true));
+        _streamButton = new UIBarButtonItem("Stream", UIBarButtonItemStyle.Plain, (_, _) => ToggleStream());
+        NavigationItem.LeftBarButtonItem = _streamButton;
 
         _sceneView = new ARSCNView
         {
@@ -206,6 +210,7 @@ public sealed class ScanViewController : UIViewController
     {
         _sessionDelegate.Capturing = false;
         _recording.Clear();
+        _sessionDelegate.Stream?.SendClear();
         _sessionDelegate.ClearOverlay();
         // A reset starts a new coordinate frame, so later rooms could no longer line up with the building's.
         _building = null;
@@ -387,6 +392,76 @@ public sealed class ScanViewController : UIViewController
         ScanFiles.Share(this, path, _exportButton);
     }
 
+    // ---------------------------------------------------------------- streaming to the editor
+
+    private async void ToggleStream()
+    {
+        if (_sessionDelegate.Stream is { Failure: null } current)
+        {
+            _sessionDelegate.Stream = null;
+            current.Dispose();
+            UpdateUi();
+            return;
+        }
+
+        _streamButton.Enabled = false;
+        var found = await ScanStreamBrowser.FindAsync();
+        _streamButton.Enabled = true;
+
+        var sheet = UIAlertController.Create("Stream to Mana",
+            found.Count == 0
+                ? "No editor found. On the PC: Panels > Live Scan > Receive from the phone, on the same Wi-Fi. Or enter its address."
+                : "Pick the editor to stream to. The scan appears there as you walk.",
+            UIAlertControllerStyle.ActionSheet);
+        foreach (var editor in found)
+        {
+            sheet.AddAction(UIAlertAction.Create(editor.Name, UIAlertActionStyle.Default,
+                _ => Connect(editor.Name, editor.Host, editor.Port)));
+        }
+        sheet.AddAction(UIAlertAction.Create("Enter address...", UIAlertActionStyle.Default, _ => AskAddress()));
+        sheet.AddAction(UIAlertAction.Create("Cancel", UIAlertActionStyle.Cancel, null));
+        if (sheet.PopoverPresentationController is { } popover)
+        {
+            popover.BarButtonItem = _streamButton;
+        }
+        PresentViewController(sheet, true, null);
+    }
+
+    private void AskAddress()
+    {
+        var alert = UIAlertController.Create("Editor address", "As the Live Scan panel shows it, e.g. 192.168.1.20:47800.",
+            UIAlertControllerStyle.Alert);
+        alert.AddTextField(field =>
+        {
+            field.Text = NSUserDefaults.StandardUserDefaults.StringForKey(LastEditorKey) ?? string.Empty;
+            field.KeyboardType = UIKeyboardType.NumbersAndPunctuation;
+        });
+        alert.AddAction(UIAlertAction.Create("Cancel", UIAlertActionStyle.Cancel, null));
+        alert.AddAction(UIAlertAction.Create("Connect", UIAlertActionStyle.Default, _ =>
+        {
+            var text = alert.TextFields?.FirstOrDefault()?.Text?.Trim() ?? string.Empty;
+            var parts = text.Split(':');
+            var port = parts.Length > 1 && int.TryParse(parts[1], out var p) ? p : ScanStream.Port;
+            if (parts[0].Length > 0)
+            {
+                NSUserDefaults.StandardUserDefaults.SetString(text, LastEditorKey);
+                Connect(parts[0], parts[0], port);
+            }
+        }));
+        PresentViewController(alert, true, null);
+    }
+
+    private void Connect(string name, string host, int port)
+    {
+        var stream = new ScanStreamClient(name, host, port, UIDevice.CurrentDevice.Name, EncodeJpeg);
+        // An editor joining part-way gets everything scanned so far, then follows along.
+        var (pieces, keyframes) = _recording.Snapshot();
+        stream.SendAll(pieces, keyframes);
+        _sessionDelegate.Stream?.Dispose();
+        _sessionDelegate.Stream = stream;
+        UpdateUi();
+    }
+
     // JPEG keeps a 4K photo texture to a few MB; Core's own PNG would be several times that.
     private static byte[] EncodeJpeg(int width, int height, byte[] rgb)
     {
@@ -428,6 +503,15 @@ public sealed class ScanViewController : UIViewController
         {
             lines.Add($"{triangles:N0} triangles  Â·  {_recording.KeyframeCount} photos");
         }
+        if (_sessionDelegate.Stream is { } stream)
+        {
+            lines.Add(stream.Failure != null
+                ? $"Streaming stopped: {stream.Failure}"
+                : stream.Connected
+                    ? $"Streaming to {stream.Name}  ·  {Megabytes(stream.BytesSent)} sent"
+                    : $"Connecting to {stream.Name}...");
+        }
+        _streamButton.Title = _sessionDelegate.Stream is { Failure: null } ? "Stop" : "Stream";
         var held = _recording.EstimatedBytes + (_building?.EstimatedBytes ?? 0);
         if (held > 0)
         {

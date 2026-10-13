@@ -69,6 +69,10 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
     /// <summary>Set by the controller: photos are only worth keeping while a scan is running.</summary>
     public volatile bool Capturing;
 
+    /// <summary>The editor the scan streams to, while one is connected; everything below is sent on to it too.</summary>
+    public volatile ScanStreamClient? Stream;
+    private double _lastPoseSent;
+
     /// <summary>Size of the photos kept from now on; each keyframe remembers its own, so this can change mid-scan.</summary>
     public (int Width, int Height) PhotoSize = ScanDetailSettings.PhotoSize(ScanDetail.Standard);
 
@@ -100,9 +104,16 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
                 return;
             }
             var pose = ArkitConvert.ToNumerics(camera.Transform);
+            // Ten times a second is plenty to show where the phone is.
+            if (Stream is { } stream && frame.Timestamp - _lastPoseSent >= 0.1)
+            {
+                _lastPoseSent = frame.Timestamp;
+                stream.SendPose(pose, frame.Timestamp);
+            }
             if (_recording.WantsKeyframe(pose, frame.Timestamp) && ArkitConvert.CaptureKeyframe(frame, PhotoSize.Width, PhotoSize.Height) is { } keyframe)
             {
                 _recording.AddKeyframe(keyframe);
+                Stream?.SendKeyframe(keyframe);
                 RecolourFor(keyframe);
             }
         }
@@ -121,6 +132,12 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
                 var id = new Guid(anchor.Identifier.GetBytes());
                 _recording.RemovePiece(id);
                 _coverage.Remove(id);
+                // A finished room's anchors go when the next room starts, but the room stays in the building --
+                // and in the editor.
+                if (!_finishedAnchors.Contains(id))
+                {
+                    Stream?.SendRemove(id);
+                }
                 if (_overlayNodes.Remove(id, out var node))
                 {
                     node.RemoveFromParentNode();
@@ -186,6 +203,7 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
         foreach (var piece in updates)
         {
             _recording.SetPiece(piece);
+            Stream?.SendPiece(piece);
         }
         // A changed mesh is scored afresh against every photo; its vertices are not the ones it had.
         var keyframes = _recording.Snapshot().Keyframes;

@@ -20,6 +20,13 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>ManaLidar uses the camera and LiDAR to scan rooms into 3D models.</string>
+	<!-- Streaming a scan to a Mana editor on the same Wi-Fi: finding it (Bonjour) and connecting to it. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ManaLidar streams your scan to the Mana editor on your computer as you walk.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_manascan._tcp</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
