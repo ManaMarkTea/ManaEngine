@@ -144,7 +144,8 @@ namespace ManaGraphics.Code.Graphics
                 };
             }
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            // Every Apple platform has only Metal: a Vulkan instance cannot make a surface on the phone's CAMetalLayer.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst())
             {
                 return InstanceBackend.Metal;
             }
