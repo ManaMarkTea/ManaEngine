@@ -192,6 +192,13 @@ namespace Mana.Code.UI.ManaUi
                 yield return bundled;
             }
 
+            // Beside the working folder too, as the other assets are: the phone apps carry theirs in Game/.
+            var working = Path.Combine(Environment.CurrentDirectory, "Assets", "Fonts");
+            if (Directory.Exists(working) && !string.Equals(Path.GetFullPath(working), Path.GetFullPath(bundled), StringComparison.OrdinalIgnoreCase))
+            {
+                yield return working;
+            }
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 yield return Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
