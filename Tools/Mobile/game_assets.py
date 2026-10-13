@@ -42,6 +42,9 @@ def main():
     for shader in sorted((ROOT / "ManaGraphics/Assets/Shaders/WebGpu").rglob("*.wgsl")):
         files["Assets/Shaders/WebGpu/" + shader.relative_to(ROOT / "ManaGraphics/Assets/Shaders/WebGpu").as_posix()] = shader
     content = [p for p in sorted((ROOT / "Content").rglob("*")) if p.suffix in CONTENT_KINDS and "Tests" not in p.parts]
+    # The start screen's level pictures.
+    for picture in sorted((ROOT / "Content/Levels/Pictures").glob("*.jpg")):
+        files["Content/Levels/Pictures/" + picture.name] = picture
     for document in content:
         files["Content/" + document.relative_to(ROOT / "Content").as_posix()] = document
         text = document.read_text(encoding="utf-8-sig")

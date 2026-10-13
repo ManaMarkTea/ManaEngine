@@ -11,6 +11,9 @@ namespace ManaCore.Graphics
         /// </summary>
         public string? PlayLevelPath { get; private init; }
 
+        /// <summary>Set by <c>--play-menu</c>: the game opening on its start screen of levels, as the phone app does.</summary>
+        public bool PlayMenu { get; private init; }
+
         /// <summary>Set by <c>--level &lt;level&gt;</c>: start the editor with that level already open.</summary>
         public string? EditLevelPath { get; private init; }
 
@@ -31,6 +34,7 @@ namespace ManaCore.Graphics
             string? editLevelPath = null;
             string? commandFilePath = null;
             var precacheThumbnails = false;
+            var playMenu = false;
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -67,6 +71,12 @@ namespace ManaCore.Graphics
                     continue;
                 }
 
+                if (arg.Equals("--play-menu", StringComparison.OrdinalIgnoreCase))
+                {
+                    playMenu = true;
+                    continue;
+                }
+
                 if (arg.Equals("--precache-thumbnails", StringComparison.OrdinalIgnoreCase))
                 {
                     precacheThumbnails = true;
@@ -86,7 +96,8 @@ namespace ManaCore.Graphics
                 PlayLevelPath = string.IsNullOrWhiteSpace(playLevelPath) ? null : playLevelPath,
                 EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath,
                 CommandFilePath = string.IsNullOrWhiteSpace(commandFilePath) ? null : commandFilePath,
-                PrecacheThumbnails = precacheThumbnails
+                PrecacheThumbnails = precacheThumbnails,
+                PlayMenu = playMenu
             };
         }
 

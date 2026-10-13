@@ -15,9 +15,6 @@ namespace ManaVoxel.iOS;
 /// </summary>
 public sealed class GameViewController : UIViewController
 {
-    // Until the app has a level selector: the one the desktop's --play opens by default.
-    private const string LevelPath = "Content/Levels/Sample Course.manalevel";
-
     private readonly IosInput _input = new();
     private IosWindow? _window;
     private TouchControlsView? _controls;
@@ -69,7 +66,18 @@ public sealed class GameViewController : UIViewController
         try
         {
             ManaWebGpuNativeHost.Current = new IosWebGpuHost(_window, _input, (CAMetalLayer)View!.Layer);
-            _game = new VoxelPlayGameMode(LevelPath, ManaGraphicsBackendKind.WebGpu) { CommandFilePath = CommandScript() };
+            // Opens on the start screen of levels; the pause button in play goes back to it.
+            _game = new VoxelPlayGameMode(null, ManaGraphicsBackendKind.WebGpu)
+            {
+                OffersLevelSelect = true,
+                SafeArea = () => new ManaUI.Thickness((float)View!.SafeAreaInsets.Left, (float)View.SafeAreaInsets.Top,
+                    (float)View.SafeAreaInsets.Right, (float)View.SafeAreaInsets.Bottom),
+                ControlsHint = "left thumb to move, drag to look, Jump / Run / Cam",
+                CommandFilePath = CommandScript(),
+            };
+            var game = _game;
+            _controls!.GameControls = () => !game.IsLevelSelectOpen && !game.IsPaused && !game.IsLoading;
+            _window.Render += _ => _controls.Refresh();
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");
         }

@@ -35,9 +35,13 @@ namespace Mana
 #endif
 
                 // --play skips the editor entirely: same executable, but the game rather than the tool.
-                if (launchOptions.PlayLevelPath is { } playLevelPath)
+                if (launchOptions.PlayLevelPath != null || launchOptions.PlayMenu)
                 {
-                    var play = new VoxelPlayGameMode(playLevelPath, backendKind) { CommandFilePath = launchOptions.CommandFilePath };
+                    var play = new VoxelPlayGameMode(launchOptions.PlayLevelPath, backendKind)
+                    {
+                        CommandFilePath = launchOptions.CommandFilePath,
+                        OffersLevelSelect = launchOptions.PlayMenu
+                    };
 #if !MANA_BROWSER
                     if (backendKind == ManaGraphicsBackendKind.WebGpu)
                     {

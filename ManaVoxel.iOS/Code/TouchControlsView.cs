@@ -21,6 +21,15 @@ public sealed class TouchControlsView : UIView
     private readonly CAShapeLayer _stickKnob = Circle(26, 0.35f, 0.6f);
     private readonly (string Label, Key Key, UIView View)[] _buttons;
 
+    /// <summary>
+    /// False while a menu is up (the start screen, the pause panel): the stick and buttons hide, a tap clicks and a
+    /// drag scrolls, as a finger does on any list.
+    /// </summary>
+    public Func<bool> GameControls { get; set; } = () => true;
+
+    // ManaUI scrolls 48 points a wheel notch (ScrollViewer.WheelStep).
+    private const float PointsPerNotch = 48.0f;
+
     private sealed class Finger
     {
         public required string Kind;
@@ -28,6 +37,7 @@ public sealed class TouchControlsView : UIView
         public double StartTime;
         public bool Moved;
         public Key Key;
+        public CGPoint Last;
     }
 
     public TouchControlsView(IosInput input)
@@ -69,8 +79,16 @@ public sealed class TouchControlsView : UIView
         foreach (UITouch touch in touches)
         {
             var at = touch.LocationInView(this);
-            var finger = new Finger { Kind = "look", Start = at, StartTime = touch.Timestamp };
-            if (ButtonAt(at) is { } button)
+            var finger = new Finger { Kind = "look", Start = at, Last = at, StartTime = touch.Timestamp };
+            if (!GameControls())
+            {
+                finger.Kind = _fingers.Values.Any(f => f.Kind == "menu") ? "ignored" : "menu";
+                if (finger.Kind == "menu")
+                {
+                    _input.Mouse.Move(ToVector(at));
+                }
+            }
+            else if (ButtonAt(at) is { } button)
             {
                 finger.Kind = "key";
                 finger.Key = button.Key;
@@ -103,7 +121,20 @@ public sealed class TouchControlsView : UIView
                 continue;
             }
             var at = touch.LocationInView(this);
-            if (finger.Kind == "stick")
+            if (finger.Kind == "menu")
+            {
+                if (!finger.Moved && Distance(at, finger.Start) > TapSlop)
+                {
+                    finger.Moved = true;
+                }
+                if (finger.Moved)
+                {
+                    // Content follows the finger: dragging up scrolls down the list.
+                    _input.Mouse.Wheel(0, (float)(at.Y - finger.Last.Y) / PointsPerNotch);
+                }
+                finger.Last = at;
+            }
+            else if (finger.Kind == "stick")
             {
                 var dx = (float)(at.X - finger.Start.X);
                 var dy = (float)(at.Y - finger.Start.Y);
@@ -146,6 +177,13 @@ public sealed class TouchControlsView : UIView
             }
             switch (finger.Kind)
             {
+                case "menu":
+                    if (!finger.Moved)
+                    {
+                        _input.Mouse.Down(MouseButton.Left);
+                        _input.Mouse.Up(MouseButton.Left);
+                    }
+                    break;
                 case "key":
                     _input.Keyboard.Set(finger.Key, false);
                     foreach (var button in _buttons.Where(b => b.Key == finger.Key))
@@ -174,6 +212,20 @@ public sealed class TouchControlsView : UIView
                     }
                     break;
             }
+        }
+    }
+
+    /// <summary>Shows or hides the game's buttons as menus come and go; the window calls it every frame.</summary>
+    public void Refresh()
+    {
+        var visible = GameControls();
+        foreach (var (_, _, view) in _buttons)
+        {
+            view.Hidden = !visible;
+        }
+        if (!visible && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look"))
+        {
+            Reset();
         }
     }
 

@@ -93,9 +93,12 @@ namespace ManaVoxel.Code.UI.ManaUi
     {
         public static UiElement Build(UiTheme theme, Func<string> status, Func<string>? gameplay = null, UiElement? results = null, UiElement? death = null)
         {
+            // Wrapped and centred, inside side margins: a phone held upright is narrower than either line.
             var text = new TextBlock()
                 .FontSize(theme.FontSize)
                 .Foreground(new Vector4(0.94f, 0.96f, 1.0f, 0.92f))
+                .Wrap()
+                .Align(TextAlignment.Center)
                 .CenterH();
 
             text.BindPolled(t => t.Text, status);
@@ -106,7 +109,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Outline(new Vector4(1.0f, 1.0f, 1.0f, 0.10f))
                 .PaddingOf(14.0f, 8.0f)
                 .Content(text)
-                .Margin(0.0f, 0.0f, 0.0f, 22.0f)
+                .Margin(12.0f, 0.0f, 12.0f, 22.0f)
                 .CenterH()
                 .Bottom();
 
@@ -122,6 +125,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             var scoreText = new TextBlock()
                 .FontSize(theme.FontSize + 3.0f)
                 .Foreground(new Vector4(1.0f, 0.97f, 0.82f, 0.96f))
+                .Wrap()
+                .Align(TextAlignment.Center)
                 .CenterH();
             scoreText.BindPolled(t => t.Text, gameplay);
 
@@ -131,7 +136,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Outline(new Vector4(1.0f, 1.0f, 1.0f, 0.10f))
                 .PaddingOf(16.0f, 8.0f)
                 .Content(scoreText)
-                .Margin(0.0f, 18.0f, 0.0f, 0.0f)
+                .Margin(12.0f, 18.0f, 12.0f, 0.0f)
                 .CenterH()
                 .Top();
             scorePill.IsHitTestVisible = false;

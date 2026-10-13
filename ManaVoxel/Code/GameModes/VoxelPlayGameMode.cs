@@ -30,7 +30,7 @@ namespace Mana.Code.GameModes
         // room floor ended partway along the Sample Course, and the player fell off its edge.
         private const float GroundSize = 4096.0f;
 
-        private readonly string _levelPath;
+        private string? _levelPath;
         private readonly CharacterSpawnService _characterSpawn = new();
         private readonly PlayHudState _hud = new();
 
@@ -48,7 +48,8 @@ namespace Mana.Code.GameModes
         private PlanetNode? _planet;
 #endif
 
-        public VoxelPlayGameMode(string levelPath, ManaGraphicsBackendKind graphicsBackend)
+        /// <param name="levelPath">The level to play, or null to open on the level select (<see cref="OffersLevelSelect"/>).</param>
+        public VoxelPlayGameMode(string? levelPath, ManaGraphicsBackendKind graphicsBackend)
             : base(graphicsBackend)
         {
             _levelPath = levelPath;
@@ -60,6 +61,32 @@ namespace Mana.Code.GameModes
 
         protected override string? WindowIconPath =>
             Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
+
+        /// <summary>
+        /// A play-only app (the phone): a start screen of the published levels, and a pause button in play that goes
+        /// back to it. Off for <c>--play</c>, which plays its one level and quits.
+        /// </summary>
+        public bool OffersLevelSelect { get; set; }
+
+        /// <summary>
+        /// The screen's edges the HUD keeps clear of, in UI points -- a phone's notch or Dynamic Island and home bar.
+        /// Null on a desktop window, which has none.
+        /// </summary>
+        public Func<Thickness>? SafeArea { get; set; }
+
+        /// <summary>The start screen is up: a phone hides its game controls.</summary>
+        public bool IsLevelSelectOpen => _levelSelectOpen;
+
+        /// <summary>The pause panel is up; nothing in the world moves.</summary>
+        public bool IsPaused => _paused;
+
+        private bool _levelSelectOpen;
+        private bool _paused;
+        private string? _pendingLevel;
+        private int _pendingFrames;
+
+        /// <summary>How to play, under the character's name at the bottom; a phone describes its touch controls instead.</summary>
+        public string ControlsHint { get; set; } = "WASD move, Shift run, Space jump (again in mid-air to double jump), C camera, R restart, Esc quit";
 
         /// <summary>Set by <c>--command-file</c>: a script drives the run (screenshots, waits, a game mode's own commands).</summary>
         public string? CommandFilePath { get; set; }
@@ -74,7 +101,14 @@ namespace Mana.Code.GameModes
                 requestedBackend,
                 () => Context.World.CreateRenderScene(),
                 (window, input) => LoadForGraphicsBackend(window, input, new ManaWebGpuGraphicsDevice(requestedBackend)),
-                deltaTime => update(deltaTime),
+                // Paused: the scene still draws and the menu still works, but nothing moves or counts down.
+                deltaTime =>
+                {
+                    if (!_paused)
+                    {
+                        update(deltaTime);
+                    }
+                },
                 deltaTime => Render(deltaTime),
                 (webGpuContext, input) =>
                 {
@@ -108,9 +142,24 @@ namespace Mana.Code.GameModes
             // The level's game modes draw their own HUDs over it, and may hide it (see ManaLevelGameMode.ShowsPlayHud).
             _gameModes.UseTheme(host.Root.Theme);
             playHud.BindPolled(el => el.Visibility, () => _gameModes.ShowsPlayHud ? Visibility.Visible : Visibility.Collapsed);
+            // Inside the safe area, so nothing sits under a phone's notch or home bar.
+            var hud = new Grid();
+            hud.Children.Add(playHud);
+            hud.Children.Add(_gameModes.HudLayer);
+            if (SafeArea is { } safeArea)
+            {
+                hud.BindPolled(el => el.Margin, safeArea);
+            }
             var layer = new Grid();
-            layer.Children.Add(playHud);
-            layer.Children.Add(_gameModes.HudLayer);
+            layer.Children.Add(hud);
+            if (OffersLevelSelect)
+            {
+                var theme = host.Root.Theme;
+                hud.Children.Add(ManaUiPlayMenus.Pause(theme, () => _levelPath != null && _pendingLevel == null && !_levelSelectOpen && !IsLoading, () => _paused,
+                    () => _paused = true, () => _paused = false, () => { _paused = false; Restart(); }, ShowLevelSelect));
+                layer.Children.Add(ManaUiPlayMenus.LevelSelect(theme, ManaPlayableLevels.List(), level => ChooseLevel(level.Path),
+                    () => _levelSelectOpen && _pendingLevel == null, SafeArea));
+            }
             host.Root.Content = layer;
         }
 
@@ -175,8 +224,11 @@ namespace Mana.Code.GameModes
                         new Vector3(GroundSize, GroundThickness, GroundSize),
                         new Vector3(GroundSize * 0.5f, -GroundThickness * 0.5f, GroundSize * 0.5f));
 
-                    Loading.Report(new ManaLoadingProgress($"Loading {Path.GetFileName(_levelPath)}", 0.6f));
-                    LoadLevel();
+                    if (_levelPath != null)
+                    {
+                        Loading.Report(new ManaLoadingProgress($"Loading {Path.GetFileName(_levelPath)}", 0.6f));
+                        LoadLevel();
+                    }
 
                     LoadingCoordinator.CompleteBackgroundWork();
                 }
@@ -190,7 +242,7 @@ namespace Mana.Code.GameModes
 
         private void LoadLevel()
         {
-            if (!File.Exists(_levelPath))
+            if (_levelPath == null || !File.Exists(_levelPath))
             {
                 _hud.Text = $"Level '{Path.GetFileName(_levelPath)}' does not exist.";
                 return;
@@ -230,6 +282,18 @@ namespace Mana.Code.GameModes
         /// physics scene that has to already contain the ground it lands on.
         /// </summary>
         protected override void OnLoadingComplete()
+        {
+            if (_levelPath == null)
+            {
+                _levelSelectOpen = true;
+                _hud.Text = string.Empty;
+                return;
+            }
+            StartPlay();
+        }
+
+        /// <summary>The loaded level's play: its character (when a mode asks for one), its components and its modes.</summary>
+        private void StartPlay()
         {
             var start = ManaPlayerStartNode.Find(Context.World);
             if (start != null)
@@ -286,7 +350,7 @@ namespace Mana.Code.GameModes
             Context.World.BeginPlay();
             BeginModes(modes);
 
-            _hud.Text = $"{_player.Name}  --  WASD move, Shift run, Space jump (again in mid-air to double jump), C camera, R restart, Esc quit";
+            _hud.Text = $"{_player.Name}  --  {ControlsHint}";
         }
 
         private void BeginModes(List<ManaLevelGameMode> modes)
@@ -324,6 +388,9 @@ namespace Mana.Code.GameModes
                 Context,
                 _webGpuContext == null ? null : _webGpuContext.CaptureFrameAsync,
                 _webGpuContext == null ? null : _webGpuContext.DumpEnvironmentFaces);
+            // The start screen's two ways round, for scripts: play a level, back to the list.
+            _commandRunner.Register("open_level", command => ChooseLevel(Mana.Code.Automation.ManaCommandRunner.RequirePath(command)));
+            _commandRunner.Register("levels", _ => ShowLevelSelect());
         }
 
         public override void Closing()
@@ -332,8 +399,102 @@ namespace Mana.Code.GameModes
             base.Closing();
         }
 
+        /// <summary>Plays another level: the start screen's pick. Loaded a frame later, once "Loading" is on screen.</summary>
+        public void ChooseLevel(string path)
+        {
+            _pendingLevel = path;
+            _pendingFrames = 0;
+            _levelSelectOpen = false;
+            _paused = false;
+            _hud.Text = $"Loading {Path.GetFileNameWithoutExtension(path)}...";
+        }
+
+        /// <summary>Leaves the level for the start screen.</summary>
+        public void ShowLevelSelect()
+        {
+            _paused = false;
+            UnloadLevel();
+            _levelSelectOpen = true;
+        }
+
+        private void LoadPendingLevel()
+        {
+            var path = _pendingLevel!;
+            _pendingLevel = null;
+            UnloadLevel();
+            _levelPath = path;
+            try
+            {
+                LoadLevel();
+                StartPlay();
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError($"Could not play {path}: {exception}");
+                UnloadLevel();
+                _levelSelectOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// Takes the level out of the world -- its modes, its character, everything it placed -- leaving the ground,
+        /// so another can load in its place without rebuilding the renderer.
+        /// </summary>
+        private void UnloadLevel()
+        {
+            _gameModes.End();
+            Context.World.EndPlay();
+            if (_player is { } player)
+            {
+                lock (Context.World.SceneLock)
+                {
+                    player.DisablePhysics();
+                    player.Parent?.RemoveChild(player);
+                    // The character came in its own glTF scene; an empty one left behind would pile up level after level.
+                    for (var i = Context.World.Scenes.Count - 1; i >= 0; i--)
+                    {
+                        var scene = Context.World.Scenes[i];
+                        if (scene.Children.Remove(player) && !ReferenceEquals(scene, Context.World.DefaultScene) && scene.Children.Count == 0)
+                        {
+                            Context.World.Scenes.RemoveAt(i);
+                        }
+                    }
+                }
+                _pawnController?.Unregister(player);
+            }
+            _player = null;
+            Context.World.GameState.Player = null;
+            ManaLevelLoader.RemoveAuthoredNodes(Context, _ground);
+            lock (Context.World.SceneLock)
+            {
+                foreach (var scene in Context.World.Scenes)
+                {
+                    scene.GameModes.Clear();
+                }
+            }
+#if !MANA_BROWSER
+            _planet = null;
+#endif
+            if (_ground != null)
+            {
+                foreach (var renderer in _ground.GetComponents<MeshRendererComponent>())
+                {
+                    renderer.IsVisible = true;
+                }
+            }
+            _levelPath = null;
+            _hud.Text = string.Empty;
+        }
+
         public override void Update(double deltaTime)
         {
+            // Two frames: the one that drew "Loading", then the load.
+            if (_pendingLevel != null && ++_pendingFrames > 2)
+            {
+                LoadPendingLevel();
+                return;
+            }
+
             EnsureCommandRunner();
             _commandRunner?.Tick();
             _gameModes.Tick((float)deltaTime);
