@@ -167,13 +167,15 @@ uncommitted changes are not sent. No GitHub is involved, and the Mac's own check
 in it) is never touched. On the Mac itself: `Tools/ManaLidar/deploy-ios.sh [Debug|Release]`, and
 `Tools/ManaLidar/deploy-android.sh` for the Android app.
 
-- **One-time setup, already done on this PC:** the Mac account name is kept in `%LOCALAPPDATA%\ManaRenderer\mac-user.txt`,
-  this PC's SSH key is installed on the Mac, and the Mac's login password is in `mac-password.xml` beside it
-  (DPAPI-encrypted for this Windows account), sent over stdin each run to unlock the signing keychain. A fresh
-  machine is asked for both once; deleting a file makes it ask again.
+- **One-time setup:** the Mac account name is kept in `%LOCALAPPDATA%\ManaRenderer\mac-user.txt` and this PC's SSH
+  key is installed on the Mac. Signing uses a keychain of its own on the Mac (`~/.mana-deploy/signing/`, made by
+  `setup-mac-signing.sh` on the first deploy, which asks the Mac's login password once to copy the signing identity
+  out of the login keychain); its random password never leaves the Mac. `-ResetSigning` redoes it (a renewed
+  certificate). `-App ManaVoxel.iOS` deploys the engine app instead of ManaLidar, `-Device` picks an iPhone or iPad,
+  `-Console 60` prints a minute of the app's own output after launch.
 - **Why each piece is there:** an SSH session finds the Mac's login keychain locked, which breaks both codesign
-  (`errSecInternalComponent`) and Git's GitHub login (`-25308`) -- hence the unlock, and pushing straight to the Mac
-  instead of pulling. Commands run in `zsh -lc` or `dotnet`/`git-lfs` are not on the PATH. A push into a checked-out
+  (`errSecInternalComponent`) and Git's GitHub login (`-25308`) -- hence the signing keychain, and pushing straight
+  to the Mac instead of pulling. Commands run in `zsh -lc` or `dotnet`/`git-lfs` are not on the PATH. A push into a checked-out
   branch is refused, hence `incoming` and the detached build.
 - **iOS ahead-of-time code is not the desktop's:** the iPhone build got `Vector2` arithmetic wrong (V shifted, U
   right), tearing textures until `ScanAtlas`/`ScanTextureBaker`/measure snapping moved to plain floats. Code that
