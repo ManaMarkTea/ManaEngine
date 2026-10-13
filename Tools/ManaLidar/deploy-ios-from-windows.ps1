@@ -143,7 +143,7 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropS
 
 # A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
 $keychain = "~/Library/Keychains/login.keychain-db"
-$steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain || exit 77; " +
+$steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain 2>~/.mana-deploy/unlock.err || exit 77; " +
     # Best effort, once: it can report "passphrase not correct" over one odd item even with the right password,
     # and signing works without it where Xcode already let codesign use the key.
     "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null 2>&1; touch ~/.mana-deploy/.signing-ready; }; " +
@@ -153,8 +153,15 @@ $code = $LASTEXITCODE
 $password = $null
 
 if ($code -eq 77) {
-    Remove-Item $secretFile
-    Write-Host "The Mac did not accept that password, so it was not kept; the next run asks again." -ForegroundColor Yellow
+    # Only a refused passphrase means the stored one is wrong; anything else is kept and reported.
+    $reason = (ssh @sshOptions -o BatchMode=yes $Mac "cat ~/.mana-deploy/unlock.err 2>/dev/null") -join " "
+    if ($reason -match "passphrase|password") {
+        Remove-Item $secretFile
+        Write-Host "The Mac did not accept the stored password ($reason). It was forgotten; the next run asks again." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Unlocking the Mac's keychain failed: $reason" -ForegroundColor Yellow
+    }
     exit 1
 }
 if ($code -ne 0) {
