@@ -95,7 +95,8 @@ public sealed class LiveScanServer : IDisposable
             {
                 return;
             }
-            Interlocked.Exchange(ref _client, client)?.Dispose();
+            // Not the phone yet: a phone searching for editors knocks on this port and leaves, and that must not
+            // cut off one already streaming. A connection takes over once it says hello.
             _ = Task.Run(() => ReadLoop(client));
         }
     }
@@ -110,10 +111,19 @@ public sealed class LiveScanServer : IDisposable
             {
                 if (message is ScanHello hello)
                 {
+                    var previous = Interlocked.Exchange(ref _client, client);
+                    if (previous != null && !ReferenceEquals(previous, client))
+                    {
+                        previous.Dispose();
+                    }
                     Phone = hello.Device;
                     ManaLog.WriteDiagnostic($"[LiveScan] {hello.Device} connected.");
                 }
-                Received.Enqueue(message);
+                // Only the phone that said hello last is listened to.
+                if (ReferenceEquals(Volatile.Read(ref _client), client))
+                {
+                    Received.Enqueue(message);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException or SocketException)

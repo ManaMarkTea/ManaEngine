@@ -219,6 +219,66 @@ public static class ScanStreamBrowser
     /// <summary>An editor: its name, and the address to connect to (an IP when Bonjour gave one, else the host name).</summary>
     public sealed record Found(string Name, string Host, int Port);
 
+    /// <summary>How many editors Bonjour saw on the last search, before resolving: tells "nothing answered" from
+    /// "answered but could not be resolved".</summary>
+    public static int LastBrowsed { get; private set; }
+
+    /// <summary>
+    /// Bonjour and a sweep of this phone's own network at once, merged by address: Bonjour gives names, the sweep finds
+    /// an editor even where Bonjour does not get through. Call on the main thread.
+    /// </summary>
+    public static async Task<IReadOnlyList<Found>> FindEverywhereAsync(double seconds = 3.0)
+    {
+        var bonjour = FindAsync(seconds);
+        var sweep = SweepAsync(ScanStream.Port, TimeSpan.FromMilliseconds(600));
+        var found = new List<Found>(await bonjour);
+        foreach (var direct in await sweep)
+        {
+            if (!found.Any(f => f.Host == direct.Host))
+            {
+                found.Add(direct);
+            }
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// Knocks on <paramref name="port"/> at every address of this phone's own network (a /24), all at once. A Mana
+    /// editor that is receiving answers; the knock connects and leaves without a hello, which the editor ignores.
+    /// </summary>
+    public static async Task<IReadOnlyList<Found>> SweepAsync(int port, TimeSpan timeout)
+    {
+        var mine = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+            .Where(a => a.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+            .SelectMany(a => a.GetIPProperties().UnicastAddresses)
+            .Select(u => u.Address)
+            .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                && !System.Net.IPAddress.IsLoopback(a) && !a.ToString().StartsWith("169.254."));
+        if (mine == null)
+        {
+            return Array.Empty<Found>();
+        }
+        var prefix = mine.GetAddressBytes();
+        var knocks = Enumerable.Range(1, 254).Where(last => last != prefix[3]).Select(async last =>
+        {
+            var host = $"{prefix[0]}.{prefix[1]}.{prefix[2]}.{last}";
+            using var client = new System.Net.Sockets.TcpClient();
+            try
+            {
+                var connect = client.ConnectAsync(host, port);
+                if (await Task.WhenAny(connect, Task.Delay(timeout)) == connect && client.Connected)
+                {
+                    return new Found($"Mana at {host}", host, port);
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return null;
+        });
+        return (await Task.WhenAll(knocks)).OfType<Found>().ToArray();
+    }
+
     /// <summary>Looks for <paramref name="seconds"/>, then resolves what answered. Call on the main thread.</summary>
     public static async Task<IReadOnlyList<Found>> FindAsync(double seconds = 2.0)
     {
@@ -228,6 +288,7 @@ public static class ScanStreamBrowser
         browser.SearchForServices(ScanStream.Service + ".", "local.");
         await Task.Delay(TimeSpan.FromSeconds(seconds));
         browser.Stop();
+        LastBrowsed = services.Count;
 
         var found = new List<Found>();
         foreach (var service in services)

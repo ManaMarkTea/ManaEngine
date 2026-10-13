@@ -406,13 +406,14 @@ public sealed class ScanViewController : UIViewController
 
         _streamButton.Enabled = false;
         // Long enough for a PC to answer; the first search also waits behind iOS's Local Network question.
-        var found = await ScanStreamBrowser.FindAsync(3.0);
+        var found = await ScanStreamBrowser.FindEverywhereAsync(3.0);
         _streamButton.Enabled = true;
 
         var sheet = UIAlertController.Create("Stream to Mana",
             found.Count == 0
                 ? "No editor found. On the PC: Panels > Live Scan > Receive from the phone. On this phone: Settings > Privacy & "
                     + "Security > Local Network > ManaLidar on. Then search again, or enter the PC's address."
+                    + $" (Bonjour saw {ScanStreamBrowser.LastBrowsed}.)"
                 : "Pick the editor to stream to. The scan appears there as you walk.",
             UIAlertControllerStyle.ActionSheet);
         foreach (var editor in found)
