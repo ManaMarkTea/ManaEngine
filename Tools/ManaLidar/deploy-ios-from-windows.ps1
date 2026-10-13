@@ -1,19 +1,22 @@
 <#
 .SYNOPSIS
     Builds ManaLidar on the Mac and installs it on the iPhone, from Windows: the command-line version of Visual
-    Studio's Pair to Mac. Logs into the Mac over SSH, pulls this branch there and runs deploy-ios.sh.
+    Studio's Pair to Mac. Finds the Mac on the network, logs in over SSH, pulls this branch there and runs
+    deploy-ios.sh.
 
 .DESCRIPTION
-    One-time setup:
-      Mac:     System Settings > General > Sharing > Remote Login on.
-      Windows: ssh-keygen   (Enter to accept the defaults), then once:
-               type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh you@your-mac.local "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
-      Phone:   plugged into the Mac, or paired over Wi-Fi once (Xcode > Window > Devices and Simulators >
-               Connect via network) -- after that it deploys without the cable.
-    Set MANA_MAC=you@your-mac.local (and MANA_MAC_REPO if the checkout is not ~/Code/ManaRenderer) to skip -Mac.
+    Finds the Mac by itself: a Mac with Remote Login on (System Settings > General > Sharing) announces itself
+    over Bonjour, and the first one that answers is used. The first run asks for the Mac's user name (remembered)
+    and, once, its password, to install this PC's SSH key so later runs need none.
+
+    The phone must be plugged into the Mac, or paired over Wi-Fi once (Xcode > Window > Devices and Simulators >
+    Connect via network).
+
+    -Mac (or MANA_MAC) names a Mac instead, as user@host or just host; MANA_MAC_REPO if the checkout on the Mac is
+    not ~/Code/ManaRenderer.
 
 .EXAMPLE
-    ./Tools/ManaLidar/deploy-ios-from-windows.ps1 -Mac mark@marks-macbook.local
+    ./Tools/ManaLidar/deploy-ios-from-windows.ps1
 .EXAMPLE
     ./Tools/ManaLidar/deploy-ios-from-windows.ps1 -Configuration Debug -UnlockKeychain
 #>
@@ -29,10 +32,53 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$settingsDir = Join-Path $env:LOCALAPPDATA "ManaRenderer"
+$userFile = Join-Path $settingsDir "mac-user.txt"
+
+# ---------------------------------------------------------------- which Mac
 if (-not $Mac) {
-    throw "Which Mac? Pass -Mac you@your-mac.local, or set MANA_MAC (see the comment at the top of this script)."
+    Add-Type -Path (Join-Path $PSScriptRoot "FindMac.cs")
+    Write-Host "Looking for a Mac with Remote Login on..."
+    $found = [ManaFindMac]::Find(2500)
+    if ($found.Count -eq 0) {
+        throw "No Mac answered. On the Mac: System Settings > General > Sharing > Remote Login on, and both on the same network. Or pass -Mac you@host."
+    }
+    $first = $found[0]
+    # The name when Windows can resolve it (it survives the Mac's address changing), else the address.
+    $macHost = if ($first.Host -and (Resolve-DnsName $first.Host -ErrorAction SilentlyContinue)) { $first.Host } else { $first.Address }
+    Write-Host "Found $($first.Name) ($macHost)" -ForegroundColor Cyan
+    $Mac = $macHost
+}
+if ($Mac -notlike "*@*") {
+    $user = if (Test-Path $userFile) { (Get-Content $userFile -Raw).Trim() } else { "" }
+    if (-not $user) {
+        $user = Read-Host "User name on the Mac (as in its Users folder)"
+        New-Item -ItemType Directory -Force $settingsDir | Out-Null
+        Set-Content $userFile $user
+    }
+    $Mac = "$user@$Mac"
 }
 
+# ---------------------------------------------------------------- passwordless login, set up once
+$sshOptions = @("-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=8")
+ssh @sshOptions -o BatchMode=yes $Mac "true" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    $key = Join-Path $env:USERPROFILE ".ssh\id_ed25519"
+    if (-not (Test-Path "$key.pub")) {
+        Write-Host "Making an SSH key for this PC..."
+        New-Item -ItemType Directory -Force (Split-Path $key) | Out-Null
+        ssh-keygen -t ed25519 -N "" -q -f $key
+    }
+    Write-Host "Installing this PC's key on the Mac -- enter the Mac password once; later runs will not ask." -ForegroundColor Yellow
+    Get-Content "$key.pub" | ssh @sshOptions $Mac "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+    ssh @sshOptions -o BatchMode=yes $Mac "true"
+    if ($LASTEXITCODE -ne 0) {
+        if (Test-Path $userFile) { Remove-Item $userFile }
+        throw "Could not log in to $Mac. Check the user name (asked again next run) and that Remote Login is on."
+    }
+}
+
+# ---------------------------------------------------------------- what to build
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $branch = (git -C $repoRoot rev-parse --abbrev-ref HEAD).Trim()
 if ($Push) {
@@ -44,6 +90,7 @@ if ($ahead -and [int]$ahead -gt 0) {
     throw "$ahead commit(s) on $branch are not pushed yet, so the Mac would build without them. Push, or run with -Push."
 }
 
+# ---------------------------------------------------------------- build and install, on the Mac
 # A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
 $steps = "cd $Repo && git fetch --quiet && git checkout --quiet $branch && git pull --ff-only --quiet && Tools/ManaLidar/deploy-ios.sh $Configuration"
 if ($UnlockKeychain) {
@@ -51,10 +98,10 @@ if ($UnlockKeychain) {
     $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
     # Read from stdin on the Mac, so the password is never on a command line.
     $steps = "read -rs PW && security unlock-keychain -p `"`$PW`" ~/Library/Keychains/login.keychain-db && unset PW && $steps"
-    $password | ssh -o BatchMode=yes $Mac "zsh -lc '$steps'"
+    $password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 }
 else {
-    ssh -o BatchMode=yes $Mac "zsh -lc '$steps'"
+    ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 }
 
 if ($LASTEXITCODE -ne 0) {

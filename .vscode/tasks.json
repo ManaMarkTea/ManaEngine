@@ -153,7 +153,7 @@
         "${input:configuration}"
       ],
       "problemMatcher": "$msCompile",
-      "detail": "Windows: over SSH to the Mac in MANA_MAC, pulls this branch there and installs on the phone. Setup in the script's header."
+      "detail": "Windows: finds the Mac on the network (Remote Login on), pulls this branch there over SSH and installs on the phone. First run asks the Mac user name and password once."
     },
     {
       "label": "Run: ManaTests",
