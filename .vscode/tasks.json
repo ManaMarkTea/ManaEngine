@@ -142,6 +142,20 @@
       "detail": "Mac only: builds ManaLidar and installs it on the connected iPhone."
     },
     {
+      "label": "Deploy: ManaLidar to iPhone (from Windows, via the Mac)",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/Tools/ManaLidar/deploy-ios-from-windows.ps1",
+        "-Configuration",
+        "${input:configuration}"
+      ],
+      "problemMatcher": "$msCompile",
+      "detail": "Windows: over SSH to the Mac in MANA_MAC, pulls this branch there and installs on the phone. Setup in the script's header."
+    },
+    {
       "label": "Run: ManaTests",
       "type": "process",
       "command": "dotnet",
