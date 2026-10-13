@@ -105,6 +105,9 @@ namespace Mana.Code.GameModes
         private void PointMeasure(Vector2 pointer, bool shift, bool click)
         {
             var tool = _viewModel.Measure;
+            // Ray mode's ray: the scene's own triangles, skipping the editor's helpers as the pointer does.
+            tool.CastRay ??= (origin, direction) =>
+                ManaScenePicker.PickTriangle(Context.World.Scenes, origin, direction, _pickingExclusions)?.Position;
             tool.Point(SnapMeasurePoint(pointer, tool), shift, click);
         }
 
@@ -123,6 +126,10 @@ namespace Mana.Code.GameModes
                 case "distance": tool.Active = true; tool.Mode = MeasureMode.Distance; return;
                 case "radius": tool.Active = true; tool.Mode = MeasureMode.Radius; return;
                 case "path": tool.Active = true; tool.Mode = MeasureMode.Path; return;
+                case "ray": tool.Active = true; tool.Mode = MeasureMode.Ray; return;
+                case "ray_out": tool.RayDirection = MeasureRayDirection.Out; return;
+                case "ray_up": tool.RayDirection = MeasureRayDirection.Up; return;
+                case "ray_down": tool.RayDirection = MeasureRayDirection.Down; return;
                 case "stay": tool.StayOnFirstSurface = true; return;
                 case "free": tool.StayOnFirstSurface = false; return;
                 case "metric": tool.Units = MeasureUnits.Metric; return;

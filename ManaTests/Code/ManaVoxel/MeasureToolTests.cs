@@ -108,6 +108,38 @@ public static class MeasureToolChecks
         tool.Clear();
         Check("Clear all clears them", tool.Measurements.Count == 0);
 
+        // ---------------------------------------------------------------- rays
+        // A room 2.5 m high with a wall at x = 3: the host's ray test, as the editor's picker would answer it.
+        Vector3? Room(Vector3 origin, Vector3 direction)
+        {
+            var hits = new List<Vector3>();
+            if (direction.Y > 1e-6f) hits.Add(origin + direction * ((2.5f - origin.Y) / direction.Y));
+            if (direction.Y < -1e-6f) hits.Add(origin + direction * (-origin.Y / direction.Y));
+            if (direction.X > 1e-6f) hits.Add(origin + direction * ((3f - origin.X) / direction.X));
+            return hits.Count == 0 ? null : hits.MinBy(h => Vector3.Distance(h, origin));
+        }
+        var rays = new MeasureTool { Active = true, Mode = MeasureMode.Ray, CastRay = Room };
+        var onFloor = new MeasureSnap(new Vector3(1, 0, 1), Vector3.UnitY, MeasureSnapKind.Face);
+        rays.Point(onFloor, false, click: false);
+        Check("hovering shows where the ray would land", rays.RayPreview is { To: { } landing } && MathF.Abs(landing.Y - 2.5f) < 1e-3f,
+            rays.RayPreview?.To?.ToString() ?? "none");
+        Check("without keeping it", rays.Measurements.Count == 0);
+        rays.Point(onFloor, false, click: true);
+        Check("out of a floor is up: the ceiling height", rays.Measurements.LastOrDefault() is { Mode: MeasureMode.Ray } up
+            && MathF.Abs(up.Length - 2.5f) < 1e-3f && rays.Details(up) == "straight up",
+            rays.Measurements.LastOrDefault() is { } u ? $"{u.Length} {rays.Details(u)}" : "none");
+        rays.Point(new MeasureSnap(new Vector3(0, 1.2f, 1), Vector3.UnitX, MeasureSnapKind.Face), false, click: true);
+        Check("out of a wall goes across to the one opposite", MathF.Abs(rays.Measurements[^1].Length - 3f) < 1e-3f,
+            rays.Measurements[^1].Length.ToString());
+        rays.RayDirection = MeasureRayDirection.Down;
+        rays.Point(new MeasureSnap(new Vector3(1, 0.9f, 1), Vector3.UnitX, MeasureSnapKind.Face), false, click: true);
+        Check("Down goes down wherever the click", MathF.Abs(rays.Measurements[^1].Length - 0.9f) < 1e-3f,
+            rays.Measurements[^1].Length.ToString());
+        rays.RayDirection = MeasureRayDirection.Out;
+        var kept = rays.Measurements.Count;
+        rays.Point(new MeasureSnap(new Vector3(1, 1, 1), -Vector3.UnitX, MeasureSnapKind.Face), false, click: true);
+        Check("a ray that meets nothing keeps nothing, and says so", rays.Measurements.Count == kept && rays.RayPreview is { To: null });
+
         // ---------------------------------------------------------------- units
         Check("metres from a metre up", MeasureTool.Format(1.23456f, MeasureUnits.Metric) == "1.235 m");
         Check("centimetres below", MeasureTool.Format(0.4567f, MeasureUnits.Metric) == "45.7 cm");

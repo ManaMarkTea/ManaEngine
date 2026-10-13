@@ -94,7 +94,9 @@ or blurry in the texture.
 ## Looking round a scan and measuring it (on the phone)
 
 Tap a scan in **Scans** to open it (the (i) button shares it instead). Drag to orbit, pinch to zoom, two fingers
-to pan. Tap to place points: Distance, Radius or Path, with the same snapping as the Mana editor's measuring
+to pan. Tap to place points: Distance, Radius, Path, or Ray (tap a spot and a ray goes to the next surface: out of
+the surface tapped -- a floor to its ceiling, one side of a cabinet to the other -- or straight Up or Down; the
+last button picks which), with the same snapping as the Mana editor's measuring
 tool (corners, real edges and their middles, a larger reach for a fingertip). **Floor** keeps later points on
 the first point's surface; **m/ft** switches units; **Undo**, **Clear**, and **Done** to finish a path. The
 measuring rules are the editor's own files (`ManaVoxel/Code/Measure/`), compiled into the app.

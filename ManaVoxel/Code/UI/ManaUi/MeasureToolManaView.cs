@@ -22,10 +22,23 @@ public static class MeasureToolManaView
             (MeasureMode.Distance, "Distance", "Click two points."),
             (MeasureMode.Radius, "Radius", "Click a centre, then a point on the rim. The circle lies in the centre's surface."),
             (MeasureMode.Path, "Path", "Click point after point; double-click or press Enter to finish."),
+            (MeasureMode.Ray, "Ray", "Click a spot: a ray goes from it to the next surface -- floor to ceiling, one side of a cabinet to the other."),
         })
         {
             modes.Children.Add(Chip(label, tip, () => tool.Mode == mode, () => tool.Mode = mode));
         }
+
+        var directions = new StackPanel().Horizontal(4.0f);
+        foreach (var (direction, label, tip) in new[]
+        {
+            (MeasureRayDirection.Out, "Out", "Straight out of the surface clicked: up from a floor, down from a ceiling, across from a wall."),
+            (MeasureRayDirection.Up, "Up", "Straight up, wherever you click."),
+            (MeasureRayDirection.Down, "Down", "Straight down, wherever you click."),
+        })
+        {
+            directions.Children.Add(Chip(label, tip, () => tool.RayDirection == direction, () => tool.RayDirection = direction));
+        }
+        directions.BindPolled(d => d.Visibility, () => tool.Mode == MeasureMode.Ray ? Visibility.Visible : Visibility.Collapsed);
 
         var snaps = new WrapPanel { Spacing = 4.0f };
         foreach (var (target, label, tip) in new[]
@@ -87,6 +100,7 @@ public static class MeasureToolManaView
         var body = new StackPanel().Vertical(8.0f).Margin(theme.Spacing).Children(
             PreferencesManaView.Heading(theme, "Measure"),
             modes,
+            directions,
             PreferencesManaView.Heading(theme, "Snap to"),
             snaps,
             stay,

@@ -76,7 +76,7 @@ public sealed class ScanViewerViewController : UIViewController
         }
         View.AddSubview(_hint);
 
-        _modes = new UISegmentedControl("Distance", "Radius", "Path") { TranslatesAutoresizingMaskIntoConstraints = false, SelectedSegment = 0 };
+        _modes = new UISegmentedControl("Distance", "Radius", "Path", "Ray") { TranslatesAutoresizingMaskIntoConstraints = false, SelectedSegment = 0 };
         _modes.ValueChanged += (_, _) =>
         {
             _tool.Mode = (MeasureMode)(int)_modes.SelectedSegment;
@@ -86,7 +86,27 @@ public sealed class ScanViewerViewController : UIViewController
         _units = Button("m", () => _tool.Units = _tool.Units == MeasureUnits.Metric ? MeasureUnits.Imperial : MeasureUnits.Metric);
         var undo = Button("Undo", _tool.Undo);
         var clear = Button("Clear", _tool.Clear);
-        _done = Button("Done", _tool.Finish);
+        // Done finishes a path; in Ray mode the same button picks which way the ray fires.
+        _done = Button("Done", () =>
+        {
+            if (_tool.Mode == MeasureMode.Ray)
+            {
+                _tool.RayDirection = (MeasureRayDirection)(((int)_tool.RayDirection + 1) % 3);
+            }
+            else
+            {
+                _tool.Finish();
+            }
+        });
+        // Ray mode's ray: SceneKit's own test along a segment, the scan's back faces included (a ceiling seen from
+        // below, a cabinet's far side).
+        _tool.CastRay = (origin, direction) =>
+        {
+            var end = origin + direction * 50f;
+            var hits = _view.Scene?.RootNode.HitTest(new SCNVector3(origin.X, origin.Y, origin.Z),
+                new SCNVector3(end.X, end.Y, end.Z), new SCNHitTestOptions { SearchMode = SCNHitTestSearchMode.Closest, BackFaceCulling = false });
+            return hits?.FirstOrDefault() is { } hit ? ToVector(hit.WorldCoordinates) : null;
+        };
         var buttons = new UIStackView(new UIView[] { _floor, _units, undo, clear, _done })
         {
             TranslatesAutoresizingMaskIntoConstraints = false,
@@ -228,6 +248,10 @@ public sealed class ScanViewerViewController : UIViewController
             snap = MeasureSnapping.OnGround(ToVector(near), Vector3.Normalize(ToVector(far) - ToVector(near)), 0f);
         }
         _tool.Point(snap, shiftHeld: false, click: true);
+        if (_tool.Mode == MeasureMode.Ray)
+        {
+            _hint.Text = _tool.RayPreview is { To: null } ? "No surface that way." : "Tap a spot: the ray goes to the next surface.";
+        }
         _canvas.SetNeedsDisplay();
     }
 
@@ -242,7 +266,10 @@ public sealed class ScanViewerViewController : UIViewController
         _modes.SelectedSegment = (int)_tool.Mode;
         _floor.BackgroundColor = _tool.StayOnFirstSurface ? UIColor.SystemBlue : UIColor.FromWhiteAlpha(0.25f, 0.9f);
         _units.SetTitle(_tool.Units == MeasureUnits.Metric ? "m" : "ft", UIControlState.Normal);
-        _done.Enabled = _tool.Current is { Mode: MeasureMode.Path, Points.Count: >= 2 };
+        var ray = _tool.Mode == MeasureMode.Ray;
+        _done.SetTitle(ray ? _tool.RayDirection switch { MeasureRayDirection.Up => "Up", MeasureRayDirection.Down => "Down", _ => "Out" } : "Done",
+            UIControlState.Normal);
+        _done.Enabled = ray || _tool.Current is { Mode: MeasureMode.Path, Points.Count: >= 2 };
         _done.Alpha = _done.Enabled ? 1f : 0.4f;
     }
 

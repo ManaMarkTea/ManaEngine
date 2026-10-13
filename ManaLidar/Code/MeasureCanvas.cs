@@ -78,7 +78,7 @@ public sealed class MeasureCanvas : UIView
         {
             return;
         }
-        var anchor = measurement.Mode == MeasureMode.Distance ? (points[0] + points[1]) * 0.5f : points[^1];
+        var anchor = measurement.Mode is MeasureMode.Distance or MeasureMode.Ray ? (points[0] + points[1]) * 0.5f : points[^1];
         if (Project(anchor) is { } at)
         {
             Label(at, _tool.Headline(measurement), _tool.Details(measurement), colour);

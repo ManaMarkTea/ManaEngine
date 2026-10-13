@@ -11,6 +11,19 @@ public enum MeasureMode
     Radius,
     /// <summary>Point after point: the length along all of them, e.g. round a room.</summary>
     Path,
+    /// <summary>
+    /// One point, and a ray from it to the next surface: a floor to its ceiling, one side of a cabinet to the other.
+    /// </summary>
+    Ray,
+}
+
+/// <summary>Which way a Ray measurement fires.</summary>
+public enum MeasureRayDirection
+{
+    /// <summary>Straight out of the surface clicked: up from a floor, down from a ceiling, across from a wall.</summary>
+    Out,
+    Up,
+    Down,
 }
 
 public enum MeasureUnits
@@ -72,6 +85,7 @@ public sealed class MeasureTool
             {
                 Cancel();
                 Hover = null;
+                RayPreview = null;
             }
         }
     }
@@ -95,6 +109,19 @@ public sealed class MeasureTool
     /// <summary>Every later point is dropped onto the first point's surface (also while Shift is held).</summary>
     public bool StayOnFirstSurface { get; set; }
     public MeasureUnits Units { get; set; } = MeasureUnits.Metric;
+    public MeasureRayDirection RayDirection { get; set; } = MeasureRayDirection.Out;
+
+    /// <summary>
+    /// The host's ray test for Ray mode: from a point along a unit direction, the nearest surface hit, or null.
+    /// The editor answers it from the scene's triangles, a phone from its own 3D view.
+    /// </summary>
+    public Func<Vector3, Vector3, Vector3?>? CastRay { get; set; }
+
+    /// <summary>In Ray mode, where the ray from the hover point would start and land (To is null when it hits nothing).</summary>
+    public (Vector3 From, Vector3 Direction, Vector3? To)? RayPreview { get; private set; }
+
+    /// <summary>The ray goes this far before it can hit anything, so it does not stop on the surface it starts from.</summary>
+    public const float RayStartOffset = 0.002f;
 
     public List<Measurement> Measurements { get; } = new();
     /// <summary>The measurement being taken, its points so far; the hover point is its live end.</summary>
@@ -131,11 +158,45 @@ public sealed class MeasureTool
             snap = point with { Position = dropped };
         }
         Hover = snap;
+
+        if (Mode == MeasureMode.Ray)
+        {
+            // Cast only when the point moves: a ray test walks the whole scene.
+            if (snap is { } from && (RayPreview is not { } last || last.From != from.Position || last.Direction != RayDirectionFor(from)))
+            {
+                var direction = RayDirectionFor(from);
+                var hit = CastRay?.Invoke(from.Position + direction * RayStartOffset, direction);
+                RayPreview = (from.Position, direction, hit);
+            }
+            else if (snap == null)
+            {
+                RayPreview = null;
+            }
+            if (click && RayPreview is { To: { } end } ray)
+            {
+                var measurement = new Measurement(MeasureMode.Ray, ray.Direction);
+                measurement.Points.Add(ray.From);
+                measurement.Points.Add(end);
+                Measurements.Add(measurement);
+                Version++;
+            }
+            return;
+        }
+        RayPreview = null;
+
         if (click && snap is { } at)
         {
             Click(at);
         }
     }
+
+    /// <summary>Which way the ray from a point goes: its surface's normal (it faces the viewer), or straight up or down.</summary>
+    public Vector3 RayDirectionFor(MeasureSnap from) => RayDirection switch
+    {
+        MeasureRayDirection.Up => Vector3.UnitY,
+        MeasureRayDirection.Down => -Vector3.UnitY,
+        _ => from.Normal.LengthSquared() > 1e-8f ? Vector3.Normalize(from.Normal) : Vector3.UnitY,
+    };
 
     /// <summary>Takes back the last point of the measurement in progress, or else the last measurement kept.</summary>
     public void Undo()
@@ -235,6 +296,11 @@ public sealed class MeasureTool
             case MeasureMode.Radius:
                 var r = measurement.Length;
                 return $"Ø {Format(2 * r)}  ·  {FormatArea(MathF.PI * r * r)}";
+            case MeasureMode.Ray:
+                var along = measurement.Delta;
+                return MathF.Abs(along.Y) > 0.98f * along.Length()
+                    ? (along.Y > 0 ? "straight up" : "straight down")
+                    : $"X {FormatSigned(along.X)}  Y {FormatSigned(along.Y)}  Z {FormatSigned(along.Z)}";
             case MeasureMode.Path:
                 return measurement.Points.Count > 2 ? $"{measurement.Points.Count - 1} legs  ·  start to end {Format(Vector3.Distance(measurement.Points[0], measurement.Points[^1]))}" : string.Empty;
             default:

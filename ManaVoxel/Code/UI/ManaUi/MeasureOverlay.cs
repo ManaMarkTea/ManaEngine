@@ -62,6 +62,22 @@ public sealed class MeasureOverlay : UiElement
                 DrawMeasurement(drawList, tool, preview, Taking);
             }
 
+            if (tool.Active && tool.RayPreview is { } ray)
+            {
+                if (ray.To is { } end)
+                {
+                    Line(drawList, ray.From, end, Taking);
+                    Dot(drawList, end, Taking);
+                    Label(drawList, (ray.From + end) * 0.5f, tool.Format(Vector3.Distance(ray.From, end)), "click to keep", Taking);
+                }
+                else
+                {
+                    // Nothing that way: a short stub shows which way it went.
+                    DashedLine(drawList, ray.From, ray.From + ray.Direction * 0.5f, Taking);
+                    SmallLabel(drawList, ray.From + ray.Direction * 0.5f, "no surface that way");
+                }
+            }
+
             if (tool.Active && tool.Hover is { } snap)
             {
                 if (tool.HoverUnprojected is { } before)
@@ -119,7 +135,11 @@ public sealed class MeasureOverlay : UiElement
             return;
         }
 
-        if (measurement.Mode == MeasureMode.Distance)
+        if (measurement.Mode == MeasureMode.Ray)
+        {
+            Label(drawList, (points[0] + points[1]) * 0.5f, tool.Headline(measurement), tool.Details(measurement), colour);
+        }
+        else if (measurement.Mode == MeasureMode.Distance)
         {
             // The right angle under the line: across the ground, then straight up, so both parts can be seen.
             var a = points[0];
