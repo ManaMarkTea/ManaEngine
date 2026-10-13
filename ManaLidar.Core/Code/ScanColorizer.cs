@@ -57,26 +57,9 @@ public static class ScanColorizer
         var weightSum = 0f;
         foreach (var keyframe in candidates)
         {
-            if (!keyframe.Project(point, out var pixel, out var distance))
+            if (!Sees(keyframe, point, normal, out var pixel, out var distance, out var facing))
             {
                 continue;
-            }
-            // A margin keeps clear of the lens's blurriest, most distorted edge.
-            const float margin = 2f;
-            if (pixel.X < margin || pixel.Y < margin || pixel.X > keyframe.Width - margin || pixel.Y > keyframe.Height - margin)
-            {
-                continue;
-            }
-            var toCamera = keyframe.Position - point;
-            var facing = Vector3.Dot(normal, toCamera / MathF.Max(toCamera.Length(), 1e-4f));
-            if (facing < 0.15f)
-            {
-                continue;
-            }
-            var depth = keyframe.DepthAt(pixel);
-            if (!float.IsNaN(depth) && depth > 0 && distance - depth > 0.04f + 0.03f * distance)
-            {
-                continue; // something nearer the camera hid this point in that photo
             }
 
             // Squared again so the best view dominates: an average of many slightly misaligned photos is a blur.
@@ -89,6 +72,33 @@ public static class ScanColorizer
 
         color = weightSum > 0 ? sum / weightSum : default;
         return weightSum > 0;
+    }
+
+    /// <summary>
+    /// Whether a photo shows a surface point: in frame (clear of the lens's blurriest edge), facing the camera,
+    /// and not hidden behind something the LiDAR saw nearer. The one rule colouring and coverage both use.
+    /// </summary>
+    public static bool Sees(ScanKeyframe keyframe, Vector3 point, Vector3 normal, out Vector2 pixel, out float distance, out float facing)
+    {
+        facing = 0;
+        if (!keyframe.Project(point, out pixel, out distance))
+        {
+            return false;
+        }
+        const float margin = 2f;
+        if (pixel.X < margin || pixel.Y < margin || pixel.X > keyframe.Width - margin || pixel.Y > keyframe.Height - margin)
+        {
+            return false;
+        }
+        var toCamera = keyframe.Position - point;
+        facing = Vector3.Dot(normal, toCamera / MathF.Max(toCamera.Length(), 1e-4f));
+        if (facing < 0.15f)
+        {
+            return false;
+        }
+        var depth = keyframe.DepthAt(pixel);
+        // Something nearer the camera hid this point in that photo.
+        return float.IsNaN(depth) || depth <= 0 || distance - depth <= 0.04f + 0.03f * distance;
     }
 
     /// <summary>Each vertex takes the surface of the first triangle that uses it.</summary>

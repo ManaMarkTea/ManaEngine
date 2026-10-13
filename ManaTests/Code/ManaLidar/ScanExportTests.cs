@@ -99,6 +99,19 @@ public static class ScanExportChecks
         Check("the texture is red where the photo was", leftTexel.X > 0.9f && leftTexel.Z < 0.1f, leftTexel.ToString());
         Check("and blue where it was blue", rightTexel.Z > 0.9f && rightTexel.X < 0.1f, rightTexel.ToString());
 
+        // ---------------------------------------------------------------- photo coverage
+        var covered = ScanCoverage.Score(Wall(z: -2f), new[] { camera });
+        Check("a wall a photo saw head-on is covered", covered.All(q => q > 0.7f), string.Join(", ", covered.Select(q => q.ToString("F2"))));
+        var farWall = ScanCoverage.Score(Wall(z: -6f), new[] { camera });
+        Check("one seen from far off only partly", farWall.All(q => q > 0 && q < 0.4f), string.Join(", ", farWall.Select(q => q.ToString("F2"))));
+        Check("one facing away not at all", ScanCoverage.Score(Wall(z: -2f, normal: -Vector3.UnitZ), new[] { camera }).All(q => q == 0));
+        var scores = new float[3];
+        var wallPiece = Wall(z: -2f);
+        Check("a new photo raises coverage", ScanCoverage.Improve(wallPiece, scores, new[] { camera }));
+        Check("the same photo again changes nothing", !ScanCoverage.Improve(wallPiece, scores, new[] { camera }));
+        Check("unseen is red and well covered green", ScanCoverage.Colour(0).X > 0.9f && ScanCoverage.Colour(0).Y < 0.4f
+            && ScanCoverage.Colour(1).Y > 0.9f && ScanCoverage.Colour(1).X < 0.4f);
+
         // ---------------------------------------------------------------- keyframe pacing
         var recording = new ScanRecording();
         Check("the first frame is a keyframe", recording.WantsKeyframe(Matrix4x4.Identity, 0));

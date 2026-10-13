@@ -5,8 +5,10 @@ using SceneKit;
 namespace ManaLidar;
 
 /// <summary>
-/// Runs on its own queue: keeps the recording's pieces in step with ARKit's mesh anchors, draws each as a wireframe
-/// over the camera, and keeps a keyframe whenever the phone has moved enough.
+/// Runs on its own queue: keeps the recording's pieces in step with ARKit's mesh anchors, draws each over the
+/// camera, and keeps a keyframe whenever the phone has moved enough. The overlay is see-through, so a hole in the
+/// mesh shows as a gap, and tinted by photo coverage (ScanCoverage): red where no photo has seen it yet, amber
+/// where only from far or askew, green when well covered.
 /// </summary>
 public sealed class ScanSessionDelegate : ARSessionDelegate
 {
@@ -20,6 +22,10 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
     private readonly HashSet<Guid> _finishedAnchors = new();
     private readonly SCNMaterial _wireMaterial;
     private readonly SCNMaterial _finishedMaterial;
+    private readonly SCNMaterial _fillMaterial;
+    private readonly SCNMaterial _finishedFillMaterial;
+    // Each live piece and its per-vertex coverage, so a new photo can raise the scores without a recount.
+    private readonly Dictionary<Guid, (ScanMeshPiece Piece, float[] Scores)> _coverage = new();
 
     public ScanSessionDelegate(ScanRecording recording, SCNNode overlayRoot)
     {
@@ -31,7 +37,8 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
             LightingModelName = SCNLightingModel.Constant,
             DoubleSided = true,
         };
-        _wireMaterial.Diffuse.Contents = UIColor.FromRGBA(0.35f, 0.85f, 1f, 0.55f);
+        // Faint: the coverage colour underneath is what to read; the lines only give the surface its shape.
+        _wireMaterial.Diffuse.Contents = UIColor.FromRGBA(1f, 1f, 1f, 0.22f);
         _finishedMaterial = new SCNMaterial
         {
             FillMode = SCNFillMode.Lines,
@@ -39,6 +46,24 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
             DoubleSided = true,
         };
         _finishedMaterial.Diffuse.Contents = UIColor.FromRGBA(1f, 1f, 1f, 0.18f);
+
+        // Vertex colours carry the coverage; the material only makes it see-through.
+        _fillMaterial = new SCNMaterial
+        {
+            LightingModelName = SCNLightingModel.Constant,
+            DoubleSided = true,
+            Transparency = 0.42f,
+            WritesToDepthBuffer = false,
+        };
+        _fillMaterial.Diffuse.Contents = UIColor.White;
+        _finishedFillMaterial = new SCNMaterial
+        {
+            LightingModelName = SCNLightingModel.Constant,
+            DoubleSided = true,
+            Transparency = 0.12f,
+            WritesToDepthBuffer = false,
+        };
+        _finishedFillMaterial.Diffuse.Contents = UIColor.White;
     }
 
     /// <summary>Set by the controller: photos are only worth keeping while a scan is running.</summary>
@@ -78,6 +103,7 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
             if (_recording.WantsKeyframe(pose, frame.Timestamp) && ArkitConvert.CaptureKeyframe(frame, PhotoSize.Width, PhotoSize.Height) is { } keyframe)
             {
                 _recording.AddKeyframe(keyframe);
+                RecolourFor(keyframe);
             }
         }
     }
@@ -94,6 +120,7 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
             {
                 var id = new Guid(anchor.Identifier.GetBytes());
                 _recording.RemovePiece(id);
+                _coverage.Remove(id);
                 if (_overlayNodes.Remove(id, out var node))
                 {
                     node.RemoveFromParentNode();
@@ -114,6 +141,7 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
             _overlayNodes.Clear();
             _finishedNodes.Clear();
             _finishedAnchors.Clear();
+            _coverage.Clear();
         });
     }
 
@@ -127,14 +155,22 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
         {
             foreach (var (id, node) in _overlayNodes)
             {
-                if (node.Geometry is { } geometry)
+                if (node.Geometry is { } fill)
                 {
-                    geometry.FirstMaterial = _finishedMaterial;
+                    fill.FirstMaterial = _finishedFillMaterial;
+                }
+                foreach (var child in node.ChildNodes)
+                {
+                    if (child.Geometry is { } wire)
+                    {
+                        wire.FirstMaterial = _finishedMaterial;
+                    }
                 }
                 _finishedNodes.Add(node);
                 _finishedAnchors.Add(id);
             }
             _overlayNodes.Clear();
+            _coverage.Clear();
         });
     }
 
@@ -151,20 +187,69 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
         {
             _recording.SetPiece(piece);
         }
-        var geometries = updates.Select(piece => (piece.Id, Geometry: BuildWireframe(piece))).ToArray();
+        // A changed mesh is scored afresh against every photo; its vertices are not the ones it had.
+        var keyframes = _recording.Snapshot().Keyframes;
+        var drawn = updates.Select(piece =>
+        {
+            var scores = ScanCoverage.Score(piece, keyframes);
+            return (piece, scores, Overlay: BuildOverlay(piece, scores));
+        }).ToArray();
         EditOverlay(() =>
         {
-            foreach (var (id, geometry) in geometries)
+            foreach (var (piece, scores, overlay) in drawn)
             {
-                if (!_overlayNodes.TryGetValue(id, out var node))
-                {
-                    node = new SCNNode();
-                    _overlayNodes[id] = node;
-                    _overlayRoot.AddChildNode(node);
-                }
-                node.Geometry = geometry;
+                _coverage[piece.Id] = (piece, scores);
+                Show(piece.Id, overlay);
             }
         });
+    }
+
+    // A new photo can only improve coverage: fold it into the pieces it sees and redraw those.
+    private void RecolourFor(ScanKeyframe keyframe)
+    {
+        (ScanMeshPiece Piece, float[] Scores)[] pieces;
+        lock (_overlayLock)
+        {
+            pieces = _coverage.Values.ToArray();
+        }
+        var single = new[] { keyframe };
+        var redrawn = new List<(Guid Id, (SCNGeometry Fill, SCNGeometry Wire) Overlay)>();
+        foreach (var (piece, scores) in pieces)
+        {
+            if (ScanCoverage.Improve(piece, scores, single))
+            {
+                redrawn.Add((piece.Id, BuildOverlay(piece, scores)));
+            }
+        }
+        if (redrawn.Count == 0)
+        {
+            return;
+        }
+        EditOverlay(() =>
+        {
+            foreach (var (id, overlay) in redrawn)
+            {
+                // Only if the piece is still live: it may have been finished or removed meanwhile.
+                if (_overlayNodes.ContainsKey(id))
+                {
+                    Show(id, overlay);
+                }
+            }
+        });
+    }
+
+    // Called inside EditOverlay. The fill is the node's geometry, the faint wireframe a child sharing its outline.
+    private void Show(Guid id, (SCNGeometry Fill, SCNGeometry Wire) overlay)
+    {
+        if (!_overlayNodes.TryGetValue(id, out var node))
+        {
+            node = new SCNNode();
+            node.AddChildNode(new SCNNode());
+            _overlayNodes[id] = node;
+            _overlayRoot.AddChildNode(node);
+        }
+        node.Geometry = overlay.Fill;
+        node.ChildNodes[0].Geometry = overlay.Wire;
     }
 
     // Off the main thread there is no run loop to commit SceneKit's implicit transaction, so changes made here
@@ -186,18 +271,30 @@ public sealed class ScanSessionDelegate : ARSessionDelegate
     }
 
     // Pieces are already in world space, so their nodes sit at the scene's origin.
-    private SCNGeometry BuildWireframe(ScanMeshPiece piece)
+    private (SCNGeometry Fill, SCNGeometry Wire) BuildOverlay(ScanMeshPiece piece, float[] scores)
     {
         var vertices = new SCNVector3[piece.Positions.Length];
+        var colours = new float[piece.Positions.Length * 4];
         for (var i = 0; i < vertices.Length; i++)
         {
             var p = piece.Positions[i];
             vertices[i] = new SCNVector3(p.X, p.Y, p.Z);
+            var c = ScanCoverage.Colour(scores[i]);
+            colours[i * 4] = c.X;
+            colours[i * 4 + 1] = c.Y;
+            colours[i * 4 + 2] = c.Z;
+            colours[i * 4 + 3] = 1f;
         }
+        var positions = SCNGeometrySource.FromVertices(vertices);
+        var colourSource = SCNGeometrySource.FromData(NSData.FromArray(MemoryMarshal.AsBytes(colours.AsSpan()).ToArray()),
+            SCNGeometrySourceSemantics.Color, vertices.Length, true, 4, sizeof(float), 0, 4 * sizeof(float));
         var indexData = NSData.FromArray(MemoryMarshal.AsBytes(piece.Indices.AsSpan()).ToArray());
         var element = SCNGeometryElement.FromData(indexData, SCNGeometryPrimitiveType.Triangles, piece.TriangleCount, sizeof(int));
-        var geometry = SCNGeometry.Create(new[] { SCNGeometrySource.FromVertices(vertices) }, new[] { element });
-        geometry.FirstMaterial = _wireMaterial;
-        return geometry;
+
+        var fill = SCNGeometry.Create(new[] { positions, colourSource }, new[] { element });
+        fill.FirstMaterial = _fillMaterial;
+        var wire = SCNGeometry.Create(new[] { positions }, new[] { element });
+        wire.FirstMaterial = _wireMaterial;
+        return (fill, wire);
     }
 }
