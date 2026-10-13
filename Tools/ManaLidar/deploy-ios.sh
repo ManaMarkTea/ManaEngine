@@ -38,4 +38,15 @@ echo "Device: $device"
 dotnet build "$app_project" -c "$config" --nologo -v:q
 app="$(ls -d "Artifacts/Bin/$app_project/$config/net10.0-ios/ios-arm64/"*.app | head -1)"
 xcrun devicectl device install app --device "$device" "$app"
-xcrun devicectl device process launch --device "$device" "$bundle_id" || echo "Installed; unlock the device and open the app." >&2
+if [ -n "${CONSOLE:-}" ]; then
+  # The app's own output (Console.WriteLine, crashes) for CONSOLE seconds, then the app is left running.
+  log="$(mktemp)"
+  xcrun devicectl device process launch --device "$device" --console --terminate-existing "$bundle_id" >"$log" 2>&1 &
+  watcher=$!
+  sleep "$CONSOLE"
+  kill "$watcher" 2>/dev/null || true
+  cat "$log"
+  rm -f "$log"
+else
+  xcrun devicectl device process launch --device "$device" "$bundle_id" || echo "Installed; unlock the device and open the app." >&2
+fi

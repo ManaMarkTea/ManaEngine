@@ -29,6 +29,8 @@ param(
     [ValidateSet("ManaLidar", "ManaVoxel.iOS")] [string] $App = "ManaLidar",
     # An iPhone or iPad by name or UDID, when several are paired with the Mac.
     [string] $Device = $env:MANA_IOS_DEVICE,
+    # Seconds of the app's own output (its log, a crash) to show after it launches.
+    [int] $Console = 0,
     # Unused: the keychain is now always unlocked with the password kept from the first run.
     [switch] $UnlockKeychain,
     # Unused: the commit now goes straight to the Mac. Kept so older command lines still run.
@@ -151,7 +153,7 @@ $steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain 2>~/.mana-
     # Best effort, once: it can report "passphrase not correct" over one odd item even with the right password,
     # and signing works without it where Xcode already let codesign use the key.
     "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null 2>&1; touch ~/.mana-deploy/.signing-ready; }; " +
-    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && APP=$App DEVICE=`"$Device`" Tools/ManaLidar/deploy-ios.sh $Configuration"
+    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force --detach incoming && APP=$App DEVICE=`"$Device`" CONSOLE=$(if ($Console -gt 0) { $Console } else { '' }) Tools/ManaLidar/deploy-ios.sh $Configuration"
 $password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
 $code = $LASTEXITCODE
 $password = $null
