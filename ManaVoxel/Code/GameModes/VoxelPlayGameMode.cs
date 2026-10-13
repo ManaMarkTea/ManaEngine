@@ -26,7 +26,9 @@ namespace Mana.Code.GameModes
     /// </summary>
     public sealed class VoxelPlayGameMode : BaseGameMode
     {
-        private const float GroundSize = 256.0f;
+        // A plain far past any level (4 km), until the terrain system gives play a real ground: the editor's 256 m
+        // room floor ended partway along the Sample Course, and the player fell off its edge.
+        private const float GroundSize = 4096.0f;
 
         private readonly string _levelPath;
         private readonly CharacterSpawnService _characterSpawn = new();
