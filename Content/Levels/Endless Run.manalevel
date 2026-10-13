@@ -29,30 +29,31 @@
       "properties": {}
     }
   ],
-  "nodes": [],
-  "playerStart": {
-    "id": "369f18855637533d99b5b6aa2dcba130",
-    "name": "Player Start",
-    "kind": "PlayerStart",
-    "position": [
-      48.0,
-      0.0,
-      400.0
-    ],
-    "rotation": [
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ],
-    "character": {
-      "pack": "kenney_mini-characters",
-      "name": "character-female-b",
-      "height": 1.8
+  "nodes": [
+    {
+      "id": "369f18855637533d99b5b6aa2dcba130",
+      "name": "Player Start",
+      "kind": "PlayerStart",
+      "position": [
+        48.0,
+        0.0,
+        400.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "character": {
+        "pack": "kenney_mini-characters",
+        "name": "character-female-b",
+        "height": 1.8
+      }
     }
-  }
+  ]
 }

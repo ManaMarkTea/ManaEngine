@@ -596,10 +596,11 @@ def level():
         "camera": {"position": [48.0, 6.0, 410.0], "rotation": [-0.3, 0.0, 0.0]},
         "sky": {"mode": "Day"},
         "gameModes": [{"id": uid("level", "mode"), "type": "Runner", "properties": {}}],
-        "nodes": [],
-        "playerStart": {"id": uid("level", "start"), "name": "Player Start", "kind": "PlayerStart", "position": start,
-                        "rotation": [0, 0, 0], "scale": [1, 1, 1],
-                        "character": {"pack": "kenney_mini-characters", "name": "character-female-b", "height": 1.8}},
+        # The Player Start is a node like any other: a top-level "playerStart" is only an echo the loader ignores, and
+        # without the node the character spawned at the origin as whichever came first in the catalog.
+        "nodes": [{"id": uid("level", "start"), "name": "Player Start", "kind": "PlayerStart", "position": start,
+                   "rotation": [0, 0, 0], "scale": [1, 1, 1],
+                   "character": {"pack": "kenney_mini-characters", "name": "character-female-b", "height": 1.8}}],
     }
 
 

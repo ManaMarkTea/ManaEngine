@@ -42,6 +42,9 @@ dotnet build-server shutdown >/dev/null 2>&1 || true
 # changes what the trimmer keeps of .NET itself, so even the framework's cached code goes stale. Compiled fresh
 # each build until the cache can be kept safely.
 rm -rf "Artifacts/Obj/$app_project/$config/net10.0-ios/ios-arm64/nativelibraries"
+# A fresh bundle: the build adds files to an existing .app but never takes away one no longer in it (old section
+# prefabs lingered on the phone and the runner laid them).
+rm -rf "Artifacts/Bin/$app_project/$config/net10.0-ios/ios-arm64/"*.app
 dotnet build "$app_project" -c "$config" --nologo -v:q -nodeReuse:false
 app="$(ls -d "Artifacts/Bin/$app_project/$config/net10.0-ios/ios-arm64/"*.app | head -1)"
 xcrun devicectl device install app --device "$device" "$app"
