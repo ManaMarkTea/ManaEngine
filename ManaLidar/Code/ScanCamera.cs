@@ -193,8 +193,11 @@ public sealed class ScanCamera
     private void Apply()
     {
         var eye = Walking ? _position : _pivot - Forward() * _distance;
-        var target = eye + Forward();
         _node.Position = new SCNVector3(eye.X, eye.Y, eye.Z);
-        _node.Look(new SCNVector3(target.X, target.Y, target.Z));
+        // Built from the two angles alone -- tilt about the camera's own sideways axis, then turn about world up --
+        // so there is never any roll. SCNNode.Look took "up" from the node's current up, which drifted with every
+        // move until up came out sideways or upside down and dragging felt reversed.
+        var turn = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _yaw) * Quaternion.CreateFromAxisAngle(Vector3.UnitX, _pitch);
+        _node.Orientation = new SCNQuaternion(turn.X, turn.Y, turn.Z, turn.W);
     }
 }
