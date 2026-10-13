@@ -35,6 +35,16 @@ namespace Mana.Code.GameModes
         public virtual bool WantsPlayerCharacter => false;
 
         /// <summary>
+        /// With <see cref="WantsPlayerCharacter"/>: the character is spawned but not possessed -- no walking keys, no
+        /// follow camera -- because this mode moves it and the camera itself (a runner keeps it in lanes). It is the
+        /// game state's player all the same, so coins, hazards and triggers work on it as on any other.
+        /// </summary>
+        public virtual bool DrivesPlayerCharacter => false;
+
+        /// <summary>The on-screen controls a touch device shows while this mode runs.</summary>
+        public virtual ManaTouchControls TouchControls => ManaTouchControls.Stick;
+
+        /// <summary>
         /// Whether the editor's floor stays while playing in the editor. A level built on it keeps it; a mode that
         /// builds its own world hides it.
         /// </summary>
@@ -70,6 +80,12 @@ namespace Mana.Code.GameModes
         {
         }
 
+        /// <summary>
+        /// The player asked to start over (R, a pause menu's Restart). True when the mode did it itself; false lets the
+        /// host put the character back at the start.
+        /// </summary>
+        public virtual bool Restart() => false;
+
         /// <summary>This mode's on-screen furniture while playing, or null. Built once per play.</summary>
         public virtual UiElement? BuildHud(UiTheme theme) => null;
 
@@ -95,6 +111,16 @@ namespace Mana.Code.GameModes
         public virtual void EditorPreview(ManaContext context, bool visible)
         {
         }
+    }
+
+    /// <summary>What a touch device puts on screen for a mode.</summary>
+    public enum ManaTouchControls
+    {
+        /// <summary>A thumbstick for W/A/S/D, Jump/Run/Camera buttons, drag to look -- a character walking about.</summary>
+        Stick,
+
+        /// <summary>Nothing on screen: swipes left, right, up and down press the arrow keys -- a runner's lanes, jump and duck.</summary>
+        Swipe
     }
 
     /// <summary>What a running mode is given: the world, the host's view of input, and a way out.</summary>
@@ -142,6 +168,25 @@ namespace Mana.Code.GameModes
 
         /// <summary>Whether any of these modes wants the host's character; with none, play is a free debug camera.</summary>
         public static bool AnyWantsPlayerCharacter(IEnumerable<ManaLevelGameMode> modes) => modes.Any(mode => mode.WantsPlayerCharacter);
+
+        /// <summary>A mode moves the character itself: the host leaves it unpossessed.</summary>
+        public static bool AnyDrivesPlayerCharacter(IEnumerable<ManaLevelGameMode> modes) => modes.Any(mode => mode.DrivesPlayerCharacter);
+
+        /// <summary>The touch controls the running modes want: swipes if any asks for them.</summary>
+        public ManaTouchControls TouchControls => _running.Any(mode => mode.TouchControls == ManaTouchControls.Swipe)
+            ? ManaTouchControls.Swipe
+            : ManaTouchControls.Stick;
+
+        /// <summary>Asks the running modes to start over; true when one did, so the host need not.</summary>
+        public bool Restart()
+        {
+            var handled = false;
+            foreach (var mode in _running)
+            {
+                handled |= mode.Restart();
+            }
+            return handled;
+        }
 
         // With no modes the host's HUD carries the debug camera's hint.
         public bool ShowsPlayHud => _running.Count == 0 || _running.Any(mode => mode.ShowsPlayHud);

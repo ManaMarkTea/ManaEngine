@@ -1,0 +1,58 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Endless Run",
+  "web": {
+    "publish": true,
+    "description": "Run the three lanes for as long as you can: swipe to change lane, jump and duck, grab power-ups.",
+    "order": 0
+  },
+  "camera": {
+    "position": [
+      48.0,
+      6.0,
+      410.0
+    ],
+    "rotation": [
+      -0.3,
+      0.0,
+      0.0
+    ]
+  },
+  "sky": {
+    "mode": "Day"
+  },
+  "gameModes": [
+    {
+      "id": "2f3fbd979fa15236b9cfeb272bcbda53",
+      "type": "Runner",
+      "properties": {}
+    }
+  ],
+  "nodes": [],
+  "playerStart": {
+    "id": "369f18855637533d99b5b6aa2dcba130",
+    "name": "Player Start",
+    "kind": "PlayerStart",
+    "position": [
+      48.0,
+      0.0,
+      400.0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "character": {
+      "pack": "kenney_mini-characters",
+      "name": "character-female-b",
+      "height": 1.8
+    }
+  }
+}

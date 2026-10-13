@@ -176,8 +176,12 @@ namespace Mana.Code.GameModes
             // Left-drag becomes a camera orbit for the duration of play, which it cannot be in the
             // editor -- there a left-press is a selection or a walk order.
             _pawnController.MouseLookControlsEnabled = true;
-            _pawnController.Possess(player);
-            _pawnController.SetCameraMode(ManaCameraMode.Follow);
+            // A mode that moves the character itself (a runner) gets it unpossessed: no walking keys, no follow camera.
+            if (!ManaGameModeRunner.AnyDrivesPlayerCharacter(modes))
+            {
+                _pawnController.Possess(player);
+                _pawnController.SetCameraMode(ManaCameraMode.Follow);
+            }
 
             IsPlaying = true;
             CoverWindow();
@@ -312,7 +316,7 @@ namespace Mana.Code.GameModes
         /// <summary>Plays the level again from the spawn without leaving play -- the results screen's Play Again, and R.</summary>
         public void Restart()
         {
-            if (IsPlaying && !Modes.HandlesExitKeys)
+            if (IsPlaying && !Modes.Restart() && !Modes.HandlesExitKeys)
             {
                 _context.World.GameState.Restart(_context.World, _spawnPosition, _spawnYaw);
             }

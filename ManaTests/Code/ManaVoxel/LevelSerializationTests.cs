@@ -617,10 +617,11 @@ public static class LevelSerializationChecks
                 && item.Camera.Position[0] >= 32.0f
                 && item.Camera.Position[2] >= 32.0f),
             string.Join(", ", allBundledLevels.Select(item => item.Name)));
-        // Play spawns a character only for a level that asks with the Character game mode; one with a Player Start
-        // that forgot would quietly play as a debug camera.
+        // Play spawns a character only for a level whose game mode asks for one (Character, or a game that drives it --
+        // the runner); one with a Player Start that forgot would quietly play as a debug camera.
         var startsWithoutCharacter = allBundledLevels
-            .Where(item => item.PlayerStart != null && item.GameModes?.Any(mode => mode.Type == "Character") != true)
+            .Where(item => item.PlayerStart != null
+                && item.GameModes?.Any(mode => mode.Type == "Character" || ManaLevelGameModes.Create(mode.Type)?.WantsPlayerCharacter == true) != true)
             .Select(item => item.Name)
             .ToList();
         Check("bundled levels with a Player Start play as a character (Character game mode)", startsWithoutCharacter.Count == 0,

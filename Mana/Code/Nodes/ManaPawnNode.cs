@@ -977,8 +977,27 @@ namespace Mana.Code.Nodes
             return WantsToRun ? RunClipName : WalkClipName;
         }
 
+        /// <summary>
+        /// A clip to play instead of the walk/run/jump the pawn picks for itself -- for a game mode that moves the pawn
+        /// itself (a runner's slide, its crash). Null hands the choice back.
+        /// </summary>
+        public string? AnimationOverride { get; set; }
+
+        /// <summary>Whether <see cref="AnimationOverride"/> loops; a crash plays once.</summary>
+        public bool AnimationOverrideLoops { get; set; } = true;
+
         private void SyncLocomotionClip()
         {
+            if (AnimationOverride is { } overridden)
+            {
+                if (!string.Equals(overridden, activeLocomotionClip, StringComparison.Ordinal) && Animation.Play(overridden))
+                {
+                    Animation.Looping = AnimationOverrideLoops;
+                    activeLocomotionClip = overridden;
+                }
+                return;
+            }
+
             var desiredClip = ResolveLocomotionClipName();
 
             if (string.Equals(desiredClip, activeLocomotionClip, StringComparison.Ordinal))

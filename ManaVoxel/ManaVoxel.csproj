@@ -71,6 +71,8 @@
     <!-- Games in projects of their own; ManaGames.cs registers their level game modes. -->
     <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
     <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <ProjectReference Include="..\Games\Runner\Runner.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Games\Runner\Runner.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
   </ItemGroup>
 
 

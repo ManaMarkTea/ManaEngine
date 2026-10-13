@@ -77,6 +77,9 @@ namespace Mana.Code.GameModes
         /// <summary>The start screen is up: a phone hides its game controls.</summary>
         public bool IsLevelSelectOpen => _levelSelectOpen;
 
+        /// <summary>The on-screen controls the level's modes want on a touch device.</summary>
+        public ManaTouchControls TouchControls => _gameModes.TouchControls;
+
         /// <summary>The pause panel is up; nothing in the world moves.</summary>
         public bool IsPaused => _paused;
 
@@ -342,8 +345,12 @@ namespace Mana.Code.GameModes
             // Double jump. FlyingMountComponent is parked -- see PlayModeController.
             _player.MaxJumpCount = PlayModeController.JumpsFor(modes);
 
-            _pawnController.Possess(_player);
-            _pawnController.SetCameraMode(ManaCameraMode.Follow);
+            // A mode that moves the character itself (a runner) gets it unpossessed: no walking keys, no follow camera.
+            if (!ManaGameModeRunner.AnyDrivesPlayerCharacter(modes))
+            {
+                _pawnController.Possess(_player);
+                _pawnController.SetCameraMode(ManaCameraMode.Follow);
+            }
 
             // Before BeginPlay: the game state resets there, and course pieces read the player from it.
             Context.World.GameState.Player = _player;
@@ -541,6 +548,10 @@ namespace Mana.Code.GameModes
 
         private void Restart()
         {
+            if (_gameModes.Restart())
+            {
+                return;
+            }
             if (_player != null)
             {
                 Context.World.GameState.Restart(Context.World, _spawnPosition, _spawnYaw);
