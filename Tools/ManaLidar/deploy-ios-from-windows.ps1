@@ -18,15 +18,14 @@
 .EXAMPLE
     ./Tools/ManaLidar/deploy-ios-from-windows.ps1
 .EXAMPLE
-    ./Tools/ManaLidar/deploy-ios-from-windows.ps1 -Configuration Debug -UnlockKeychain
+    ./Tools/ManaLidar/deploy-ios-from-windows.ps1 -Configuration Debug
 #>
 param(
     [string] $Mac = $env:MANA_MAC,
     # The checkout on the Mac; found by itself (and remembered) when not given.
     [string] $Repo = $env:MANA_MAC_REPO,
     [ValidateSet("Debug", "Release")] [string] $Configuration = "Release",
-    # Signing needs the Mac's login keychain, which an SSH session finds locked ("errSecInternalComponent").
-    # This asks for the Mac password and unlocks it for the build.
+    # Unused: the keychain is now always unlocked with the password kept from the first run.
     [switch] $UnlockKeychain,
     # Unused: the commit now goes straight to the Mac. Kept so older command lines still run.
     [switch] $Push
@@ -125,22 +124,39 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---------------------------------------------------------------- build and install, on the Mac
-# A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
-$steps = "cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force deploy && Tools/ManaLidar/deploy-ios.sh $Configuration"
-if ($UnlockKeychain) {
-    $secure = Read-Host "Mac login password (unlocks the signing keychain)" -AsSecureString
-    $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
-    # Read from stdin on the Mac, so the password is never on a command line.
-    $steps = "read -rs PW && security unlock-keychain -p `"`$PW`" ~/Library/Keychains/login.keychain-db && unset PW && $steps"
-    $password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
+# Signing needs the login keychain, which an SSH session finds locked (errSecInternalComponent). Its password is
+# asked once and kept encrypted for this Windows account only (DPAPI), then sent over stdin -- never on a command
+# line. Once, codesign is also let use the key without the click-to-allow dialog nobody is at the Mac to answer.
+$secretFile = Join-Path $settingsDir "mac-password.xml"
+if (Test-Path $secretFile) {
+    $secure = Import-Clixml $secretFile
 }
 else {
-    ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
+    Write-Host "To sign the app over SSH the Mac's keychain must be unlocked. Your Mac login password is asked once and" -ForegroundColor Yellow
+    Write-Host "kept encrypted for your Windows account only ($secretFile)." -ForegroundColor Yellow
+    $secure = Read-Host "Mac login password" -AsSecureString
+    New-Item -ItemType Directory -Force $settingsDir | Out-Null
+    $secure | Export-Clixml $secretFile
 }
+$password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
 
-if ($LASTEXITCODE -ne 0) {
+# A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
+$keychain = "~/Library/Keychains/login.keychain-db"
+$steps = "read -rs PW; security unlock-keychain -p `"`$PW`" $keychain || exit 77; " +
+    "[ -f ~/.mana-deploy/.signing-ready ] || { security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k `"`$PW`" $keychain >/dev/null && touch ~/.mana-deploy/.signing-ready; }; " +
+    "unset PW; cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force deploy && Tools/ManaLidar/deploy-ios.sh $Configuration"
+$password | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc '$steps'"
+$code = $LASTEXITCODE
+$password = $null
+
+if ($code -eq 77) {
+    Remove-Item $secretFile
+    Write-Host "The Mac did not accept that password, so it was not kept; the next run asks again." -ForegroundColor Yellow
+    exit 1
+}
+if ($code -ne 0) {
     Write-Host ""
-    Write-Host "The deploy on the Mac failed (exit $LASTEXITCODE). If signing failed with errSecInternalComponent, run again with -UnlockKeychain." -ForegroundColor Yellow
-    exit $LASTEXITCODE
+    Write-Host "The deploy on the Mac failed (exit $code)." -ForegroundColor Yellow
+    exit $code
 }
 Write-Host "ManaLidar ($commit) is on the phone." -ForegroundColor Green
