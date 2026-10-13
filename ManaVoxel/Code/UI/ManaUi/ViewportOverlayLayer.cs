@@ -76,6 +76,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 Add(new VoxelPlacementDepthOverlay(editor, camera), ViewportSlot.Fill);
                 Add(new SelectionTransformOverlay(editor, camera), ViewportSlot.Fill);
+                Add(new MeasureOverlay(editor, camera), ViewportSlot.Fill);
                 Add(new ViewportToolsDrawer(theme, editor), ViewportSlot.RightTools,
                     new Vector2(300, 350), size => size.X >= 320 && size.Y >= 180);
             }

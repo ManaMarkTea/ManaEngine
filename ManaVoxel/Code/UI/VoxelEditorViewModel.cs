@@ -76,6 +76,8 @@ namespace ManaVoxel.Code.UI
 
         /// <summary>Grid snapping for placement and the transform gizmo. Edit &gt; Preferences edits it.</summary>
         public EditorSnapSettings Snap { get; } = new();
+        /// <summary>The measuring tool (M): distances, radii and paths, snapped to the scene.</summary>
+        public ManaVoxel.Code.Measure.MeasureTool Measure { get; } = new();
         public bool HasHoverVoxel { get; private set; }
         public Vector3 HoverVoxelPosition { get; private set; }
         public Vector3 HoverVoxelNormal { get; private set; }

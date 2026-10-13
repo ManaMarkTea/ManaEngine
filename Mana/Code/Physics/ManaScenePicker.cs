@@ -87,6 +87,155 @@ namespace Mana.Code
                 : null;
         }
 
+        /// <summary>The nearest triangle under a ray, with its corners in world space: what snapping to vertices and edges needs.</summary>
+        public readonly record struct ScenePickTriangleResult(
+            ManaSceneNode Node,
+            Vector3 Position,
+            Vector3 Normal,
+            float Distance,
+            Vector3 A,
+            Vector3 B,
+            Vector3 C,
+            int CreaseEdges);
+
+        /// <summary>CreaseEdges bits: edge A-B, B-C, C-A is a real edge, not a diagonal across a flat face.</summary>
+        public const int EdgeAB = 1, EdgeBC = 2, EdgeCA = 4;
+
+        public static ScenePickTriangleResult? PickTriangle(
+            IEnumerable<ManaScene> scenes,
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            HashSet<ManaSceneNode>? excludeNodes = null)
+        {
+            ScenePickTriangleResult? best = null;
+            foreach (var scene in scenes)
+            {
+                foreach (var node in scene.Children)
+                {
+                    PickTriangleInNode(node, rayOrigin, rayDirection, excludeNodes, ref best);
+                }
+            }
+            return best;
+        }
+
+        private static void PickTriangleInNode(
+            ManaSceneNode node,
+            Vector3 rayOrigin,
+            Vector3 rayDirection,
+            HashSet<ManaSceneNode>? excludeNodes,
+            ref ScenePickTriangleResult? best)
+        {
+            if ((excludeNodes == null || !excludeNodes.Contains(node)) && Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
+            {
+                var localOrigin = Vector3.Transform(rayOrigin, worldToLocal);
+                var localDirection = Vector3.TransformNormal(rayDirection, worldToLocal);
+                foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+                {
+                    if (localDirection.LengthSquared() < 1e-12f || !renderer.IsVisible || renderer.Mesh == null
+                        || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                    {
+                        continue;
+                    }
+
+                    // Recentred for the same float-precision reason as TryIntersect.
+                    GetLocalBounds(cpuData, out var localMin, out var localMax);
+                    var center = (localMin + localMax) * 0.5f;
+                    var origin = localOrigin - center;
+                    if (!RayIntersectsAabb(origin, localDirection, localMin - center, localMax - center))
+                    {
+                        continue;
+                    }
+
+                    var positions = cpuData.Positions;
+                    var indexes = cpuData.Indexes;
+                    var bestT = float.PositiveInfinity;
+                    var bestTriangle = -1;
+                    for (var i = 0; i + 2 < indexes.Length; i += 3)
+                    {
+                        if (RayIntersectsTriangle(origin, localDirection, positions[indexes[i]] - center,
+                                positions[indexes[i + 1]] - center, positions[indexes[i + 2]] - center, out var t) && t < bestT)
+                        {
+                            bestT = t;
+                            bestTriangle = i;
+                        }
+                    }
+                    if (bestTriangle < 0)
+                    {
+                        continue;
+                    }
+
+                    var world = node.WorldTransform;
+                    var position = Vector3.Transform(localOrigin + localDirection * bestT, world);
+                    var distance = Vector3.Distance(rayOrigin, position);
+                    if (best is { } current && current.Distance <= distance)
+                    {
+                        continue;
+                    }
+
+                    var a = Vector3.Transform(positions[indexes[bestTriangle]], world);
+                    var b = Vector3.Transform(positions[indexes[bestTriangle + 1]], world);
+                    var c = Vector3.Transform(positions[indexes[bestTriangle + 2]], world);
+                    var normal = Vector3.Cross(b - a, c - a);
+                    normal = normal.LengthSquared() > 1e-20f ? Vector3.Normalize(normal) : Vector3.UnitY;
+                    // Facing the viewer: a scan's or a double-sided mesh's back face still measures from the side you see.
+                    if (Vector3.Dot(normal, rayDirection) > 0)
+                    {
+                        normal = -normal;
+                    }
+                    var creases = CreaseEdges(positions, indexes, bestTriangle);
+                    best = new ScenePickTriangleResult(node, position, normal, distance, a, b, c, creases);
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                PickTriangleInNode(child, rayOrigin, rayDirection, excludeNodes, ref best);
+            }
+        }
+
+        // An edge counts unless a neighbour across it lies in the same plane: then it is only the diagonal a flat
+        // face was cut along, which nobody means to measure to. Neighbours are matched by position, since a mesh
+        // with hard normals or UV seams repeats its vertices.
+        private static int CreaseEdges(Vector3[] positions, uint[] indexes, int triangle)
+        {
+            var corner = new[] { positions[indexes[triangle]], positions[indexes[triangle + 1]], positions[indexes[triangle + 2]] };
+            var normal = Vector3.Cross(corner[1] - corner[0], corner[2] - corner[0]);
+            if (normal.LengthSquared() < 1e-20f)
+            {
+                return EdgeAB | EdgeBC | EdgeCA;
+            }
+            normal = Vector3.Normalize(normal);
+
+            var creases = EdgeAB | EdgeBC | EdgeCA;
+            for (var i = 0; i + 2 < indexes.Length && creases != 0; i += 3)
+            {
+                if (i == triangle)
+                {
+                    continue;
+                }
+                var p0 = positions[indexes[i]];
+                var p1 = positions[indexes[i + 1]];
+                var p2 = positions[indexes[i + 2]];
+                var other = Vector3.Cross(p1 - p0, p2 - p0);
+                if (other.LengthSquared() < 1e-20f || Vector3.Dot(Vector3.Normalize(other), normal) < 0.9995f)
+                {
+                    continue;
+                }
+                for (var e = 0; e < 3; e++)
+                {
+                    var u = corner[e];
+                    var v = corner[(e + 1) % 3];
+                    var hasU = p0 == u || p1 == u || p2 == u;
+                    var hasV = p0 == v || p1 == v || p2 == v;
+                    if (hasU && hasV)
+                    {
+                        creases &= ~(1 << e);
+                    }
+                }
+            }
+            return creases;
+        }
+
         private static void PickNode(
             ManaSceneNode node,
             Vector3 rayOrigin,

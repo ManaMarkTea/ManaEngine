@@ -50,6 +50,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             ["inspector"] = "Inspector",
             // Named for its tab, though it never appears in the Panels menu: it follows the selection.
             [GridMapToolManaView.PanelId] = "Grid Map",
+            [MeasureToolManaView.PanelId] = "Measure",
             [VoxelToolsPanelId] = "Voxel Tools",
             [GridMapWfcManaView.PanelId] = "Generator",
             [SpriteAssetManaView.PanelId] = "Sprite Asset",
@@ -97,6 +98,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             "outliner",
             "inspector",
             GridMapToolManaView.PanelId,
+            MeasureToolManaView.PanelId,
             VoxelToolsPanelId,
             GridMapWfcManaView.PanelId,
             SpriteAssetManaView.PanelId,
@@ -174,6 +176,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static readonly Dictionary<string, (Vector2? Position, Vector2 Size)> ToolWindowPlaces = new()
         {
             [GridMapToolManaView.PanelId] = (null, new Vector2(300.0f, 520.0f)),
+            [MeasureToolManaView.PanelId] = (null, new Vector2(300.0f, 460.0f)),
             [VoxelToolsPanelId] = (null, new Vector2(300.0f, 460.0f)),
             [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f)),
             [SpriteAssetManaView.PanelId] = (null, new Vector2(400.0f, 640.0f)),
@@ -285,6 +288,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                         world.Selection,
                         world.Context,
                         history: editor?.History)) { Id = "inspector" },
+                MeasureToolManaView.PanelId when editor != null => new DockItem(
+                    "Measure",
+                    MeasureToolManaView.Build(theme, editor)) { Id = MeasureToolManaView.PanelId },
                 GridMapToolManaView.PanelId when world != null => new DockItem(
                     "Grid Map",
                     GridMapToolManaView.Build(theme, world, editor?.History)) { Id = GridMapToolManaView.PanelId },
@@ -633,6 +639,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                             SpriteAssetEditing.Close();
                         }
 
+                        // Likewise measuring: closing its window puts the ruler away.
+                        if (!closingToolWindow && id == MeasureToolManaView.PanelId && editor != null)
+                        {
+                            editor.Measure.Active = false;
+                        }
+
                         if (!closingToolWindow && id == GridMapWfcManaView.PanelId)
                         {
                             ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen = false;
@@ -725,6 +737,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // Editing windows are put away while playing, and come back as they were when play stops.
                 var editing = editor?.Levels.IsPlaying != true;
                 SyncToolWindow(GridMapToolManaView.PanelId, editing && selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
+                // Up while measuring.
+                SyncToolWindow(MeasureToolManaView.PanelId, editing && editor?.Measure.Active == true);
                 // Up until closed, whatever is selected: it works on the last grid map when another thing is.
                 SyncToolWindow(GridMapWfcManaView.PanelId, editing && ManaVoxel.Code.GridMaps.GridMapWfcEditing.WindowOpen);
                 // Up while an asset is open in it; Edit in the Inspector or the Project panel opens one.
@@ -1168,6 +1182,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 "preferences" => false,
                 // Opened by selecting a grid map, and closed again with it.
                 GridMapToolManaView.PanelId => false,
+                MeasureToolManaView.PanelId => false,
                 VoxelToolsPanelId => false,
                 GridMapWfcManaView.PanelId => false,
                 SpriteAssetManaView.PanelId => false,
@@ -1466,7 +1481,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // The tool windows follow the selection; opening them by hand would only show nothing.
             var hidden = new HashSet<string>
             {
-                GridMapToolManaView.PanelId, VoxelToolsPanelId, GridMapWfcManaView.PanelId,
+                GridMapToolManaView.PanelId, MeasureToolManaView.PanelId, VoxelToolsPanelId, GridMapWfcManaView.PanelId,
                 SpriteAssetManaView.PanelId, PrefabChangesManaView.PanelId
             };
             var available = PanelIds.Where(id => !hidden.Contains(id)).ToList();

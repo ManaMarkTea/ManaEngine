@@ -757,6 +757,7 @@ namespace Mana.Code.GameModes
                     DropSelectedToFloor);
                 // Steps out of (or back into) the running match, as F8 does.
                 _commandRunner.Register("eject", _ => ToggleEject());
+                _commandRunner.Register("measure", command => RunMeasureCommand(command.Name, command.Position));
             }
 
             _commandRunner.Tick();

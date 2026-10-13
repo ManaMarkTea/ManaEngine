@@ -200,7 +200,8 @@ public static class EditorToolbarChecks
         Frame();
         check("the voxel tools window is not up while selecting", Window() == null, "");
         check("and the toolbar carries no voxel tool buttons, only the one that brings them up",
-            IconButtons(root).Count(button => button.Bounds.X > 0.0f) <= 7, $"{IconButtons(root).Count} icon buttons");
+            // The seven it always had, plus the measuring tool's ruler.
+            IconButtons(root).Count(button => button.Bounds.X > 0.0f) <= 8, $"{IconButtons(root).Count} icon buttons");
 
         editor.IsSelectToolActive = false;
         Frame();

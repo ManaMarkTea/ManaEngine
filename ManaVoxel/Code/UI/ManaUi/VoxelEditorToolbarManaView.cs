@@ -123,7 +123,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                     GizmoModeButton(theme, ToolbarIcons.DrawRotate, "Rotate -- drag a ring to turn around an axis.",
                         SceneTransformGizmoMode.Rotate, editor, world),
                     GizmoModeButton(theme, ToolbarIcons.DrawScale, "Scale -- drag an axis to resize.",
-                        SceneTransformGizmoMode.Scale, editor, world));
+                        SceneTransformGizmoMode.Scale, editor, world),
+                    // Not a gizmo mode, but the same kind of thing: what a click in the viewport does.
+                    ToolbarIcons.IconButton(theme, ToolbarIcons.DrawRuler,
+                        "Measure -- distances, radii and paths, snapped to corners, edges and surfaces." + NewLine + "M",
+                        () => editor.Measure.Active,
+                        () => editor.Measure.Active = !editor.Measure.Active));
         }
 
         private static UiElement BuildHistoryGroup(UiTheme theme, VoxelEditorViewModel editor)
@@ -159,9 +164,10 @@ namespace ManaVoxel.Code.UI.ManaUi
                 theme,
                 drawIcon,
                 tooltip,
-                () => editor.ShowTransformGizmo && editor.TransformGizmoMode == mode,
+                () => editor.ShowTransformGizmo && editor.TransformGizmoMode == mode && !editor.Measure.Active,
                 () =>
                 {
+                    editor.Measure.Active = false;
                     editor.TransformGizmoMode = mode;
                     editor.ShowTransformGizmo = true;
                     editor.IsSelectToolActive = true;

@@ -210,6 +210,25 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new CornerRadius(1.5f));
         }
 
+        /// <summary>Measure: a ruler lying on the diagonal, with its tick marks.</summary>
+        public static void DrawRuler(ManaUiDrawList drawList, UiRect box, Vector4 color)
+        {
+            const float thickness = 1.5f;
+            // The ruler's two long edges, a little apart, on the box's diagonal.
+            var a = P(box, 0.16f, 0.62f);
+            var b = P(box, 0.62f, 0.16f);
+            var across = Vector2.Normalize(new Vector2(1, 1)) * box.Width * 0.2f;
+            drawList.DrawLine(a, b, color, thickness);
+            drawList.DrawLine(a + across, b + across, color, thickness);
+            drawList.DrawLine(a, a + across, color, thickness);
+            drawList.DrawLine(b, b + across, color, thickness);
+            for (var i = 1; i < 5; i++)
+            {
+                var at = Vector2.Lerp(a, b, i / 5.0f);
+                drawList.DrawLine(at, at + across * (i % 2 == 0 ? 0.55f : 0.35f), color, 1.2f);
+            }
+        }
+
         // ----- history --------------------------------------------------------------------------------
 
         /// <summary>Undo: an arrow curling back on itself to the left.</summary>

@@ -631,6 +631,17 @@ namespace Mana.Code.GameModes
                 return;
             }
 
+            // Measuring owns the pointer while it is on: a click places a point rather than selecting.
+            UpdateMeasureShortcut();
+            if (UpdateMeasuring(inputCaptured, MouseState))
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                _transformGizmo?.Hide();
+                HidePolygonOverlay();
+                return;
+            }
+
             // Painting a grid map owns the pointer outright: clicks paint cells rather than selecting.
             if (UpdateGridMapPainting(inputCaptured, MouseState))
             {
