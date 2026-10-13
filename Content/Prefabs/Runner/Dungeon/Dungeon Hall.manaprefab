@@ -1,0 +1,1294 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "3f5f2bb0159f594993d52dca418c1890",
+  "name": "Dungeon Hall",
+  "root": {
+    "id": "0b47f33865aa5f5ebecf3bf174ea2462",
+    "name": "Dungeon Hall",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "3ad47f253b8250e6b26279de15d9dc15",
+        "name": "Ground Floor",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          -0.18,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.34,
+          0.31,
+          0.3,
+          1
+        ],
+        "size": [
+          7.6,
+          0.4,
+          30.0
+        ]
+      },
+      {
+        "id": "0b15c6b19cc659578d8c47254e1fc044",
+        "name": "Wall",
+        "kind": "Shape",
+        "position": [
+          -4.3,
+          3.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          1.0,
+          6.4,
+          30.0
+        ]
+      },
+      {
+        "id": "dd0791891d1158139112d32ec2e8661c",
+        "name": "Wall",
+        "kind": "Shape",
+        "position": [
+          4.3,
+          3.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          1.0,
+          6.4,
+          30.0
+        ]
+      },
+      {
+        "id": "9c6bcb4465d1538b85b5a6027d7c96dd",
+        "name": "Ceiling",
+        "kind": "Shape",
+        "position": [
+          0,
+          6.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.34,
+          0.31,
+          0.3,
+          1
+        ],
+        "size": [
+          9.6,
+          0.6,
+          30.0
+        ]
+      },
+      {
+        "id": "e4cc6252ff565c50b1f9c7cd6f4a696e",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          -3.65,
+          3.2,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "0994c03c415c56c4b44cc5389753ee0f",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.6,
+                0.25,
+                1
+              ],
+              "intensity": 3.0,
+              "range": 12,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "4f04e996bce855ed9cca524eac047d02",
+        "name": "Banner",
+        "kind": "Mesh",
+        "position": [
+          -3.8,
+          1.6,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          1.5708,
+          0
+        ],
+        "scale": [
+          2.4,
+          2.4,
+          2.4
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
+      },
+      {
+        "id": "aa83283092f459dcbcacad4619c00812",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          3.65,
+          3.2,
+          -21.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "c5294d6418f05b178c05cb09ea554e6f",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.6,
+                0.25,
+                1
+              ],
+              "intensity": 3.0,
+              "range": 12,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "73d7e2461a185b7b98c9f6e2832ede51",
+        "name": "Banner",
+        "kind": "Mesh",
+        "position": [
+          3.8,
+          1.6,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          -1.5708,
+          0
+        ],
+        "scale": [
+          2.4,
+          2.4,
+          2.4
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
+      },
+      {
+        "id": "f6a6595fa968528dbf0e6b23dc228851",
+        "name": "Obstacle Rubble",
+        "kind": "Shape",
+        "position": [
+          -2.2,
+          0.45,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          2.0,
+          0.9,
+          1.2
+        ]
+      },
+      {
+        "id": "fc70891b34935710967f2a3103e94744",
+        "name": "Obstacle Rubble",
+        "kind": "Shape",
+        "position": [
+          2.2,
+          0.45,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          2.0,
+          0.9,
+          1.2
+        ]
+      },
+      {
+        "id": "06dec8e8de4d5dc0ac8952e4ecd23348",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.9043,
+          -5.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "1136515e42e15b499c839bf78afffeb7",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "3f8a3c0e24e9562d8312d17305c78d2d",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "0fcbde9af7cc5a948af4edb395b5cc16",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "bf2ab5956c50533f9cb03b9595897ca1",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.8386,
+          -6.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "e37f58030c855d3081cba687d90f2029",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "29e43dcd345e57dd906d86ffbb34cadf",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "0cb6bb77143257d4bc3291f2a77507d8",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "885ca044e2f9548b8f5ccf679d6d74b2",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          2.15,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "b0c1b44d54245f049ef37d60852038e8",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "e3762c3a28435f7c9221aeadc1d1774a",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "79cf78787f1a566a822f97e7782906c1",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "5b2c05e995e55f2c9c87fd885771cbe8",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.8386,
+          -9.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "775239ec09fb5c60995c5d2132b9aab6",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "ac27333586b052b9b9262845c21be266",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "74fbc0f67bb15d4cb66af51d5cb2fd66",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "247e530881e4587fab635cc1637f80a8",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.9043,
+          -11.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "86252badc720548c9c3bce7756260cc3",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "7eaabf91589252388aa2b7341e127de9",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "407f5f7abe555e7b8c6e4c2c824643ac",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "71f8114254f1547583f3674107e3aa0b",
+        "name": "Obstacle Beam",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          1.35,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.45,
+          0.3,
+          0.18,
+          1
+        ],
+        "size": [
+          2.1,
+          0.45,
+          0.45
+        ]
+      },
+      {
+        "id": "1fe45b61a18f5871b24a2093fe05aa82",
+        "name": "Obstacle Beam",
+        "kind": "Shape",
+        "position": [
+          2.2,
+          1.35,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.45,
+          0.3,
+          0.18,
+          1
+        ],
+        "size": [
+          2.1,
+          0.45,
+          0.45
+        ]
+      },
+      {
+        "id": "76500cfc96ad5caeb69bdbc919aabf04",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.4,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "ec1889f0236f5eb8a5d139b1d364ce02",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "62057f6821895cdda16595b5907003db",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "a2df812b567c50f39777550959ef3721",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "544e131e2766536e8e94cd3390c09fde",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.4,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "f35f7f5d0241529faa632bf42db0fa53",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "cb2a56d8ae265fb7931998bf80d7a612",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "d026ff1968cc5d0b8f034cf25f6906c6",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "202a11c1661458f0a1eba7889af1d6f6",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.4,
+          -20.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "99c84ad898ea5874871f5197f88d0ff1",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "1717f1b6a7bc54e6a10a7db01fcc7bce",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "3a0b973a8b355953931763fd0785a0b6",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "719c9dd4809f51fbb346589b97beb8b5",
+        "name": "Obstacle Column",
+        "kind": "Mesh",
+        "position": [
+          -2.2,
+          0.0,
+          -24.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.6,
+          2.6,
+          2.6
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/column.glb"
+      },
+      {
+        "id": "8b948cadd12a570a844c6dbbdefb956e",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -22.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "ef33d7edb6b351e897a8b786a6ce64f6",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "c9e74e574ff353ac827dcac4ff18d0ce",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "250febf4b3e253358006a727946e1ce4",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "1a161df1376a5a6d8f6bf5f34d73ce84",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -24.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "ab4d9abb1872516f91963a13f73c2610",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "9dcce50fcc865bef9eacbfe966ab62c6",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "3e525338dcc952c4b5b405d073918f18",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "83e43d557ef653468b1e47ceed54452a",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -26.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "8bfe698261455719b7bc4011cd5facbd",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "c5448c1d26c15bc98e77f9ce1b22c3b3",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "da4c474c0af5554c929a9ba0063ff895",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "c3f746b9d34059258bd961d381abd0a4",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -28.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "4955794bb9a8581f921e0fc9a4c24ccd",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "4b28c112102d56dea4a07c87e9c95851",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "50587c815f2b594eb6e2dbe50200781c",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      }
+    ]
+  },
+  "properties": []
+}

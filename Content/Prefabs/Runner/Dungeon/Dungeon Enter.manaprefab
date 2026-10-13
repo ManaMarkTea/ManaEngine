@@ -1,11 +1,11 @@
 {
   "format": "mana-prefab",
   "version": 1,
-  "id": "bc24c67bc2f1513798f5616fd57d8538",
-  "name": "Runner Start",
+  "id": "fa49f17f4c055beaa04e17ed2d119a16",
+  "name": "Dungeon Enter",
   "root": {
-    "id": "4c5920261a4a5fb5ac039ca11c7a1e2a",
-    "name": "Runner Start",
+    "id": "a4f3eea345095205bfe40b3b416dc53b",
+    "name": "Dungeon Enter",
     "kind": "Group",
     "position": [
       0,
@@ -24,13 +24,13 @@
     ],
     "children": [
       {
-        "id": "138508dc9e8254ebb82630b9ec6d5e05",
-        "name": "Road",
+        "id": "0db2aef8326d5eeaa5b83a26b4ada325",
+        "name": "Ground Road",
         "kind": "Shape",
         "position": [
-          0,
-          -0.08,
-          -15.0
+          0.0,
+          -0.18,
+          -2.0
         ],
         "rotation": [
           0,
@@ -51,18 +51,18 @@
         ],
         "size": [
           7.6,
-          0.2,
-          30.0
+          0.4,
+          4.0
         ]
       },
       {
-        "id": "f31daf4984d8580bba2f76c547d3ee47",
+        "id": "f947c2a24428568383caf27a35a57d93",
         "name": "Pavement",
         "kind": "Shape",
         "position": [
           -4.7,
           0.0,
-          -15.0
+          -2.0
         ],
         "rotation": [
           0,
@@ -84,17 +84,17 @@
         "size": [
           2.6,
           0.25,
-          30.0
+          4.0
         ]
       },
       {
-        "id": "e78d9670b3c55f99bf63a0752d8f4479",
+        "id": "583042ae43085193b005eaeb5fb4b304",
         "name": "Verge",
         "kind": "Shape",
         "position": [
-          -10.0,
+          -26.0,
           -0.03,
-          -15.0
+          -2.0
         ],
         "rotation": [
           0,
@@ -114,19 +114,19 @@
           1
         ],
         "size": [
-          8.0,
+          40.0,
           0.2,
-          30.0
+          4.0
         ]
       },
       {
-        "id": "f0b47ad3dd4458a682b770c05020492c",
+        "id": "019530cc8894548a9f4f11f8a6bb6c94",
         "name": "Pavement",
         "kind": "Shape",
         "position": [
           4.7,
           0.0,
-          -15.0
+          -2.0
         ],
         "rotation": [
           0,
@@ -148,17 +148,17 @@
         "size": [
           2.6,
           0.25,
-          30.0
+          4.0
         ]
       },
       {
-        "id": "189716731e6455a5902e988be6266779",
+        "id": "f73bce02dbd153dd9486258c3e79fa7a",
         "name": "Verge",
         "kind": "Shape",
         "position": [
-          10.0,
+          26.0,
           -0.03,
-          -15.0
+          -2.0
         ],
         "rotation": [
           0,
@@ -178,13 +178,13 @@
           1
         ],
         "size": [
-          8.0,
+          40.0,
           0.2,
-          30.0
+          4.0
         ]
       },
       {
-        "id": "259d25e807305b3b838b8a23ae4b3c92",
+        "id": "56dc3e7fbfad5079bc4714f6e2ffc6dc",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -216,7 +216,7 @@
         ]
       },
       {
-        "id": "ac855579ac2054f698535d256a7d9714",
+        "id": "79cee5a5fffa5787b0a060ed7aaaa4ed",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -248,16 +248,16 @@
         ]
       },
       {
-        "id": "074df81bd92d58d9b2fed9ce5e3be5be",
-        "name": "Lane Line",
+        "id": "9afea033a0c95c97a8e9985492070d33",
+        "name": "Ramp Down",
         "kind": "Shape",
         "position": [
-          -1.1,
-          0.03,
-          -6.25
+          0,
+          -5.18,
+          -14.0
         ],
         "rotation": [
-          0,
+          -0.46365,
           0,
           0
         ],
@@ -268,438 +268,24 @@
         ],
         "shape": "Cube",
         "color": [
-          0.95,
-          0.95,
-          0.92,
+          0.34,
+          0.31,
+          0.3,
           1
         ],
         "size": [
-          0.1,
-          0.02,
-          2.5
+          7.6,
+          0.36,
+          22.3607
         ]
       },
       {
-        "id": "0193a013616751b58a7d285eaef41bdd",
-        "name": "Lane Line",
+        "id": "7a42518ca0125718a11b5219e622fd17",
+        "name": "Ground Floor",
         "kind": "Shape",
         "position": [
-          1.1,
-          0.03,
-          -6.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "1d822190e94b512cb475fa5280b986c9",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          -1.1,
-          0.03,
-          -11.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "a09224f65f035747a7cc1d69d0ecff28",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          1.1,
-          0.03,
-          -11.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "19d063e3a5e35b0589974b41dae59f20",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          -1.1,
-          0.03,
-          -16.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "66efb870cd0e591fb39369d8de19442b",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          1.1,
-          0.03,
-          -16.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "a746068bd40d514fa220644ffcde96a8",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          -1.1,
-          0.03,
-          -21.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "13384c6254bb52bea059da0106fc1109",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          1.1,
-          0.03,
-          -21.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "2af8dbb75d4454b6a569231f7a024cbc",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          -1.1,
-          0.03,
-          -26.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "fbc8b0ecc6cb53e5a1cb97aeb53dad41",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          1.1,
-          0.03,
-          -26.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "1e1a77a30fc6509c8e0178069dffb9fc",
-        "name": "Lamp",
-        "kind": "Mesh",
-        "position": [
-          4.1,
-          0.12,
-          -7.0
-        ],
-        "rotation": [
-          0,
-          3.14159,
-          0
-        ],
-        "scale": [
-          3.2,
-          3.2,
-          3.2
-        ],
-        "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
-      },
-      {
-        "id": "57b4042cb8135c43a42912e3f5669e45",
-        "name": "Lamp",
-        "kind": "Mesh",
-        "position": [
-          -4.1,
-          0.12,
-          -14.5
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          3.2,
-          3.2,
-          3.2
-        ],
-        "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
-      },
-      {
-        "id": "194057be57705bdbbfd09b303656bf16",
-        "name": "Lamp",
-        "kind": "Mesh",
-        "position": [
-          4.1,
-          0.12,
-          -22.0
-        ],
-        "rotation": [
-          0,
-          3.14159,
-          0
-        ],
-        "scale": [
-          3.2,
-          3.2,
-          3.2
-        ],
-        "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
-      },
-      {
-        "id": "f31c6abd492d56b4bd40f32595a709d8",
-        "name": "Lamp",
-        "kind": "Mesh",
-        "position": [
-          -4.1,
-          0.12,
-          -29.5
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          3.2,
-          3.2,
-          3.2
-        ],
-        "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
-      },
-      {
-        "id": "b9dae9ca049551f294605cbc6a727f23",
-        "name": "Palm",
-        "kind": "Mesh",
-        "position": [
-          7.5,
           0.0,
-          -4.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.1,
-          1.1,
-          1.1
-        ],
-        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
-      },
-      {
-        "id": "49666aedfdd05808b1b132178d425f0b",
-        "name": "Palm",
-        "kind": "Mesh",
-        "position": [
-          -7.2,
-          0.0,
-          -16.0
-        ],
-        "rotation": [
-          0,
-          1.2,
-          0
-        ],
-        "scale": [
-          1.1,
-          1.1,
-          1.1
-        ],
-        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
-      },
-      {
-        "id": "b7264d0743345e6cb3c96c89474be507",
-        "name": "Palm",
-        "kind": "Mesh",
-        "position": [
-          -8.0,
-          0.0,
+          -10.18,
           -27.0
         ],
         "rotation": [
@@ -708,35 +294,313 @@
           0
         ],
         "scale": [
-          0.9,
-          0.9,
-          0.9
+          1,
+          1,
+          1
         ],
-        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
+        "shape": "Cube",
+        "color": [
+          0.34,
+          0.31,
+          0.3,
+          1
+        ],
+        "size": [
+          7.6,
+          0.4,
+          6.0
+        ]
       },
       {
-        "id": "19ee042b280251088f3c860559b6ab02",
-        "name": "Palm",
-        "kind": "Mesh",
+        "id": "07ed0c5037a75644a6f0e950e27260ca",
+        "name": "Wall",
+        "kind": "Shape",
         "position": [
-          8.4,
-          0.0,
-          -21.0
+          -4.3,
+          -7.0,
+          -20.0
         ],
         "rotation": [
           0,
-          2.6,
+          0,
           0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          1,
+          1,
+          1
         ],
-        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          1.0,
+          6.4,
+          20.0
+        ]
       },
       {
-        "id": "13a0f32c217955649149716150764a92",
+        "id": "c20bb657643a53259c7e17c8d65b7f1c",
+        "name": "Wall",
+        "kind": "Shape",
+        "position": [
+          4.3,
+          -7.0,
+          -20.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          1.0,
+          6.4,
+          20.0
+        ]
+      },
+      {
+        "id": "3ae3fdc117bd59b7b0efabc012167068",
+        "name": "Ceiling",
+        "kind": "Shape",
+        "position": [
+          0,
+          -4.0,
+          -20.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.34,
+          0.31,
+          0.3,
+          1
+        ],
+        "size": [
+          9.6,
+          0.6,
+          20.0
+        ]
+      },
+      {
+        "id": "1dd5ea2001ba5c11943ff982d5a8f25a",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          3.65,
+          -6.8,
+          -26.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "d9fe53cbe5705819bfcf487ce4ef8fd9",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.6,
+                0.25,
+                1
+              ],
+              "intensity": 3.0,
+              "range": 12,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "9a7606a7baaa5672823295e6056ec6d0",
+        "name": "Wall",
+        "kind": "Shape",
+        "position": [
+          -4.3,
+          -4.0,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          1.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "id": "b93e5a2487325f3284eaa8337705c42f",
+        "name": "Wall",
+        "kind": "Shape",
+        "position": [
+          4.3,
+          -4.0,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.34,
+          0.38,
+          1
+        ],
+        "size": [
+          1.0,
+          12.0,
+          24.0
+        ]
+      },
+      {
+        "id": "fdb2161da18154c5b3db853c9117200c",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "24f196afe30a56829dc6bde7168f9173",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "1ad4293a7ac35d5bbac834ccdd7b79d0",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "fbd1f108fd2052d0828fe65886235030",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "686a9b2f54e6502ca4e86e816af8b0fe",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -756,7 +620,7 @@
         ],
         "scripts": [
           {
-            "id": "94bf59a5b5115d4fb430b6e3ea1f8d7b",
+            "id": "f884f36b1d7c5bb4840c0a5d7b6c081f",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -772,7 +636,7 @@
             }
           },
           {
-            "id": "f0a1c9044d605ba4a4228822fc2046fa",
+            "id": "061743e283f55a68aec7cf677496f152",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -782,7 +646,7 @@
         ],
         "children": [
           {
-            "id": "afe59db5689f57d79cc1bfbf850a1c11",
+            "id": "e078fdd339cc5b59a8cb0a45fd6c4aa5",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -805,7 +669,7 @@
         ]
       },
       {
-        "id": "3b49e2048b985c0c89384faafb23c63f",
+        "id": "38426af7caf55268b2eb5b596158bf63",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -825,7 +689,7 @@
         ],
         "scripts": [
           {
-            "id": "f76c5cf0440d5a24a1ced542fce50cdd",
+            "id": "c62a5be5f99f500582ed36d16d8fd7ad",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -841,7 +705,7 @@
             }
           },
           {
-            "id": "3234eac092ae5ee997b569c5c52fc56b",
+            "id": "035507e570915209a5d246b2c3a9cbf6",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -851,7 +715,7 @@
         ],
         "children": [
           {
-            "id": "003da8dcfe025d7dba16e4abe8f27208",
+            "id": "1fd3475d482951b785e8546d48b599b5",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -874,7 +738,7 @@
         ]
       },
       {
-        "id": "8152da84175b56529001ae2b18d8e2b5",
+        "id": "7616cd153fac572ead3645cc92356ae5",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -894,7 +758,7 @@
         ],
         "scripts": [
           {
-            "id": "be2e3ede40e45663a229f6f9af9ac743",
+            "id": "0cd0f7fd062f52cbab1215fb2714d0a4",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -910,7 +774,7 @@
             }
           },
           {
-            "id": "aa362e9da7365253a77df1b78482eea3",
+            "id": "66c50d1ed89b565e9112c754948d849d",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -920,7 +784,7 @@
         ],
         "children": [
           {
-            "id": "cd307a4756ed5e6485a3cd807185cc25",
+            "id": "cf50f1d767d354768950c8398dfe4e00",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -943,7 +807,7 @@
         ]
       },
       {
-        "id": "288761dee16c57fd9bc54954b4a91e6e",
+        "id": "00e1e2d859c456f7ba24d2d4d9245587",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -963,7 +827,7 @@
         ],
         "scripts": [
           {
-            "id": "f4ecabf74b755f04b928652985ba5257",
+            "id": "b06a3776a1c75db3b617993fce6e4b3f",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -979,7 +843,7 @@
             }
           },
           {
-            "id": "efdf66364ac95230a0648a02b2b51b7c",
+            "id": "3cdc7f1ad5515995ae44f6eed4b98307",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -989,7 +853,7 @@
         ],
         "children": [
           {
-            "id": "3eaa5692e705566cb0f271b4177d0d65",
+            "id": "004a6501dc285585830c9fb48e9ec014",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1012,7 +876,7 @@
         ]
       },
       {
-        "id": "73f76d74a6f25caa962e4d387550e83e",
+        "id": "24a6e88fb0795a44b75f9f737513d42d",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1032,7 +896,7 @@
         ],
         "scripts": [
           {
-            "id": "91597bb2e0225d70a353a0fdc15f89dc",
+            "id": "154a0bcaa3205bbeb6686a5198315a67",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1048,7 +912,7 @@
             }
           },
           {
-            "id": "2de4ca4329e25afaa302c083ffda5b5a",
+            "id": "3163995a10935092937c1680f17c09d8",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1058,7 +922,7 @@
         ],
         "children": [
           {
-            "id": "45f85a04704c529a952ceb40e07c1eaa",
+            "id": "cdb06ec684ed5aedbd513e0a8d885e30",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1081,7 +945,7 @@
         ]
       },
       {
-        "id": "f370f7fe8f1454bdb5b6be55968a52e8",
+        "id": "a02cb4e31bf150178c461a89df1a5bab",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1101,7 +965,7 @@
         ],
         "scripts": [
           {
-            "id": "64dc111c6a335dffb05dff3d0b7b1174",
+            "id": "e2765f7d027d5eaf96b3b51e720e1ca1",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1117,7 +981,7 @@
             }
           },
           {
-            "id": "73e60c58afa9569aa5cef40a99e3c324",
+            "id": "ca120b7965425304bd6c0effdb170a5f",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1127,7 +991,7 @@
         ],
         "children": [
           {
-            "id": "dbadbcc416cc5e24aca6cde70cb34833",
+            "id": "0830eae587a955a19ca188a457d3352e",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1150,7 +1014,7 @@
         ]
       },
       {
-        "id": "10cf23ac0b19570bbcca63128a746455",
+        "id": "82e628d7e4715fdfacec755dabfd1eb8",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1170,7 +1034,7 @@
         ],
         "scripts": [
           {
-            "id": "8cf243b860a855bd874a85e50167cf3c",
+            "id": "77145a3c5a0b5825980e269cf9ea54fb",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1186,7 +1050,7 @@
             }
           },
           {
-            "id": "6315da9f8d785c2982531fc0d01d0085",
+            "id": "7ddc3febc95358f88b79181810028922",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1196,7 +1060,7 @@
         ],
         "children": [
           {
-            "id": "aed200fbd44d545d90ad0a55b90e71bb",
+            "id": "246ffa5baf405e948c9bb05a64fc1392",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1219,7 +1083,7 @@
         ]
       },
       {
-        "id": "ad87f9680f2d556ca7db88d068afd7ff",
+        "id": "cf7e8488e6cb5b129f0acd8545448ce6",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1239,7 +1103,7 @@
         ],
         "scripts": [
           {
-            "id": "68c10e39f67352be8974099f92e93242",
+            "id": "69d2659873db5fbd960f58b9c711914a",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1255,7 +1119,7 @@
             }
           },
           {
-            "id": "0851a6b5016e59b48f2f97f55f55165f",
+            "id": "274ae7121d215cdf9033629d5d7eae06",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1265,7 +1129,7 @@
         ],
         "children": [
           {
-            "id": "6d00fd032c47556ca165aba8a011e59a",
+            "id": "f0ead2458b8e5f8e926dfa96ffe70d67",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1288,7 +1152,7 @@
         ]
       },
       {
-        "id": "8dcbc72c28e55cfdbfb4d1b235cccd6e",
+        "id": "1dfda34c806a5d818f2351017b2845e9",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1308,7 +1172,7 @@
         ],
         "scripts": [
           {
-            "id": "97b0bb0bfb9e55dfa436b283eace529a",
+            "id": "c1adeb054c62590a906e3b083613547a",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1324,7 +1188,7 @@
             }
           },
           {
-            "id": "4f9c928d2d7d52efb454eedbc38f6656",
+            "id": "dd24bd53c4b35e81b7cbf3d3942a3123",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1334,7 +1198,7 @@
         ],
         "children": [
           {
-            "id": "8184b301bcf35982b89d7a2b1b04c94b",
+            "id": "1aec3473b5fd5001acb807fc63335098",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1357,7 +1221,7 @@
         ]
       },
       {
-        "id": "8244cd37a4225b7285a0dd08eb1bca8a",
+        "id": "33213d53495c57798291c9fbc8cac10c",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1377,7 +1241,7 @@
         ],
         "scripts": [
           {
-            "id": "9dbaaa61217655b4b265e39807e28f43",
+            "id": "08c13c79f7065696a694b437454cf586",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1393,7 +1257,7 @@
             }
           },
           {
-            "id": "1d244890668f5781b48a794fc90bb28f",
+            "id": "e5a2dba68f795266851171c0648a0575",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1403,7 +1267,7 @@
         ],
         "children": [
           {
-            "id": "78d54b80097655609433047e8c569e33",
+            "id": "958078bacd015a4c968fe05f8011648d",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1426,7 +1290,7 @@
         ]
       },
       {
-        "id": "188ced0b72cf564dad157abf9e03ee6f",
+        "id": "a5a15ccc35cb5f30a6cf1662593466c3",
         "name": "Coin",
         "kind": "Group",
         "position": [
@@ -1446,7 +1310,7 @@
         ],
         "scripts": [
           {
-            "id": "8cbba6e4d12d5ce18eb76707e248acf6",
+            "id": "c844cdbbb9625c1ba0a814a8fb460c1d",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1462,7 +1326,7 @@
             }
           },
           {
-            "id": "c5d937af841455f293ff71b18291e49c",
+            "id": "e2deb51886f3588b9ff13b5fa481084d",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1472,7 +1336,7 @@
         ],
         "children": [
           {
-            "id": "e82d8c3480fc5b69970f3a44e3a0f999",
+            "id": "2424fd7b4c855809a4837ba159fdf575",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1492,6 +1356,26 @@
             ],
             "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
           }
+        ]
+      },
+      {
+        "id": "a66e0eefcfc455dba053a8dd0c1ef361",
+        "name": "Exit",
+        "kind": "Group",
+        "position": [
+          0,
+          -10.0,
+          -30.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
         ]
       }
     ]

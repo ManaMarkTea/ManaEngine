@@ -1,0 +1,3279 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "4e6358c4310e55a390740a31630dffa4",
+  "name": "Sky Islands",
+  "root": {
+    "id": "599dba24c9695989b18218ae00ed8edd",
+    "name": "Sky Islands",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "4578b7437086592da024cbbe4478b791",
+        "name": "Far Cloud",
+        "kind": "Shape",
+        "position": [
+          -14,
+          -6.0,
+          -6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          11.0,
+          5.0,
+          8.0
+        ]
+      },
+      {
+        "id": "de966c6876395bb7b700cfc05088cb43",
+        "name": "Far Cloud",
+        "kind": "Shape",
+        "position": [
+          16,
+          -9.0,
+          -14
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          13.2,
+          6.0,
+          9.6
+        ]
+      },
+      {
+        "id": "be7f9432ab305bd4a30dba497ae3b27f",
+        "name": "Far Cloud",
+        "kind": "Shape",
+        "position": [
+          -18,
+          -3.0,
+          -24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          8.8,
+          4.0,
+          6.4
+        ]
+      },
+      {
+        "id": "e42e1325a9625ed0ab933ed7df90b552",
+        "name": "Far Cloud",
+        "kind": "Shape",
+        "position": [
+          12,
+          4.0,
+          -28
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          7.7,
+          3.5,
+          5.6
+        ]
+      },
+      {
+        "id": "f28325b6aa265df1aef6715db855e606",
+        "name": "Ground Cloud",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          -0.38,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          2.3,
+          0.8,
+          12.0
+        ]
+      },
+      {
+        "id": "4a1cdd6d63cc58c29b44fea4db09f7a3",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "3ebc78b79e195b4ba7156659dadc20dc",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "25e56fbb12c8506aa4f27e2c8359be27",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -3.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "ca585f32b6c4590bbf9271030f600e89",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -3.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "80bfdb3e5c0f58c192e535f4f4f47198",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "216ad7b78d3b5e4e8ff8bcfa828763f6",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "ecccbc972b5754beb25814e53ca7aa7b",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -8.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "dfc9c134c8305407bdbca7a4be67a4f3",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -8.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "019907f3099a5799bb811a5dc67d2bcc",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -11.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "aafd2830d479509795f7b3760b52c6ea",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -11.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "be817f25fe9f51cf8bf5adc45b58c6de",
+        "name": "Ground Cloud",
+        "kind": "Shape",
+        "position": [
+          -2.2,
+          -0.38,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          2.3,
+          0.8,
+          12.0
+        ]
+      },
+      {
+        "id": "eefd7e62366051a99df0e0c709e28522",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -7.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "d078b1daf0d55378ad9a779471dc3b10",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -7.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "4fe0c73338c4514983470d4363ac536d",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -9.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "2b7d7fd622ed5f1a9f2883090708bbcb",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -9.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "cb91efd5f9c25d68852b4c35c327159c",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "0da18ecb056a5ad7b13f802fa2999c44",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "f6cdbabb77b157958881b1a5125a58b9",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -14.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "93a4490c30285e39a24660d226a486d6",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -14.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "d81cd75b83b45fcdaea6035936d3815c",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "09c4a8e7964e56cda2fc72bb06ab82ff",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "e5977a1dd36e5ae2b7307c06d0bb0861",
+        "name": "Ground Cloud",
+        "kind": "Shape",
+        "position": [
+          2.2,
+          -0.38,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          2.3,
+          0.8,
+          12.0
+        ]
+      },
+      {
+        "id": "0d2b7b12688c5138b81b86144e3ca952",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          0.95,
+          -0.3,
+          -7.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "c97b10b6f9155b2992182a06ac783e65",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          -0.3,
+          -7.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "950db9ea715f5c2a88a6f786b3b5b6c4",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          0.95,
+          -0.3,
+          -9.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "464a048fe52058be9e3f675a4fcee16e",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          -0.3,
+          -9.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "c4c9daf6afa35d378e4f81c086687e9d",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          0.95,
+          -0.3,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "27543ce6bd17545d99c0351210a7113d",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          -0.3,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "4653998e976259a1a684511a54b365b3",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          0.95,
+          -0.3,
+          -14.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "791b429463f65261b2cde360667d32a8",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          -0.3,
+          -14.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "c22a64598c5353988a284b61bd3934c6",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          0.95,
+          -0.3,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "c3be487619e455d89437db2355307b12",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          -0.3,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "9287431b89a358fa82d41920ab09326d",
+        "name": "Ground Cloud",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          -0.38,
+          -23.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          2.3,
+          0.8,
+          14.0
+        ]
+      },
+      {
+        "id": "e62a902e37975a64be92e25b3d1bae74",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "84cc5283f48c5298a9b08068cdbb9736",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "917d5350d2805c0c8f3ce99722684452",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -19.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "1c8ebddd5cc45503a8a9be79601a2ebb",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -19.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "4a545f325adc5916b27384ebe244dda4",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -22.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "d2ab8925eea25be18ac0b8948385c97a",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -22.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "9da4932d417a5bd2b3bee3069fc40cd1",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -24.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "ae6400a838c15be4a90164f8a3a0f5be",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -24.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "c186ae8d7b1c55b9afff896a55362a50",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -1.25,
+          -0.3,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "099818492dd159d4bb43f3d8d307f477",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          1.25,
+          -0.3,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "5bfaea447cab50668ea848a199bd379f",
+        "name": "Ground Cloud",
+        "kind": "Shape",
+        "position": [
+          -2.2,
+          -0.38,
+          -26.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          2.3,
+          0.8,
+          8.0
+        ]
+      },
+      {
+        "id": "11542b7bae485a628c9606b97fb4223e",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -23.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "4dc12ea5194a5756bbefe982fb2d4f20",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -23.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "08a7fff2c3295bac8a8d273f385d00dd",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -25.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "b32b08cf1dfe5974ae12f6bf1ad7e9ea",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -25.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "4a507290e8305c0a92946de5ad51b7da",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          -0.3,
+          -28.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "504e712e7e1a54af8a52f9a365321004",
+        "name": "Puff",
+        "kind": "Shape",
+        "position": [
+          -0.95,
+          -0.3,
+          -28.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.97,
+          0.98,
+          1.0,
+          1
+        ],
+        "size": [
+          1.1,
+          1.0,
+          1.4
+        ]
+      },
+      {
+        "id": "1d2ef8a6a06f5f11961701be75862b3d",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -2.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "c4e0f6924a4e597c9d5d2e7cc2ece600",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "762e948517e25af3b84311f5873383ad",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "193ee0f9e4b259d8a838d5fb93415f59",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "a6f086b42513511aa8a367919e8deef4",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -4.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "aa7cf730f8835762a6662bc2987fa4d0",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "77bd9c3711ac54c1babc1938b1671a78",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "f932d9d9cbe05ba9a070bcee05cedf7c",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "d7bb8452f16e5d2b8fdcd627cd6bffa9",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "f5d8caba7e875dfea239502a660f95e5",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "8d92640b3f295f63a2ccfaf7ad1110b2",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "6078c8f0f27852d893b691446a56e68e",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "001cdf12a88d5aa7ae79dbf0b5da2fac",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "1fe642a7f0885ad78f05bf73143da49f",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "6349738a7e15578eba04a880d525261e",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "7e807761620d5a1c9ac7f2cbdb8e930f",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "a3632f6334b358fe808f213434780d79",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -10.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "75febbf5e0b65f138022de1ba182c307",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "23b8596acb335fa19921717a57364920",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "f9e5cc3bedc05608b6d0cbfa22cf3b2a",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "403d9927512d5971ad90230ac1f8a240",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.55,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "a09e9b1ef5d65e22bbcc212943eb84d3",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "0c366727edad5a61ac1978403e7ba88a",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "cab61c8c3d0b5b83b43bd876991c19f3",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "ee1be9f26037572887b66758bff19c26",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.55,
+          -10.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "f91f8dd0f5195ae391776dfaac641f53",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "f82c5ea3ac505a36b5dab37a02de9306",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "04a63516720d5667a098120b4bd4afea",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "54f118503b1851669da8ebf2537968f5",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.55,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "3b97715ca54c52aa8d0cca5a45d37188",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "1e6552bae90c5d1ebaf1425a7a2820be",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "e8256e87632056f2b67026fc62f978e2",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "d535bfdaeabe5cea8f9c844051f0a119",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.55,
+          -14.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "93315850f8425bf591c3514c61e599b2",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "4a2cab826d4e5a08b95076f4e8353049",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "c5e1e1843d71500d89ec6a70892c277c",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "c0e96ab3a23754c4be5a28fd1c546f59",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.55,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "2702096146c6528d9779141017d30d42",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "edfc8a1c6fce56cda867e9841920e7bb",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "b6db18642eb656ea8d310b842ec48afc",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "aa0a12d442eb5a879b373b7dfaa3e84f",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.55,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "70844c6d146252478bb226450f3ef840",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "d09777fd0c8b54be8b4982674bc1ac3d",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "bfc488f3555750eeb486f7395cfa9589",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "cc6fb408424153b1a2994bbeb4ad7a79",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.55,
+          -10.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "faa06bb4621a5e1b92e8a42170a323cb",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "5af5d88c71555b07b2352b0de6164200",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "c4b2f9596460500e86ef41093712a703",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "b83515833e855f4e9663c7ff63e9ffa1",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.55,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "4604d1e0d01058b99e8a563d27008bbe",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "07886e2dd2725953a4cacf4b1d4be234",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "10080dd6dacf52ddae4be972c788aa46",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "11c534bdff5751d8b74483c7bcefa868",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.55,
+          -14.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "320f0d745b165d1db04634a10f5f6bcc",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "e030e43b7ab85d9dab370872775f6698",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "1fb088cc1765505c8308c6886b1ee34e",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "72b9d0b0584350b3a3ca7a8e3dcedbe9",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.55,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "27c44b2580e8532981f19038e28d79ce",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "4153b77f799c52cd8b34f597887952e9",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "24b155e79fa35fa5857c702a7a474596",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "0e58f9bf6fd751f1b3d0723edaf1788f",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "00dafba8db19531fa193f8ced57a11a5",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "a17665b0593e51efa64f802565f94b23",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "16073c8c051754f7827a9fff4f86a501",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "37beb83ec3615c968fc99672f6c18ced",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -20.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "a8d6f65fe11a5328834291473b8dfcf9",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "9ddf8cbfbaa95d3a9cfb12d284e1fca2",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "42ec9530138251cfb13a57a4c5300174",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "4f39b9d4ffc75f3790bdd30704939638",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -22.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "8c795dea2c51522693211ab327531e18",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "045ca32915b65d61bb0c9ee63e08e2ff",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "eb5915e7465b59adad71cb6ac65690ef",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "5adbcbcef6d25376a566cbd31e6b025a",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -24.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "8b29a07866ec5797b1c2be39f451e9c9",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "56218dcd69e65139bc224a79fa2bffb8",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "bf5ca396d8a05d4ab17e10a1be94e441",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "d53c0a28b61f54d7965ee963bee1f681",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -26.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "7087bb6bd6cd54958995563bfd6379ad",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "f57f6fd56c3b526f9f89ed3d8fdbb334",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "a88adbf3d16b5cffae506d67196e2023",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "5c2c391995c259f580067bd102b911d3",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -28.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "8d7e7cd77a445c38930b4b7cc8666206",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "e4165b69c0c05f06b57d1abb24ae5ea2",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "e5bbba1f27f65152a76dc04fda6507c6",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "5f69684ee0885f79bcbe7728b4edd8b4",
+        "name": "PowerUp Double",
+        "kind": "Shape",
+        "position": [
+          -2.2,
+          1.0,
+          -26.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          1.0,
+          0.8,
+          0.2,
+          1
+        ],
+        "size": [
+          0.8,
+          0.8,
+          0.8
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.8,
+            0.2
+          ],
+          "emissionStrength": 2.5,
+          "roughness": 0.3
+        }
+      }
+    ]
+  },
+  "properties": []
+}

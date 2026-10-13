@@ -1,11 +1,11 @@
 {
   "format": "mana-prefab",
   "version": 1,
-  "id": "a184a331c1475f3eb32ea8ee1e568057",
-  "name": "Runner Train Yard",
+  "id": "bc24c67bc2f1513798f5616fd57d8538",
+  "name": "Runner Start",
   "root": {
-    "id": "f1ce80e73bb55d1c93ca44263931a881",
-    "name": "Runner Train Yard",
+    "id": "4c5920261a4a5fb5ac039ca11c7a1e2a",
+    "name": "Runner Start",
     "kind": "Group",
     "position": [
       0,
@@ -24,12 +24,12 @@
     ],
     "children": [
       {
-        "id": "970712516fc45987adaec9eedd191ad2",
-        "name": "Road",
+        "id": "b33c26a36f4e5f20b9da46a6c35bf5d2",
+        "name": "Ground Road",
         "kind": "Shape",
         "position": [
-          0,
-          -0.08,
+          0.0,
+          -0.18,
           -15.0
         ],
         "rotation": [
@@ -51,12 +51,12 @@
         ],
         "size": [
           7.6,
-          0.2,
+          0.4,
           30.0
         ]
       },
       {
-        "id": "3d4b078d24e7532aa8383a639d1de2bc",
+        "id": "f31daf4984d8580bba2f76c547d3ee47",
         "name": "Pavement",
         "kind": "Shape",
         "position": [
@@ -88,11 +88,11 @@
         ]
       },
       {
-        "id": "413e7794b26450f38705063f25dae001",
+        "id": "e78d9670b3c55f99bf63a0752d8f4479",
         "name": "Verge",
         "kind": "Shape",
         "position": [
-          -10.0,
+          -26.0,
           -0.03,
           -15.0
         ],
@@ -114,13 +114,13 @@
           1
         ],
         "size": [
-          8.0,
+          40.0,
           0.2,
           30.0
         ]
       },
       {
-        "id": "c8b3f1ae9a7e522186dc9828373be807",
+        "id": "f0b47ad3dd4458a682b770c05020492c",
         "name": "Pavement",
         "kind": "Shape",
         "position": [
@@ -152,11 +152,11 @@
         ]
       },
       {
-        "id": "561680a528e555cfb2900beb28f6ebb8",
+        "id": "189716731e6455a5902e988be6266779",
         "name": "Verge",
         "kind": "Shape",
         "position": [
-          10.0,
+          26.0,
           -0.03,
           -15.0
         ],
@@ -178,13 +178,13 @@
           1
         ],
         "size": [
-          8.0,
+          40.0,
           0.2,
           30.0
         ]
       },
       {
-        "id": "59190c2ffb2554fdb63186f669c22722",
+        "id": "259d25e807305b3b838b8a23ae4b3c92",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -216,7 +216,7 @@
         ]
       },
       {
-        "id": "15f2aad48b015699a6ad670765d9ca63",
+        "id": "ac855579ac2054f698535d256a7d9714",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -248,7 +248,7 @@
         ]
       },
       {
-        "id": "7af4865020aa56a6b99b4d817ac24f2a",
+        "id": "074df81bd92d58d9b2fed9ce5e3be5be",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -280,7 +280,7 @@
         ]
       },
       {
-        "id": "c6dfe73cd50856438c46311dd38466c1",
+        "id": "0193a013616751b58a7d285eaef41bdd",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -312,7 +312,7 @@
         ]
       },
       {
-        "id": "552189ba89755cc687645ae86ea5fa6e",
+        "id": "1d822190e94b512cb475fa5280b986c9",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -344,7 +344,7 @@
         ]
       },
       {
-        "id": "655b89f0f61f5ba180c81916e32c5aba",
+        "id": "a09224f65f035747a7cc1d69d0ecff28",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -376,7 +376,7 @@
         ]
       },
       {
-        "id": "a379ca244e45553fa13ee43c1fb031bb",
+        "id": "19d063e3a5e35b0589974b41dae59f20",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -408,7 +408,7 @@
         ]
       },
       {
-        "id": "52c9749015a9594998e6aec7c354493a",
+        "id": "66efb870cd0e591fb39369d8de19442b",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -440,7 +440,7 @@
         ]
       },
       {
-        "id": "bc9af9ee77ec57f8b8e0bd056edfec45",
+        "id": "a746068bd40d514fa220644ffcde96a8",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -472,7 +472,7 @@
         ]
       },
       {
-        "id": "3dd0b9bb11c55c73a51acbb4afe60569",
+        "id": "13384c6254bb52bea059da0106fc1109",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -504,7 +504,7 @@
         ]
       },
       {
-        "id": "8a6110304d4851db9bf13489f2dc59a1",
+        "id": "2af8dbb75d4454b6a569231f7a024cbc",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -536,7 +536,7 @@
         ]
       },
       {
-        "id": "60851cc8c5cc56a4b5114aaa52d99a8b",
+        "id": "fbc8b0ecc6cb53e5a1cb97aeb53dad41",
         "name": "Lane Line",
         "kind": "Shape",
         "position": [
@@ -568,7 +568,7 @@
         ]
       },
       {
-        "id": "cadee9315c4256489adfe0c490ab49c1",
+        "id": "1e1a77a30fc6509c8e0178069dffb9fc",
         "name": "Lamp",
         "kind": "Mesh",
         "position": [
@@ -589,7 +589,7 @@
         "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
       },
       {
-        "id": "e143f26d695e5bde9a2def1e236bae9f",
+        "id": "57b4042cb8135c43a42912e3f5669e45",
         "name": "Lamp",
         "kind": "Mesh",
         "position": [
@@ -610,7 +610,7 @@
         "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
       },
       {
-        "id": "c264c405261955bab63e18937a4c7beb",
+        "id": "194057be57705bdbbfd09b303656bf16",
         "name": "Lamp",
         "kind": "Mesh",
         "position": [
@@ -631,7 +631,7 @@
         "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
       },
       {
-        "id": "2946a2b0bfea5344b6b73e4f55d2bf4c",
+        "id": "f31c6abd492d56b4bd40f32595a709d8",
         "name": "Lamp",
         "kind": "Mesh",
         "position": [
@@ -652,7 +652,7 @@
         "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/light-square.glb"
       },
       {
-        "id": "0231cb383d595785a0267ee4b0b4b6c7",
+        "id": "b9dae9ca049551f294605cbc6a727f23",
         "name": "Palm",
         "kind": "Mesh",
         "position": [
@@ -673,7 +673,7 @@
         "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
       },
       {
-        "id": "57a1620834a55d20b11d8a76bc491ff1",
+        "id": "49666aedfdd05808b1b132178d425f0b",
         "name": "Palm",
         "kind": "Mesh",
         "position": [
@@ -694,7 +694,7 @@
         "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
       },
       {
-        "id": "363f77ed66ab52f09b602007a65f8dfe",
+        "id": "b7264d0743345e6cb3c96c89474be507",
         "name": "Palm",
         "kind": "Mesh",
         "position": [
@@ -715,7 +715,7 @@
         "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
       },
       {
-        "id": "09e471f7665e577891d56f3facbd6268",
+        "id": "19ee042b280251088f3c860559b6ab02",
         "name": "Palm",
         "kind": "Mesh",
         "position": [
@@ -736,286 +736,13 @@
         "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-bend.glb"
       },
       {
-        "id": "6e2eb6e60aa75ef29cf093a121c06a0d",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          -2.2,
-          0.5,
-          -3.8200000000000003
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "1dbcb8589de95225bb93072536e739d5",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          -2.2,
-          0.5,
-          -7.460000000000001
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "fa5c9f509afd5d738cfd2269f58c39de",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          -2.2,
-          0.5,
-          -11.100000000000001
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "f87c3d0164a352d38452c965a71865e5",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          -2.2,
-          0.5,
-          -14.74
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "66ea9dda7b995f92aec0450800e3fc28",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          -2.2,
-          0.5,
-          -18.380000000000003
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "d7e8a8c066da5a16b66c5293fab96214",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          -2.2,
-          0.5,
-          -22.02
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "af7e51dc17c55afc99c89483491aa012",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          2.2,
-          0.5,
-          -3.8200000000000003
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-a.glb"
-      },
-      {
-        "id": "10ee4b04bcb156888dc347f2af7e4515",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          2.2,
-          0.5,
-          -7.460000000000001
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "57f60ff611f8552fb2596464c7c814f0",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          2.2,
-          0.5,
-          -11.100000000000001
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "7d81a5a2ffd75967b994f25776b4ca0f",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          2.2,
-          0.5,
-          -14.74
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "1140241b6c8f5ab187327c0b6f7ac34a",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          2.2,
-          0.5,
-          -18.380000000000003
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "e3ecf404b2995f4da4caa101fc5ab4c7",
-        "name": "Obstacle Train",
-        "kind": "Mesh",
-        "position": [
-          2.2,
-          0.5,
-          -22.02
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.4,
-          1.4,
-          1.4
-        ],
-        "asset": "zip:kenney_train-kit.zip/Models/GLB format/train-electric-subway-b.glb"
-      },
-      {
-        "id": "cd79f51ccd4556bc8d2139f56b3f181a",
-        "name": "Obstacle Barrier",
-        "kind": "Mesh",
-        "position": [
-          0.0,
-          0.0,
-          -12.0
-        ],
-        "rotation": [
-          0,
-          1.5708,
-          0
-        ],
-        "scale": [
-          9.0,
-          9.0,
-          9.0
-        ],
-        "asset": "zip:kenney_city-kit-roads.zip/Models/GLB format/construction-barrier.glb"
-      },
-      {
-        "id": "95f398eda4f35218be57fba41162f648",
+        "id": "13a0f32c217955649149716150764a92",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          0.9043252595155711,
-          -9.0
+          0.55,
+          -8.0
         ],
         "rotation": [
           0,
@@ -1029,7 +756,7 @@
         ],
         "scripts": [
           {
-            "id": "e085e0df4e285d3bb7dabb7d4c36449b",
+            "id": "94bf59a5b5115d4fb430b6e3ea1f8d7b",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1045,7 +772,7 @@
             }
           },
           {
-            "id": "5cf36d810ef05a5594e500eccd796804",
+            "id": "f0a1c9044d605ba4a4228822fc2046fa",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1055,7 +782,7 @@
         ],
         "children": [
           {
-            "id": "a846abf7d5f654f2981bfe81d8c6dbd6",
+            "id": "afe59db5689f57d79cc1bfbf850a1c11",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1078,13 +805,13 @@
         ]
       },
       {
-        "id": "f89088d1ec8555a8825cb83e4606b5af",
+        "id": "3b49e2048b985c0c89384faafb23c63f",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          1.8385813148788928,
-          -10.5
+          0.55,
+          -10.0
         ],
         "rotation": [
           0,
@@ -1098,7 +825,7 @@
         ],
         "scripts": [
           {
-            "id": "b0fd24ccabf05f89ae6b19208bd55f8e",
+            "id": "f76c5cf0440d5a24a1ced542fce50cdd",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1114,7 +841,7 @@
             }
           },
           {
-            "id": "49d115a9569c52af83ecbc99996cb092",
+            "id": "3234eac092ae5ee997b569c5c52fc56b",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1124,7 +851,7 @@
         ],
         "children": [
           {
-            "id": "17f627e655485e609036ff198cdab525",
+            "id": "003da8dcfe025d7dba16e4abe8f27208",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1147,12 +874,12 @@
         ]
       },
       {
-        "id": "9b0c3d26352f5dd8834f6857385ca7e7",
+        "id": "8152da84175b56529001ae2b18d8e2b5",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          2.1500000000000004,
+          0.55,
           -12.0
         ],
         "rotation": [
@@ -1167,7 +894,7 @@
         ],
         "scripts": [
           {
-            "id": "46e7337b27975e629a43ae25d580f46a",
+            "id": "be2e3ede40e45663a229f6f9af9ac743",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1183,7 +910,7 @@
             }
           },
           {
-            "id": "6406cabfcf49512abc9bded1d26fc5c5",
+            "id": "aa362e9da7365253a77df1b78482eea3",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1193,7 +920,7 @@
         ],
         "children": [
           {
-            "id": "9fe7808bc8d7556f983f57839aff902b",
+            "id": "cd307a4756ed5e6485a3cd807185cc25",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1216,13 +943,13 @@
         ]
       },
       {
-        "id": "c7db4946d7bd58278e9a914e0c04c83d",
+        "id": "288761dee16c57fd9bc54954b4a91e6e",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          1.8385813148788928,
-          -13.5
+          0.55,
+          -14.0
         ],
         "rotation": [
           0,
@@ -1236,7 +963,7 @@
         ],
         "scripts": [
           {
-            "id": "69cda9d1c1015a579fc93ff6306ca813",
+            "id": "f4ecabf74b755f04b928652985ba5257",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1252,7 +979,7 @@
             }
           },
           {
-            "id": "00d408b9fcd05971ab9e80d8f9c92f50",
+            "id": "efdf66364ac95230a0648a02b2b51b7c",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1262,7 +989,7 @@
         ],
         "children": [
           {
-            "id": "cef7d81d9fd75a88b2d374aa5268b3a1",
+            "id": "3eaa5692e705566cb0f271b4177d0d65",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1285,13 +1012,13 @@
         ]
       },
       {
-        "id": "771cfa0dec7450469d73e4abf337eb1b",
+        "id": "73f76d74a6f25caa962e4d387550e83e",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          0.9043252595155711,
-          -15.0
+          0.55,
+          -16.0
         ],
         "rotation": [
           0,
@@ -1305,7 +1032,7 @@
         ],
         "scripts": [
           {
-            "id": "349d5bd916015720bd972f4f419e93eb",
+            "id": "91597bb2e0225d70a353a0fdc15f89dc",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1321,7 +1048,7 @@
             }
           },
           {
-            "id": "e475e6f1f0a558ef9c30ccacaab11481",
+            "id": "2de4ca4329e25afaa302c083ffda5b5a",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1331,7 +1058,7 @@
         ],
         "children": [
           {
-            "id": "eade9f501dc356ea82f1a4f4100f9b89",
+            "id": "45f85a04704c529a952ceb40e07c1eaa",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1354,108 +1081,81 @@
         ]
       },
       {
-        "id": "eb72041f9ae152e1a26efdf3dd6095f9",
-        "name": "Obstacle Bar",
-        "kind": "Shape",
-        "position": [
-          0.0,
-          1.32,
-          -22.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          1.0,
-          0.78,
-          0.15,
-          1
-        ],
-        "size": [
-          2.0,
-          0.42,
-          0.3
-        ]
-      },
-      {
-        "id": "cf9580ae068c55b38abb07bf563f36d2",
-        "name": "Post",
-        "kind": "Shape",
-        "position": [
-          -1.08,
-          0.75,
-          -22.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.12,
-          1.5,
-          0.12
-        ]
-      },
-      {
-        "id": "64ea745a192d56ce8b373af763f54f48",
-        "name": "Post",
-        "kind": "Shape",
-        "position": [
-          1.08,
-          0.75,
-          -22.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.12,
-          1.5,
-          0.12
-        ]
-      },
-      {
-        "id": "3665e36a690a5c5e91fc44ba2ba4ef22",
+        "id": "f370f7fe8f1454bdb5b6be55968a52e8",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          0.4,
+          0.55,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "64dc111c6a335dffb05dff3d0b7b1174",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "73e60c58afa9569aa5cef40a99e3c324",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "dbadbcc416cc5e24aca6cde70cb34833",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "10cf23ac0b19570bbcca63128a746455",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
           -20.0
         ],
         "rotation": [
@@ -1470,7 +1170,7 @@
         ],
         "scripts": [
           {
-            "id": "58242d18c7875e59bc1c9609a56f7099",
+            "id": "8cf243b860a855bd874a85e50167cf3c",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1486,7 +1186,7 @@
             }
           },
           {
-            "id": "2bc1d9fdc3d953d49fb0bcea23c61b9e",
+            "id": "6315da9f8d785c2982531fc0d01d0085",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1496,7 +1196,7 @@
         ],
         "children": [
           {
-            "id": "9a651fca208a51d8ade5b7a0b2c658de",
+            "id": "aed200fbd44d545d90ad0a55b90e71bb",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1519,12 +1219,12 @@
         ]
       },
       {
-        "id": "270c1c927e93587387f38d4dc3b26c03",
+        "id": "ad87f9680f2d556ca7db88d068afd7ff",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          0.4,
+          0.55,
           -22.0
         ],
         "rotation": [
@@ -1539,7 +1239,7 @@
         ],
         "scripts": [
           {
-            "id": "8c5aa252f3895333aaa3518594186d20",
+            "id": "68c10e39f67352be8974099f92e93242",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1555,7 +1255,7 @@
             }
           },
           {
-            "id": "f5465081f0295d4fa6bbfedb58ba6f3a",
+            "id": "0851a6b5016e59b48f2f97f55f55165f",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1565,7 +1265,7 @@
         ],
         "children": [
           {
-            "id": "0fb40ff866b85fe7ba50910c479c1b7f",
+            "id": "6d00fd032c47556ca165aba8a011e59a",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [
@@ -1588,12 +1288,12 @@
         ]
       },
       {
-        "id": "4ba618bd48ba54249bbb0580bde19b39",
+        "id": "8dcbc72c28e55cfdbfb4d1b235cccd6e",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          0.4,
+          0.55,
           -24.0
         ],
         "rotation": [
@@ -1608,7 +1308,7 @@
         ],
         "scripts": [
           {
-            "id": "eb09dee303cc51f4a2ba3a07207c852f",
+            "id": "97b0bb0bfb9e55dfa436b283eace529a",
             "type": "Trigger",
             "properties": {
               "size": [
@@ -1624,7 +1324,7 @@
             }
           },
           {
-            "id": "d6b7b71a98c9534bb8fd053634d5d917",
+            "id": "4f9c928d2d7d52efb454eedbc38f6656",
             "type": "Collectible",
             "properties": {
               "value": 1,
@@ -1634,7 +1334,145 @@
         ],
         "children": [
           {
-            "id": "277688402b5d57a68cb9a765c64ecf38",
+            "id": "8184b301bcf35982b89d7a2b1b04c94b",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "8244cd37a4225b7285a0dd08eb1bca8a",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -26.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "9dbaaa61217655b4b265e39807e28f43",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "1d244890668f5781b48a794fc90bb28f",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "78d54b80097655609433047e8c569e33",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "188ced0b72cf564dad157abf9e03ee6f",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -28.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "8cbba6e4d12d5ce18eb76707e248acf6",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "c5d937af841455f293ff71b18291e49c",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "e82d8c3480fc5b69970f3a44e3a0f999",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [

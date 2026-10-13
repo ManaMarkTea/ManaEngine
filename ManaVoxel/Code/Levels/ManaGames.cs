@@ -42,9 +42,10 @@ namespace ManaVoxel.Code.Levels
             RunnerContent.Sections = () =>
             {
                 var folder = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, RunnerContent.SectionFolder);
+                // Biomes are the folders under it (City, Sky, ...).
                 return Directory.Exists(folder)
-                    ? Directory.EnumerateFiles(folder, "*.manaprefab").Order(StringComparer.OrdinalIgnoreCase)
-                        .Select(file => $"{RunnerContent.SectionFolder}/{Path.GetFileName(file)}").ToList()
+                    ? Directory.EnumerateFiles(folder, "*.manaprefab", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase)
+                        .Select(file => $"{RunnerContent.SectionFolder}/{Path.GetRelativePath(folder, file).Replace('\\', '/')}").ToList()
                     : [];
             };
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition

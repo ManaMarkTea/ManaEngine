@@ -4,7 +4,7 @@
   "name": "Endless Run",
   "web": {
     "publish": true,
-    "description": "Run the three lanes for as long as you can: swipe to change lane, jump and duck, grab power-ups.",
+    "description": "Run the three lanes for as long as you can: swipe to change lane, jump and duck, stomp enemies, grab power-ups -- through the city, along the shore, down into dungeons and up into the clouds.",
     "order": 0
   },
   "camera": {
