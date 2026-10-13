@@ -16,6 +16,7 @@ public sealed class LiveScanAdvertiser : IDisposable
     private IntPtr _instance;
     // In unmanaged memory: Windows holds on to the request until registration completes and for deregistering.
     private IntPtr _request;
+    private IntPtr _ip4;
     private RegisterComplete? _callback;
     private bool _registered;
 
@@ -71,6 +72,11 @@ public sealed class LiveScanAdvertiser : IDisposable
             Marshal.FreeHGlobal(_request);
             _request = IntPtr.Zero;
         }
+        if (_ip4 != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(_ip4);
+            _ip4 = IntPtr.Zero;
+        }
         if (_dnsSd is { HasExited: false })
         {
             _dnsSd.Kill();
@@ -81,7 +87,13 @@ public sealed class LiveScanAdvertiser : IDisposable
     private void RegisterWindows(string name, int port)
     {
         var host = Environment.MachineName + ".local";
-        _instance = DnsServiceConstructInstance($"{name}.{ManaLidar.ScanStream.Service}.local", host, IntPtr.Zero, IntPtr.Zero,
+        // The address goes in the announcement itself, so a phone has it without looking the name up.
+        if (LocalIpv4() is { } address)
+        {
+            _ip4 = Marshal.AllocHGlobal(4);
+            Marshal.Copy(address.GetAddressBytes(), 0, _ip4, 4);
+        }
+        _instance = DnsServiceConstructInstance($"{name}.{ManaLidar.ScanStream.Service}.local", host, _ip4, IntPtr.Zero,
             (ushort)port, 0, 0, 0, IntPtr.Zero, IntPtr.Zero);
         if (_instance == IntPtr.Zero)
         {
@@ -118,6 +130,26 @@ public sealed class LiveScanAdvertiser : IDisposable
             throw new InvalidOperationException($"DnsServiceRegister returned {status}.");
         }
         _registered = true;
+    }
+
+    // The LAN address a phone can reach: an up, non-loopback adapter with a gateway (not a VPN's or a virtual switch's).
+    private static System.Net.IPAddress? LocalIpv4()
+    {
+        var adapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+            .Where(a => a.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up
+                && a.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback);
+        foreach (var adapter in adapters.OrderByDescending(a => a.GetIPProperties().GatewayAddresses.Count > 0))
+        {
+            foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
+            {
+                var address = unicast.Address;
+                if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !address.ToString().StartsWith("169.254."))
+                {
+                    return address;
+                }
+            }
+        }
+        return null;
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]

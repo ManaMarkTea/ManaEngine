@@ -405,12 +405,14 @@ public sealed class ScanViewController : UIViewController
         }
 
         _streamButton.Enabled = false;
-        var found = await ScanStreamBrowser.FindAsync();
+        // Long enough for a PC to answer; the first search also waits behind iOS's Local Network question.
+        var found = await ScanStreamBrowser.FindAsync(3.0);
         _streamButton.Enabled = true;
 
         var sheet = UIAlertController.Create("Stream to Mana",
             found.Count == 0
-                ? "No editor found. On the PC: Panels > Live Scan > Receive from the phone, on the same Wi-Fi. Or enter its address."
+                ? "No editor found. On the PC: Panels > Live Scan > Receive from the phone. On this phone: Settings > Privacy & "
+                    + "Security > Local Network > ManaLidar on. Then search again, or enter the PC's address."
                 : "Pick the editor to stream to. The scan appears there as you walk.",
             UIAlertControllerStyle.ActionSheet);
         foreach (var editor in found)
@@ -418,6 +420,7 @@ public sealed class ScanViewController : UIViewController
             sheet.AddAction(UIAlertAction.Create(editor.Name, UIAlertActionStyle.Default,
                 _ => Connect(editor.Name, editor.Host, editor.Port)));
         }
+        sheet.AddAction(UIAlertAction.Create("Search again", UIAlertActionStyle.Default, _ => ToggleStream()));
         sheet.AddAction(UIAlertAction.Create("Enter address...", UIAlertActionStyle.Default, _ => AskAddress()));
         sheet.AddAction(UIAlertAction.Create("Cancel", UIAlertActionStyle.Cancel, null));
         if (sheet.PopoverPresentationController is { } popover)

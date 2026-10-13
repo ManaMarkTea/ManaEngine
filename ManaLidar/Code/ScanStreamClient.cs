@@ -216,6 +216,7 @@ public sealed class ScanStreamClient : IDisposable
 /// <summary>Finds Mana editors on the local network that are receiving live scans (Bonjour, _manascan._tcp).</summary>
 public static class ScanStreamBrowser
 {
+    /// <summary>An editor: its name, and the address to connect to (an IP when Bonjour gave one, else the host name).</summary>
     public sealed record Found(string Name, string Host, int Port);
 
     /// <summary>Looks for <paramref name="seconds"/>, then resolves what answered. Call on the main thread.</summary>
@@ -235,12 +236,32 @@ public static class ScanStreamBrowser
             service.AddressResolved += (_, _) => resolved.TrySetResult(true);
             service.ResolveFailure += (_, _) => resolved.TrySetResult(false);
             service.Resolve(3.0);
-            if (await Task.WhenAny(resolved.Task, Task.Delay(3500)) == resolved.Task && resolved.Task.Result
-                && service.HostName is { Length: > 0 } host)
+            if (await Task.WhenAny(resolved.Task, Task.Delay(3500)) == resolved.Task && resolved.Task.Result)
             {
-                found.Add(new Found(service.Name, host.TrimEnd('.'), (int)service.Port));
+                // The resolved IP, not the host name: .NET on iOS cannot look up a ".local" name ("address could not
+                // be found"), while Bonjour has already found the address.
+                var address = Ipv4(service) ?? service.HostName?.TrimEnd('.');
+                if (!string.IsNullOrEmpty(address))
+                {
+                    found.Add(new Found(service.Name, address, (int)service.Port));
+                }
             }
         }
         return found;
+    }
+
+    // The first IPv4 address among the service's resolved socket addresses (Darwin sockaddr_in: length, family 2,
+    // port, then the four address bytes).
+    private static string? Ipv4(NSNetService service)
+    {
+        foreach (var data in service.Addresses ?? Array.Empty<NSData>())
+        {
+            var bytes = data.ToArray();
+            if (bytes.Length >= 8 && bytes[1] == 2)
+            {
+                return $"{bytes[4]}.{bytes[5]}.{bytes[6]}.{bytes[7]}";
+            }
+        }
+        return null;
     }
 }
