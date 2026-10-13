@@ -71,9 +71,11 @@ public static class ScanAtlas
                         var p = mesh.Positions[v];
                         positions.Add(p);
                         normals.Add(mesh.Normals[v]);
-                        var s = Vector3.Dot(p, layout.Right) - layout.Min.X;
-                        var t = layout.Max.Y - Vector3.Dot(p, layout.Up); // image rows run down, "up" runs up
-                        uvs.Add(new Vector2(layout.X + Padding + s * density, layout.Y + Padding + t * density) / size);
+                        var s = Vector3.Dot(p, layout.Right) - layout.MinX;
+                        var t = layout.MaxY - Vector3.Dot(p, layout.Up); // image rows run down, "up" runs up
+                        // Plain floats, not Vector2 arithmetic: the iPhone's ahead-of-time build got Vector2 maths
+                        // wrong here (V came out shifted while U was right), which tore the texture across the scan.
+                        uvs.Add(new Vector2((layout.X + Padding + s * density) / size, (layout.Y + Padding + t * density) / size));
                     }
                     indices[face * 3 + k] = at;
                 }
@@ -100,13 +102,37 @@ public static class ScanAtlas
         };
     }
 
+    /// <summary>
+    /// Refuses a layout with coordinates off the texture, which would paint the scan with whatever lies outside its
+    /// charts. Cheap, and it turns a wrong-maths build into a failed export rather than a torn-looking scan.
+    /// </summary>
+    public static void Verify(ScanAtlasMesh atlas)
+    {
+        const float slack = 1e-3f;
+        var off = 0;
+        foreach (var uv in atlas.Uvs)
+        {
+            if (!(uv.X >= -slack && uv.X <= 1 + slack && uv.Y >= -slack && uv.Y <= 1 + slack))
+            {
+                off++;
+            }
+        }
+        if (off > 0)
+        {
+            throw new InvalidOperationException(
+                $"The texture layout came out wrong ({off} of {atlas.Uvs.Length} points off the texture), so the scan was not saved. Please report this.");
+        }
+    }
+
     private sealed class ChartLayout
     {
         public required List<int> Faces;
         public Vector3 Right;
         public Vector3 Up;
-        public Vector2 Min;
-        public Vector2 Max;
+        public float MinX;
+        public float MinY;
+        public float MaxX;
+        public float MaxY;
         public int X;
         public int Y;
     }
@@ -186,36 +212,38 @@ public static class ScanAtlas
         up = Vector3.Normalize(up);
         var right = Vector3.Cross(up, normal);
 
-        var min = new Vector2(float.MaxValue);
-        var max = new Vector2(float.MinValue);
+        float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
         foreach (var f in faces)
         {
             for (var k = 0; k < 3; k++)
             {
                 var p = mesh.Positions[mesh.Indices[f * 3 + k]];
-                var q = new Vector2(Vector3.Dot(p, right), Vector3.Dot(p, up));
-                min = Vector2.Min(min, q);
-                max = Vector2.Max(max, q);
+                var x = Vector3.Dot(p, right);
+                var y = Vector3.Dot(p, up);
+                minX = MathF.Min(minX, x);
+                minY = MathF.Min(minY, y);
+                maxX = MathF.Max(maxX, x);
+                maxY = MathF.Max(maxY, y);
             }
         }
-        return new ChartLayout { Faces = faces, Right = right, Up = up, Min = min, Max = max };
+        return new ChartLayout { Faces = faces, Right = right, Up = up, MinX = minX, MinY = minY, MaxX = maxX, MaxY = maxY };
     }
 
     // Shelf packing at one density for every chart, starting from the density that would fill ~70% of the
     // atlas and backing off until everything fits.
     private static float Pack(List<ChartLayout> layouts, int size, float maxTexelsPerMetre)
     {
-        var area = layouts.Sum(l => (double)(l.Max.X - l.Min.X) * (l.Max.Y - l.Min.Y));
+        var area = layouts.Sum(l => (double)(l.MaxX - l.MinX) * (l.MaxY - l.MinY));
         var density = (float)Math.Min(maxTexelsPerMetre, Math.Sqrt(size * (double)size * 0.7 / Math.Max(area, 1e-9)));
-        var order = layouts.OrderByDescending(l => l.Max.Y - l.Min.Y).ToArray();
+        var order = layouts.OrderByDescending(l => l.MaxY - l.MinY).ToArray();
         for (var attempt = 0; attempt < 60; attempt++, density *= 0.93f)
         {
             int x = 0, y = 0, shelf = 0;
             var fits = true;
             foreach (var layout in order)
             {
-                var w = (int)MathF.Ceiling((layout.Max.X - layout.Min.X) * density) + Padding * 2 + 1;
-                var h = (int)MathF.Ceiling((layout.Max.Y - layout.Min.Y) * density) + Padding * 2 + 1;
+                var w = (int)MathF.Ceiling((layout.MaxX - layout.MinX) * density) + Padding * 2 + 1;
+                var h = (int)MathF.Ceiling((layout.MaxY - layout.MinY) * density) + Padding * 2 + 1;
                 if (w > size)
                 {
                     fits = false;

@@ -57,9 +57,10 @@ public static class ScanTextureBaker
     {
         var size = mesh.Size;
         int i0 = mesh.Indices[f * 3], i1 = mesh.Indices[f * 3 + 1], i2 = mesh.Indices[f * 3 + 2];
-        var t0 = mesh.Uvs[i0] * size;
-        var t1 = mesh.Uvs[i1] * size;
-        var t2 = mesh.Uvs[i2] * size;
+        // Scaled component by component: see ScanAtlas on why this code avoids Vector2 arithmetic.
+        var t0 = new Vector2(mesh.Uvs[i0].X * size, mesh.Uvs[i0].Y * size);
+        var t1 = new Vector2(mesh.Uvs[i1].X * size, mesh.Uvs[i1].Y * size);
+        var t2 = new Vector2(mesh.Uvs[i2].X * size, mesh.Uvs[i2].Y * size);
         var area = Edge(t0, t1, t2);
         if (MathF.Abs(area) < 1e-8f)
         {
@@ -74,7 +75,8 @@ public static class ScanTextureBaker
         var maxY = Math.Min(size - 1, (int)MathF.Ceiling(MathF.Max(t0.Y, MathF.Max(t1.Y, t2.Y))));
         // Half a texel of slack: texels the edge clips still get this triangle's colour, so seams inside a
         // chart leave no unpainted cracks for the bleed to fill with the wrong neighbour.
-        var slack = 0.5f * MathF.Sqrt(Vector2.DistanceSquared(t0, t1) + Vector2.DistanceSquared(t1, t2) + Vector2.DistanceSquared(t2, t0)) / MathF.Abs(area);
+        static float Squared(Vector2 a, Vector2 b) => (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
+        var slack = 0.5f * MathF.Sqrt(Squared(t0, t1) + Squared(t1, t2) + Squared(t2, t0)) / MathF.Abs(area);
 
         for (var y = minY; y <= maxY; y++)
         {

@@ -153,6 +153,7 @@ public static class ScanGltfExporter
         // No finer than the photos can show: what a typical one resolves at a metre.
         var focal = keyframes.Select(k => k.Fx).OrderBy(f => f).ElementAt(keyframes.Count / 2);
         var atlas = ScanAtlas.Build(shape, options.TextureSize, focal);
+        ScanAtlas.Verify(atlas);
         options.Progress?.Report(0.1f);
 
         var progress = options.Progress;

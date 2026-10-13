@@ -154,7 +154,11 @@ public static class MeasureSnapping
             {
                 continue;
             }
-            var distance = Vector2.Distance(screen, pointer);
+            // Components rather than Vector2.Distance: the phone apps compile this too, and the iPhone build's
+            // Vector2 maths is not to be trusted (see ScanAtlas).
+            var dx = screen.X - pointer.X;
+            var dy = screen.Y - pointer.Y;
+            var distance = MathF.Sqrt(dx * dx + dy * dy);
             if (distance <= bestDistance)
             {
                 best = candidate;

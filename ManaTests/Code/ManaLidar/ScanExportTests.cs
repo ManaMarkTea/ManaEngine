@@ -79,6 +79,20 @@ public static class ScanExportChecks
             a.Min.X < b.Max.X && b.Min.X < a.Max.X && a.Min.Y < b.Max.Y && b.Min.Y < a.Max.Y)).Count();
         Check("and no two overlap", overlaps == 0, $"{overlaps} overlapping");
         Check("at one texel density for all", boxAtlas.TexelsPerMetre > 30, $"{boxAtlas.TexelsPerMetre:F0} texels a metre");
+        var refused = false;
+        try
+        {
+            ScanAtlas.Verify(new ScanAtlasMesh
+            {
+                Positions = boxAtlas.Positions, Normals = boxAtlas.Normals, Indices = boxAtlas.Indices, FaceCharts = boxAtlas.FaceCharts,
+                Uvs = boxAtlas.Uvs.Select((uv, i) => i == 0 ? new Vector2(uv.X, uv.Y - 0.4f) : uv).ToArray(), Size = 256,
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            refused = true;
+        }
+        Check("a layout with points off the texture is refused, not saved torn", refused);
 
         // ---------------------------------------------------------------- baking
         // A 1.2 x 0.8 m wall 2 m in front of the camera: its left half photographed red, its right half blue.
