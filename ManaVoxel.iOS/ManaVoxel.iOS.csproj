@@ -28,6 +28,9 @@
     <!-- Levels, prefabs, the Inspector and UiMarkup reach types by reflection and JSON. -->
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- Bepu's SIMD generics crash Mono's ahead-of-time compiler (as they did the web's), so only the physics is
+         interpreted; everything else is compiled. -->
+    <MtouchInterpreter>-all,BepuPhysics,BepuUtilities</MtouchInterpreter>
   </PropertyGroup>
 
   <ItemGroup>
