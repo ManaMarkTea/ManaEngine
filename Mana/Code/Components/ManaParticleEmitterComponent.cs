@@ -248,6 +248,22 @@ namespace Mana.Code.Components
             }
         }
 
+        /// <summary>
+        /// Throws <paramref name="count"/> particles now, from where the emitter is -- a pickup's burst, on demand. They are
+        /// in the world from then on, so the emitter can move straight on to the next one.
+        /// </summary>
+        public void Emit(int count)
+        {
+            if (_position.Length != Math.Clamp(MaxParticles, 1, 5000))
+            {
+                Step(0.0f);
+            }
+            for (var i = 0; i < count; i++)
+            {
+                Spawn();
+            }
+        }
+
         // A cheap smooth wind: sines of position and time, offset per particle so neighbours do not move as one.
         private Vector3 Swirl(Vector3 at, float seed)
         {

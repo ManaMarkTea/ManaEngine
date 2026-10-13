@@ -15,6 +15,7 @@ public sealed class AppDelegate : UIApplicationDelegate
         Environment.CurrentDirectory = Path.Combine(NSBundle.MainBundle.BundlePath, "Game");
         IosEmoji.Install();
         IosImageDecoder.Install();
+        IosAudioBackend.Install();
         Trace($"Game folder {Environment.CurrentDirectory}, exists {Directory.Exists(Environment.CurrentDirectory)}");
         UIApplication.Main(args, null, typeof(AppDelegate));
         Trace("UIApplication.Main returned");

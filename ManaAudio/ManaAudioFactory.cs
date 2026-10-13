@@ -14,10 +14,17 @@ public static class ManaAudioFactory
 #endif
     }
 
+    /// <summary>A platform's own backend, used before the built-in ones: the phone's AVAudioEngine.</summary>
+    public static Func<IManaAudioBackend>? PlatformBackend { get; set; }
+
     public static IManaAudio Create(Action<string>? reportUnavailable = null)
     {
         try
         {
+            if (PlatformBackend is { } platform)
+            {
+                return new ManaAudioSystem(platform());
+            }
 #if MANA_BROWSER
             return OperatingSystem.IsBrowser()
                 ? new ManaAudioSystem(new Browser.ManaBrowserAudioBackend())

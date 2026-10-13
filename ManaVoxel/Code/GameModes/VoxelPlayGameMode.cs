@@ -74,6 +74,51 @@ namespace Mana.Code.GameModes
         /// </summary>
         public Func<Thickness>? SafeArea { get; set; }
 
+        /// <summary>Music looped while the start screen is up (a path under the working folder), or null for none.</summary>
+        public string? MenuMusic { get; set; }
+
+        private ManaCore.Audio.IManaAudioVoice? _menuMusic;
+        private bool _menuMusicLoading;
+
+        /// <summary>The start screen's music: on while it is up, off when a level starts.</summary>
+        private async void SyncMenuMusic()
+        {
+            var wanted = _levelSelectOpen && _pendingLevel == null && !string.IsNullOrEmpty(MenuMusic);
+            if (!wanted)
+            {
+                _menuMusic?.Stop();
+                _menuMusic = null;
+                return;
+            }
+            if (_menuMusic != null || _menuMusicLoading)
+            {
+                return;
+            }
+            _menuMusicLoading = true;
+            try
+            {
+                var clip = await Context.Audio.LoadClipAsync(MenuMusic!);
+                if (_levelSelectOpen && _pendingLevel == null)
+                {
+                    _menuMusic = Context.Audio.Play(clip, new ManaCore.Audio.ManaAudioPlayOptions
+                    {
+                        Loop = true,
+                        Bus = ManaCore.Audio.ManaAudioBus.Music,
+                        Volume = 0.5f
+                    });
+                }
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning($"No menu music '{MenuMusic}': {exception.Message}");
+                MenuMusic = null;
+            }
+            finally
+            {
+                _menuMusicLoading = false;
+            }
+        }
+
         /// <summary>The start screen is up: a phone hides its game controls.</summary>
         public bool IsLevelSelectOpen => _levelSelectOpen;
 
@@ -496,6 +541,7 @@ namespace Mana.Code.GameModes
 
         public override void Update(double deltaTime)
         {
+            SyncMenuMusic();
             // Two frames: the one that drew "Loading", then the load.
             if (_pendingLevel != null && ++_pendingFrames > 2)
             {

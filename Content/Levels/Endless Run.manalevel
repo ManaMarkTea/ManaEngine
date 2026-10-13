@@ -26,7 +26,18 @@
     {
       "id": "2f3fbd979fa15236b9cfeb272bcbda53",
       "type": "Runner",
-      "properties": {}
+      "properties": {
+        "music": "Assets/Audio/Music/Pixel Peeker Polka - faster.wav",
+        "coinSound": "Assets/Audio/Starter/Gameplay/pickup.wav",
+        "jumpSound": "Assets/Audio/Starter/Gameplay/jump.wav",
+        "landSound": "Assets/Audio/Starter/Gameplay/land.wav",
+        "laneSound": "Assets/Audio/Starter/Gameplay/whoosh.wav",
+        "crashSound": "Assets/Audio/Starter/Gameplay/impact_hard.wav",
+        "fallSound": "Assets/Audio/SampleCourse/Hazards/fall.wav",
+        "powerUpSound": "Assets/Audio/Starter/Gameplay/checkpoint.wav",
+        "stompSound": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+        "launchSound": "Assets/Audio/Starter/Gameplay/respawn.wav"
+      }
     }
   ],
   "nodes": [

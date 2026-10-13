@@ -71,6 +71,7 @@ public sealed class GameViewController : UIViewController
             _game = new VoxelPlayGameMode(null, ManaGraphicsBackendKind.WebGpu)
             {
                 OffersLevelSelect = true,
+                MenuMusic = "Assets/Audio/Music/Monkeys Spinning Monkeys.wav",
                 SafeArea = () => new ManaUI.Thickness((float)View!.SafeAreaInsets.Left, (float)View.SafeAreaInsets.Top,
                     (float)View.SafeAreaInsets.Right, (float)View.SafeAreaInsets.Bottom),
                 // The controls explain themselves on screen: no hint bar.

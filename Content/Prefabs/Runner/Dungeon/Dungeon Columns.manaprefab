@@ -44,9 +44,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.34,
-          0.31,
-          0.3,
+          0.44,
+          0.41,
+          0.39,
           1
         ],
         "size": [
@@ -76,9 +76,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.36,
-          0.34,
-          0.38,
+          0.5,
+          0.47,
+          0.5,
           1
         ],
         "size": [
@@ -108,9 +108,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.36,
-          0.34,
-          0.38,
+          0.5,
+          0.47,
+          0.5,
           1
         ],
         "size": [
@@ -140,9 +140,9 @@
         ],
         "shape": "Cube",
         "color": [
-          0.34,
-          0.31,
-          0.3,
+          0.44,
+          0.41,
+          0.39,
           1
         ],
         "size": [
@@ -158,7 +158,7 @@
         "position": [
           -3.65,
           3.2,
-          -6.0
+          -3.0
         ],
         "rotation": [
           0,
@@ -197,12 +197,12 @@
             "properties": {
               "color": [
                 1,
-                0.6,
-                0.25,
+                0.62,
+                0.3,
                 1
               ],
-              "intensity": 3.0,
-              "range": 12,
+              "intensity": 4.5,
+              "range": 14,
               "lightType": "Point",
               "flickerAmount": 0.35,
               "flickerSpeed": 8
@@ -211,34 +211,13 @@
         ]
       },
       {
-        "id": "3d0731caf1425277b611a218b1b919ce",
-        "name": "Banner",
-        "kind": "Mesh",
-        "position": [
-          -3.8,
-          1.6,
-          -12.0
-        ],
-        "rotation": [
-          0,
-          1.5708,
-          0
-        ],
-        "scale": [
-          2.4,
-          2.4,
-          2.4
-        ],
-        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
-      },
-      {
         "id": "3fa120baa47356149e1195b0a1e63eb2",
         "name": "Torch",
         "kind": "Shape",
         "position": [
           3.65,
           3.2,
-          -21.0
+          -10.5
         ],
         "rotation": [
           0,
@@ -277,12 +256,12 @@
             "properties": {
               "color": [
                 1,
-                0.6,
-                0.25,
+                0.62,
+                0.3,
                 1
               ],
-              "intensity": 3.0,
-              "range": 12,
+              "intensity": 4.5,
+              "range": 14,
               "lightType": "Point",
               "flickerAmount": 0.35,
               "flickerSpeed": 8
@@ -291,17 +270,156 @@
         ]
       },
       {
-        "id": "a4dfa51d5b445cebb6994eded7574876",
+        "id": "00b0a1d0f0d550b19bd60ce7c0b89feb",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          -3.65,
+          3.2,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "39ddb32c24cc50e8a6d2781fd83fd1e1",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "b3747a6499295d6aa3a2bb1e28fe7ed5",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          3.65,
+          3.2,
+          -25.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "6e2e945b122f5c76bc80f66c39e5eab4",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "3d0731caf1425277b611a218b1b919ce",
         "name": "Banner",
         "kind": "Mesh",
         "position": [
           3.8,
           1.6,
-          -27.0
+          -7.0
         ],
         "rotation": [
           0,
           -1.5708,
+          0
+        ],
+        "scale": [
+          2.4,
+          2.4,
+          2.4
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
+      },
+      {
+        "id": "a4dfa51d5b445cebb6994eded7574876",
+        "name": "Banner",
+        "kind": "Mesh",
+        "position": [
+          -3.8,
+          1.6,
+          -22.0
+        ],
+        "rotation": [
+          0,
+          1.5708,
           0
         ],
         "scale": [
@@ -1502,7 +1620,97 @@
           2.1,
           0.45,
           0.45
-        ]
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.45,
+            0.12
+          ],
+          "emissionStrength": 0.6
+        }
+      },
+      {
+        "id": "4f0e271c4671588fb280237844e2d029",
+        "name": "Glow Edge",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          1.13,
+          -28.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.6,
+          0.18,
+          1
+        ],
+        "size": [
+          2.1,
+          0.07,
+          0.07
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.6,
+            0.18
+          ],
+          "emissionStrength": 4.0,
+          "unlit": true
+        }
+      },
+      {
+        "id": "c0a8d00f8f7751bdac59137ce5a737eb",
+        "name": "Glow Edge",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          1.57,
+          -28.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.6,
+          0.18,
+          1
+        ],
+        "size": [
+          2.1,
+          0.07,
+          0.07
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.6,
+            0.18
+          ],
+          "emissionStrength": 4.0,
+          "unlit": true
+        }
       }
     ]
   },

@@ -139,7 +139,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ("Sky photos", "Kloofendal 48d Partly Cloudy, Wasteland Clouds -- Poly Haven, CC0"),
                 ("Moon", "CGI Moon Kit, from Lunar Reconnaissance Orbiter data -- NASA's Scientific Visualization Studio, public domain"),
                 ("Atmosphere", "after Sebastian Lague's Solar System -- MIT License"),
-                ("Liquid shader", "Mirza Beig -- reuse permission and attribution in LiquidFill.frag")
+                ("Liquid shader", "Mirza Beig -- reuse permission and attribution in LiquidFill.frag"),
+                ("Music", "\"Pixel Peeker Polka - faster\" and \"Monkeys Spinning Monkeys\" by Kevin MacLeod (incompetech.com) -- " +
+                    "Creative Commons: By Attribution 4.0")
             }),
             ("Libraries", new[]
             {

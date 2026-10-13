@@ -11,6 +11,8 @@ BOOT = [
     "Assets/Textures/DebugTexture_Grid.png", "Assets/Textures/Sky/moon_lroc_1k.jpg",
     "Assets/Fonts/Roboto/Roboto-Regular.ttf", "Assets/Fonts/Roboto/Roboto-Medium.ttf",
     "Assets/kenney_mini-characters.zip", "Assets/kenney_mini-dungeon.zip",
+    # The start screen's music (GameViewController.MenuMusic).
+    "Assets/Audio/Music/Monkeys Spinning Monkeys.wav",
 ]
 # The planet's height map is the editor's (466 MB); a level showing the planet comes up without it, as on the web.
 EXCLUDED = {"Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"}

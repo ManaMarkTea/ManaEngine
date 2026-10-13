@@ -62,8 +62,9 @@ WHITE = [0.95, 0.95, 0.92, 1]
 YELLOW = [1.0, 0.78, 0.15, 1]
 SAND = [0.93, 0.83, 0.6, 1]
 PLANKS = [0.58, 0.4, 0.24, 1]
-STONE = [0.36, 0.34, 0.38, 1]
-STONE_DARK = [0.34, 0.31, 0.3, 1]
+STONE = [0.5, 0.47, 0.5, 1]
+STONE_DARK = [0.44, 0.41, 0.39, 1]
+GLOW = [1.0, 0.6, 0.18, 1]
 WOOD = [0.45, 0.3, 0.18, 1]
 CLOUD = [0.97, 0.98, 1.0, 1]
 TORCH = [1.0, 0.62, 0.25, 1]
@@ -156,7 +157,7 @@ class Section:
     def torch(self, x, z, y=3.0):
         self.shape("Torch", (x, y, z), (0.25, 0.4, 0.25), TORCH, material={"emission": TORCH[:3], "emissionStrength": 4.0},
                    scripts=[{"id": self._id("torch-light"), "type": "Light", "properties": {
-                       "color": [1, 0.6, 0.25, 1], "intensity": 3.0, "range": 12, "lightType": "Point",
+                       "color": [1, 0.62, 0.3, 1], "intensity": 4.5, "range": 14, "lightType": "Point",
                        "flickerAmount": 0.35, "flickerSpeed": 8}}])
 
     # ---- city -----------------------------------------------------------------------------------------------
@@ -248,18 +249,65 @@ class Section:
             self.shape("Wall", (side * 4.3, base + 3.0, mid), (1.0, 6.4, length), STONE)
         self.shape("Ceiling", (0, base + 6.0, mid), (9.6, 0.6, length), STONE_DARK)
         if torches and length >= 20:
-            for i, z in enumerate((z0 - 6.0, z0 - 21.0)):
-                side = -1 if i == 0 else 1
+            # A torch every 7.5 m, alternating sides: dark between them, never so dark the floor is lost.
+            for i, z in enumerate((z0 - 3.0, z0 - 10.5, z0 - 18.0, z0 - 25.5)):
+                side = -1 if i % 2 == 0 else 1
                 self.torch(side * 3.65, z, base + 3.2)
-                self.mesh("Banner", BANNER, (side * 3.8, base + 1.6, z - 6.0), (0, -side * 1.5708, 0), 2.4)
+            for i, z in enumerate((z0 - 7.0, z0 - 22.0)):
+                side = 1 if i == 0 else -1
+                self.mesh("Banner", BANNER, (side * 3.8, base + 1.6, z), (0, -side * 1.5708, 0), 2.4)
+
+    def glow_edge(self, x, y, z, width):
+        """A bright strip along a hurdle's front edge, so it reads at speed in the dark."""
+        self.shape("Glow Edge", (x, y, z), (width, 0.07, 0.07), GLOW,
+                   material={"emission": GLOW[:3], "emissionStrength": 4.0, "unlit": True})
 
     def rubble(self, lane, z, base=0.0):
-        """Jump it: a low heap of stone."""
+        """Jump it: a low heap of stone, its top edge lit."""
         self.shape("Obstacle Rubble", (LANES[lane], base + 0.45, z), (2.0, 0.9, 1.2), STONE)
+        self.glow_edge(LANES[lane], base + 0.9, z + 0.62, 2.0)
 
     def beam(self, lane, z, base=0.0):
-        """Duck under it: a wooden beam across the lane."""
-        self.shape("Obstacle Beam", (LANES[lane], base + 1.35, z), (2.1, 0.45, 0.45), WOOD)
+        """Duck under it: a wooden beam across the lane, glowing warm with lit edges above and below."""
+        self.shape("Obstacle Beam", (LANES[lane], base + 1.35, z), (2.1, 0.45, 0.45), WOOD,
+                   material={"emission": [1.0, 0.45, 0.12], "emissionStrength": 0.6})
+        self.glow_edge(LANES[lane], base + 1.13, z + 0.25, 2.1)
+        self.glow_edge(LANES[lane], base + 1.57, z + 0.25, 2.1)
+
+    def gate(self, z, floor, top=8.0, faces=1):
+        """
+        The way into (or out of) the hill: a stone face across the track at z with an opening the tunnel runs through,
+        from below the dungeon floor up to the ground above. faces=1 looks back toward the city (+Z), -1 ahead.
+        """
+        height = top - floor + 1.0
+        centre = (top + floor - 1.0) / 2
+        for side in (-1, 1):
+            self.shape("Gate Wall", (side * 17.4, centre, z), (27.2, height, 2.0), STONE)
+        self.shape("Gate Lintel", (0, (floor + 5.6 + top) / 2, z), (7.8, top - floor - 5.6, 2.0), STONE)
+        self.shape("Gate Arch", (0, floor + 5.75, z + faces * 1.05), (8.2, 0.5, 0.25), STONE_DARK)
+        for side in (-1, 1):
+            # On the face beside the opening, clear of the cut's walls.
+            self.torch(side * 5.4, z + faces * 1.2, floor + 4.2)
+            self.mesh("Banner", BANNER, (side * 7.8, floor + 3.0, z + faces * 1.1), (0, 0 if faces > 0 else 3.14159, 0), 3.0)
+        # A grassy mound over the tunnel, so the face reads as a hillside rather than a wall.
+        self.shape("Hill", (0, top + 0.6, z - faces * 9.0), (56.0, 1.2, 18.0), GRASS)
+        for side in (-1, 1):
+            self.shape("Hill Shoulder", (side * 16.0, top + 1.6, z - faces * 9.0), (14.0, 1.4, 14.0), GRASS, shape="Icosphere")
+            self.mesh("Palm", PALM, (side * 12.0, top + 1.2, z - faces * 6.0), scale=1.1)
+
+    def trench(self, z0, z1, floor_near, floor_far, ground=0.0):
+        """Retaining walls either side of a ramp, their tops flush with the ground so the verges carry on beside it."""
+        low = min(floor_near, floor_far)
+        for side in (-1, 1):
+            self.shape("Trench Wall", (side * 4.3, (ground + low) / 2 - 0.5, (z0 + z1) / 2), (1.0, ground - low + 1.0, abs(z1 - z0)), STONE)
+
+    def ramp_coins(self, lane, z0, z1, y0, y1, step=2.0):
+        """Coins down (or up) a ramp, the same height above it all the way."""
+        z = z0
+        while z >= z1:
+            t = (z0 - z) / (z0 - z1)
+            self.coin(lane, z, y0 + t * (y1 - y0) + 0.55)
+            z -= step
 
     def column(self, lane, z, base=0.0):
         """Change lane: a stone column."""
@@ -449,14 +497,18 @@ def beach():
 def dungeon():
     d = -DUNGEON_DEPTH
     s = Section("Dungeon", "Dungeon Enter")
+    # The road dips into a stone-walled cut, the grass carrying on beside it, to a gate in the hillside.
     s.road(0.0, -4.0, decor=False)
-    s.ramp(False, -4.0, -24.0, 0.0, d, color=STONE_DARK)
-    s.ground("Floor", -24.0, -LENGTH, y=d, color=STONE_DARK)
-    s.tunnel(-10.0, -LENGTH, base=d, floor=False, torches=False)
-    s.torch(3.65, -26.0, d + 3.2)
     for side in (-1, 1):
-        s.shape("Wall", (side * 4.3, d / 2 + 1.0, -16.0), (1.0, abs(d) + 2.0, 24.0), STONE)
-    s.coins(1, -6.0, -28.0, step=2.0, y=0.55)
+        s.shape("Verge", (side * 26.0, -0.03, -14.0), (40.0, 0.2, 20.0), GRASS)
+        s.mesh("Palm", PALM, (side * 9.0, 0.0, -9.0), scale=1.0)
+    s.ramp(False, -4.0, -24.0, 0.0, d, color=STONE_DARK)
+    s.trench(-4.0, -24.0, 0.0, d)
+    s.gate(-24.0, d, top=3.0, faces=1)
+    s.ground("Floor", -24.0, -LENGTH, y=d, color=STONE_DARK)
+    s.tunnel(-25.0, -LENGTH, base=d, floor=False, torches=False)
+    s.ramp_coins(1, -5.0, -23.0, 0.0, d)
+    s.coins(1, -25.0, -29.0, y=d + 0.55)
     s.exit(d)
     yield s
 
@@ -499,18 +551,23 @@ def dungeon():
     yield s
 
     s = Section("Dungeon", "Dungeon Leave")
+    # Out through a gate and up a stone-walled cut to the road, the grass level with the top of its walls.
     s.ground("Floor", 0.0, -6.0, color=STONE_DARK)
-    s.tunnel(0.0, -14.0, floor=False, torches=False)
-    s.torch(-3.65, -4.0, 3.2)
+    s.tunnel(0.0, -5.0, floor=False, torches=False)
+    s.torch(-3.65, -3.0, 3.2)
+    s.gate(-6.0, 0.0, top=DUNGEON_DEPTH + 3.0, faces=-1)
     s.ramp(True, -6.0, -26.0, 0.0, DUNGEON_DEPTH, color=STONE_DARK)
+    s.trench(-6.0, -26.0, 0.0, DUNGEON_DEPTH, ground=DUNGEON_DEPTH)
     for side in (-1, 1):
-        s.shape("Wall", (side * 4.3, DUNGEON_DEPTH / 2 - 1.0, -16.0), (1.0, DUNGEON_DEPTH + 2.0, 20.0), STONE)
+        s.shape("Verge", (side * 26.0, DUNGEON_DEPTH - 0.03, -16.0), (40.0, 0.2, 20.0), GRASS)
+    s.ramp_coins(1, -7.0, -25.0, 0.0, DUNGEON_DEPTH)
     s.road(-26.0, -LENGTH, decor=False)
     for node in s.children:
         # The road at the top of the ramp, up where the city is.
         if node["name"] in ("Ground Road", "Pavement", "Verge", "Lane Line") and node["position"][2] < -25.9:
             node["position"][1] += DUNGEON_DEPTH
-    s.coins(1, -2.0, -28.0, step=2.0)
+    s.coins(1, -1.0, -5.0, step=2.0)
+    s.coins(1, -27.0, -29.0, step=2.0, y=DUNGEON_DEPTH + 0.55)
     s.exit(DUNGEON_DEPTH)
     yield s
 
@@ -595,7 +652,18 @@ def level():
                 "order": 0},
         "camera": {"position": [48.0, 6.0, 410.0], "rotation": [-0.3, 0.0, 0.0]},
         "sky": {"mode": "Day"},
-        "gameModes": [{"id": uid("level", "mode"), "type": "Runner", "properties": {}}],
+        # The music and sounds written out, so the phone app (which carries what levels name) brings them along.
+        "gameModes": [{"id": uid("level", "mode"), "type": "Runner", "properties": {
+            "music": "Assets/Audio/Music/Pixel Peeker Polka - faster.wav",
+            "coinSound": "Assets/Audio/Starter/Gameplay/pickup.wav",
+            "jumpSound": "Assets/Audio/Starter/Gameplay/jump.wav",
+            "landSound": "Assets/Audio/Starter/Gameplay/land.wav",
+            "laneSound": "Assets/Audio/Starter/Gameplay/whoosh.wav",
+            "crashSound": "Assets/Audio/Starter/Gameplay/impact_hard.wav",
+            "fallSound": "Assets/Audio/SampleCourse/Hazards/fall.wav",
+            "powerUpSound": "Assets/Audio/Starter/Gameplay/checkpoint.wav",
+            "stompSound": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "launchSound": "Assets/Audio/Starter/Gameplay/respawn.wav"}}],
         # The Player Start is a node like any other: a top-level "playerStart" is only an echo the loader ignores, and
         # without the node the character spawned at the origin as whichever came first in the catalog.
         "nodes": [{"id": uid("level", "start"), "name": "Player Start", "kind": "PlayerStart", "position": start,
