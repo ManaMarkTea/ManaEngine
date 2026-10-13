@@ -124,8 +124,7 @@ public sealed class IosWindow : IWindow
         {
             return;
         }
-        AppDelegate.Trace($"The game closed its window:
-{Environment.StackTrace}");
+        AppDelegate.Trace($"The game closed its window: {Environment.StackTrace}");
         IsClosing = true;
         _link?.Invalidate();
         _link = null;
