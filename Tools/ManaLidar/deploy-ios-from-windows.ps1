@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
     Builds ManaLidar on the Mac and installs it on the iPhone, from Windows: the command-line version of Visual
-    Studio's Pair to Mac. Finds the Mac on the network, logs in over SSH, pulls this branch there and runs
-    deploy-ios.sh.
+    Studio's Pair to Mac. Finds the Mac on the network, sends this PC's current commit to a deploy copy there over
+    SSH (no GitHub needed, the Mac's own checkout untouched) and runs deploy-ios.sh in it.
 
 .DESCRIPTION
     Finds the Mac by itself: a Mac with Remote Login on (System Settings > General > Sharing) announces itself
@@ -28,7 +28,7 @@ param(
     # Signing needs the Mac's login keychain, which an SSH session finds locked ("errSecInternalComponent").
     # This asks for the Mac password and unlocks it for the build.
     [switch] $UnlockKeychain,
-    # Push this branch first, so the Mac builds what is here.
+    # Unused: the commit now goes straight to the Mac. Kept so older command lines still run.
     [switch] $Push
 )
 
@@ -83,39 +83,50 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 
-# ---------------------------------------------------------------- where the checkout is on the Mac
+# ---------------------------------------------------------------- the Mac's checkout, to seed a deploy copy from
 if (-not $Repo -and (Test-Path $repoFile)) {
     $Repo = (Get-Content $repoFile -Raw).Trim()
-    ssh @sshOptions -o BatchMode=yes $Mac "test -d $Repo/ManaLidar.Core" 2>$null
+    ssh @sshOptions -o BatchMode=yes $Mac "test -f $Repo/ManaLidar.Core/ManaLidar.Core.csproj" 2>$null
     if ($LASTEXITCODE -ne 0) { $Repo = "" }
 }
 if (-not $Repo) {
-    # Wherever it was cloned: the folder holding ManaLidar.Core, skipping ~/Library's caches.
-    $core = ssh @sshOptions -o BatchMode=yes $Mac 'find ~ -maxdepth 6 -type d -name ManaLidar.Core -not -path "*/Library/*" -not -path "*/.Trash/*" 2>/dev/null | head -1'
-    if (-not $core) {
+    # Wherever it was cloned: by the project file, since build output has folders of the same name.
+    $project = ssh @sshOptions -o BatchMode=yes $Mac 'find ~ -maxdepth 7 -name ManaLidar.Core.csproj -not -path "*/Library/*" -not -path "*/.Trash/*" -not -path "*/.mana-deploy/*" -not -path "*/Artifacts/*" 2>/dev/null | head -1'
+    if (-not $project) {
         throw "No ManaRenderer checkout found on the Mac. Clone it there, or pass -Repo ~/path/to/ManaRenderer."
     }
-    $Repo = $core.Trim() -replace "/ManaLidar\.Core$", ""
+    $Repo = $project.Trim() -replace "/ManaLidar\.Core/ManaLidar\.Core\.csproj$", ""
     New-Item -ItemType Directory -Force $settingsDir | Out-Null
     Set-Content $repoFile $Repo
 }
-Write-Host "Checkout on the Mac: $Repo"
 
-# ---------------------------------------------------------------- what to build
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
-$branch = (git -C $repoRoot rev-parse --abbrev-ref HEAD).Trim()
-if ($Push) {
-    git -C $repoRoot push origin $branch
+# ---------------------------------------------------------------- send this PC's commit to a deploy copy on the Mac
+# A copy of its own, so the Mac's working tree (someone may be working in it) is never touched, and GitHub is not
+# involved: an SSH session cannot use the Mac's keychain for GitHub. The copy is seeded from the Mac's checkout
+# (a local clone, quick), then this PC pushes its commit straight into it.
+$deploy = ".mana-deploy/ManaRenderer"
+ssh @sshOptions -o BatchMode=yes $Mac "test -d ~/$deploy/.git || GIT_LFS_SKIP_SMUDGE=1 git clone --quiet --no-checkout '$Repo' ~/$deploy"
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not make the deploy copy on the Mac."
 }
-# The Mac pulls from the remote, so anything only here would be silently left out.
-$ahead = (git -C $repoRoot rev-list --count "origin/$branch..HEAD" 2>$null)
-if ($ahead -and [int]$ahead -gt 0) {
-    throw "$ahead commit(s) on $branch are not pushed yet, so the Mac would build without them. Push, or run with -Push."
+
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
+$commit = (git -C $repoRoot rev-parse --short HEAD).Trim()
+if (git -C $repoRoot status --porcelain -- ManaLidar ManaLidar.Core ManaVoxel/Code/Measure) {
+    Write-Host "Uncommitted changes to the app are not sent: building the last commit, $commit." -ForegroundColor Yellow
+}
+Write-Host "Sending $commit to the Mac..."
+# Large files tracked by Git LFS (planet textures) are not needed by the phone app and have nowhere to go.
+$env:GIT_LFS_SKIP_PUSH = "1"
+git -C $repoRoot push --quiet --force "$($Mac):$deploy" HEAD:refs/heads/deploy
+Remove-Item Env:GIT_LFS_SKIP_PUSH
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not send the commit to the Mac."
 }
 
 # ---------------------------------------------------------------- build and install, on the Mac
 # A login shell (zsh -l), or dotnet is not on the PATH: a plain SSH command skips the Mac's profile.
-$steps = "cd $Repo && git fetch --quiet && git checkout --quiet $branch && git pull --ff-only --quiet && Tools/ManaLidar/deploy-ios.sh $Configuration"
+$steps = "cd ~/$deploy && GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force deploy && Tools/ManaLidar/deploy-ios.sh $Configuration"
 if ($UnlockKeychain) {
     $secure = Read-Host "Mac login password (unlocks the signing keychain)" -AsSecureString
     $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
@@ -132,4 +143,4 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "The deploy on the Mac failed (exit $LASTEXITCODE). If signing failed with errSecInternalComponent, run again with -UnlockKeychain." -ForegroundColor Yellow
     exit $LASTEXITCODE
 }
-Write-Host "ManaLidar is on the phone." -ForegroundColor Green
+Write-Host "ManaLidar ($commit) is on the phone." -ForegroundColor Green
