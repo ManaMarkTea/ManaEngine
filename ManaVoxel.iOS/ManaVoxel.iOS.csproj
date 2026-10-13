@@ -62,7 +62,7 @@
        only its Game/ selection above. -->
   <Target Name="ManaDropDesktopAssets" BeforeTargets="_ComputePublishLocation">
     <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('','/').StartsWith('Assets/')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('','/').StartsWith('Content/'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Assets')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Content'))" />
     </ItemGroup>
   </Target>
 
