@@ -413,14 +413,14 @@ def beach():
     yield s
 
     s = Section("Beach", "Beach Shallows")
-    s.ground("Sand", 0.0, -LENGTH, y=-0.45, color=SAND, width=12.0)
+    s.ground("Sand", 0.0, -LENGTH, y=-0.3, color=SAND, width=12.0)
     s.node("Shallows", "Water", (0, -0.15, -15.0), water={"size": [44.0, LENGTH], "resolution": 24})
     for side in (-1, 1):
         s.shape("Beach", (side * 34.0, -0.4, -15.0), (24.0, 0.6, LENGTH), SAND)
-    s.mesh("Rocks", ROCKS, (-2.2, -0.45, -9.0), scale=1.6)
-    s.mesh("Rocks", ROCKS, (6.5, -0.45, -18.0), scale=2.0)
+    s.mesh("Rocks", ROCKS, (-2.2, -0.3, -9.0), scale=1.6)
+    s.mesh("Rocks", ROCKS, (6.5, -0.3, -18.0), scale=2.0)
     s.barrel(2, -9.0)
-    s.crate(0, -20.0, base=-0.45)
+    s.crate(0, -20.0, base=-0.3)
     s.coins(1, -4.0, -28.0, y=0.1)
     s.power("Magnet", 1, -24.0, y=0.55)
     s.exit(0.0)
