@@ -119,6 +119,15 @@ public static class ScanExportChecks
         var farWall = ScanCoverage.Score(Wall(z: -6f), new[] { camera });
         Check("one seen from far off only partly", farWall.All(q => q > 0 && q < 0.4f), string.Join(", ", farWall.Select(q => q.ToString("F2"))));
         Check("one facing away not at all", ScanCoverage.Score(Wall(z: -2f, normal: -Vector3.UnitZ), new[] { camera }).All(q => q == 0));
+        // Many photos taken right beside a wall but along it (useless for it), and one good head-on photo from
+        // further back: the good one must still count, however many close ones crowd round.
+        var farWallPiece = Wall(z: -4f);
+        var grazing = Enumerable.Range(0, 60).Select(i => new ScanKeyframe(64, 48, new byte[64 * 48 * 3],
+            Matrix4x4.CreateRotationY(MathF.PI / 2) * Matrix4x4.CreateTranslation(1.5f, 0, -3.9f + i * 0.001f), 50, 50, 32, 24, i)).ToList();
+        grazing.Add(new ScanKeyframe(64, 48, new byte[64 * 48 * 3], Matrix4x4.Identity, 50, 50, 32, 24, 99));
+        var crowded = ScanCoverage.Score(farWallPiece, grazing);
+        Check("a good photo counts however many poor ones were taken nearer", crowded.All(q => q > 0.3f),
+            string.Join(", ", crowded.Select(q => q.ToString("F2"))));
         var scores = new float[3];
         var wallPiece = Wall(z: -2f);
         Check("a new photo raises coverage", ScanCoverage.Improve(wallPiece, scores, new[] { camera }));

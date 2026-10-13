@@ -36,10 +36,18 @@ public static class ScanCoverage
     public static bool Improve(ScanMeshPiece piece, float[] scores, IReadOnlyList<ScanKeyframe> keyframes)
     {
         var (centre, radius) = ScanColorizer.Bounds(piece.Positions);
-        // Scoring runs live on the phone: the nearest photos decide it, and a vertex already well covered
-        // is not worth another look.
+        // Scoring runs live on the phone, so only the photos most likely to show the piece well are checked, and a
+        // vertex already well covered is not worth another look. Ranked by how squarely each photo looks at the
+        // piece, not by distance alone: past a couple of hundred photos the nearest ones are often taken close by
+        // but pointing elsewhere, and choosing those turned well covered areas red again as ARKit refined them.
+        var facing = Vector3.Zero;
+        foreach (var n in piece.Normals)
+        {
+            facing += n;
+        }
+        facing = facing.LengthSquared() > 1e-6f ? Vector3.Normalize(facing) : Vector3.Zero;
         var candidates = ScanColorizer.Candidates(centre, radius, keyframes)
-            .OrderBy(k => Vector3.DistanceSquared(k.Position, centre))
+            .OrderByDescending(k => Promise(k, centre, facing))
             .Take(MaxPhotosPerPiece)
             .ToArray();
         var changed = false;
@@ -60,6 +68,16 @@ public static class ScanCoverage
             }
         }
         return changed;
+    }
+
+    // Roughly how good a view of a piece a photo is: aimed at it, facing it (when the piece faces one way), close.
+    private static float Promise(ScanKeyframe keyframe, Vector3 centre, Vector3 facing)
+    {
+        var toPiece = centre - keyframe.Position;
+        var distance = MathF.Max(toPiece.Length(), 0.1f);
+        var aimed = MathF.Max(0.05f, Vector3.Dot(keyframe.Forward, toPiece / distance));
+        var faced = facing == Vector3.Zero ? 1f : MathF.Max(0.2f, -Vector3.Dot(facing, toPiece / distance));
+        return aimed * faced * MathF.Min(1f, GoodDistance / distance);
     }
 
     /// <summary>A score this high is as green as it gets; checking more photos cannot change what is shown.</summary>
