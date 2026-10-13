@@ -600,7 +600,7 @@ def level():
         # without the node the character spawned at the origin as whichever came first in the catalog.
         "nodes": [{"id": uid("level", "start"), "name": "Player Start", "kind": "PlayerStart", "position": start,
                    "rotation": [0, 0, 0], "scale": [1, 1, 1],
-                   "character": {"pack": "kenney_mini-characters", "name": "character-female-b", "height": 1.8}}],
+                   "character": {"pack": "kenney_mini-characters", "name": "character-female-b", "height": 1.1}}],
     }
 
 
