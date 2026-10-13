@@ -84,6 +84,21 @@ Mana places the whole building, with each room selectable in the Outliner. **Fin
 Keep the app open between rooms. **New** (or closing the app) starts a new coordinate frame, and later rooms
 would no longer line up with the earlier ones.
 
+## While scanning: what is covered
+
+The mesh over the camera is see-through, so a hole shows as a gap straight through to the camera picture. Its
+colour is photo coverage: **red** where no photo has seen it yet, **amber** where only from far off or at a
+glancing angle, **green** once seen close and head-on. Sweep until the room is green; red parts come out grey
+or blurry in the texture.
+
+## Looking round a scan and measuring it (on the phone)
+
+Tap a scan in **Scans** to open it (the (i) button shares it instead). Drag to orbit, pinch to zoom, two fingers
+to pan. Tap to place points: Distance, Radius or Path, with the same snapping as the Mana editor's measuring
+tool (corners, real edges and their middles, a larger reach for a fingertip). **Floor** keeps later points on
+the first point's surface; **m/ft** switches units; **Undo**, **Clear**, and **Done** to finish a path. The
+measuring rules are the editor's own files (`ManaVoxel/Code/Measure/`), compiled into the app.
+
 ## Viewing in Mana
 
 Drop the `.glb` onto the ManaVoxel editor window (`dotnet run --project ManaVoxel`) to place it in the open

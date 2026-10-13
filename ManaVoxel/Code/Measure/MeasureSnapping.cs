@@ -90,6 +90,49 @@ public static class MeasureSnapping
         return point - n * Vector3.Dot(point - planePoint, n);
     }
 
+    /// <summary>
+    /// Which edges of triangle <paramref name="triangle"/> (its first index) are real: bit 0 a-b, 1 b-c, 2 c-a. An
+    /// edge shared with a neighbour in the same plane is only the diagonal a flat face was cut along. Neighbours are
+    /// matched by position, since a textured mesh repeats its vertices along UV seams. Mana's own picker does the
+    /// same (ManaScenePicker.CreaseEdges); this copy serves the phone apps, which have no engine.
+    /// </summary>
+    public static int CreaseEdges(IReadOnlyList<Vector3> positions, IReadOnlyList<uint> indices, int triangle)
+    {
+        var corner = new[] { positions[(int)indices[triangle]], positions[(int)indices[triangle + 1]], positions[(int)indices[triangle + 2]] };
+        var normal = Vector3.Cross(corner[1] - corner[0], corner[2] - corner[0]);
+        if (normal.LengthSquared() < 1e-20f)
+        {
+            return 7;
+        }
+        normal = Vector3.Normalize(normal);
+        var creases = 7;
+        for (var i = 0; i + 2 < indices.Count && creases != 0; i += 3)
+        {
+            if (i == triangle)
+            {
+                continue;
+            }
+            var p0 = positions[(int)indices[i]];
+            var p1 = positions[(int)indices[i + 1]];
+            var p2 = positions[(int)indices[i + 2]];
+            var other = Vector3.Cross(p1 - p0, p2 - p0);
+            if (other.LengthSquared() < 1e-20f || Vector3.Dot(Vector3.Normalize(other), normal) < 0.9995f)
+            {
+                continue;
+            }
+            for (var e = 0; e < 3; e++)
+            {
+                var u = corner[e];
+                var v = corner[(e + 1) % 3];
+                if ((p0 == u || p1 == u || p2 == u) && (p0 == v || p1 == v || p2 == v))
+                {
+                    creases &= ~(1 << e);
+                }
+            }
+        }
+        return creases;
+    }
+
     public static Vector3 ClosestOnSegment(Vector3 point, Vector3 a, Vector3 b)
     {
         var along = b - a;

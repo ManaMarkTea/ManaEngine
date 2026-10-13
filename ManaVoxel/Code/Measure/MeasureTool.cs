@@ -114,6 +114,48 @@ public sealed class MeasureTool
             ? (current.Points[0], current.Normal)
             : null;
 
+    /// <summary>
+    /// The pointer is over <paramref name="snap"/>: drops it onto the first surface when that is asked for, makes it
+    /// the hover point, and adds it when <paramref name="click"/>. Shared by the editor's pointer and a phone's tap.
+    /// </summary>
+    public void Point(MeasureSnap? snap, bool shiftHeld, bool click)
+    {
+        HoverUnprojected = null;
+        if (snap is { } point && LockPlane(shiftHeld) is { } onto)
+        {
+            var dropped = MeasureSnapping.OntoPlane(point.Position, onto.Point, onto.Normal);
+            if (Vector3.Distance(dropped, point.Position) > 1e-4f)
+            {
+                HoverUnprojected = point.Position;
+            }
+            snap = point with { Position = dropped };
+        }
+        Hover = snap;
+        if (click && snap is { } at)
+        {
+            Click(at);
+        }
+    }
+
+    /// <summary>Takes back the last point of the measurement in progress, or else the last measurement kept.</summary>
+    public void Undo()
+    {
+        if (Current is { } current)
+        {
+            current.Points.RemoveAt(current.Points.Count - 1);
+            if (current.Points.Count == 0)
+            {
+                Current = null;
+            }
+            Version++;
+        }
+        else if (Measurements.Count > 0)
+        {
+            Measurements.RemoveAt(Measurements.Count - 1);
+            Version++;
+        }
+    }
+
     /// <summary>A click: starts a measurement or adds the next point, finishing one that has all it needs.</summary>
     public void Click(MeasureSnap snap)
     {

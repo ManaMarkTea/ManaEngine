@@ -1,0 +1,304 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
+using CoreAnimation;
+using ManaVoxel.Code.Measure;
+using SceneKit;
+
+namespace ManaLidar;
+
+/// <summary>
+/// A saved scan to look round and measure: drag to orbit, pinch to zoom, two fingers to pan, tap to place a point.
+/// Points snap to the corners, real edges and edge middles of the triangle under the finger, using the editor's
+/// own measuring rules (the ManaVoxel Measure files, compiled in), so a measurement reads the same on the phone
+/// as in Mana.
+/// </summary>
+public sealed class ScanViewerViewController : UIViewController
+{
+    /// <summary>A fingertip covers more than a pointer: snapping reaches further.</summary>
+    private const float SnapPoints = 28.0f;
+
+    private readonly string _path;
+    private readonly MeasureTool _tool = new() { Active = true };
+    private readonly Dictionary<IntPtr, ScanRoomMesh> _rooms = new();
+    private SCNView _view = null!;
+    private MeasureCanvas _canvas = null!;
+    private UILabel _hint = null!;
+    private UISegmentedControl _modes = null!;
+    private UIButton _floor = null!;
+    private UIButton _units = null!;
+    private UIButton _done = null!;
+    private CADisplayLink? _link;
+
+    public ScanViewerViewController(string path)
+    {
+        _path = path;
+        Title = Path.GetFileNameWithoutExtension(path);
+    }
+
+    public override void ViewDidLoad()
+    {
+        base.ViewDidLoad();
+        View!.BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 1);
+        NavigationItem.RightBarButtonItem = new UIBarButtonItem(UIBarButtonSystemItem.Action,
+            (_, _) => ScanFiles.Share(this, _path, _done));
+
+        _view = new SCNView(CGRect.Empty)
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false,
+            Scene = new SCNScene(),
+            AllowsCameraControl = true,
+            BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 1),
+            AntialiasingMode = SCNAntialiasingMode.Multisampling4X,
+        };
+        View.AddSubview(_view);
+        _view.AddGestureRecognizer(new UITapGestureRecognizer(tap => OnTap(tap.LocationInView(_view))));
+
+        _canvas = new MeasureCanvas(_tool, _view)
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false,
+            UserInteractionEnabled = false,
+            BackgroundColor = UIColor.Clear,
+            Opaque = false,
+        };
+        View.AddSubview(_canvas);
+
+        _hint = new UILabel
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false,
+            Text = "Loading...",
+            TextColor = UIColor.White,
+            TextAlignment = UITextAlignment.Center,
+            Lines = 0,
+        };
+        if (UIFont.SystemFontOfSize(14) is { } hintFont)
+        {
+            _hint.Font = hintFont;
+        }
+        View.AddSubview(_hint);
+
+        _modes = new UISegmentedControl("Distance", "Radius", "Path") { TranslatesAutoresizingMaskIntoConstraints = false, SelectedSegment = 0 };
+        _modes.ValueChanged += (_, _) =>
+        {
+            _tool.Mode = (MeasureMode)(int)_modes.SelectedSegment;
+            UpdateControls();
+        };
+        _floor = Button("Floor", () => _tool.StayOnFirstSurface = !_tool.StayOnFirstSurface);
+        _units = Button("m", () => _tool.Units = _tool.Units == MeasureUnits.Metric ? MeasureUnits.Imperial : MeasureUnits.Metric);
+        var undo = Button("Undo", _tool.Undo);
+        var clear = Button("Clear", _tool.Clear);
+        _done = Button("Done", _tool.Finish);
+        var buttons = new UIStackView(new UIView[] { _floor, _units, undo, clear, _done })
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false,
+            Axis = UILayoutConstraintAxis.Horizontal,
+            Distribution = UIStackViewDistribution.FillEqually,
+            Spacing = 8,
+        };
+        View.AddSubview(_modes);
+        View.AddSubview(buttons);
+
+        var safe = View.SafeAreaLayoutGuide;
+        NSLayoutConstraint.ActivateConstraints(new[]
+        {
+            _view.TopAnchor.ConstraintEqualTo(View.TopAnchor),
+            _view.BottomAnchor.ConstraintEqualTo(View.BottomAnchor),
+            _view.LeadingAnchor.ConstraintEqualTo(View.LeadingAnchor),
+            _view.TrailingAnchor.ConstraintEqualTo(View.TrailingAnchor),
+            _canvas.TopAnchor.ConstraintEqualTo(View.TopAnchor),
+            _canvas.BottomAnchor.ConstraintEqualTo(View.BottomAnchor),
+            _canvas.LeadingAnchor.ConstraintEqualTo(View.LeadingAnchor),
+            _canvas.TrailingAnchor.ConstraintEqualTo(View.TrailingAnchor),
+
+            _hint.TopAnchor.ConstraintEqualTo(safe.TopAnchor, 8),
+            _hint.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 16),
+            _hint.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -16),
+
+            buttons.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 12),
+            buttons.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -12),
+            buttons.BottomAnchor.ConstraintEqualTo(safe.BottomAnchor, -10),
+            buttons.HeightAnchor.ConstraintEqualTo(40),
+            _modes.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 12),
+            _modes.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -12),
+            _modes.BottomAnchor.ConstraintEqualTo(buttons.TopAnchor, -8),
+        });
+
+        UpdateControls();
+        Load();
+    }
+
+    public override void ViewDidAppear(bool animated)
+    {
+        base.ViewDidAppear(animated);
+        // The labels follow the scan as the camera moves, so the canvas redraws with the view.
+        _link = CADisplayLink.Create(() =>
+        {
+            _canvas.SetNeedsDisplay();
+            UpdateControls();
+        });
+        _link.PreferredFramesPerSecond = 30;
+        _link.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
+    }
+
+    public override void ViewWillDisappear(bool animated)
+    {
+        base.ViewWillDisappear(animated);
+        _link?.Invalidate();
+        _link = null;
+    }
+
+    private async void Load()
+    {
+        IReadOnlyList<ScanRoomMesh> rooms;
+        try
+        {
+            rooms = await Task.Run(() => ScanGlbReader.Read(_path));
+        }
+        catch (Exception ex)
+        {
+            _hint.Text = $"Could not open the scan: {ex.Message}";
+            return;
+        }
+
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        foreach (var room in rooms)
+        {
+            var node = BuildNode(room);
+            _rooms[node.Handle] = room;
+            _view.Scene!.RootNode.AddChildNode(node);
+            foreach (var p in room.Positions)
+            {
+                min = Vector3.Min(min, p);
+                max = Vector3.Max(max, p);
+            }
+        }
+        if (rooms.Count == 0 || min.X > max.X)
+        {
+            _hint.Text = "This scan is empty.";
+            return;
+        }
+
+        // Up and back from the middle, looking down into the room: walls facing away are culled, so it reads as a
+        // dollhouse from outside.
+        var centre = (min + max) * 0.5f;
+        var size = MathF.Max((max - min).Length(), 1f);
+        var camera = new SCNNode
+        {
+            Camera = new SCNCamera { ZNear = 0.02, ZFar = size * 20, FieldOfView = 60 },
+            Position = new SCNVector3(centre.X, centre.Y + size * 0.7f, centre.Z + size * 0.8f),
+        };
+        _view.Scene!.RootNode.AddChildNode(camera);
+        camera.Look(new SCNVector3(centre.X, centre.Y, centre.Z));
+        _view.PointOfView = camera;
+        _view.DefaultCameraController.InteractionMode = SCNInteractionMode.OrbitTurntable;
+        _view.DefaultCameraController.Target = new SCNVector3(centre.X, centre.Y, centre.Z);
+        _hint.Text = "Tap to place points. Drag to look round, pinch to zoom.";
+    }
+
+    private void OnTap(CGPoint at)
+    {
+        var pointer = new Vector2((float)at.X, (float)at.Y);
+        MeasureSnap? snap = null;
+        var hits = _view.HitTest(at, new SCNHitTestOptions { SearchMode = SCNHitTestSearchMode.Closest });
+        if (hits.FirstOrDefault() is { } hit && _rooms.TryGetValue(hit.Node.Handle, out var room))
+        {
+            var first = (int)hit.FaceIndex * 3;
+            if (first + 2 < room.Indices.Length)
+            {
+                var a = room.Positions[room.Indices[first]];
+                var b = room.Positions[room.Indices[first + 1]];
+                var c = room.Positions[room.Indices[first + 2]];
+                var normal = Vector3.Normalize(Vector3.Cross(b - a, c - a));
+                var cameraPosition = _view.PointOfView?.WorldPosition is { } eye ? new Vector3(eye.X, eye.Y, eye.Z) : Vector3.Zero;
+                var position = ToVector(hit.WorldCoordinates);
+                // Facing the viewer, like the editor's picker: the side you see is the one you measure from.
+                if (Vector3.Dot(normal, cameraPosition - position) < 0)
+                {
+                    normal = -normal;
+                }
+                var creases = MeasureSnapping.CreaseEdges(room.Positions, room.Indices, first);
+                snap = MeasureSnapping.FromTriangle(position, normal, a, b, c, pointer, ToScreen, SnapPoints, _tool.Targets, creases);
+            }
+        }
+        if (snap == null)
+        {
+            // Off the scan: the floor plane it was exported on (y = 0).
+            var near = _view.UnprojectPoint(new SCNVector3((float)at.X, (float)at.Y, 0));
+            var far = _view.UnprojectPoint(new SCNVector3((float)at.X, (float)at.Y, 1));
+            snap = MeasureSnapping.OnGround(ToVector(near), Vector3.Normalize(ToVector(far) - ToVector(near)), 0f);
+        }
+        _tool.Point(snap, shiftHeld: false, click: true);
+        _canvas.SetNeedsDisplay();
+    }
+
+    private Vector2? ToScreen(Vector3 world)
+    {
+        var p = _view.ProjectPoint(new SCNVector3(world.X, world.Y, world.Z));
+        return p.Z is >= 0 and <= 1 ? new Vector2(p.X, p.Y) : null;
+    }
+
+    private void UpdateControls()
+    {
+        _modes.SelectedSegment = (int)_tool.Mode;
+        _floor.BackgroundColor = _tool.StayOnFirstSurface ? UIColor.SystemBlue : UIColor.FromWhiteAlpha(0.25f, 0.9f);
+        _units.SetTitle(_tool.Units == MeasureUnits.Metric ? "m" : "ft", UIControlState.Normal);
+        _done.Enabled = _tool.Current is { Mode: MeasureMode.Path, Points.Count: >= 2 };
+        _done.Alpha = _done.Enabled ? 1f : 0.4f;
+    }
+
+    private static UIButton Button(string title, Action tapped)
+    {
+        var button = UIButton.FromType(UIButtonType.System);
+        button.SetTitle(title, UIControlState.Normal);
+        button.SetTitleColor(UIColor.White, UIControlState.Normal);
+        button.BackgroundColor = UIColor.FromWhiteAlpha(0.25f, 0.9f);
+        button.Layer.CornerRadius = 10;
+        button.TouchUpInside += (_, _) => tapped();
+        return button;
+    }
+
+    private static Vector3 ToVector(SCNVector3 v) => new(v.X, v.Y, v.Z);
+
+    private static SCNNode BuildNode(ScanRoomMesh room)
+    {
+        var vertices = room.Positions.Select(p => new SCNVector3(p.X, p.Y, p.Z)).ToArray();
+        var sources = new List<SCNGeometrySource>
+        {
+            SCNGeometrySource.FromVertices(vertices),
+            SCNGeometrySource.FromNormals(room.Normals.Select(n => new SCNVector3(n.X, n.Y, n.Z)).ToArray()),
+        };
+        if (room.Uvs != null)
+        {
+            // glTF and SceneKit both put (0, 0) at the image's top-left, so the UVs carry over as they are.
+            sources.Add(SCNGeometrySource.FromTextureCoordinates(room.Uvs.Select(uv => new CGPoint(uv.X, uv.Y)).ToArray()));
+        }
+        if (room.Colors != null)
+        {
+            var colours = new float[room.Colors.Length * 4];
+            for (var i = 0; i < room.Colors.Length; i++)
+            {
+                var c = room.Colors[i];
+                colours[i * 4] = (c & 0xFF) / 255f;
+                colours[i * 4 + 1] = ((c >> 8) & 0xFF) / 255f;
+                colours[i * 4 + 2] = ((c >> 16) & 0xFF) / 255f;
+                colours[i * 4 + 3] = 1f;
+            }
+            sources.Add(SCNGeometrySource.FromData(NSData.FromArray(MemoryMarshal.AsBytes(colours.AsSpan()).ToArray()),
+                SCNGeometrySourceSemantics.Color, room.Colors.Length, true, 4, sizeof(float), 0, 4 * sizeof(float)));
+        }
+        var indexData = NSData.FromArray(MemoryMarshal.AsBytes(room.Indices.AsSpan()).ToArray());
+        var element = SCNGeometryElement.FromData(indexData, SCNGeometryPrimitiveType.Triangles, room.TriangleCount, sizeof(uint));
+        var geometry = SCNGeometry.Create(sources.ToArray(), new[] { element });
+
+        // Unlit, as in Mana: the photos already hold the room's light.
+        var material = new SCNMaterial { LightingModelName = room.Unlit ? SCNLightingModel.Constant : SCNLightingModel.PhysicallyBased };
+        material.Diffuse.Contents = room.Image != null
+            ? UIImage.LoadFromData(NSData.FromArray(room.Image)) ?? (NSObject)UIColor.White
+            : UIColor.White;
+        material.Diffuse.MipFilter = SCNFilterMode.Linear;
+        material.Diffuse.WrapS = SCNWrapMode.Clamp;
+        material.Diffuse.WrapT = SCNWrapMode.Clamp;
+        geometry.FirstMaterial = material;
+        return new SCNNode { Geometry = geometry, Name = room.Name };
+    }
+}

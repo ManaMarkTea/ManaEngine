@@ -28,4 +28,9 @@
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" />
   </ItemGroup>
 
+  <!-- The editor's measuring rules, compiled in rather than copied, so a measurement reads the same on the phone. -->
+  <ItemGroup>
+    <Compile Include="..\ManaVoxel\Code\Measure\*.cs" LinkBase="Measure" />
+  </ItemGroup>
+
 </Project>

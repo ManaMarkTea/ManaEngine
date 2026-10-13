@@ -33,7 +33,7 @@ public static class ScanFiles
     }
 }
 
-/// <summary>Every exported scan, newest first: tap to share (AirDrop it to the Mac), swipe to delete.</summary>
+/// <summary>Every exported scan, newest first: tap to view and measure, (i) to share (AirDrop it to the Mac), swipe to delete.</summary>
 public sealed class ScansViewController : UITableViewController
 {
     private const string CellId = "scan";
@@ -67,9 +67,15 @@ public sealed class ScansViewController : UITableViewController
         return cell;
     }
 
+    // Tap opens the scan to look round and measure; the (i) button shares it.
     public override void RowSelected(UITableView tableView, NSIndexPath indexPath)
     {
         tableView.DeselectRow(indexPath, true);
+        NavigationController?.PushViewController(new ScanViewerViewController(_files[indexPath.Row].FullName), true);
+    }
+
+    public override void AccessoryButtonTapped(UITableView tableView, NSIndexPath indexPath)
+    {
         var cell = tableView.CellAt(indexPath) ?? (UIView)tableView;
         ScanFiles.Share(this, _files[indexPath.Row].FullName, cell);
     }

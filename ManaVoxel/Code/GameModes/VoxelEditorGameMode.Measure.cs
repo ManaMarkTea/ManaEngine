@@ -105,24 +105,7 @@ namespace Mana.Code.GameModes
         private void PointMeasure(Vector2 pointer, bool shift, bool click)
         {
             var tool = _viewModel.Measure;
-            var snap = SnapMeasurePoint(pointer, tool);
-            var plane = tool.LockPlane(shift);
-            tool.HoverUnprojected = null;
-            if (snap is { } point && plane is { } onto)
-            {
-                var dropped = MeasureSnapping.OntoPlane(point.Position, onto.Point, onto.Normal);
-                if (Vector3.Distance(dropped, point.Position) > 1e-4f)
-                {
-                    tool.HoverUnprojected = point.Position;
-                }
-                snap = point with { Position = dropped };
-            }
-            tool.Hover = snap;
-
-            if (click && snap is { } at)
-            {
-                tool.Click(at);
-            }
+            tool.Point(SnapMeasurePoint(pointer, tool), shift, click);
         }
 
         /// <summary>

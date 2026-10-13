@@ -217,6 +217,16 @@ public static class ScanExportChecks
             loader.LoadFile(buildingPath);
             Check("Mana loads every room", loader.Meshes.Count == 2 && loader.Materials.Count == 2,
                 $"{loader.Meshes.Count} meshes, {loader.Materials.Count} materials");
+
+            // What the phone viewers draw from: the same rooms back, in place, with their textures.
+            var reread = ScanGlbReader.Read(buildingPath);
+            Check("a phone reads the building back room by room", reread.Select(r => r.Name).SequenceEqual(new[] { "Room", "Room 2" }),
+                string.Join(", ", reread.Select(r => r.Name)));
+            Check("each where it was", reread.Zip(building.Rooms).All(pair => pair.First.Positions.Length == pair.Second.Positions.Length
+                && pair.First.Positions.Zip(pair.Second.Positions).All(p => Vector3.Distance(p.First, p.Second) < 1e-5f)
+                && pair.First.Indices.SequenceEqual(pair.Second.Indices)));
+            Check("with its texture and UVs", reread.Zip(building.Rooms).All(pair => pair.First.Image != null
+                && pair.First.Image.SequenceEqual(pair.Second.Image!) && pair.First.Uvs?.Length == pair.Second.Uvs?.Length));
         }
         catch (Exception ex)
         {
