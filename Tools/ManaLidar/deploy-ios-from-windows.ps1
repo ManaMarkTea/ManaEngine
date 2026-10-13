@@ -148,8 +148,17 @@ if ($LASTEXITCODE -ne 0 -or $ResetSigning) {
     $loginPassword | ssh @sshOptions -o BatchMode=yes $Mac "zsh -lc 'bash ~/.mana-deploy/setup-mac-signing.sh'"
     $setup = $LASTEXITCODE
     $loginPassword = $null
+    if ($setup -eq 3) {
+        # macOS asks on its own screen before a private key leaves the login keychain, and refuses over SSH.
+        Write-Host ""
+        Write-Host "One step has to happen at the Mac itself (macOS asks there before the signing key can be copied)." -ForegroundColor Yellow
+        Write-Host "On the Mac, open Terminal and run:" -ForegroundColor Yellow
+        Write-Host "    bash ~/.mana-deploy/setup-mac-signing.sh" -ForegroundColor Cyan
+        Write-Host "Type your Mac password, click Allow / Always Allow on the dialogs, then run this deploy again." -ForegroundColor Yellow
+        exit 1
+    }
     if ($setup -ne 0) {
-        Write-Host "Setting up signing failed (exit $setup): was that the Mac's login password? Run again to retry." -ForegroundColor Yellow
+        Write-Host "Setting up signing failed (exit $setup)$(if ($setup -eq 2) { ': the Mac did not accept that password' }). Run again to retry." -ForegroundColor Yellow
         exit 1
     }
 }

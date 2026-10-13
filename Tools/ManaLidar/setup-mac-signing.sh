@@ -4,21 +4,33 @@
 # only). Deploys over SSH then unlock that keychain instead of the login one, so the Mac's login password is never
 # stored elsewhere or asked for again. Reads the login password from stdin (it unlocks the login keychain to export).
 # Re-run it if the certificate is renewed.
+#
+# macOS only lets a private key be exported after a click on the Mac's own screen, so the first time this has to run
+# there, in Terminal:  bash ~/.mana-deploy/setup-mac-signing.sh   (Allow the dialog that asks to export the key).
+# Over SSH the export is refused, which exits 3.
 set -euo pipefail
 dir="$HOME/.mana-deploy/signing"
 keychain="$dir/mana-signing.keychain-db"
 login="$HOME/Library/Keychains/login.keychain-db"
 mkdir -p "$dir" && chmod 700 "$dir"
 
+if [ -t 0 ]; then
+  printf 'Mac login password: ' >&2
+fi
 read -rs LOGIN_PW
-security unlock-keychain -p "$LOGIN_PW" "$login"
+[ -t 0 ] && echo >&2
+security unlock-keychain -p "$LOGIN_PW" "$login" || exit 2
 
 password="$(openssl rand -hex 24)"
 export_pw="$(openssl rand -hex 16)"
 p12="$dir/identity.p12"
 trap 'rm -f "$p12"' EXIT
 # The key's access list already lets Apple's tools use it (set once by the first deploy), so this needs no click.
-security export -k "$login" -t identities -f pkcs12 -P "$export_pw" -o "$p12"
+if ! security export -k "$login" -t identities -f pkcs12 -P "$export_pw" -o "$p12"; then
+  echo "The signing key can only be exported from the Mac's own screen: in Terminal there, run" >&2
+  echo "  bash ~/.mana-deploy/setup-mac-signing.sh" >&2
+  exit 3
+fi
 
 security delete-keychain "$keychain" 2>/dev/null || true
 security create-keychain -p "$password" "$keychain"
