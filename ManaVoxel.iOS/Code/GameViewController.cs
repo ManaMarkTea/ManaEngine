@@ -69,7 +69,7 @@ public sealed class GameViewController : UIViewController
         try
         {
             ManaWebGpuNativeHost.Current = new IosWebGpuHost(_window, _input, (CAMetalLayer)View!.Layer);
-            _game = new VoxelPlayGameMode(LevelPath, ManaGraphicsBackendKind.WebGpu);
+            _game = new VoxelPlayGameMode(LevelPath, ManaGraphicsBackendKind.WebGpu) { CommandFilePath = CommandScript() };
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");
         }
@@ -78,6 +78,24 @@ public sealed class GameViewController : UIViewController
             Console.WriteLine($"[ManaVoxel.iOS] The game failed to start: {ex}");
             ShowFailure(ex);
         }
+    }
+
+    /// <summary>
+    /// Documents/commands.json, when one has been put there (devicectl copy to), drives the game as --command-file
+    /// does on desktop: @@DOCUMENTS@@ in it becomes the Documents folder, so screenshots land where they can be fetched.
+    /// </summary>
+    private static string? CommandScript()
+    {
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var script = Path.Combine(documents, "commands.json");
+        if (!File.Exists(script))
+        {
+            return null;
+        }
+        var expanded = Path.Combine(documents, "commands.run.json");
+        File.WriteAllText(expanded, File.ReadAllText(script).Replace("@@DOCUMENTS@@", documents));
+        AppDelegate.Trace($"Running the command script {script}");
+        return expanded;
     }
 
     private void ShowFailure(Exception ex)
