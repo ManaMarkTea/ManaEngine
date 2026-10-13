@@ -63,6 +63,7 @@ public sealed class GameViewController : UIViewController
         {
             return;
         }
+        AppDelegate.Trace($"View appeared, {View!.Bounds.Width} x {View.Bounds.Height} points; starting the game");
         // Started once the view has its real size: the surface is configured from it.
         _window.RefreshSize();
         try
@@ -70,6 +71,7 @@ public sealed class GameViewController : UIViewController
             ManaWebGpuNativeHost.Current = new IosWebGpuHost(_window, _input, (CAMetalLayer)View!.Layer);
             _game = new VoxelPlayGameMode(LevelPath, ManaGraphicsBackendKind.WebGpu);
             _game.RunWebGpu(null);
+            AppDelegate.Trace("Game running");
         }
         catch (Exception ex)
         {

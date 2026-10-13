@@ -19,6 +19,7 @@ public sealed class IosWindow : IWindow
     private Vector2D<int> _size = new(1, 1);
     private Vector2D<int> _framebufferSize = new(1, 1);
     private bool _loaded;
+    private long _frames;
 
     public IosWindow(UIView view, IosInput input)
     {
@@ -58,6 +59,10 @@ public sealed class IosWindow : IWindow
         }
         var now = _link.Timestamp;
         // The first frame, and one after the app comes back from the background, count as a normal frame, not the gap.
+        if (_frames++ == 0)
+        {
+            AppDelegate.Trace("First frame");
+        }
         var delta = _lastTimestamp == 0 || now - _lastTimestamp > 0.25 ? 1.0 / 60.0 : now - _lastTimestamp;
         _lastTimestamp = now;
         Update?.Invoke(delta);
@@ -119,6 +124,8 @@ public sealed class IosWindow : IWindow
         {
             return;
         }
+        AppDelegate.Trace($"The game closed its window:
+{Environment.StackTrace}");
         IsClosing = true;
         _link?.Invalidate();
         _link = null;
