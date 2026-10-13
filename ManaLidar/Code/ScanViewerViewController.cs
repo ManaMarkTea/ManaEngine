@@ -28,6 +28,27 @@ public sealed class ScanViewerViewController : UIViewController
     private UIButton _units = null!;
     private UIButton _done = null!;
     private CADisplayLink? _link;
+    private ScanCamera? _camera;
+    private readonly List<SCNMaterial> _materials = new();
+    private UISlider _cut = null!;
+    private UILabel _cutLabel = null!;
+    private UIButton _walk = null!;
+    private float _floorY;
+    private float _topY = 3f;
+
+    // Mid-grey rather than near-black: a hole in the scan then reads as a hole, not as a black thing in the way.
+    private static readonly UIColor Backdrop = UIColor.FromWhiteAlpha(0.42f, 1);
+
+    // Everything above the cut height is not drawn: the ceiling, then the tops of things, to look down into a room.
+    private const string CutShader = """
+        #pragma arguments
+        float cutHeight;
+        #pragma body
+        float4 world = scn_frame.inverseViewTransform * float4(_surface.position, 1.0);
+        if (world.y > cutHeight) {
+            discard_fragment();
+        }
+        """;
 
     public ScanViewerViewController(string path)
     {
@@ -38,7 +59,7 @@ public sealed class ScanViewerViewController : UIViewController
     public override void ViewDidLoad()
     {
         base.ViewDidLoad();
-        View!.BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 1);
+        View!.BackgroundColor = Backdrop;
         NavigationItem.RightBarButtonItem = new UIBarButtonItem(UIBarButtonSystemItem.Action,
             (_, _) => ScanFiles.Share(this, _path, _done));
 
@@ -46,8 +67,7 @@ public sealed class ScanViewerViewController : UIViewController
         {
             TranslatesAutoresizingMaskIntoConstraints = false,
             Scene = new SCNScene(),
-            AllowsCameraControl = true,
-            BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 1),
+            BackgroundColor = Backdrop,
             AntialiasingMode = SCNAntialiasingMode.Multisampling4X,
         };
         View.AddSubview(_view);
@@ -107,6 +127,30 @@ public sealed class ScanViewerViewController : UIViewController
                 new SCNVector3(end.X, end.Y, end.Z), new SCNHitTestOptions { SearchMode = SCNHitTestSearchMode.Closest, BackFaceCulling = false });
             return hits?.FirstOrDefault() is { } hit ? ToVector(hit.WorldCoordinates) : null;
         };
+        _walk = Button("Walk", () =>
+        {
+            _camera?.SetWalking(!_camera.Walking);
+            UpdateControls();
+        });
+        var top = Button("Top", () => _camera?.TopDown());
+        var moves = new UIStackView(new UIView[] { _walk, top })
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false,
+            Axis = UILayoutConstraintAxis.Vertical,
+            Spacing = 8,
+        };
+        View.AddSubview(moves);
+
+        _cut = new UISlider { TranslatesAutoresizingMaskIntoConstraints = false, MinValue = 0, MaxValue = 1, Value = 1 };
+        _cut.ValueChanged += (_, _) => ApplyCut();
+        _cutLabel = new UILabel { TranslatesAutoresizingMaskIntoConstraints = false, TextColor = UIColor.White, Text = "Cut: off" };
+        if (UIFont.MonospacedDigitSystemFontOfSize(13, UIFontWeight.Medium) is { } cutFont)
+        {
+            _cutLabel.Font = cutFont;
+        }
+        View.AddSubview(_cut);
+        View.AddSubview(_cutLabel);
+
         var buttons = new UIStackView(new UIView[] { _floor, _units, undo, clear, _done })
         {
             TranslatesAutoresizingMaskIntoConstraints = false,
@@ -140,6 +184,19 @@ public sealed class ScanViewerViewController : UIViewController
             _modes.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 12),
             _modes.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -12),
             _modes.BottomAnchor.ConstraintEqualTo(buttons.TopAnchor, -8),
+
+            _cutLabel.LeadingAnchor.ConstraintEqualTo(safe.LeadingAnchor, 14),
+            _cutLabel.CenterYAnchor.ConstraintEqualTo(_cut.CenterYAnchor),
+            _cutLabel.WidthAnchor.ConstraintEqualTo(96),
+            _cut.LeadingAnchor.ConstraintEqualTo(_cutLabel.TrailingAnchor, 6),
+            _cut.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -14),
+            _cut.BottomAnchor.ConstraintEqualTo(_modes.TopAnchor, -8),
+
+            moves.TrailingAnchor.ConstraintEqualTo(safe.TrailingAnchor, -12),
+            moves.TopAnchor.ConstraintEqualTo(_hint.BottomAnchor, 10),
+            moves.WidthAnchor.ConstraintEqualTo(64),
+            _walk.HeightAnchor.ConstraintEqualTo(36),
+            top.HeightAnchor.ConstraintEqualTo(36),
         });
 
         UpdateControls();
@@ -184,6 +241,10 @@ public sealed class ScanViewerViewController : UIViewController
         foreach (var room in rooms)
         {
             var node = BuildNode(room);
+            if (node.Geometry?.FirstMaterial is { } material)
+            {
+                _materials.Add(material);
+            }
             _rooms[node.Handle] = room;
             _view.Scene!.RootNode.AddChildNode(node);
             foreach (var p in room.Positions)
@@ -198,29 +259,22 @@ public sealed class ScanViewerViewController : UIViewController
             return;
         }
 
-        // Up and back from the middle, looking down into the room: walls facing away are culled, so it reads as a
-        // dollhouse from outside.
-        var centre = (min + max) * 0.5f;
-        var size = MathF.Max((max - min).Length(), 1f);
-        var camera = new SCNNode
-        {
-            Camera = new SCNCamera { ZNear = 0.02, ZFar = size * 20, FieldOfView = 60 },
-            Position = new SCNVector3(centre.X, centre.Y + size * 0.7f, centre.Z + size * 0.8f),
-        };
+        _floorY = min.Y;
+        _topY = max.Y;
+        var camera = new SCNNode { Camera = new SCNCamera { ZNear = 0.02, ZFar = MathF.Max((max - min).Length(), 1f) * 20, FieldOfView = 60 } };
         _view.Scene!.RootNode.AddChildNode(camera);
-        camera.Look(new SCNVector3(centre.X, centre.Y, centre.Z));
         _view.PointOfView = camera;
-        _view.DefaultCameraController.InteractionMode = SCNInteractionMode.OrbitTurntable;
-        _view.DefaultCameraController.Target = new SCNVector3(centre.X, centre.Y, centre.Z);
-        _hint.Text = "Tap to place points. Drag to look round, pinch to zoom.";
+        _camera = new ScanCamera(_view, camera, PickVisible);
+        _camera.Frame(min, max);
+        ApplyCut();
+        _hint.Text = "Tap to measure. Drag to turn, two fingers to move, pinch to zoom, hold to go to a spot.";
     }
 
     private void OnTap(CGPoint at)
     {
         var pointer = new Vector2((float)at.X, (float)at.Y);
         MeasureSnap? snap = null;
-        var hits = _view.HitTest(at, new SCNHitTestOptions { SearchMode = SCNHitTestSearchMode.Closest });
-        if (hits.FirstOrDefault() is { } hit && _rooms.TryGetValue(hit.Node.Handle, out var room))
+        if (VisibleHit(at) is { } hit && _rooms.TryGetValue(hit.Node.Handle, out var room))
         {
             var first = (int)hit.FaceIndex * 3;
             if (first + 2 < room.Indices.Length)
@@ -255,6 +309,30 @@ public sealed class ScanViewerViewController : UIViewController
         _canvas.SetNeedsDisplay();
     }
 
+    // The nearest hit the cut has not hidden: taps go through a cut-away ceiling to what can be seen.
+    private SCNHitTestResult? VisibleHit(CGPoint at)
+    {
+        var hits = _view.HitTest(at, new SCNHitTestOptions { SearchMode = SCNHitTestSearchMode.All, SortResults = true });
+        var cut = CutHeight();
+        return hits.FirstOrDefault(h => h.WorldCoordinates.Y <= cut);
+    }
+
+    private Vector3? PickVisible(CGPoint at) => VisibleHit(at) is { } hit ? ToVector(hit.WorldCoordinates) : null;
+
+    private float CutHeight() => _cut.Value >= 0.999f ? float.MaxValue : _floorY + (_topY - _floorY) * _cut.Value;
+
+    private void ApplyCut()
+    {
+        var height = CutHeight();
+        // Off is a height far above anything, so the shader runs the same either way.
+        var value = NSNumber.FromFloat(height == float.MaxValue ? 1e6f : height);
+        foreach (var material in _materials)
+        {
+            material.SetValueForKey(value, new NSString("cutHeight"));
+        }
+        _cutLabel.Text = height == float.MaxValue ? "Cut: off" : $"Cut: {_tool.Format(height - _floorY)}";
+    }
+
     private Vector2? ToScreen(Vector3 world)
     {
         var p = _view.ProjectPoint(new SCNVector3(world.X, world.Y, world.Z));
@@ -266,6 +344,7 @@ public sealed class ScanViewerViewController : UIViewController
         _modes.SelectedSegment = (int)_tool.Mode;
         _floor.BackgroundColor = _tool.StayOnFirstSurface ? UIColor.SystemBlue : UIColor.FromWhiteAlpha(0.25f, 0.9f);
         _units.SetTitle(_tool.Units == MeasureUnits.Metric ? "m" : "ft", UIControlState.Normal);
+        _walk.SetTitle(_camera?.Walking == true ? "Orbit" : "Walk", UIControlState.Normal);
         var ray = _tool.Mode == MeasureMode.Ray;
         _done.SetTitle(ray ? _tool.RayDirection switch { MeasureRayDirection.Up => "Up", MeasureRayDirection.Down => "Down", _ => "Out" } : "Done",
             UIControlState.Normal);
@@ -318,7 +397,15 @@ public sealed class ScanViewerViewController : UIViewController
         var geometry = SCNGeometry.Create(sources.ToArray(), new[] { element });
 
         // Unlit, as in Mana: the photos already hold the room's light.
-        var material = new SCNMaterial { LightingModelName = room.Unlit ? SCNLightingModel.Constant : SCNLightingModel.PhysicallyBased };
+        var material = new SCNMaterial
+        {
+            LightingModelName = room.Unlit ? SCNLightingModel.Constant : SCNLightingModel.PhysicallyBased,
+            // Said outright rather than left to the default: a surface seen from behind is not drawn, so walls
+            // between you and the room vanish from outside it.
+            CullMode = SCNCullMode.Back,
+            DoubleSided = false,
+            ShaderModifiers = new SCNShaderModifiers { EntryPointFragment = CutShader },
+        };
         material.Diffuse.Contents = room.Image != null
             ? UIImage.LoadFromData(NSData.FromArray(room.Image)) ?? (NSObject)UIColor.White
             : UIColor.White;
