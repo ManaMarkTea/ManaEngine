@@ -62,20 +62,11 @@ public sealed class LiveScanSession : IDisposable
     /// <summary>Where the phone is now (camera to world, in the scene's frame), while it is streaming.</summary>
     public Matrix4x4? PhonePose { get; private set; }
 
-    public int PieceCount
-    {
-        get { lock (_lock) { return _pieces.Count; } }
-    }
-
-    public int TriangleCount
-    {
-        get { lock (_lock) { return _pieces.Values.Sum(p => p.TriangleCount); } }
-    }
-
-    public int PhotoCount
-    {
-        get { lock (_lock) { return _keyframes.Count; } }
-    }
+    // Tallied in Update rather than counted under the lock by every binding that asks, every frame.
+    public int PieceCount { get; private set; }
+    public int TriangleCount { get; private set; }
+    public int PhotoCount { get; private set; }
+    private long _lastCount;
 
     /// <summary>Where the scan sits: the phone's own frame lifted so its floor is at y = 0.</summary>
     public Vector3 Offset { get; private set; }
@@ -146,8 +137,19 @@ public sealed class LiveScanSession : IDisposable
             Show(built.Id, built.Data, built.Min, built.Max);
         }
 
-        // The floor settles as more of it is scanned: check now and then, and lift the scan to stand on y = 0.
         var now = Environment.TickCount64;
+        if (now - _lastCount > 250)
+        {
+            _lastCount = now;
+            lock (_lock)
+            {
+                PieceCount = _pieces.Count;
+                TriangleCount = _pieces.Values.Sum(p => p.TriangleCount);
+                PhotoCount = _keyframes.Count;
+            }
+        }
+
+        // The floor settles as more of it is scanned: check now and then, and lift the scan to stand on y = 0.
         if (now - _lastFloorCheck > 2000)
         {
             _lastFloorCheck = now;
@@ -187,6 +189,9 @@ public sealed class LiveScanSession : IDisposable
         }
         _nodes.Clear();
         PhonePose = null;
+        PieceCount = 0;
+        TriangleCount = 0;
+        PhotoCount = 0;
     }
 
     /// <summary>

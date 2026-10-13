@@ -59,6 +59,12 @@ namespace ManaGraphics.Code.Graphics
         public TextureView* View => _view;
 
         /// <summary>
+        /// Bumped each time the texture is made anew (the window's size changed). A replacement view can come
+        /// back at the very address of the one just freed, so a pointer comparison cannot tell them apart.
+        /// </summary>
+        public int Generation { get; private set; }
+
+        /// <summary>
         /// Copies the frame out and reduces it. The copy is the reason the surface is configured with
         /// CopySrc; without that the frame would have to be rendered twice.
         /// </summary>
@@ -173,6 +179,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             _view = _api.TextureCreateView(_texture, &viewDescriptor);
+            Generation++;
 
             EnsurePipeline();
 

@@ -56,7 +56,25 @@ public sealed class LiveScanServer : IDisposable
     private long _bytes;
 
     /// <summary>Where a phone can reach this editor, for typing in when Bonjour cannot find it.</summary>
-    public IReadOnlyList<string> Addresses => NetworkInterface.GetAllNetworkInterfaces()
+    // Asked every frame by the panel; listing the adapters costs milliseconds, so it is re-read only now and then.
+    public IReadOnlyList<string> Addresses
+    {
+        get
+        {
+            var now = Environment.TickCount64;
+            if (_addresses == null || now - _addressesRead > 5000)
+            {
+                _addresses = ReadAddresses();
+                _addressesRead = now;
+            }
+            return _addresses;
+        }
+    }
+
+    private IReadOnlyList<string>? _addresses;
+    private long _addressesRead;
+
+    private IReadOnlyList<string> ReadAddresses() => NetworkInterface.GetAllNetworkInterfaces()
         .Where(a => a.OperationalStatus == OperationalStatus.Up && a.NetworkInterfaceType != NetworkInterfaceType.Loopback)
         .SelectMany(a => a.GetIPProperties().UnicastAddresses)
         .Select(u => u.Address)

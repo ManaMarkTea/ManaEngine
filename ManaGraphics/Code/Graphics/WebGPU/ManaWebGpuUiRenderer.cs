@@ -755,16 +755,22 @@ namespace ManaGraphics.Code.Graphics
         /// The blurred snapshot of the frame under the UI, or null before one has been captured. Owned by
         /// the context, which is what has the frame to snapshot.
         /// </summary>
-        public void SetBackdrop(TextureView* view)
+        /// <param name="generation">The backdrop's <see cref="ManaWebGpuUiBackdrop.Generation"/>: a recreated
+        /// texture can reuse the freed one's address, and a bind group kept by pointer would go on naming the freed
+        /// view -- invalid on every frame after, which froze the editor's whole UI.</param>
+        public void SetBackdrop(TextureView* view, int generation)
         {
-            if (_backdropTextureView == view)
+            if (_backdropTextureView == view && _backdropGeneration == generation)
             {
                 return;
             }
 
             _backdropTextureView = view;
+            _backdropGeneration = generation;
             CreateBindGroup();
         }
+
+        private int _backdropGeneration = -1;
 
         private void CreateBindGroup()
         {

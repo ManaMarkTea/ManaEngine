@@ -413,10 +413,12 @@ namespace ManaGraphics.Code.Graphics
         private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
         {
             _uiBackdrop ??= new ManaWebGpuUiBackdrop(_api, _device, _surfaceFormat);
-            _uiBackdrop.Capture(commandEncoder, frame, _window.FramebufferSize);
+            // The size the surface was configured at, which is the frame's: mid-resize the window already reports
+            // its new size a frame before the surface catches up, and copying that much overruns the frame.
+            _uiBackdrop.Capture(commandEncoder, frame, _framebufferSize);
 
             ManaUI.UiBackdropStats.Captured++;
-            _uiRenderer?.SetBackdrop(_uiBackdrop.View);
+            _uiRenderer?.SetBackdrop(_uiBackdrop.View, _uiBackdrop.Generation);
         }
 
         private void DrawManaUi(RenderPassEncoder* renderPass)
@@ -455,11 +457,12 @@ namespace ManaGraphics.Code.Graphics
             // one frame with nothing behind it.
             if (_uiBackdrop != null)
             {
-                _uiRenderer.SetBackdrop(_uiBackdrop.View);
+                _uiRenderer.SetBackdrop(_uiBackdrop.View, _uiBackdrop.Generation);
                 ManaUI.UiBackdropStats.Bound = _uiBackdrop.View != null;
             }
 
-            var framebufferSize = _window.FramebufferSize;
+            // The frame's size, not the window's: see CaptureUiBackdrop.
+            var framebufferSize = _framebufferSize;
             _uiRenderer.Render(
                 renderPass,
                 root.DrawList,
@@ -866,7 +869,7 @@ namespace ManaGraphics.Code.Graphics
 
             _api.RenderPassEncoderEnd(toneMapRenderPass);
 
-            var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _window.FramebufferSize);
+            var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _framebufferSize);
             var pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
 
             var commandBufferDescriptor = new CommandBufferDescriptor();
