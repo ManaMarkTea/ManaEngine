@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Windows 11 and macOS editor themes (2026-10-14): added to Appearance > Theme, with distinct neutral palettes, corner/scrollbar metrics, blue accents and drawn group chevrons (ManaUI UiTheme/Expander). In-app WebGPU captures verified; all 1789 ManaUI checks passed. Repeatable check: Tools/Automation/Checks/modern-themes.json.
+
 [x] - Theme-specific group indicators (2026-10-14): Windows 3.1 uses a framed system-menu dash; LCARS uses an amber bar, horizontal expanded and vertical collapsed (ManaUI Expander). In-app captures verified; all 1789 ManaUI checks passed.
 
 [x] - Windows 3.1 editor theme (2026-10-14): Appearance > Theme > Windows 3.1; built-in ManaUI palette and atlas skin with square grey bevels, recessed inputs, navy titles/tabs and grey scrollbar thumbs. Automated WebGPU screenshot verified; all 1789 ManaUI checks passed.

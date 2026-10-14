@@ -1,0 +1,10 @@
+[
+  { "type": "select_node", "name": "Default Scene" },
+  { "type": "set_theme", "name": "Windows 11" },
+  { "type": "wait", "frames": 60 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "set_theme", "name": "macOS" },
+  { "type": "wait", "frames": 60 },
+  { "type": "screenshot", "path": "@@OUT@@.macos.png" },
+  { "type": "quit" }
+]

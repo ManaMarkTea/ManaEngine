@@ -174,7 +174,7 @@ namespace ManaUI
 
             public void UpdateDisclosure()
             {
-                var text = Theme.Kind is UiThemeKind.Windows31 or UiThemeKind.Lcars ? "" : _owner.IsExpanded ? "🔽" : "▶️";
+                var text = Theme.Kind is UiThemeKind.Windows31 or UiThemeKind.Lcars or UiThemeKind.Windows11 or UiThemeKind.MacOS ? "" : _owner.IsExpanded ? "🔽" : "▶️";
                 if (_disclosure.Text != text)
                 {
                     _disclosure.Text = text;
@@ -235,6 +235,14 @@ namespace ManaUI
                     var height = _owner.IsExpanded ? 4 : 14;
                     drawList.FillRect(new UiRect(centre.X - width * 0.5f, centre.Y - height * 0.5f,
                         width, height), theme.Accent, new CornerRadius(2));
+                }
+                else if (theme.Kind is UiThemeKind.Windows11 or UiThemeKind.MacOS)
+                {
+                    var a = _owner.IsExpanded ? new Vector2(-4, -2) : new Vector2(-2, -4);
+                    var b = _owner.IsExpanded ? new Vector2(0, 2) : new Vector2(2, 0);
+                    var c = _owner.IsExpanded ? new Vector2(4, -2) : new Vector2(-2, 4);
+                    drawList.DrawLine(centre + a, centre + b, theme.TextMuted, 1.5f);
+                    drawList.DrawLine(centre + b, centre + c, theme.TextMuted, 1.5f);
                 }
                 RenderFocusRing(drawList, Bounds, theme.CornerRadius);
             }

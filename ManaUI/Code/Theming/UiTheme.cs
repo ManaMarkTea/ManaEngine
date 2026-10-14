@@ -9,7 +9,9 @@ namespace ManaUI
 
         /// <summary>Navy and sky blue, dressed in Kenney's Space UI pack's pictures where the pack is available.</summary>
         Kenney,
-        Windows31
+        Windows31,
+        Windows11,
+        MacOS
     }
 
     /// <summary>
@@ -285,8 +287,76 @@ namespace ManaUI
                 UiThemeKind.Lcars => Lcars(),
                 UiThemeKind.Kenney => Kenney(),
                 UiThemeKind.Windows31 => Windows31(),
+                UiThemeKind.Windows11 => Windows11(),
+                UiThemeKind.MacOS => MacOS(),
                 _ => Dark()
             };
+        }
+
+        public static UiTheme Windows11()
+        {
+            var theme = Light();
+            theme.Kind = UiThemeKind.Windows11;
+            theme.Background = UiColor.FromHex("#F3F3F3");
+            theme.Surface = UiColor.FromHex("#F3F3F3");
+            theme.SurfaceAlt = UiColor.FromHex("#FFFFFF");
+            theme.SurfaceRaised = UiColor.FromHex("#FFFFFF");
+            theme.RowAlternate = UiColor.FromHex("#EBEBEB");
+            theme.Text = UiColor.FromHex("#1A1A1A");
+            theme.TextMuted = UiColor.FromHex("#606060");
+            theme.TextDisabled = UiColor.FromHex("#929292");
+            theme.Accent = UiColor.FromHex("#0067C0");
+            theme.AccentHover = UiColor.FromHex("#1975C5");
+            theme.AccentPressed = UiColor.FromHex("#005A9E");
+            theme.Selected = UiColor.FromHex("#DCEBFA");
+            theme.FocusRing = theme.Accent;
+            theme.Border = UiColor.FromHex("#D8D8D8");
+            theme.BorderStrong = UiColor.FromHex("#A0A0A0");
+            theme.Divider = UiColor.FromHex("#E0E0E0");
+            theme.SurfaceGradient = 0;
+            theme.AccentGradient = 0;
+            theme.CornerRadius = new CornerRadius(4);
+            theme.CornerRadiusCompact = new CornerRadius(4);
+            theme.CornerRadiusLarge = new CornerRadius(8);
+            theme.ScrollBarThickness = 8;
+            theme.GridFloor = UiColor.FromHex("#BCC4CE");
+            theme.GridLine = UiColor.FromHex("#8493A4");
+            return theme;
+        }
+
+        public static UiTheme MacOS()
+        {
+            var theme = Light();
+            theme.Kind = UiThemeKind.MacOS;
+            theme.Background = UiColor.FromHex("#ECEAEC");
+            theme.Surface = UiColor.FromHex("#F2F0F2");
+            theme.SurfaceAlt = UiColor.FromHex("#FFFFFF");
+            theme.SurfaceRaised = UiColor.FromHex("#FAFAFA");
+            theme.RowAlternate = UiColor.FromHex("#E9E7EB");
+            theme.Text = UiColor.FromHex("#242424");
+            theme.TextMuted = UiColor.FromHex("#68666B");
+            theme.TextDisabled = UiColor.FromHex("#9D9A9F");
+            theme.Accent = UiColor.FromHex("#007AFF");
+            theme.AccentHover = UiColor.FromHex("#258EFF");
+            theme.AccentPressed = UiColor.FromHex("#0062CC");
+            theme.Selected = UiColor.FromHex("#D6E7FC");
+            theme.FocusRing = UiColor.FromHex("#80B9F7");
+            theme.Border = UiColor.FromHex("#D1CED3");
+            theme.BorderStrong = UiColor.FromHex("#A6A2AA");
+            theme.Divider = UiColor.FromHex("#DEDADF");
+            theme.SurfaceGradient = 0.03f;
+            theme.AccentGradient = 0.06f;
+            theme.CornerRadius = new CornerRadius(6);
+            theme.CornerRadiusCompact = new CornerRadius(5);
+            theme.CornerRadiusLarge = new CornerRadius(12);
+            theme.FocusRingThickness = 3;
+            theme.ScrollBarThickness = 7;
+            theme.FontSize = 14;
+            theme.FontSizeSmall = 12;
+            theme.FontSizeHeading = 18;
+            theme.GridFloor = UiColor.FromHex("#C8C5CB");
+            theme.GridLine = UiColor.FromHex("#96919C");
+            return theme;
         }
 
         public static UiTheme Windows31()
