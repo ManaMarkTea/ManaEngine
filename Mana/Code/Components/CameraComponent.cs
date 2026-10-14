@@ -479,6 +479,68 @@ namespace Mana
             UpdateViewMatrix();
         }
 
+        /// <summary>
+        /// Turns the camera around what it is looking at (the selection, else where the view meets the ground),
+        /// keeping that point where it is on screen -- the navigation gizmo's drag.
+        /// </summary>
+        public void Orbit(float yaw, float pitch)
+        {
+            var pivot = OrbitPivot();
+            var before = Matrix4x4.CreateFromYawPitchRoll(Owner.Rotation.Y, Owner.Rotation.X, Owner.Rotation.Z);
+            var rotation = Owner.Rotation;
+            rotation.Y += yaw;
+            rotation.X = Math.Clamp(rotation.X + pitch, -MathF.PI * 0.5f, MathF.PI * 0.5f);
+            var after = Matrix4x4.CreateFromYawPitchRoll(rotation.Y, rotation.X, rotation.Z);
+            Matrix4x4.Invert(before, out var undo);
+
+            var offset = Vector3.TransformNormal(Vector3.TransformNormal(Owner.Position - pivot, undo), after);
+            Owner.Rotation = rotation;
+            Owner.Position = pivot + offset;
+            _isFramingTransitionActive = false;
+            UpdateViewMatrix();
+        }
+
+        /// <summary>Slides the view by a drag in window pixels, grabbing the scene as the middle button does.</summary>
+        public void Pan(Vector2 windowPixels)
+        {
+            Owner.Position += GetPanTranslation(windowPixels);
+            _isFramingTransitionActive = false;
+            UpdateViewMatrix();
+        }
+
+        /// <summary>Zooms by a drag in pixels (positive is in): toward the pivot in perspective, the view height in ortho.</summary>
+        public void Dolly(float pixels)
+        {
+            if (OrthoGraphic)
+            {
+                OrthographicHeight = (MathF.Max(1.0f, OrthographicHeight) * MathF.Exp(-pixels * 0.01f)).Clamp(1.0f, 1000.0f);
+                UpdateProjection();
+                return;
+            }
+
+            var distance = Vector3.Distance(Owner.Position, OrbitPivot());
+            Owner.Position += Owner.Forward.Normalized() * distance * (1.0f - MathF.Exp(-pixels * 0.01f));
+            _isFramingTransitionActive = false;
+            UpdateViewMatrix();
+        }
+
+        private Vector3 OrbitPivot()
+        {
+            var selection = Owner.Context?.World?.Selection;
+            if (selection != null && TryComputeSelectionWorldBounds(
+                    selection.SelectedComponent as MeshRendererComponent, selection.SelectedNode, out var min, out var max))
+            {
+                return (min + max) * 0.5f;
+            }
+
+            // The fly camera keeps no target, so the ground under the view centre stands in for one.
+            var forward = Owner.Forward.Normalized();
+            var along = forward.Y < -0.05f
+                ? -Owner.Position.Y / forward.Y
+                : Vector3.Dot(-Owner.Position, forward);
+            return Owner.Position + forward * Math.Clamp(along, 2.0f, 2000.0f);
+        }
+
         public void UpdateViewMatrix()
         {
             Vector3 forward = Owner.Forward.Normalized();

@@ -7,7 +7,7 @@ using ManaVoxel.Code.UI.ManaUi;
 namespace ManaTests;
 
 /// <summary>
-/// The overlays drawn over the scene: the camera gizmo, the axis tripod and the placement readout.
+/// The overlays drawn over the scene: the navigation gizmo and the placement readout.
 /// <para>
 /// A CameraComponent subscribes to the window's resize event as it is built, so one cannot exist in a
 /// headless suite. The parts worth checking do not need one: projecting a world point to screen and turning
@@ -71,9 +71,9 @@ public static class ViewportOverlayChecks
         Check("depth grows with distance", farDepth > nearDepth, $"{nearDepth:0.000} -> {farDepth:0.000}");
 
         // ---------------------------------------------------------------- the tripod
-        var x = AxisTripod.Project("X", Vector3.UnitX, view, UiColor.White);
-        var y = AxisTripod.Project("Y", Vector3.UnitY, view, UiColor.White);
-        var z = AxisTripod.Project("Z", Vector3.UnitZ, view, UiColor.White);
+        var x = NavigationGizmo.Project("X", Vector3.UnitX, view, UiColor.White);
+        var y = NavigationGizmo.Project("Y", Vector3.UnitY, view, UiColor.White);
+        var z = NavigationGizmo.Project("Z", Vector3.UnitZ, view, UiColor.White);
 
         Check("world X points right on screen", x.Offset.X > 1.0f, x.Offset.ToString());
         Check("world Y points up on screen", y.Offset.Y < -1.0f, y.Offset.ToString());
@@ -89,7 +89,7 @@ public static class ViewportOverlayChecks
         Check("an axis aimed at the viewer is a stub", z.Offset.Length() < 2.0f, $"{z.Offset.Length():0.00}px");
         // Compared against an axis genuinely pointing away, not against X -- X lies exactly in the screen
         // plane here, which is the boundary between the two and belongs to neither.
-        var away = AxisTripod.Project("-Z", -Vector3.UnitZ, view, UiColor.White);
+        var away = NavigationGizmo.Project("-Z", -Vector3.UnitZ, view, UiColor.White);
         Check("and its tip says so", z.PointsAtCamera && !away.PointsAtCamera, "filled toward, hollow away");
 
         // ---------------------------------------------------------------- looking down an axis
@@ -100,9 +100,9 @@ public static class ViewportOverlayChecks
         static Matrix4x4 LookingDownX(float tilt) => Matrix4x4.CreateLookAt(
             new Vector3(-10.0f, MathF.Sin(tilt) * 10.0f, 0.0f), Vector3.Zero, Vector3.UnitY);
 
-        var tiltedDown = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(-0.02f), UiColor.White);
-        var level = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(0.0f), UiColor.White);
-        var tiltedUp = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(0.02f), UiColor.White);
+        var tiltedDown = NavigationGizmo.Project("X", Vector3.UnitX, LookingDownX(-0.02f), UiColor.White);
+        var level = NavigationGizmo.Project("X", Vector3.UnitX, LookingDownX(0.0f), UiColor.White);
+        var tiltedUp = NavigationGizmo.Project("X", Vector3.UnitX, LookingDownX(0.02f), UiColor.White);
 
         Check("looking down an axis leaves it a stub",
             level.Offset.Length() < 2.0f, $"{level.Offset.Length():0.00}px");
@@ -124,8 +124,8 @@ public static class ViewportOverlayChecks
 
         // Foreshortening has to be proportional, or the tripod is not showing an angle at all: an axis
         // halfway between the screen plane and the view direction is about seven tenths of a full spoke.
-        var oblique = AxisTripod.Project("X", Vector3.UnitX, LookingDownX(0.0f), UiColor.White);
-        var across = AxisTripod.Project("Z", Vector3.UnitZ, LookingDownX(0.0f), UiColor.White);
+        var oblique = NavigationGizmo.Project("X", Vector3.UnitX, LookingDownX(0.0f), UiColor.White);
+        var across = NavigationGizmo.Project("Z", Vector3.UnitZ, LookingDownX(0.0f), UiColor.White);
 
         Check("an axis across the view is full length",
             across.Offset.Length() > 30.0f, $"{across.Offset.Length():0.0}px vs stub {oblique.Offset.Length():0.0}px");
@@ -223,43 +223,11 @@ public static class ViewportOverlayChecks
             $"starts at {layer.Viewport.X:0}, column ends at {left.Bounds.Right:0}");
 
         // ---------------------------------------------------------------- fitting
-        // ---------------------------------------------------------------- the gizmo's icons
-        // The cluster itself cannot be built here -- it needs a CameraComponent, which needs a window -- but
-        // its artwork is static functions over a draw list, and the artwork is what was wrong with it: the
-        // four direction arrows were UiIcons.Triangle, which steps a solid triangle out of rounded rows
-        // whenever the font has no geometric-shape glyph to borrow. Roboto has none, so the gizmo drew four
-        // visible staircases. Two strokes have no steps in them.
-        var chevronList = new ManaUiDrawList();
-        chevronList.Reset();
-        ViewportCameraGizmoManaView.DrawChevron(
-            chevronList, new UiRect(0.0f, 0.0f, 24.0f, 24.0f), UiIconDirection.Up, UiColor.White);
-
-        Check("a direction chevron is two strokes, not a staircase",
-            chevronList.InstanceCount == 2, $"{chevronList.InstanceCount} instances");
-
-        // It used to be 120 with TOP, BOTTOM and PERSP spelled out on it. A word sets a floor on how small
-        // a button can be; the icons are what let the whole thing come down.
-        Check("and the gizmo is smaller than the words it used to carry",
-            ViewportCameraGizmoManaView.GizmoSize <= 96.0f, $"{ViewportCameraGizmoManaView.GizmoSize:0}px");
-
+        // ---------------------------------------------------------------- the navigation gizmo
         Check("a gizmo needs room", !ViewportCameraGizmoManaView.FitsIn(new Vector2(120.0f, 800.0f)), "hidden");
         Check("and appears once there is", ViewportCameraGizmoManaView.FitsIn(new Vector2(700.0f, 800.0f)));
-
-        // The two used to differ by 26px, which made "a viewport too narrow for the gizmo still carries the
-        // tripod" a wide band worth naming. The gizmo is 96 now and the band is 2px, so what is worth
-        // asserting is the direction rather than the gap: the tripod never needs MORE room than the gizmo,
-        // so there is no viewport that shows the presets without the axis readout beside them.
-        Check("the tripod never needs more room than the gizmo",
-            ViewportCameraGizmoManaView.TripodSize <= ViewportCameraGizmoManaView.GizmoSize,
-            $"tripod {ViewportCameraGizmoManaView.TripodSize:0}, gizmo {ViewportCameraGizmoManaView.GizmoSize:0}");
-
-        Check("and a viewport with room for the gizmo has room for both",
-            ViewportCameraGizmoManaView.FitsIn(new Vector2(700.0f, 800.0f))
-                && ViewportCameraGizmoManaView.TripodFitsIn(new Vector2(700.0f, 800.0f)));
-
-        Check("while a genuinely cramped one carries neither",
-            !ViewportCameraGizmoManaView.FitsIn(new Vector2(120.0f, 200.0f))
-                && !ViewportCameraGizmoManaView.TripodFitsIn(new Vector2(120.0f, 200.0f)));
+        Check("a short viewport leaves it out rather than cut off",
+            !ViewportCameraGizmoManaView.FitsIn(new Vector2(700.0f, ViewportCameraGizmoManaView.GizmoHeight)));
 
         var rendered = root.Render();
         Check("the layer renders", rendered.Instances.Length > 0, $"{rendered.Instances.Length} instances");

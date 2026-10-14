@@ -11,14 +11,12 @@ namespace ManaVoxel.Code.UI.ManaUi
         Fill,
 
         TopRight,
-        RightTools,
         BottomLeft,
         BottomRight
     }
 
     /// <summary>
-    /// The things drawn over the scene rather than in a panel: the camera gizmo, the axis tripod, and the
-    /// placement readout.
+    /// The things drawn over the scene rather than in a panel: the navigation gizmo and the placement readout.
     /// <para>
     /// These are the last of the ImGui surface, and they are last because a docked panel was never the right
     /// shape for them. What they have in common is a dependence on the viewport rectangle -- which is not a
@@ -62,14 +60,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Add(
                     ViewportCameraGizmoManaView.Build(theme, initial),
                     ViewportSlot.TopRight,
-                    new Vector2(ViewportCameraGizmoManaView.GizmoSize),
+                    new Vector2(ViewportCameraGizmoManaView.GizmoSize, ViewportCameraGizmoManaView.GizmoHeight),
                     ViewportCameraGizmoManaView.FitsIn);
-
-                Add(
-                    ViewportCameraGizmoManaView.BuildTripod(theme, initial),
-                    ViewportSlot.BottomLeft,
-                    new Vector2(ViewportCameraGizmoManaView.TripodSize),
-                    ViewportCameraGizmoManaView.TripodFitsIn);
             }
 
             if (editor != null)
@@ -80,8 +72,6 @@ namespace ManaVoxel.Code.UI.ManaUi
 #if !MANA_BROWSER
                 Add(new LiveScanOverlay(camera), ViewportSlot.Fill);
 #endif
-                Add(new ViewportToolsDrawer(theme, editor), ViewportSlot.RightTools,
-                    new Vector2(300, 350), size => size.X >= 320 && size.Y >= 180);
             }
 
             // Needs neither a camera nor an editor context -- it reads ManaAssetDownloadActivity directly,
@@ -184,12 +174,6 @@ namespace ManaVoxel.Code.UI.ManaUi
                         viewport.Y + margin,
                         slot.Size.X,
                         slot.Size.Y),
-
-                    ViewportSlot.RightTools => new UiRect(
-                        viewport.Right - slot.Size.X - margin,
-                        viewport.Y + ViewportCameraGizmoManaView.GizmoSize + margin + 8,
-                        slot.Size.X,
-                        MathF.Max(0, MathF.Min(slot.Size.Y, viewport.Height - ViewportCameraGizmoManaView.GizmoSize - margin * 2 - 8))),
 
                     ViewportSlot.BottomLeft => new UiRect(
                         viewport.X + margin,

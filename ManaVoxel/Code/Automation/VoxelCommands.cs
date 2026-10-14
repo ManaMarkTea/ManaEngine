@@ -120,13 +120,7 @@ namespace ManaVoxel.Code.Automation
                 }
             });
 
-            runner.Register("open_tools", _ =>
-            {
-                if (ManaVoxel.Code.UI.ManaUi.ViewportToolsDrawer.Current is { } drawer)
-                {
-                    drawer.IsOpen = true;
-                }
-            });
+            runner.Register("open_tools", _ => ManaVoxel.Code.UI.ManaUi.ViewportToolbarManaView.OpenSnapOptions());
 
             runner.Register("open_panel", command => ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.RequestPanel(command.Name ?? ""));
 

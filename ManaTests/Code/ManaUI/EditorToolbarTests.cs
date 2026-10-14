@@ -268,8 +268,9 @@ public static class EditorToolbarChecks
         return false;
     }
 
+    // The main strip only: the viewport bar under it (y ~70) has icon buttons of its own.
     private static List<Button> IconButtons(UiRoot root) => FindAll<Button>(root.Content!)
-        .Where(button => button.Bounds.Y < 80.0f && MathF.Abs(button.Bounds.Width - ToolbarIcons.ButtonSize) < 0.5f)
+        .Where(button => button.Bounds.Y < 60.0f && MathF.Abs(button.Bounds.Width - ToolbarIcons.ButtonSize) < 0.5f)
         .ToList();
 
     private static List<T> FindAll<T>(UiElement element) where T : UiElement

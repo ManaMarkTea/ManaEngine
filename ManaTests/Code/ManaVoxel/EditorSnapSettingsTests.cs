@@ -192,26 +192,19 @@ public static class EditorSnapChecks
         tick.IsChecked = false;
         Check("the panel's own switch is the same one the menu drives", !panelVm.Snap.Enabled);
 
-        var drawer = new ViewportToolsDrawer(root.Theme, panelVm);
-        root.Content = drawer;
-        root.UpdateLayout(new Vector2(300, 350));
-        Check("a closed viewport drawer leaves the scene clickable", root.HitTest(30, 100) == null);
-        drawer.IsOpen = true;
-        root.UpdateLayout(new Vector2(300, 350));
-        Check("the open drawer captures clicks over its controls", root.HitTest(30, 100) != null);
-        var sizeSlider = FindAll<SliderBox>(drawer).Single();
+        var options = ViewportToolbarManaView.SnapOptions(root.Theme, panelVm);
+        root.Content = options;
+        root.UpdateLayout(new Vector2(360, 350));
+        var sizeSlider = FindAll<SliderBox>(options).Single();
         sizeSlider.Value = 2.0f;
-        root.UpdateLayout(new Vector2(300, 350));
+        root.UpdateLayout(new Vector2(360, 350));
         Check("the viewport slider updates gizmo size", Near(panelVm.Snap.GizmoSize, 2));
         panelVm.Snap.GizmoSize = float.NaN;
-        root.UpdateLayout(new Vector2(300, 350));
+        root.UpdateLayout(new Vector2(360, 350));
         Check("invalid size recovers and is reflected in the slider", Near(sizeSlider.Value, 1));
-        var drawerSwitch = FindAll<CheckBox>(drawer).Single();
-        drawerSwitch.IsChecked = true;
+        panelVm.Snap.Enabled = false;
+        FindAll<CheckBox>(options).Single().IsChecked = true;
         Check("viewport snapping uses the same setting as Preferences", panelVm.Snap.Enabled);
-        drawer.IsOpen = false;
-        root.UpdateLayout(new Vector2(300, 350));
-        Check("closing the drawer releases the scene again", root.HitTest(30, 100) == null);
     }
 
     private static List<T> FindAll<T>(UiElement? element) where T : UiElement

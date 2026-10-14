@@ -826,7 +826,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .Fill(theme.Surface).Outline(theme.Border, 1f);
             if (editor != null)
             {
-                viewportToolbar.Child = ViewportToolbarManaView.Build(editor, camera, world);
+                viewportToolbar.Child = ViewportToolbarManaView.BuildBar(theme, editor, camera, world);
             }
 
             var dockArea = new Grid()
